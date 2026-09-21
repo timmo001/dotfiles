@@ -223,7 +223,7 @@ const optInRepository = Effect.fn("agentOxlint.optIn")(
 
       if (
         !(yield* Prompt.run(
-          Prompt.confirm({
+          Prompt.Confirm({
             message: "Repository is not inducted. Induct it now?",
             initial: false,
           }),

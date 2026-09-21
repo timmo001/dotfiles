@@ -28,7 +28,7 @@ export const recoverRelease = Effect.fn("releases.recover")(function* (
 
   while (true) {
     const choice = yield* Prompt.run(
-      Prompt.select({
+      Prompt.Select({
         message: "What would you like to do?",
         choices: [
           {
@@ -63,7 +63,7 @@ export const recoverRelease = Effect.fn("releases.recover")(function* (
     }
 
     const selected = yield* Prompt.run(
-      Prompt.select({
+      Prompt.Select({
         message: "Open in agent",
         choices: [
           ...discovered.success.map((agent) => ({

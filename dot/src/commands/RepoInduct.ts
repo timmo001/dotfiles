@@ -96,7 +96,7 @@ const repositoryRoot = Effect.fn("repoInduct.root")(function* (path: string) {
 
 function askText(message: string, value: string, required = true) {
   return Prompt.run(
-    Prompt.text({
+    Prompt.String({
       message,
       default: value,
       validate: (input) =>
@@ -108,7 +108,7 @@ function askText(message: string, value: string, required = true) {
 }
 
 function askBoolean(message: string, initial: boolean) {
-  return Prompt.run(Prompt.confirm({ message, initial }));
+  return Prompt.run(Prompt.Confirm({ message, initial }));
 }
 
 /** Collect, preview and optionally commit a new entry; return null on preview or cancellation. */
@@ -154,7 +154,7 @@ export const inductRepository = Effect.fn("repoInduct.run")(
     const presetName = options.noninteractive
       ? (options.preset ?? "normal")
       : yield* Prompt.run(
-          Prompt.select({
+          Prompt.Select({
             message: "Repository preset",
             choices: [
               {
@@ -304,7 +304,7 @@ export const inductRepository = Effect.fn("repoInduct.run")(
 
       if (!options.noninteractive) {
         const action = yield* Prompt.run(
-          Prompt.select({
+          Prompt.Select({
             message: "Save this repository entry?",
             choices: [
               { title: "Cancel", value: "cancel" },

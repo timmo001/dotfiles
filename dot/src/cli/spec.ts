@@ -92,29 +92,29 @@ export class CliDocsAnnotation extends Context.Service<
 >()("dot/cli/CliDocs") {}
 
 const bool = (name: string, description: string) =>
-  Flag.boolean(name).pipe(
+  Flag.Boolean(name).pipe(
     Flag.withDefault(false),
     Flag.withDescription(description),
   );
 
 const text = (name: string, description: string) =>
-  Flag.string(name).pipe(Flag.optional, Flag.withDescription(description));
+  Flag.String(name).pipe(Flag.optional, Flag.withDescription(description));
 
 const optionalBool = (name: string, description: string) =>
-  Flag.boolean(name).pipe(Flag.optional, Flag.withDescription(description));
+  Flag.Boolean(name).pipe(Flag.optional, Flag.withDescription(description));
 
 const pathFlag = (
   name: string,
   description: string,
   pathType: "file" | "directory" | "either",
 ) =>
-  Flag.path(name, { pathType }).pipe(
+  Flag.Path(name, { pathType }).pipe(
     Flag.optional,
     Flag.withDescription(description),
   );
 
 const integer = (name: string, description: string, value: number) =>
-  Flag.integer(name).pipe(
+  Flag.Int(name).pipe(
     Flag.withDefault(value),
     Flag.withDescription(description),
   );
@@ -231,7 +231,7 @@ const updateCommand = describe(
         "no-self-update",
         "Skip the internal self-update phase",
       ),
-      postHookRepo: Flag.string("post-hook-repo").pipe(
+      postHookRepo: Flag.String("post-hook-repo").pipe(
         Flag.atLeast(0),
         Flag.withDescription("Internal post-hook repository"),
       ),
@@ -292,7 +292,7 @@ const systemUpdateCommand = describe(
 );
 
 const runDuration = (name: string, description: string) =>
-  Flag.string(name).pipe(
+  Flag.String(name).pipe(
     Flag.withSchema(Schema.DurationFromString),
     Flag.map(Duration.toMillis),
     Flag.filter(
@@ -306,7 +306,7 @@ const dependenciesCommand = describe(
   Command.make(
     "deps",
     {
-      repository: Argument.string("repository").pipe(Argument.withDefault("")),
+      repository: Argument.String("repository").pipe(Argument.withDefault("")),
       dryRun: bool(
         "dry-run",
         "Discover updates without running scripts, installing packages or publishing",
@@ -315,7 +315,7 @@ const dependenciesCommand = describe(
         "all",
         "Bypass open-PR inventory and exclusion only; leave PRs untouched",
       ),
-      target: Flag.string("target").pipe(
+      target: Flag.String("target").pipe(
         Flag.withDefault(""),
         Flag.withDescription(
           "Remote target branch (default: repository default branch)",
@@ -325,7 +325,7 @@ const dependenciesCommand = describe(
         "timeout",
         "Deadline per command/provider lookup (default: 30 seconds)",
       ).pipe(Flag.withDefault(30000)),
-      concurrency: Flag.integer("concurrency").pipe(
+      concurrency: Flag.Int("concurrency").pipe(
         Flag.withDefault(4),
         Flag.filter(
           (value) => value >= 1 && value <= 16,
@@ -351,10 +351,10 @@ const dependenciesCommand = describe(
         Command.make(
           "import-renovate",
           {
-            directory: Argument.string("directory").pipe(
+            directory: Argument.String("directory").pipe(
               Argument.withDefault("."),
             ),
-            source: Flag.string("source").pipe(
+            source: Flag.String("source").pipe(
               Flag.withDefault("renovate.json"),
               Flag.withDescription(
                 "Repository-relative Renovate JSON file (default: renovate.json)",
@@ -403,10 +403,10 @@ const runCommandSpec = describe(
         "kill-after",
         "Cleanup grace period before SIGKILL (default: 5 seconds)",
       ).pipe(Flag.withDefault(5000)),
-      command: Argument.string("command").pipe(
+      command: Argument.String("command").pipe(
         Argument.withDescription("Executable to run after --"),
       ),
-      args: Argument.string("args").pipe(
+      args: Argument.String("args").pipe(
         Argument.variadic(),
         Argument.withDescription("Arguments passed unchanged to the command"),
       ),
@@ -538,14 +538,14 @@ const pluginAdd = describe(
   Command.make(
     "add",
     {
-      id: Argument.string("id").pipe(Argument.withDescription("Plugin ID")),
-      url: Argument.string("url").pipe(
+      id: Argument.String("id").pipe(Argument.withDescription("Plugin ID")),
+      url: Argument.String("url").pipe(
         Argument.withDescription("Plugin Git remote"),
       ),
-      checkout: Argument.path("checkout").pipe(
+      checkout: Argument.Path("checkout").pipe(
         Argument.withDescription("Validated live plugin checkout"),
       ),
-      section: Flag.choice("section", ["left", "center", "right"]).pipe(
+      section: Flag.Literals("section", ["left", "center", "right"]).pipe(
         Flag.optional,
       ),
       before: text("before", "Place before this plugin"),
@@ -568,11 +568,11 @@ const pluginUpdate = describe(
   Command.make(
     "update",
     {
-      id: Argument.string("id").pipe(
+      id: Argument.String("id").pipe(
         Argument.withDescription("Managed plugin ID"),
         Argument.optional,
       ),
-      confirm: Argument.choice("confirm", ["0", "1"]).pipe(
+      confirm: Argument.Literals("confirm", ["0", "1"]).pipe(
         Argument.withDescription("Compatibility confirmation value"),
         Argument.optional,
       ),
@@ -593,14 +593,14 @@ const pluginRemove = describe(
   Command.make(
     "remove",
     {
-      id: Argument.string("id").pipe(
+      id: Argument.String("id").pipe(
         Argument.withDescription("Managed plugin ID"),
       ),
-      confirm: Argument.choice("confirm", ["0", "1"]).pipe(
+      confirm: Argument.Literals("confirm", ["0", "1"]).pipe(
         Argument.withDescription("Compatibility confirmation value"),
         Argument.optional,
       ),
-      save: Argument.choice("save", ["0", "1"]).pipe(
+      save: Argument.Literals("save", ["0", "1"]).pipe(
         Argument.withDescription("Compatibility commit-offer value"),
         Argument.optional,
       ),
@@ -730,10 +730,10 @@ const gitDiffCommand = describe(
 ).pipe(Command.withAlias("diff"));
 
 const releaseActionFlags = {
-  repo: Flag.string("repo").pipe(
+  repo: Flag.String("repo").pipe(
     Flag.withDescription("Configured repository name or GitHub slug"),
   ),
-  snapshot: Flag.string("snapshot").pipe(
+  snapshot: Flag.String("snapshot").pipe(
     Flag.withDescription(
       "Exact displayed snapshot ID; stale selections are rejected",
     ),
@@ -777,13 +777,13 @@ const gitReleasesCommand = describe(
           "review",
           {
             ...releaseActionFlags,
-            finding: Flag.string("finding").pipe(
+            finding: Flag.String("finding").pipe(
               Flag.withDefault("overall"),
               Flag.withDescription(
                 "Finding ID, or overall for the current release-relevant comparison",
               ),
             ),
-            impact: Flag.choice("impact", [
+            impact: Flag.Literals("impact", [
               "none",
               "patch",
               "minor",
@@ -873,12 +873,12 @@ const gitCommitCommand = describe(
   Command.make(
     "git-commit",
     {
-      message: Flag.string("message").pipe(
+      message: Flag.String("message").pipe(
         Flag.withAlias("m"),
         Flag.optional,
         Flag.withDescription("Single-line commit subject"),
       ),
-      paths: Flag.path("path").pipe(
+      paths: Flag.Path("path").pipe(
         Flag.atLeast(0),
         Flag.withDescription("Commit only this file; repeatable"),
       ),
@@ -971,7 +971,7 @@ export function parseSinceValue(value: string, now = Date.now()): string {
   return new Date(timestamp).toISOString();
 }
 
-const since = Flag.string("since").pipe(
+const since = Flag.String("since").pipe(
   Flag.mapTryCatch(parseSinceValue, (error) => String(error)),
   Flag.withDescription("Only include notifications updated after this date"),
   Flag.optional,
@@ -1062,7 +1062,7 @@ const simpleCommands = [
       {
         output: text("output", "Save the report to a new file at this path"),
         json: bool("json", "Print and save structured JSON for agents"),
-        sort: Flag.choice("sort", ["cpu", "mem"]).pipe(
+        sort: Flag.Literals("sort", ["cpu", "mem"]).pipe(
           Flag.withDefault("mem"),
           Flag.withDescription(
             "Sort the process tree and JSON process list by CPU or memory",
@@ -1078,7 +1078,7 @@ const simpleCommands = [
             () => "Limit must be a positive integer",
           ),
         ),
-        minMemoryMib: Flag.float("min-memory-mib").pipe(
+        minMemoryMib: Flag.Finite("min-memory-mib").pipe(
           Flag.withDefault(80),
           Flag.filter(
             (value) => Number.isFinite(value) && value >= 0,
@@ -1088,7 +1088,7 @@ const simpleCommands = [
             "Minimum measured subtree PSS in MiB for memory sorting (default: 80)",
           ),
         ),
-        minCpu: Flag.float("min-cpu").pipe(
+        minCpu: Flag.Finite("min-cpu").pipe(
           Flag.withDefault(1),
           Flag.filter(
             (value) => Number.isFinite(value) && value >= 0,
@@ -1214,7 +1214,7 @@ const privatePublishCommand = describe(
   Command.make(
     "private-pkg-publish",
     {
-      packageName: Argument.string("package-name").pipe(
+      packageName: Argument.String("package-name").pipe(
         Argument.withDescription("Mapped private package name"),
       ),
       noGit: bool("no-git", "Skip package repo commit and push"),
@@ -1249,7 +1249,7 @@ const skillsImport = describe(
   Command.make(
     "import",
     {
-      name: Argument.string("name").pipe(
+      name: Argument.String("name").pipe(
         Argument.withDescription("Imported skill name"),
       ),
       apply: bool("apply", "Apply a clean imported snapshot"),
@@ -1345,7 +1345,7 @@ const skillsAgentDevice = describe(
   Command.make(
     "device",
     {
-      configPath: Flag.path("config", { pathType: "file" }).pipe(
+      configPath: Flag.Path("config", { pathType: "file" }).pipe(
         Flag.withDescription("Use this YAML config"),
       ),
       runId: text("run-id", "Wait for this workflow run"),
@@ -1386,7 +1386,7 @@ const completionsCommand = describe(
   Command.make(
     "completions",
     {
-      shell: Argument.choice("shell", ["bash", "fish", "zsh"]).pipe(
+      shell: Argument.Literals("shell", ["bash", "fish", "zsh"]).pipe(
         Argument.withDescription("Shell to generate completions for"),
         Argument.withDefault("zsh"),
       ),
@@ -1410,7 +1410,7 @@ const isAgent = describe(
   Command.make(
     "is-agent",
     {
-      quiet: Flag.boolean("quiet").pipe(
+      quiet: Flag.Boolean("quiet").pipe(
         Flag.withAlias("q"),
         Flag.withDefault(false),
       ),
@@ -1440,10 +1440,10 @@ const repoInductCommand = describe(
   Command.make(
     "repo-induct",
     {
-      path: Argument.path("path", { pathType: "directory" }).pipe(
+      path: Argument.Path("path", { pathType: "directory" }).pipe(
         Argument.optional,
       ),
-      preset: Flag.choice("preset", ["normal", "home-assistant"]).pipe(
+      preset: Flag.Literals("preset", ["normal", "home-assistant"]).pipe(
         Flag.optional,
         Flag.withDescription("Private preset (default: normal)"),
       ),
@@ -1524,7 +1524,7 @@ const agentOxlintCommand = describe(
   Command.make(
     "agent-oxlint",
     {
-      paths: Argument.path("path", { pathType: "either" }).pipe(
+      paths: Argument.Path("path", { pathType: "either" }).pipe(
         Argument.atLeast(0),
       ),
       all: bool("all", "Lint the complete repository tree"),
@@ -1571,7 +1571,7 @@ const floating = describe(
   Command.make(
     "launch-floating-webapp",
     {
-      url: Argument.string("url").pipe(
+      url: Argument.String("url").pipe(
         Argument.withDescription("Webapp URL to launch"),
         Argument.optional,
       ),
@@ -1613,7 +1613,7 @@ const herdrRepoOpenCommand = describe(
     "repo-open",
     {
       pane: bool("pane", "Shorthand for --layout vertical"),
-      layout: Flag.choice("layout", [
+      layout: Flag.Literals("layout", [
         "auto",
         "vertical",
         "horizontal",
@@ -1624,7 +1624,7 @@ const herdrRepoOpenCommand = describe(
         ),
         Flag.optional,
       ),
-      modifiers: Flag.integer("modifiers").pipe(
+      modifiers: Flag.Int("modifiers").pipe(
         Flag.withSchema(
           Schema.Int.check(
             Schema.isBetween({ minimum: 0, maximum: 0x7fffffff }),
@@ -1635,13 +1635,13 @@ const herdrRepoOpenCommand = describe(
         ),
         Flag.optional,
       ),
-      prompt: Flag.string("prompt").pipe(
+      prompt: Flag.String("prompt").pipe(
         Flag.withDescription(
           "Initial prompt to send through Herdr after the agent is ready",
         ),
         Flag.optional,
       ),
-      agentKind: Flag.string("agent-kind").pipe(
+      agentKind: Flag.String("agent-kind").pipe(
         Flag.withDescription(
           "Expected Herdr agent kind for an explicit command",
         ),
@@ -1663,19 +1663,19 @@ const herdrRepoOpenCommand = describe(
         "json",
         "Print resource IDs, creation flags, agent details and prompt status as JSON",
       ),
-      label: Argument.string("label").pipe(
+      label: Argument.String("label").pipe(
         Argument.withDescription("Herdr workspace label"),
       ),
-      directory: Argument.path("directory").pipe(
+      directory: Argument.Path("directory").pipe(
         Argument.withDescription("Repository working directory"),
       ),
-      tabLabel: Argument.string("tab-label").pipe(
+      tabLabel: Argument.String("tab-label").pipe(
         Argument.withDescription(
           "Optional command tab label; defaults to the selected agent label or Shell",
         ),
         Argument.optional,
       ),
-      command: Argument.string("command").pipe(
+      command: Argument.String("command").pipe(
         Argument.withDescription("Optional command to run"),
         Argument.optional,
       ),
@@ -1808,30 +1808,30 @@ const setupWorkspace = describe(
   Command.make(
     "workspace-setup",
     {
-      stepThrough: Flag.boolean("step-through").pipe(
+      stepThrough: Flag.Boolean("step-through").pipe(
         Flag.withAlias("step"),
         Flag.withDefault(false),
         Flag.withDescription("Pause after each logged step"),
       ),
-      speedMultiplier: Flag.float("speed-multiplier").pipe(
+      speedMultiplier: Flag.Finite("speed-multiplier").pipe(
         Flag.withDefault(1.8),
         Flag.withDescription("Multiply built-in sleep durations"),
       ),
-      sleep: Flag.float("sleep").pipe(
+      sleep: Flag.Finite("sleep").pipe(
         Flag.withDefault(0),
         Flag.withDescription("Wait before running setup logic"),
       ),
       fast: bool("fast", "Use a speed multiplier of 1"),
-      temporaryWorkspace: Flag.integer("temp-workspace").pipe(
+      temporaryWorkspace: Flag.Int("temp-workspace").pipe(
         Flag.optional,
         Flag.withDescription("Numeric temporary workspace"),
       ),
-      moveDispatcher: Flag.choice("move-dispatcher", [
+      moveDispatcher: Flag.Literals("move-dispatcher", [
         "movetoworkspace",
         "movetoworkspacesilent",
       ]).pipe(Flag.optional, Flag.withDescription("Window move dispatcher")),
       logFile: pathFlag("log-file", "Write the run log to this file", "file"),
-      mode: Flag.choice("mode", ["work", "normal"]).pipe(
+      mode: Flag.Literals("mode", ["work", "normal"]).pipe(
         Flag.optional,
         Flag.withDescription(
           "Use the work or normal layout instead of detecting work time",
@@ -1860,7 +1860,7 @@ const usageCommand = describe(
   Command.make(
     "usage",
     {
-      subcommand: Argument.choice("command", [
+      subcommand: Argument.Literals("command", [
         "summary",
         "stale",
         "path",
@@ -1870,10 +1870,10 @@ const usageCommand = describe(
         Argument.withDefault("summary"),
       ),
       days: integer("days", "Window in days", 90),
-      format: Flag.choice("format", ["text", "json", "agent-context"]).pipe(
+      format: Flag.Literals("format", ["text", "json", "agent-context"]).pipe(
         Flag.withDefault("text"),
       ),
-      roots: Flag.path("root").pipe(Flag.atLeast(0)),
+      roots: Flag.Path("root").pipe(Flag.atLeast(0)),
       history: bool("history", "Backfill from shell history"),
       apply: bool("apply", "Write backfilled events"),
     },
@@ -1926,7 +1926,7 @@ const helpCommand = describe(
   Command.make(
     "help",
     {
-      command: Argument.string("command").pipe(
+      command: Argument.String("command").pipe(
         Argument.withDescription("Command to show help for"),
         Argument.optional,
       ),

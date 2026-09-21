@@ -12,10 +12,10 @@
     "prepare": "effect-tsgo patch"
   },
   "dependencies": {
-    "@effect/platform-node": "4.0.0-rc.112",
-    "@herdr/sdk": "github:dmmulroy/herdr-ts-sdk#77abbf81ac35407bc5138a8f4fe19f0833af4402",
+    "@effect/platform-node": "4.0.0-rc.117",
+    "@herdr/sdk": "github:timmo001/herdr-ts-sdk#4fe6fb68089152a7c97f01a488470981aa234322",
     "@timmo001/effect-gh": "github:timmo001/effect-gh#43e8de9461833f6133edcb13f49051d2b9b00862",
-    "effect": "4.0.0-rc.112",
+    "effect": "4.0.0-rc.117",
     "fast-xml-parser": "^5.11.1",
     "handlebars": "^4.7.9",
     "jsonata": "^2.2.2",
@@ -35,8 +35,5 @@
   "overrides": {
     "effect": "$effect",
     "@effect/platform-node-shared": "$@effect/platform-node"
-  },
-  "patchedDependencies": {
-    "@herdr/sdk@github:dmmulroy/herdr-ts-sdk#77abbf8": "patches/@herdr%2Fsdk@github%3Admmulroy%2Fherdr-ts-sdk#77abbf8.patch"
   }
 }

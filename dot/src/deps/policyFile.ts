@@ -80,7 +80,9 @@ export function renderDependencyConfig(config: DependencyConfig): string {
 /** Generate the editor schema from the runtime policy contract. */
 export function renderDependencySchema(): string {
   const document = JsonSchema.toDocumentDraft07(
-    Schema.toJsonSchemaDocument(DependencyConfig),
+    Schema.toJsonSchemaDocument(DependencyConfig, {
+      onExcessProperty: "error",
+    }),
   );
 
   return `${JSON.stringify(

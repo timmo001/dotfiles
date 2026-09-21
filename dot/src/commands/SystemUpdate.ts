@@ -98,7 +98,7 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
   const selected = automatic
     ? UPDATE_CHOICES.map(({ value }) => value)
     : yield* Prompt.run(
-        Prompt.multiSelect({
+        Prompt.MultiSelect({
           message: "Choose updates:",
           choices: UPDATE_CHOICES,
         }),

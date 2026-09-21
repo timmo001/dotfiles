@@ -104,8 +104,8 @@ function argumentType(
   single: Param.Single<Param.ParamKind, unknown>,
 ): Completions.ArgumentType {
   return Match.value(single.primitiveType).pipe(
-    Match.tag("Integer", () => CompletionType.Integer()),
-    Match.tag("Float", () => CompletionType.Float()),
+    Match.tag("Int", () => CompletionType.Int()),
+    Match.tag("Finite", () => CompletionType.Finite()),
     Match.tag("Date", () => CompletionType.Date()),
     Match.tag("Choice", () =>
       // SAFETY: Effect's Choice primitive stores its constructor keys on choiceKeys.

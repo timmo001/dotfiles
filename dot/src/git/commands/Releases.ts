@@ -86,7 +86,7 @@ export const releasesOpenShell = Effect.fn("releases.openShell")(function* (
 /** Offer the saved release log in the current terminal. */
 const viewReleaseLog = Effect.fn("releases.viewLog")(function* (path: string) {
   const open = yield* Prompt.run(
-    Prompt.confirm({ message: "Read the full progress log?", initial: false }),
+    Prompt.Confirm({ message: "Read the full progress log?", initial: false }),
   ).pipe(Effect.catchTag("QuitError", () => Effect.succeed(false)));
 
   if (!open) return;
@@ -169,7 +169,7 @@ export const releasesPublish = Effect.fn("releases.publish")(function* (
 
   if (interactive && result.type === "plan") {
     const confirmed = yield* Prompt.run(
-      Prompt.confirm({
+      Prompt.Confirm({
         message: `Create and publish ${result.plan.tag} with these steps?`,
         initial: false,
       }),
