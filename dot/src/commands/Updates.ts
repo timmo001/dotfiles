@@ -35,6 +35,11 @@ const decodeBackoff = Schema.decodeUnknownOption(
   Schema.Tuple([Schema.Int, Schema.Int]),
 );
 
+const AUR_HTTP_FAILURE_PATTERNS = [
+  /\bstatus\b[^0-9]*\b[45][0-9]{2}\b/i,
+  /\bhttp(?:\/\d+(?:\.\d+)?)?\b[^0-9]*\b[45][0-9]{2}\b/i,
+] as const;
+
 const current: BarStatus = {
   text: "󰏕 0",
   tooltip: "Watched packages are up to date",
@@ -174,9 +179,7 @@ const packages = Effect.fn("Updates.packages")(function* (
       ) {
         yield* fs.remove(locations.backoff, { force: true });
       } else if (
-        /(status|HTTP([^0-9]|\/[0-9.]*)*)[^0-9]*[45][0-9]{2}([^0-9]|$)/i.test(
-          aurResult.stderr,
-        )
+        AUR_HTTP_FAILURE_PATTERNS.some((pattern) => pattern.test(aurResult.stderr))
       ) {
         const nextFailures = Math.min(5, Math.max(0, failures) + 1);
         const seconds = Math.min(21600, 1800 * 2 ** (nextFailures - 1));
