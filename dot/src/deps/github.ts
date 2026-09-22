@@ -607,11 +607,13 @@ export class DependencyGithub extends Context.Service<
                               ? identityAtHead(dependency)
                               : dependencyIdentity(dependency)) === identity,
                         )
-                        .map((dependency) => [
-                          dependency.current,
-                          dependency.digest,
-                          dependency.resolved,
-                        ])
+                        .map((dependency) =>
+                          JSON.stringify([
+                            dependency.current,
+                            dependency.digest,
+                            dependency.resolved,
+                          ]),
+                        )
                         .sort(),
                     );
 

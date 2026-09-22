@@ -167,13 +167,13 @@ export function dependencyGroups(
   if (requiresSourceUrl(policy, dependency)) return [];
 
   return [
-    ...new Set([
-      ...updateTypes.map((type) => {
+    ...new Set(
+      updateTypes.map((type) => {
         const settings = dependencySettings(policy, dependency, type);
 
         return settings.groupSlug ?? settings.groupName ?? dependency.package;
       }),
-    ]),
+    ),
   ];
 }
 

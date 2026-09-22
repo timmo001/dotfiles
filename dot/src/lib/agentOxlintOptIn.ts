@@ -37,7 +37,7 @@ export function agentOxlintOptInText(
       if (!/^agent_oxlint:\s*false(?:\s+#.*|\s*)$/.test(content)) continue;
       replacement = line.replace(/(:\s*)false/, "$1true");
     } else {
-      if (!/^path:/.test(content) || !newline) continue;
+      if (!content.startsWith("path:") || !newline) continue;
       replacement = `${line}${indent}agent_oxlint: true${newline}`;
     }
 
