@@ -9,6 +9,7 @@ import {
 } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
+import { deployOmarchyPlugin } from "../lib/omarchyPluginDeployment.js";
 import {
   CommandExecutor,
   type CommandError,
@@ -580,6 +581,15 @@ function updatePlugin(
       return yield* fail(`update of '${id}' failed validation; rolled back`);
     }
 
+    yield* deployOmarchyPlugin(
+      pluginPath,
+      join(paths.pluginsLive, id),
+      paths.repo,
+    ).pipe(
+      Effect.tapError(() =>
+        executor.run("git", ["checkout", "-q", oldSha], { cwd: pluginPath }),
+      ),
+    );
     yield* unstage(paths, id);
     yield* rescanPlugins();
     process.stdout.write(`Updated managed plugin ${id} to ${newSha}.\n`);

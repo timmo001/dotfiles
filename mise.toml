@@ -92,7 +92,7 @@ run = "bun run src/buildSkillsMaintenance.ts"
 description = "Run deterministic repository integration tests"
 depends = ["dot:build"]
 run = """
-bun test tests/opencode tests/dot/agent-oxlint-opt-in.test.ts tests/dot/git-commit-branch-guard.test.ts tests/dot/git-pull-preserves-work.test.ts tests/dot/git-notification-dismissal.test.ts tests/dot/git-releases-contract.test.ts tests/dot/herdr-context-contract.test.ts tests/dot/herdr-launch-contract.test.ts tests/dot/process-runner.test.ts tests/dot/mcp-repositories.test.ts
+  bun test tests/opencode tests/dot/agent-oxlint-opt-in.test.ts tests/dot/git-commit-branch-guard.test.ts tests/dot/git-pull-preserves-work.test.ts tests/dot/git-notification-dismissal.test.ts tests/dot/git-releases-contract.test.ts tests/dot/herdr-context-contract.test.ts tests/dot/herdr-launch-contract.test.ts tests/dot/process-runner.test.ts tests/dot/mcp-repositories.test.ts tests/dot/omarchy-plugin-deployment.test.ts
 bun test ./scripts/.local/share/herdr-plugins/plannotator/runner.test.ts
 bash tests/scripts/hypr-lua-dispatchers.test.sh
 """

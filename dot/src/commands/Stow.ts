@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { existsSync } from "fs";
-import { join } from "path";
+import { basename, join, relative } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
@@ -9,13 +9,17 @@ import {
   listStowFolders,
   requiresNoFolding,
 } from "../lib/stowFolders.js";
-import { displayPath } from "../lib/paths.js";
+import { displayPath, HOME_DIR } from "../lib/paths.js";
 import {
   ensureHyprConfigLink,
   ensureHyprHostLink,
 } from "../lib/omarchyHost.js";
 import { ensureNvimThemeLink } from "../lib/omarchyNvim.js";
 import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
+import {
+  deployOmarchyPlugin,
+  omarchyPluginSubmodules,
+} from "../lib/omarchyPluginDeployment.js";
 import {
   writeCaptureRepositoryOptions,
   writeRepoPicker,
@@ -157,6 +161,9 @@ export const stow = (opts?: {
 
       const ignoredTargets = new Set([
         join(".agents", "skills", "dotfiles-stow", "SKILL.md"),
+        ...omarchyPluginSubmodules(config.publicDotfiles).map((source) =>
+          relative(join(config.publicDotfiles, "omarchy"), source),
+        ),
       ]);
 
       const backedUp = yield* Effect.sync(() =>
@@ -197,7 +204,15 @@ export const stow = (opts?: {
         yield* log.section("Stow Private Dotfiles");
 
         const backedUp = yield* Effect.sync(() =>
-          backupUnmanagedStowTargets(privateDotfiles, config),
+          backupUnmanagedStowTargets(
+            privateDotfiles,
+            config,
+            new Set(
+              omarchyPluginSubmodules(privateDotfiles).map((source) =>
+                relative(join(privateDotfiles, "omarchy"), source),
+              ),
+            ),
+          ),
         );
 
         for (const move of backedUp) {
@@ -252,6 +267,14 @@ const stowRepo = (
 
       const isHypr = folder === "hypr";
 
+      const plugins =
+        folder === "omarchy" ? omarchyPluginSubmodules(repoDir) : [];
+
+      const pluginIgnores = plugins.map(
+        (source) =>
+          `--ignore='^\\.config/omarchy/plugins/${basename(source).replaceAll(".", "\\.")}($|/)'`,
+      );
+
       if (isHypr) {
         // Never unstow hypr: Hyprland watches its live config and auto-reloads
         // on change. Removing the symlinks (even briefly) drops Hyprland into
@@ -261,7 +284,7 @@ const stowRepo = (
         yield* ensureHyprConfigLink(repoDir, log);
       } else {
         // Unstow first, then restow (equivalent to --restow per folder)
-        const unstowCmd = `stow -D ${folder}`;
+        const unstowCmd = ["stow", "-D", folder, ...pluginIgnores].join(" ");
         const unstowExit = yield* launcher.stream(unstowCmd, { cwd: repoDir });
 
         if (unstowExit !== 0) {
@@ -277,7 +300,7 @@ const stowRepo = (
       }
 
       // Build restow command with folder-specific flags
-      const flags: string[] = [];
+      const flags: string[] = [...pluginIgnores];
       let externalLinks: ExternalSymlink[] = [];
 
       // Some packages must stay real directories (not folded symlinks) so
@@ -327,6 +350,25 @@ const stowRepo = (
           message: `${scope} stow failed on ${folder}`,
           exitCode: exit,
         });
+      }
+
+      for (const source of plugins) {
+        const deployed = yield* deployOmarchyPlugin(
+          source,
+          join(HOME_DIR, ".config/omarchy/plugins", basename(source)),
+          repoDir,
+        );
+
+        if (deployed) {
+          yield* log.info(
+            `Deployed Omarchy plugin: ${displayPath(deployed.target)}`,
+          );
+
+          if (deployed.backup)
+            yield* log.info(
+              `Previous plugin saved: ${displayPath(deployed.backup)}`,
+            );
+        }
       }
 
       // Apply any added or changed config and clear any prior emergency state.
