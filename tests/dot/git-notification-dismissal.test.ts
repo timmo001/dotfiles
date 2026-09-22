@@ -78,7 +78,7 @@ function fixture(pages: ReturnType<typeof thread>[][]) {
 
 const review = Effect.flatMap(GitNotifications, (service) => service.review());
 
-test("all pages are classified before dismissal and failed checks never enter the dependency pass", async () => {
+test("all pages are classified before dismissal and merged dependencies qualify even with failed checks", async () => {
   const first = Array.from({ length: 50 }, (_, index) => thread(String(index + 1)));
   const f = fixture([first, [thread("51"), thread("52"), thread("53", "Issue"), { ...thread("54"), unread: false }]]);
   f.responses.set("repos/example/project/commits/sha-52/check-runs?filter=latest&per_page=100", [
@@ -86,14 +86,15 @@ test("all pages are classified before dismissal and failed checks never enter th
   ]);
   const entries = await f.run(review);
   expect(entries).toHaveLength(53);
-  expect(entries.filter((entry) => entry.category === "dependencies")).toHaveLength(51);
+  expect(entries.filter((entry) => entry.category === "dependencies")).toHaveLength(52);
   expect(entries.find((entry) => entry.thread.id === "52")?.detail).toContain("Tests: failure");
   expect(entries.find((entry) => entry.thread.id === "53")?.detail).toContain("Issue open");
   expect(f.reads.filter((args) => args.some((arg) => arg.includes("per_page"))).every((args) => args.includes("--paginate") && args.includes("--slurp"))).toBe(true);
   expect(f.writes).toEqual([]);
   const outcomes = await f.run(Effect.flatMap(GitNotifications, (service) => service.dismiss(entries, "dependencies")));
-  expect(outcomes.filter((outcome) => outcome.status === "done")).toHaveLength(51);
-  expect(f.writes.some((args) => args.includes("notifications/threads/52") || args.includes("notifications/threads/53"))).toBe(false);
+  expect(outcomes.filter((outcome) => outcome.status === "done")).toHaveLength(52);
+  expect(f.writes.some((args) => args.includes("notifications/threads/52"))).toBe(true);
+  expect(f.writes.some((args) => args.includes("notifications/threads/53"))).toBe(false);
 });
 
 test("manual remaining pass includes unresolved PR reasons and requires its own explicit selections", async () => {
@@ -106,25 +107,25 @@ test("manual remaining pass includes unresolved PR reasons and requires its own 
   f.responses.set("repos/example/project/commits/sha-6/check-runs?filter=latest&per_page=100", [{ total_count: 0, check_runs: [] }]);
   f.responses.set("repos/example/project/pulls/7", { ...pull("7"), head: { sha: "sha-7", ref: "renovate/configure" } });
   const entries = await f.run(review);
-  expect(entries.every((entry) => entry.category === "remaining")).toBe(true);
+  expect(entries.map((entry) => entry.category)).toEqual(["remaining", "remaining", "remaining", "dependencies", "remaining", "dependencies", "remaining"]);
   expect(entries[0].detail).toContain("Open PR");
   expect(entries[1].detail).toContain("Closed without merging");
   expect(entries[3].detail).toContain("Tests: in_progress");
   expect(entries[4].inspectionFailed).toBe(true);
   expect(entries[5].detail).toContain("no successful checks");
   expect(f.writes).toEqual([]);
-  const outcomes = await f.run(Effect.flatMap(GitNotifications, (service) => service.dismiss([entries[3]], "remaining")));
+  const outcomes = await f.run(Effect.flatMap(GitNotifications, (service) => service.dismiss([entries[0]], "remaining")));
   expect(outcomes[0].status).toBe("done");
   expect(f.writes).toHaveLength(1);
 });
 
-test("latest successful runs qualify but failing legacy statuses and incomplete evidence do not", async () => {
+test("merged dependencies qualify with successful or failing legacy statuses but not incomplete evidence", async () => {
   const f = fixture([[thread("1"), thread("2"), thread("3")]]);
   f.responses.set("repos/example/project/commits/sha-1/check-runs?filter=latest&per_page=100", [{ total_count: 3, check_runs: [check("Build"), check("Optional", "skipped"), check("Advice", "neutral")] }]);
   f.responses.set("repos/example/project/commits/sha-2/status?per_page=100", [{ state: "failure", total_count: 1, statuses: [{ context: "External CI", state: "failure" }] }]);
   f.responses.set("repos/example/project/commits/sha-3/check-runs?filter=latest&per_page=100", [{ total_count: 2, check_runs: [check("Build")] }]);
   const entries = await f.run(review);
-  expect(entries.map((entry) => entry.category)).toEqual(["dependencies", "remaining", "remaining"]);
+  expect(entries.map((entry) => entry.category)).toEqual(["dependencies", "dependencies", "remaining"]);
   expect(entries[1].detail).toContain("External CI: failure");
   expect(entries[2].detail).toContain("Incomplete CI response");
 });

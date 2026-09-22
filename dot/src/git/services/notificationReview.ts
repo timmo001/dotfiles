@@ -220,7 +220,7 @@ export const inspectNotification = Effect.fn("notifications.inspect")(
         return {
           ...base,
           category:
-            dependency && merged && passed
+            dependency && merged
               ? ("dependencies" as const)
               : ("remaining" as const),
           detail: `${prefix} · CI: ${ci}`,

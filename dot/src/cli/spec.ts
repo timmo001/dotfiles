@@ -928,7 +928,7 @@ const notificationDismissCommand = describe(
               mode: optional(mode),
             }),
         ),
-        "Review unread merged Renovate/Dependabot updates with successful CI. All-mode excludes failed, pending and unverifiable CI. Opening GitHub returns to the review without dismissing anything.",
+        "Review unread merged Renovate/Dependabot updates regardless of CI results. All-mode excludes unverifiable CI. Opening GitHub returns to the review without dismissing anything.",
       ),
       describe(
         Command.make("remaining", notificationReviewFlags, ({ repo, dryRun }) =>
