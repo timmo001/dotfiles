@@ -7,8 +7,6 @@ import { ENV, envString } from "../../lib/env.js";
 import { isPackageInstalled } from "../../lib/archPackages.js";
 import type { CheckResult } from "../types.js";
 
-const obsoleteVideoFeatures = ["VaapiVideoDecodeLinuxGL", "VaapiVideoEncoder"];
-
 const acceleratedVideoFeatures = [
   "AcceleratedVideoDecoder",
   "AcceleratedVideoDecodeLinuxGL",
@@ -27,23 +25,11 @@ export function browserVideoFlagResults(
     .map((line) => line.trim())
     .filter((line) => line.startsWith("--"));
 
-  const obsolete = obsoleteVideoFeatures.filter((feature) =>
-    flags.some((flag) => flag.includes(feature)),
-  );
-
   const disabledFeatures = flags
     .filter((flag) => flag.startsWith("--disable-features="))
     .flatMap((flag) => flag.slice("--disable-features=".length).split(","))
     .map((feature) => feature.trim())
     .filter((feature) => acceleratedVideoFeatures.includes(feature));
-
-  if (obsolete.length > 0) {
-    results.push({
-      severity: "warn",
-      message: `${name}-flags.conf has obsolete video feature overrides`,
-      detail: obsolete.join(", "),
-    });
-  }
 
   if (
     flags.includes("--disable-accelerated-video-decode") ||
