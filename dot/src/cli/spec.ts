@@ -25,6 +25,7 @@ import { herdrContext } from "../commands/HerdrContext.js";
 import { herdrServerAction, herdrStart } from "../commands/HerdrServer.js";
 import { init } from "../commands/Init.js";
 import { install } from "../commands/Install.js";
+import { migrateOpenCode } from "../commands/MigrateOpenCode.js";
 import { isAgentCommand } from "../commands/IsAgent.js";
 import { launchFloatingWebapp } from "../commands/LaunchFloatingWebapp.js";
 import { notesCaptureSync } from "../commands/NotesCaptureSync.js";
@@ -175,6 +176,36 @@ const initCommand = describe(
 const installCommand = describe(
   Command.make("install", {}, () => install),
   "Ensure prerequisites, then backup/adopt dotfiles",
+);
+
+const migrateCommand = describe(
+  Command.make("migrate").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "opencode",
+          {
+            check: bool(
+              "check",
+              "Check migration sources without changing them",
+            ),
+            execute: bool(
+              "execute",
+              "Run the detached migration job (internal)",
+            ),
+          },
+          ({ check, execute }) => migrateOpenCode(check, execute),
+        ),
+        "Archive OpenCode 1 and move OpenCode 2 to its default paths",
+        ["dot migrate opencode --check", "dot migrate opencode"],
+        {
+          description:
+            "Checks source paths before scheduling an independent migration job. The job stops the isolated service, archives OpenCode 1 data, moves OpenCode 2 data, then starts a default-path service. It writes a result log under ~/.local/state/opencode-migration/. The service stop may disconnect active OpenCode sessions.",
+        },
+      ),
+    ]),
+  ),
+  "Run a one-time machine migration",
 );
 
 const updateCommand = describe(
@@ -1933,6 +1964,7 @@ export const dotCommand = describe(
     Command.withSubcommands([
       initCommand,
       installCommand,
+      migrateCommand,
       updateCommand,
       systemUpdateCommand,
       dependenciesCommand,

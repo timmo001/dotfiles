@@ -52,6 +52,45 @@ dot install [flags]
 | --- | --- |
 | `--help` `-h` | Show help information |
 
+## `dot migrate`
+
+Run a one-time machine migration
+
+```text
+dot migrate <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot migrate opencode`
+
+Archive OpenCode 1 and move OpenCode 2 to its default paths
+
+```text
+dot migrate opencode [flags]
+```
+
+Checks source paths before scheduling an independent migration job. The job stops the isolated service, archives OpenCode 1 data, moves OpenCode 2 data, then starts a default-path service. It writes a result log under ~/.local/state/opencode-migration/. The service stop may disconnect active OpenCode sessions.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--check` | Check migration sources without changing them |
+| `--execute` | Run the detached migration job (internal) |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot migrate opencode --check
+dot migrate opencode
+```
+
 ## `dot update`
 
 Aliases: `dot up`
