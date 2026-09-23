@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect";
 import { existsSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
-import { CONFIG_DIR, displayPath } from "../../lib/paths.js";
+import { CACHE_DIR, CONFIG_DIR, displayPath } from "../../lib/paths.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { managedGitRepos } from "../../services/GitConfig.js";
@@ -19,6 +19,9 @@ const PLUGIN_INSTALL_FILES = [
 
 /** Paths only OpenCode 1 or its web server used. */
 const RETIRED_CONFIG_PATHS = [".env", "tui-plugins", "plugins-v2"] as const;
+
+/** Caches only OpenCode 1 plugins wrote. */
+const RETIRED_CACHE_PATHS = ["opencode-cursor"] as const;
 
 const PLUGIN_INSTALL_NAMES: ReadonlySet<string> = new Set(PLUGIN_INSTALL_FILES);
 
@@ -51,7 +54,10 @@ function generatedGitignore(directory: string): boolean {
       .filter(Boolean);
 
     return (
-      lines.length > 0 && lines.every((line) => PLUGIN_INSTALL_NAMES.has(line))
+      lines.length > 0 &&
+      lines.every(
+        (line) => PLUGIN_INSTALL_NAMES.has(line) || line === ".gitignore",
+      )
     );
   } catch {
     return false;
@@ -59,11 +65,16 @@ function generatedGitignore(directory: string): boolean {
 }
 
 function pluginInstallLeftovers(directory: string): readonly string[] {
-  if (!dependsOnV1Plugin(directory)) return [];
+  const v1Install = dependsOnV1Plugin(directory);
+
+  // The generated .gitignore outlives a partial clean-up, but a newer install may still own it.
+  const staleGitignore =
+    generatedGitignore(directory) &&
+    (v1Install || !existsSync(join(directory, "package.json")));
 
   return [
-    ...PLUGIN_INSTALL_FILES,
-    ...(generatedGitignore(directory) ? [".gitignore"] : []),
+    ...(v1Install ? PLUGIN_INSTALL_FILES : []),
+    ...(staleGitignore ? [".gitignore"] : []),
   ].flatMap((name) => {
     const path = join(directory, name);
 
@@ -103,6 +114,11 @@ export const checkOpencodeLegacy = Effect.gen(function* () {
     ...pluginInstallLeftovers(OPENCODE_CONFIG_DIR),
     ...RETIRED_CONFIG_PATHS.flatMap((name) => {
       const path = join(OPENCODE_CONFIG_DIR, name);
+
+      return existsSync(path) ? [path] : [];
+    }),
+    ...RETIRED_CACHE_PATHS.flatMap((name) => {
+      const path = join(CACHE_DIR, name);
 
       return existsSync(path) ? [path] : [];
     }),
