@@ -1,0 +1,161 @@
+import { Effect, Schema } from "effect";
+import { existsSync, readdirSync, readFileSync } from "fs";
+import { join } from "path";
+import { CONFIG_DIR, displayPath } from "../../lib/paths.js";
+import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { Config } from "../../services/Config.js";
+import { managedGitRepos } from "../../services/GitConfig.js";
+import type { CheckResult } from "../types.js";
+
+const OPENCODE_CONFIG_DIR = join(CONFIG_DIR, "opencode");
+
+/** Files OpenCode 1 created when it auto-installed its plugin package. */
+const PLUGIN_INSTALL_FILES = [
+  "node_modules",
+  "package.json",
+  "package-lock.json",
+  "bun.lock",
+] as const;
+
+/** Paths only OpenCode 1 or its web server used. */
+const RETIRED_CONFIG_PATHS = [".env", "tui-plugins", "plugins-v2"] as const;
+
+const PLUGIN_INSTALL_NAMES: ReadonlySet<string> = new Set(PLUGIN_INSTALL_FILES);
+
+const RETIRED_MISE_TOOLS = [
+  "aqua:anomalyco/opencode",
+  "npm:@opencode-ai/cli",
+  "npm:opencode-ai",
+] as const;
+
+const MiseInstalls = Schema.Record(Schema.String, Schema.Array(Schema.Unknown));
+
+const shellQuote = (path: string) => `'${path.replaceAll("'", `'"'"'`)}'`;
+
+function dependsOnV1Plugin(directory: string): boolean {
+  try {
+    return readFileSync(join(directory, "package.json"), "utf-8").includes(
+      '"@opencode-ai/plugin"',
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Only remove a .gitignore that lists nothing but the plugin install files. */
+function generatedGitignore(directory: string): boolean {
+  try {
+    const lines = readFileSync(join(directory, ".gitignore"), "utf-8")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    return (
+      lines.length > 0 && lines.every((line) => PLUGIN_INSTALL_NAMES.has(line))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function pluginInstallLeftovers(directory: string): readonly string[] {
+  if (!dependsOnV1Plugin(directory)) return [];
+
+  return [
+    ...PLUGIN_INSTALL_FILES,
+    ...(generatedGitignore(directory) ? [".gitignore"] : []),
+  ].flatMap((name) => {
+    const path = join(directory, name);
+
+    return existsSync(path) ? [path] : [];
+  });
+}
+
+function repoOpencodeDirectories(root: string): readonly string[] {
+  try {
+    return readdirSync(root, { withFileTypes: true })
+      .filter(
+        (entry) =>
+          entry.isDirectory() &&
+          (entry.name === ".opencode" || entry.name.startsWith(".opencode-")),
+      )
+      .map((entry) => join(root, entry.name));
+  } catch {
+    return [];
+  }
+}
+
+/** Report files left behind by OpenCode 1, with the command that removes them. */
+export const checkOpencodeLegacy = Effect.gen(function* () {
+  const config = yield* Config;
+  const executor = yield* CommandExecutor;
+  const results: CheckResult[] = [];
+
+  const repoRoots = [
+    ...new Set([
+      config.publicDotfiles,
+      ...(config.privateDotfiles ? [config.privateDotfiles] : []),
+      ...managedGitRepos(config.gitConfig).map((repo) => repo.path),
+    ]),
+  ];
+
+  const leftovers = [
+    ...pluginInstallLeftovers(OPENCODE_CONFIG_DIR),
+    ...RETIRED_CONFIG_PATHS.flatMap((name) => {
+      const path = join(OPENCODE_CONFIG_DIR, name);
+
+      return existsSync(path) ? [path] : [];
+    }),
+    ...repoRoots.flatMap((root) =>
+      repoOpencodeDirectories(root).flatMap(pluginInstallLeftovers),
+    ),
+    ...[join(config.publicDotfiles, ".benchmarks", "output")].filter((path) =>
+      existsSync(path),
+    ),
+  ];
+
+  if (leftovers.length > 0) {
+    results.push({
+      severity: "warn",
+      message: `OpenCode 1 files remain: ${leftovers.map(displayPath).join(", ")}`,
+      detail: `Run rm -rf ${leftovers.map(shellQuote).join(" ")}`,
+    });
+  }
+
+  const installed = yield* executor
+    .run("mise", ["ls", "--installed", "--json"])
+    .pipe(
+      Effect.flatMap((output) =>
+        Schema.decodeEffect(Schema.fromJsonString(MiseInstalls))(output),
+      ),
+      Effect.orElseSucceed(() => ({})),
+    );
+
+  const miseTools = RETIRED_MISE_TOOLS.filter((tool) => tool in installed);
+
+  if (miseTools.length > 0) {
+    results.push({
+      severity: "warn",
+      message: `OpenCode 1 mise installs remain: ${miseTools.join(", ")}`,
+      detail: `Run mise uninstall --all ${miseTools.join(" ")}`,
+    });
+  }
+
+  const pitchfork = yield* executor
+    .run("pitchfork", ["list"])
+    .pipe(Effect.orElseSucceed(() => ""));
+
+  if (/^global\/agent-benchmark\s/m.test(pitchfork)) {
+    results.push({
+      severity: "warn",
+      message: "Retired agent-benchmark pitchfork daemon is still registered",
+      detail: "Run pitchfork clean to remove stopped daemons",
+    });
+  }
+
+  if (results.length === 0) {
+    results.push({ severity: "ok", message: "No OpenCode 1 leftovers found" });
+  }
+
+  return results;
+});
