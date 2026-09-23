@@ -2,6 +2,8 @@
 name: dotfiles-repositories
 description: Find related local repositories and open them in agents through the shared dot Herdr launcher. Use for tracked-repository discovery, cross-repository work involving dotfiles or skills, open-in-agent requests, and approved workers in another project workspace. Shares the prefix+s picker and Omarchy Git panel launch path.
 compatibility: Repository discovery requires dotfiles repository configuration; launching requires dot, Herdr, and the herdr skill.
+metadata:
+  author: timmo001
 ---
 
 # Dotfiles Repositories

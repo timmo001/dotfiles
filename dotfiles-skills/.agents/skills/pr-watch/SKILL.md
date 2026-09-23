@@ -11,7 +11,6 @@ license: Apache-2.0
 compatibility: Designed for OpenCode 2 background shells. Requires the dot CLI from timmo001/dotfiles, an authenticated GitHub CLI and network access to GitHub.
 metadata:
   author: timmo001
-  version: "1.0"
 ---
 
 # PR Watch

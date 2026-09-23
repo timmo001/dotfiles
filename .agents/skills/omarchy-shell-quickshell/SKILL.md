@@ -1,6 +1,8 @@
 ---
 name: omarchy-shell-quickshell
 description: "Customise and reload the Omarchy shell (omarchy-shell) - the Quickshell process behind the bar, notifications, OSD, launcher, and settings - in this dotfiles repo. Use when working with the Omarchy shell or Quickshell: editing omarchy/.config/omarchy/plugins/, the shell.json generator dot/src/lib/omarchyShellConfig.ts, shell.json, BarWidget/WidgetButton or other Quickshell QML, running omarchy plugin or omarchy restart shell, referencing upstream Quickshell, or when a shell or bar change is not showing up."
+metadata:
+  author: timmo001
 ---
 
 # Omarchy Shell (Quickshell)

@@ -1,6 +1,8 @@
 ---
 name: agent-benchmark
 description: Run this repository's OpenCode agent benchmark and return its completed report. Use when asked to run, repeat, or inspect the agent benchmark or `/agent-benchmark`.
+metadata:
+  author: timmo001
 ---
 
 # Agent Benchmark

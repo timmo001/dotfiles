@@ -4,6 +4,8 @@ description: >
   REQUIRED when changing configs managed by ~/.config/dotfiles or
   ~/.config/dotfiles-private. Enforces editing stow source paths (not ad-hoc
   live paths) and using the dot command for stow/update/validation workflows.
+metadata:
+  author: timmo001
 ---
 
 # Dotfiles Stow Skill
