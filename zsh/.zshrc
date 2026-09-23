@@ -256,9 +256,6 @@ export ELECTRON_OZONE_PLATFORM_HINT=wayland
 
 [ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
 
-# Opencode
-OPENCODE_ENABLE_EXA=1
-
 # ------------------------------
 # Load environment variables
 # from .env file if it exists

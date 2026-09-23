@@ -43,7 +43,6 @@ export const installedHerdrAgents = Effect.gen(function* () {
     });
 
   const labels = [
-    ["opencode", "OpenCode 1"],
     ["pi", "Pi"],
     ["cursor", "Cursor Agent"],
     ["claude", "Claude Code"],
