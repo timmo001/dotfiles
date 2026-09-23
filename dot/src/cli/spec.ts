@@ -34,6 +34,7 @@ import {
 } from "../commands/OmarchyPlugin.js";
 import { updatesRefresh, updatesStatus } from "../commands/Updates.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
+import { prWatch } from "../commands/PrWatch.js";
 import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
 import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
 import { runSkillsMaintenance } from "../commands/Skills.js";
@@ -1445,6 +1446,79 @@ const repoInductCommand = describe(
   },
 );
 
+const prWatchCommand = describe(
+  Command.make(
+    "pr-watch",
+    {
+      prs: Argument.Int("pr").pipe(
+        Argument.atLeast(0),
+        Argument.withDescription(
+          "Pull request numbers (default: the current branch's pull request)",
+        ),
+      ),
+      repo: text("repo", "Repository slug when the PRs are elsewhere"),
+      stopOn: Flag.Literals("stop-on", ["failure", "review"]).pipe(
+        Flag.atLeast(0),
+        Flag.withDescription(
+          "Stop early on a failed job or check, or a new review with open threads; repeatable",
+        ),
+      ),
+      timeout: runDuration(
+        "timeout",
+        "Overall watch deadline (default: 60 minutes)",
+      ).pipe(Flag.withDefault(60 * 60 * 1000)),
+      interval: integer("interval", "Seconds between polls", 20).pipe(
+        Flag.filter(
+          (value) => value >= 5,
+          () => "Interval must be at least 5 seconds",
+        ),
+      ),
+      logLines: integer(
+        "log-lines",
+        "Trailing failed-log lines kept per job; 0 keeps everything",
+        200,
+      ).pipe(
+        Flag.filter(
+          (value) => value >= 0,
+          () => "Log lines must not be negative",
+        ),
+      ),
+      output: pathFlag(
+        "output",
+        "Report path (default: ~/.local/state/dot/pr-watch/<repo>-<prs>-<time>.md)",
+        "file",
+      ),
+    },
+    (input) =>
+      prWatch({
+        ...input,
+        repo: optional(input.repo),
+        output: optional(input.output),
+      }),
+  ),
+  "Watch pull request runs, checks and reviews, streaming progress and a full report",
+  [
+    "dot pr-watch",
+    "dot pr-watch --stop-on failure",
+    "dot pr-watch 54322 54325 54328 --repo home-assistant/frontend",
+  ],
+  {
+    description:
+      "Follow every GitHub Actions run on each pull request's head commit, including Copilot code review runs, plus external status checks. Superseded runs of the same workflow on the same commit are ignored, and a new push moves the watch to the new head. Progress streams to stdout one line per event; failed job logs and the final review dump go to a Markdown report whose path is printed first and last. Failed jobs are reported as soon as they finish, even while the rest of the run continues. The watch ends after two settled polls, waiting up to five more minutes for requested bot reviews. The review dump lists reviews newest first, unresolved threads with every comment in full, and resolved or minimized threads with only their replies. The command never changes the pull request. Designed for OpenCode 2 background shells: the completion notification carries the short summary and the report holds the detail.",
+    sections: [
+      {
+        title: "Exit codes",
+        lines: [
+          "0    Everything finished and passed",
+          "1    A job or check failed, or the watch could not start",
+          "3    Stopped early by --stop-on while other work was still pending",
+          "124  Timed out",
+        ],
+      },
+    ],
+  },
+);
+
 const agentOxlintCommand = describe(
   Command.make(
     "agent-oxlint",
@@ -1826,6 +1900,7 @@ export const dotCommand = describe(
       isAgent,
       repoInductCommand,
       agentOxlintCommand,
+      prWatchCommand,
       floating,
       herdr,
       setupWorkspace,

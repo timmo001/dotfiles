@@ -1275,6 +1275,51 @@ dot agent-oxlint --force src/example.ts
 dot agent-oxlint --opt-in
 ```
 
+## `dot pr-watch`
+
+Watch pull request runs, checks and reviews, streaming progress and a full report
+
+```text
+dot pr-watch [flags] [<pr...>]
+```
+
+Follow every GitHub Actions run on each pull request's head commit, including Copilot code review runs, plus external status checks. Superseded runs of the same workflow on the same commit are ignored, and a new push moves the watch to the new head. Progress streams to stdout one line per event; failed job logs and the final review dump go to a Markdown report whose path is printed first and last. Failed jobs are reported as soon as they finish, even while the rest of the run continues. The watch ends after two settled polls, waiting up to five more minutes for requested bot reviews. The review dump lists reviews newest first, unresolved threads with every comment in full, and resolved or minimized threads with only their replies. The command never changes the pull request. Designed for OpenCode 2 background shells: the completion notification carries the short summary and the report holds the detail.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--repo` `<string>` | Repository slug when the PRs are elsewhere |
+| `--stop-on` `<choice>` | Stop early on a failed job or check, or a new review with open threads; repeatable (choices: failure, review) |
+| `--timeout` `<string>` | Overall watch deadline (default: 60 minutes) |
+| `--interval` `<integer>` | Seconds between polls |
+| `--log-lines` `<integer>` | Trailing failed-log lines kept per job; 0 keeps everything |
+| `--output` `<path>` | Report path (default: ~/.local/state/dot/pr-watch/<repo>-<prs>-<time>.md) |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<pr>` | Pull request numbers (default: the current branch's pull request) |
+
+**Exit codes**
+
+```text
+0    Everything finished and passed
+1    A job or check failed, or the watch could not start
+3    Stopped early by --stop-on while other work was still pending
+124  Timed out
+```
+
+**Examples**
+
+```bash
+dot pr-watch
+dot pr-watch --stop-on failure
+dot pr-watch 54322 54325 54328 --repo home-assistant/frontend
+```
+
 ## `dot launch-floating-webapp`
 
 Launch one Omarchy webapp and place its new window in the target monitor's bottom-right corner, or reposition an existing window with --address. Width and height must be positive integers; margins must be non-negative.
