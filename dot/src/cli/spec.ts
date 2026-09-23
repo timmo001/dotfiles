@@ -34,6 +34,7 @@ import {
 } from "../commands/OmarchyPlugin.js";
 import { updatesRefresh, updatesStatus } from "../commands/Updates.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
+import { prQueue } from "../commands/PrQueue.js";
 import { prWatch } from "../commands/PrWatch.js";
 import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
 import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
@@ -1519,6 +1520,66 @@ const prWatchCommand = describe(
   },
 );
 
+const prQueueCommand = describe(
+  Command.make(
+    "pr-queue",
+    {
+      repo: text("repo", "Repository slug (default: the current checkout)"),
+      search: text(
+        "search",
+        "Pull request search overriding review_search from private dot-git.yml",
+      ),
+      since: Flag.String("since").pipe(
+        Flag.withDefault("today"),
+        Flag.withDescription(
+          "Activity window start: today, yesterday, YYYY-MM-DD (local midnight), an ISO timestamp, or an age such as 12h, 3d or 1w",
+        ),
+      ),
+      sort: Flag.Literals("sort", [
+        "effort",
+        "updated",
+        "created",
+        "size",
+      ]).pipe(
+        Flag.withDefault("effort"),
+        Flag.withDescription(
+          "Queue order: effort groups (small, medium, large, not ready), or one table by updated, created or size",
+        ),
+      ),
+      only: Flag.Literals("only", ["queue", "activity"]).pipe(
+        Flag.optional,
+        Flag.withDescription(
+          "Print only the review queue or only the activity window",
+        ),
+      ),
+      limit: integer("limit", "Maximum queue pull requests", 200).pipe(
+        Flag.filter(
+          (value) => value > 0,
+          () => "Limit must be positive",
+        ),
+      ),
+      json: bool("json", "Print JSON instead of Markdown"),
+    },
+    (input) =>
+      prQueue({
+        ...input,
+        repo: optional(input.repo),
+        search: optional(input.search),
+        only: optional(input.only),
+      }),
+  ),
+  "List reviewable pull requests and what was opened, merged or closed recently",
+  [
+    "dot pr-queue",
+    "dot pr-queue --only activity --since 2026-09-19",
+    "dot pr-queue --sort updated --since 3d --json",
+  ],
+  {
+    description:
+      "Run the repository's review_search from private dot-git.yml (or --search) and classify each pull request deterministically: size from changed lines, failing and pending checks, latest reviews, review decision, labels, comment count and first-time contributors. Effort groups are small (up to 150 changed lines), medium (up to 400) and large; a failing check or requested changes makes a pull request not ready. The activity window lists every pull request merged, closed without merging or opened since --since, newest first, with size and labels, plus the net change in open pull requests. Read-only.",
+  },
+);
+
 const agentOxlintCommand = describe(
   Command.make(
     "agent-oxlint",
@@ -1900,6 +1961,7 @@ export const dotCommand = describe(
       isAgent,
       repoInductCommand,
       agentOxlintCommand,
+      prQueueCommand,
       prWatchCommand,
       floating,
       herdr,

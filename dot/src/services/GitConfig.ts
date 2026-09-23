@@ -29,6 +29,7 @@ const REPO_KEYS = new Set([
   "agent_oxlint",
   "opencode_mcp",
   "browser",
+  "review_search",
   "activity",
   "notifications",
   "releases",
@@ -93,6 +94,8 @@ export interface GitManagedRepo {
   readonly opencodeMcp?: readonly string[];
   /** Named browser for repository web actions; omitted uses the desktop default. */
   readonly browser?: string;
+  /** GitHub pull request search used by dot pr-queue; the repository qualifier is added when missing. */
+  readonly reviewSearch?: string;
   /** Local activity check used by git diff and repository updates. */
   readonly activity: GitRepoCheckConfig;
   /** GitHub notification check and status-bar filters. */
@@ -435,6 +438,12 @@ function parseRepo(
     diagnostics,
   );
 
+  const reviewSearch = optionalString(
+    value.review_search,
+    `${location}.review_search`,
+    diagnostics,
+  );
+
   const activity = parseCheck(
     value.activity,
     `${location}.activity`,
@@ -471,6 +480,7 @@ function parseRepo(
       agentOxlint,
       ...(opencodeMcp.length > 0 && { opencodeMcp }),
       ...(browser && { browser }),
+      ...(reviewSearch && { reviewSearch }),
       activity,
       notifications,
       ...(releases && { releases }),

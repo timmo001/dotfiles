@@ -108,6 +108,10 @@ $defs:
         type: string
         pattern: "^[a-z][a-z0-9_-]*$"
         description: Name from browsers for web actions. Omitted uses the desktop default.
+      review_search:
+        type: string
+        minLength: 1
+        description: GitHub pull request search for dot pr-queue, such as the query from a saved pulls URL. The repo qualifier is added when missing.
       activity:
         $ref: "#/$defs/scheduled_check"
       notifications:
