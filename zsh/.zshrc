@@ -903,7 +903,7 @@ copilot() {
 # ------------------------------
 # Herdr managed session cleanup
 # ------------------------------
-_dot_herdr_stop_if_last_pane() {
+_dot_herdr_close_clients_if_last_pane() {
   [[ -n "${HERDR_ENV:-}" ]] || return 0
   command -v herdr >/dev/null 2>&1 || return 0
   command -v jq >/dev/null 2>&1 || return 0
@@ -916,13 +916,28 @@ _dot_herdr_stop_if_last_pane() {
   tabs="$(herdr tab list 2>/dev/null | jq -r '(.result.tabs // .tabs // []) | length' 2>/dev/null)"
   panes="$(herdr pane list 2>/dev/null | jq -r '(.result.panes // .panes // []) | length' 2>/dev/null)"
 
-  if [[ "$workspaces" == "1" && "$tabs" == "1" && "$panes" == "1" ]]; then
-    herdr session stop default >/dev/null 2>&1 || true
-  fi
+  [[ "$workspaces" == "1" && "$tabs" == "1" && "$panes" == "1" ]] || return 0
+
+  # The server keeps running; the pane and tab close when this shell exits.
+  # Detach the attached clients so their terminal windows close too.
+  local proc pid exe
+  local -a args
+  for proc in /proc/<->(N); do
+    pid="${proc:t}"
+    [[ -O "$proc" ]] || continue
+    exe="$(readlink -- "$proc/exe" 2>/dev/null)" || continue
+    [[ "${exe:t}" == "herdr" ]] || continue
+    args=(${(0)"$(<"$proc/cmdline")"})
+    args=("${(@)args[2,-1]}")
+    if (( ${#args} == 0 )) || [[ "${args[*]}" == "session attach default" ]]; then
+      kill -TERM -- "$pid" 2>/dev/null
+    fi
+  done
 }
 
 add-zsh-hook -d zshexit _dot_herdr_stop_if_last_pane 2>/dev/null
-add-zsh-hook zshexit _dot_herdr_stop_if_last_pane
+add-zsh-hook -d zshexit _dot_herdr_close_clients_if_last_pane 2>/dev/null
+add-zsh-hook zshexit _dot_herdr_close_clients_if_last_pane
 
 # ------------------------------
 # Key bindings for word navigation
