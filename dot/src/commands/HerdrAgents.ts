@@ -31,10 +31,7 @@ export const installedHerdrAgents = Effect.gen(function* () {
   const targets: HerdrAgentTarget[] = [];
   const opencode2 = join(HOME_DIR, ".local", "bin", "opencode2");
 
-  if (
-    available.has("opencode") &&
-    (yield* executor.exitCode("test", ["-x", opencode2])) === 0
-  )
+  if ((yield* executor.exitCode("test", ["-x", opencode2])) === 0)
     targets.push({
       command: "opencode2",
       label: "OpenCode 2",
