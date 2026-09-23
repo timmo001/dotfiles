@@ -104,30 +104,6 @@ run = """
 bash tests/dot/git-diff-index-lock.test.sh
 """
 
-[tasks."benchmarks:opencode"]
-description = "Run the isolated OpenCode benchmark slice"
-run = "bun run .benchmarks/opencode/benchmark.ts"
-
-[tasks."benchmarks:opencode:background"]
-description = "Start the OpenCode benchmark through pitchfork"
-run = "pitchfork run agent-benchmark --delay 0 -- mise run --quiet benchmarks:opencode --"
-
-[tasks."benchmarks:opencode:status"]
-description = "Show the OpenCode benchmark status"
-run = "pitchfork status agent-benchmark"
-
-[tasks."benchmarks:opencode:logs"]
-description = "Show the OpenCode benchmark logs"
-run = "pitchfork logs agent-benchmark"
-
-[tasks."benchmarks:opencode:logs:follow"]
-description = "Follow the OpenCode benchmark logs"
-run = "pitchfork logs --follow agent-benchmark"
-
-[tasks."benchmarks:opencode:stop"]
-description = "Stop the OpenCode benchmark"
-run = "pitchfork stop agent-benchmark"
-
 # docs (runs in ./docs)
 [tasks."docs:dev"]
 description = "Run the docs dev server (regenerates references first)"
