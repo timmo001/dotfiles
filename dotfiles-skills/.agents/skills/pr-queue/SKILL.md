@@ -14,7 +14,7 @@ metadata:
 
 # PR Queue
 
-`dot pr-queue` runs the repository's saved review search (`review_search` in private `dot-git.yml`, or `--search`) and lists the matching pull requests, along with every pull request merged, closed without merging or opened since `--since`. It classifies each pull request deterministically: changed lines and files, failing and pending checks, latest reviews, review decision, labels, comment count and first-time contributors. It never changes anything on GitHub.
+`dot pr-queue` runs the repository's saved review search (`review_search` in private `dot-git.yml`, or `--search`) and lists the matching pull requests, along with every pull request merged, closed without merging or opened since `--since`. It classifies each pull request deterministically: changed lines and files, failing and pending checks, latest reviews, review decision, unresolved review threads by author, labels, comment count and first-time contributors. It never changes anything on GitHub.
 
 ## Ask how to present it
 
@@ -40,6 +40,7 @@ Remember the answer for the rest of the conversation.
 
 The command's groups are a starting point. Before calling something a quick win, or when the user asks about a specific pull request, check what the numbers cannot show:
 
+- Open review threads: when a pull request's Notes show `open threads`, rerun with `--only queue --threads` (once for the whole list) and read them before ranking it. Judge each thread against the diff under `code-review`: a genuine unaddressed concern (a bug, a wrong assumption, a missing guard, a contract mismatch) means it is not a quick win, even when it is small and passing. Say which concerns look valid. Nitpicks, style suggestions and outdated threads count for little. Don't treat Copilot threads as noise by default.
 - Read the diff (`gh pr diff`) for risk: shared components, login or auth, data handling, public APIs, many small edits across files.
 - Labels or failing checks that mean it's waiting on the author, such as a missing template or a blocked label, even when the size is small.
 - Links between pull requests (series from the same author, drafts it depends on), and whether it probably needs UX or backend input.
@@ -50,5 +51,6 @@ Keep claims tied to evidence: say when a note comes from the diff, the descripti
 ## Report back
 
 - Lead with the answer to the question asked (the count change, the top picks, or what happened), then the list in the chosen presentation.
+- Keep the time window the user asked about, or set earlier in the conversation, such as "today". The review queue lists every open match whatever its age, so say plainly which picks are from that window and which are older, using the Opened and Updated dates and the `new`/`updated` notes, for example "opened 17 Sep, not today". If nothing in the window fits, say so before offering older ones.
 - Link each pull request and include its author and size.
 - Offer the next step, such as reviewing a specific pull request, without starting it. Never comment, review, approve, label or merge.
