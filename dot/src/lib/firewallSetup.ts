@@ -53,7 +53,6 @@ export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
  * - KDE Connect discovers and connects over the full 1714-1764 range on both
  *   UDP (discovery) and TCP (transfer).
  * - Home Assistant serves its frontend on 8123 and its companion port 8124.
- * - OpenCode's local server listens on its default port 4096.
  * - LocalSend discovers and transfers over 53317 on both UDP and TCP.
  * - libvirt's default NAT network needs the host to accept guest DHCP (67) and
  *   DNS (53) on `virbr0` and to forward (route) guest traffic off `virbr0`,
@@ -69,7 +68,6 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
   },
   { kind: "port", label: "Home Assistant", port: "8123", protocols: ["tcp"] },
   { kind: "port", label: "Home Assistant", port: "8124", protocols: ["tcp"] },
-  { kind: "port", label: "OpenCode server", port: "4096", protocols: ["tcp"] },
   {
     kind: "port",
     label: "LocalSend",
