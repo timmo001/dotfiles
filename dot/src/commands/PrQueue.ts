@@ -1,5 +1,17 @@
-import { Api, Gh, type GhError } from "@timmo001/effect-gh";
+import { Gh } from "@timmo001/effect-gh";
 import { Clock, Effect, Schema } from "effect";
+import {
+  GH_OPTIONS as GH,
+  Login,
+  ReviewThread,
+  authorLogin as author,
+  ghErrorMessage,
+  graphql,
+  isOpenThread,
+  quote,
+  reviewThreadFields,
+  threadLocation,
+} from "../lib/pullRequestReviews.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import {
@@ -22,13 +34,13 @@ export interface PrQueueOptions {
   readonly limit: number;
   /** Effort groups smallest first; the others print one table in that order. */
   readonly sort: PrQueueSort;
+  /** Include the text of unresolved review threads. */
+  readonly threads: boolean;
   /** Print JSON instead of Markdown. */
   readonly json: boolean;
   /** Limit output to the review queue or the activity window; omitted prints both. */
   readonly only: "queue" | "activity" | undefined;
 }
-
-const GH = { timeout: "2 minutes" } as const;
 
 const SMALL_LINES = 150;
 
@@ -47,8 +59,6 @@ const HOURS = new Map([
 ]);
 
 const FIRST_TIMERS = new Set(["FIRST_TIMER", "FIRST_TIME_CONTRIBUTOR"]);
-
-const Login = Schema.NullOr(Schema.Struct({ login: Schema.String }));
 
 const PageInfo = Schema.Struct({
   hasNextPage: Schema.Boolean,
@@ -82,6 +92,7 @@ const QueueNode = Schema.Struct({
     nodes: Schema.Array(Schema.Struct({ name: Schema.String })),
   }),
   comments: Schema.Struct({ totalCount: Schema.Int }),
+  reviewThreads: Schema.Struct({ nodes: Schema.Array(ReviewThread) }),
   latestReviews: Schema.Struct({
     nodes: Schema.Array(Schema.Struct({ author: Login, state: Schema.String })),
   }),
@@ -143,7 +154,7 @@ const CountResponse = Schema.Struct({
   }),
 });
 
-const QUEUE_QUERY = `query($q: String!, $first: Int!, $cursor: String) {
+const QUEUE_QUERY = `query($q: String!, $first: Int!, $cursor: String, $bodies: Boolean!) {
   search(query: $q, type: ISSUE, first: $first, after: $cursor) {
     issueCount
     pageInfo { hasNextPage endCursor }
@@ -153,6 +164,9 @@ const QUEUE_QUERY = `query($q: String!, $first: Int!, $cursor: String) {
         author { login }
         labels(first: 30) { nodes { name } }
         comments { totalCount }
+        reviewThreads(first: 100) {
+          nodes { ${reviewThreadFields({ comments: 20, bodies: "$bodies" })} }
+        }
         latestReviews(first: 20) { nodes { author { login } state } }
         commits(last: 1) {
           nodes {
@@ -219,6 +233,7 @@ interface QueueItem {
   readonly reviews: readonly string[];
   readonly labels: readonly string[];
   readonly comments: number;
+  readonly openThreads: readonly ReviewThread[];
   readonly failing: readonly string[];
   readonly pending: number;
   readonly group: Group;
@@ -247,12 +262,6 @@ interface ActivityList {
 class PrQueueError extends Schema.TaggedError<PrQueueError>()("PrQueueError", {
   message: Schema.String,
 }) {}
-
-const author = (login: { readonly login: string } | null) =>
-  login?.login ?? "ghost";
-
-const ghMessage = (error: GhError) =>
-  "stderr" in error ? error.stderr.trim() : error._tag;
 
 const searchTime = (millis: number) =>
   new Date(millis).toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -345,6 +354,7 @@ function classify(node: QueueNode, since: number): QueueItem {
     ),
     labels: node.labels.nodes.map((label) => label.name),
     comments: node.comments.totalCount,
+    openThreads: node.reviewThreads.nodes.filter(isOpenThread),
     failing,
     pending,
     group,
@@ -369,6 +379,62 @@ const size = (item: {
 
 const cell = (text: string) => text.replaceAll("|", "\\|").replace(/\s+/g, " ");
 
+/** Count unresolved threads per author, noting how many are outdated. */
+function threadSummary(item: QueueItem): string {
+  const counts = new Map<string, { open: number; outdated: number }>();
+
+  for (const thread of item.openThreads) {
+    const login = author(thread.comments.nodes[0]?.author ?? null);
+    const count = counts.get(login) ?? { open: 0, outdated: 0 };
+    count.open++;
+
+    if (thread.isOutdated) count.outdated++;
+    counts.set(login, count);
+  }
+
+  return [...counts]
+    .map(
+      ([login, count]) =>
+        `${count.open} ${login}${count.outdated > 0 ? ` (${count.outdated} outdated)` : ""}`,
+    )
+    .join(", ");
+}
+
+function renderThreads(items: readonly QueueItem[]): string[] {
+  const withThreads = items.filter((item) =>
+    item.openThreads.some((thread) =>
+      thread.comments.nodes.some((comment) => comment.body !== undefined),
+    ),
+  );
+
+  if (withThreads.length === 0) return [];
+
+  const out = ["## Open review threads", ""];
+
+  for (const item of withThreads) {
+    out.push(`### [#${item.number}](${item.url}) ${item.title}`, "");
+
+    for (const thread of item.openThreads) {
+      const { nodes, totalCount } = thread.comments;
+
+      out.push(`#### ${threadLocation(thread)}`, nodes[0]?.url ?? "", "");
+
+      for (const comment of nodes)
+        out.push(
+          `**${author(comment.author)}**:`,
+          "",
+          quote(comment.body ?? ""),
+          "",
+        );
+
+      if (totalCount > nodes.length)
+        out.push(`[${totalCount - nodes.length} later comments omitted]`, "");
+    }
+  }
+
+  return out;
+}
+
 function renderItem(item: QueueItem): string {
   const checks =
     item.failing.length > 0
@@ -381,12 +447,13 @@ function renderItem(item: QueueItem): string {
     item.newSince ? "new" : item.updatedSince ? "updated" : "",
     item.firstTimer ? "first-time contributor" : "",
     item.reviewDecision === "CHANGES_REQUESTED" ? "changes requested" : "",
+    item.openThreads.length > 0 ? `open threads: ${threadSummary(item)}` : "",
     item.comments > 0
       ? `${item.comments} comment${item.comments === 1 ? "" : "s"}`
       : "",
   ].filter(Boolean);
 
-  return `| [#${item.number}](${item.url}) ${cell(item.title)} | ${item.author} | ${size(item)} | ${item.updatedAt.slice(0, 10)} | ${checks} | ${item.reviews.join(", ") || "none"} | ${cell(item.labels.join(", "))} | ${notes.join("; ")} |`;
+  return `| [#${item.number}](${item.url}) ${cell(item.title)} | ${item.author} | ${size(item)} | ${item.createdAt.slice(0, 10)} | ${item.updatedAt.slice(0, 10)} | ${checks} | ${item.reviews.join(", ") || "none"} | ${cell(item.labels.join(", "))} | ${notes.join("; ")} |`;
 }
 
 function renderActivity(title: string, list: ActivityList): string[] {
@@ -448,7 +515,7 @@ const run = Effect.fn("prQueue")(function* (options: PrQueueOptions) {
         Effect.mapError(
           (error) =>
             new PrQueueError({
-              message: `Could not resolve the repository; pass --repo: ${ghMessage(error)}`,
+              message: `Could not resolve the repository; pass --repo: ${ghErrorMessage(error)}`,
             }),
         ),
       ));
@@ -464,21 +531,6 @@ const run = Effect.fn("prQueue")(function* (options: PrQueueOptions) {
     ? configured
     : `repo:${repo} ${configured}`;
 
-  const graphql = <S extends Schema.Top>(
-    query: string,
-    variables: Record<string, string | number | null>,
-    schema: S,
-  ) =>
-    Api.json(
-      {
-        endpoint: "graphql",
-        method: "POST",
-        body: { query, variables },
-        options: GH,
-      },
-      schema,
-    );
-
   const fetchQueue = Effect.gen(function* () {
     const nodes: QueueNode[] = [];
     let cursor: string | null = null;
@@ -489,6 +541,7 @@ const run = Effect.fn("prQueue")(function* (options: PrQueueOptions) {
         QUEUE_QUERY,
         {
           q: `${search} is:pr`,
+          bodies: options.threads,
           first: Math.min(50, options.limit - nodes.length),
           cursor,
         },
@@ -576,7 +629,7 @@ const run = Effect.fn("prQueue")(function* (options: PrQueueOptions) {
     Effect.mapError(
       (error) =>
         new PrQueueError({
-          message: `GitHub search failed: ${ghMessage(error)}`,
+          message: `GitHub search failed: ${ghErrorMessage(error)}`,
         }),
     ),
   );
@@ -644,14 +697,14 @@ const run = Effect.fn("prQueue")(function* (options: PrQueueOptions) {
       "",
       `Search: \`${search}\``,
       "",
-      `${queue.total} match${items.length < queue.total ? ` (showing ${items.length})` : ""}.`,
+      `${queue.total} match${items.length < queue.total ? ` (showing ${items.length})` : ""}, whatever their age. Since ${new Date(since).toLocaleString()}: ${items.filter((item) => item.newSince).length} opened, ${items.filter((item) => item.updatedSince && !item.newSince).length} more updated; the rest are older.`,
       "",
     );
 
     const header =
-      "| PR | Author | Size | Updated | Checks | Reviews | Labels | Notes |";
+      "| PR | Author | Size | Opened | Updated | Checks | Reviews | Labels | Notes |";
 
-    const divider = "|---|---|---|---|---|---|---|---|";
+    const divider = "|---|---|---|---|---|---|---|---|---|";
 
     if (options.sort === "effort")
       for (const group of ["small", "medium", "large", "notReady"] as const) {
@@ -679,7 +732,9 @@ const run = Effect.fn("prQueue")(function* (options: PrQueueOptions) {
       );
 
     out.push(
-      `Groups: small is up to ${SMALL_LINES} changed lines, medium up to ${MEDIUM_LINES}; not ready means a failing check or changes requested. "new" and "updated" are relative to the activity window.`,
+      `Groups: small is up to ${SMALL_LINES} changed lines, medium up to ${MEDIUM_LINES}; not ready means a failing check or changes requested. "new" and "updated" are relative to the activity window. Open threads are unresolved review threads by author; pass --threads for their text.`,
+      "",
+      ...renderThreads(items),
     );
   }
 

@@ -1,8 +1,24 @@
-import { Api, Gh, PullRequest, type GhError } from "@timmo001/effect-gh";
+import { Gh, PullRequest, type GhError } from "@timmo001/effect-gh";
 import { Clock, Duration, Effect, Option, Schema } from "effect";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { STATE_DIR, displayPath, expandHomePath } from "../lib/paths.js";
+import {
+  GH_OPTIONS as GH,
+  Login,
+  Minimized,
+  ReviewThread,
+  authorLogin as author,
+  ghErrorMessage,
+  graphql,
+  isOpenThread,
+  quote,
+  reviewThreadFields,
+  threadLocation,
+  threadStatus,
+  type ReviewComment as Comment,
+  type ReviewThread as Thread,
+} from "../lib/pullRequestReviews.js";
 
 /** Early-stop triggers for {@link prWatch}. */
 export type PrWatchStopOn = "failure" | "review";
@@ -24,8 +40,6 @@ export interface PrWatchOptions {
   /** Report file path; defaults to a timestamped file under the dot state directory. */
   readonly output: string | undefined;
 }
-
-const GH = { timeout: "2 minutes" } as const;
 
 const STABLE_POLLS = 2;
 
@@ -72,13 +86,6 @@ const Job = Schema.Struct({
 
 type Job = typeof Job.Type;
 
-const Login = Schema.NullOr(Schema.Struct({ login: Schema.String }));
-
-const Minimized = {
-  isMinimized: Schema.Boolean,
-  minimizedReason: Schema.NullOr(Schema.String),
-};
-
 const Review = Schema.Struct({
   id: Schema.String,
   state: Schema.String,
@@ -91,31 +98,6 @@ const Review = Schema.Struct({
 });
 
 type Review = typeof Review.Type;
-
-const Comment = Schema.Struct({
-  id: Schema.String,
-  body: Schema.String,
-  createdAt: Schema.String,
-  url: Schema.String,
-  author: Login,
-  pullRequestReview: Schema.NullOr(Schema.Struct({ id: Schema.String })),
-  ...Minimized,
-});
-
-type Comment = typeof Comment.Type;
-
-const Thread = Schema.Struct({
-  id: Schema.String,
-  isResolved: Schema.Boolean,
-  isOutdated: Schema.Boolean,
-  path: Schema.String,
-  line: Schema.NullOr(Schema.Int),
-  originalLine: Schema.NullOr(Schema.Int),
-  resolvedBy: Login,
-  comments: Schema.Struct({ nodes: Schema.Array(Comment) }),
-});
-
-type Thread = typeof Thread.Type;
 
 const ReviewResponse = Schema.Struct({
   data: Schema.Struct({
@@ -139,7 +121,7 @@ const ReviewResponse = Schema.Struct({
             hasNextPage: Schema.Boolean,
             endCursor: Schema.NullOr(Schema.String),
           }),
-          nodes: Schema.Array(Thread),
+          nodes: Schema.Array(ReviewThread),
         }),
       }),
     }),
@@ -161,17 +143,7 @@ const REVIEW_QUERY = `query($owner: String!, $name: String!, $number: Int!, $cur
       }
       reviewThreads(first: 100, after: $cursor) {
         pageInfo { hasNextPage endCursor }
-        nodes {
-          id isResolved isOutdated path line originalLine
-          resolvedBy { login }
-          comments(first: 100) {
-            nodes {
-              id body createdAt url isMinimized minimizedReason
-              author { login }
-              pullRequestReview { id }
-            }
-          }
-        }
+        nodes { ${reviewThreadFields({ comments: 100 })} }
       }
     }
   }
@@ -204,16 +176,6 @@ interface Target {
 class PrWatchError extends Schema.TaggedError<PrWatchError>()("PrWatchError", {
   message: Schema.String,
 }) {}
-
-const author = (login: { readonly login: string } | null) =>
-  login?.login ?? "ghost";
-
-const quote = (body: string) =>
-  body
-    .trim()
-    .split("\n")
-    .map((line) => (line ? `> ${line}` : ">"))
-    .join("\n");
 
 const short = (sha: string) => sha.slice(0, 9);
 
@@ -260,21 +222,12 @@ function formatFailedLog(raw: string, limit: number): string {
   return `${dropped > 0 ? `[${dropped} earlier lines omitted; rerun with --log-lines 0 for the full log]\n` : ""}${kept.join("\n").trimEnd()}`;
 }
 
-function threadStatus(thread: Thread): string | undefined {
-  const [first] = thread.comments.nodes;
-
-  if (first?.isMinimized)
-    return `minimized as ${first.minimizedReason ?? "unknown"}`;
-
-  if (thread.isResolved) return `resolved by ${author(thread.resolvedBy)}`;
-}
-
 function renderComment(comment: Comment): string {
   const hidden = comment.isMinimized
     ? ` (minimized as ${comment.minimizedReason ?? "unknown"})`
     : "";
 
-  return `**${author(comment.author)}** at ${comment.createdAt}${hidden} (${comment.url}):\n\n${quote(comment.body)}\n`;
+  return `**${author(comment.author)}** at ${comment.createdAt}${hidden} (${comment.url}):\n\n${quote(comment.body ?? "")}\n`;
 }
 
 function renderReviews(target: Target): string {
@@ -298,11 +251,8 @@ function renderReviews(target: Target): string {
     threadTime(b).localeCompare(threadTime(a)),
   );
 
-  const open = ordered.filter((thread) => threadStatus(thread) === undefined);
-  const dismissed = ordered.filter((thread) => threadStatus(thread));
-
-  const location = (thread: Thread) =>
-    `${thread.path}:${thread.line ?? thread.originalLine ?? "?"}${thread.isOutdated ? " (outdated)" : ""}`;
+  const open = ordered.filter(isOpenThread);
+  const dismissed = ordered.filter((thread) => !isOpenThread(thread));
 
   const out: string[] = [
     `## Reviews for #${target.number}: ${target.title}`,
@@ -353,7 +303,7 @@ function renderReviews(target: Target): string {
   out.push(`### Open threads (${open.length})`, "");
 
   for (const thread of open) {
-    out.push(`#### ${location(thread)} [${thread.id}]`, "");
+    out.push(`#### ${threadLocation(thread)} [${thread.id}]`, "");
     out.push(...thread.comments.nodes.map(renderComment));
   }
 
@@ -369,7 +319,7 @@ function renderReviews(target: Target): string {
     const [first] = thread.comments.nodes;
 
     out.push(
-      `#### ${location(thread)} [${thread.id}] ${threadStatus(thread)}`,
+      `#### ${threadLocation(thread)} [${thread.id}] ${threadStatus(thread)}`,
       "",
       `Started by ${author(first?.author ?? null)}: ${first?.url ?? ""}`,
       "",
@@ -409,7 +359,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
     Effect.mapError(
       (error) =>
         new PrWatchError({
-          message: `Could not resolve the pull request: ${"stderr" in error ? error.stderr.trim() : error._tag}`,
+          message: `Could not resolve the pull request: ${ghErrorMessage(error)}`,
         }),
     ),
   );
@@ -493,20 +443,13 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
     let botRequests: string[] = [];
 
     do {
-      const response: typeof ReviewResponse.Type = yield* Api.json(
+      const response: typeof ReviewResponse.Type = yield* graphql(
+        REVIEW_QUERY,
         {
-          endpoint: "graphql",
-          method: "POST",
-          body: {
-            query: REVIEW_QUERY,
-            variables: {
-              owner: target.owner,
-              name: target.name,
-              number: target.number,
-              cursor,
-            },
-          },
-          options: GH,
+          owner: target.owner,
+          name: target.name,
+          number: target.number,
+          cursor,
         },
         ReviewResponse,
       );
@@ -566,9 +509,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
           formatFailedLog(output.stdout, options.logLines),
         ),
         Effect.catch((error: GhError) =>
-          Effect.succeed(
-            `Log unavailable: ${"stderr" in error ? error.stderr.trim() : error._tag}`,
-          ),
+          Effect.succeed(`Log unavailable: ${ghErrorMessage(error)}`),
         ),
       );
 
@@ -714,7 +655,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
       const open = target.reviews.threads.filter(
         (thread) =>
           thread.comments.nodes[0]?.pullRequestReview?.id === review.id &&
-          threadStatus(thread) === undefined,
+          isOpenThread(thread),
       ).length;
 
       yield* say(
@@ -745,7 +686,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
             Effect.catch((error: GhError) =>
               say(
                 target,
-                `[WARN] Poll failed, retrying: ${"stderr" in error ? error.stderr.trim() : error._tag}`,
+                `[WARN] Poll failed, retrying: ${ghErrorMessage(error)}`,
               ),
             ),
           ),
@@ -787,9 +728,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
   for (const target of targets) write(`${renderReviews(target)}\n`);
 
   const summary = targets.map((target) => {
-    const openThreads = target.reviews.threads.filter(
-      (thread) => threadStatus(thread) === undefined,
-    ).length;
+    const openThreads = target.reviews.threads.filter(isOpenThread).length;
 
     const waiting = [
       ...target.pending,

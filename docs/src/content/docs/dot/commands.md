@@ -1283,7 +1283,7 @@ List reviewable pull requests and what was opened, merged or closed recently
 dot pr-queue [flags]
 ```
 
-Run the repository's review_search from private dot-git.yml (or --search) and classify each pull request deterministically: size from changed lines, failing and pending checks, latest reviews, review decision, labels, comment count and first-time contributors. Effort groups are small (up to 150 changed lines), medium (up to 400) and large; a failing check or requested changes makes a pull request not ready. The activity window lists every pull request merged, closed without merging or opened since --since, newest first, with size and labels, plus the net change in open pull requests. Read-only.
+Run the repository's review_search from private dot-git.yml (or --search) and classify each pull request deterministically: size from changed lines, failing and pending checks, latest reviews, review decision, unresolved review threads by author, labels, comment count and first-time contributors. --threads adds each unresolved thread's comments. Effort groups are small (up to 150 changed lines), medium (up to 400) and large; a failing check or requested changes makes a pull request not ready. The activity window lists every pull request merged, closed without merging or opened since --since, newest first, with size and labels, plus the net change in open pull requests. Read-only.
 
 **Options**
 
@@ -1296,6 +1296,7 @@ Run the repository's review_search from private dot-git.yml (or --search) and cl
 | `--only` `<choice>` | Print only the review queue or only the activity window (choices: queue, activity) |
 | `--limit` `<integer>` | Maximum queue pull requests |
 | `--json` | Print JSON instead of Markdown |
+| `--threads` | Include the comments of unresolved review threads for queue pull requests |
 | `--help` `-h` | Show help information |
 
 **Examples**
