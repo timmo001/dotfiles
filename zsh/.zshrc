@@ -919,7 +919,12 @@ _dot_herdr_close_clients_if_last_pane() {
   [[ "$workspaces" == "1" && "$tabs" == "1" && "$panes" == "1" ]] || return 0
 
   # The server keeps running; the pane and tab close when this shell exits.
-  # Detach the attached clients so their terminal windows close too.
+  # Leave a Dotfiles workspace for the next attach, then detach the attached
+  # clients so their terminal windows close too.
+  herdr workspace create \
+    --cwd "${DOTFILES_PUBLIC_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles}" \
+    --label Dotfiles --focus >/dev/null 2>&1
+
   local proc pid exe
   local -a args
   for proc in /proc/<->(N); do
