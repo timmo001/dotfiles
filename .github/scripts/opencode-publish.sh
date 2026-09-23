@@ -113,7 +113,7 @@ generate_readme() {
     cat <<EOF
 # OpenCode Config
 
-Shared [OpenCode](https://opencode.ai) skills, agents, plugins, and commands.
+Shared [OpenCode 2](https://opencode.ai) skills, agents, plugins, and commands. The plugins use the OpenCode 2 Effect plugin API (\`@opencode/plugin\`).
 
 Generated and published from [\`${DOTFILES_REPO}\`](${DOTFILES_URL}), with shared skills sourced from [\`${SKILLS_REPO}\`](${SKILLS_URL}).
 
@@ -130,18 +130,19 @@ cd opencode-config
 # Copy individual items
 cp -r skills/diagnose ~/.agents/skills/
 cp commands/inject-context.md ~/.config/opencode/commands/
-cp plugins/env-protection.ts ~/.config/opencode/plugins/
-cp -r lib ~/.config/opencode/
+cp -r plugins lib ~/.config/opencode/
+bun install --cwd ~/.config/opencode/plugins
 cp agents/reviewer.md ~/.config/opencode/agents/
 
 # Or copy everything
 cp -r skills ~/.agents/
 cp -r agents commands plugins lib ~/.config/opencode/
+bun install --cwd ~/.config/opencode/plugins
 \`\`\`
 
 > **Stow users:** If your OpenCode config is managed by [GNU Stow](https://www.gnu.org/software/stow/) or a similar symlink manager, the \`cp\` commands above will not work — they copy into the live path rather than your stow source directory. Either follow the [dotfiles setup](${DOTFILES_URL}) this repo is published from, or ask an agent to adapt the files into your own stow structure.
 
-Some skills and commands depend on plugins to function. Check the tables below for required plugins and install them alongside the skill or command.
+Plugins share modules from \`plugins/lib/\` and \`lib/\`, and their dependencies are declared in \`plugins/package.json\`, so copy the whole \`plugins\` and \`lib\` directories rather than single plugin files. Some skills and commands depend on plugins to function. Check the tables below for required plugins and install them alongside the skill or command.
 
 ### Importing Skills
 
@@ -169,7 +170,7 @@ This repo provides skills, agents, commands, and plugins but not an \`opencode.j
 }
 \`\`\`
 
-Place it at \`~/.config/opencode/opencode.json\` (or \`opencode.jsonc\` for comments). See the [OpenCode docs](https://opencode.ai/docs/config) for the full configuration reference.
+Place it at \`~/.config/opencode/opencode.json\` (or \`opencode.jsonc\` for comments). See the [OpenCode docs](https://opencode.ai/v2/docs/config) for the full configuration reference.
 
 ## How It Fits Together
 
@@ -299,7 +300,7 @@ Do not edit generated files here directly. Make OpenCode config changes in [\`${
 skills/      OpenCode skills (SKILL.md per directory, optional references/)
 agents/      Agent definitions (YAML frontmatter + Markdown body)
 commands/    Slash commands (YAML frontmatter + Markdown workflow)
-plugins/     Lifecycle plugins (ESM TypeScript)
+plugins/     OpenCode 2 plugins (Effect TypeScript, with package.json and plugins/lib/)
 lib/         Shared modules imported by plugins
 \`\`\`
 
@@ -345,7 +346,7 @@ validate_plugin_imports() {
         -e "s/.*import[[:space:]]*\([[:space:]]*['\"](\.\.?\/[^'\"]+)['\"].*/\1/p" \
         "$plugin_file"
     )
-  done < <(find "${config_dir}/plugins" -type f \( -name '*.ts' -o -name '*.js' \) -print)
+  done < <(find "${config_dir}/plugins" -path '*/node_modules' -prune -o -type f \( -name '*.ts' -o -name '*.js' \) -print)
 }
 
 sync_to_publish() {
@@ -377,7 +378,7 @@ sync_to_publish() {
   # Copy OpenCode config directories from their stow source.
   for dir in agents commands plugins lib; do
     [[ -d "${CONFIG_DIR}/${dir}" ]] || continue
-    cp -a "${CONFIG_DIR}/${dir}" "${PUBLISH_DIR}/"
+    rsync -a --exclude node_modules "${CONFIG_DIR}/${dir}" "${PUBLISH_DIR}/"
   done
 
   # Keep skills as a pinned reference to their independent source repository.
