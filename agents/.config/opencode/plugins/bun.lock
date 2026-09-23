@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "opencode-v2-plugins",
+      "name": "opencode-plugins",
       "devDependencies": {
         "@opencode/client": "2.0.14",
         "@opencode/plugin": "2.0.14",

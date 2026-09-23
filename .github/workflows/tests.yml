@@ -87,8 +87,8 @@ jobs:
       - name: Install root dependencies
         run: bun install --frozen-lockfile
 
-      - name: Install OpenCode v2 plugin dependencies
-        run: bun install --cwd agents/.config/opencode/plugins-v2 --frozen-lockfile
+      - name: Install OpenCode plugin dependencies
+        run: bun install --cwd agents/.config/opencode/plugins --frozen-lockfile
 
       - name: Run regression tests
         run: mise run tests:integration

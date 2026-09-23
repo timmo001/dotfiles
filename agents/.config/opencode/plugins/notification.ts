@@ -1,141 +1,151 @@
 /**
  * @file Sends contextual desktop notifications and terminal attention for agent events.
- *
- * Uses Omarchy-formatted desktop notifications that focus the originating
- * Hyprland window only when clicked, BEL to request attention, and `paplay`
- * for the freedesktop message sound. Main session completions and permission
- * prompts include the session title, while background task completions stay
- * silent. Herdr sessions keep desktop notifications but skip this plugin's
- * sound because Herdr owns agent-state sounds.
  */
 
-import type { Plugin } from "@opencode-ai/plugin";
+import { Plugin } from "@opencode/plugin/effect";
+import { Effect, Stream } from "effect";
+import { $ } from "bun";
 
-import { createDesktopNotifier } from "../lib/desktop-notification";
+const SOUND_PATH = "/usr/share/sounds/freedesktop/stereo/message.oga";
 
-function recordFromUnknown(value: unknown): Record<string, unknown> {
-  return typeof value === "object" && value !== null
-    ? (value as Record<string, unknown>)
-    : {};
-}
+const sanitizeNotificationText = (value: string, fallback: string) => {
+  const sanitized = Array.from(value)
+    .map((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
 
-function dataOrValue(value: unknown): unknown {
-  const record = recordFromUnknown(value);
-  return "data" in record && record.data !== undefined ? record.data : value;
-}
+      return codePoint < 32 ||
+        (codePoint >= 127 && codePoint <= 159) ||
+        character === ";"
+        ? " "
+        : character;
+    })
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 160);
 
-export const NotificationPlugin = (async ({ $, client }) => {
-  const isHerdrSession = process.env.HERDR_ENV === "1";
-  const soundPath = "/usr/share/sounds/freedesktop/stereo/message.oga";
-  let canPlaySound: boolean | undefined;
-  const sendDesktopNotification = await createDesktopNotifier($);
+  return sanitized || fallback;
+};
 
-  const sanitizeNotificationText = (value: string, fallback: string) => {
-    const sanitized = [...value]
-      .map((character) => {
-        const codePoint = character.codePointAt(0) ?? 0;
-        return codePoint < 32 ||
-          (codePoint >= 127 && codePoint <= 159) ||
-          character === ";"
-          ? " "
-          : character;
-      })
-      .join("")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 160);
-    return sanitized || fallback;
-  };
+const createDesktopNotifier = Effect.gen(function* () {
+  const originWindowAddress = yield* Effect.tryPromise(() =>
+    $`hyprctl activewindow -j | jq -r .address`.text(),
+  ).pipe(
+    Effect.map((address) => address.trim()),
+    Effect.catch(() => Effect.succeed("")),
+  );
 
-  const checkPaplay = async () => {
-    if (canPlaySound !== undefined) {
-      return canPlaySound;
-    }
+  const originHerdrTabID = process.env.HERDR_TAB_ID ?? "";
+  let canNotify: boolean | undefined;
 
-    try {
-      await $`sh -lc "command -v paplay >/dev/null 2>&1"`;
-      canPlaySound = true;
-    } catch {
-      canPlaySound = false;
-    }
-
-    return canPlaySound;
-  };
-
-  const playSound = async () => {
-    if (!(await checkPaplay())) {
-      return;
-    }
-
-    try {
-      await $`paplay ${soundPath}`;
-    } catch {}
-  };
-
-  const getSession = async (sessionID: string) => {
-    try {
-      const result = await client.session.get({ path: { id: sessionID } });
-      return recordFromUnknown(dataOrValue(result));
-    } catch {
-      return {};
-    }
-  };
-
-  const notify = async (glyph: string, title: string, body: string) => {
-    const safeTitle = sanitizeNotificationText(title, "OpenCode");
-    const safeBody = sanitizeNotificationText(body, "Attention required");
-
-    if (!isHerdrSession) {
-      try {
-        process.stdout.write("\u0007");
-      } catch {}
-    }
-
-    await sendDesktopNotification(glyph, safeTitle, safeBody);
-    if (!isHerdrSession) {
-      await playSound();
-    }
-  };
-
-  const sessionIDFromEvent = (event: {
-    readonly properties?: Record<string, unknown>;
-  }) => {
-    const sessionID = event.properties?.sessionID;
-    return typeof sessionID === "string" ? sessionID : "";
-  };
-
-  return {
-    event: async ({ event }) => {
-      // Only notify for main session events, not background subagents
-      if (event.type === "session.idle") {
-        const sessionID = sessionIDFromEvent(event);
-        const session = await getSession(sessionID);
-        if (session.parentID) return;
-
-        const sessionTitle =
-          typeof session.title === "string"
-            ? session.title
-            : "OpenCode session";
-        await notify("✓", "OpenCode: Task complete", sessionTitle);
+  return (glyph: string, title: string, body: string) =>
+    Effect.gen(function* () {
+      if (canNotify === undefined) {
+        canNotify = yield* Effect.tryPromise(() =>
+          $`sh -lc "command -v omarchy >/dev/null 2>&1"`,
+        ).pipe(
+          Effect.as(true),
+          Effect.catch(() => Effect.succeed(false)),
+        );
       }
 
-      // Permission prompt created
-      if (event.type === "permission.asked") {
-        const sessionID = sessionIDFromEvent(event);
-        const session = await getSession(sessionID);
-        const sessionTitle =
-          typeof session.title === "string"
-            ? session.title
-            : "OpenCode session";
-        const permission = event.properties?.permission;
-        const detail =
-          typeof permission === "string"
-            ? `${sessionTitle} needs permission: ${permission}`
-            : `${sessionTitle} needs permission`;
-        await notify("🔒", "OpenCode: Permission required", detail);
-      }
-    },
-  };
-}) satisfies Plugin;
+      if (!canNotify) return;
 
-export default NotificationPlugin;
+      const focusCommand = /^0x[0-9a-f]+$/i.test(originWindowAddress)
+        ? `hyprctl dispatch 'hl.dsp.focus({ window = "address:${originWindowAddress}" })'${
+            /^[a-z0-9_:-]+$/i.test(originHerdrTabID)
+              ? ` && herdr tab focus ${originHerdrTabID}`
+              : ""
+          }`
+        : "";
+
+      yield* Effect.tryPromise(() =>
+        $`omarchy notification send -g ${glyph} --app-name OpenCode ${title} ${body} ${focusCommand ? "--exec" : []} ${focusCommand ? focusCommand : []}`,
+      ).pipe(Effect.ignore, Effect.forkScoped);
+    });
+});
+
+export default Plugin.define({
+  id: "notification",
+  effect: (context) =>
+    Effect.gen(function* () {
+      const isHerdrSession = process.env.HERDR_ENV === "1";
+      const sendDesktopNotification = yield* createDesktopNotifier;
+      let canPlaySound: boolean | undefined;
+
+      const playSound = () =>
+        Effect.gen(function* () {
+          if (canPlaySound === undefined) {
+            canPlaySound = yield* Effect.tryPromise(() =>
+              $`sh -lc "command -v paplay >/dev/null 2>&1"`,
+            ).pipe(
+              Effect.as(true),
+              Effect.catch(() => Effect.succeed(false)),
+            );
+          }
+
+          if (!canPlaySound) return;
+
+          yield* Effect.tryPromise(() => $`paplay ${SOUND_PATH}`).pipe(
+            Effect.ignore,
+          );
+        });
+
+      const notify = (glyph: string, title: string, body: string) =>
+        Effect.gen(function* () {
+          const safeTitle = sanitizeNotificationText(title, "OpenCode");
+          const safeBody = sanitizeNotificationText(body, "Attention required");
+
+          if (!isHerdrSession) {
+            yield* Effect.sync(() => {
+              try {
+                process.stdout.write("\u0007");
+              } catch {}
+            });
+          }
+
+          yield* sendDesktopNotification(glyph, safeTitle, safeBody);
+
+          if (!isHerdrSession) yield* playSound();
+        });
+
+      const getSession = (
+        sessionID: Parameters<typeof context.session.get>[0]["sessionID"],
+      ) =>
+        context.session
+          .get({ sessionID })
+          .pipe(Effect.catch(() => Effect.succeed(undefined)));
+
+      yield* context.event.subscribe().pipe(
+        Stream.runForEach((event) =>
+          Effect.gen(function* () {
+            if (event.type === "session.idle") {
+              const session = yield* getSession(event.data.sessionID);
+
+              if (session?.parentID) return;
+
+              yield* notify(
+                "✓",
+                "OpenCode: Task complete",
+                session?.title ?? "OpenCode session",
+              );
+
+              return;
+            }
+
+            if (event.type === "permission.asked") {
+              const session = yield* getSession(event.data.sessionID);
+              const sessionTitle = session?.title ?? "OpenCode session";
+              yield* notify(
+                "🔒",
+                "OpenCode: Permission required",
+                `${sessionTitle} needs permission: ${event.data.action}`,
+              );
+            }
+          }),
+        ),
+        Effect.orDie,
+        Effect.forkScoped,
+      );
+    }),
+});

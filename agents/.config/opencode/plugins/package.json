@@ -1,5 +1,5 @@
 {
-  "name": "opencode-v2-plugins",
+  "name": "opencode-plugins",
   "private": true,
   "type": "module",
   "scripts": {

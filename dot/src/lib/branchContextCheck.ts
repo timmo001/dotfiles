@@ -97,7 +97,7 @@ const WORK_SCOPE_RE = /work-scope mode/i;
 const FULL_CONTEXT_RE = /full-context mode/i;
 
 const COMMAND_SET_RE =
-  /const\s+(BRANCH_CONTEXT_COMMANDS|WORK_SCOPE_COMMANDS)\s*=\s*new\s+Set\(\[([\s\S]*?)\]\)/g;
+  /const\s+(BRANCH_COMMANDS|WORK_SCOPE_COMMANDS)\s*=\s*new\s+Set\(\[([\s\S]*?)\]\)/g;
 
 const STRING_LITERAL_RE = /["']([^"']+)["']/g;
 
@@ -177,7 +177,7 @@ function scanBranchContextRegistrations(
 
   while ((setMatch = COMMAND_SET_RE.exec(content)) !== null) {
     const mode: BranchContextMode =
-      setMatch[1] === "BRANCH_CONTEXT_COMMANDS" ? "full-context" : "work-scope";
+      setMatch[1] === "BRANCH_COMMANDS" ? "full-context" : "work-scope";
 
     STRING_LITERAL_RE.lastIndex = 0;
     let commandMatch: RegExpExecArray | null;

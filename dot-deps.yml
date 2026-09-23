@@ -13899,7 +13899,7 @@ policy:
           packages:
             - "effect"
           files:
-            - "agents/.config/opencode/plugins-v2/package.json"
+            - "agents/.config/opencode/plugins/package.json"
         set:
           enabled: false
       - description:
@@ -14065,7 +14065,7 @@ validation:
         - "bun"
         - "install"
         - "--frozen-lockfile"
-      cwd: "agents/.config/opencode/plugins-v2"
+      cwd: "agents/.config/opencode/plugins"
       timeout: 120000
   checks:
     - context: "actionlint / 👕 ActionLint"

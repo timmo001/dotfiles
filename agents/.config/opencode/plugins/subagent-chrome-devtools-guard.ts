@@ -1,84 +1,35 @@
 /**
  * @file Blocks Chrome DevTools tools from delegated subagent sessions.
- *
- * DevTools can execute arbitrary browser-context JavaScript, so keep it as a
- * top-level browser/UI debugging tool rather than a subagent research escape
- * hatch around web, GitHub, or file-reading tools.
  */
 
-import type { Plugin } from "@opencode-ai/plugin"
+import { Plugin } from "@opencode/plugin/effect";
+import { Tool } from "@opencode/schema/tool";
+import { Effect } from "effect";
 
-type OpenCodeClient = Parameters<Plugin>[0]["client"]
+const isChromeDevToolsTool = (tool: string) =>
+  tool.startsWith("chrome-devtools_") || tool.startsWith("chrome_devtools_");
 
-interface DirectoryQuery {
-  readonly directory: string
-}
+export default Plugin.define({
+  id: "subagent-chrome-devtools-guard",
+  effect: (context) =>
+    Effect.gen(function* () {
+      yield* context.tool.hook("execute.before", (event) => {
+        if (!isChromeDevToolsTool(event.tool)) return Effect.void;
 
-const CHROME_DEVTOOLS_TOOL_PREFIXES = [
-  "chrome-devtools_",
-  "chrome_devtools_",
-] as const
-
-function recordFromUnknown(value: unknown): Record<string, unknown> {
-  return typeof value === "object" && value !== null
-    ? (value as Record<string, unknown>)
-    : {}
-}
-
-function dataOrValue(value: unknown): unknown {
-  const record = recordFromUnknown(value)
-  return "data" in record && record.data !== undefined ? record.data : value
-}
-
-function isChromeDevToolsTool(tool: string): boolean {
-  return CHROME_DEVTOOLS_TOOL_PREFIXES.some((prefix) => tool.startsWith(prefix))
-}
-
-async function isSubagentSession(
-  client: OpenCodeClient,
-  sessionID: string,
-  query: DirectoryQuery | undefined,
-): Promise<boolean> {
-  const result = await client.session.get({
-    path: { id: sessionID },
-    ...(query ? { query } : {}),
-  })
-  const response = recordFromUnknown(result)
-  if ("error" in response) {
-    throw new Error("OpenCode returned an error while resolving the session")
-  }
-  const session = recordFromUnknown(dataOrValue(result))
-  if (session.id !== sessionID) {
-    throw new Error("OpenCode returned an invalid session response")
-  }
-  return typeof session.parentID === "string" && session.parentID.length > 0
-}
-
-export const SubagentChromeDevtoolsGuard = (async ({ client, directory }) => {
-  const query: DirectoryQuery | undefined = directory
-    ? { directory }
-    : undefined
-
-  return {
-    "tool.execute.before": async (input) => {
-      if (!isChromeDevToolsTool(input.tool)) return
-
-      let isSubagent: boolean
-      try {
-        isSubagent = await isSubagentSession(client, input.sessionID, query)
-      } catch {
-        throw new Error(
-          "Chrome DevTools tools are only allowed from top-level sessions; could not verify the current session.",
-        )
-      }
-
-      if (!isSubagent) return
-
-      throw new Error(
-        "Chrome DevTools tools are only allowed from top-level sessions for browser/UI debugging. Subagents must use webfetch, websearch, GitHub tools, or repository reads for research.",
-      )
-    },
-  }
-}) satisfies Plugin
-
-export default SubagentChromeDevtoolsGuard
+        return context.session.get({ sessionID: event.sessionID }).pipe(
+          Effect.map((session) => Boolean(session.parentID)),
+          Effect.catch(() => Effect.succeed(true)),
+          Effect.flatMap((blocked) =>
+            blocked
+              ? Effect.fail(
+                  new Tool.Error({
+                    message:
+                      "Chrome DevTools tools are only allowed from top-level sessions for browser/UI debugging.",
+                  }),
+                )
+              : Effect.void,
+          ),
+        );
+      });
+    }),
+});

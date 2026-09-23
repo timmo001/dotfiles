@@ -1,11 +1,10 @@
 /**
  * @file Blocks direct mutation of generated dotfiles artefacts.
- *
- * The guard remains inactive outside this repository's generator layout and
- * directs edits back to each artefact's canonical generation command.
  */
 
-import type { Plugin } from "@opencode-ai/plugin";
+import { Plugin } from "@opencode/plugin/effect";
+import { Tool } from "@opencode/schema/tool";
+import { Effect } from "effect";
 import { access } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import {
@@ -15,66 +14,65 @@ import {
 } from "../lib/generated-artifacts";
 import { argRecord, stringArg } from "../lib/guard-paths";
 
-async function findDotfilesRoot(directory: string): Promise<string | null> {
+const findDotfilesRoot = async (directory: string): Promise<string | undefined> => {
   let current = resolve(directory);
-  while (true) {
+
+  for (;;) {
     try {
       await Promise.all([
         access(resolve(current, "dot/src/cli/spec.ts")),
         access(resolve(current, "docs/scripts/generate-opencode-reference.ts")),
       ]);
+
       return current;
     } catch {}
 
     const parent = dirname(current);
-    if (parent === current) return null;
+
+    if (parent === current) return;
     current = parent;
   }
-}
+};
 
-function guardError(path: string, command: string): Error {
-  return new Error(
-    `Direct mutation of generated artefact '${path}' is blocked.\n` +
-      `Regenerate it with: ${command}\n` +
-      "Edit the canonical source instead.",
-  );
-}
+export default Plugin.define({
+  id: "generated-artifact-guard",
+  effect: (context) =>
+    Effect.gen(function* () {
+      yield* context.tool.hook("execute.before", (event) =>
+        Effect.gen(function* () {
+          const session = yield* context.session.get({ sessionID: event.sessionID }).pipe(Effect.orDie);
+          const baseDirectory = session.location.directory;
+          const root = yield* Effect.promise(() => findDotfilesRoot(baseDirectory));
 
-export const GeneratedArtifactGuard = (async ({ directory }) => {
-  const baseDirectory = resolve(directory || process.cwd());
-  const root = await findDotfilesRoot(baseDirectory);
-  if (!root) return {};
+          if (!root) return;
+          const args = argRecord(event.input);
+          const workdirArg = stringArg(args.workdir);
 
-  return {
-    "tool.execute.before": async (input, output) => {
-      const args = argRecord(output.args);
-      const workdirArg = stringArg(args.workdir);
-      const workdir = workdirArg
-        ? isAbsolute(workdirArg)
-          ? workdirArg
-          : resolve(baseDirectory, workdirArg)
-        : baseDirectory;
+          const workdir = workdirArg
+            ? isAbsolute(workdirArg)
+              ? workdirArg
+              : resolve(baseDirectory, workdirArg)
+            : baseDirectory;
 
-      const artifact =
-        input.tool === "write" || input.tool === "edit"
-          ? generatedArtifactForPath(root, stringArg(args.filePath), workdir)
-          : input.tool === "apply_patch"
-            ? generatedArtifactFromPatch(
-                root,
-                stringArg(args.patchText),
-                workdir,
-              )
-            : input.tool === "bash"
-              ? generatedArtifactFromShell(
-                  root,
-                  stringArg(args.command),
-                  workdir,
-                )
-              : undefined;
+          const artifact =
+            event.tool === "write" || event.tool === "edit"
+              ? generatedArtifactForPath(root, stringArg(args.filePath), workdir)
+              : event.tool === "patch" || event.tool === "apply_patch"
+                ? generatedArtifactFromPatch(root, stringArg(args.patchText), workdir)
+                : event.tool === "shell" || event.tool === "bash"
+                  ? generatedArtifactFromShell(root, stringArg(args.command), workdir)
+                  : undefined;
 
-      if (artifact) throw guardError(artifact.path, artifact.command);
-    },
-  };
-}) satisfies Plugin;
-
-export default GeneratedArtifactGuard;
+          if (artifact) {
+            return yield* Effect.fail(
+              new Tool.Error({
+                message:
+                  `Direct mutation of generated artefact '${artifact.path}' is blocked.\n` +
+                  `Regenerate it with: ${artifact.command}\nEdit the canonical source instead.`,
+              }),
+            );
+          }
+        }),
+      );
+    }),
+});

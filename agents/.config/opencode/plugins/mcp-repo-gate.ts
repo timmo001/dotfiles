@@ -1,31 +1,22 @@
 /**
  * @file Per-repo MCP server gating for OpenCode.
- *
- * Some MCP servers are only useful in repos with a matching marker. This plugin
- * prunes those servers from the merged config at startup when none of their
- * markers are present, so their tools do not load into sessions where they are
- * irrelevant. It is deliberately conservative: only servers listed in
- * {@link REPO_REQUIRED_MARKERS} are ever removed, and only when none of their
- * markers are found in the project directory, an ancestor, or a nearby
- * descendant (so a monorepo whose Astro or Convex project sits one or two
- * directories down still keeps the server). Every other server is left
- * untouched, so tools are never hidden where they might be wanted.
- *
- * Mutating `cfg.mcp` in the `config` hook is verified to prevent the server
- * loading: the hook runs on the shared merged config before MCP reads it.
  */
 
-import type { Plugin } from "@opencode-ai/plugin"
-import { existsSync, readdirSync, type Dirent } from "node:fs"
-import { dirname, join } from "node:path"
+import { Plugin } from "@opencode/plugin/effect";
+import { Tool } from "@opencode/schema/tool";
+import { Effect, Result } from "effect";
+import { existsSync, readdirSync, type Dirent } from "node:fs";
+import { dirname, join } from "node:path";
 
-/**
- * Server name to the marker files or directories where any one, present in the
- * project directory, an ancestor, or a nearby descendant, keeps the server
- * loaded. Markers can be files or directories (both resolved with `existsSync`).
- * Servers absent from this map are never gated.
- */
-const REPO_REQUIRED_MARKERS: Record<string, readonly string[]> = {
+export const GATED_SERVERS = [
+  "pitchfork",
+  "convex",
+  "astro-docs",
+] as const;
+
+export type GatedServer = (typeof GATED_SERVERS)[number];
+
+export const REPO_REQUIRED_MARKERS = {
   pitchfork: ["pitchfork.toml"],
   convex: ["convex.json", "convex"],
   "astro-docs": [
@@ -35,9 +26,13 @@ const REPO_REQUIRED_MARKERS: Record<string, readonly string[]> = {
     "astro.config.js",
     "astro.config.cjs",
   ],
+} as const satisfies Readonly<Record<GatedServer, readonly string[]>>;
+
+interface RepoTool {
+  readonly description?: string;
+  readonly input?: object;
 }
 
-/** Directory names never descended into when scanning downward for a marker. */
 const SKIP_DIRS = new Set([
   "node_modules",
   "dist",
@@ -46,76 +41,152 @@ const SKIP_DIRS = new Set([
   "coverage",
   "vendor",
   "target",
-])
+]);
 
-/** Deepest descendant level scanned downward from the project directory. */
-const MAX_DOWN_DEPTH = 2
+const MAX_DOWN_DEPTH = 2;
 
-/** Whether any of `markers` exists directly in `dir`. */
-function markerIn(dir: string, markers: readonly string[]): boolean {
-  return markers.some((marker) => existsSync(join(dir, marker)))
-}
+const markerIn = (directory: string, markers: readonly string[]) =>
+  markers.some((marker) => existsSync(join(directory, marker)));
 
-/** Whether any of `markers` exists in `startDir` or an ancestor directory. */
-function hasMarkerUpward(startDir: string, markers: readonly string[]): boolean {
-  let dir = startDir
+const hasMarkerUpward = (startDirectory: string, markers: readonly string[]) => {
+  let directory = startDirectory;
+
   for (;;) {
-    if (markerIn(dir, markers)) return true
-    const parent = dirname(dir)
-    if (parent === dir) return false
-    dir = parent
-  }
-}
+    if (markerIn(directory, markers)) return true;
+    const parent = dirname(directory);
 
-/**
- * Whether any of `markers` exists in a descendant of `startDir` within `depth`
- * levels. Hidden directories and common build/vendor output are skipped so the
- * scan stays cheap and bounded.
- */
-function hasMarkerDownward(
-  startDir: string,
+    if (parent === directory) return false;
+    directory = parent;
+  }
+};
+
+const hasMarkerDownward = (
+  directory: string,
   markers: readonly string[],
   depth: number,
-): boolean {
-  if (depth <= 0) return false
-  let entries: Dirent[]
+): boolean => {
+  if (depth <= 0) return false;
+  let entries: Dirent[];
+
   try {
-    entries = readdirSync(startDir, { withFileTypes: true })
+    entries = readdirSync(directory, { withFileTypes: true });
   } catch {
-    return false
+    return false;
   }
+
   for (const entry of entries) {
-    if (!entry.isDirectory() || entry.name.startsWith(".") || SKIP_DIRS.has(entry.name)) {
-      continue
+    if (
+      !entry.isDirectory() ||
+      entry.name.startsWith(".") ||
+      SKIP_DIRS.has(entry.name)
+    )
+      continue;
+    const child = join(directory, entry.name);
+
+    if (
+      markerIn(child, markers) ||
+      hasMarkerDownward(child, markers, depth - 1)
+    )
+      return true;
+  }
+
+  return false;
+};
+
+export const hasMarkerNearby = (
+  directory: string,
+  markers: readonly string[],
+) =>
+  hasMarkerUpward(directory, markers) ||
+  hasMarkerDownward(directory, markers, MAX_DOWN_DEPTH);
+
+export const serverForTool = (tool: string): GatedServer | undefined => {
+  for (const server of GATED_SERVERS) {
+    const prefix = server
+      .split("-")
+      .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .join("[-_]");
+
+    if (tool === server || new RegExp(`^${prefix}(?:[._:/-]|__)`).test(tool)) {
+      return server;
     }
-    const child = join(startDir, entry.name)
-    if (markerIn(child, markers)) return true
-    if (hasMarkerDownward(child, markers, depth - 1)) return true
   }
-  return false
-}
+};
 
-/** Whether any of `markers` is reachable upward or a short way downward. */
-function hasMarkerNearby(baseDir: string, markers: readonly string[]): boolean {
-  return (
-    hasMarkerUpward(baseDir, markers) ||
-    hasMarkerDownward(baseDir, markers, MAX_DOWN_DEPTH)
-  )
-}
+export const filterRepoTools = (
+  tools: Record<string, RepoTool>,
+  directory: string,
+) => {
+  const enabled = new Map<GatedServer, boolean>();
 
-export const McpRepoGate = (async ({ directory }) => {
-  const baseDir = directory || process.cwd()
-  return {
-    config: async (cfg) => {
-      const mcp = cfg.mcp
-      if (!mcp) return
-      for (const [server, markers] of Object.entries(REPO_REQUIRED_MARKERS)) {
-        if (mcp[server] && !hasMarkerNearby(baseDir, markers)) {
-          delete mcp[server]
-        }
-      }
-    },
+  for (const tool of Object.keys(tools)) {
+    const server = serverForTool(tool);
+
+    if (!server) continue;
+
+    const available =
+      enabled.get(server) ??
+      hasMarkerNearby(directory, REPO_REQUIRED_MARKERS[server]);
+
+    enabled.set(server, available);
+
+    if (!available) delete tools[tool];
   }
-}) satisfies Plugin
+};
 
-export default McpRepoGate
+export const removeGatedTools = (tools: Record<string, RepoTool>) => {
+  for (const tool of Object.keys(tools)) {
+    if (serverForTool(tool)) delete tools[tool];
+  }
+};
+
+const blockedToolError = (tool: string, directory?: string) =>
+  new Tool.Error({
+    message: directory
+      ? `${tool} is unavailable because ${directory} does not contain the required repository marker.`
+      : `${tool} is unavailable because the current repository could not be resolved.`,
+  });
+
+export default Plugin.define({
+  id: "mcp-repo-gate",
+  effect: (context) =>
+    Effect.gen(function* () {
+      yield* context.session.hook("context", (event) =>
+        Effect.gen(function* () {
+          const session = yield* context.session
+            .get({ sessionID: event.sessionID })
+            .pipe(Effect.result);
+
+          if (Result.isFailure(session)) {
+            removeGatedTools(event.tools);
+
+            return;
+          }
+
+          filterRepoTools(event.tools, session.success.location.directory);
+        }),
+      );
+
+      yield* context.tool.hook("execute.before", (event) =>
+        Effect.gen(function* () {
+          const server = serverForTool(event.tool);
+
+          if (!server) return;
+
+          const session = yield* context.session
+            .get({ sessionID: event.sessionID })
+            .pipe(Effect.result);
+
+          if (Result.isFailure(session)) {
+            return yield* Effect.fail(blockedToolError(event.tool));
+          }
+
+          const directory = session.success.location.directory;
+
+          if (!hasMarkerNearby(directory, REPO_REQUIRED_MARKERS[server])) {
+            return yield* Effect.fail(blockedToolError(event.tool, directory));
+          }
+        }),
+      );
+    }),
+});

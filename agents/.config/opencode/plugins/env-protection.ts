@@ -1,52 +1,45 @@
 /**
  * @file Blocks direct access to .env files to prevent leaking secrets.
- *
- * Guards tool calls that target `.env` or `.env.*` files, except the exact
- * `.env.example` template.
  */
 
-import type { Plugin } from "@opencode-ai/plugin"
-import { argRecord, stringArg, targetsProtectedEnv } from "../lib/guard-paths"
+import { Plugin } from "@opencode/plugin/effect";
+import { Tool } from "@opencode/schema/tool";
+import { Effect } from "effect";
+import { argRecord, stringArg, targetsProtectedEnv } from "../lib/guard-paths";
 
 const ENV_COMMAND_PATTERN =
-  /(?:^|[\s;&|()])(?:cat|cd|cp|env|grep|head|less|ls|more|mv|open|rg|rm|source|tail|test|vim|vi|nvim|\.|<|>|\[)\b|[<>]/
+  /(?:^|[\s;&|()])(?:cat|cd|cp|env|grep|head|less|ls|more|mv|open|rg|rm|source|tail|test|vim|vi|nvim|\.|<|>|\[)\b|[<>]/;
 
-function toolTargetsProtectedEnv(
+const toolTargetsProtectedEnv = (
   tool: string,
-  args: Record<string, unknown>,
-): boolean {
-  if (tool === "read") return targetsProtectedEnv(stringArg(args.filePath) || stringArg(args.path))
+  args: ReturnType<typeof argRecord>,
+) => {
+  if (tool === "read") return targetsProtectedEnv(stringArg(args.filePath) || stringArg(args.path));
 
-  if (tool === "grep") {
-    return [args.path, args.include].some((value) => targetsProtectedEnv(stringArg(value)))
-  }
+  if (tool === "grep") return [args.path, args.include].some((value) => targetsProtectedEnv(stringArg(value)));
 
-  if (tool === "glob") {
-    return [args.pattern, args.path].some((value) => targetsProtectedEnv(stringArg(value)))
-  }
+  if (tool === "glob") return [args.pattern, args.path].some((value) => targetsProtectedEnv(stringArg(value)));
 
-  return false
-}
+  return false;
+};
 
-function commandTargetsProtectedEnv(command: string): boolean {
-  if (!targetsProtectedEnv(command)) return false
-  return ENV_COMMAND_PATTERN.test(command)
-}
+export default Plugin.define({
+  id: "env-protection",
+  effect: (context) =>
+    Effect.gen(function* () {
+      yield* context.tool.hook("execute.before", (event) => {
+        const args = argRecord(event.input);
+        const command = stringArg(args.command);
 
-export const EnvProtection = (async () => {
-  return {
-    "tool.execute.before": async (input, output) => {
-      const args = argRecord(output.args)
-      const command = stringArg(args.command)
+        const blocked =
+          toolTargetsProtectedEnv(event.tool, args) ||
+          ((event.tool === "shell" || event.tool === "bash") &&
+            targetsProtectedEnv(command) &&
+            ENV_COMMAND_PATTERN.test(command));
 
-      if (
-        toolTargetsProtectedEnv(input.tool, args) ||
-        (input.tool === "bash" && commandTargetsProtectedEnv(command))
-      ) {
-        throw new Error("Do not read .env files")
-      }
-    },
-  }
-}) satisfies Plugin
-
-export default EnvProtection
+        return blocked
+          ? Effect.fail(new Tool.Error({ message: "Do not read .env files" }))
+          : Effect.void;
+      });
+    }),
+});
