@@ -28,6 +28,7 @@ import {
 } from "../lib/stowConflicts.js";
 import type { ConfigService } from "../services/Config.js";
 import { writeAllCompletions } from "./Completions.js";
+import { installOpencodePluginDependencies } from "../lib/opencodePlugins.js";
 
 /** Extra stow flags for the agents folder (matches legacy behaviour) */
 const AGENTS_PRIVATE_IGNORES = [
@@ -55,6 +56,11 @@ export const install = Effect.gen(function* () {
   for (const target of yield* writeAllCompletions) {
     yield* log.info(`Generated completions: ${displayPath(target)}`);
   }
+
+  yield* log.section("OpenCode Plugins");
+  yield* log.info(
+    `Installed dependencies: ${displayPath(yield* installOpencodePluginDependencies)}`,
+  );
 
   yield* log.section("Backup");
 

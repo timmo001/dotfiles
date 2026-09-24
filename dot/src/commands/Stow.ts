@@ -27,6 +27,7 @@ import {
 } from "../lib/repoShortcuts.js";
 import { captureRepositoryOptions } from "./NotesCaptureSync.js";
 import { writeAllCompletions } from "./Completions.js";
+import { installOpencodePluginDependencies } from "../lib/opencodePlugins.js";
 import {
   backupUnmanagedStowTargets,
   backupLegacyGhosttyRepo,
@@ -118,6 +119,11 @@ export const stow = (opts?: {
       for (const target of yield* writeAllCompletions) {
         yield* log.info(`Generated completions: ${displayPath(target)}`);
       }
+
+      yield* log.section("OpenCode Plugins");
+      yield* log.info(
+        `Installed dependencies: ${displayPath(yield* installOpencodePluginDependencies)}`,
+      );
 
       yield* log.section("Stow Public Dotfiles");
 
