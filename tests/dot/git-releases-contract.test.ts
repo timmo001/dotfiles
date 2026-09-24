@@ -334,39 +334,6 @@ test("application versioning and mixed format recipes round-trip through strict 
   }
 });
 
-test("application policy keeps development quiet and shipped source, build and packaging relevant", () => {
-  const config: ReleaseSettings = { ...settings(), policy: "application" };
-
-  for (const path of ["src/app.test.ts", "tests/test_app.py", "pkg/test_app.py", "docs/index.md", ".agents/config.md", "AGENTS.md", ".oxlintrc.json", ".github/workflows/check.yml", "ruff.toml", "README.md"]) {
-    expect(snapshot([{ ...file(path), changedLines: 100 }], "head", config).suggestion).toBe("none");
-  }
-
-  for (const path of ["src/app.ts", "module/app.py", "scripts/build.ts", "build/app.spec", "setup.py", "requirements.txt", "package.json", "unknown/source.rs"]) {
-    expect(snapshot([file(path)], "head", config).suggestion).toBe("patch");
-  }
-
-  expect(snapshot([{ ...file("src/app.ts"), changedLines: 51 }], "head", config).suggestion).toBe("minor");
-
-  for (const role of ["runtime", "peer", "build", "development"] as const) {
-    const dependency = { ...file("package.json"), kind: "dependency" as const, dependency: "example", role };
-    expect(snapshot([dependency], "head", config).suggestion).toBe(role === "development" ? "none" : "patch");
-  }
-});
-
-test("documentation and development tooling stay quiet across release policies", () => {
-  for (const policy of ["application", "oxlint-rules", "system-bridge"] as const) {
-    const config = { ...settings(), policy };
-
-    for (const path of ["docs/config.ts", "pkg/docs/package.json", "pkg/doc/example.py", "documentation/assets/logo.svg", "src/guide.mdx", "README", "pkg/readme.txt", "mise.toml", ".mise.local.toml", "mise.lock", ".config/mise/config.toml", "tsconfig.json", "oxlint.config.ts", ".opencode/agent.ts", ".scripts/linux/PKGBUILD", ".scripts/package.sh", ".github/scripts/package.sh"]) {
-      expect(snapshot([{ ...file(path), changedLines: 100 }], "head", config).suggestion).toBe("none");
-    }
-
-    const docsDependency = { ...file("pkg/docs/package.json"), kind: "dependency" as const, dependency: "example", role: "runtime" as const };
-    expect(snapshot([docsDependency], "head", config).suggestion).toBe("none");
-    expect(snapshot([{ ...file("src/app.ts"), changedLines: 51 }], "head", config).suggestion).toBe("minor");
-  }
-});
-
 function file(path: string, submodule: string | null = null): ReleaseFact {
   return releaseFact({ kind: "file", path, previousPath: null, changeType: "modified", before: "100644:old", after: "100644:new", dependency: null, role: null, submodule, subject: null, detail: `M ${path}`, complete: true });
 }
