@@ -11,7 +11,7 @@ import { mcpSync } from "../mcp/commands/McpSync.js";
 import { rebuild, restartDot } from "../lib/selfUpdate.js";
 import { buildSkillsMaintenance } from "../lib/skillsMaintenance.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
-import { trustTrackedMiseConfigs } from "../lib/miseTrust.js";
+import { trustRepoMiseConfigs } from "../lib/miseTrust.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import { withSpinnerTimeout, withStepTimeout } from "../lib/workflowStep.js";
 import {
@@ -322,10 +322,14 @@ const runRepoPostUpdate = (repo: GitManagedRepo) =>
     yield* log.info(`${repo.name} post-update command complete`);
   });
 
-/** Pull selected repositories, run their hooks and apply changed dotfiles once. */
+/**
+ * Pull selected repositories and run their hooks. Unless `pullOnly` is set,
+ * also apply changed dotfiles once.
+ */
 export const updateRepositories = Effect.fn("Update.repositories")(function* (
   paths: readonly string[],
   reload = true,
+  pullOnly = false,
 ) {
   const config = yield* Config;
   const fs = yield* FileSystem.FileSystem;
@@ -365,18 +369,11 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
   }
 
   if (updatedPaths.size > 0) {
-    const refreshedConfig = {
-      ...config,
-      gitConfig: config.canUsePrivate
-        ? loadDotGitConfig(config.gitConfig.filePath)
-        : config.gitConfig,
-    };
+    const gitConfig = config.canUsePrivate
+      ? loadDotGitConfig(config.gitConfig.filePath)
+      : config.gitConfig;
 
-    yield* trustTrackedMiseConfigs.pipe(
-      Effect.provideService(Config, refreshedConfig),
-    );
-
-    for (const repo of managedGitRepos(refreshedConfig.gitConfig)) {
+    for (const repo of managedGitRepos(gitConfig)) {
       if (!updatedPaths.has(repo.path)) continue;
       yield* runRepoPostUpdate(repo).pipe(
         Effect.catch((error) =>
@@ -389,7 +386,7 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
     }
   }
 
-  if (pulledDotfiles.length > 0) {
+  if (!pullOnly && pulledDotfiles.length > 0) {
     yield* requiredUpdateStep("Rebuild", STEP_TIMEOUT_SECONDS.rebuild, rebuild);
     yield* restartDot([
       "update",
@@ -1004,7 +1001,8 @@ export const update = (opts?: UpdateOptions) =>
         STEP_TIMEOUT_SECONDS.pull,
         Effect.gen(function* () {
           yield* log.section("Pull Repositories");
-          yield* cloneMissingGitConfigRepos({ strict: false });
+          const cloned = yield* cloneMissingGitConfigRepos({ strict: false });
+          yield* trustRepoMiseConfigs(cloned);
 
           const dotDiff = yield* DotDiff;
 
@@ -1112,10 +1110,6 @@ export const update = (opts?: UpdateOptions) =>
             }),
           );
 
-          // Trust mise configs in freshly pulled/cloned repos so mise never
-          // prompts for them on this machine.
-          yield* trustTrackedMiseConfigs;
-
           const updated = new Set(updatedNames);
 
           for (const repo of managedGitRepos(config.gitConfig)) {
@@ -1127,7 +1121,7 @@ export const update = (opts?: UpdateOptions) =>
           }
         }),
       );
-      completedActions.push("Pulled repositories and refreshed mise trust");
+      completedActions.push("Pulled repositories");
     }
 
     let shellConfigChanged = false;

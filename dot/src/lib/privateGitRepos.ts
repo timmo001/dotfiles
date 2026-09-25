@@ -18,7 +18,8 @@ function fail(message: string): Effect.Effect<never, GitConfigRepoError> {
 }
 
 /**
- * Clone configured private git repositories that are missing locally.
+ * Clone configured private git repositories that are missing locally, and
+ * return the paths that were cloned.
  *
  * Set `captured` to clone through {@link ghRepoCloneCaptured} under a per-repo
  * spinner (used by `dot init`); leave it unset for the default inherited-stdio
@@ -31,13 +32,14 @@ export function cloneMissingGitConfigRepos(opts?: {
   return Effect.gen(function* () {
     const config = yield* Config;
     const log = yield* OutputLog;
+    const cloned: string[] = [];
 
     if (!config.canUsePrivate) {
       yield* log.warn(
         `Skipping private git repo clones (${config.privateReason})`,
       );
 
-      return;
+      return cloned;
     }
 
     if (!config.gitConfig.valid) {
@@ -46,14 +48,14 @@ export function cloneMissingGitConfigRepos(opts?: {
       if (opts?.strict) return yield* fail(message);
       yield* log.warn(message);
 
-      return;
+      return cloned;
     }
 
     const missing = managedGitRepos(config.gitConfig).filter(
       (repo) => !existsSync(repo.path),
     );
 
-    if (missing.length === 0) return;
+    if (missing.length === 0) return cloned;
 
     yield* log.section("Clone Private Git Repositories");
 
@@ -81,7 +83,11 @@ export function cloneMissingGitConfigRepos(opts?: {
       if (cloneError) {
         if (opts?.strict) return yield* fail(cloneError);
         yield* log.warn(cloneError);
+      } else {
+        cloned.push(repo.path);
       }
     }
+
+    return cloned;
   });
 }

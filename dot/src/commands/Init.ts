@@ -27,6 +27,7 @@ import { ensureLocalesGenerated } from "../lib/localeSetup.js";
 import { configureFirewallRules } from "../lib/firewallSetup.js";
 import { installGhExtensions } from "../lib/ghExtensions.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
+import { trustTrackedMiseConfigs } from "../lib/miseTrust.js";
 import { withStepTimeout } from "../lib/workflowStep.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
 import {
@@ -69,6 +70,7 @@ const INIT_STEP_TIMEOUT_SECONDS = {
   loginShell: 2 * 60,
   privatePackages: 30 * 60,
   privateRepos: 10 * 60,
+  miseTrust: 2 * 60,
   git: 2 * 60,
   hooks: 2 * 60,
   doctorTimer: 60,
@@ -798,6 +800,11 @@ export function init(
       "Clone Private Git Repositories",
       INIT_STEP_TIMEOUT_SECONDS.privateRepos,
       cloneMissingGitConfigRepos({ strict: true, captured: true }),
+    );
+    yield* requiredInitStep(
+      "Trust Mise Configs",
+      INIT_STEP_TIMEOUT_SECONDS.miseTrust,
+      trustTrackedMiseConfigs,
     );
     yield* requiredInitStep(
       "Configure Git",

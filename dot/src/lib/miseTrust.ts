@@ -132,34 +132,23 @@ function trustMiseConfig(
 }
 
 /**
- * Trust every mise config file found in the repositories dot tracks.
+ * Trust every committed mise config file in the given repositories.
  *
- * Enumerates tracked repos, discovers their committed mise config files, and
- * marks each trusted so `mise` never prompts for them on a fresh machine. The
- * whole step is best-effort: a missing `mise`, a non-git repo, or a failed
- * trust is logged and skipped rather than aborting the surrounding update.
+ * Best-effort: a missing `mise`, a non-git repo, or a failed trust is logged
+ * and skipped rather than aborting the surrounding workflow.
  */
-export const trustTrackedMiseConfigs: Effect.Effect<
-  void,
-  never,
-  Config | CommandExecutor | OutputLog
-> = Effect.gen(function* () {
-  const config = yield* Config;
+export const trustRepoMiseConfigs = Effect.fn("MiseTrust.repos")(function* (
+  repoRoots: readonly string[],
+) {
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
+
+  if (repoRoots.length === 0) return;
 
   yield* log.section("Trust Mise Configs");
 
   if ((yield* executor.exitCode("which", ["mise"])) !== 0) {
     yield* log.warn("Skipping mise trust (mise not installed)");
-
-    return;
-  }
-
-  const repoRoots = trackedRepoRoots(config);
-
-  if (repoRoots.length === 0) {
-    yield* log.info("No tracked repositories to scan for mise configs");
 
     return;
   }
@@ -186,7 +175,7 @@ export const trustTrackedMiseConfigs: Effect.Effect<
   }
 
   if (trusted === 0) {
-    yield* log.info("No mise configs found in tracked repositories");
+    yield* log.info("No mise configs found");
 
     return;
   }
@@ -195,3 +184,13 @@ export const trustTrackedMiseConfigs: Effect.Effect<
     `Trusted ${trusted} mise config${trusted === 1 ? "" : "s"} across ${reposWithConfigs} repositor${reposWithConfigs === 1 ? "y" : "ies"}`,
   );
 });
+
+/**
+ * Trust every mise config file in the repositories dot tracks.
+ *
+ * Used once by `dot init` so `mise` never prompts on a fresh machine.
+ */
+export const trustTrackedMiseConfigs = Effect.gen(function* () {
+  const config = yield* Config;
+  yield* trustRepoMiseConfigs(trackedRepoRoots(config));
+}).pipe(Effect.withSpan("MiseTrust.tracked"));
