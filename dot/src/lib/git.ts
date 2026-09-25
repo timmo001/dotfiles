@@ -330,10 +330,12 @@ export function gitPullFastForward(
     const launcher = yield* Launcher;
 
     // Pull updates submodules after moving the parent HEAD, so refuse active
-    // submodule work first rather than leaving a partially applied pull.
+    // submodule work first rather than leaving a partially applied pull. A
+    // clean checkout away from its pin is only local work when it holds
+    // commits no remote has; otherwise it is a stale pin that update restores.
     const submodulesClean = yield* launcher
       .stream(
-        `git submodule foreach --recursive 'if test -n "$(git status --porcelain --untracked-files=normal --ignore-submodules=none)" || test "$(git rev-parse HEAD)" != "$sha1"; then echo "Local work in submodule $displaypath; skipping pull" >&2; exit 1; fi'`,
+        `git submodule foreach --recursive 'if test -n "$(git status --porcelain --untracked-files=normal --ignore-submodules=none)" || { test "$(git rev-parse HEAD)" != "$sha1" && test -n "$(git rev-list -n 1 HEAD --not --remotes)"; }; then echo "Local work in submodule $displaypath; skipping pull" >&2; exit 1; fi'`,
         { cwd: repoPath },
       )
       .pipe(Effect.orElseSucceed(() => 1));
