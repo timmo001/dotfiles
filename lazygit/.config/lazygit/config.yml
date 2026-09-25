@@ -1,5 +1,10 @@
 ---
 customCommands:
+  - key: p
+    context: global
+    command: dot update --pull --repo "$(git rev-parse --show-toplevel)"
+    description: Pull with submodules and post-update hook
+    output: terminal
   - key: <c-b>
     context: localBranches
     command: gh poi
