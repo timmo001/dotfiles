@@ -275,10 +275,11 @@ Item {
     releaseActionProcess.running = true
   }
 
-  function openWeb(url, path, modifiers) {
-    var args = ["dot", "git-web"]
+  function openWeb(url, path, modifiers, actions) {
+    var args = ["dot", "git-web", "--work-time"]
     if (url) args.push("--url", String(url))
     if (path) args.push("--path", String(path))
+    if (actions) args.push("--actions")
     if (modifiers & Qt.AltModifier) args.push("--browser", "work")
     Quickshell.execDetached(args)
   }
@@ -382,6 +383,8 @@ Item {
       Quickshell.execDetached(herdrCommand(repo, tabLabel, command, modifiers))
     else if (action === "web")
       openWeb("", String(repo.path), modifiers)
+    else if (action === "actions")
+      openWeb("", String(repo.path), modifiers, true)
   }
 
   function canPullRepo(repo) {

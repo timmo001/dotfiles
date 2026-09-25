@@ -3,6 +3,7 @@ import { Effect, Schema } from "effect";
 import { dirname, resolve } from "node:path";
 import { ghOutput } from "../../lib/gh.js";
 import { expandHomePath } from "../../lib/paths.js";
+import { isWorkTime } from "../../lib/workTime.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import {
@@ -22,6 +23,8 @@ export const gitWeb = Effect.fn("gitWeb")(function* (options: {
   readonly path?: string;
   readonly url?: string;
   readonly browser?: string;
+  readonly workTime?: boolean;
+  readonly actions?: boolean;
 }) {
   const config = yield* Config;
   const executor = yield* CommandExecutor;
@@ -75,13 +78,22 @@ export const gitWeb = Effect.fn("gitWeb")(function* (options: {
       message: "Web actions require an HTTP or HTTPS URL",
     });
 
+  if (options.actions)
+    parsed.pathname = `${parsed.pathname.replace(/\/$/, "")}/actions`;
+
   if (!repo && parsed.hostname === "github.com")
     repo = managedGitRepoForGitHub(
       config.gitConfig,
       parsed.pathname.split("/").slice(1, 3).join("/"),
     );
 
-  const browser = options.browser ?? repo?.browser;
+  const browser =
+    options.browser ??
+    (options.workTime
+      ? (yield* isWorkTime(() => Effect.void))
+        ? "work"
+        : undefined
+      : repo?.browser);
 
   const command =
     browser && Object.hasOwn(config.gitConfig.browsers, browser)
@@ -91,5 +103,8 @@ export const gitWeb = Effect.fn("gitWeb")(function* (options: {
   if (browser && !command)
     return yield* new GitWebError({ message: `Unknown browser: ${browser}` });
   const [executable, ...args] = command ?? ["xdg-open"];
-  yield* executor.run(executable, [...args, url]);
+  yield* executor.run(executable, [
+    ...args,
+    options.actions ? parsed.toString() : url,
+  ]);
 }, handleCommandError("git-web"));

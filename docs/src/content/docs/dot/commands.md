@@ -800,7 +800,7 @@ Open a Git web action using the repository's configured browser
 dot git-web [flags]
 ```
 
-Resolves repository browser settings from dot-git.yml, including linked worktrees. URL-only actions use the GitHub repository in the URL. Named browsers are argument lists under browsers; each repository can select one with browser. Without a selection, uses the desktop default. --browser overrides the selection. The Git panel uses the work browser override for Alt+Enter and Alt+click on web actions.
+Resolves repository browser settings from dot-git.yml, including linked worktrees. URL-only actions use the GitHub repository in the URL. Named browsers are argument lists under browsers; each repository can select one with browser. Without a selection, uses the desktop default. --work-time selects the work browser during work hours outside calendar leave, otherwise the desktop default. --browser overrides the selection. The Git panel uses --work-time for web actions and --browser work for Alt+Enter and Alt+click.
 
 **Options**
 
@@ -809,6 +809,8 @@ Resolves repository browser settings from dot-git.yml, including linked worktree
 | `--path` `<string>` | Repository directory; defaults to the current directory when no URL is supplied |
 | `--url` `<string>` | Web URL; defaults to the repository's GitHub page |
 | `--browser` `<string>` | Override the repository browser with a name from dot-git.yml |
+| `--work-time` | Use the work browser during work time, otherwise the desktop default |
+| `--actions` | Open the repository's GitHub Actions page |
 | `--help` `-h` | Show help information |
 
 **Examples**

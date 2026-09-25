@@ -273,7 +273,8 @@ Panel {
       actionRow("editor", "Open in editor", ""),
       actionRow("agent", "Open in agent", "󱚣"),
       actionRow("terminal", "Open terminal", ""),
-      actionRow("web", "Open on GitHub", "")
+      actionRow("web", "Open on GitHub", ""),
+      actionRow("actions", "Open GitHub Actions", "󰜎")
     )
     if (service && service.notificationRepository(repo)) {
       var notifications = actionRow("repo-notifications", "Review notifications…", "")

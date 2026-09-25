@@ -722,12 +722,19 @@ const gitWebCommand = describe(
         "browser",
         "Override the repository browser with a name from dot-git.yml",
       ),
+      workTime: bool(
+        "work-time",
+        "Use the work browser during work time, otherwise the desktop default",
+      ),
+      actions: bool("actions", "Open the repository's GitHub Actions page"),
     },
-    ({ path, url, browser }) =>
+    ({ path, url, browser, workTime, actions }) =>
       gitWeb({
         path: optional(path),
         url: optional(url),
         browser: optional(browser),
+        workTime,
+        actions,
       }),
   ),
   "Open a Git web action using the repository's configured browser",
@@ -738,7 +745,7 @@ const gitWebCommand = describe(
   ],
   {
     description:
-      "Resolves repository browser settings from dot-git.yml, including linked worktrees. URL-only actions use the GitHub repository in the URL. Named browsers are argument lists under browsers; each repository can select one with browser. Without a selection, uses the desktop default. --browser overrides the selection. The Git panel uses the work browser override for Alt+Enter and Alt+click on web actions.",
+      "Resolves repository browser settings from dot-git.yml, including linked worktrees. URL-only actions use the GitHub repository in the URL. Named browsers are argument lists under browsers; each repository can select one with browser. Without a selection, uses the desktop default. --work-time selects the work browser during work hours outside calendar leave, otherwise the desktop default. --browser overrides the selection. The Git panel uses --work-time for web actions and --browser work for Alt+Enter and Alt+click.",
   },
 );
 
