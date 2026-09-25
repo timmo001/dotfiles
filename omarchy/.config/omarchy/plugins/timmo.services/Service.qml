@@ -18,7 +18,7 @@ Item {
   readonly property bool refreshing: statusProcess.running
   readonly property bool actionBusy: actionProcess.running
   readonly property int failedCount: (counts.failed || 0) + (counts.missing || 0)
-  readonly property int warningCount: (counts.stale || 0) + (counts.degraded || 0) + (counts.inactive || 0)
+  readonly property int warningCount: (counts.warning || 0) + (counts.stale || 0) + (counts.degraded || 0) + (counts.inactive || 0)
   readonly property int attentionCount: failedCount + warningCount + errors.length
 
   function apply(raw) {

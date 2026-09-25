@@ -38,6 +38,7 @@ import {
 import {
   dependencyRunPaths,
   DependencyRunError,
+  DependencyRunWarning,
   lockDependencyTarget,
   readDependencyTrust,
 } from "./state.js";
@@ -547,8 +548,8 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
     );
 
     if (failed)
-      return yield* new DependencyRunError({
-        message: `Dependency run partially failed; inspect ${paths.run}`,
+      return yield* new DependencyRunWarning({
+        message: `Dependency run completed with warnings: ${failed} unsuccessful group${failed === 1 ? "" : "s"}; inspect ${paths.run}`,
       });
   }).pipe(Effect.raceFirst(lease.keepAlive));
 }, Effect.scoped);

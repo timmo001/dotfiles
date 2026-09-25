@@ -10,6 +10,12 @@ export class DependencyRunError extends Schema.TaggedError<DependencyRunError>()
   { message: Schema.String },
 ) {}
 
+/** A completed dependency run with one or more unsuccessful update groups. */
+export class DependencyRunWarning extends Schema.TaggedError<DependencyRunWarning>()(
+  "DependencyRunWarning",
+  { message: Schema.String },
+) {}
+
 /** Explicit host permissions, stored outside repository-controlled policy. */
 export const DependencyTrust = Schema.Struct({
   trusted: Schema.Boolean,

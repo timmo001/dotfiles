@@ -6,6 +6,7 @@ import { acquireDependencyLease } from "../deps/lease.js";
 import { dependencyRunLog } from "../deps/log.js";
 import {
   DependencyRunError,
+  DependencyRunWarning,
   lockDependencyTarget,
   readDependencyTrust,
 } from "../deps/state.js";
@@ -94,10 +95,15 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
       cooldown,
     );
 
-    if (!lease) return;
+    if (!lease) {
+      process.exitCode = 3;
+
+      return;
+    }
 
     yield* Effect.gen(function* () {
       const failures: string[] = [];
+      const warnings: string[] = [];
 
       for (const repository of new Set(config.repositories)) {
         yield* lease.assertOwned;
@@ -114,8 +120,15 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
         ).pipe(Effect.result);
 
         if (Result.isFailure(result)) {
-          failures.push(repository);
-          yield* log.event(`[FAILED] ${repository}: ${result.failure.message}`);
+          if (result.failure instanceof DependencyRunWarning) {
+            warnings.push(repository);
+            yield* log.event(`[WARN] ${repository}: ${result.failure.message}`);
+          } else {
+            failures.push(repository);
+            yield* log.event(
+              `[FAILED] ${repository}: ${result.failure.message}`,
+            );
+          }
         }
       }
 
@@ -123,6 +136,13 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
         return yield* new DependencyRunError({
           message: `Dependency service failed for ${failures.join(", ")}; see ${log.path}`,
         });
+
+      if (warnings.length) {
+        yield* log.event(
+          `[WARN] Dependency service completed with warnings for ${warnings.join(", ")}; see ${log.path}`,
+        );
+        process.exitCode = 2;
+      }
     }).pipe(Effect.raceFirst(lease.keepAlive));
   },
   Effect.scoped,
@@ -132,7 +152,15 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
 /** Preview native updates or integrate passing groups through isolated worktrees. */
 export const previewDependencies = Effect.fn("Dependencies.preview")(
   function* (options: DependencyPlanOptions & { readonly dryRun: boolean }) {
-    if (!options.dryRun) return yield* runDependencyUpdates(options);
+    if (!options.dryRun)
+      return yield* runDependencyUpdates(options).pipe(
+        Effect.catchTag("DependencyRunWarning", (warning) =>
+          Effect.gen(function* () {
+            yield* (yield* OutputLog).warn(warning.message);
+            process.exitCode = 2;
+          }),
+        ),
+      );
     const planner = yield* DependencyPlanner;
     const log = yield* OutputLog;
     yield* log.section("Native Dependency Preview");

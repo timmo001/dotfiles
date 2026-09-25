@@ -27,6 +27,14 @@ const ServiceDescriptor = Schema.Struct({
   label: Schema.optionalKey(Schema.String),
   history: Schema.optionalKey(Count),
   failAfter: Schema.optionalKey(Count),
+  exitStatuses: Schema.optionalKey(
+    Schema.Record(
+      Schema.String.check(
+        Schema.isPattern(/^(?:[1-9]|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])$/),
+      ),
+      Schema.Literals(["warning", "skipped"]),
+    ),
+  ),
   staleAfter: Schema.optionalKey(Schema.DurationFromString),
   notify: Schema.optionalKey(Schema.Boolean),
   restartLimit: Schema.optionalKey(
@@ -45,7 +53,14 @@ const decodeDescriptor = Schema.decodeEffect(
 
 /** Overall monitoring state of one registered job, ordered from worst to best. */
 export type ServiceHealth =
-  "failed" | "missing" | "inactive" | "stale" | "degraded" | "running" | "ok";
+  | "failed"
+  | "missing"
+  | "inactive"
+  | "stale"
+  | "degraded"
+  | "warning"
+  | "running"
+  | "ok";
 
 const HEALTH_ORDER: readonly ServiceHealth[] = [
   "failed",
@@ -53,6 +68,7 @@ const HEALTH_ORDER: readonly ServiceHealth[] = [
   "inactive",
   "stale",
   "degraded",
+  "warning",
   "running",
   "ok",
 ];
@@ -66,7 +82,8 @@ export interface ServiceRun {
   /** Completion time in epoch milliseconds. */
   readonly finished?: number;
   /** Outcome of the invocation. */
-  readonly result: "success" | "failed" | "running" | "stopped";
+  readonly result:
+    "success" | "warning" | "skipped" | "failed" | "running" | "stopped";
   /** systemd result and exit status for failed runs. */
   readonly detail?: string;
 }
@@ -97,7 +114,7 @@ export interface ServiceStatus {
   readonly nextNote?: string;
   /** How the job runs: its kind first, then schedule or restart policy. */
   readonly tags: readonly string[];
-  /** Failed runs since the last success. */
+  /** Consecutive failed runs, excluding skipped invocations. */
   readonly consecutiveFailures: number;
   /** Failed runs before the latest success, when the job has recovered. */
   readonly recoveredAfter: number;
@@ -378,6 +395,7 @@ interface MutableRun {
 function buildRuns(
   entries: readonly (typeof JournalEntry.Type)[],
   oneshot: boolean,
+  exitStatuses: ServiceDescriptor["exitStatuses"],
 ) {
   const runs = new Map<string, MutableRun>();
   const restarts: number[] = [];
@@ -415,7 +433,10 @@ function buildRuns(
         run.exitStatus = entry.EXIT_STATUS;
         break;
       case MESSAGE.failed:
-        run.result = "failed";
+        run.result =
+          entry.UNIT_RESULT === "exit-code" && run.exitStatus
+            ? (exitStatuses?.[run.exitStatus] ?? "failed")
+            : "failed";
         run.finished = time;
         run.detail = [
           entry.UNIT_RESULT,
@@ -423,9 +444,13 @@ function buildRuns(
         ]
           .filter(Boolean)
           .join(", ");
+
+        if (run.result === "warning") run.detail = "Completed with warnings";
+
+        if (run.result === "skipped") run.detail = "No work performed";
         break;
       case MESSAGE.succeeded:
-        if (run.result !== "failed") {
+        if (run.result === "running") {
           run.result = "success";
           run.finished = time;
         }
@@ -511,9 +536,17 @@ function summarise(status: Omit<ServiceStatus, "summary">): string {
       return status.restartLimit && status.restarts >= status.restartLimit.count
         ? `Restarted ${status.restarts} times recently`
         : `Last run failed (${status.consecutiveFailures} of ${status.failAfter})`;
+    case "warning":
+      return "Last run completed with warnings";
     case "running":
       return "Running now";
     case "ok":
+      if (
+        status.runs.length > 0 &&
+        status.runs.every((run) => run.result === "skipped")
+      )
+        return "Last run skipped";
+
       if (status.recoveredAfter > 0)
         return `Recovered after ${status.recoveredAfter} failure${status.recoveredAfter === 1 ? "" : "s"}`;
 
@@ -570,6 +603,14 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
       const { runs, restarts } = buildRuns(
         yield* readJournal(service, Math.max(200, history * 8)),
         oneshot,
+        descriptor.exitStatuses,
+      );
+
+      const lastCompleted = runs.find(
+        (run) =>
+          run.result === "success" ||
+          run.result === "warning" ||
+          run.result === "failed",
       );
 
       let consecutiveFailures = 0;
@@ -578,12 +619,17 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
         if (run.result === "failed") consecutiveFailures++;
         else if (
           run.result === "success" ||
+          run.result === "warning" ||
           (!oneshot && run.result === "running")
         )
           break;
       }
 
-      if (properties.ActiveState === "failed")
+      if (
+        properties.ActiveState === "failed" &&
+        runs[0]?.result !== "warning" &&
+        runs[0]?.result !== "skipped"
+      )
         consecutiveFailures = Math.max(consecutiveFailures, 1);
 
       const lastSuccess = runs.find(
@@ -595,18 +641,28 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
 
       let recoveredAfter = 0;
 
-      if (consecutiveFailures === 0 && lastSuccess)
+      if (
+        consecutiveFailures === 0 &&
+        lastCompleted?.result === "success" &&
+        lastSuccess
+      )
         for (const run of runs.slice(runs.indexOf(lastSuccess) + 1, history)) {
           if (run.result === "failed") recoveredAfter++;
-          else if (run.result === "success") break;
+          else if (run.result === "success" || run.result === "warning") break;
         }
 
       const recentRestarts = restartLimit
         ? restarts.filter((time) => now - time <= restartLimit.within).length
         : 0;
 
+      const lastCompletion = runs.find(
+        (run) => run.result === "success" || run.result === "warning",
+      );
+
       const staleReference =
-        lastSuccessAt ?? unixMillis(timer?.ActiveEnterTimestamp);
+        lastCompletion?.finished ??
+        lastSuccessAt ??
+        unixMillis(timer?.ActiveEnterTimestamp);
 
       const loaded =
         properties.LoadState === "loaded" &&
@@ -669,7 +725,9 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
                   : properties.ActiveState === "activating" ||
                       properties.ActiveState === "active"
                     ? "running"
-                    : "ok"
+                    : lastCompleted?.result === "warning"
+                      ? "warning"
+                      : "ok"
             : properties.ActiveState !== "active" &&
                 properties.ActiveState !== "activating" &&
                 properties.ActiveState !== "reloading"

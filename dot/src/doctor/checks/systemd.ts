@@ -223,7 +223,7 @@ export const checkDoctorNotify = checkRequiredUserUnitSetup({
   unitLabel: "Doctor timer",
 });
 
-/** Check the optional dependency timer and report failed oneshot runs. */
+/** Check the optional dependency timer's installation and enablement. */
 export const checkDependencyService = Effect.gen(function* () {
   if (!existsSync(join(CONFIG_DIR, "dot", "dependency-service.json")))
     return [];
@@ -280,19 +280,6 @@ export const checkDependencyService = Effect.gen(function* () {
         },
   );
 
-  if (
-    (yield* executor.exitCode("systemctl", [
-      "--user",
-      "is-failed",
-      "dot-deps.service",
-    ])) === 0
-  )
-    results.push({
-      severity: "warn",
-      message: "Dependency service failed: dot-deps.service",
-      detail: "Inspect with: journalctl --user -u dot-deps.service -n 100",
-    });
-
   return results;
 });
 
@@ -333,7 +320,9 @@ export const checkRegisteredServices = Effect.gen(function* () {
 
   for (const status of yield* collectServiceStatus(registered))
     results.push(
-      status.health === "failed" || status.health === "stale"
+      status.health === "failed" ||
+        status.health === "stale" ||
+        status.health === "warning"
         ? {
             severity: "warn",
             message: `${status.label} is ${status.health}: ${status.summary}`,

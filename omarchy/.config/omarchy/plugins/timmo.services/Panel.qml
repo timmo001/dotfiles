@@ -35,14 +35,14 @@ Panel {
 
   function healthColor(health) {
     if (health === "failed" || health === "missing") return urgentColor
-    if (health === "stale" || health === "degraded" || health === "inactive") return warningColor
+    if (health === "warning" || health === "stale" || health === "degraded" || health === "inactive") return warningColor
     if (health === "running") return contentForeground
     return successColor
   }
 
   function healthIcon(health) {
     if (health === "failed" || health === "missing") return "󰅚"
-    if (health === "stale" || health === "degraded" || health === "inactive") return "󰀪"
+    if (health === "warning" || health === "stale" || health === "degraded" || health === "inactive") return "󰀪"
     if (health === "running") return "󰦖"
     return "󰗠"
   }
@@ -55,8 +55,9 @@ Panel {
 
   function runColor(result) {
     if (result === "failed") return urgentColor
+    if (result === "warning") return warningColor
     if (result === "running") return contentForeground
-    if (result === "stopped") return Qt.darker(contentForeground, 2.2)
+    if (result === "stopped" || result === "skipped") return Qt.darker(contentForeground, 2.2)
     return mutedColor
   }
 
@@ -415,7 +416,7 @@ Panel {
                         required property var modelData
                         width: parent.width - Style.space(32)
                         text: root.runText(modelData)
-                        color: modelData.result === "failed" ? root.urgentColor : root.mutedColor
+                        color: root.runColor(modelData.result)
                         font.family: root.contentFontFamily
                         font.pixelSize: Style.font.caption
                         elide: Text.ElideRight
