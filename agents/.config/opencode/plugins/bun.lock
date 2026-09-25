@@ -6,7 +6,7 @@
       "name": "opencode-plugins",
       "devDependencies": {
         "@opencode/client": "2.0.17",
-        "@opencode/plugin": "2.0.16",
+        "@opencode/plugin": "2.0.17",
         "@opencode/schema": "2.0.17",
         "@types/bun": "^1.3.14",
         "effect": "4.0.0-rc.112",
@@ -121,17 +121,17 @@
 
     "@npmcli/run-script": ["@npmcli/run-script@10.0.4", "", { "dependencies": { "@npmcli/node-gyp": "^5.0.0", "@npmcli/package-json": "^7.0.0", "@npmcli/promise-spawn": "^9.0.0", "node-gyp": "^12.1.0", "proc-log": "^6.0.0" } }, "sha512-mGUWr1uMnf0le2TwfOZY4SFxZGXGfm4Jtay/nwAa2FLNAKXUoUwaGwBMNH36UHPtinWfTSJ3nqFQr0091CxVGg=="],
 
-    "@opencode/ai": ["@opencode/ai@2.0.16", "", { "dependencies": { "@aws-sdk/credential-providers": "3.1057.0", "@opencode/schema": "2.0.16", "@smithy/eventstream-codec": "4.2.14", "@smithy/util-utf8": "4.2.2", "aws4fetch": "1.0.20", "effect": "4.0.0-rc.112", "google-auth-library": "10.5.0" } }, "sha512-QNOut+LUDNqMm2gqzr5xiOkj2xxD3JQX/DG3Z358aBJMgYZkDHY+ui20J7Jl7XdudQb4Jot2hIQ7t6q17BpOFw=="],
+    "@opencode/ai": ["@opencode/ai@2.0.17", "", { "dependencies": { "@aws-sdk/credential-providers": "3.1057.0", "@opencode/schema": "2.0.17", "@smithy/eventstream-codec": "4.2.14", "@smithy/util-utf8": "4.2.2", "aws4fetch": "1.0.20", "effect": "4.0.0-rc.112", "google-auth-library": "10.5.0" } }, "sha512-/tDZ7ibY7Mi4vhqCxILXz8vOTs57U7kDChfhrp9f+MSz8HLHymbz9A17GPORKLHbyn7hJpsGcPB+b6qN6jP3UA=="],
 
     "@opencode/client": ["@opencode/client@2.0.17", "", { "dependencies": { "@opencode/protocol": "2.0.17", "@opencode/schema": "2.0.17" }, "peerDependencies": { "effect": "4.0.0-rc.112", "solid-js": ">=1.9.0" }, "optionalPeers": ["effect", "solid-js"] }, "sha512-BP0VrVKlIHhYAzxdyAi+4D8pdDC5HAddStEtguKTirF7oxFKNL22lh/DvVO9cpPYP9Z5dfTnAwxlcbk9Occ5RA=="],
 
-    "@opencode/plugin": ["@opencode/plugin@2.0.16", "", { "dependencies": { "@ai-sdk/provider": "3.0.8", "@opencode/ai": "2.0.16", "@opencode/client": "2.0.16", "@opencode/protocol": "2.0.16", "@opencode/schema": "2.0.16", "@opencode/util": "2.0.16", "@standard-schema/spec": "1.1.0", "effect": "4.0.0-rc.112", "zod": "4.1.8" }, "peerDependencies": { "@opencode/theme": "2.0.16", "@opentui/core": ">=0.5.10", "@opentui/solid": ">=0.5.10", "solid-js": ">=1.9.0" }, "optionalPeers": ["@opencode/theme", "@opentui/core", "@opentui/solid", "solid-js"] }, "sha512-Ir+7fJNUqo81dfzLAcQ8cZVLREbUxx/jbbiPQFR6wCjKWdJXLtMWJIAnYnYxBLf4Im7GcQQfdnlsG5xT9NYNrQ=="],
+    "@opencode/plugin": ["@opencode/plugin@2.0.17", "", { "dependencies": { "@ai-sdk/provider": "3.0.8", "@opencode/ai": "2.0.17", "@opencode/client": "2.0.17", "@opencode/protocol": "2.0.17", "@opencode/schema": "2.0.17", "@opencode/util": "2.0.17", "@standard-schema/spec": "1.1.0", "effect": "4.0.0-rc.112", "zod": "4.1.8" }, "peerDependencies": { "@opencode/theme": "2.0.17", "@opentui/core": ">=0.5.12", "@opentui/solid": ">=0.5.12", "solid-js": ">=1.9.0" }, "optionalPeers": ["@opencode/theme", "@opentui/core", "@opentui/solid", "solid-js"] }, "sha512-hOewo2ae3fHiW7/B0P+fXw3GjJNC6nf139klD2Q3ckYN9I/BF3CRM22UoQmUwaf6tJfZZ5B6CCdm+UcZJDY5Kg=="],
 
     "@opencode/protocol": ["@opencode/protocol@2.0.17", "", { "dependencies": { "@opencode/schema": "2.0.17", "effect": "4.0.0-rc.112" } }, "sha512-jrAu/n6cWOB9J7bY5nZO3c5iNth30XVuYBXq15TJX2eGG7cRiFyiCydwVusK7PsGN3eqGvgfzVSRldjhY3AWEQ=="],
 
     "@opencode/schema": ["@opencode/schema@2.0.17", "", { "dependencies": { "@standard-schema/spec": "1.1.0", "effect": "4.0.0-rc.112" } }, "sha512-rVD7Xcg0inFWu5AO2mWHXptiGbUjG1cNrFQ7SFMDiUojyWtuOW7/A9c8bChyLMJ3TQfYjx9elU8wLe2ZI6yMdg=="],
 
-    "@opencode/util": ["@opencode/util@2.0.16", "", { "dependencies": { "@effect/opentelemetry": "4.0.0-rc.112", "@effect/platform-node": "4.0.0-rc.112", "@effect/platform-node-shared": "4.0.0-rc.112", "@npmcli/arborist": "9.4.0", "@npmcli/config": "10.8.1", "@opentelemetry/api": "1.9.0", "@opentelemetry/api-logs": "0.219.0", "@opentelemetry/context-async-hooks": "2.8.0", "@opentelemetry/exporter-trace-otlp-http": "0.219.0", "@opentelemetry/resources": "2.8.0", "@opentelemetry/sdk-logs": "0.219.0", "@opentelemetry/sdk-metrics": "2.8.0", "@opentelemetry/sdk-trace-base": "2.8.0", "@opentelemetry/sdk-trace-node": "2.8.0", "cross-spawn": "7.0.6", "effect": "4.0.0-rc.112", "glob": "13.0.5", "mime-types": "3.0.2", "minimatch": "10.2.5", "npm-package-arg": "13.0.2", "pacote": "21.5.1" } }, "sha512-VfY65xppJgSQSXT3x5hH3jM6e5Z08pYEaRA3sKv1K7I8jIFNma8IGZXSoYWaSXPnDt1svxd1sZ9b7tA1RRhOGw=="],
+    "@opencode/util": ["@opencode/util@2.0.17", "", { "dependencies": { "@effect/opentelemetry": "4.0.0-rc.112", "@effect/platform-node": "4.0.0-rc.112", "@effect/platform-node-shared": "4.0.0-rc.112", "@npmcli/arborist": "9.4.0", "@npmcli/config": "10.8.1", "@opentelemetry/api": "1.9.0", "@opentelemetry/api-logs": "0.219.0", "@opentelemetry/context-async-hooks": "2.8.0", "@opentelemetry/exporter-trace-otlp-http": "0.219.0", "@opentelemetry/resources": "2.8.0", "@opentelemetry/sdk-logs": "0.219.0", "@opentelemetry/sdk-metrics": "2.8.0", "@opentelemetry/sdk-trace-base": "2.8.0", "@opentelemetry/sdk-trace-node": "2.8.0", "cross-spawn": "7.0.6", "effect": "4.0.0-rc.112", "glob": "13.0.5", "mime-types": "3.0.2", "minimatch": "10.2.5", "npm-package-arg": "13.0.2", "pacote": "21.5.1" } }, "sha512-IURsmwJqnsG/i4hFt7id112HYGvKWlm4Jgjdl++iVnDZ1O/c1WmGXRyVZ8YStCJrw9fveHHuUNl4NNEQqI4RhQ=="],
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.0", "", {}, "sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg=="],
 
@@ -562,14 +562,6 @@
     "@npmcli/git/which": ["which@6.0.1", "", { "dependencies": { "isexe": "^4.0.0" }, "bin": { "node-which": "bin/which.js" } }, "sha512-oGLe46MIrCRqX7ytPUf66EAYvdeMIZYn3WaocqqKZAxrBpkqHfL/qvTyJ/bTk5+AqHCjXmrv3CEWgy368zhRUg=="],
 
     "@npmcli/promise-spawn/which": ["which@6.0.1", "", { "dependencies": { "isexe": "^4.0.0" }, "bin": { "node-which": "bin/which.js" } }, "sha512-oGLe46MIrCRqX7ytPUf66EAYvdeMIZYn3WaocqqKZAxrBpkqHfL/qvTyJ/bTk5+AqHCjXmrv3CEWgy368zhRUg=="],
-
-    "@opencode/ai/@opencode/schema": ["@opencode/schema@2.0.16", "", { "dependencies": { "@standard-schema/spec": "1.1.0", "effect": "4.0.0-rc.112" } }, "sha512-MXENqPxsEzv77AAQDZsyYM4kSqUSApGEKD3xQ6kDDDvm5f5SHMffcNQ+uJXbh7rFo7Fm7nzdvoDHeZwiXm2UvQ=="],
-
-    "@opencode/plugin/@opencode/client": ["@opencode/client@2.0.16", "", { "dependencies": { "@opencode/protocol": "2.0.16", "@opencode/schema": "2.0.16" }, "peerDependencies": { "effect": "4.0.0-rc.112", "solid-js": ">=1.9.0" }, "optionalPeers": ["effect", "solid-js"] }, "sha512-lEZM5NY8cKVwnlIJVHiERIaIMJfWfKTlQvKKkIz7NcNEwUXlrTXOA79kS5n17HtjYer1u1XiQIIggYtEYJXHRw=="],
-
-    "@opencode/plugin/@opencode/protocol": ["@opencode/protocol@2.0.16", "", { "dependencies": { "@opencode/schema": "2.0.16", "effect": "4.0.0-rc.112" } }, "sha512-TQQOXLngSH4D9Z/B6DkyioFsHyApaczjU9EdD5BJ0UtwihKs3iT5mLQlicctKzcWomNoCqIM45XEjBv+WrSynA=="],
-
-    "@opencode/plugin/@opencode/schema": ["@opencode/schema@2.0.16", "", { "dependencies": { "@standard-schema/spec": "1.1.0", "effect": "4.0.0-rc.112" } }, "sha512-MXENqPxsEzv77AAQDZsyYM4kSqUSApGEKD3xQ6kDDDvm5f5SHMffcNQ+uJXbh7rFo7Fm7nzdvoDHeZwiXm2UvQ=="],
 
     "gcp-metadata/gaxios": ["gaxios@7.1.3", "", { "dependencies": { "extend": "^3.0.2", "https-proxy-agent": "^7.0.1", "node-fetch": "^3.3.2", "rimraf": "^5.0.1" } }, "sha512-YGGyuEdVIjqxkxVH1pUTMY/XtmmsApXrCVv5EU25iX6inEPbV+VakJfLealkBtJN69AQmh1eGOdCl9Sm1UP6XQ=="],
 
