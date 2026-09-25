@@ -6,8 +6,8 @@ ConditionPathExists=%h/.config/dot/dependency-service.json
 
 [Service]
 Type=oneshot
-Environment=PATH=%h/.local/bin:%h/.local/share/mise/shims:/usr/local/bin:/usr/bin
-ExecStart=%h/.local/bin/dot deps service
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin
+ExecStart=%h/.local/bin/mise exec -- %h/.local/bin/dot deps service
 TimeoutStartSec=3h
 TimeoutStopSec=30s
 KillMode=control-group
