@@ -55,6 +55,15 @@ minimum_release_age = "2h"
 version = "0.27.20"
 minimum_release_age = "2h"
 
+# Read this machine's current gh token without invoking mise or its shims.
+# Search inside release archives too; gh's binary can sit below a platform directory.
+[settings.github]
+credential_command = '''
+bin="$(find "${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}/installs/gh" -type f -path '*/bin/gh' | sort -V | tail -n 1)"
+[ -n "$bin" ] && [ -x "$bin" ] || exit 1
+exec "$bin" auth token --hostname "$MISE_CREDENTIAL_HOST"
+'''
+
 [settings]
 aqua.registries = ["https://github.com/aquaproj/aqua-registry"]
 idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]
