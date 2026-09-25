@@ -1065,6 +1065,36 @@ Requires an explicit private releases.publish recipe. The preview is read-only. 
 | `--confirm` `<string>` | Execute the exact plan ID returned by the preview |
 | `--help` `-h` | Show help information |
 
+## `dot git-pull-requests`
+
+Track open pull requests for enabled repositories, independently of GitHub notifications
+
+```text
+dot git-pull-requests [flags]
+```
+
+Opt in with pull_requests.enabled in private dot-git.yml. All open PRs are included, including drafts and automation, ordered by latest update. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and report an error. --notify sends one grouped desktop alert per repository for unannounced PRs, including existing PRs on first use. Opening a PR marks it seen locally; it stays listed until closed or merged. Seen state and delivery state persist across shell restarts.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--repo` `<string>` | Select an enabled repository by name or GitHub slug |
+| `--refresh` | Fetch now instead of using the five-minute cache |
+| `--notify` | Send grouped desktop alerts for newly discovered pull requests |
+| `--open` | Open the tracked pull request page in the Git panel |
+| `--seen` `<integer>` | Mark a PR number as seen locally; requires --repo |
+| `--panel-json` | Return enabled repositories and their open pull requests as JSON |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot git-pull-requests --panel-json
+dot git-pull-requests --refresh --notify
+dot git-pull-requests --open
+```
+
 ## `dot mcp-sync`
 
 Regenerate MCP configs for all harnesses from the spec

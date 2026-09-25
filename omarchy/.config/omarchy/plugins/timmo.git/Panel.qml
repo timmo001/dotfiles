@@ -17,6 +17,12 @@ Panel {
   property string view: "overview"
   property var selectedRepo: null
   property string selectedRepoView: "changed"
+  property string selectedPullRequestRepo: ""
+  property string selectedPullRequestView: "overview"
+  property string pullRequestCursorKey: ""
+  readonly property bool pullRequestView: view === "pulls" || view === "pull-repo"
+  readonly property var selectedPullRequests: service ? service.pullRequestRepositories.find(function(repo) { return repo.repo.toLowerCase() === selectedPullRequestRepo.toLowerCase() || repo.name.toLowerCase() === selectedPullRequestRepo.toLowerCase() }) || null : null
+  readonly property var filteredPullRequestRows: filterController.filteredModel.filter(function(row) { return row.section === "pulls" || row.section === "pulls-empty" })
   property string selectedAgentView: "repo"
   property string selectedReleaseKey: ""
   property string selectedReleaseView: "overview"
@@ -56,6 +62,11 @@ Panel {
 
   function buildPanelRows() {
     var rows = []
+    if (pullRequestView) {
+      rows.push(actionRow("back", view === "pulls" || selectedPullRequestView === "overview" ? "Back to Git overview" : "Back to all tracked repositories", ""))
+      if (view === "pull-repo" && selectedPullRequests) rows.push(actionRow("pulls-web", "Open pull requests on GitHub", ""))
+      return rows.concat(pullRequestRows())
+    }
     if (view === "agent") {
       var agents = service ? service.installedAgents : []
       for (var i = 0; i < agents.length; i++) {
@@ -184,6 +195,7 @@ Panel {
       ))
     }
     if (view === "overview") {
+      rows = rows.concat(pullRequestRows())
       rows.push(headerActionRow("release-refresh", "Refresh unreleased changes", "release"))
       var releases = service ? service.releases : []
       for (var r = 0; r < releases.length; r++)
@@ -195,6 +207,58 @@ Panel {
       rows.push(allReleases)
     }
     return rows
+  }
+
+  function pullRequestRows() {
+    var rows = [headerActionRow("pulls-refresh", "Refresh pull requests", "pulls")]
+    if (view === "pull-repo") {
+      if (selectedPullRequests) selectedPullRequests.pulls.forEach(function(pr) {
+        rows.push({ key: "pull:" + selectedPullRequests.repo + ":" + pr.number, kind: "pull", section: "pulls", value: pr,
+          primaryText: "#" + pr.number + " " + pr.title,
+          secondaryText: [pr.author, pr.draft ? "Draft" : "Open", pr.seen ? "Seen" : "New"].join(" · "), unread: !pr.seen })
+      })
+      return rows
+    }
+    var repositories = service ? service.pullRequestRepositories.slice().sort(function(a, b) { return a.name.localeCompare(b.name) }) : []
+    var withPulls = repositories.filter(function(repo) { return repo.pulls.length > 0 || (view === "pulls" && (repo.error || repo.checkedAt === null)) })
+    var withoutPulls = view === "pulls" ? repositories.filter(function(repo) { return repo.pulls.length === 0 && !repo.error && repo.checkedAt !== null }) : []
+    withPulls.concat(withoutPulls).forEach(function(repo) {
+      var newCount = repo.pulls.filter(function(pr) { return !pr.seen }).length
+      var empty = withoutPulls.indexOf(repo) >= 0
+      rows.push({ key: "pull-repo:" + repo.repo, kind: "pull-repo", section: empty ? "pulls-empty" : "pulls", value: repo,
+        primaryText: repo.name + (empty ? "" : "  ›"),
+        secondaryText: repo.checkedAt === null ? (repo.error || "Not checked yet") : repo.pulls.length + " open · " + newCount + " new" + (repo.error ? " · stale: " + repo.error : ""), unread: newCount > 0 })
+    })
+    if (view === "overview") {
+      var all = actionRow("pulls", "All tracked repositories", "󰙅")
+      all.kind = "pull-action"
+      all.section = "pulls"
+      rows.push(all)
+    }
+    return rows
+  }
+
+  function pullRequestStatus() {
+    if (!service || !service.pullRequestsLoaded) return "Loading pull requests"
+    var messages = [service.pullRequestsError, service.pullRequestSeenError].filter(function(value) { return value !== "" })
+    var repositories = view === "pull-repo" ? (selectedPullRequests ? [selectedPullRequests] : []) : service.pullRequestRepositories
+    repositories.forEach(function(repo) {
+      if (repo.error) messages.push(repo.name + ": " + repo.error)
+      if (repo.deliveryError) messages.push(repo.name + ": " + repo.deliveryError)
+    })
+    if (messages.length) return messages.join("\n")
+    if (view === "pull-repo") return selectedPullRequests
+      ? (selectedPullRequests.pulls.length ? "" : "No open pull requests")
+      : "Repository unavailable or tracking disabled"
+    if (!repositories.length) return "No repositories enabled for pull request tracking"
+    return repositories.some(function(repo) { return repo.pulls.length > 0 }) ? "" : "No open pull requests"
+  }
+
+  function selectFirstPullRequest() {
+    if (view !== "pull-repo") return
+    var index = filterController.filteredModel.findIndex(function(entry) { return entry.kind === "pull" })
+    if (index < 0) index = filterController.indexForKey("action:pulls-web")
+    filterController.selectIndex(index)
   }
 
   function repoActions(repo) {
@@ -334,9 +398,15 @@ Panel {
     selectedReleaseView = "overview"
     selectedFindingId = ""
     selectedFindingGroupKey = ""
+    selectedPullRequestRepo = ""
+    selectedPullRequestView = "overview"
     try {
       var payload = JSON.parse(String(payloadJson || "{}"))
       if (payload.view === "notifications") initialView = payload.view
+      if (payload.view === "pulls") {
+        selectedPullRequestRepo = String(payload.repo || "")
+        initialView = selectedPullRequestRepo ? "pull-repo" : "pulls"
+      }
       if (payload.view === "releases") {
         selectedReleaseKey = String(payload.repo || "")
         initialView = selectedReleaseKey ? "release" : "releases"
@@ -348,6 +418,7 @@ Panel {
     if (service) service.refreshHerdrContext()
     if (service) { service.notificationLaunchError = ""; service.refreshNotifications() }
     if ((releaseView || view === "overview") && service) service.refreshReleases("read")
+    if ((pullRequestView || view === "overview") && service) service.refreshPullRequests("read")
     filterController.reset()
     controller.show()
     Qt.callLater(function() {
@@ -358,6 +429,7 @@ Panel {
         filterController.selectIndex(index)
       }
       panelFlick.contentY = 0
+      selectFirstPullRequest()
       filterController.forceActiveFocus()
     })
   }
@@ -374,6 +446,7 @@ Panel {
   function cursorItem() {
     var entry = filterController.selectedEntry()
     if (!entry) return null
+    if (entry.section === "pulls" || entry.section === "pulls-empty") return pullRequestsSection.itemForKey(entry.key)
     if (entry.kind === "release-action") return allReleasesAction
     if (entry.kind === "context-action") return contextRepeater.itemAt(contextRows.indexOf(entry))
     if (entry.kind === "header-action") {
@@ -419,6 +492,7 @@ Panel {
       revealTimer.stop()
       filterController.reset()
       panelFlick.contentY = 0
+      selectFirstPullRequest()
     })
   }
 
@@ -448,6 +522,10 @@ Panel {
   function activateAction(action, modifiers) {
     if (!service) return
     if (action === "release-refresh") { service.releaseActionError = ""; service.refreshReleases("refresh") }
+    else if (action === "pulls-refresh") service.refreshPullRequests("refresh")
+    else if (action === "pulls") showView("pulls")
+    else if (action === "pulls-web") { close(); service.openPulls(selectedPullRequests, modifiers) }
+    else if (action === "back" && pullRequestView) showView(view === "pulls" ? "overview" : selectedPullRequestView)
     else if (action === "context-refresh") service.refreshHerdrContext(true)
     else if (action === "repositories-refresh") service.refreshRepositories()
     else if (action === "notifications-refresh") service.refreshNotifications()
@@ -490,7 +568,12 @@ Panel {
   }
 
   function activateEntry(entry, modifiers) {
-    if (entry.kind === "action" || entry.kind === "footer-action" || entry.kind === "header-action" || entry.kind === "release-action") activateAction(entry.action, modifiers)
+    if (entry.kind === "action" || entry.kind === "footer-action" || entry.kind === "header-action" || entry.kind === "release-action" || entry.kind === "pull-action") activateAction(entry.action, modifiers)
+    else if (entry.kind === "pull-repo") {
+      if (entry.value.pulls.length === 0 && entry.value.checkedAt !== null && !entry.value.error) { close(); service.openPulls(entry.value, modifiers) }
+      else { selectedPullRequestRepo = entry.value.repo; selectedPullRequestView = view; showView("pull-repo") }
+    }
+    else if (entry.kind === "pull") { close(); service.openPullRequest(selectedPullRequests, entry.value, modifiers) }
     else if (entry.kind === "context-action") { selectedRepo = entry.value; activateAction(entry.action, modifiers) }
     else if (entry.kind === "repo") showRepoActions(entry.value)
     else if (entry.kind === "thread") activateThread(entry.value, modifiers)
@@ -522,6 +605,14 @@ Panel {
     function onReleaseOpened() { root.close() }
     function onNotificationReviewOpened() { root.close() }
     function onPanelUpdated() { root.syncSelectedRepo() }
+    function onPullRequestsUpdating() { root.pullRequestCursorKey = root.cursorKey }
+    function onPullRequestsUpdated() {
+      Qt.callLater(function() {
+        var index = filterController.indexForKey(root.pullRequestCursorKey)
+        if (index >= 0) filterController.selectIndex(index)
+        else root.selectFirstPullRequest()
+      })
+    }
     function onContextUpdating() { root.contextCursorKey = root.cursorKey }
     function onContextUpdated() {
       Qt.callLater(function() {
@@ -561,7 +652,7 @@ Panel {
       onBackRequested: if (root.view === "overview") root.close(); else root.activateAction("back")
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
-      onRefreshRequested: if (root.releaseView) root.activateAction("release-refresh"); else root.service.refresh()
+      onRefreshRequested: if (root.releaseView) root.activateAction("release-refresh"); else if (root.pullRequestView) root.activateAction("pulls-refresh"); else root.service.refresh()
 
       Flickable {
         id: panelFlick
@@ -581,8 +672,8 @@ Panel {
 
           PanelHero {
             width: parent.width
-            title: root.releaseView ? (root.view === "releases" ? "All tracked repositories" : (root.selectedRelease ? root.selectedRelease.name : "Release review")) : (root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other")))))
-            meta: root.releaseView ? (root.view === "finding-group" && root.selectedFindingGroup ? root.selectedFindingGroup.title : (root.view === "finding" ? "Finding evidence" : (root.view === "release-commits" ? "All commits" : "Local release review"))) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories")))))
+            title: root.pullRequestView ? (root.view === "pulls" ? "All tracked repositories" : (root.selectedPullRequests ? root.selectedPullRequests.name : "Pull requests")) : root.releaseView ? (root.view === "releases" ? "All tracked repositories" : (root.selectedRelease ? root.selectedRelease.name : "Release review")) : (root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other")))))
+            meta: root.pullRequestView ? (root.view === "pull-repo" ? "Open pull requests · recently updated first" : "Pull request tracking") : root.releaseView ? (root.view === "finding-group" && root.selectedFindingGroup ? root.selectedFindingGroup.title : (root.view === "finding" ? "Finding evidence" : (root.view === "release-commits" ? "All commits" : "Local release review"))) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories")))))
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             iconComponent: Component {
@@ -962,6 +1053,22 @@ Panel {
                 }
               }
             }
+          }
+
+          PullRequests {
+            id: pullRequestsSection
+            visible: root.view === "overview" || root.pullRequestView
+            width: parent.width
+            rows: root.filteredPullRequestRows
+            view: root.view
+            cursorKey: root.cursorKey
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+            refreshing: root.service ? root.service.pullRequestsBusy : false
+            status: root.pullRequestStatus()
+            onHovered: function(key) { filterController.cursorIndex = filterController.indexForKey(key) }
+            onActivated: function(entry, modifiers) { root.activateEntry(entry, modifiers) }
+            onRefreshRequested: root.activateAction("pulls-refresh")
           }
 
           SectionHeading {

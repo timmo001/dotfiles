@@ -20,6 +20,7 @@ import { DotDiff } from "./git/services/DotDiff.js";
 import { GitHub } from "./git/services/GitHub.js";
 import { GitNotifications } from "./git/services/GitNotifications.js";
 import { GitReleases } from "./git/services/GitReleases.js";
+import { GitPullRequests } from "./git/services/GitPullRequests.js";
 import { GitStaging } from "./git/services/GitStaging.js";
 import { CommandExecutor } from "./services/CommandExecutor.js";
 import { Config } from "./services/Config.js";
@@ -149,6 +150,7 @@ const CliLayers = Launcher.layer.pipe(
   Layer.provideMerge(DotDiff.layer),
   Layer.provideMerge(GitNotifications.layer),
   Layer.provideMerge(GitReleases.layer),
+  Layer.provideMerge(GitPullRequests.layer),
   Layer.provideMerge(GitStaging.layer),
   Layer.provideMerge(GitHub.layer),
   Layer.provideMerge(ghLayer().pipe(Layer.provide(NodeServices.layer))),

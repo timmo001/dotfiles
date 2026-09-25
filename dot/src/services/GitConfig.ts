@@ -32,6 +32,7 @@ const REPO_KEYS = new Set([
   "review_search",
   "activity",
   "notifications",
+  "pull_requests",
   "releases",
 ]);
 
@@ -100,6 +101,11 @@ export interface GitManagedRepo {
   readonly activity: GitRepoCheckConfig;
   /** GitHub notification check and status-bar filters. */
   readonly notifications: GitRepoNotificationConfig;
+  /** Whether open pull requests appear in the Git panel; omitted means disabled. */
+  readonly pullRequests?: {
+    /** Include this repository in PR polling and panel pages. */
+    readonly enabled: boolean;
+  };
   /** Optional release comparison policy and schedule; omitted means disabled. */
   readonly releases?: ReleaseSettings;
 }
@@ -458,6 +464,14 @@ function parseRepo(
 
   const github = rawGithub ? normalizeGitHubSlug(rawGithub) : null;
 
+  const pullRequests =
+    value.pull_requests === undefined
+      ? undefined
+      : Schema.decodeUnknownSync(Schema.Struct({ enabled: Schema.Boolean }))(
+          value.pull_requests,
+          { onExcessProperty: "error" },
+        );
+
   const releases = parseReleases(
     value.releases,
     `${location}.releases`,
@@ -483,6 +497,7 @@ function parseRepo(
       ...(reviewSearch && { reviewSearch }),
       activity,
       notifications,
+      ...(pullRequests && { pullRequests }),
       ...(releases && { releases }),
     },
   ];

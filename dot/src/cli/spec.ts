@@ -59,6 +59,10 @@ import { diffBarJson, diffPanelJson, diffRaw } from "../git/commands/Diff.js";
 import { gitCommitRaw } from "../git/commands/Commit.js";
 import { gitWeb } from "../git/commands/Web.js";
 import {
+  pullRequestsOpenShell,
+  pullRequestsQuery,
+} from "../git/commands/PullRequests.js";
+import {
   releasesAction,
   releasesPublish,
   releasesQuery,
@@ -769,6 +773,53 @@ const gitDiffCommand = describe(
     ],
   },
 ).pipe(Command.withAlias("diff"));
+
+const gitPullRequestsCommand = describe(
+  Command.make(
+    "git-pull-requests",
+    {
+      repo: text("repo", "Select an enabled repository by name or GitHub slug"),
+      refresh: bool(
+        "refresh",
+        "Fetch now instead of using the five-minute cache",
+      ),
+      notify: bool(
+        "notify",
+        "Send grouped desktop alerts for newly discovered pull requests",
+      ),
+      open: bool("open", "Open the tracked pull request page in the Git panel"),
+      seen: Flag.Int("seen").pipe(
+        Flag.optional,
+        Flag.withDescription(
+          "Mark a PR number as seen locally; requires --repo",
+        ),
+      ),
+      panelJson: bool(
+        "panel-json",
+        "Return enabled repositories and their open pull requests as JSON",
+      ),
+    },
+    ({ repo, refresh, notify, open, seen, panelJson }) =>
+      Effect.gen(function* () {
+        if (open) return yield* pullRequestsOpenShell(optional(repo));
+
+        return yield* pullRequestsQuery(
+          { repo: optional(repo), refresh, notify, seen: optional(seen) },
+          panelJson,
+        );
+      }),
+  ),
+  "Track open pull requests for enabled repositories, independently of GitHub notifications",
+  [
+    "dot git-pull-requests --panel-json",
+    "dot git-pull-requests --refresh --notify",
+    "dot git-pull-requests --open",
+  ],
+  {
+    description:
+      "Opt in with pull_requests.enabled in private dot-git.yml. All open PRs are included, including drafts and automation, ordered by latest update. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and report an error. --notify sends one grouped desktop alert per repository for unannounced PRs, including existing PRs on first use. Opening a PR marks it seen locally; it stays listed until closed or merged. Seen state and delivery state persist across shell restarts.",
+  },
+);
 
 const releaseActionFlags = {
   repo: Flag.String("repo").pipe(
@@ -2025,6 +2076,7 @@ export const dotCommand = describe(
       gitCommitCommand,
       gitNotificationsCommand,
       gitReleasesCommand,
+      gitPullRequestsCommand,
       describe(
         Command.make("mcp-sync", {}, () =>
           Effect.promise(() => import("../mcp/commands/McpSync.js")).pipe(

@@ -36,18 +36,21 @@ BarWidget {
     if (git.notificationsError !== "") values.push(" ?")
     else if (!git.notificationsLoaded) values.push(" ..")
     else if (git.threads.length > 0) values.push(" " + git.threads.length)
+    if (git.pullRequestsStale) values.push(" ?")
+    else if (!git.pullRequestsLoaded) values.push(" ..")
+    else if (git.pullRequestCount > 0) values.push(" " + git.pullRequestCount)
     return values.length > 0 ? values.join("  ") : ""
   }
   readonly property color displayColor: {
     if (!git) return "#9b9b9b"
     if (git.notificationClass === "notifications-attention") return "#e06c75"
-    if (git.diffClass === "dots-attention" || git.notificationClass === "notifications-unread") return "#e5c07b"
+    if (git.diffClass === "dots-attention" || git.notificationClass === "notifications-unread" || git.newPullRequestCount > 0) return "#e5c07b"
     if (git.diffClass === "dots-pull-only") return "#98c379"
     if (git.diffClass === "dots-extra-only") return "#61afef"
     return "#9b9b9b"
   }
   readonly property string tooltipText: git
-    ? [git.diffTooltip || git.diffError, git.notificationTooltip || git.notificationsError].filter(function(value) { return value !== "" }).join("\n")
+    ? [git.diffTooltip || git.diffError, git.notificationTooltip || git.notificationsError, git.pullRequestTooltip].filter(function(value) { return value !== "" }).join("\n")
     : "Git status unavailable"
 
   function activeWidget() {
@@ -123,6 +126,17 @@ BarWidget {
         function refresh(): void { if (root.git) root.git.refresh() }
         function open(): void { root.open() }
         function release(repo: string): void { root.open(JSON.stringify({ view: "releases", repo: repo })) }
+        function pulls(repo: string): void { root.open(JSON.stringify({ view: "pulls", repo: repo })) }
+        function pullsStatus(): string {
+          var panel = panelLoader.item
+          return JSON.stringify({
+            opened: root.opened, view: panel ? panel.view : "", repo: panel ? panel.selectedPullRequestRepo : "",
+            rows: panel ? panel.panelRows.filter(function(row) { return row.section === "pulls" || row.section === "pulls-empty" }).map(function(row) { return { key: row.key, kind: row.kind, title: row.primaryText } }) : [],
+            cursor: panel ? panel.cursorKey : "", loaded: root.git ? root.git.pullRequestsLoaded : false,
+            busy: root.git ? root.git.pullRequestsBusy : false, error: root.git ? root.git.pullRequestsError : "Service unavailable",
+            count: root.git ? root.git.pullRequestCount : 0, newCount: root.git ? root.git.newPullRequestCount : 0
+          })
+        }
         function releaseStatus(): string {
           var panel = panelLoader.item
           return JSON.stringify({
