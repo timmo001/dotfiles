@@ -84,4 +84,10 @@ else
   log "Available updates refresh failed"
 fi
 
+if systemctl --user start --no-block dot-doctor.service; then
+  log "Started dot doctor check"
+else
+  log "dot doctor check failed to start"
+fi
+
 log "UI reload complete"
