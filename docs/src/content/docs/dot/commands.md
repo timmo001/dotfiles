@@ -317,6 +317,129 @@ dot updates refresh
 dot updates refresh --dot-only
 ```
 
+## `dot services`
+
+Monitor registered systemd user services and timers
+
+```text
+dot services <subcommand> [flags]
+```
+
+Each job registers itself with a JSON descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour"), restartLimit ({ count, within }) for long-running services, notify, and logs ({ dir, file }) for jobs that keep their own run logs. Run history comes from the user journal. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot services status
+dot services logs dot-deps.timer
+```
+
+### `dot services status`
+
+Show the health of registered user services
+
+```text
+dot services status [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the full snapshot as JSON |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot services status
+dot services status --json
+```
+
+### `dot services start`
+
+Run a registered job now, or restart a long-running service
+
+```text
+dot services start [flags] <unit>
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<unit>` | Registered timer or service unit |
+
+**Examples**
+
+```bash
+dot services start dot-deps.timer
+```
+
+### `dot services logs`
+
+Open a registered job's logs in a floating terminal
+
+```text
+dot services logs [flags] <unit>
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<unit>` | Registered timer or service unit |
+
+**Examples**
+
+```bash
+dot services logs notes-capture-daemon.service
+```
+
+### `dot services notify`
+
+Notify when a registered job has failed (used by OnFailure=)
+
+```text
+dot services notify [flags] <unit>
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<unit>` | Registered timer or service unit |
+
+**Examples**
+
+```bash
+dot services notify dot-deps.service
+```
+
 ## `dot stow`
 
 Re-stow public/private dotfiles

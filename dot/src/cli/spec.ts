@@ -34,6 +34,12 @@ import {
   OmarchyPluginInput,
 } from "../commands/OmarchyPlugin.js";
 import { updatesRefresh, updatesStatus } from "../commands/Updates.js";
+import {
+  servicesLogs,
+  servicesNotify,
+  servicesStart,
+  servicesStatus,
+} from "../commands/Services.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { prQueue } from "../commands/PrQueue.js";
 import { prWatch } from "../commands/PrWatch.js";
@@ -523,6 +529,53 @@ const updatesCommand = describe(
   {
     description:
       "Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched repository/AUR packages and all dot-managed repositories, writes the cache atomically under a shared lock, and notifies the Omarchy shell. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --package-file, --cache-dir, --timeout, and status --cache-max-age to override defaults.",
+  },
+);
+
+const serviceUnit = Argument.String("unit").pipe(
+  Argument.withDescription("Registered timer or service unit"),
+);
+
+const servicesCommand = describe(
+  Command.make("services").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "status",
+          { json: bool("json", "Print the full snapshot as JSON") },
+          ({ json }) => servicesStatus(json),
+        ),
+        "Show the health of registered user services",
+        ["dot services status", "dot services status --json"],
+      ),
+      describe(
+        Command.make("start", { unit: serviceUnit }, ({ unit }) =>
+          servicesStart(unit),
+        ),
+        "Run a registered job now, or restart a long-running service",
+        ["dot services start dot-deps.timer"],
+      ),
+      describe(
+        Command.make("logs", { unit: serviceUnit }, ({ unit }) =>
+          servicesLogs(unit),
+        ),
+        "Open a registered job's logs in a floating terminal",
+        ["dot services logs notes-capture-daemon.service"],
+      ),
+      describe(
+        Command.make("notify", { unit: serviceUnit }, ({ unit }) =>
+          servicesNotify(unit),
+        ),
+        "Notify when a registered job has failed (used by OnFailure=)",
+        ["dot services notify dot-deps.service"],
+      ),
+    ]),
+  ),
+  "Monitor registered systemd user services and timers",
+  ["dot services status", "dot services logs dot-deps.timer"],
+  {
+    description:
+      'Each job registers itself with a JSON descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour"), restartLimit ({ count, within }) for long-running services, notify, and logs ({ dir, file }) for jobs that keep their own run logs. Run history comes from the user journal. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel.',
   },
 );
 
@@ -1963,6 +2016,7 @@ export const dotCommand = describe(
       dependenciesCommand,
       runCommandSpec,
       updatesCommand,
+      servicesCommand,
       stowCommand,
       omarchyPluginCommand,
       ...simpleCommands,
