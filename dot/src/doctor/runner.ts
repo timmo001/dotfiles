@@ -18,6 +18,7 @@ import { checkOriginHead } from "../git/doctor/originHead.js";
 import {
   checkGitNotifications,
   checkDoctorStartup,
+  checkDependencyService,
   checkDailyVolumeReset,
   checkLocalBinPath,
 } from "./checks/systemd.js";
@@ -73,6 +74,7 @@ const sections: readonly SectionDef[] = [
   { name: "Git config include", check: checkGitConfig },
   { name: "Git notification checks", check: checkGitNotifications },
   { name: "Doctor startup notification", check: checkDoctorStartup },
+  { name: "Dependency service", check: checkDependencyService },
   { name: "uwsm session PATH", check: checkLocalBinPath },
   { name: "Daily volume reset", check: checkDailyVolumeReset },
   { name: "Omarchy config checks", check: checkOmarchy },

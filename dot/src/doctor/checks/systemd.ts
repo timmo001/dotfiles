@@ -218,6 +218,79 @@ export const checkDoctorStartup = checkRequiredUserUnitSetup({
   unitLabel: "Doctor startup timer",
 });
 
+/** Check the optional dependency timer and report failed oneshot runs. */
+export const checkDependencyService = Effect.gen(function* () {
+  if (!existsSync(join(CONFIG_DIR, "dot", "dependency-service.json")))
+    return [];
+
+  const executor = yield* CommandExecutor;
+  const results: CheckResult[] = [];
+
+  for (const unit of ["dot-deps.service", "dot-deps.timer"])
+    addFilePresenceCheck(
+      results,
+      userSystemdUnitPath(unit),
+      `Dependency unit found: ${unit}`,
+      `Dependency unit missing: ${unit}`,
+      "Run dot stow to link systemd user units",
+    );
+
+  if ((yield* executor.exitCode("which", ["systemctl"])) !== 0) {
+    results.push({
+      severity: "warn",
+      message: "Skipping dependency timer checks (systemctl not found)",
+    });
+
+    return results;
+  }
+
+  const state = (yield* executor.run("systemctl", [
+    "--user",
+    "show",
+    "dot-deps.timer",
+    "--property=UnitFileState",
+    "--value",
+  ])).trim();
+
+  const enabled = state === "enabled";
+
+  const active =
+    (yield* executor.exitCode("systemctl", [
+      "--user",
+      "is-active",
+      "dot-deps.timer",
+    ])) === 0;
+
+  results.push(
+    enabled && active
+      ? {
+          severity: "ok",
+          message: "Dependency timer enabled and active: dot-deps.timer",
+        }
+      : {
+          severity: "warn",
+          message: `Dependency timer needs enabling or starting: dot-deps.timer (${state || "unknown"}, ${active ? "active" : "inactive"})`,
+          detail:
+            "After publishing dependency policies, run: systemctl --user enable --now dot-deps.timer",
+        },
+  );
+
+  if (
+    (yield* executor.exitCode("systemctl", [
+      "--user",
+      "is-failed",
+      "dot-deps.service",
+    ])) === 0
+  )
+    results.push({
+      severity: "warn",
+      message: "Dependency service failed: dot-deps.service",
+      detail: "Inspect with: journalctl --user -u dot-deps.service -n 100",
+    });
+
+  return results;
+});
+
 /** Check daily volume reset timer (laptop-only, informational) */
 export const checkDailyVolumeReset = Effect.gen(function* () {
   const config = yield* Config;
