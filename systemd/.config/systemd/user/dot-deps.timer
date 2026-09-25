@@ -5,7 +5,7 @@ Description=Check for dependency updates every 15 minutes
 OnCalendar=*:0/15
 Persistent=true
 RandomizedDelaySec=30s
-Unit=dot-deps.service
+Unit=dot-deps-scheduled.service
 
 [Install]
 WantedBy=timers.target

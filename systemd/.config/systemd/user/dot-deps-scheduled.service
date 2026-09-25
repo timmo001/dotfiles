@@ -1,0 +1,9 @@
+[Unit]
+Description=Check whether dependency updates are due
+OnFailure=dot-service-failed@%n.service
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin
+ExecCondition=%h/.local/bin/dot services due dot-deps.service
+ExecStart=/usr/bin/systemctl --user start --no-block dot-deps.service

@@ -87,18 +87,29 @@ Panel {
 
   function metaText(status) {
     var parts = [status.summary]
+    if (status.cadence) {
+      parts.push(status.cadence.mode + " · every " + root.span(status.cadence.interval))
+      if (status.cadence.deferredAt) parts.push("deferred " + relative(status.cadence.deferredAt))
+    }
     if (status.runs.length > 0 && status.runs[0].result === "running" && status.health !== "running"
         && status.kind === "timer")
       parts.push("running now")
     var latestRun = status.runs[0]
     var elapsed = status.tags[0] === "Service" ? "" : runtime(latestRun)
-    if (status.lastRun) parts.push("ran " + relative(status.lastRun) + (elapsed ? " for " + elapsed : ""))
+    if (status.lastRun) parts.push("work " + relative(status.lastRun) + (elapsed ? " for " + elapsed : ""))
     if (status.restartLimit && status.restarts > 0)
       parts.push(status.restarts + " restart" + (status.restarts === 1 ? "" : "s"))
     return parts.join(" · ")
   }
 
   function nextText(status) {
+    if (status.cadence && status.nextRun) {
+      var eligible = Math.max(status.nextRun, status.cadence.eligibleAt || 0)
+      var eligibleDate = new Date(eligible)
+      var sameDayEligible = eligibleDate.toDateString() === new Date(now).toDateString()
+      return "Eligible from " + Qt.formatDateTime(eligibleDate, sameDayEligible ? "HH:mm" : "ddd HH:mm")
+        + " · " + relative(eligible) + " (next check " + relative(status.nextRun) + ")"
+    }
     if (status.nextRun) {
       var date = new Date(status.nextRun)
       var sameDay = date.toDateString() === new Date(now).toDateString()

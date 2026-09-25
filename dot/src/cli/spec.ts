@@ -36,6 +36,7 @@ import {
 import { updatesRefresh, updatesStatus } from "../commands/Updates.js";
 import {
   servicesLogs,
+  servicesDue,
   servicesNotify,
   servicesStart,
   servicesStatus,
@@ -560,6 +561,13 @@ const servicesCommand = describe(
         ["dot services start dot-deps.timer"],
       ),
       describe(
+        Command.make("due", { unit: serviceUnit }, ({ unit }) =>
+          servicesDue(unit),
+        ),
+        "Check whether an activity-aware timer should run its job (for ExecCondition)",
+        ["dot services due dot-deps.service"],
+      ),
+      describe(
         Command.make("logs", { unit: serviceUnit }, ({ unit }) =>
           servicesLogs(unit),
         ),
@@ -579,7 +587,7 @@ const servicesCommand = describe(
   ["dot services status", "dot services logs dot-deps.timer"],
   {
     description:
-      'Each job registers itself with a JSON descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour"), restartLimit ({ count, within }) for long-running services, notify, and logs ({ dir, file }) for jobs that keep their own run logs. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations retain the last completed outcome. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel.',
+      'Each job registers itself with a JSON descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour"), optional cadence ({ attached, detached }) for a scheduled ExecCondition, restartLimit ({ count, within }) for long-running services, notify, and logs ({ dir, file }) for jobs that keep their own run logs. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations retain the last completed outcome. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel.',
   },
 );
 
