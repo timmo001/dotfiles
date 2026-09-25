@@ -10,7 +10,11 @@ import type { DependencyPolicy } from "./config.js";
 import { extractDependencies } from "./extract.js";
 import { dependencyIdentity, type Snapshot } from "./model.js";
 import type { PlannedDependency } from "./plan.js";
-import { extractRegex, renderTemplate } from "./managers/regex.js";
+import {
+  regexDependency,
+  regexMatches,
+  renderTemplate,
+} from "./managers/regex.js";
 import { matchesPatterns } from "./rules.js";
 import { DependencyRunError } from "./state.js";
 
@@ -166,52 +170,52 @@ function editText(
     for (const manager of policy.regexManagers) {
       if (!matchesPatterns(dependency.file, manager.files)) continue;
 
-      for (const pattern of manager.patterns) {
-        for (const match of text.matchAll(new RegExp(pattern, "dg"))) {
-          const extracted = extractRegex(dependency.file, match[0], [manager]);
+      for (const match of regexMatches(text, manager)) {
+        const item = regexDependency(
+          dependency.file,
+          match.groups,
+          manager.templates,
+        );
+
+        if (
+          !item ||
+          dependencyIdentity(item) !== dependencyIdentity(dependency) ||
+          item.current !== dependency.current ||
+          item.digest !== dependency.digest
+        )
+          continue;
+
+        if (manager.templates.replacement) {
+          edits.push({
+            start: match.index,
+            end: match.index + match.text.length,
+            value: renderTemplate(manager.templates.replacement, {
+              ...match.groups,
+              newValue: next,
+              newDigest: release.digest ?? "",
+            }),
+          });
+        } else {
+          const value = match.indices.currentValue;
+          const digest = match.indices.currentDigest;
 
           if (
-            !extracted.dependencies.some(
-              (item) =>
-                dependencyIdentity(item) === dependencyIdentity(dependency) &&
-                item.current === dependency.current &&
-                item.digest === dependency.digest,
-            )
+            (!value && (!digest || next !== dependency.current)) ||
+            (dependency.digest && (!digest || !release.digest))
           )
-            continue;
-
-          if (manager.templates.replacement) {
-            edits.push({
-              start: match.index,
-              end: match.index + match[0].length,
-              value: renderTemplate(manager.templates.replacement, {
-                ...match.groups,
-                newValue: next,
-                newDigest: release.digest ?? "",
-              }),
+            throw new DependencyRunError({
+              message: `Regex ${dependency.name} needs an explicit replacement template`,
             });
-          } else {
-            const value = match.indices?.groups?.currentValue;
-            const digest = match.indices?.groups?.currentDigest;
 
-            if (
-              (!value && (!digest || next !== dependency.current)) ||
-              (dependency.digest && (!digest || !release.digest))
-            )
-              throw new DependencyRunError({
-                message: `Regex ${dependency.name} needs an explicit replacement template`,
-              });
+          if (value)
+            edits.push({ start: value[0], end: value[1], value: next });
 
-            if (value)
-              edits.push({ start: value[0], end: value[1], value: next });
-
-            if (digest && release.digest)
-              edits.push({
-                start: digest[0],
-                end: digest[1],
-                value: release.digest,
-              });
-          }
+          if (digest && release.digest)
+            edits.push({
+              start: digest[0],
+              end: digest[1],
+              value: release.digest,
+            });
         }
       }
     }
