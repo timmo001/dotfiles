@@ -88,10 +88,9 @@ export interface McpServerSpec {
   /** OpenCode OAuth behaviour or fixed client settings for a remote server. */
   readonly oauth?: boolean | McpOAuthSpec;
   /**
-   * Held out of OpenCode's default tools via a `"<name>*": false` gate, so the
-   * server is opt-in (invoked by name or command) rather than loaded into every
-   * session. This is a manual opt-in gate, not per-repo; repo-scoped gating is
-   * handled separately by the mcp-repo-gate plugin.
+   * Held out of OpenCode's default tools by a V2 deny permission for the
+   * server's normalised `<name>_*` actions. An agent can override the gate.
+   * Repository server opt-ins are configured separately in dot-git.yml.
    */
   readonly gated: boolean;
   /** Per-harness enablement. Absent harness ids default to disabled. */

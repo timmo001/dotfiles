@@ -80,10 +80,10 @@ function renderOpencodeEntry(
     const entry: MutableJsonObject = {
       type: "local",
       command: resolveCommand(server, "opencode") ?? [],
-      enabled,
+      disabled: !enabled,
     };
 
-    if (server.env) entry.env = renderEnv(server.env, "opencode");
+    if (server.env) entry.environment = renderEnv(server.env, "opencode");
 
     return entry;
   }
@@ -91,7 +91,7 @@ function renderOpencodeEntry(
   const entry: MutableJsonObject = {
     type: "remote",
     url: resolveUrl(server, "opencode") ?? "",
-    enabled,
+    disabled: !enabled,
   };
 
   if (server.oauth === false) entry.oauth = false;
@@ -104,10 +104,10 @@ function renderOpencodeEntry(
     const oauth: MutableJsonObject = {};
 
     if (server.oauth.client_id !== undefined)
-      oauth.clientId = server.oauth.client_id;
+      oauth.client_id = server.oauth.client_id;
 
     if (server.oauth.client_secret !== undefined) {
-      oauth.clientSecret = renderEnvRefs(
+      oauth.client_secret = renderEnvRefs(
         server.oauth.client_secret,
         ENV_STYLE.opencode,
       );
@@ -116,10 +116,10 @@ function renderOpencodeEntry(
     if (server.oauth.scope !== undefined) oauth.scope = server.oauth.scope;
 
     if (server.oauth.callback_port !== undefined)
-      oauth.callbackPort = server.oauth.callback_port;
+      oauth.callback_port = server.oauth.callback_port;
 
     if (server.oauth.redirect_uri !== undefined)
-      oauth.redirectUri = server.oauth.redirect_uri;
+      oauth.redirect_uri = server.oauth.redirect_uri;
     entry.oauth = oauth;
   }
 
@@ -143,31 +143,7 @@ export function buildRepoMcpEntries(
 
       if (!server) throw new Error(`Unknown MCP server: ${name}`);
 
-      const entry: MutableJsonObject =
-        server.type === "local"
-          ? {
-              type: "local",
-              command: resolveCommand(server, "opencode") ?? [],
-              ...(server.env && { environment: server.env }),
-            }
-          : {
-              type: "remote",
-              url: resolveUrl(server, "opencode") ?? "",
-              ...(server.headers && { headers: server.headers }),
-            };
-
-      entry.disabled = false;
-
-      if (server.oauth === false) entry.oauth = false;
-
-      if (
-        server.oauth !== undefined &&
-        server.oauth !== true &&
-        server.oauth !== false
-      )
-        entry.oauth = { ...server.oauth };
-
-      return [name, entry];
+      return [name, renderOpencodeEntry(server, true)];
     }),
   );
 }
@@ -270,7 +246,7 @@ function renderEntry(
 
 /**
  * Build the harness-native MCP entry map. OpenCode receives the full catalogue
- * (every server, each with an explicit `enabled` flag); the other harnesses
+ * (every server, each with an explicit `disabled` flag); the other harnesses
  * receive only their enabled servers.
  */
 export function buildMcpEntries(
@@ -295,15 +271,4 @@ export function buildMcpEntries(
   }
 
   return entries;
-}
-
-/**
- * OpenCode `tools` gate keys (`"<name>*"`) for gated servers enabled on
- * OpenCode. Each maps to `false` so the tool schemas stay out of the baseline
- * request unless an agent re-enables them.
- */
-export function opencodeGateKeys(spec: McpSyncSpec): readonly string[] {
-  return spec.servers
-    .filter((server) => server.gated && server.enabled.opencode === true)
-    .map((server) => `${server.name}*`);
 }

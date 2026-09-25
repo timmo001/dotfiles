@@ -23,6 +23,7 @@ import { displayPath } from "../../lib/paths.js";
 import {
   decodeJson,
   decodeJsonObject,
+  isString,
   type JsonValue,
 } from "../../lib/schema.js";
 
@@ -36,11 +37,7 @@ import {
   type McpHarness,
   type McpSyncSpec,
 } from "../sync/spec.js";
-import {
-  buildMcpEntries,
-  opencodeGateKeys,
-  topKeyFor,
-} from "../sync/adapters.js";
+import { buildMcpEntries, topKeyFor } from "../sync/adapters.js";
 import { formatJson } from "../sync/formatJson.js";
 import { syncRepoMcpConfigs } from "../sync/repositories.js";
 
@@ -76,23 +73,67 @@ function readJsonObject(path: string) {
 }
 
 /**
- * Merge the OpenCode `tools` gate: drop any spec-managed `"<name>*"` keys, then
- * set gated servers to `false`. Non-managed tool entries are preserved.
+ * Refresh spec-managed MCP permission gates and migrate legacy tool entries.
  */
-function mergeToolsGate(
-  existing: { readonly [key: string]: JsonValue } | undefined,
-  spec: McpSyncSpec,
-) {
-  const managed = new Set(spec.servers.map((server) => `${server.name}*`));
-  const tools: Record<string, JsonValue> = {};
+function mergePermissions(existing: MutableJsonConfig, spec: McpSyncSpec) {
+  const managed = new Set(
+    spec.servers.map(
+      (server) => `${server.name.replace(/[^a-zA-Z0-9_-]/g, "_")}_*`,
+    ),
+  );
 
-  for (const [key, value] of Object.entries(existing ?? {})) {
-    if (!managed.has(key)) tools[key] = value;
+  const legacyManaged = new Set(
+    spec.servers.map((server) => `${server.name}*`),
+  );
+
+  const permissions: JsonValue[] = [];
+
+  const actions = new Map([
+    ["bash", "shell"],
+    ["task", "subagent"],
+    ["write", "edit"],
+    ["patch", "edit"],
+  ]);
+
+  for (const [key, enabled] of Object.entries(
+    Schema.decodeUnknownSync(Schema.Record(Schema.String, Schema.Boolean))(
+      existing.tools ?? {},
+    ),
+  )) {
+    if (!legacyManaged.has(key)) {
+      permissions.push({
+        action: actions.get(key) ?? key,
+        resource: "*",
+        effect: enabled ? "allow" : "deny",
+      });
+    }
   }
 
-  for (const key of opencodeGateKeys(spec)) tools[key] = false;
+  permissions.push(
+    ...Schema.decodeUnknownSync(
+      Schema.Array(Schema.Record(Schema.String, Schema.Json)),
+    )(existing.permissions ?? []).filter(
+      (rule) =>
+        !(
+          isString(rule.action) &&
+          managed.has(rule.action) &&
+          rule.resource === "*" &&
+          rule.effect === "deny"
+        ),
+    ),
+  );
 
-  return tools;
+  for (const server of spec.servers) {
+    if (server.gated && server.enabled.opencode === true) {
+      permissions.push({
+        action: `${server.name.replace(/[^a-zA-Z0-9_-]/g, "_")}_*`,
+        resource: "*",
+        effect: "deny",
+      });
+    }
+  }
+
+  return permissions;
 }
 
 /** Build the full harness config object, preserving unrelated existing keys. */
@@ -103,14 +144,24 @@ function buildHarnessConfig(
 ) {
   const existing = readJsonObject(path);
   const config: MutableJsonConfig = { ...existing };
-  config[topKeyFor(harness)] = buildMcpEntries(spec, harness);
 
   if (harness === "opencode") {
-    const tools = existing.tools;
-    config.tools = mergeToolsGate(
-      tools === undefined ? undefined : decodeJsonObject(tools),
-      spec,
-    );
+    const mcp = decodeJsonObject(existing.mcp ?? {});
+
+    const nativeMcp: MutableJsonConfig = {
+      servers: buildMcpEntries(spec, harness),
+    };
+
+    if (mcp.timeout !== undefined) nativeMcp.timeout = mcp.timeout;
+    config.mcp = nativeMcp;
+
+    const permissions = mergePermissions(existing, spec);
+
+    if (existing.permissions !== undefined || permissions.length > 0)
+      config.permissions = permissions;
+    delete config.tools;
+  } else {
+    config[topKeyFor(harness)] = buildMcpEntries(spec, harness);
   }
 
   return decodeJson(config);

@@ -9,6 +9,7 @@ import { OutputLog } from "../../dot/src/services/OutputLog.js";
 import { parseDotGitConfigText } from "../../dot/src/services/GitConfig.js";
 import { loadMcpConfig } from "../../dot/src/mcp/sync/loadSpec.js";
 import { syncRepoMcpConfigs } from "../../dot/src/mcp/sync/repositories.js";
+import { mcpSync } from "../../dot/src/mcp/commands/McpSync.js";
 
 const directories: string[] = [];
 
@@ -49,9 +50,22 @@ servers:
     command:
       - node
       - fixture.js
+    env:
+      TOKEN: '{env:TEST_TOKEN}'
     gated: false
     enabled:
       opencode: false
+  - name: docs
+    type: remote
+    url: https://example.com/mcp
+    oauth:
+      client_id: fixture
+      client_secret: '{env:TEST_SECRET}'
+      callback_port: 19876
+      redirect_uri: http://127.0.0.1:19876/callback
+    gated: true
+    enabled:
+      opencode: true
 `);
   const mcpConfig = loadMcpConfig(specFile);
 
@@ -61,7 +75,18 @@ servers:
     Effect.provide(Layer.mock(OutputLog, { info: () => Effect.void, warn: () => Effect.void })),
   ));
 
-  return { directory, target, sync };
+  const syncGlobal = () => Effect.runPromise(mcpSync.pipe(
+    Effect.provide(CommandExecutor.layer),
+    Effect.provide(Layer.mock(Config, {
+      gitConfig: config(true), mcpConfig, stateDir,
+      canUsePrivate: true, privateDotfiles: directory,
+    })),
+    Effect.provide(Layer.mock(OutputLog, {
+      section: () => Effect.void, info: () => Effect.void, warn: () => Effect.void,
+    })),
+  ));
+
+  return { directory, target, sync, syncGlobal };
 }
 
 test("repository opt-ins are private, idempotent and removed when deselected", async () => {
@@ -86,4 +111,50 @@ test("repository sync preserves an existing user-owned config", async () => {
   writeFileSync(target, '{"model":"keep/me"}\n');
   await expect(sync(true)).rejects.toThrow("Not a dot-managed file");
   expect(readFileSync(target, "utf8")).toBe('{"model":"keep/me"}\n');
+});
+
+test("global MCP sync repairs V1 output and stays V2 on repeated syncs", async () => {
+  const { directory, target, syncGlobal } = fixture();
+  const global = join(directory, "agents/.config/opencode/opencode.json");
+  mkdirSync(join(directory, "agents/.config/opencode"), { recursive: true });
+  writeFileSync(global, JSON.stringify({
+    model: "keep/me",
+    mcp: { browser: { type: "local", command: ["old"], enabled: true } },
+    permissions: [{ action: "shell", resource: "*", effect: "ask" }],
+    tools: { "docs*": false, websearch: false },
+  }));
+
+  await syncGlobal();
+  const config = JSON.parse(readFileSync(global, "utf8"));
+  expect(config.model).toBe("keep/me");
+  expect(config).not.toHaveProperty("tools");
+  expect(Object.keys(config.mcp)).toEqual(["servers"]);
+  expect(config.mcp.servers.browser).toEqual({
+    type: "local", command: ["node", "fixture.js"],
+    environment: { TOKEN: "{env:TEST_TOKEN}" }, disabled: true,
+  });
+  expect(config.mcp.servers.docs).toEqual({
+    type: "remote", url: "https://example.com/mcp", disabled: false,
+    oauth: {
+      client_id: "fixture", client_secret: "{env:TEST_SECRET}",
+      callback_port: 19876, redirect_uri: "http://127.0.0.1:19876/callback",
+    },
+  });
+  expect(config.permissions).toEqual([
+    { action: "websearch", resource: "*", effect: "deny" },
+    { action: "shell", resource: "*", effect: "ask" },
+    { action: "docs_*", resource: "*", effect: "deny" },
+  ]);
+  const repo = readFileSync(target, "utf8");
+  expect(JSON.parse(repo.slice(repo.indexOf("\n") + 1)).mcp.servers.browser).toEqual({
+    ...config.mcp.servers.browser, disabled: false,
+  });
+
+  config.mcp.timeout = { startup: 45000 };
+  writeFileSync(global, JSON.stringify(config));
+  await syncGlobal();
+  const native = readFileSync(global, "utf8");
+  expect(JSON.parse(native)).toEqual(config);
+  await syncGlobal();
+  expect(readFileSync(global, "utf8")).toBe(native);
 });
