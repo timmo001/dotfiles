@@ -1,5 +1,5 @@
 [tools]
-android-sdk = "22.0"
+android-sdk = "23.0"
 bat = "0.26.1"
 "aqua:coder/boo" = "0.6.4"
 "aqua:cloudflare/cloudflared" = "2026.9.1"
