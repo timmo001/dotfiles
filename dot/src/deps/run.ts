@@ -19,7 +19,11 @@ import { DependencyGithub } from "./github.js";
 import { extractDependencies } from "./extract.js";
 import { requiresSourceUrl } from "./rules.js";
 import { githubWorkflowScope } from "../lib/githubWorkflowScope.js";
-import { dependencyRunLog, type DependencyRunLog } from "./log.js";
+import {
+  dependencyRunLog,
+  type DependencyRunLog,
+  type DependencyRunLogParent,
+} from "./log.js";
 import { acquireDependencyLease, type DependencyLease } from "./lease.js";
 import {
   DependencyPlanner,
@@ -381,6 +385,7 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
 export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
   options: DependencyPlanOptions,
   cooldown = 0,
+  parent?: DependencyRunLogParent,
 ) {
   const github = yield* DependencyGithub;
   const planner = yield* DependencyPlanner;
@@ -401,7 +406,7 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
   yield* readDependencyTrust(repository.nameWithOwner);
   const paths = dependencyRunPaths(repository.nameWithOwner, target);
   yield* lockDependencyTarget(paths.root);
-  const log = yield* dependencyRunLog(paths.run);
+  const log = yield* dependencyRunLog(paths.run, parent);
   yield* log.event(
     `[RUN] ${repository.nameWithOwner}@${target}; evidence: ${paths.run}`,
   );
@@ -499,6 +504,7 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
       Effect.fn("Dependencies.groupWorker")(function* (group, index) {
         const groupLog = yield* dependencyRunLog(
           join(paths.run, `group-${index + 1}`),
+          { log, label: `GROUP ${index + 1}` },
         );
 
         yield* log.event(

@@ -1,5 +1,12 @@
 import { join } from "node:path";
-import { Clock, Effect, FileSystem, Result, Stream } from "effect";
+import {
+  Clock,
+  Effect,
+  FileSystem,
+  PlatformError,
+  Result,
+  Stream,
+} from "effect";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { DependencyRunError } from "./state.js";
@@ -17,9 +24,23 @@ function redact(text: string) {
     );
 }
 
+/** Parent log that also receives a child run's events. */
+export interface DependencyRunLogParent {
+  /** Parent run log receiving forwarded lines. */
+  readonly log: {
+    /** Append an already redacted line to the parent log. */
+    readonly record: (
+      text: string,
+    ) => Effect.Effect<void, PlatformError.PlatformError>;
+  };
+  /** Optional label prefixed to forwarded lines. */
+  readonly label?: string;
+}
+
 /** Capture bounded command output and timings in the retained run directory. */
 export const dependencyRunLog = Effect.fn("Dependencies.runLog")(function* (
   directory: string,
+  parent?: DependencyRunLogParent,
 ) {
   const fs = yield* FileSystem.FileSystem;
   const executor = yield* CommandExecutor;
@@ -27,11 +48,17 @@ export const dependencyRunLog = Effect.fn("Dependencies.runLog")(function* (
   yield* fs.makeDirectory(directory, { recursive: true, mode: 0o700 });
   const path = join(directory, "run.log");
 
+  const record = Effect.fn("Dependencies.record")(function* (text: string) {
+    yield* fs.writeFileString(path, `${text}\n`, { flag: "a", mode: 0o600 });
+
+    if (parent)
+      yield* parent.log.record(
+        parent.label ? `[${parent.label}] ${text}` : text,
+      );
+  });
+
   const event = Effect.fn("Dependencies.event")(function* (message: string) {
-    yield* fs.writeFileString(path, `${redact(message)}\n`, {
-      flag: "a",
-      mode: 0o600,
-    });
+    yield* record(redact(message));
     yield* output.info(redact(message));
   });
 
@@ -72,10 +99,7 @@ export const dependencyRunLog = Effect.fn("Dependencies.runLog")(function* (
             ? result.failure.message
             : String(result.failure);
 
-      yield* fs.writeFileString(path, `${redact(failure)}\n`, {
-        flag: "a",
-        mode: 0o600,
-      });
+      yield* record(redact(failure));
 
       return yield* new DependencyRunError({
         message: /without [`'"]?workflow[`'"]? scope/i.test(failure)
@@ -93,7 +117,7 @@ export const dependencyRunLog = Effect.fn("Dependencies.runLog")(function* (
     return result.success;
   });
 
-  return { path, event, command };
+  return { path, record, event, command };
 });
 
 /** Run-owned command and event logger. */

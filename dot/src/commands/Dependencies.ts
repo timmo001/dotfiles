@@ -84,7 +84,8 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
 
     const root = join(STATE_DIR, "dot", "dependency-service");
     yield* lockDependencyTarget(root);
-    const log = yield* dependencyRunLog(join(root, "runs", randomUUID()));
+    const directory = join(root, "runs", randomUUID());
+    const log = yield* dependencyRunLog(directory);
     const cooldown = config.intervalMinutes * 60_000;
 
     const lease = yield* acquireDependencyLease(
@@ -96,6 +97,8 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
     );
 
     if (!lease) {
+      // Skipped polls would otherwise hide the last real run from `dot services logs`.
+      yield* fs.remove(directory, { recursive: true });
       process.exitCode = 3;
 
       return;
@@ -117,6 +120,7 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
             concurrency: config.concurrency,
           },
           cooldown,
+          { log, label: repository },
         ).pipe(Effect.result);
 
         if (Result.isFailure(result)) {
