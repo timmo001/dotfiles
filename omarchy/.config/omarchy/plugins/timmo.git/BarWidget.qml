@@ -26,28 +26,22 @@ BarWidget {
   readonly property var git: bar?.shell?.serviceFor("timmo.git")
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
   readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
-  readonly property real openPanelIndicatorWidth: button.labelWidth
-  readonly property string displayText: {
-    if (!git) return " ?   ?"
-    var values = []
-    if (git.diffError !== "") values.push(" ?")
-    else if (!git.diffLoaded) values.push(" ..")
-    else if (git.repos.length > 0) values.push(" " + git.repos.length)
-    if (git.notificationsError !== "") values.push(" ?")
-    else if (!git.notificationsLoaded) values.push(" ..")
-    else if (git.threads.length > 0) values.push(" " + git.threads.length)
-    if (git.pullRequestsStale) values.push(" ?")
-    else if (!git.pullRequestsLoaded) values.push(" ..")
-    else if (git.pullRequestCount > 0) values.push(" " + git.pullRequestCount)
-    return values.length > 0 ? values.join("  ") : ""
-  }
-  readonly property color displayColor: {
-    if (!git) return "#9b9b9b"
-    if (git.notificationClass === "notifications-attention") return "#e06c75"
-    if (git.diffClass === "dots-attention" || git.notificationClass === "notifications-unread" || git.readyPullRequestCount > 0) return "#e5c07b"
-    if (git.diffClass === "dots-pull-only") return "#98c379"
-    if (git.diffClass === "dots-extra-only") return "#61afef"
-    return "#9b9b9b"
+  readonly property real openPanelIndicatorWidth: content.implicitWidth
+  readonly property var displaySegments: {
+    if (!git) return [{ text: " ?", color: "#9b9b9b" }, { text: " ?", color: "#9b9b9b" }]
+    var segments = []
+    var diffColor = git.diffClass === "dots-attention" ? "#e5c07b"
+      : git.diffClass === "dots-pull-only" ? "#98c379"
+      : git.diffClass === "dots-extra-only" ? "#61afef" : "#9b9b9b"
+    if (git.diffError !== "") segments.push({ text: " ?", color: "#9b9b9b" })
+    else if (!git.diffLoaded) segments.push({ text: " ..", color: "#9b9b9b" })
+    else if (git.repos.length > 0) segments.push({ text: " " + git.repos.length, color: diffColor })
+    var notificationColor = git.notificationClass === "notifications-attention" ? "#e06c75"
+      : git.notificationClass === "notifications-unread" ? "#e5c07b" : "#9b9b9b"
+    if (git.notificationsError !== "") segments.push({ text: " ?", color: "#9b9b9b" })
+    else if (!git.notificationsLoaded) segments.push({ text: " ..", color: "#9b9b9b" })
+    else if (git.threads.length > 0) segments.push({ text: " " + git.threads.length, color: notificationColor })
+    return segments.length > 0 ? segments : [{ text: "", color: "#9b9b9b" }]
   }
   readonly property string tooltipText: git
     ? [git.diffTooltip || git.diffError, git.notificationTooltip || git.notificationsError, git.pullRequestTooltip].filter(function(value) { return value !== "" }).join("\n")
@@ -163,13 +157,31 @@ BarWidget {
     anchors.fill: parent
     bar: root.bar
     fontSize: 10
-    text: root.displayText
-    foreground: root.displayColor
+    labelVisible: false
+    hasVisualContent: true
+    fixedWidth: vertical ? -1 : Math.max(12, content.implicitWidth + scaledHorizontalMargin * 2)
     tooltipText: root.tooltipText
     horizontalMargin: 6
     onPressed: function(buttonCode) {
       if (buttonCode === Qt.RightButton) { if (root.git) root.git.refresh() }
       else root.togglePanel()
+    }
+
+    Row {
+      id: content
+      anchors.centerIn: parent
+      Repeater {
+        model: root.displaySegments
+        Text {
+          required property var modelData
+          required property int index
+          text: (index > 0 ? "  " : "") + modelData.text
+          color: modelData.color
+          font.family: button.fontFamily
+          font.pixelSize: button.fontSize
+          renderType: Text.NativeRendering
+        }
+      }
     }
   }
 }
