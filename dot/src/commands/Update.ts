@@ -13,7 +13,11 @@ import { buildSkillsMaintenance } from "../lib/skillsMaintenance.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { trustRepoMiseConfigs } from "../lib/miseTrust.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
-import { withSpinnerTimeout, withStepTimeout } from "../lib/workflowStep.js";
+import {
+  withSpinnerTimeout,
+  withStepTimeout,
+  withTimeoutOption,
+} from "../lib/workflowStep.js";
 import {
   hasLocalUpdateWork,
   pendingUpdateMaintenance,
@@ -54,6 +58,9 @@ const SELECTABLE_UPDATE_FLAGS = [
  * spiking load while the pull stage runs alongside it.
  */
 const REFRESH_REMOTE_HEAD_CONCURRENCY = 6;
+
+/** Limit simultaneous pulls so slow remotes do not hold up unrelated repos. */
+const REPO_PULL_CONCURRENCY = 4;
 
 const LOCAL_HERDR_PLUGINS = [
   "terminal-title",
@@ -177,7 +184,12 @@ function logInitMarkerStatus(
  * and lets Git fast-forward only when local work can be preserved.
  * Returns true only if the pull moved HEAD.
  */
-const safePull = (name: string, path: string, required = false) =>
+const safePull = (
+  name: string,
+  path: string,
+  required = false,
+  queued = false,
+) =>
   Effect.gen(function* () {
     const log = yield* OutputLog;
     const executor = yield* CommandExecutor;
@@ -221,11 +233,18 @@ const safePull = (name: string, path: string, required = false) =>
     let pulled = false;
 
     for (let attempt = 1; attempt <= PULL_MAX_ATTEMPTS; attempt++) {
-      const outcome = yield* withSpinnerTimeout(
-        `Pulling ${name} (${attempt}/${PULL_MAX_ATTEMPTS}, timeout ${PULL_ATTEMPT_TIMEOUT_SECONDS}s)`,
-        PULL_ATTEMPT_TIMEOUT_SECONDS,
-        gitPullFastForward(path),
-      );
+      const label = `Pulling ${name} (${attempt}/${PULL_MAX_ATTEMPTS}, timeout ${PULL_ATTEMPT_TIMEOUT_SECONDS}s)`;
+
+      const outcome = yield* queued
+        ? withTimeoutOption(
+            gitPullFastForward(path),
+            PULL_ATTEMPT_TIMEOUT_SECONDS,
+          )
+        : withSpinnerTimeout(
+            label,
+            PULL_ATTEMPT_TIMEOUT_SECONDS,
+            gitPullFastForward(path),
+          );
 
       if (Option.isSome(outcome)) {
         pulled = outcome.value;
@@ -345,27 +364,41 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
     ? yield* fs.realPath(config.privateDotfiles)
     : null;
 
-  for (const path of new Set(paths)) {
-    yield* Effect.gen(function* () {
-      const repoPath = yield* fs.realPath(path);
-      const repo = managed.find((entry) => entry.path === repoPath);
-      const name = repo?.name ?? basename(repoPath);
+  const uniquePaths = [...new Set(paths)];
 
-      if (!(yield* safePull(name, repoPath, true))) return;
-      updatedNames.push(name);
-      updatedPaths.add(repoPath);
+  const results = yield* Effect.forEach(
+    uniquePaths,
+    (path) =>
+      Effect.gen(function* () {
+        const repoPath = yield* fs.realPath(path);
+        const repo = managed.find((entry) => entry.path === repoPath);
+        const name = repo?.name ?? basename(repoPath);
 
-      if (repoPath === publicPath || repoPath === privatePath)
-        pulledDotfiles.push(basename(repoPath));
-    }).pipe(
-      Effect.catch((error) =>
-        Effect.gen(function* () {
-          const message = `${displayPath(path)}: ${error.message}`;
-          failures.push(message);
-          yield* log.error(message);
-        }),
+        if (!(yield* safePull(name, repoPath, true, uniquePaths.length > 1)))
+          return null;
+
+        return { name, repoPath };
+      }).pipe(
+        Effect.catch((error) =>
+          Effect.gen(function* () {
+            const message = `${displayPath(path)}: ${error.message}`;
+            failures.push(message);
+            yield* log.error(message);
+
+            return null;
+          }),
+        ),
       ),
-    );
+    { concurrency: REPO_PULL_CONCURRENCY },
+  );
+
+  for (const result of results) {
+    if (!result) continue;
+    updatedNames.push(result.name);
+    updatedPaths.add(result.repoPath);
+
+    if (result.repoPath === publicPath || result.repoPath === privatePath)
+      pulledDotfiles.push(basename(result.repoPath));
   }
 
   if (updatedPaths.size > 0) {
@@ -1089,16 +1122,21 @@ export const update = (opts?: UpdateOptions) =>
               } else {
                 yield* log.info(`${changed.length} repo(s) need attention`);
 
-                for (const repo of behind) {
-                  const moved = yield* safePull(repo.name, repo.path);
+                const pulled = yield* Effect.forEach(
+                  behind,
+                  (repo) =>
+                    safePull(repo.name, repo.path, false, true).pipe(
+                      Effect.map((moved) => ({ repo, moved })),
+                    ),
+                  { concurrency: REPO_PULL_CONCURRENCY },
+                );
 
-                  if (moved) {
-                    updatedNames.push(repo.name);
+                for (const { repo, moved } of pulled) {
+                  if (!moved) continue;
+                  updatedNames.push(repo.name);
 
-                    if (repo.path === privatePackageRepo?.path) {
-                      privatePackageRepoUpdated = true;
-                    }
-                  }
+                  if (repo.path === privatePackageRepo?.path)
+                    privatePackageRepoUpdated = true;
                 }
               }
 
