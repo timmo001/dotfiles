@@ -16,13 +16,13 @@ import {
 } from "../../commands/Services.js";
 import type { CheckResult } from "../types.js";
 
-const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
+const DOCTOR_TIMER_UNIT = "dot-doctor.timer";
 
 const DAILY_VOLUME_ZERO_TIMER_UNIT = "daily-volume-zero.timer";
 
 const LOCAL_BIN_DIR = join(HOME_DIR, ".local", "bin");
 
-const DOCTOR_STARTUP_NOTIFY_SCRIPT = join(
+const DOCTOR_NOTIFY_SCRIPT = join(
   HOME_DIR,
   ".local",
   "bin",
@@ -210,17 +210,17 @@ export const checkGitNotifications = Effect.gen(function* () {
   return results;
 });
 
-/** Check doctor startup notification timer */
-export const checkDoctorStartup = checkRequiredUserUnitSetup({
-  scriptPath: DOCTOR_STARTUP_NOTIFY_SCRIPT,
-  scriptOkMessage: `Doctor startup notify script found: ${displayPath(DOCTOR_STARTUP_NOTIFY_SCRIPT)}`,
-  scriptWarnMessage: `Doctor startup notify script missing or not executable: ${displayPath(DOCTOR_STARTUP_NOTIFY_SCRIPT)}`,
-  unitPath: userSystemdUnitPath(DOCTOR_STARTUP_TIMER_UNIT),
-  unitOkMessage: `Doctor startup timer unit file found: ${displayPath(userSystemdUnitPath(DOCTOR_STARTUP_TIMER_UNIT))}`,
-  unitWarnMessage: `Doctor startup timer unit file missing: ${displayPath(userSystemdUnitPath(DOCTOR_STARTUP_TIMER_UNIT))}`,
+/** Check the doctor notification timer */
+export const checkDoctorNotify = checkRequiredUserUnitSetup({
+  scriptPath: DOCTOR_NOTIFY_SCRIPT,
+  scriptOkMessage: `Doctor notify script found: ${displayPath(DOCTOR_NOTIFY_SCRIPT)}`,
+  scriptWarnMessage: `Doctor notify script missing or not executable: ${displayPath(DOCTOR_NOTIFY_SCRIPT)}`,
+  unitPath: userSystemdUnitPath(DOCTOR_TIMER_UNIT),
+  unitOkMessage: `Doctor timer unit file found: ${displayPath(userSystemdUnitPath(DOCTOR_TIMER_UNIT))}`,
+  unitWarnMessage: `Doctor timer unit file missing: ${displayPath(userSystemdUnitPath(DOCTOR_TIMER_UNIT))}`,
   unitDetail: "Run dot stow (or dot install) to link systemd user units",
-  unit: DOCTOR_STARTUP_TIMER_UNIT,
-  unitLabel: "Doctor startup timer",
+  unit: DOCTOR_TIMER_UNIT,
+  unitLabel: "Doctor timer",
 });
 
 /** Check the optional dependency timer and report failed oneshot runs. */

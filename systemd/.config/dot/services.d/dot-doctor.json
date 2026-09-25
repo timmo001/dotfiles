@@ -1,0 +1,5 @@
+{
+  "unit": "dot-doctor.timer",
+  "label": "Doctor",
+  "notify": false
+}

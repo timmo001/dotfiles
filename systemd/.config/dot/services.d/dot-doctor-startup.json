@@ -1,5 +1,0 @@
-{
-  "unit": "dot-doctor-startup.timer",
-  "label": "Startup doctor",
-  "notify": false
-}

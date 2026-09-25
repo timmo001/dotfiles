@@ -46,7 +46,7 @@ import type { ConfigService } from "../services/Config.js";
 
 const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
 
-const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
+const DOCTOR_TIMER_UNIT = "dot-doctor.timer";
 
 const DEFAULT_INIT_OMARCHY_HOST = "desktop";
 
@@ -810,9 +810,9 @@ export function init(
       installPacmanHooks(),
     );
     yield* requiredInitStep(
-      "Enable Doctor Startup Timer",
+      "Enable Doctor Timer",
       INIT_STEP_TIMEOUT_SECONDS.doctorTimer,
-      enableUserUnit(DOCTOR_STARTUP_TIMER_UNIT, "Enable Doctor Startup Timer"),
+      enableUserUnit(DOCTOR_TIMER_UNIT, "Enable Doctor Timer"),
     );
     yield* requiredInitStep(
       "Sync Agents",

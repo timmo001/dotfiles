@@ -1,5 +1,5 @@
 [Unit]
-Description=Run dot doctor at login and notify on errors
+Description=Run dot doctor and notify on errors
 After=graphical-session.target
 
 [Service]

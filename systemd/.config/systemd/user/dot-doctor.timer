@@ -3,7 +3,7 @@ Description=Delayed dot doctor check after login
 
 [Timer]
 OnStartupSec=60
-Unit=dot-doctor-startup.service
+Unit=dot-doctor.service
 
 [Install]
 WantedBy=timers.target

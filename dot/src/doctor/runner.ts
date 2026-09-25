@@ -17,7 +17,7 @@ import { checkGitConfig } from "../git/doctor/gitConfig.js";
 import { checkOriginHead } from "../git/doctor/originHead.js";
 import {
   checkGitNotifications,
-  checkDoctorStartup,
+  checkDoctorNotify,
   checkDependencyService,
   checkDailyVolumeReset,
   checkLocalBinPath,
@@ -75,7 +75,7 @@ const sections: readonly SectionDef[] = [
   { name: "GitHub MCP auth", check: checkGithubMcpAuth },
   { name: "Git config include", check: checkGitConfig },
   { name: "Git notification checks", check: checkGitNotifications },
-  { name: "Doctor startup notification", check: checkDoctorStartup },
+  { name: "Doctor notification", check: checkDoctorNotify },
   { name: "Dependency service", check: checkDependencyService },
   { name: "Notes capture daemon", check: checkNotesCaptureDaemon },
   { name: "Registered services", check: checkRegisteredServices },
