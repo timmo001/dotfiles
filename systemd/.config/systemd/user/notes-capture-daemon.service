@@ -2,6 +2,7 @@
 Description=Process queued notes captures with local OpenCode
 After=network-online.target
 Wants=network-online.target
+OnFailure=dot-service-failed@%n.service
 
 [Service]
 Type=simple

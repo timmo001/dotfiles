@@ -3,6 +3,7 @@ Description=Run coordinated dependency updates
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=%h/.config/dot/dependency-service.json
+OnFailure=dot-service-failed@%n.service
 
 [Service]
 Type=oneshot

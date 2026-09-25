@@ -1,0 +1,10 @@
+{
+  "unit": "dot-deps.timer",
+  "label": "Dependency updates",
+  "failAfter": 2,
+  "staleAfter": "1 hour",
+  "logs": {
+    "dir": "$XDG_STATE_HOME/dot/dependency-service/runs",
+    "file": "run.log"
+  }
+}

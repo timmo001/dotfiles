@@ -1,0 +1,6 @@
+[Unit]
+Description=Report failed service %i
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/dot services notify %i
