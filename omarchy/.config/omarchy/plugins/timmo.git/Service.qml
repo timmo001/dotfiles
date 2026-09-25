@@ -200,17 +200,28 @@ Item {
     }
     var args = ["dot", "git-pull-requests", "--panel-json"]
     if (mode === "refresh") args.push("--refresh")
+    pullRequestsProcess.partial = false
     pullRequestsProcess.command = args
     pullRequestsProcess.running = true
   }
 
-  function applyPullRequests(raw) {
+  function ignorePullRequest(repo, pr) {
+    if (!repo || !pr || pullRequestsBusy) return
+    pullRequestsError = ""
+    pullRequestsProcess.partial = true
+    pullRequestsProcess.command = ["dot", "git-pull-requests", "--panel-json", "--repo", repo.repo, "--ignore", String(pr.number)]
+    pullRequestsProcess.running = true
+  }
+
+  function applyPullRequests(raw, partial) {
     try {
       var payload = JSON.parse(String(raw || "").trim())
       if (!Array.isArray(payload.repositories) || payload.repositories.some(function(repo) { return !Array.isArray(repo.pulls) }))
         throw new Error("Invalid pull request response")
       pullRequestsUpdating()
-      pullRequestRepositories = payload.repositories
+      pullRequestRepositories = partial ? pullRequestRepositories.map(function(repo) {
+        return payload.repositories.find(function(next) { return next.repo === repo.repo }) || repo
+      }) : payload.repositories
       pullRequestsLoaded = true
       pullRequestsError = ""
       pullRequestsUpdated()
@@ -563,10 +574,11 @@ Item {
 
   Process {
     id: pullRequestsProcess
+    property bool partial: false
     stdout: StdioCollector { id: pullRequestsOutput; waitForEnd: true }
     stderr: StdioCollector { id: pullRequestsStderr; waitForEnd: true }
     onExited: function(exitCode) {
-      if (exitCode === 0) root.applyPullRequests(pullRequestsOutput.text)
+      if (exitCode === 0) root.applyPullRequests(pullRequestsOutput.text, partial)
       else { root.pullRequestsLoaded = true; root.pullRequestsError = String(pullRequestsStderr.text || "Pull requests unavailable; refresh to retry").trim().slice(0, 500) }
       root.drainPullRequestJobs()
     }

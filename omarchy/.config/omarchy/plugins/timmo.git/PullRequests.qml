@@ -15,6 +15,7 @@ Column {
   signal hovered(string key)
   signal activated(var entry, int modifiers)
   signal refreshRequested()
+  signal ignoreRequested(var entry)
 
   spacing: Style.space(8)
 
@@ -86,7 +87,7 @@ Column {
             Row {
               id: row
               anchors.left: parent.left
-              anchors.right: parent.right
+              anchors.right: ignoreButton.visible ? ignoreButton.left : parent.right
               anchors.verticalCenter: parent.verticalCenter
               anchors.margins: Style.space(8)
               spacing: Style.space(10)
@@ -106,11 +107,28 @@ Column {
               }
             }
             MouseArea {
-              anchors.fill: parent
+              anchors.left: parent.left
+              anchors.right: ignoreButton.visible ? ignoreButton.left : parent.right
+              anchors.top: parent.top
+              anchors.bottom: parent.bottom
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
               onEntered: root.hovered(modelData.key)
               onClicked: function(mouse) { root.activated(modelData, mouse.modifiers) }
+            }
+            PanelActionButton {
+              id: ignoreButton
+              anchors.right: parent.right
+              anchors.rightMargin: Style.space(8)
+              anchors.verticalCenter: parent.verticalCenter
+              visible: modelData.kind === "pull"
+              enabled: !root.refreshing
+              iconText: "󰈉"
+              tooltipText: "Ignore pull request"
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              onHovered: function(hovered) { if (hovered) root.hovered(modelData.key) }
+              onClicked: root.ignoreRequested(modelData)
             }
           }
         }

@@ -1072,6 +1072,7 @@ Panel {
             onHovered: function(key) { filterController.cursorIndex = filterController.indexForKey(key) }
             onActivated: function(entry, modifiers) { root.activateEntry(entry, modifiers) }
             onRefreshRequested: root.activateAction("pulls-refresh")
+            onIgnoreRequested: function(entry) { if (root.service) root.service.ignorePullRequest(root.selectedPullRequests, entry.value) }
           }
 
           SectionHeading {

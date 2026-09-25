@@ -799,17 +799,24 @@ const gitPullRequestsCommand = describe(
         "Fetch now instead of using the five-minute cache",
       ),
       open: bool("open", "Open the tracked pull request page in the Git panel"),
+      ignore: Flag.Int("ignore").pipe(
+        Flag.withDescription(
+          "Hide a PR locally from the panel and counters; requires --repo",
+        ),
+        Flag.optional,
+      ),
       panelJson: bool(
         "panel-json",
         "Return enabled repositories and their open pull requests as JSON",
       ),
     },
-    ({ repo, refresh, open, panelJson }) =>
+    ({ repo, refresh, open, ignore, panelJson }) =>
       Effect.gen(function* () {
-        if (open) return yield* pullRequestsOpenShell(optional(repo));
+        if (open && Option.isNone(ignore))
+          return yield* pullRequestsOpenShell(optional(repo));
 
         return yield* pullRequestsQuery(
-          { repo: optional(repo), refresh },
+          { repo: optional(repo), refresh, ignore: optional(ignore) },
           panelJson,
         );
       }),
@@ -822,7 +829,7 @@ const gitPullRequestsCommand = describe(
   ],
   {
     description:
-      "Opt in with pull_requests.enabled in private dot-git.yml. All open PRs are included, including drafts and automation, ordered by latest update. A non-draft PR is ready when at least one CI check passes and none fail, remain pending or are cancelled; failed check names are shown in the panel. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and report an error. Pull requests stay listed until closed or merged.",
+      "Opt in with pull_requests.enabled in private dot-git.yml. Open PRs include drafts and automation, ordered by latest update. Use --repo <repository> --ignore <number> to hide a PR locally from the panel and all PR counters. Successful refreshes remove ignored entries once they close, merge or disappear. A non-draft PR is ready when at least one CI check passes and none fail, remain pending or are cancelled; failed check names are shown in the panel. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and ignore entries, and report an error.",
   },
 );
 

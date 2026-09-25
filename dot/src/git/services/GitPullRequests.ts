@@ -53,6 +53,7 @@ const PullRequestState = Schema.Struct({
   attemptedAt: Schema.NullOr(Schema.Finite),
   error: Schema.NullOr(Schema.String),
   pulls: Schema.Array(TrackedPullRequest),
+  ignored: Schema.optionalKey(Schema.Array(Schema.Int)),
 });
 
 const RemotePullRequest = Schema.Struct({
@@ -96,6 +97,8 @@ export interface PullRequestQuery {
   readonly repo?: string;
   /** Fetch immediately instead of using the five-minute cache. */
   readonly refresh?: boolean;
+  /** Hide a PR locally in the selected repository until it closes or disappears. */
+  readonly ignore?: number;
 }
 
 /** Cached PR queries for the CLI and Git panel. */
@@ -131,6 +134,17 @@ export class GitPullRequests extends Context.Service<
         if (!config.gitConfig.valid)
           return yield* new PullRequestsError({
             message: config.gitConfig.diagnostics.join("\n"),
+          });
+
+        if (
+          options.ignore !== undefined &&
+          (!options.repo ||
+            !Number.isSafeInteger(options.ignore) ||
+            options.ignore <= 0)
+        )
+          return yield* new PullRequestsError({
+            message:
+              "Ignoring a pull request requires --repo and a positive PR number",
           });
 
         const repositories = managedGitRepos(config.gitConfig).filter(
@@ -217,7 +231,24 @@ export class GitPullRequests extends Context.Service<
               const now = yield* Clock.currentTimeMillis;
               let changed = false;
 
-              if (
+              if (options.ignore !== undefined) {
+                if (
+                  !state.pulls.some((pr) => pr.number === options.ignore) &&
+                  !state.ignored?.includes(options.ignore)
+                )
+                  return yield* new PullRequestsError({
+                    message:
+                      "Pull request is no longer listed; refresh the panel",
+                  });
+
+                state = {
+                  ...state,
+                  ignored: [
+                    ...new Set([...(state.ignored ?? []), options.ignore]),
+                  ],
+                };
+                changed = true;
+              } else if (
                 options.refresh ||
                 state.attemptedAt === null ||
                 now < state.attemptedAt ||
@@ -255,13 +286,20 @@ export class GitPullRequests extends Context.Service<
                     result.success.flat().map((pr) => [pr.number, pr]),
                   );
 
+                  const ignored = (state.ignored ?? []).filter((number) =>
+                    unique.has(number),
+                  );
+
                   state = {
                     ...state,
                     checkedAt: now,
                     attemptedAt: now,
                     error: null,
+                    ignored,
                     pulls: yield* Effect.forEach(
-                      unique.values(),
+                      [...unique.values()].filter(
+                        (pr) => !ignored.includes(pr.number),
+                      ),
                       (pr) =>
                         Effect.gen(function* () {
                           const result = yield* PullRequest.checks(pr.number, {
@@ -340,25 +378,29 @@ export class GitPullRequests extends Context.Service<
                 repo: repo.github,
                 name: repo.name,
                 path: repo.path,
-                pulls: state.pulls.map((pr) => ({
-                  ...pr,
-                  checks: pr.checks ?? "unknown",
-                  failingChecks: pr.failingChecks ?? [],
-                })),
+                pulls: state.pulls
+                  .filter((pr) => !state.ignored?.includes(pr.number))
+                  .map((pr) => ({
+                    ...pr,
+                    checks: pr.checks ?? "unknown",
+                    failingChecks: pr.failingChecks ?? [],
+                  })),
                 checkedAt: state.checkedAt,
                 error: state.error,
               };
             }).pipe(
               Effect.scoped,
               Effect.catch((error) =>
-                Effect.succeed({
-                  repo: repo.github,
-                  name: repo.name,
-                  path: repo.path,
-                  pulls: [],
-                  checkedAt: null,
-                  error: error.message,
-                }),
+                options.ignore !== undefined
+                  ? Effect.fail(error)
+                  : Effect.succeed({
+                      repo: repo.github,
+                      name: repo.name,
+                      path: repo.path,
+                      pulls: [],
+                      checkedAt: null,
+                      error: error.message,
+                    }),
               ),
             ),
           { concurrency: 4 },
