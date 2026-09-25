@@ -19,6 +19,7 @@ Panel {
   readonly property color successColor: "#98c379"
   readonly property color mutedColor: Qt.darker(contentForeground, 1.4)
   readonly property real now: service ? service.currentTime : Date.now()
+  property real runtimeNow: Date.now()
   readonly property var panelRows: buildPanelRows()
 
   function buildPanelRows() {
@@ -78,12 +79,20 @@ Panel {
     return difference >= 0 ? span(difference) + " ago" : "in " + span(-difference)
   }
 
+  function runtime(run) {
+    if (!run || !run.started) return ""
+    if (run.finished) return span(run.finished - run.started)
+    return run.result === "running" ? span(runtimeNow - run.started) : ""
+  }
+
   function metaText(status) {
     var parts = [status.summary]
     if (status.runs.length > 0 && status.runs[0].result === "running" && status.health !== "running"
         && status.kind === "timer")
       parts.push("running now")
-    if (status.lastRun) parts.push("ran " + relative(status.lastRun))
+    var latestRun = status.runs[0]
+    var elapsed = status.tags[0] === "Service" ? "" : runtime(latestRun)
+    if (status.lastRun) parts.push("ran " + relative(status.lastRun) + (elapsed ? " for " + elapsed : ""))
     if (status.restartLimit && status.restarts > 0)
       parts.push(status.restarts + " restart" + (status.restarts === 1 ? "" : "s"))
     return parts.join(" · ")
@@ -99,9 +108,10 @@ Panel {
     return status.tags[0] === "Service" ? "Runs continuously" : ""
   }
 
-  function runText(run) {
+  function runText(status, run) {
     var parts = [run.started ? Qt.formatDateTime(new Date(run.started), "ddd HH:mm") : "—", run.result]
-    if (run.started && run.finished) parts.push(span(run.finished - run.started))
+    var elapsed = status.tags[0] === "Service" ? "" : runtime(run)
+    if (elapsed) parts.push(elapsed)
     if (run.detail) parts.push(run.detail)
     return parts.join(" · ")
   }
@@ -123,6 +133,7 @@ Panel {
   function open() {
     expandedKey = ""
     filterController.reset()
+    runtimeNow = Date.now()
     if (service) service.refresh()
     controller.show()
     Qt.callLater(function() {
@@ -146,6 +157,15 @@ Panel {
     if (point.y < panelFlick.contentY) panelFlick.contentY = point.y
     else if (point.y + item.height > panelFlick.contentY + panelFlick.height)
       panelFlick.contentY = point.y + item.height - panelFlick.height
+  }
+
+  Timer {
+    interval: 1000
+    running: root.opened && root.service && root.service.services.some(function(status) {
+      return status.tags[0] !== "Service" && status.runs.length > 0 && status.runs[0].result === "running"
+    })
+    repeat: true
+    onTriggered: root.runtimeNow = Date.now()
   }
 
   KeyboardPanel {
@@ -415,7 +435,7 @@ Panel {
                       Text {
                         required property var modelData
                         width: parent.width - Style.space(32)
-                        text: root.runText(modelData)
+                        text: root.runText(rowSurface.status, modelData)
                         color: root.runColor(modelData.result)
                         font.family: root.contentFontFamily
                         font.pixelSize: Style.font.caption
