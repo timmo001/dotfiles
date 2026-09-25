@@ -867,7 +867,13 @@ export const servicesLogs = Effect.fn("Services.logs")(function* (
   const [status] = yield* collectServiceStatus([{ file: "", descriptor }]);
 
   const viewer = status?.latestLog
-    ? ["less", "+F", status.latestLog.path]
+    ? [
+        "less",
+        status.activeState === "active" || status.activeState === "activating"
+          ? "+F"
+          : "+G",
+        status.latestLog.path,
+      ]
     : [
         "journalctl",
         "--user",
