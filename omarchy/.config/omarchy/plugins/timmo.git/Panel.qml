@@ -68,12 +68,12 @@ Panel {
       return rows.concat(pullRequestRows())
     }
     if (view === "agent") {
+      rows.push(actionRow("back", releaseAgentView ? "Back to release preparation" : (selectedAgentView === "overview" ? "Back to Git overview" : "Back to repository"), ""))
       var agents = service ? service.installedAgents : []
       for (var i = 0; i < agents.length; i++) {
         var agent = agents[i]
         rows.push(actionRow("agent:" + agent.command, agent.label, "󱚣"))
       }
-      rows.push(actionRow("back", releaseAgentView ? "Back to release preparation" : (selectedAgentView === "overview" ? "Back to Git overview" : "Back to repository"), ""))
       return rows
     }
     if (releaseView) {
@@ -139,8 +139,8 @@ Panel {
         })
       }
     } else if (view === "repo") {
-      rows = rows.concat(repoActions(selectedRepo))
       rows.push(actionRow("back", "Back to repositories", ""))
+      rows = rows.concat(repoActions(selectedRepo))
       return rows
     } else {
       rows.push(actionRow("back", "Back to Git overview", ""))
