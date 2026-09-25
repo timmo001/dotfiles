@@ -7,7 +7,6 @@ import {
 } from "effect/unstable/http";
 import { existsSync } from "fs";
 import { join } from "path";
-import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { expandHomePath } from "./paths.js";
 
@@ -17,6 +16,13 @@ class CalendarEventError extends Schema.TaggedError<CalendarEventError>()(
 ) {}
 
 const CalendarConfig = Schema.Struct({
+  work_hours: Schema.Struct({
+    days: Schema.Array(
+      Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 7 })),
+    ),
+    start: Schema.String.check(Schema.isPattern(/^([01]\d|2[0-3]):[0-5]\d$/)),
+    end: Schema.String.check(Schema.isPattern(/^([01]\d|2[0-3]):[0-5]\d$/)),
+  }),
   credentials_file: Schema.NonEmptyString,
   calendars: Schema.Array(
     Schema.Struct({
@@ -51,15 +57,8 @@ const CalendarEvents = Schema.Array(
 );
 
 const calendarLeave = Effect.fn("workTime.calendarLeave")(function* (
-  configPath: string,
+  config: typeof CalendarConfig.Type,
 ) {
-  const config = yield* Effect.tryPromise(() =>
-    Bun.file(configPath).text(),
-  ).pipe(
-    Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
-    Effect.flatMap(Schema.decodeUnknownEffect(CalendarConfig)),
-  );
-
   if (config.calendars.length === 0) return false;
 
   const credentials = yield* Effect.tryPromise(() =>
@@ -142,22 +141,42 @@ const calendarLeave = Effect.fn("workTime.calendarLeave")(function* (
   return false;
 });
 
-/** Check shared work hours with optional private calendar leave exclusions. */
+/** Check private work hours with calendar leave exclusions. */
 export const isWorkTime = Effect.fn("isWorkTime")(function* (
   log: (message: string) => Effect.Effect<void>,
 ) {
-  const executor = yield* CommandExecutor;
-
-  if ((yield* executor.exitCode("is-work-time", [])) !== 0) return false;
-
   const config = yield* Config;
 
-  if (!config.privateDotfiles) return true;
+  if (!config.privateDotfiles) return false;
   const configPath = join(config.privateDotfiles, "workspace-calendar.yml");
 
-  if (!existsSync(configPath)) return true;
+  if (!existsSync(configPath)) return false;
 
-  const leave = yield* calendarLeave(configPath).pipe(
+  const schedule = yield* Effect.tryPromise(() =>
+    Bun.file(configPath).text(),
+  ).pipe(
+    Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
+    Effect.flatMap(Schema.decodeUnknownEffect(CalendarConfig)),
+    Effect.catch(() => log("Work schedule unavailable").pipe(Effect.as(null))),
+  );
+
+  if (!schedule) return false;
+
+  const now = new Date(yield* Clock.currentTimeMillis);
+  const day = now.getDay() || 7;
+  const minutes = now.getHours() * 60 + now.getMinutes();
+
+  const toMinutes = (time: string) =>
+    Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+
+  if (
+    !schedule.work_hours.days.includes(day) ||
+    minutes < toMinutes(schedule.work_hours.start) ||
+    minutes >= toMinutes(schedule.work_hours.end)
+  )
+    return false;
+
+  const leave = yield* calendarLeave(schedule).pipe(
     Effect.provide(FetchHttpClient.layer),
     Effect.timeout("5 seconds"),
     Effect.catch(() =>

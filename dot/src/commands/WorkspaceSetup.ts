@@ -42,7 +42,7 @@ export type WorkspaceSetupMode = "work" | "normal";
 export interface WorkspaceSetupOptions {
   /** Delay startup by this many unscaled seconds. */
   readonly startupDelay: number;
-  /** Explicit work or normal layout, skipping `is-work-time`. */
+  /** Explicit work or normal layout, skipping schedule detection. */
   readonly mode?: WorkspaceSetupMode;
 }
 
@@ -58,7 +58,7 @@ export interface WorkspaceSetupConfig {
   readonly follow: boolean;
   /** Optional explicit run log path. */
   readonly logFile?: string;
-  /** Explicit work or normal layout, skipping `is-work-time`. */
+  /** Explicit work or normal layout, skipping schedule detection. */
   readonly mode?: WorkspaceSetupMode;
 }
 
@@ -731,7 +731,6 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
   const run = Effect.gen(function* () {
     for (const dependency of [
       "hyprctl",
-      ...(config.mode === undefined ? ["is-work-time"] : []),
       "uwsm",
       "chromium",
       "ghostty-host-config",

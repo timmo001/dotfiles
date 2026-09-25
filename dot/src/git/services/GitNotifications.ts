@@ -197,10 +197,7 @@ export class GitNotifications extends Context.Service<
             )
               ? yield* isWorkTime((message) =>
                   Effect.sync(() => log(message)),
-                ).pipe(
-                  Effect.provideService(Config, config),
-                  Effect.provideService(CommandExecutor, executor),
-                )
+                ).pipe(Effect.provideService(Config, config))
               : false;
 
           const now = new Date(yield* Clock.currentTimeMillis);
