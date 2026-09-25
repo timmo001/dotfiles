@@ -6,7 +6,7 @@ import {
 } from "../services/GitPullRequests.js";
 import { handleCommandError, writeText } from "./rows.js";
 
-/** Open the tracked PR page without changing its local seen state. */
+/** Open the tracked PR page. */
 export const pullRequestsOpenShell = Effect.fn("pullRequests.openShell")(
   function* (repo: string | undefined) {
     const executor = yield* CommandExecutor;
@@ -21,7 +21,7 @@ export const pullRequestsOpenShell = Effect.fn("pullRequests.openShell")(
   handleCommandError("dot git-pull-requests"),
 );
 
-/** Read tracked PRs or acknowledge a PR, returning JSON for the Git panel. */
+/** Read tracked PRs, returning JSON for the Git panel. */
 export const pullRequestsQuery = Effect.fn("pullRequests.query")(function* (
   options: PullRequestQuery,
   panelJson: boolean,
@@ -36,10 +36,8 @@ export const pullRequestsQuery = Effect.fn("pullRequests.query")(function* (
             [
               `${repo.name}: ${repo.checkedAt === null ? "Pull requests unavailable" : `${repo.pulls.length} open pull requests${repo.error ? " (stale)" : ""}`}`,
               ...(repo.error ? [`  ${repo.error}`] : []),
-              ...(repo.deliveryError ? [`  ${repo.deliveryError}`] : []),
               ...repo.pulls.map(
-                (pr) =>
-                  `  ${pr.seen ? "" : "[new] "}#${pr.number} ${pr.title}\n  ${pr.url}`,
+                (pr) => `  #${pr.number} ${pr.title}\n  ${pr.url}`,
               ),
             ].join("\n"),
           )

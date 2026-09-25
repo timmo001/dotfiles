@@ -44,7 +44,7 @@ BarWidget {
   readonly property color displayColor: {
     if (!git) return "#9b9b9b"
     if (git.notificationClass === "notifications-attention") return "#e06c75"
-    if (git.diffClass === "dots-attention" || git.notificationClass === "notifications-unread" || git.newPullRequestCount > 0) return "#e5c07b"
+    if (git.diffClass === "dots-attention" || git.notificationClass === "notifications-unread") return "#e5c07b"
     if (git.diffClass === "dots-pull-only") return "#98c379"
     if (git.diffClass === "dots-extra-only") return "#61afef"
     return "#9b9b9b"
@@ -134,7 +134,7 @@ BarWidget {
             rows: panel ? panel.panelRows.filter(function(row) { return row.section === "pulls" || row.section === "pulls-empty" }).map(function(row) { return { key: row.key, kind: row.kind, title: row.primaryText } }) : [],
             cursor: panel ? panel.cursorKey : "", loaded: root.git ? root.git.pullRequestsLoaded : false,
             busy: root.git ? root.git.pullRequestsBusy : false, error: root.git ? root.git.pullRequestsError : "Service unavailable",
-            count: root.git ? root.git.pullRequestCount : 0, newCount: root.git ? root.git.newPullRequestCount : 0
+            count: root.git ? root.git.pullRequestCount : 0
           })
         }
         function releaseStatus(): string {

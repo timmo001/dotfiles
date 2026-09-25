@@ -783,28 +783,18 @@ const gitPullRequestsCommand = describe(
         "refresh",
         "Fetch now instead of using the five-minute cache",
       ),
-      notify: bool(
-        "notify",
-        "Send grouped desktop alerts for newly discovered pull requests",
-      ),
       open: bool("open", "Open the tracked pull request page in the Git panel"),
-      seen: Flag.Int("seen").pipe(
-        Flag.optional,
-        Flag.withDescription(
-          "Mark a PR number as seen locally; requires --repo",
-        ),
-      ),
       panelJson: bool(
         "panel-json",
         "Return enabled repositories and their open pull requests as JSON",
       ),
     },
-    ({ repo, refresh, notify, open, seen, panelJson }) =>
+    ({ repo, refresh, open, panelJson }) =>
       Effect.gen(function* () {
         if (open) return yield* pullRequestsOpenShell(optional(repo));
 
         return yield* pullRequestsQuery(
-          { repo: optional(repo), refresh, notify, seen: optional(seen) },
+          { repo: optional(repo), refresh },
           panelJson,
         );
       }),
@@ -812,12 +802,12 @@ const gitPullRequestsCommand = describe(
   "Track open pull requests for enabled repositories, independently of GitHub notifications",
   [
     "dot git-pull-requests --panel-json",
-    "dot git-pull-requests --refresh --notify",
+    "dot git-pull-requests --refresh",
     "dot git-pull-requests --open",
   ],
   {
     description:
-      "Opt in with pull_requests.enabled in private dot-git.yml. All open PRs are included, including drafts and automation, ordered by latest update. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and report an error. --notify sends one grouped desktop alert per repository for unannounced PRs, including existing PRs on first use. Opening a PR marks it seen locally; it stays listed until closed or merged. Seen state and delivery state persist across shell restarts.",
+      "Opt in with pull_requests.enabled in private dot-git.yml. All open PRs are included, including drafts and automation, ordered by latest update. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and report an error. Pull requests stay listed until closed or merged.",
   },
 );
 

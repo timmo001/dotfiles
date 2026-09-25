@@ -215,7 +215,7 @@ Panel {
       if (selectedPullRequests) selectedPullRequests.pulls.forEach(function(pr) {
         rows.push({ key: "pull:" + selectedPullRequests.repo + ":" + pr.number, kind: "pull", section: "pulls", value: pr,
           primaryText: "#" + pr.number + " " + pr.title,
-          secondaryText: [pr.author, pr.draft ? "Draft" : "Open", pr.seen ? "Seen" : "New"].join(" · "), unread: !pr.seen })
+          secondaryText: [pr.author, pr.draft ? "Draft" : "Open"].join(" · ") })
       })
       return rows
     }
@@ -223,11 +223,10 @@ Panel {
     var withPulls = repositories.filter(function(repo) { return repo.pulls.length > 0 || (view === "pulls" && (repo.error || repo.checkedAt === null)) })
     var withoutPulls = view === "pulls" ? repositories.filter(function(repo) { return repo.pulls.length === 0 && !repo.error && repo.checkedAt !== null }) : []
     withPulls.concat(withoutPulls).forEach(function(repo) {
-      var newCount = repo.pulls.filter(function(pr) { return !pr.seen }).length
       var empty = withoutPulls.indexOf(repo) >= 0
       rows.push({ key: "pull-repo:" + repo.repo, kind: "pull-repo", section: empty ? "pulls-empty" : "pulls", value: repo,
         primaryText: repo.name + (empty ? "" : "  ›"),
-        secondaryText: repo.checkedAt === null ? (repo.error || "Not checked yet") : repo.pulls.length + " open · " + newCount + " new" + (repo.error ? " · stale: " + repo.error : ""), unread: newCount > 0 })
+        secondaryText: repo.checkedAt === null ? (repo.error || "Not checked yet") : repo.pulls.length + " open" + (repo.error ? " · stale: " + repo.error : "") })
     })
     if (view === "overview") {
       var all = actionRow("pulls", "All tracked repositories", "󰙅")
@@ -240,11 +239,10 @@ Panel {
 
   function pullRequestStatus() {
     if (!service || !service.pullRequestsLoaded) return "Loading pull requests"
-    var messages = [service.pullRequestsError, service.pullRequestSeenError].filter(function(value) { return value !== "" })
+    var messages = [service.pullRequestsError].filter(function(value) { return value !== "" })
     var repositories = view === "pull-repo" ? (selectedPullRequests ? [selectedPullRequests] : []) : service.pullRequestRepositories
     repositories.forEach(function(repo) {
       if (repo.error) messages.push(repo.name + ": " + repo.error)
-      if (repo.deliveryError) messages.push(repo.name + ": " + repo.deliveryError)
     })
     if (messages.length) return messages.join("\n")
     if (view === "pull-repo") return selectedPullRequests
@@ -305,7 +303,6 @@ Panel {
   function releaseDetail(entry) {
     return (entry.snapshot ? entry.snapshot.releaseTag + " → " + entry.branch + " · " + entry.snapshot.suggestion : entry.branch + " · not checked")
       + (entry.stale ? " · stale" : "") + (entry.needsAttention ? " · release candidate" : "")
-      + (entry.pending ? " · notification pending" : "")
   }
 
   function findingUrl(finding) {
@@ -349,7 +346,6 @@ Panel {
     if (!selectedRelease) return service && !service.releasesLoaded ? "Loading selected repository" : "Repository unavailable; return to unreleased changes or refresh"
     var lines = [releaseDetail(selectedRelease)]
     if (selectedRelease.error) lines.push(selectedRelease.error)
-    if (selectedRelease.deliveryError) lines.push(selectedRelease.deliveryError)
     if (view === "finding") {
       if (!selectedFinding) lines.push("This evidence changed; return to the release review and select again")
       else {

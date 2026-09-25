@@ -20,7 +20,6 @@ import {
   Schema,
 } from "effect";
 import { Config } from "../../services/Config.js";
-import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { managedGitRepos } from "../../services/GitConfig.js";
 import { formatCause } from "../../lib/schema.js";
 import { GitHub } from "./GitHub.js";
@@ -34,15 +33,12 @@ const PullRequest = Schema.Struct({
   url: Schema.String,
   author: Schema.String,
   draft: Schema.Boolean,
-  seen: Schema.Boolean,
-  notified: Schema.Boolean,
 });
 
 const PullRequestState = Schema.Struct({
   checkedAt: Schema.NullOr(Schema.Finite),
   attemptedAt: Schema.NullOr(Schema.Finite),
   error: Schema.NullOr(Schema.String),
-  deliveryError: Schema.NullOr(Schema.String),
   pulls: Schema.Array(PullRequest),
 });
 
@@ -76,23 +72,17 @@ export interface PullRequestRepository {
   readonly checkedAt: number | null;
   /** Fetch or storage error; previous PRs remain available. */
   readonly error: string | null;
-  /** Desktop delivery failure, separate from fetch errors. */
-  readonly deliveryError: string | null;
 }
 
-/** Query and local acknowledgement options for tracked PRs. */
+/** Query options for tracked PRs. */
 export interface PullRequestQuery {
   /** Select an enabled repository by name or GitHub slug. */
   readonly repo?: string;
   /** Fetch immediately instead of using the five-minute cache. */
   readonly refresh?: boolean;
-  /** Deliver grouped desktop alerts for previously unannounced PRs. */
-  readonly notify?: boolean;
-  /** Mark this PR as seen locally without fetching or changing GitHub notifications. */
-  readonly seen?: number;
 }
 
-/** Cached PR queries and acknowledgements for the CLI and Git panel. */
+/** Cached PR queries for the CLI and Git panel. */
 interface GitPullRequestsService {
   /** Return all selected enabled repositories, retaining cached PRs on fetch failure. */
   readonly query: (
@@ -104,7 +94,6 @@ const emptyState = (): typeof PullRequestState.Type => ({
   checkedAt: null,
   attemptedAt: null,
   error: null,
-  deliveryError: null,
   pulls: [],
 });
 
@@ -118,7 +107,6 @@ export class GitPullRequests extends Context.Service<
     Effect.gen(function* () {
       const config = yield* Config;
       const github = yield* GitHub;
-      const executor = yield* CommandExecutor;
 
       const query = Effect.fn("GitPullRequests.query")(function* (
         options: PullRequestQuery,
@@ -137,10 +125,7 @@ export class GitPullRequests extends Context.Service<
               )),
         );
 
-        if (
-          (options.repo && repositories.length !== 1) ||
-          (options.seen !== undefined && !options.repo)
-        )
+        if (options.repo && repositories.length !== 1)
           return yield* new PullRequestsError({
             message: "Select one enabled pull request repository with --repo",
           });
@@ -215,17 +200,7 @@ export class GitPullRequests extends Context.Service<
               const now = yield* Clock.currentTimeMillis;
               let changed = false;
 
-              if (options.seen !== undefined) {
-                state = {
-                  ...state,
-                  pulls: state.pulls.map((pr) =>
-                    pr.number === options.seen
-                      ? { ...pr, seen: true, notified: true }
-                      : pr,
-                  ),
-                };
-                changed = true;
-              } else if (
+              if (
                 options.refresh ||
                 state.attemptedAt === null ||
                 now < state.attemptedAt ||
@@ -259,10 +234,6 @@ export class GitPullRequests extends Context.Service<
                       "Could not fetch open pull requests",
                   };
                 else {
-                  const previous = new Map(
-                    state.pulls.map((pr) => [pr.number, pr]),
-                  );
-
                   const unique = new Map(
                     result.success.flat().map((pr) => [pr.number, pr]),
                   );
@@ -278,62 +249,11 @@ export class GitPullRequests extends Context.Service<
                       url: pr.html_url,
                       author: pr.user?.login ?? "Deleted user",
                       draft: pr.draft,
-                      seen: previous.get(pr.number)?.seen ?? false,
-                      notified: previous.get(pr.number)?.notified ?? false,
                     })),
                   };
                 }
 
                 changed = true;
-              }
-
-              if (
-                options.notify &&
-                state.error === null &&
-                options.seen === undefined
-              ) {
-                const pending = state.pulls.filter(
-                  (pr) => !pr.notified && !pr.seen,
-                );
-
-                if (pending.length) {
-                  const sent = yield* executor
-                    .run("omarchy", [
-                      "notification",
-                      "send",
-                      "--app-name",
-                      "Git pull requests",
-                      "--urgency",
-                      "normal",
-                      `${repo.name}: ${pending.length} new pull request${pending.length === 1 ? "" : "s"}`,
-                      pending
-                        .map((pr) => `#${pr.number} ${pr.title}`)
-                        .join("\n")
-                        .slice(0, 400),
-                      "--exec",
-                      "dot",
-                      "git-pull-requests",
-                      "--open",
-                      "--repo",
-                      repo.github,
-                    ])
-                    .pipe(Effect.timeout("15 seconds"), Effect.result);
-
-                  state = Result.isFailure(sent)
-                    ? {
-                        ...state,
-                        deliveryError: `Notification delivery failed: ${formatGhError(sent.failure) || "Could not send notification"}`,
-                      }
-                    : {
-                        ...state,
-                        deliveryError: null,
-                        pulls: state.pulls.map((pr) => ({
-                          ...pr,
-                          notified: true,
-                        })),
-                      };
-                  changed = true;
-                }
               }
 
               if (changed)
@@ -358,7 +278,6 @@ export class GitPullRequests extends Context.Service<
                 pulls: state.pulls,
                 checkedAt: state.checkedAt,
                 error: state.error,
-                deliveryError: state.deliveryError,
               };
             }).pipe(
               Effect.scoped,
@@ -370,7 +289,6 @@ export class GitPullRequests extends Context.Service<
                   pulls: [],
                   checkedAt: null,
                   error: error.message,
-                  deliveryError: null,
                 }),
               ),
             ),

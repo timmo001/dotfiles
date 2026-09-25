@@ -68,15 +68,12 @@ Item {
   property var pullRequestRepositories: []
   property bool pullRequestsLoaded: false
   property string pullRequestsError: ""
-  property string pullRequestSeenError: ""
   property string pullRequestRefreshPending: ""
-  property var pullRequestSeenQueue: []
-  readonly property bool pullRequestsBusy: pullRequestsProcess.running || pullRequestSeenProcess.running
+  readonly property bool pullRequestsBusy: pullRequestsProcess.running
   readonly property int pullRequestCount: pullRequestRepositories.reduce(function(count, repo) { return count + repo.pulls.length }, 0)
-  readonly property int newPullRequestCount: pullRequestRepositories.reduce(function(count, repo) { return count + repo.pulls.filter(function(pr) { return !pr.seen }).length }, 0)
   readonly property bool pullRequestsStale: pullRequestsError !== "" || pullRequestRepositories.some(function(repo) { return repo.error !== null })
   readonly property string pullRequestTooltip: pullRequestsError || (pullRequestsLoaded
-    ? pullRequestCount + " open pull requests · " + newPullRequestCount + " new" + (pullRequestsStale ? " · refresh failed" : "")
+    ? pullRequestCount + " open pull requests" + (pullRequestsStale ? " · refresh failed" : "")
     : "Loading pull requests")
   signal pullRequestsUpdating()
   signal pullRequestsUpdated()
@@ -90,7 +87,7 @@ Item {
   readonly property bool releaseLaunching: releaseLaunchProcess.running
   signal releaseOpened()
   readonly property int releasePendingCount: releases.filter(function(entry) { return entry.needsAttention }).length
-  readonly property bool releaseStale: releasesError !== "" || releases.some(function(entry) { return entry.stale || entry.deliveryError })
+  readonly property bool releaseStale: releasesError !== "" || releases.some(function(entry) { return entry.stale })
   signal panelUpdated()
   signal releasesUpdating()
   signal releasesUpdated()
@@ -202,20 +199,17 @@ Item {
     }
     var args = ["dot", "git-pull-requests", "--panel-json"]
     if (mode === "refresh") args.push("--refresh")
-    if (mode === "scheduled") args.push("--notify")
     pullRequestsProcess.command = args
     pullRequestsProcess.running = true
   }
 
-  function applyPullRequests(raw, partial) {
+  function applyPullRequests(raw) {
     try {
       var payload = JSON.parse(String(raw || "").trim())
       if (!Array.isArray(payload.repositories) || payload.repositories.some(function(repo) { return !Array.isArray(repo.pulls) }))
         throw new Error("Invalid pull request response")
       pullRequestsUpdating()
-      pullRequestRepositories = partial ? pullRequestRepositories.map(function(repo) {
-        return payload.repositories.find(function(next) { return next.repo === repo.repo }) || repo
-      }) : payload.repositories
+      pullRequestRepositories = payload.repositories
       pullRequestsLoaded = true
       pullRequestsError = ""
       pullRequestsUpdated()
@@ -227,12 +221,7 @@ Item {
 
   function drainPullRequestJobs() {
     if (pullRequestsBusy) return
-    if (pullRequestSeenQueue.length) {
-      var selection = pullRequestSeenQueue[0]
-      pullRequestSeenQueue = pullRequestSeenQueue.slice(1)
-      pullRequestSeenProcess.command = ["dot", "git-pull-requests", "--panel-json", "--repo", selection.repo, "--seen", String(selection.number)]
-      pullRequestSeenProcess.running = true
-    } else if (pullRequestRefreshPending) {
+    if (pullRequestRefreshPending) {
       var mode = pullRequestRefreshPending
       pullRequestRefreshPending = ""
       refreshPullRequests(mode)
@@ -245,9 +234,6 @@ Item {
 
   function openPullRequest(repo, pr, modifiers) {
     if (!repo || !pr) return
-    pullRequestSeenError = ""
-    pullRequestSeenQueue = pullRequestSeenQueue.concat([{ repo: repo.repo, number: pr.number }])
-    drainPullRequestJobs()
     openWeb(pr.url, repo.path, modifiers)
   }
 
@@ -257,7 +243,7 @@ Item {
       return
     }
     var args = ["dot", "git-releases", "--panel-json"]
-    if (mode === "scheduled") args.push("--scheduled", "--notify")
+    if (mode === "scheduled") args.push("--scheduled")
     else if (mode === "refresh") args.push("--refresh")
     releaseProcess.command = args
     releaseProcess.running = true
@@ -576,19 +562,8 @@ Item {
     stdout: StdioCollector { id: pullRequestsOutput; waitForEnd: true }
     stderr: StdioCollector { id: pullRequestsStderr; waitForEnd: true }
     onExited: function(exitCode) {
-      if (exitCode === 0) root.applyPullRequests(pullRequestsOutput.text, false)
+      if (exitCode === 0) root.applyPullRequests(pullRequestsOutput.text)
       else { root.pullRequestsLoaded = true; root.pullRequestsError = String(pullRequestsStderr.text || "Pull requests unavailable; refresh to retry").trim().slice(0, 500) }
-      root.drainPullRequestJobs()
-    }
-  }
-
-  Process {
-    id: pullRequestSeenProcess
-    stdout: StdioCollector { id: pullRequestSeenOutput; waitForEnd: true }
-    stderr: StdioCollector { id: pullRequestSeenStderr; waitForEnd: true }
-    onExited: function(exitCode) {
-      if (exitCode === 0) root.applyPullRequests(pullRequestSeenOutput.text, true)
-      else root.pullRequestSeenError = String(pullRequestSeenStderr.text || "Could not mark the pull request as seen").trim().slice(0, 500)
       root.drainPullRequestJobs()
     }
   }
