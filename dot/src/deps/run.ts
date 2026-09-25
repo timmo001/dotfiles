@@ -20,6 +20,7 @@ import { extractDependencies } from "./extract.js";
 import { requiresSourceUrl } from "./rules.js";
 import { githubWorkflowScope } from "../lib/githubWorkflowScope.js";
 import { dependencyRunLog, type DependencyRunLog } from "./log.js";
+import { acquireDependencyLease, type DependencyLease } from "./lease.js";
 import {
   DependencyPlanner,
   dependencyGroupOrder,
@@ -93,6 +94,7 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
     readonly checks: Semaphore.Semaphore;
     readonly discovery: Semaphore.Semaphore;
     readonly workflowScope: ReturnType<typeof githubWorkflowScope>;
+    readonly lease: DependencyLease;
   },
 ) {
   const planner = yield* DependencyPlanner;
@@ -103,6 +105,7 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
   let publishing = false;
 
   for (let attempt = 0; attempt < 3; attempt++) {
+    yield* coordination.lease.assertOwned;
     const config = yield* runnablePlan(plan);
     const entries = plan.dependencies.filter((entry) => entry.group === group);
 
@@ -218,6 +221,7 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
       workspace.directory,
       config,
       log,
+      updates.map((entry) => entry.dependency),
       options.concurrency,
       coordination,
     );
@@ -312,6 +316,7 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
       allowed,
       log,
       options.timeout,
+      coordination.lease,
     ).pipe(Semaphore.withPermit(coordination.repository));
 
     if (result.status === "moved") {
@@ -374,6 +379,7 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
 /** Start groups by priority with bounded parallel work and one exact-commit publisher. */
 export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
   options: DependencyPlanOptions,
+  cooldown = 0,
 ) {
   const github = yield* DependencyGithub;
   const planner = yield* DependencyPlanner;
@@ -399,130 +405,150 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
     `[RUN] ${repository.nameWithOwner}@${target}; evidence: ${paths.run}`,
   );
 
-  // Block unresolved policy before expensive metadata discovery or any repository command.
-  const snapshot = yield* github.snapshot(
-    repository.nameWithOwner,
-    target,
+  const lease = yield* acquireDependencyLease(
+    `https://github.com/${repository.nameWithOwner}.git`,
+    `dependencies:${repository.nameWithOwner}@${target}`,
+    log,
     options.timeout,
-    options.concurrency,
+    cooldown,
   );
 
-  const config = yield* readDependencyConfig(snapshot.files);
+  if (!lease) return;
 
-  const extracted = yield* extractDependencies(
-    snapshot,
-    mergeDependencyPolicy(config.policy.base, config.policy.overrides),
-  );
+  yield* Effect.gen(function* () {
+    // Block unresolved policy before expensive metadata discovery or any repository command.
+    const snapshot = yield* github.snapshot(
+      repository.nameWithOwner,
+      target,
+      options.timeout,
+      options.concurrency,
+    );
 
-  if (extracted.blockers.length)
-    return yield* new DependencyRunError({
-      message: extracted.blockers.join("; "),
+    const config = yield* readDependencyConfig(snapshot.files);
+
+    const extracted = yield* extractDependencies(
+      snapshot,
+      mergeDependencyPolicy(config.policy.base, config.policy.overrides),
+    );
+
+    if (extracted.blockers.length)
+      return yield* new DependencyRunError({
+        message: extracted.blockers.join("; "),
+      });
+    yield* assertDependencyPolicyReady(config, {
+      dependencies: extracted.dependencies,
+      files: snapshot.tree.map((entry) => entry.path),
     });
-  yield* assertDependencyPolicyReady(config, {
-    dependencies: extracted.dependencies,
-    files: snapshot.tree.map((entry) => entry.path),
-  });
 
-  const identity = yield* Api.json(
-    { endpoint: "user", method: "GET", options: { timeout: options.timeout } },
-    Schema.Struct({ login: Schema.String, id: Schema.Int }),
-  );
+    const identity = yield* Api.json(
+      {
+        endpoint: "user",
+        method: "GET",
+        options: { timeout: options.timeout },
+      },
+      Schema.Struct({ login: Schema.String, id: Schema.Int }),
+    );
 
-  const initial = yield* planner.plan({ ...options, target });
-  yield* runnablePlan(initial);
+    const initial = yield* planner.plan({ ...options, target });
+    yield* runnablePlan(initial);
 
-  const activeGroups = new Set(
-    initial.dependencies
-      .filter(
-        (entry) =>
-          entry.selection.release ||
-          entry.selection.blockers.length ||
-          entry.skippedBy.length,
-      )
-      .map((entry) => entry.group),
-  );
+    const activeGroups = new Set(
+      initial.dependencies
+        .filter(
+          (entry) =>
+            entry.selection.release ||
+            entry.selection.blockers.length ||
+            entry.skippedBy.length,
+        )
+        .map((entry) => entry.group),
+    );
 
-  const groups = dependencyGroupOrder(initial.dependencies).filter((group) =>
-    activeGroups.has(group),
-  );
+    const groups = dependencyGroupOrder(initial.dependencies).filter((group) =>
+      activeGroups.has(group),
+    );
 
-  const coordination = {
-    plan: yield* Ref.make(initial),
-    publication: yield* Semaphore.make(1),
-    repository: yield* Semaphore.make(1),
-    checks: yield* Semaphore.make(options.concurrency),
-    discovery: yield* Semaphore.make(1),
-    workflowScope: yield* Effect.cached(githubWorkflowScope()),
-  };
+    const coordination = {
+      lease,
+      plan: yield* Ref.make(initial),
+      publication: yield* Semaphore.make(1),
+      repository: yield* Semaphore.make(1),
+      checks: yield* Semaphore.make(options.concurrency),
+      discovery: yield* Semaphore.make(1),
+      workflowScope: yield* Effect.cached(githubWorkflowScope()),
+    };
 
-  const reports = yield* Semaphore.make(1);
+    const reports = yield* Semaphore.make(1);
 
-  const results: {
-    group: string;
-    status: string;
-    reason?: string;
-    commit?: string;
-  }[] = [];
+    const results: {
+      group: string;
+      status: string;
+      reason?: string;
+      commit?: string;
+    }[] = [];
 
-  yield* log.event(
-    `[CONCURRENCY] Up to ${options.concurrency} groups and ${options.concurrency} check commands; first ready group publishes`,
-  );
-  yield* log.event(
-    `[WORKTREES] ${paths.repository}; worktree directories under ${paths.run}`,
-  );
+    yield* log.event(
+      `[CONCURRENCY] Up to ${options.concurrency} groups and ${options.concurrency} check commands; first ready group publishes`,
+    );
+    yield* log.event(
+      `[WORKTREES] ${paths.repository}; worktree directories under ${paths.run}`,
+    );
 
-  yield* Effect.forEach(
-    groups,
-    Effect.fn("Dependencies.groupWorker")(function* (group, index) {
-      const groupLog = yield* dependencyRunLog(
-        join(paths.run, `group-${index + 1}`),
-      );
-
-      yield* log.event(
-        `[GROUP ${index + 1}/${groups.length}] ${group}; ${groupLog.path}`,
-      );
-
-      const outcome = yield* publishGroup(
-        group,
-        { ...options, target },
-        paths,
-        identity,
-        groupLog,
-        coordination,
-      ).pipe(Effect.result);
-
-      yield* Effect.gen(function* () {
-        if (Result.isSuccess(outcome)) results.push(outcome.success);
-        else {
-          const reason =
-            outcome.failure instanceof Error
-              ? outcome.failure.message
-              : String(outcome.failure);
-
-          results.push({ group, status: "failed", reason });
-
-          yield* log.event(
-            `[FAILED] ${group}: ${reason}; see ${groupLog.path}`,
-          );
-        }
-
-        yield* fs.writeFileString(
-          join(paths.run, "results.json"),
-          JSON.stringify(results, null, 2),
-          { mode: 0o600 },
+    yield* Effect.forEach(
+      groups,
+      Effect.fn("Dependencies.groupWorker")(function* (group, index) {
+        const groupLog = yield* dependencyRunLog(
+          join(paths.run, `group-${index + 1}`),
         );
-      }).pipe(Semaphore.withPermit(reports));
-    }),
-    { concurrency: options.concurrency, discard: true },
-  );
 
-  const failed = results.filter((result) => result.status === "failed").length;
-  yield* log.event(
-    `[SUMMARY] ${results.filter((result) => result.status === "published").length} published, ${results.filter((result) => result.status === "skipped").length} skipped, ${failed} failed; ${log.path}`,
-  );
+        yield* log.event(
+          `[GROUP ${index + 1}/${groups.length}] ${group}; ${groupLog.path}`,
+        );
 
-  if (failed)
-    return yield* new DependencyRunError({
-      message: `Dependency run partially failed; inspect ${paths.run}`,
-    });
+        const outcome = yield* publishGroup(
+          group,
+          { ...options, target },
+          paths,
+          identity,
+          groupLog,
+          coordination,
+        ).pipe(Effect.result);
+
+        yield* Effect.gen(function* () {
+          if (Result.isSuccess(outcome)) results.push(outcome.success);
+          else {
+            const reason =
+              outcome.failure instanceof Error
+                ? outcome.failure.message
+                : String(outcome.failure);
+
+            results.push({ group, status: "failed", reason });
+
+            yield* log.event(
+              `[FAILED] ${group}: ${reason}; see ${groupLog.path}`,
+            );
+          }
+
+          yield* fs.writeFileString(
+            join(paths.run, "results.json"),
+            JSON.stringify(results, null, 2),
+            { mode: 0o600 },
+          );
+        }).pipe(Semaphore.withPermit(reports));
+      }),
+      { concurrency: options.concurrency, discard: true },
+    );
+
+    const failed = results.filter(
+      (result) => result.status === "failed",
+    ).length;
+
+    yield* log.event(
+      `[SUMMARY] ${results.filter((result) => result.status === "published").length} published, ${results.filter((result) => result.status === "skipped").length} skipped, ${failed} failed; ${log.path}`,
+    );
+
+    if (failed)
+      return yield* new DependencyRunError({
+        message: `Dependency run partially failed; inspect ${paths.run}`,
+      });
+  }).pipe(Effect.raceFirst(lease.keepAlive));
 }, Effect.scoped);

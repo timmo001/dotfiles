@@ -18,6 +18,7 @@ import { doctor } from "../commands/Doctor.js";
 import {
   importRenovate,
   previewDependencies,
+  serviceDependencies,
 } from "../commands/Dependencies.js";
 import { herdrRepoOpen } from "../commands/HerdrRepoOpen.js";
 import { installedHerdrAgents } from "../commands/HerdrAgents.js";
@@ -350,6 +351,30 @@ const dependenciesCommand = describe(
     Command.withSubcommands([
       describe(
         Command.make(
+          "service",
+          {
+            config: Flag.String("config").pipe(
+              Flag.withDefault(""),
+              Flag.withDescription(
+                "Service JSON config (default: $XDG_CONFIG_HOME/dot/dependency-service.json)",
+              ),
+            ),
+            dryRun: bool(
+              "dry-run",
+              "Validate local service configuration and trust without running updates or writing to Git",
+            ),
+          },
+          serviceDependencies,
+        ),
+        "Run one cross-machine dependency service interval",
+        ["dot deps service --dry-run", "dot deps service"],
+        {
+          description:
+            "Run configured repositories sequentially under one Git-backed service claim. Configuration supplies coordinationRepository, repositories, intervalMinutes and concurrency. Every repository requires host trust. Shared state prevents overlapping machine runs and records the next eligible interval. Repository/target claims also cover manual dot deps runs. Claims renew every 30 seconds and expire after two minutes; a lost claim interrupts work, and dependency publication atomically checks its target claim. State is stored on dedicated dot-deps-state branches. The user timer polls every 15 minutes. Local configuration validation with --dry-run performs no remote writes. Policy is read from published target commits, so repository policies must be pushed before enabling the service.",
+        },
+      ),
+      describe(
+        Command.make(
           "import-renovate",
           {
             directory: Argument.String("directory").pipe(
@@ -388,7 +413,7 @@ const dependenciesCommand = describe(
   ],
   {
     description:
-      "Read native policy and manifests from a pinned remote target, preserving the caller's checkout. Exclude whole groups covered by any open dependency PR, including failed, pending and draft PRs. --all bypasses only PR inventory and exclusion. --dry-run discovers updates without repository scripts, installs, checks or writes to Git. Bare dot deps starts groups by priority and prepares and validates them concurrently in isolated worktrees, bounded by --concurrency. Check commands share the same concurrency cap across groups; setup and shared Git operations are serialised. The first ready group takes the publication slot and publishes one checked commit without creating PRs or waiting for hosted CI. Host permissions are read from $XDG_CONFIG_HOME/dot/dependencies.json (default ~/.config/dot/dependencies.json), keyed by owner/repository with trusted and allowBypass booleans. Required hosted checks must have equivalent validation.checks mappings; protected direct pushes require explicit allowBypass permission and existing account rights. Workflow edits require a credential with workflow write access. Unsupported policy remains blocking. Publication is serialised per repository/target; target movement rebuilds and revalidates, up to three attempts per group. Failed work and per-group logs remain under $XDG_STATE_HOME/dot/dependencies. Clean published worktrees are removed, including submodules. Setup/check mutations and commit-hook mutations prevent publication. Independent groups continue after failures, including groups sharing files; a partial run exits non-zero. A normal invocation authorises passing updates, regardless of Renovate automerge policy.",
+      "Read native policy and manifests from a pinned remote target, preserving the caller's checkout. Exclude whole groups covered by any open dependency PR, including failed, pending and draft PRs. --all bypasses only PR inventory and exclusion. --dry-run discovers updates without repository scripts, installs, checks or writes to Git. Bare dot deps starts groups by priority and prepares and validates them concurrently in isolated worktrees, bounded by --concurrency. Check commands share the same concurrency cap across groups; setup and shared Git operations are serialised. A command's optional skipFor exclusions apply only when every updated dependency matches; mixed or unknown groups retain checks. The first ready group takes the publication slot and publishes one checked commit without creating PRs or waiting for hosted CI. Host permissions are read from $XDG_CONFIG_HOME/dot/dependencies.json (default ~/.config/dot/dependencies.json), keyed by owner/repository with trusted and allowBypass booleans. Required hosted checks must have equivalent validation.checks mappings; protected direct pushes require explicit allowBypass permission and existing account rights. Workflow edits require a credential with workflow write access. Unsupported policy remains blocking. Git-backed claims serialise each repository/target across machines and service or manual runs. Publication atomically advances the ownership record and target; target movement rebuilds and revalidates, up to three attempts per group. Failed work and per-group logs remain under $XDG_STATE_HOME/dot/dependencies. Clean published worktrees are removed, including submodules. Setup/check mutations and commit-hook mutations prevent publication. Independent groups continue after failures, including groups sharing files; a partial run exits non-zero. A normal invocation authorises passing updates, regardless of Renovate automerge policy.",
   },
 );
 

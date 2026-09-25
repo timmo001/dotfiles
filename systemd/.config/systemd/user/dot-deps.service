@@ -1,0 +1,13 @@
+[Unit]
+Description=Run coordinated dependency updates
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=%h/.config/dot/dependency-service.json
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/.local/bin:%h/.local/share/mise/shims:/usr/local/bin:/usr/bin
+ExecStart=%h/.local/bin/dot deps service
+TimeoutStartSec=3h
+TimeoutStopSec=30s
+KillMode=control-group

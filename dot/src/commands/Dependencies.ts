@@ -1,4 +1,14 @@
-import { Effect, Layer } from "effect";
+import { randomUUID } from "node:crypto";
+import { join } from "node:path";
+import { Effect, FileSystem, Layer, Result, Schema } from "effect";
+import { CONFIG_DIR, STATE_DIR, expandHomePath } from "../lib/paths.js";
+import { acquireDependencyLease } from "../deps/lease.js";
+import { dependencyRunLog } from "../deps/log.js";
+import {
+  DependencyRunError,
+  lockDependencyTarget,
+  readDependencyTrust,
+} from "../deps/state.js";
 import {
   DependencyImporter,
   type ImportRenovateOptions,
@@ -30,6 +40,93 @@ const sources = DependencySources.layer.pipe(
 
 const planner = DependencyPlanner.layer.pipe(
   Layer.provide([github, sources, DependencyLocalPolicy.layer]),
+);
+
+const RepositoryName = Schema.String.check(
+  Schema.isPattern(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/),
+);
+
+const ServiceConfig = Schema.Struct({
+  coordinationRepository: RepositoryName,
+  repositories: Schema.NonEmptyArray(RepositoryName),
+  intervalMinutes: Schema.Int.check(Schema.isGreaterThan(0)),
+  concurrency: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 16 })),
+});
+
+/** Run one shared service interval across the explicitly configured repositories. */
+export const serviceDependencies = Effect.fn("Dependencies.service")(
+  function* (options: { readonly config: string; readonly dryRun: boolean }) {
+    const fs = yield* FileSystem.FileSystem;
+    const output = yield* OutputLog;
+
+    const file = expandHomePath(
+      options.config || join(CONFIG_DIR, "dot", "dependency-service.json"),
+    );
+
+    const config = yield* Schema.decodeEffect(
+      Schema.fromJsonString(ServiceConfig),
+    )(yield* fs.readFileString(file), { onExcessProperty: "error" });
+
+    for (const repository of new Set([
+      config.coordinationRepository,
+      ...config.repositories,
+    ]))
+      yield* readDependencyTrust(repository);
+
+    if (options.dryRun) {
+      yield* output.info(
+        `Service config valid: ${config.repositories.join(", ")}; shared interval ${config.intervalMinutes} minutes; concurrency ${config.concurrency}`,
+      );
+
+      return;
+    }
+
+    const root = join(STATE_DIR, "dot", "dependency-service");
+    yield* lockDependencyTarget(root);
+    const log = yield* dependencyRunLog(join(root, "runs", randomUUID()));
+    const cooldown = config.intervalMinutes * 60_000;
+
+    const lease = yield* acquireDependencyLease(
+      `https://github.com/${config.coordinationRepository}.git`,
+      "dependency-service",
+      log,
+      30_000,
+      cooldown,
+    );
+
+    if (!lease) return;
+
+    yield* Effect.gen(function* () {
+      const failures: string[] = [];
+
+      for (const repository of new Set(config.repositories)) {
+        yield* lease.assertOwned;
+
+        const result = yield* runDependencyUpdates(
+          {
+            directory: process.cwd(),
+            repository,
+            all: false,
+            timeout: 30_000,
+            concurrency: config.concurrency,
+          },
+          cooldown,
+        ).pipe(Effect.result);
+
+        if (Result.isFailure(result)) {
+          failures.push(repository);
+          yield* log.event(`[FAILED] ${repository}: ${result.failure.message}`);
+        }
+      }
+
+      if (failures.length)
+        return yield* new DependencyRunError({
+          message: `Dependency service failed for ${failures.join(", ")}; see ${log.path}`,
+        });
+    }).pipe(Effect.raceFirst(lease.keepAlive));
+  },
+  Effect.scoped,
+  Effect.provide(Layer.mergeAll(planner, github)),
 );
 
 /** Preview native updates or integrate passing groups through isolated worktrees. */

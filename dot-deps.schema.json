@@ -55,6 +55,109 @@
               "timeout": {
                 "type": "number",
                 "exclusiveMinimum": 0
+              },
+              "skipFor": {
+                "type": "array",
+                "minItems": 1,
+                "description": "Skip this command only when every updated dependency matches an exclusion. Selectors within an exclusion are ANDed; exclusions are ORed. Missing exclusions keep the command enabled.",
+                "items": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "managers": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": [
+                          {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        ],
+                        "additionalItems": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "files": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": [
+                          {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        ],
+                        "additionalItems": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "dependencies": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": [
+                          {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        ],
+                        "additionalItems": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ],
+                "additionalItems": {
+                  "type": "object",
+                  "properties": {
+                    "managers": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      ],
+                      "additionalItems": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "files": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      ],
+                      "additionalItems": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "dependencies": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      ],
+                      "additionalItems": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
               }
             },
             "required": [
@@ -109,6 +212,109 @@
                       "timeout": {
                         "type": "number",
                         "exclusiveMinimum": 0
+                      },
+                      "skipFor": {
+                        "type": "array",
+                        "minItems": 1,
+                        "description": "Skip this command only when every updated dependency matches an exclusion. Selectors within an exclusion are ANDed; exclusions are ORed. Missing exclusions keep the command enabled.",
+                        "items": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "managers": {
+                                "type": "array",
+                                "minItems": 1,
+                                "items": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                ],
+                                "additionalItems": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "files": {
+                                "type": "array",
+                                "minItems": 1,
+                                "items": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                ],
+                                "additionalItems": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "dependencies": {
+                                "type": "array",
+                                "minItems": 1,
+                                "items": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                ],
+                                "additionalItems": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        ],
+                        "additionalItems": {
+                          "type": "object",
+                          "properties": {
+                            "managers": {
+                              "type": "array",
+                              "minItems": 1,
+                              "items": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              ],
+                              "additionalItems": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "files": {
+                              "type": "array",
+                              "minItems": 1,
+                              "items": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              ],
+                              "additionalItems": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "dependencies": {
+                              "type": "array",
+                              "minItems": 1,
+                              "items": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              ],
+                              "additionalItems": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            }
+                          },
+                          "additionalProperties": false
+                        }
                       }
                     },
                     "required": [
@@ -143,6 +349,109 @@
                     "timeout": {
                       "type": "number",
                       "exclusiveMinimum": 0
+                    },
+                    "skipFor": {
+                      "type": "array",
+                      "minItems": 1,
+                      "description": "Skip this command only when every updated dependency matches an exclusion. Selectors within an exclusion are ANDed; exclusions are ORed. Missing exclusions keep the command enabled.",
+                      "items": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "managers": {
+                              "type": "array",
+                              "minItems": 1,
+                              "items": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              ],
+                              "additionalItems": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "files": {
+                              "type": "array",
+                              "minItems": 1,
+                              "items": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              ],
+                              "additionalItems": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "dependencies": {
+                              "type": "array",
+                              "minItems": 1,
+                              "items": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              ],
+                              "additionalItems": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ],
+                      "additionalItems": {
+                        "type": "object",
+                        "properties": {
+                          "managers": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            ],
+                            "additionalItems": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "files": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            ],
+                            "additionalItems": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "dependencies": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            ],
+                            "additionalItems": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          }
+                        },
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [

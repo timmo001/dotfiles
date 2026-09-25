@@ -155,6 +155,36 @@ const Command = Schema.Struct({
   argv: Schema.NonEmptyArray(Schema.NonEmptyString),
   cwd: RepositoryPath,
   timeout: Schema.Finite.check(Schema.isGreaterThan(0)),
+  skipFor: Schema.optionalKey(
+    Schema.NonEmptyArray(
+      Schema.Struct({
+        managers: Schema.optionalKey(
+          Schema.NonEmptyArray(Schema.NonEmptyString),
+        ),
+        files: Schema.optionalKey(Schema.NonEmptyArray(Schema.NonEmptyString)),
+        dependencies: Schema.optionalKey(
+          Schema.NonEmptyArray(Schema.NonEmptyString),
+        ),
+      }).check(
+        Schema.makeFilter((match) => {
+          const patterns = Object.values(match).flat();
+
+          if (!patterns.length) return false;
+
+          try {
+            for (const pattern of patterns) matchesPatterns("", [pattern]);
+
+            return true;
+          } catch {
+            return false;
+          }
+        }),
+      ),
+    ),
+  ).annotate({
+    description:
+      "Skip this command only when every updated dependency matches an exclusion. Selectors within an exclusion are ANDed; exclusions are ORed. Missing exclusions keep the command enabled.",
+  }),
 });
 
 const Diagnostic = Schema.Struct({
@@ -220,6 +250,20 @@ export const DependencyConfig = Schema.Struct({
 export interface DependencyConfig extends Schema.Schema.Type<
   typeof DependencyConfig
 > {}
+
+/** Exempt only groups wholly covered by a command's explicit dependency exclusions. */
+export function skipDependencyCommand(
+  command: DependencyConfig["validation"]["setup"][number],
+  updates: readonly Dependency[],
+): boolean {
+  return (
+    updates.length > 0 &&
+    command.skipFor !== undefined &&
+    updates.every((dependency) =>
+      command.skipFor?.some((match) => matchesRule(match, dependency)),
+    )
+  );
+}
 
 /** Redacted conversion finding, suitable for a saved report. */
 export interface DependencyDiagnostic extends Schema.Schema.Type<

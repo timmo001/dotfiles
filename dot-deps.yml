@@ -14033,40 +14033,67 @@ validation:
         - "--recursive"
       cwd: "."
       timeout: 300000
+      skipFor: &standalone-tools
+        - managers:
+            - "mise"
+          files:
+            - "mise/.config/mise/config.toml"
+          dependencies:
+            - "bat"
+            - "eza"
+            - "fd"
+            - "fzf"
+            - "gdu"
+            - "lazygit"
+            - "npm:pnpm"
+            - "uv"
+            - "watchexec"
+            - "yarn"
+            - "yq"
+            - "zoxide"
+            - "github:backnotprop/plannotator"
+            - "aqua:earendil-works/pi"
+            - "aqua:cloudflare/cloudflared"
     - argv:
         - "mise"
         - "trust"
       cwd: "."
       timeout: 30000
+      skipFor: *standalone-tools
     - argv:
         - "mise"
         - "install"
       cwd: "."
       timeout: 300000
+      skipFor: *standalone-tools
     - argv:
         - "bun"
         - "install"
         - "--frozen-lockfile"
       cwd: "."
       timeout: 120000
+      skipFor: *standalone-tools
     - argv:
         - "bun"
         - "install"
         - "--frozen-lockfile"
       cwd: "dot"
       timeout: 120000
+      skipFor: *standalone-tools
     - argv:
         - "bun"
         - "install"
         - "--frozen-lockfile"
       cwd: "docs"
       timeout: 120000
+      skipFor: *standalone-tools
     - argv:
         - "bun"
         - "install"
         - "--frozen-lockfile"
       cwd: "agents/.config/opencode/plugins"
       timeout: 120000
+      skipFor: *standalone-tools
   checks:
     - context: "actionlint / 👕 ActionLint"
       parallel: true
@@ -14078,6 +14105,7 @@ validation:
             - "lint:actions"
           cwd: "."
           timeout: 120000
+          skipFor: *standalone-tools
     - context: "jsonlint / 👕 JSONLint"
       parallel: true
       appId: 15368
@@ -14088,6 +14116,7 @@ validation:
             - "lint:json"
           cwd: "."
           timeout: 120000
+          skipFor: *standalone-tools
     - context: "yamllint / 👕 YAMLLint"
       parallel: true
       appId: 15368
@@ -14098,6 +14127,7 @@ validation:
             - "lint:yaml"
           cwd: "."
           timeout: 120000
+          skipFor: *standalone-tools
     - context: "markdownlint / 👕 MarkdownLint"
       parallel: true
       appId: 15368
@@ -14108,6 +14138,7 @@ validation:
             - "lint:markdown"
           cwd: "."
           timeout: 120000
+          skipFor: *standalone-tools
     - context: "shellcheck / 👕 ShellCheck"
       parallel: true
       appId: 15368
@@ -14118,6 +14149,7 @@ validation:
             - "lint:shell"
           cwd: "."
           timeout: 120000
+          skipFor: *standalone-tools
     - context: "build"
       appId: 15368
       commands:
@@ -14127,18 +14159,21 @@ validation:
             - "dot:build"
           cwd: "."
           timeout: 120000
+          skipFor: *standalone-tools
         - argv:
             - "mise"
             - "run"
             - "docs:gen:cli"
           cwd: "."
           timeout: 120000
+          skipFor: *standalone-tools
         - argv:
             - "mise"
             - "run"
             - "docs:build"
           cwd: "."
           timeout: 300000
+          skipFor: *standalone-tools
     - context: "oxlint"
       parallel: true
       appId: 15368
@@ -14149,6 +14184,7 @@ validation:
             - "lint"
           cwd: "."
           timeout: 120000
+          skipFor: *standalone-tools
     - context: "dot-typecheck"
       parallel: true
       appId: 15368
@@ -14159,6 +14195,7 @@ validation:
             - "dot:typecheck"
           cwd: "."
           timeout: 120000
+          skipFor: *standalone-tools
     - context: "dot-tests"
       parallel: true
       appId: 15368
@@ -14169,6 +14206,7 @@ validation:
             - "dot:test"
           cwd: "."
           timeout: 120000
+          skipFor: *standalone-tools
     - context: "regression-tests"
       appId: 15368
       commands:
@@ -14178,6 +14216,7 @@ validation:
             - "tests:integration"
           cwd: "."
           timeout: 300000
+          skipFor: *standalone-tools
 import:
   source: "renovate.json"
   resolverVersion: "44.103.0"

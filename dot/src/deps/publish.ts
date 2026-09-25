@@ -2,10 +2,12 @@ import { randomUUID } from "node:crypto";
 import { dirname, join, relative, resolve } from "node:path";
 import { Array, Effect, FileSystem, Result, Semaphore } from "effect";
 import type { DependencyConfig, DependencyPolicy } from "./config.js";
+import { skipDependencyCommand } from "./config.js";
 import { prepareDependencyEdits, verifyDependencyEdits } from "./edits.js";
 import type { DependencyRunLog } from "./log.js";
-import type { Snapshot } from "./model.js";
+import type { Dependency, Snapshot } from "./model.js";
 import type { PlannedDependency } from "./plan.js";
+import type { DependencyLease } from "./lease.js";
 import { DependencyRunError, type dependencyRunPaths } from "./state.js";
 
 const credentials = [
@@ -229,6 +231,7 @@ export const validateDependencyGroup = Effect.fn("Dependencies.validateGroup")(
     directory: string,
     config: DependencyConfig,
     log: DependencyRunLog,
+    updates: readonly Dependency[],
     concurrency = 4,
     limits?: {
       readonly repository: Semaphore.Semaphore;
@@ -238,6 +241,14 @@ export const validateDependencyGroup = Effect.fn("Dependencies.validateGroup")(
     const setup = Effect.forEach(
       config.validation.setup,
       Effect.fn("Dependencies.setupCommand")(function* (command) {
+        if (skipDependencyCommand(command, updates)) {
+          yield* log.event(
+            `[SKIP SETUP] ${JSON.stringify(command.argv)}: all updates match skipFor`,
+          );
+
+          return;
+        }
+
         const cwd = yield* dependencyWorkPath(directory, command.cwd, true);
         yield* log.command("SETUP", command.argv, cwd, command.timeout);
       }),
@@ -259,6 +270,13 @@ export const validateDependencyGroup = Effect.fn("Dependencies.validateGroup")(
         batch,
         Effect.fn("Dependencies.validateCheck")(function* (check) {
           for (const command of check.commands) {
+            if (skipDependencyCommand(command, updates)) {
+              yield* log.event(
+                `[SKIP CHECK ${check.context}] ${JSON.stringify(command.argv)}: all updates match skipFor`,
+              );
+              continue;
+            }
+
             const cwd = yield* dependencyWorkPath(directory, command.cwd, true);
             yield* log
               .command(
@@ -333,6 +351,7 @@ export const publishDependencyGroup = Effect.fn("Dependencies.publishGroup")(
     allowed: readonly string[],
     log: DependencyRunLog,
     timeout: number,
+    lease: DependencyLease,
   ) {
     const git = dependencyGit(log, directory, timeout);
     const fs = yield* FileSystem.FileSystem;
@@ -383,9 +402,9 @@ export const publishDependencyGroup = Effect.fn("Dependencies.publishGroup")(
 
     if (before !== snapshot.sha) return { status: "moved" as const, commit };
 
-    const pushed = yield* git(["push", destination, `${commit}:${ref}`]).pipe(
-      Effect.result,
-    );
+    const pushed = yield* lease
+      .publish(directory, commit, snapshot.target, snapshot.sha)
+      .pipe(Effect.result);
 
     // Both a successful push and a lost response are reconciled against remote ancestry.
     yield* git(["fetch", "--no-tags", destination, ref]);
