@@ -21,3 +21,4 @@ bun-debug.log*
 
 # Vercel
 .vercel
+.wrangler/

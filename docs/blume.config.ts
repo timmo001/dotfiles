@@ -1,4 +1,5 @@
 import { defineConfig } from 'blume';
+import { cloudflare } from 'blume/deploy';
 
 export default defineConfig({
   title: 'Dotfiles',
@@ -94,8 +95,16 @@ export default defineConfig({
     },
   },
   ai: {
-    ask: {
+    assistant: {
       enabled: false,
+    },
+  },
+  agents: {
+    agentReadability: true,
+    contentSignals: {
+      aiInput: true,
+      aiTrain: false,
+      search: true,
     },
     llmsTxt: true,
     mcp: {
@@ -104,20 +113,12 @@ export default defineConfig({
     },
     webmcp: true,
   },
-  deployment: {
+  deployment: cloudflare({
     site: 'https://dotfiles.timmo.dev',
-    output: 'server',
-    adapter: 'cloudflare',
-  },
+  }),
   feedback: false,
-  lastModified: true,
+  lastModified: 'git',
   seo: {
-    agentReadability: true,
-    contentSignals: {
-      aiInput: true,
-      aiTrain: false,
-      search: true,
-    },
     og: {
       enabled: true,
       logo: 'src/assets/logo.svg',
