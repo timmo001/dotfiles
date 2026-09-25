@@ -10,6 +10,8 @@ import {
   Schema,
 } from "effect";
 import { CommandExecutor } from "../services/CommandExecutor.js";
+import { Config } from "../services/Config.js";
+import { herdrRepoOpen } from "./HerdrRepoOpen.js";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "../lib/paths.js";
 
 /** Registered unit is unknown or its descriptor cannot be used. */
@@ -624,10 +626,11 @@ export const servicesStart = Effect.fn("Services.start")(function* (
   ]);
 });
 
-/** Open a registered job's logs in a floating terminal. */
+/** Open a registered job's logs in a new tab of the dotfiles Herdr workspace. */
 export const servicesLogs = Effect.fn("Services.logs")(function* (
   unit: string,
 ) {
+  const config = yield* Config;
   const { descriptor } = yield* findRegistered(unit);
   const [status] = yield* collectServiceStatus([{ file: "", descriptor }]);
 
@@ -642,24 +645,14 @@ export const servicesLogs = Effect.fn("Services.logs")(function* (
         "--follow",
       ];
 
-  yield* Effect.try({
-    try: () =>
-      Bun.spawn(
-        [
-          "uwsm",
-          "app",
-          "--",
-          "xdg-terminal-exec",
-          "--app-id=TUI.float",
-          "-e",
-          ...viewer,
-        ],
-        { stdin: "ignore", stdout: "ignore", stderr: "ignore", detached: true },
-      ).unref(),
-    catch: () =>
-      new ServiceMonitorError({
-        message: "Could not open a terminal for logs",
-      }),
+  yield* herdrRepoOpen({
+    label: "dotfiles",
+    directory: config.publicDotfiles,
+    layout: "tab",
+    tabLabel: `${status?.label ?? descriptor.unit} logs`,
+    command: viewer
+      .map((part) => `'${part.replaceAll("'", `'\\''`)}'`)
+      .join(" "),
   });
 });
 

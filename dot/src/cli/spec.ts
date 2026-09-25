@@ -559,7 +559,7 @@ const servicesCommand = describe(
         Command.make("logs", { unit: serviceUnit }, ({ unit }) =>
           servicesLogs(unit),
         ),
-        "Open a registered job's logs in a floating terminal",
+        "Open a registered job's logs in a dotfiles Herdr tab",
         ["dot services logs notes-capture-daemon.service"],
       ),
       describe(

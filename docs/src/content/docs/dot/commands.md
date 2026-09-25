@@ -390,7 +390,7 @@ dot services start dot-deps.timer
 
 ### `dot services logs`
 
-Open a registered job's logs in a floating terminal
+Open a registered job's logs in a dotfiles Herdr tab
 
 ```text
 dot services logs [flags] <unit>
