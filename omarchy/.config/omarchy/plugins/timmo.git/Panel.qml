@@ -657,7 +657,7 @@ Panel {
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onRefreshRequested: if (root.releaseView) root.activateAction("release-refresh"); else if (root.pullRequestView) root.activateAction("pulls-refresh"); else root.service.refresh()
 
-      Flickable {
+      PanelFlickable {
         id: panelFlick
         anchors.fill: parent
         contentWidth: width

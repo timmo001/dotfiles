@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import qs.Commons
 import qs.Ui
+import "../../components" as PanelComponents
 
 Panel {
   id: root
@@ -199,7 +200,7 @@ Panel {
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onRefreshRequested: if (root.service) root.service.refresh()
 
-      Flickable {
+      PanelComponents.PanelFlickable {
         id: panelFlick
         anchors.fill: parent
         contentWidth: width
