@@ -101,7 +101,7 @@ Column {
               Column {
                 width: Math.max(0, row.width - Style.space(32))
                 spacing: Style.space(2)
-                Text { width: parent.width; text: modelData.primaryText; textFormat: Text.PlainText; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.body; font.bold: modelData.unread === true; elide: Text.ElideRight }
+                Text { width: parent.width; text: modelData.primaryText; textFormat: Text.PlainText; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.body; font.bold: modelData.ready === true; elide: Text.ElideRight }
                 Text { visible: text !== ""; width: parent.width; text: modelData.secondaryText; textFormat: Text.PlainText; color: Qt.darker(root.foreground, 1.4); font.family: root.fontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
               }
             }

@@ -71,9 +71,10 @@ Item {
   property string pullRequestRefreshPending: ""
   readonly property bool pullRequestsBusy: pullRequestsProcess.running
   readonly property int pullRequestCount: pullRequestRepositories.reduce(function(count, repo) { return count + repo.pulls.length }, 0)
+  readonly property int readyPullRequestCount: pullRequestRepositories.reduce(function(count, repo) { return count + repo.pulls.filter(function(pr) { return !pr.draft && pr.checks === "pass" }).length }, 0)
   readonly property bool pullRequestsStale: pullRequestsError !== "" || pullRequestRepositories.some(function(repo) { return repo.error !== null })
   readonly property string pullRequestTooltip: pullRequestsError || (pullRequestsLoaded
-    ? pullRequestCount + " open pull requests" + (pullRequestsStale ? " · refresh failed" : "")
+    ? pullRequestCount + " open pull requests · " + readyPullRequestCount + " ready" + (pullRequestsStale ? " · refresh failed" : "")
     : "Loading pull requests")
   signal pullRequestsUpdating()
   signal pullRequestsUpdated()

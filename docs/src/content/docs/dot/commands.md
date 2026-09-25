@@ -1073,7 +1073,7 @@ Track open pull requests for enabled repositories, independently of GitHub notif
 dot git-pull-requests [flags]
 ```
 
-Opt in with pull_requests.enabled in private dot-git.yml. All open PRs are included, including drafts and automation, ordered by latest update. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and report an error. Pull requests stay listed until closed or merged.
+Opt in with pull_requests.enabled in private dot-git.yml. All open PRs are included, including drafts and automation, ordered by latest update. A non-draft PR is ready when at least one CI check passes and none fail, remain pending or are cancelled; failed check names are shown in the panel. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and report an error. Pull requests stay listed until closed or merged.
 
 **Options**
 

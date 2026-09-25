@@ -213,9 +213,13 @@ Panel {
     var rows = [headerActionRow("pulls-refresh", "Refresh pull requests", "pulls")]
     if (view === "pull-repo") {
       if (selectedPullRequests) selectedPullRequests.pulls.forEach(function(pr) {
+        var ready = !pr.draft && pr.checks === "pass"
+        var status = pr.draft ? "Draft" : ready ? "Ready" : ({ fail: "Failed", pending: "Pending", cancelled: "Cancelled", none: "No passing checks", unknown: "CI unavailable" })[pr.checks] || "CI unavailable"
+        var failing = pr.failingChecks || []
+        var brief = failing.length ? " · Failed: " + failing.slice(0, 2).join(", ") + (failing.length > 2 ? " +" + (failing.length - 2) : "") : ""
         rows.push({ key: "pull:" + selectedPullRequests.repo + ":" + pr.number, kind: "pull", section: "pulls", value: pr,
           primaryText: "#" + pr.number + " " + pr.title,
-          secondaryText: [pr.author, pr.draft ? "Draft" : "Open"].join(" · ") })
+          secondaryText: pr.author + " · " + status + brief, ready: ready })
       })
       return rows
     }
@@ -223,10 +227,12 @@ Panel {
     var withPulls = repositories.filter(function(repo) { return repo.pulls.length > 0 || (view === "pulls" && (repo.error || repo.checkedAt === null)) })
     var withoutPulls = view === "pulls" ? repositories.filter(function(repo) { return repo.pulls.length === 0 && !repo.error && repo.checkedAt !== null }) : []
     withPulls.concat(withoutPulls).forEach(function(repo) {
+      var readyCount = repo.pulls.filter(function(pr) { return !pr.draft && pr.checks === "pass" }).length
+      var draftCount = repo.pulls.filter(function(pr) { return pr.draft }).length
       var empty = withoutPulls.indexOf(repo) >= 0
       rows.push({ key: "pull-repo:" + repo.repo, kind: "pull-repo", section: empty ? "pulls-empty" : "pulls", value: repo,
         primaryText: repo.name + (empty ? "" : "  ›"),
-        secondaryText: repo.checkedAt === null ? (repo.error || "Not checked yet") : repo.pulls.length + " open" + (repo.error ? " · stale: " + repo.error : "") })
+        secondaryText: repo.checkedAt === null ? (repo.error || "Not checked yet") : repo.pulls.length + " open · " + readyCount + " ready" + (draftCount ? " · " + draftCount + " draft" + (draftCount === 1 ? "" : "s") : "") + (repo.error ? " · stale: " + repo.error : ""), ready: readyCount > 0 })
     })
     if (view === "overview") {
       var all = actionRow("pulls", "All tracked repositories", "󰙅")

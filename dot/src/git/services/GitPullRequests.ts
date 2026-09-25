@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { Gh, PullRequest } from "@timmo001/effect-gh";
 import {
   Clock,
   Context,
@@ -27,19 +28,31 @@ import { formatGhError } from "./record.js";
 
 const REFRESH_MS = 5 * 60 * 1000;
 
-const PullRequest = Schema.Struct({
+const CheckStatus = Schema.Literals([
+  "pass",
+  "fail",
+  "pending",
+  "cancelled",
+  "none",
+  "unknown",
+]);
+
+const TrackedPullRequest = Schema.Struct({
   number: Schema.Int,
   title: Schema.String,
   url: Schema.String,
   author: Schema.String,
   draft: Schema.Boolean,
+  // Older snapshots have no check data; treat them as unknown until refreshed.
+  checks: Schema.optionalKey(CheckStatus),
+  failingChecks: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
 const PullRequestState = Schema.Struct({
   checkedAt: Schema.NullOr(Schema.Finite),
   attemptedAt: Schema.NullOr(Schema.Finite),
   error: Schema.NullOr(Schema.String),
-  pulls: Schema.Array(PullRequest),
+  pulls: Schema.Array(TrackedPullRequest),
 });
 
 const RemotePullRequest = Schema.Struct({
@@ -67,7 +80,10 @@ export interface PullRequestRepository {
   /** Local checkout used to resolve browser preferences. */
   readonly path: string;
   /** Open PRs, most recently updated first. */
-  readonly pulls: readonly (typeof PullRequest.Type)[];
+  readonly pulls: readonly (typeof TrackedPullRequest.Type & {
+    readonly checks: typeof CheckStatus.Type;
+    readonly failingChecks: readonly string[];
+  })[];
   /** Last successful fetch, or null before the first successful check. */
   readonly checkedAt: number | null;
   /** Fetch or storage error; previous PRs remain available. */
@@ -107,6 +123,7 @@ export class GitPullRequests extends Context.Service<
     Effect.gen(function* () {
       const config = yield* Config;
       const github = yield* GitHub;
+      const gh = yield* Gh;
 
       const query = Effect.fn("GitPullRequests.query")(function* (
         options: PullRequestQuery,
@@ -243,13 +260,61 @@ export class GitPullRequests extends Context.Service<
                     checkedAt: now,
                     attemptedAt: now,
                     error: null,
-                    pulls: Array.from(unique.values(), (pr) => ({
-                      number: pr.number,
-                      title: pr.title,
-                      url: pr.html_url,
-                      author: pr.user?.login ?? "Deleted user",
-                      draft: pr.draft,
-                    })),
+                    pulls: yield* Effect.forEach(
+                      unique.values(),
+                      (pr) =>
+                        Effect.gen(function* () {
+                          const result = yield* PullRequest.checks(pr.number, {
+                            repository: repo.github,
+                          }).pipe(
+                            Effect.provideService(Gh, gh),
+                            Effect.timeout("20 seconds"),
+                            Effect.result,
+                          );
+
+                          const checks = Result.isSuccess(result)
+                            ? result.success.checks
+                            : [];
+
+                          const failingChecks = [
+                            ...new Set(
+                              checks
+                                .filter((check) => check.bucket === "fail")
+                                .map((check) => check.name),
+                            ),
+                          ];
+
+                          let checkStatus: typeof CheckStatus.Type = "unknown";
+
+                          if (Result.isSuccess(result)) {
+                            if (failingChecks.length) checkStatus = "fail";
+                            else if (
+                              checks.some((check) => check.bucket === "pending")
+                            )
+                              checkStatus = "pending";
+                            else if (
+                              checks.some((check) => check.bucket === "cancel")
+                            )
+                              checkStatus = "cancelled";
+                            else if (
+                              checks.some((check) => check.bucket === "pass")
+                            )
+                              checkStatus = "pass";
+                            else checkStatus = "none";
+                          }
+
+                          return {
+                            number: pr.number,
+                            title: pr.title,
+                            url: pr.html_url,
+                            author: pr.user?.login ?? "Deleted user",
+                            draft: pr.draft,
+                            checks: checkStatus,
+                            failingChecks,
+                          };
+                        }),
+                      { concurrency: 4 },
+                    ),
                   };
                 }
 
@@ -275,7 +340,11 @@ export class GitPullRequests extends Context.Service<
                 repo: repo.github,
                 name: repo.name,
                 path: repo.path,
-                pulls: state.pulls,
+                pulls: state.pulls.map((pr) => ({
+                  ...pr,
+                  checks: pr.checks ?? "unknown",
+                  failingChecks: pr.failingChecks ?? [],
+                })),
                 checkedAt: state.checkedAt,
                 error: state.error,
               };
