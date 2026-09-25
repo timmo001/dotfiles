@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "timmo.services",
+  "name": "Services",
+  "version": "1.0.0",
+  "author": "Timmo",
+  "description": "Health and run history of registered user services",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Services",
+    "description": "Shows registered user services that need attention",
+    "category": "Info",
+    "allowMultiple": false,
+    "defaultSection": "center",
+    "defaults": {
+      "primaryOnly": false,
+      "primaryOutput": ""
+    },
+    "schema": [
+      {
+        "key": "primaryOnly",
+        "type": "boolean",
+        "label": "Primary output only",
+        "defaultValue": false
+      },
+      {
+        "key": "primaryOutput",
+        "type": "string",
+        "label": "Primary output",
+        "defaultValue": "",
+        "description": "Optional output name used when primary output only is enabled."
+      }
+    ]
+  }
+}
