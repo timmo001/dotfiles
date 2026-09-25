@@ -1,3 +1,4 @@
+import { NodeFileSystem } from "@effect/platform-node";
 import { Effect } from "effect";
 import { accessSync, constants, existsSync } from "fs";
 import { join, resolve } from "path";
@@ -9,6 +10,10 @@ import { Config } from "../../services/Config.js";
 import { GitHub } from "../../git/services/GitHub.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
 import { resolvedOmarchyHost } from "../../lib/omarchyHost.js";
+import {
+  collectServiceStatus,
+  readRegisteredServices,
+} from "../../commands/Services.js";
 import type { CheckResult } from "../types.js";
 
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
@@ -290,6 +295,58 @@ export const checkDependencyService = Effect.gen(function* () {
 
   return results;
 });
+
+/** Check the notes capture daemon is enabled and running. */
+export const checkNotesCaptureDaemon = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const unit = "notes-capture-daemon.service";
+  const results: CheckResult[] = [];
+
+  addFilePresenceCheck(
+    results,
+    userSystemdUnitPath(unit),
+    `Notes capture unit found: ${unit}`,
+    `Notes capture unit missing: ${unit}`,
+    "Run dot stow to link systemd user units",
+  );
+
+  yield* checkRequiredUserUnit(
+    results,
+    executor,
+    unit,
+    "Notes capture daemon",
+    `Enable with: systemctl --user enable --now ${unit}`,
+  );
+
+  return results;
+});
+
+/** Report registered services whose monitoring policy says they need attention. */
+export const checkRegisteredServices = Effect.gen(function* () {
+  const { registered, errors } = yield* readRegisteredServices;
+
+  const results: CheckResult[] = errors.map(({ file, message }) => ({
+    severity: "warn",
+    message: `Invalid service descriptor: ${displayPath(file)}`,
+    detail: message,
+  }));
+
+  for (const status of yield* collectServiceStatus(registered))
+    results.push(
+      status.health === "failed" || status.health === "stale"
+        ? {
+            severity: "warn",
+            message: `${status.label} is ${status.health}: ${status.summary}`,
+            detail: `Inspect with: dot services logs ${status.unit}`,
+          }
+        : {
+            severity: "ok",
+            message: `${status.label}: ${status.summary}`,
+          },
+    );
+
+  return results;
+}).pipe(Effect.provide(NodeFileSystem.layer));
 
 /** Check daily volume reset timer (laptop-only, informational) */
 export const checkDailyVolumeReset = Effect.gen(function* () {

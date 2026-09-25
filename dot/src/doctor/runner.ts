@@ -21,6 +21,8 @@ import {
   checkDependencyService,
   checkDailyVolumeReset,
   checkLocalBinPath,
+  checkNotesCaptureDaemon,
+  checkRegisteredServices,
 } from "./checks/systemd.js";
 import { checkOmarchy } from "./checks/omarchy.js";
 import { checkNvimThemeLink } from "./checks/omarchyNvim.js";
@@ -75,6 +77,8 @@ const sections: readonly SectionDef[] = [
   { name: "Git notification checks", check: checkGitNotifications },
   { name: "Doctor startup notification", check: checkDoctorStartup },
   { name: "Dependency service", check: checkDependencyService },
+  { name: "Notes capture daemon", check: checkNotesCaptureDaemon },
+  { name: "Registered services", check: checkRegisteredServices },
   { name: "uwsm session PATH", check: checkLocalBinPath },
   { name: "Daily volume reset", check: checkDailyVolumeReset },
   { name: "Omarchy config checks", check: checkOmarchy },
