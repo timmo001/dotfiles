@@ -47,6 +47,12 @@ Panel {
     return "󰗠"
   }
 
+  function kindIcon(kind) {
+    if (kind === "Timer") return "󰔛"
+    if (kind === "One-shot") return "󰐊"
+    return "󰒋"
+  }
+
   function runColor(result) {
     if (result === "failed") return urgentColor
     if (result === "running") return contentForeground
@@ -77,10 +83,19 @@ Panel {
         && status.kind === "timer")
       parts.push("running now")
     if (status.lastRun) parts.push("ran " + relative(status.lastRun))
-    if (status.nextRun) parts.push("next " + relative(status.nextRun))
     if (status.restartLimit && status.restarts > 0)
       parts.push(status.restarts + " restart" + (status.restarts === 1 ? "" : "s"))
     return parts.join(" · ")
+  }
+
+  function nextText(status) {
+    if (status.nextRun) {
+      var date = new Date(status.nextRun)
+      var sameDay = date.toDateString() === new Date(now).toDateString()
+      return "Next " + Qt.formatDateTime(date, sameDay ? "HH:mm" : "ddd HH:mm") + " · " + relative(status.nextRun)
+    }
+    if (status.nextNote) return "Next " + status.nextNote
+    return status.tags[0] === "Service" ? "Runs continuously" : ""
   }
 
   function runText(run) {
@@ -255,14 +270,62 @@ Panel {
                       anchors.verticalCenter: parent.verticalCenter
                       spacing: Style.space(2)
 
-                      Text {
+                      Row {
                         width: parent.width
-                        text: rowSurface.status.label
-                        color: root.contentForeground
-                        font.family: root.contentFontFamily
-                        font.pixelSize: Style.font.body
-                        font.bold: true
-                        elide: Text.ElideRight
+                        spacing: Style.space(8)
+
+                        Text {
+                          id: kindIcon
+                          anchors.verticalCenter: parent.verticalCenter
+                          text: root.kindIcon(rowSurface.status.tags[0])
+                          color: root.mutedColor
+                          font.family: root.contentFontFamily
+                          font.pixelSize: Style.font.body
+                        }
+
+                        Text {
+                          id: labelText
+                          anchors.verticalCenter: parent.verticalCenter
+                          width: Math.min(implicitWidth,
+                            parent.width - kindIcon.implicitWidth - tagRow.implicitWidth - parent.spacing * 2)
+                          text: rowSurface.status.label
+                          color: root.contentForeground
+                          font.family: root.contentFontFamily
+                          font.pixelSize: Style.font.body
+                          font.bold: true
+                          elide: Text.ElideRight
+                        }
+
+                        Row {
+                          id: tagRow
+                          anchors.verticalCenter: parent.verticalCenter
+                          spacing: Style.space(4)
+
+                          Repeater {
+                            model: rowSurface.status.tags.slice(1)
+
+                            Rectangle {
+                              required property var modelData
+                              implicitWidth: tagText.implicitWidth + Style.space(10)
+                              implicitHeight: tagText.implicitHeight + Style.space(2)
+                              radius: height / 2
+                              color: Qt.rgba(root.contentForeground.r, root.contentForeground.g,
+                                root.contentForeground.b, 0.07)
+                              border.width: 1
+                              border.color: Qt.rgba(root.contentForeground.r, root.contentForeground.g,
+                                root.contentForeground.b, 0.14)
+
+                              Text {
+                                id: tagText
+                                anchors.centerIn: parent
+                                text: modelData
+                                color: root.mutedColor
+                                font.family: root.contentFontFamily
+                                font.pixelSize: Style.font.caption
+                              }
+                            }
+                          }
+                        }
                       }
 
                       Text {
@@ -270,6 +333,16 @@ Panel {
                         text: root.metaText(rowSurface.status)
                         color: rowSurface.status.health === "ok" || rowSurface.status.health === "running"
                           ? root.mutedColor : root.healthColor(rowSurface.status.health)
+                        font.family: root.contentFontFamily
+                        font.pixelSize: Style.font.caption
+                        elide: Text.ElideRight
+                      }
+
+                      Text {
+                        width: parent.width
+                        visible: text !== ""
+                        text: root.nextText(rowSurface.status)
+                        color: rowSurface.status.nextNote === "not scheduled" ? root.warningColor : root.contentForeground
                         font.family: root.contentFontFamily
                         font.pixelSize: Style.font.caption
                         elide: Text.ElideRight

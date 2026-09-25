@@ -93,6 +93,10 @@ export interface ServiceStatus {
   readonly lastSuccess?: number;
   /** Next timer elapse in epoch milliseconds. */
   readonly nextRun?: number;
+  /** Why a timer has no next elapse, when it has none. */
+  readonly nextNote?: string;
+  /** How the job runs: its kind first, then schedule or restart policy. */
+  readonly tags: readonly string[];
   /** Failed runs since the last success. */
   readonly consecutiveFailures: number;
   /** Failed runs before the latest success, when the job has recovered. */
@@ -184,7 +188,7 @@ const showUnits = Effect.fn("Services.showUnits")(function* (
     "--user",
     "show",
     "--timestamp=unix",
-    "--property=Id,LoadState,ActiveState,SubState,Type,UnitFileState,ActiveEnterTimestamp,NextElapseUSecRealtime,LastTriggerUSec,Unit",
+    "--property=Id,LoadState,ActiveState,SubState,Type,Restart,UnitFileState,ActiveEnterTimestamp,NextElapseUSecRealtime,LastTriggerUSec,Unit,TimersCalendar,TimersMonotonic",
     "--",
     ...units,
   ]);
@@ -192,20 +196,141 @@ const showUnits = Effect.fn("Services.showUnits")(function* (
   const blocks = output
     .trim()
     .split(/\n\s*\n/)
-    .map((block) =>
-      Object.fromEntries(
-        block.split("\n").flatMap((line) => {
-          const index = line.indexOf("=");
+    .map((block) => {
+      const properties: Record<string, string> = {};
 
-          return index > 0
-            ? [[line.slice(0, index), line.slice(index + 1)]]
-            : [];
-        }),
-      ),
-    );
+      for (const line of block.split("\n")) {
+        const index = line.indexOf("=");
+
+        if (index <= 0) continue;
+
+        const key = line.slice(0, index);
+        const value = line.slice(index + 1);
+
+        properties[key] =
+          key in properties ? `${properties[key]}\n${value}` : value;
+      }
+
+      return properties;
+    });
 
   return new Map(units.map((unit, index) => [unit, blocks[index] ?? {}]));
 });
+
+const TimerList = Schema.Array(
+  Schema.Struct({ unit: Schema.String, next: Schema.NullOr(Schema.Finite) }),
+);
+
+const nextElapses = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+
+  const output = yield* executor
+    .run("systemctl", [
+      "--user",
+      "list-timers",
+      "--all",
+      "--output=json",
+      "--no-pager",
+    ])
+    .pipe(Effect.orElseSucceed(() => "[]"));
+
+  const timers = Option.getOrElse(
+    Schema.decodeOption(Schema.fromJsonString(TimerList))(output),
+    () => [],
+  );
+
+  return new Map(
+    timers.flatMap(({ unit, next }) =>
+      next ? [[unit, Math.round(next / 1000)] as const] : [],
+    ),
+  );
+}).pipe(Effect.withSpan("Services.nextElapses"));
+
+const nextCalendarElapse = Effect.fn("Services.nextCalendarElapse")(function* (
+  expressions: readonly string[],
+) {
+  if (expressions.length === 0) return undefined;
+
+  const executor = yield* CommandExecutor;
+
+  const output = yield* executor
+    .run("systemd-analyze", ["calendar", "--iterations=1", ...expressions])
+    .pipe(Effect.orElseSucceed(() => ""));
+
+  const elapses = [
+    ...output.matchAll(/\(in UTC\): \w+ (\S+ \S+) UTC/g),
+  ].flatMap((match) => {
+    const time = Date.parse(`${match[1]}Z`);
+
+    return Number.isFinite(time) ? [time] : [];
+  });
+
+  return elapses.length > 0 ? Math.min(...elapses) : undefined;
+});
+
+const humanSpan = (span: string) => span.replace(/(\d)([a-zµ])/g, "$1 $2");
+
+function humanCalendar(expression: string): string {
+  const everyMinutes = /^\*-\*-\* \*:0?0\/(\d+):00$/.exec(expression);
+
+  if (everyMinutes) return `every ${everyMinutes[1]} min`;
+
+  const everyHours = /^\*-\*-\* 0?0\/(\d+):00:00$/.exec(expression);
+
+  if (everyHours) return `every ${everyHours[1]} h`;
+
+  const daily = /^\*-\*-\* (\d\d:\d\d):00$/.exec(expression);
+
+  if (daily) return `daily at ${daily[1]}`;
+
+  if (expression === "*-*-* *:00:00") return "hourly";
+
+  return expression;
+}
+
+function monotonicTrigger(key: string, span: string): string | undefined {
+  switch (key) {
+    case "OnActiveUSec":
+      return `${span} after start`;
+    case "OnBootUSec":
+      return `${span} after boot`;
+    case "OnStartupUSec":
+      return `${span} after login`;
+    case "OnUnitActiveUSec":
+      return `every ${span}`;
+    case "OnUnitInactiveUSec":
+      return `${span} after each run`;
+  }
+}
+
+/** Describe a timer's triggers from `systemctl show` properties. */
+function timerTriggers(properties: UnitProperties) {
+  const calendar = [
+    ...(properties.TimersCalendar ?? "").matchAll(/OnCalendar=([^;]+?) ;/g),
+  ].map((match) => match[1] ?? "");
+
+  const monotonic = [
+    ...(properties.TimersMonotonic ?? "").matchAll(/(On\w+USec)=([^;]+?) ;/g),
+  ].flatMap(([, key = "", span = ""]) => {
+    const trigger = monotonicTrigger(key, humanSpan(span));
+
+    return trigger ? [{ trigger, repeating: key.startsWith("OnUnit") }] : [];
+  });
+
+  const repeats =
+    calendar.length > 0 || monotonic.some(({ repeating }) => repeating);
+
+  return {
+    calendar,
+    schedule: [
+      ...calendar.map(humanCalendar),
+      ...monotonic.flatMap(({ trigger, repeating }) =>
+        repeating || !repeats ? [trigger] : [],
+      ),
+    ],
+    repeats,
+  };
+}
 
 const unixMillis = (value: string | undefined) => {
   const seconds = Number(value?.replace(/^@/, ""));
@@ -374,6 +499,9 @@ function summarise(status: Omit<ServiceStatus, "summary">): string {
     case "missing":
       return "Unit is not installed";
     case "inactive":
+      if (status.nextNote === "not scheduled")
+        return "Timer has no next run scheduled";
+
       return status.kind === "timer" ? "Timer is not active" : "Not running";
     case "failed":
       return `Failed ${status.consecutiveFailures} time${status.consecutiveFailures === 1 ? "" : "s"} in a row`;
@@ -413,6 +541,9 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
   const serviceProperties = yield* showUnits(
     registered.map(({ descriptor }) => serviceFor(descriptor.unit)),
   );
+
+  const elapses =
+    timers.length > 0 ? yield* nextElapses : new Map<string, number>();
 
   return yield* Effect.forEach(
     registered,
@@ -481,12 +612,53 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
         properties.LoadState === "loaded" &&
         (!timer || timer.LoadState === "loaded");
 
+      const triggers = timer ? timerTriggers(timer) : undefined;
+
+      const serviceBusy =
+        properties.ActiveState === "activating" ||
+        properties.ActiveState === "active";
+
+      const nextRun = timer
+        ? (elapses.get(descriptor.unit) ??
+          unixMillis(timer.NextElapseUSecRealtime) ??
+          (triggers && triggers.calendar.length > 0
+            ? yield* nextCalendarElapse(triggers.calendar)
+            : undefined))
+        : undefined;
+
+      const unscheduled =
+        timer !== undefined &&
+        timer.ActiveState === "active" &&
+        nextRun === undefined &&
+        !serviceBusy &&
+        triggers?.repeats === true;
+
+      const nextNote =
+        !timer || nextRun !== undefined
+          ? undefined
+          : timer.ActiveState !== "active"
+            ? "timer is off"
+            : serviceBusy
+              ? "after the current run"
+              : unscheduled
+                ? "not scheduled"
+                : "at next login";
+
+      const tags = timer
+        ? ["Timer", ...(triggers?.schedule ?? [])]
+        : [
+            oneshot ? "One-shot" : "Service",
+            ...(properties.Restart && properties.Restart !== "no"
+              ? [`restarts ${properties.Restart.replace(/-/g, " ")}`]
+              : []),
+          ];
+
       const health: ServiceHealth = !loaded
         ? "missing"
         : consecutiveFailures >= failAfter
           ? "failed"
           : timer || oneshot
-            ? timer && timer.ActiveState !== "active"
+            ? (timer && timer.ActiveState !== "active") || unscheduled
               ? "inactive"
               : staleAfter !== undefined &&
                   staleReference !== undefined &&
@@ -517,7 +689,9 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
         activeState: properties.ActiveState ?? "unknown",
         lastRun: runs[0]?.started ?? unixMillis(timer?.LastTriggerUSec),
         lastSuccess: lastSuccessAt,
-        nextRun: unixMillis(timer?.NextElapseUSecRealtime),
+        nextRun,
+        nextNote,
+        tags,
         consecutiveFailures,
         recoveredAfter,
         failAfter,
