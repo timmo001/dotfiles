@@ -13886,12 +13886,8 @@ policy:
           replacement: "\"@tsconfig/node{{{major}}}\""
     datasources: {}
   overrides:
-    settings:
-      minimumReleaseAge: "1 day"
-    managers:
-      git-submodules:
-        settings:
-          enabled: true
+    settings: {}
+    managers: {}
     rules:
       - description:
           - "Keep the OpenCode plugin Effect version aligned with its pinned packages."
@@ -13903,25 +13899,6 @@ policy:
         set:
           enabled: false
       - description:
-          - "Keep coordinated OpenCode 2 packages together."
-        match:
-          dependencies:
-            - "@opencode/client"
-            - "@opencode/plugin"
-            - "@opencode/schema"
-            - "anomalyco/opencode"
-            - "npm:@opencode/cli"
-        set:
-          groupName: "OpenCode 2"
-          groupSlug: "opencode-2"
-      - description:
-          - "Update Git submodules without a release delay."
-        match:
-          managers:
-            - "git-submodules"
-        set:
-          minimumReleaseAge: null
-      - description:
           - "Update system package versions without a release delay."
         match:
           dependencies:
@@ -13930,54 +13907,19 @@ policy:
         set:
           minimumReleaseAge: null
       - description:
-          - "Use the shorter release delay for fast-moving development dependencies."
-        match:
-          dependencies:
-            - "@effect/platform-node"
-            - "@effect/tsgo"
-            - "aqua:herdrdev/herdr"
-            - "effect"
-            - "github:backnotprop/plannotator"
-        set:
-          minimumReleaseAge: "2 hours"
-      - description:
           - "Use the shorter update delay for Herdr plugins."
         match:
           datasources:
             - "git-refs"
+          packages:
+            - "!@timmo001/**"
+            - "!timmo001/**"
+            - "!https://github.com/timmo001/**"
           files:
             - "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.list"
             - "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.lock"
         set:
           minimumReleaseAge: "2 hours"
-      - description:
-          - "Use the shorter release delay for OpenCode updates."
-        match:
-          dependencies:
-            - "@opencode/client"
-            - "@opencode/plugin"
-            - "@opencode/schema"
-            - "anomalyco/opencode"
-            - "npm:@opencode-ai/browser-control"
-            - "npm:@opencode/cli"
-        set:
-          minimumReleaseAge: "2 hours"
-      - description:
-          - "Use mise's shorter release delay for Pi updates."
-        match:
-          dependencies:
-            - "aqua:earendil-works/pi"
-        set:
-          minimumReleaseAge: "2 hours"
-      - description:
-          - "Update first-party dependencies without a release delay."
-        match:
-          packages:
-            - "@timmo001/**"
-            - "timmo001/**"
-            - "https://github.com/timmo001/**"
-        set:
-          minimumReleaseAge: null
     regexManagers:
       - files:
           - "/^mise\\.toml$/"
@@ -14033,7 +13975,7 @@ validation:
         - "--recursive"
       cwd: "."
       timeout: 300000
-      skipFor: &standalone-tools
+      skipFor:
         - managers:
             - "mise"
           files:
@@ -14059,45 +14001,165 @@ validation:
         - "trust"
       cwd: "."
       timeout: 30000
-      skipFor: *standalone-tools
+      skipFor:
+        - managers:
+            - "mise"
+          files:
+            - "mise/.config/mise/config.toml"
+          dependencies:
+            - "bat"
+            - "eza"
+            - "fd"
+            - "fzf"
+            - "gdu"
+            - "lazygit"
+            - "npm:pnpm"
+            - "uv"
+            - "watchexec"
+            - "yarn"
+            - "yq"
+            - "zoxide"
+            - "github:backnotprop/plannotator"
+            - "aqua:earendil-works/pi"
+            - "aqua:cloudflare/cloudflared"
     - argv:
         - "mise"
         - "install"
       cwd: "."
       timeout: 300000
-      skipFor: *standalone-tools
+      skipFor:
+        - managers:
+            - "mise"
+          files:
+            - "mise/.config/mise/config.toml"
+          dependencies:
+            - "bat"
+            - "eza"
+            - "fd"
+            - "fzf"
+            - "gdu"
+            - "lazygit"
+            - "npm:pnpm"
+            - "uv"
+            - "watchexec"
+            - "yarn"
+            - "yq"
+            - "zoxide"
+            - "github:backnotprop/plannotator"
+            - "aqua:earendil-works/pi"
+            - "aqua:cloudflare/cloudflared"
     - argv:
         - "bun"
         - "install"
         - "--frozen-lockfile"
       cwd: "."
       timeout: 120000
-      skipFor: *standalone-tools
+      skipFor:
+        - managers:
+            - "mise"
+          files:
+            - "mise/.config/mise/config.toml"
+          dependencies:
+            - "bat"
+            - "eza"
+            - "fd"
+            - "fzf"
+            - "gdu"
+            - "lazygit"
+            - "npm:pnpm"
+            - "uv"
+            - "watchexec"
+            - "yarn"
+            - "yq"
+            - "zoxide"
+            - "github:backnotprop/plannotator"
+            - "aqua:earendil-works/pi"
+            - "aqua:cloudflare/cloudflared"
     - argv:
         - "bun"
         - "install"
         - "--frozen-lockfile"
       cwd: "dot"
       timeout: 120000
-      skipFor: *standalone-tools
+      skipFor:
+        - managers:
+            - "mise"
+          files:
+            - "mise/.config/mise/config.toml"
+          dependencies:
+            - "bat"
+            - "eza"
+            - "fd"
+            - "fzf"
+            - "gdu"
+            - "lazygit"
+            - "npm:pnpm"
+            - "uv"
+            - "watchexec"
+            - "yarn"
+            - "yq"
+            - "zoxide"
+            - "github:backnotprop/plannotator"
+            - "aqua:earendil-works/pi"
+            - "aqua:cloudflare/cloudflared"
     - argv:
         - "bun"
         - "install"
         - "--frozen-lockfile"
       cwd: "docs"
       timeout: 120000
-      skipFor: *standalone-tools
+      skipFor:
+        - managers:
+            - "mise"
+          files:
+            - "mise/.config/mise/config.toml"
+          dependencies:
+            - "bat"
+            - "eza"
+            - "fd"
+            - "fzf"
+            - "gdu"
+            - "lazygit"
+            - "npm:pnpm"
+            - "uv"
+            - "watchexec"
+            - "yarn"
+            - "yq"
+            - "zoxide"
+            - "github:backnotprop/plannotator"
+            - "aqua:earendil-works/pi"
+            - "aqua:cloudflare/cloudflared"
     - argv:
         - "bun"
         - "install"
         - "--frozen-lockfile"
       cwd: "agents/.config/opencode/plugins"
       timeout: 120000
-      skipFor: *standalone-tools
+      skipFor:
+        - managers:
+            - "mise"
+          files:
+            - "mise/.config/mise/config.toml"
+          dependencies:
+            - "bat"
+            - "eza"
+            - "fd"
+            - "fzf"
+            - "gdu"
+            - "lazygit"
+            - "npm:pnpm"
+            - "uv"
+            - "watchexec"
+            - "yarn"
+            - "yq"
+            - "zoxide"
+            - "github:backnotprop/plannotator"
+            - "aqua:earendil-works/pi"
+            - "aqua:cloudflare/cloudflared"
   checks:
     - context: "actionlint / 👕 ActionLint"
-      parallel: true
       appId: 15368
+      parallel: true
       commands:
         - argv:
             - "mise"
@@ -14105,10 +14167,30 @@ validation:
             - "lint:actions"
           cwd: "."
           timeout: 120000
-          skipFor: *standalone-tools
+          skipFor:
+            - managers:
+                - "mise"
+              files:
+                - "mise/.config/mise/config.toml"
+              dependencies:
+                - "bat"
+                - "eza"
+                - "fd"
+                - "fzf"
+                - "gdu"
+                - "lazygit"
+                - "npm:pnpm"
+                - "uv"
+                - "watchexec"
+                - "yarn"
+                - "yq"
+                - "zoxide"
+                - "github:backnotprop/plannotator"
+                - "aqua:earendil-works/pi"
+                - "aqua:cloudflare/cloudflared"
     - context: "jsonlint / 👕 JSONLint"
-      parallel: true
       appId: 15368
+      parallel: true
       commands:
         - argv:
             - "mise"
@@ -14116,10 +14198,30 @@ validation:
             - "lint:json"
           cwd: "."
           timeout: 120000
-          skipFor: *standalone-tools
+          skipFor:
+            - managers:
+                - "mise"
+              files:
+                - "mise/.config/mise/config.toml"
+              dependencies:
+                - "bat"
+                - "eza"
+                - "fd"
+                - "fzf"
+                - "gdu"
+                - "lazygit"
+                - "npm:pnpm"
+                - "uv"
+                - "watchexec"
+                - "yarn"
+                - "yq"
+                - "zoxide"
+                - "github:backnotprop/plannotator"
+                - "aqua:earendil-works/pi"
+                - "aqua:cloudflare/cloudflared"
     - context: "yamllint / 👕 YAMLLint"
-      parallel: true
       appId: 15368
+      parallel: true
       commands:
         - argv:
             - "mise"
@@ -14127,10 +14229,30 @@ validation:
             - "lint:yaml"
           cwd: "."
           timeout: 120000
-          skipFor: *standalone-tools
+          skipFor:
+            - managers:
+                - "mise"
+              files:
+                - "mise/.config/mise/config.toml"
+              dependencies:
+                - "bat"
+                - "eza"
+                - "fd"
+                - "fzf"
+                - "gdu"
+                - "lazygit"
+                - "npm:pnpm"
+                - "uv"
+                - "watchexec"
+                - "yarn"
+                - "yq"
+                - "zoxide"
+                - "github:backnotprop/plannotator"
+                - "aqua:earendil-works/pi"
+                - "aqua:cloudflare/cloudflared"
     - context: "markdownlint / 👕 MarkdownLint"
-      parallel: true
       appId: 15368
+      parallel: true
       commands:
         - argv:
             - "mise"
@@ -14138,10 +14260,30 @@ validation:
             - "lint:markdown"
           cwd: "."
           timeout: 120000
-          skipFor: *standalone-tools
+          skipFor:
+            - managers:
+                - "mise"
+              files:
+                - "mise/.config/mise/config.toml"
+              dependencies:
+                - "bat"
+                - "eza"
+                - "fd"
+                - "fzf"
+                - "gdu"
+                - "lazygit"
+                - "npm:pnpm"
+                - "uv"
+                - "watchexec"
+                - "yarn"
+                - "yq"
+                - "zoxide"
+                - "github:backnotprop/plannotator"
+                - "aqua:earendil-works/pi"
+                - "aqua:cloudflare/cloudflared"
     - context: "shellcheck / 👕 ShellCheck"
-      parallel: true
       appId: 15368
+      parallel: true
       commands:
         - argv:
             - "mise"
@@ -14149,7 +14291,27 @@ validation:
             - "lint:shell"
           cwd: "."
           timeout: 120000
-          skipFor: *standalone-tools
+          skipFor:
+            - managers:
+                - "mise"
+              files:
+                - "mise/.config/mise/config.toml"
+              dependencies:
+                - "bat"
+                - "eza"
+                - "fd"
+                - "fzf"
+                - "gdu"
+                - "lazygit"
+                - "npm:pnpm"
+                - "uv"
+                - "watchexec"
+                - "yarn"
+                - "yq"
+                - "zoxide"
+                - "github:backnotprop/plannotator"
+                - "aqua:earendil-works/pi"
+                - "aqua:cloudflare/cloudflared"
     - context: "build"
       appId: 15368
       commands:
@@ -14159,24 +14321,84 @@ validation:
             - "dot:build"
           cwd: "."
           timeout: 120000
-          skipFor: *standalone-tools
+          skipFor:
+            - managers:
+                - "mise"
+              files:
+                - "mise/.config/mise/config.toml"
+              dependencies:
+                - "bat"
+                - "eza"
+                - "fd"
+                - "fzf"
+                - "gdu"
+                - "lazygit"
+                - "npm:pnpm"
+                - "uv"
+                - "watchexec"
+                - "yarn"
+                - "yq"
+                - "zoxide"
+                - "github:backnotprop/plannotator"
+                - "aqua:earendil-works/pi"
+                - "aqua:cloudflare/cloudflared"
         - argv:
             - "mise"
             - "run"
             - "docs:gen:cli"
           cwd: "."
           timeout: 120000
-          skipFor: *standalone-tools
+          skipFor:
+            - managers:
+                - "mise"
+              files:
+                - "mise/.config/mise/config.toml"
+              dependencies:
+                - "bat"
+                - "eza"
+                - "fd"
+                - "fzf"
+                - "gdu"
+                - "lazygit"
+                - "npm:pnpm"
+                - "uv"
+                - "watchexec"
+                - "yarn"
+                - "yq"
+                - "zoxide"
+                - "github:backnotprop/plannotator"
+                - "aqua:earendil-works/pi"
+                - "aqua:cloudflare/cloudflared"
         - argv:
             - "mise"
             - "run"
             - "docs:build"
           cwd: "."
           timeout: 300000
-          skipFor: *standalone-tools
+          skipFor:
+            - managers:
+                - "mise"
+              files:
+                - "mise/.config/mise/config.toml"
+              dependencies:
+                - "bat"
+                - "eza"
+                - "fd"
+                - "fzf"
+                - "gdu"
+                - "lazygit"
+                - "npm:pnpm"
+                - "uv"
+                - "watchexec"
+                - "yarn"
+                - "yq"
+                - "zoxide"
+                - "github:backnotprop/plannotator"
+                - "aqua:earendil-works/pi"
+                - "aqua:cloudflare/cloudflared"
     - context: "oxlint"
-      parallel: true
       appId: 15368
+      parallel: true
       commands:
         - argv:
             - "mise"
@@ -14184,10 +14406,30 @@ validation:
             - "lint"
           cwd: "."
           timeout: 120000
-          skipFor: *standalone-tools
+          skipFor:
+            - managers:
+                - "mise"
+              files:
+                - "mise/.config/mise/config.toml"
+              dependencies:
+                - "bat"
+                - "eza"
+                - "fd"
+                - "fzf"
+                - "gdu"
+                - "lazygit"
+                - "npm:pnpm"
+                - "uv"
+                - "watchexec"
+                - "yarn"
+                - "yq"
+                - "zoxide"
+                - "github:backnotprop/plannotator"
+                - "aqua:earendil-works/pi"
+                - "aqua:cloudflare/cloudflared"
     - context: "dot-typecheck"
-      parallel: true
       appId: 15368
+      parallel: true
       commands:
         - argv:
             - "mise"
@@ -14195,10 +14437,30 @@ validation:
             - "dot:typecheck"
           cwd: "."
           timeout: 120000
-          skipFor: *standalone-tools
+          skipFor:
+            - managers:
+                - "mise"
+              files:
+                - "mise/.config/mise/config.toml"
+              dependencies:
+                - "bat"
+                - "eza"
+                - "fd"
+                - "fzf"
+                - "gdu"
+                - "lazygit"
+                - "npm:pnpm"
+                - "uv"
+                - "watchexec"
+                - "yarn"
+                - "yq"
+                - "zoxide"
+                - "github:backnotprop/plannotator"
+                - "aqua:earendil-works/pi"
+                - "aqua:cloudflare/cloudflared"
     - context: "dot-tests"
-      parallel: true
       appId: 15368
+      parallel: true
       commands:
         - argv:
             - "mise"
@@ -14206,7 +14468,27 @@ validation:
             - "dot:test"
           cwd: "."
           timeout: 120000
-          skipFor: *standalone-tools
+          skipFor:
+            - managers:
+                - "mise"
+              files:
+                - "mise/.config/mise/config.toml"
+              dependencies:
+                - "bat"
+                - "eza"
+                - "fd"
+                - "fzf"
+                - "gdu"
+                - "lazygit"
+                - "npm:pnpm"
+                - "uv"
+                - "watchexec"
+                - "yarn"
+                - "yq"
+                - "zoxide"
+                - "github:backnotprop/plannotator"
+                - "aqua:earendil-works/pi"
+                - "aqua:cloudflare/cloudflared"
     - context: "regression-tests"
       appId: 15368
       commands:
@@ -14216,11 +14498,31 @@ validation:
             - "tests:integration"
           cwd: "."
           timeout: 300000
-          skipFor: *standalone-tools
+          skipFor:
+            - managers:
+                - "mise"
+              files:
+                - "mise/.config/mise/config.toml"
+              dependencies:
+                - "bat"
+                - "eza"
+                - "fd"
+                - "fzf"
+                - "gdu"
+                - "lazygit"
+                - "npm:pnpm"
+                - "uv"
+                - "watchexec"
+                - "yarn"
+                - "yq"
+                - "zoxide"
+                - "github:backnotprop/plannotator"
+                - "aqua:earendil-works/pi"
+                - "aqua:cloudflare/cloudflared"
 import:
   source: "renovate.json"
   resolverVersion: "44.103.0"
-  overrideHash: "8f004c1ce3a85f936a29b7ecf2c1b2ec2a5ed9a4a0640a6b4012725b46fd4a5c"
+  overrideHash: "485f21302ab97c852fc2c5bfa53482a80e30acb435a05db4ce57b66c76f53012"
   baseDiagnostics:
     - path: "presets.description"
       disposition: "ignored"
@@ -17047,11 +17349,5 @@ import:
       message: "Not used by the on-demand, no-PR workflow"
   overrideDiagnostics:
     - path: "renovate.json.$schema"
-      disposition: "ignored"
-      message: "Not used by the on-demand, no-PR workflow"
-    - path: "renovate.json.dependencyDashboard"
-      disposition: "ignored"
-      message: "Not used by the on-demand, no-PR workflow"
-    - path: "renovate.json.labels"
       disposition: "ignored"
       message: "Not used by the on-demand, no-PR workflow"
