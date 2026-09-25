@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Run dot doctor and send a desktop notification if there are errors.
-# Intended for use with the dot-doctor-startup systemd timer.
+# Intended for use with the dot-doctor systemd service (login timer and reload-ui).
 set -euo pipefail
 
 strip_ansi() {
   sed 's/\x1b\[[0-9;]*m//g'
 }
 
-raw_output=$(dot doctor 2>&1) || true
-status=$?
+status=0
+raw_output=$(dot doctor 2>&1) || status=$?
 
 if [[ $status -ne 0 ]]; then
   plain=$(echo "$raw_output" | strip_ansi)
