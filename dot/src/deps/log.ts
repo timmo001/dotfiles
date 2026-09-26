@@ -102,6 +102,10 @@ export const dependencyRunLog = Effect.fn("Dependencies.runLog")(function* (
       yield* record(redact(failure));
 
       return yield* new DependencyRunError({
+        transientNetwork:
+          /could not resolve host|temporary failure in name resolution|network is unreachable|no route to host|failed to connect|connection timed out/i.test(
+            failure,
+          ),
         message: /without [`'"]?workflow[`'"]? scope/i.test(failure)
           ? `GitHub credential lacks workflow scope; run gh auth refresh --hostname github.com --scopes workflow, then retry; see ${path}`
           : `${label} failed; see ${path}`,

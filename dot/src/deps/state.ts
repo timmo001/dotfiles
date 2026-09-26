@@ -7,7 +7,10 @@ import { CONFIG_DIR, STATE_DIR } from "../lib/paths.js";
 /** An execution failure whose worktree and evidence must be retained. */
 export class DependencyRunError extends Schema.TaggedError<DependencyRunError>()(
   "DependencyRunError",
-  { message: Schema.String },
+  {
+    message: Schema.String,
+    transientNetwork: Schema.optionalKey(Schema.Boolean),
+  },
 ) {}
 
 /** A completed dependency run with one or more unsuccessful update groups. */

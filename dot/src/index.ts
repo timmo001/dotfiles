@@ -27,6 +27,7 @@ import { Config } from "./services/Config.js";
 import { Launcher } from "./services/Launcher.js";
 import { OutputLog } from "./services/OutputLog.js";
 import { ProcessRunner } from "./services/ProcessRunner.js";
+import { RetryBackoff } from "./services/RetryBackoff.js";
 
 const DEFAULT_INIT_LOG_FILE = join(STATE_DIR, "dot", "init.log");
 
@@ -239,6 +240,7 @@ const program = withNativeCommandTimeout(
     Layer.mergeAll(
       CliLayers,
       ProcessRunner.layer,
+      RetryBackoff.layer,
       NodeServices.layer,
       CliConfig.layer({ builtIns: cliBuiltIns }),
     ),

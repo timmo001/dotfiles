@@ -13,6 +13,7 @@ import { STATE_DIR } from "../lib/paths.js";
 import { dependencyGit } from "./publish.js";
 import type { DependencyRunLog } from "./log.js";
 import { DependencyRunError } from "./state.js";
+import { RetryBackoff } from "../services/RetryBackoff.js";
 
 const LeaseState = Schema.Struct({
   version: Schema.Literal(1),
@@ -57,11 +58,20 @@ export const acquireDependencyLease = Effect.fn("Dependencies.acquireLease")(
     );
 
     const transport = dependencyGit(log, directory, timeout);
+    const backoff = yield* RetryBackoff;
 
     const git = (args: readonly string[]) =>
       transport(args).pipe(
+        Effect.provideService(RetryBackoff, backoff),
         Effect.mapError(
-          (error) => new DependencyRunError({ message: error.message }),
+          (error) =>
+            new DependencyRunError({
+              message: error.message,
+              transientNetwork:
+                error instanceof DependencyRunError
+                  ? error.transientNetwork
+                  : undefined,
+            }),
         ),
       );
 

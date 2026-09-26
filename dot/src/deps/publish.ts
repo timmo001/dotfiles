@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { dirname, join, relative, resolve } from "node:path";
-import { Array, Effect, FileSystem, Result, Semaphore } from "effect";
+import { Array, Duration, Effect, FileSystem, Result, Semaphore } from "effect";
 import type { DependencyConfig, DependencyPolicy } from "./config.js";
 import { skipDependencyCommand } from "./config.js";
 import { prepareDependencyEdits, verifyDependencyEdits } from "./edits.js";
@@ -9,6 +9,7 @@ import type { Dependency, Snapshot } from "./model.js";
 import type { PlannedDependency } from "./plan.js";
 import type { DependencyLease } from "./lease.js";
 import { DependencyRunError, type dependencyRunPaths } from "./state.js";
+import { RetryBackoff } from "../services/RetryBackoff.js";
 
 const credentials = [
   "-c",
@@ -22,11 +23,41 @@ export function dependencyGit(
   log: DependencyRunLog,
   cwd: string,
   timeout: number,
+  retryTimes = 5,
 ) {
   return (args: readonly string[]) =>
-    log
-      .command("GIT", ["git", ...credentials, ...args], cwd, timeout, true)
-      .pipe(Effect.map((value) => value.trim()));
+    Effect.gen(function* () {
+      const backoff = yield* RetryBackoff;
+
+      const command = log.command(
+        "GIT",
+        ["git", ...credentials, ...args],
+        cwd,
+        timeout,
+        true,
+      );
+
+      // Git reads can safely be repeated. A push may have succeeded remotely
+      // before its response failed, so leave its existing lease checks in charge.
+
+      const value =
+        args[0] === "ls-remote" || args[0] === "fetch"
+          ? yield* backoff.retry(command, {
+              initial: "1 second",
+              maxDelay: "8 seconds",
+              times: retryTimes,
+              while: (error) =>
+                error instanceof DependencyRunError &&
+                error.transientNetwork === true,
+              onRetry: (_error, delay) =>
+                log.event(
+                  `[WAIT] Git network unavailable; retrying ${args[0]} in ${Math.round(Duration.toMillis(delay) / 1000)}s`,
+                ),
+            })
+          : yield* command;
+
+      return value.trim();
+    });
 }
 
 /** Create an owned worktree pinned to exactly the commit selected by discovery. */

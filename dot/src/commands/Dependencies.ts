@@ -30,6 +30,7 @@ import { DependencyDiscoveryError } from "../deps/model.js";
 import { runDependencyUpdates } from "../deps/run.js";
 import { dependencyCheckRequirements } from "../deps/checks.js";
 import { readDependencyConfig } from "../deps/policyFile.js";
+import { dependencyGit } from "../deps/publish.js";
 
 const github = DependencyGithub.layer.pipe(
   Layer.provide(DependencyDiskCache.layer),
@@ -87,14 +88,54 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
     const directory = join(root, "runs", randomUUID());
     const log = yield* dependencyRunLog(directory);
     const cooldown = config.intervalMinutes * 60_000;
+    const remote = `https://github.com/${config.coordinationRepository}.git`;
 
-    const lease = yield* acquireDependencyLease(
-      `https://github.com/${config.coordinationRepository}.git`,
+    // A user unit's network-online.target only covers boot, not resume.
+    // Wait for a real GitHub lookup before claiming the expiring remote lease.
+    const reachability = yield* dependencyGit(
+      log,
+      directory,
+      5_000,
+      4,
+    )(["ls-remote", remote, "HEAD"]).pipe(Effect.result);
+
+    if (Result.isFailure(reachability)) {
+      if (
+        reachability.failure instanceof DependencyRunError &&
+        reachability.failure.transientNetwork
+      ) {
+        yield* log.event("[WARN] Network unavailable; dependency run deferred");
+        process.exitCode = 2;
+
+        return;
+      }
+
+      return yield* reachability.failure;
+    }
+
+    const claim = yield* acquireDependencyLease(
+      remote,
       "dependency-service",
       log,
       30_000,
       cooldown,
-    );
+    ).pipe(Effect.result);
+
+    if (Result.isFailure(claim)) {
+      if (
+        claim.failure instanceof DependencyRunError &&
+        claim.failure.transientNetwork
+      ) {
+        yield* log.event("[WARN] Network unavailable; dependency run deferred");
+        process.exitCode = 2;
+
+        return;
+      }
+
+      return yield* claim.failure;
+    }
+
+    const lease = claim.success;
 
     if (!lease) {
       // Skipped polls would otherwise hide the last real run from `dot services logs`.
@@ -124,7 +165,11 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
         ).pipe(Effect.result);
 
         if (Result.isFailure(result)) {
-          if (result.failure instanceof DependencyRunWarning) {
+          if (
+            result.failure instanceof DependencyRunWarning ||
+            (result.failure instanceof DependencyRunError &&
+              result.failure.transientNetwork)
+          ) {
             warnings.push(repository);
             yield* log.event(`[WARN] ${repository}: ${result.failure.message}`);
           } else {
@@ -147,7 +192,19 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
         );
         process.exitCode = 2;
       }
-    }).pipe(Effect.raceFirst(lease.keepAlive));
+    }).pipe(
+      Effect.raceFirst(lease.keepAlive),
+      Effect.catchIf(
+        (error) =>
+          error instanceof DependencyRunError &&
+          error.transientNetwork === true,
+        (error) =>
+          Effect.gen(function* () {
+            yield* log.event(`[WARN] Network unavailable: ${error.message}`);
+            process.exitCode = 2;
+          }),
+      ),
+    );
   },
   Effect.scoped,
   Effect.provide(Layer.mergeAll(planner, github)),
