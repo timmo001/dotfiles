@@ -445,7 +445,7 @@ Item {
     return entry.count + " unread · " + entry.titles.join(" · ") + (entry.count > entry.titles.length ? " · +" + (entry.count - entry.titles.length) + " more" : "")
   }
 
-  function openNotificationReview(repo) {
+  function openNotificationReview(repo, scope) {
     if (notificationLaunching) return
     notificationLaunchError = ""
     if (!notificationWorkspace) {
@@ -453,6 +453,7 @@ Item {
       return
     }
     var args = ["dot", "git-notifications", "dismiss"]
+    if (scope === "dependencies") args.push("dependencies")
     if (repo) args.push("--repo", String(repo.path))
     var command = args.map(function(arg) { return "'" + String(arg).replace(/'/g, "'\\''") + "'" }).join(" ")
     notificationLaunchProcess.command = ["dot", "herdr", "repo-open", "--layout", "tab",

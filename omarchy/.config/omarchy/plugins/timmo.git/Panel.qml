@@ -172,7 +172,7 @@ Panel {
     }
     var threads = service && (view === "overview" || view === "notifications") ? service.threads : []
     if (view === "overview" || view === "notifications") {
-      if (notificationReviewEnabled) rows.push(headerActionRow("notifications-dismiss", "Review and dismiss notifications", "thread"))
+      if (notificationReviewEnabled) rows.push(headerActionRow("notifications-dismiss", "Review dependency notifications", "thread"))
       rows.push(headerActionRow("notifications-refresh", "Refresh notifications", "thread"))
     }
     for (var k = 0; k < threads.length; k++) {
@@ -532,8 +532,8 @@ Panel {
     else if (action === "context-refresh") service.refreshHerdrContext(true)
     else if (action === "repositories-refresh") service.refreshRepositories()
     else if (action === "notifications-refresh") service.refreshNotifications()
-    else if (action === "notifications-dismiss" && notificationReviewEnabled) service.openNotificationReview(null)
-    else if (action === "repo-notifications") service.openNotificationReview(selectedRepo)
+    else if (action === "notifications-dismiss" && notificationReviewEnabled) service.openNotificationReview(null, "dependencies")
+    else if (action === "repo-notifications") service.openNotificationReview(selectedRepo, "all")
     else if (action === "releases") showView("releases")
     else if (action === "release-repo" && selectedRelease) showRepoActions(selectedRelease)
     else if (action === "release-agent") showAgentPicker(selectedRelease)
@@ -963,7 +963,7 @@ Panel {
               PanelActionButton {
                 enabled: root.notificationReviewEnabled
                 iconText: "󰄬"
-                tooltipText: "Review and dismiss notifications in Dotfiles"
+                tooltipText: "Review dependency notifications in Dotfiles"
                 foreground: root.contentForeground
                 fontFamily: root.contentFontFamily
                 hasCursor: root.cursorKey === "action:notifications-dismiss"
