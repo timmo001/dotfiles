@@ -8,7 +8,7 @@ on:
 jobs:
   automerge:
     # yamllint disable-line rule:line-length
-    uses: timmo001/workflows/.github/workflows/renovate-automerge.yml@250e9edf712bd8526f6977a113116eda3695f732  # master
+    uses: timmo001/workflows/.github/workflows/renovate-automerge.yml@b72dc04e29a235128fd11578ac68994894bcfabc  # master
     permissions:
       pull-requests: write
       contents: write
