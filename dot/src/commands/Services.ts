@@ -4,7 +4,6 @@ import {
   Console,
   Duration,
   Effect,
-  Exit,
   FileSystem,
   Option,
   Result,
@@ -14,8 +13,6 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { herdrRepoOpen } from "./HerdrRepoOpen.js";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "../lib/paths.js";
-import { localHerdrAttachment } from "../lib/herdrAttachment.js";
-import { formatCause } from "../lib/schema.js";
 
 /** Registered unit is unknown or its descriptor cannot be used. */
 export class ServiceMonitorError extends Schema.TaggedError<ServiceMonitorError>()(
@@ -39,12 +36,6 @@ const ServiceDescriptor = Schema.Struct({
     ),
   ),
   staleAfter: Schema.optionalKey(Schema.DurationFromString),
-  cadence: Schema.optionalKey(
-    Schema.Struct({
-      attached: Schema.DurationFromString,
-      detached: Schema.DurationFromString,
-    }),
-  ),
   notify: Schema.optionalKey(Schema.Boolean),
   restartLimit: Schema.optionalKey(
     Schema.Struct({ count: Count, within: Schema.DurationFromString }),
@@ -121,15 +112,6 @@ export interface ServiceStatus {
   readonly nextRun?: number;
   /** Why a timer has no next elapse, when it has none. */
   readonly nextNote?: string;
-  /** Activity-aware timer policy and its most recent deferred tick. */
-  readonly cadence?: {
-    readonly mode: "attached" | "detached";
-    readonly interval: number;
-    readonly eligibleAt?: number;
-    readonly deferredAt?: number;
-  };
-  /** The timer's eligibility check failed before the work service started. */
-  readonly schedulingFailed?: boolean;
   /** How the job runs: its kind first, then schedule or restart policy. */
   readonly tags: readonly string[];
   /** Consecutive failed runs, excluding skipped invocations. */
@@ -158,39 +140,6 @@ interface Registered {
 }
 
 const SERVICES_DIR = join(CONFIG_DIR, "dot", "services.d");
-
-const SCHEDULE_DIR = join(STATE_DIR, "dot", "service-schedule");
-
-const HERDR_SOCKET = join(
-  process.env.HERDR_CONFIG_DIR || join(CONFIG_DIR, "herdr"),
-  "herdr.sock",
-);
-
-const Deferred = Schema.Struct({
-  deferredAt: Schema.Finite,
-  lastAttempt: Schema.Finite,
-});
-
-const readDeferred = Effect.fn("Services.readDeferred")(function* (
-  unit: string,
-) {
-  const fs = yield* FileSystem.FileSystem;
-  const path = join(SCHEDULE_DIR, `${unit}.json`);
-
-  if (!(yield* fs.exists(path))) return undefined;
-
-  return yield* fs
-    .readFileString(path)
-    .pipe(Effect.flatMap(Schema.decodeEffect(Schema.fromJsonString(Deferred))));
-});
-
-const cadenceFor = (descriptor: ServiceDescriptor, attached: boolean) =>
-  descriptor.cadence && {
-    mode: attached ? ("attached" as const) : ("detached" as const),
-    interval: Duration.toMillis(
-      attached ? descriptor.cadence.attached : descriptor.cadence.detached,
-    ),
-  };
 
 const MESSAGE = {
   starting: "7d4958e842da4a758f6c1cdc7b36dcc5",
@@ -242,64 +191,6 @@ export const readRegisteredServices = Effect.gen(function* () {
 
   return { registered, errors };
 }).pipe(Effect.withSpan("Services.readRegistered"));
-
-/** Admit a scheduled tick only when the attachment-dependent interval has elapsed. */
-export const servicesDue = Effect.fn("Services.due")(function* (unit: string) {
-  const decision = Effect.gen(function* () {
-    const { descriptor } = yield* findRegistered(unit);
-
-    if (!descriptor.cadence || !descriptor.unit.endsWith(".timer"))
-      return yield* new ServiceMonitorError({
-        message: `${unit} has no scheduled cadence`,
-      });
-
-    const service = descriptor.unit.replace(/\.timer$/, ".service");
-    const attached = yield* localHerdrAttachment(HERDR_SOCKET);
-    const policy = cadenceFor(descriptor, attached);
-
-    if (!policy)
-      return yield* new ServiceMonitorError({
-        message: `${unit} has no cadence`,
-      });
-    const interval = policy.interval;
-    const now = yield* Clock.currentTimeMillis;
-
-    const { runs } = buildRuns(
-      yield* readJournal(service, 200),
-      true,
-      descriptor.exitStatuses,
-    );
-
-    const lastAttempt = runs.find((run) => run.started !== undefined)?.started;
-
-    if (lastAttempt !== undefined && now < lastAttempt + interval) {
-      const fs = yield* FileSystem.FileSystem;
-      yield* fs.makeDirectory(SCHEDULE_DIR, { recursive: true, mode: 0o700 });
-      const path = join(SCHEDULE_DIR, `${service}.json`);
-      const temporary = `${path}.${process.pid}.tmp`;
-      yield* fs.writeFileString(
-        temporary,
-        JSON.stringify({ deferredAt: now, lastAttempt }),
-      );
-      yield* fs.rename(temporary, path);
-
-      return false;
-    }
-
-    return true;
-  });
-
-  const result = yield* decision.pipe(Effect.exit);
-
-  if (Exit.isFailure(result)) {
-    yield* Console.error(
-      `[ERROR] Cannot check ${unit}: ${formatCause(result.cause)}`,
-    );
-    process.exitCode = 255;
-  } else if (!result.value) {
-    process.exitCode = 1;
-  }
-});
 
 type UnitProperties = Readonly<Record<string, string>>;
 
@@ -638,8 +529,6 @@ function summarise(status: Omit<ServiceStatus, "summary">): string {
 
       return status.kind === "timer" ? "Timer is not active" : "Not running";
     case "failed":
-      if (status.schedulingFailed) return "Scheduling check failed";
-
       return `Failed ${status.consecutiveFailures} time${status.consecutiveFailures === 1 ? "" : "s"} in a row`;
     case "stale":
       return "No successful run within the expected window";
@@ -671,10 +560,6 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
 ) {
   const now = yield* Clock.currentTimeMillis;
 
-  const attached = registered.some(({ descriptor }) => descriptor.cadence)
-    ? yield* localHerdrAttachment(HERDR_SOCKET)
-    : false;
-
   const timers = registered.flatMap(({ descriptor }) =>
     descriptor.unit.endsWith(".timer") ? [descriptor.unit] : [],
   );
@@ -683,23 +568,11 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
 
   const serviceFor = (unit: string) =>
     unit.endsWith(".timer")
-      ? registered.find(({ descriptor }) => descriptor.unit === unit)
-          ?.descriptor.cadence
-        ? unit.replace(/\.timer$/, ".service")
-        : timerProperties.get(unit)?.Unit ||
-          unit.replace(/\.timer$/, ".service")
+      ? timerProperties.get(unit)?.Unit || unit.replace(/\.timer$/, ".service")
       : unit;
 
   const serviceProperties = yield* showUnits(
     registered.map(({ descriptor }) => serviceFor(descriptor.unit)),
-  );
-
-  const scheduledProperties = yield* showUnits(
-    registered.flatMap(({ descriptor }) =>
-      descriptor.cadence
-        ? [descriptor.unit.replace(/\.timer$/, "-scheduled.service")]
-        : [],
-    ),
   );
 
   const elapses =
@@ -715,12 +588,6 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
         kind === "timer" ? timerProperties.get(descriptor.unit) : undefined;
 
       const properties = serviceProperties.get(service) ?? {};
-
-      const scheduledFailed =
-        scheduledProperties.get(
-          service.replace(/\.service$/, "-scheduled.service"),
-        )?.ActiveState === "failed";
-
       const oneshot = properties.Type === "oneshot";
       const history = descriptor.history ?? 10;
       const failAfter = descriptor.failAfter ?? 1;
@@ -733,33 +600,11 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
       const staleAfter =
         descriptor.staleAfter && Duration.toMillis(descriptor.staleAfter);
 
-      const policy = cadenceFor(descriptor, attached);
-
       const { runs, restarts } = buildRuns(
         yield* readJournal(service, Math.max(200, history * 8)),
         oneshot,
         descriptor.exitStatuses,
       );
-
-      const lastAttempt = runs.find(
-        (run) => run.started !== undefined,
-      )?.started;
-
-      const deferred = policy ? yield* readDeferred(service) : undefined;
-
-      const cadence = policy && {
-        ...policy,
-        eligibleAt:
-          lastAttempt === undefined ? undefined : lastAttempt + policy.interval,
-        deferredAt:
-          deferred !== undefined &&
-          lastAttempt !== undefined &&
-          deferred.lastAttempt === lastAttempt &&
-          deferred.deferredAt > lastAttempt &&
-          now < lastAttempt + policy.interval
-            ? deferred.deferredAt
-            : undefined,
-      };
 
       const lastCompleted = runs.find(
         (run) =>
@@ -866,38 +711,32 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
 
       const health: ServiceHealth = !loaded
         ? "missing"
-        : scheduledFailed
+        : consecutiveFailures >= failAfter
           ? "failed"
-          : consecutiveFailures >= failAfter
-            ? "failed"
-            : timer || oneshot
-              ? (timer && timer.ActiveState !== "active") || unscheduled
-                ? "inactive"
-                : staleAfter !== undefined &&
-                    staleReference !== undefined &&
-                    now - staleReference >
-                      Math.max(
-                        staleAfter,
-                        (policy?.interval ?? 0) + 20 * 60_000,
-                      )
-                  ? "stale"
-                  : consecutiveFailures > 0
-                    ? "degraded"
-                    : properties.ActiveState === "activating" ||
-                        properties.ActiveState === "active"
-                      ? "running"
-                      : lastCompleted?.result === "warning"
-                        ? "warning"
-                        : "ok"
-              : properties.ActiveState !== "active" &&
-                  properties.ActiveState !== "activating" &&
-                  properties.ActiveState !== "reloading"
-                ? "inactive"
-                : consecutiveFailures > 0 ||
-                    (restartLimit !== undefined &&
-                      recentRestarts >= restartLimit.count)
+          : timer || oneshot
+            ? (timer && timer.ActiveState !== "active") || unscheduled
+              ? "inactive"
+              : staleAfter !== undefined &&
+                  staleReference !== undefined &&
+                  now - staleReference > staleAfter
+                ? "stale"
+                : consecutiveFailures > 0
                   ? "degraded"
-                  : "ok";
+                  : properties.ActiveState === "activating" ||
+                      properties.ActiveState === "active"
+                    ? "running"
+                    : lastCompleted?.result === "warning"
+                      ? "warning"
+                      : "ok"
+            : properties.ActiveState !== "active" &&
+                properties.ActiveState !== "activating" &&
+                properties.ActiveState !== "reloading"
+              ? "inactive"
+              : consecutiveFailures > 0 ||
+                  (restartLimit !== undefined &&
+                    recentRestarts >= restartLimit.count)
+                ? "degraded"
+                : "ok";
 
       const partial = {
         unit: descriptor.unit,
@@ -910,8 +749,6 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
         lastSuccess: lastSuccessAt,
         nextRun,
         nextNote,
-        cadence,
-        schedulingFailed: scheduledFailed || undefined,
         tags,
         consecutiveFailures,
         recoveredAfter,
@@ -942,9 +779,7 @@ const findRegistered = Effect.fn("Services.findRegistered")(function* (
   const match = registered.find(
     ({ descriptor }) =>
       descriptor.unit === unit ||
-      descriptor.unit.replace(/\.timer$/, ".service") === unit ||
-      (descriptor.cadence &&
-        descriptor.unit.replace(/\.timer$/, "-scheduled.service") === unit),
+      descriptor.unit.replace(/\.timer$/, ".service") === unit,
   );
 
   if (match) return match;
