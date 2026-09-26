@@ -8,11 +8,15 @@ import {
   Deferred,
   Effect,
   Exit,
+  Layer,
   Scope,
 } from "../../dot/node_modules/effect/dist/index.js";
 import { acquireDependencyLease } from "../../dot/src/deps/lease";
 import { DependencyRunError } from "../../dot/src/deps/state";
+import { RetryBackoff } from "../../dot/src/services/RetryBackoff";
 import type { DependencyRunLog } from "../../dot/src/deps/log";
+
+const testLayer = Layer.merge(NodeServices.layer, RetryBackoff.layer);
 
 const command = Effect.fn("Test.git")(function* (
   argv: readonly string[],
@@ -135,7 +139,7 @@ test("concurrent machines get one claim and a shared cooldown", async () => {
           900_000,
         ),
       ).toBeNull();
-    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+    }).pipe(Effect.scoped, Effect.provide(testLayer)),
   );
 });
 
@@ -178,7 +182,7 @@ test("target and ownership advance atomically, including server rejection", asyn
       expect(yield* remote.git("rev-parse", "main")).toBe(remote.candidate);
       expect(yield* remote.git("rev-parse", remote.ref)).not.toBe(before);
       yield* lease.assertOwned;
-    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+    }).pipe(Effect.scoped, Effect.provide(testLayer)),
   );
 });
 
@@ -233,6 +237,6 @@ test("expired owner cannot publish or release a replacement claim", async () => 
       yield* Scope.close(oldScope, Exit.void);
       expect(yield* remote.git("rev-parse", remote.ref)).toBe(claimed);
       yield* replacement.assertOwned;
-    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+    }).pipe(Effect.scoped, Effect.provide(testLayer)),
   );
 });

@@ -63,15 +63,10 @@ export const acquireDependencyLease = Effect.fn("Dependencies.acquireLease")(
     const git = (args: readonly string[]) =>
       transport(args).pipe(
         Effect.provideService(RetryBackoff, backoff),
-        Effect.mapError(
-          (error) =>
-            new DependencyRunError({
-              message: error.message,
-              transientNetwork:
-                error instanceof DependencyRunError
-                  ? error.transientNetwork
-                  : undefined,
-            }),
+        Effect.mapError((error) =>
+          error instanceof DependencyRunError
+            ? error
+            : new DependencyRunError({ message: error.message }),
         ),
       );
 
