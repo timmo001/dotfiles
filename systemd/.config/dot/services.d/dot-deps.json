@@ -6,7 +6,7 @@
     "2": "warning",
     "3": "skipped"
   },
-  "staleAfter": "1 hour",
+  "staleAfter": "2 hours",
   "logs": {
     "dir": "$XDG_STATE_HOME/dot/dependency-service/runs",
     "file": "run.log"
