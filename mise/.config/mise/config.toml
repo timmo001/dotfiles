@@ -52,7 +52,7 @@ version = "0.87.1"
 minimum_release_age = "2h"
 
 [tools."github:backnotprop/plannotator"]
-version = "0.27.20"
+version = "0.27.21"
 minimum_release_age = "2h"
 
 # Read this machine's current gh token without invoking mise or its shims.
