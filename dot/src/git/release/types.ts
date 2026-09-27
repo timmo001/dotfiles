@@ -68,7 +68,22 @@ export const ReleaseSettings = Schema.Struct({
   /** Portable shipped-content policy. */
   policy: Schema.Literals(["oxlint-rules", "system-bridge", "application"]),
   /** Stable tag scheme; omission retains SemVer. */
-  versioning: Schema.optional(Schema.Literals(["semver", "calver"])),
+  versioning: Schema.optional(Schema.Literals(["semver", "calver", "fork"])),
+  /** Upstream version source and fork-specific release counter prefix. */
+  fork: Schema.optional(
+    Schema.Struct({
+      /** GitHub owner/repo whose plain SemVer tags define the base. */
+      upstream: Schema.String.check(
+        Schema.isPattern(
+          /^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9_][A-Za-z0-9_.-]*$/,
+        ),
+      ),
+      /** Non-numeric SemVer prerelease identifier. */
+      suffix: Schema.String.check(
+        Schema.isPattern(/^(?![0-9]+$)[0-9A-Za-z-]+$/),
+      ),
+    }),
+  ),
   /** Changed source lines above this cutoff suggest minor; omission disables the heuristic. */
   source_minor_threshold: Schema.optional(Schema.Number),
   /** Paths excluded from the source-size heuristic; new paths count by default. */
@@ -93,7 +108,13 @@ export const ReleaseSettings = Schema.Struct({
     /** Minimum delay between successful deliveries. */
     cooldown_minutes: Schema.Number,
   }),
-});
+}).check(
+  Schema.makeFilter((settings) =>
+    settings.versioning === "fork" && !settings.fork
+      ? "versioning: fork requires fork.upstream and fork.suffix"
+      : undefined,
+  ),
+);
 
 /** Validated release settings, absent for unwatched repositories. */
 export type ReleaseSettings = typeof ReleaseSettings.Type;
@@ -193,6 +214,8 @@ export const ReleaseSnapshot = Schema.Struct({
   releaseCommit: Schema.String,
   /** Immutable compared branch commit. */
   head: Schema.String,
+  /** Newest plain upstream SemVer tag reachable from head, without a v prefix. */
+  upstreamBase: Schema.optional(Schema.String),
   /** Successful collection time in ISO format. */
   checkedAt: Schema.String,
   /** Hash of preset version and ordered overrides. */

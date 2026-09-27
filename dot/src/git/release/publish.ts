@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { join, relative } from "node:path";
 import { Clock, Effect, Option, Schema, Stream } from "effect";
+import semver from "semver";
 import {
   CommandError,
   CommandExecutor,
@@ -212,15 +213,80 @@ export function nextReleaseTag(snapshot: ReleaseSnapshot): string;
 /** Compute the configured stable tag using an explicitly supplied timestamp. */
 export function nextReleaseTag(
   snapshot: ReleaseSnapshot,
-  versioning: ReleaseSettings["versioning"],
+  versioning: "semver" | "calver" | undefined,
   timestamp: number,
+): string;
+/** Compute a tag from the configured scheme and recorded upstream evidence. */
+export function nextReleaseTag(
+  snapshot: ReleaseSnapshot,
+  settings: Pick<ReleaseSettings, "versioning" | "fork">,
+  timestamp?: number,
 ): string;
 /** Compute the next stable tag without reading the wall clock. */
 export function nextReleaseTag(
   snapshot: ReleaseSnapshot,
-  versioning: ReleaseSettings["versioning"] = "semver",
+  settings:
+    | "semver"
+    | "calver"
+    | Pick<ReleaseSettings, "versioning" | "fork"> = "semver",
   timestamp?: number,
 ): string {
+  const versioning = isString(settings) ? settings : settings.versioning;
+
+  if (versioning === "fork") {
+    const fork = isString(settings) ? undefined : settings.fork;
+
+    if (!fork || snapshot.suggestion === "none" || !snapshot.upstreamBase)
+      throw new ReleaseError({
+        message:
+          "Choose a release impact and refresh the upstream base with fork settings before creating a release",
+      });
+
+    const match =
+      /^((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))(?:-([0-9A-Za-z-]+)\.(0|[1-9]\d*))?$/.exec(
+        snapshot.releaseTag,
+      );
+
+    if (
+      !match ||
+      !semver.valid(match[1]) ||
+      (match[2] !== undefined && match[2] !== fork.suffix)
+    )
+      throw new ReleaseError({
+        message: `The fork baseline must be bare X.Y.Z or X.Y.Z-${fork.suffix}.N, without a v prefix`,
+      });
+
+    if (
+      !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(
+        snapshot.upstreamBase,
+      ) ||
+      !semver.valid(snapshot.upstreamBase)
+    )
+      throw new ReleaseError({
+        message:
+          "The recorded upstream base must be a bare plain SemVer version; refresh the comparison",
+      });
+    const order = semver.compare(snapshot.upstreamBase, match[1]);
+
+    if (order < 0)
+      throw new ReleaseError({
+        message:
+          "The upstream base is older than the fork release baseline; reconcile it before creating a release",
+      });
+    const count = match[3] === undefined ? undefined : Number(match[3]);
+    const next = order === 0 && count !== undefined ? count + 1 : 0;
+
+    if (
+      (count !== undefined && !Number.isSafeInteger(count)) ||
+      !Number.isSafeInteger(next)
+    )
+      throw new ReleaseError({
+        message: "Fork release counts must be safe integers",
+      });
+
+    return `${snapshot.upstreamBase}-${fork.suffix}.${next}`;
+  }
+
   if (versioning === "calver") {
     const match = /^(v?)(\d{4})(\d{2})(\d{2})\.(0|[1-9]\d*)$/.exec(
       snapshot.releaseTag,
@@ -325,7 +391,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
   const timestamp = yield* Clock.currentTimeMillis;
 
   const tag = yield* Effect.try({
-    try: () => nextReleaseTag(snapshot, settings.versioning, timestamp),
+    try: () => nextReleaseTag(snapshot, settings, timestamp),
     catch: (error) => new ReleaseError({ message: formatCause(error) }),
   });
 

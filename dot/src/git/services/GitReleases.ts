@@ -1,4 +1,5 @@
 import { Clock, Context, Cron, Effect, Layer, Result, Schema } from "effect";
+import semver from "semver";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import {
@@ -122,6 +123,10 @@ const StableRelease = Schema.Struct({
   published_at: Schema.NullOr(Schema.String),
 });
 
+const UpstreamTags = Schema.Array(
+  Schema.Array(Schema.Struct({ name: Schema.String })),
+);
+
 function policyIdentity(settings: ReleaseSettings): string {
   return evidenceId([
     RELEASE_POLICY_VERSION,
@@ -130,6 +135,7 @@ function policyIdentity(settings: ReleaseSettings): string {
     settings.source_excludes ?? [],
     settings.source_minor_threshold ?? null,
     settings.versioning ?? "semver",
+    ...(settings.fork ? [settings.fork] : []),
   ]);
 }
 
@@ -155,7 +161,7 @@ function entry(
 
   if (snapshot?.complete && !stale) {
     try {
-      nextVersion = nextReleaseTag(snapshot, settings.versioning, timestamp);
+      nextVersion = nextReleaseTag(snapshot, settings, timestamp);
     } catch (error) {
       if (!(error instanceof ReleaseError)) throw error;
     }
@@ -370,6 +376,83 @@ export class GitReleases extends Context.Service<
             message: `Published release ${release.tag_name} is not an ancestor of ${settings.branch}, or history is unavailable`,
           });
 
+        const upstream =
+          settings.versioning === "fork"
+            ? yield* Effect.gen(function* () {
+                if (!settings.fork)
+                  return yield* new ReleaseError({
+                    message: "Fork release settings are missing",
+                  });
+
+                const pages = yield* github
+                  .json([
+                    "api",
+                    `repos/${settings.fork.upstream}/tags?per_page=100`,
+                    "--paginate",
+                    "--slurp",
+                  ])
+                  .pipe(
+                    Effect.flatMap(Schema.decodeUnknownEffect(UpstreamTags)),
+                  );
+
+                const tags = yield* Effect.try({
+                  try: () =>
+                    pages
+                      .flat()
+                      .filter((tag) =>
+                        /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(
+                          tag.name,
+                        ),
+                      )
+                      .sort((a, b) => semver.rcompare(a.name, b.name)),
+                  catch: (error) =>
+                    new ReleaseError({ message: formatCause(error) }),
+                });
+
+                for (const tag of tags) {
+                  yield* runGit([
+                    "fetch",
+                    "--atomic",
+                    "--no-write-fetch-head",
+                    "--no-tags",
+                    "--no-recurse-submodules",
+                    `https://github.com/${settings.fork.upstream}.git`,
+                    `+refs/tags/${tag.name}:${prefix}/upstream`,
+                  ]);
+
+                  const code = yield* executor.exitCode(
+                    "git",
+                    [
+                      "merge-base",
+                      "--is-ancestor",
+                      `${prefix}/upstream^{commit}`,
+                      head,
+                    ],
+                    { cwd: repo.path },
+                  );
+
+                  if (code === 0) return tag.name.replace(/^v/, "");
+
+                  if (code !== 1)
+                    return yield* new ReleaseError({
+                      message: `Could not check ancestry of upstream tag ${tag.name}`,
+                    });
+                }
+
+                return yield* new ReleaseError({
+                  message: `No plain SemVer tag from ${settings.fork.upstream} is an ancestor of ${settings.branch}`,
+                });
+              }).pipe(
+                Effect.mapError(
+                  (error) =>
+                    new ReleaseError({
+                      message: `Upstream base unavailable: ${formatCause(error)}`,
+                    }),
+                ),
+                Effect.result,
+              )
+            : undefined;
+
         const changes = yield* collectReleaseChanges(
           repo.path,
           releaseCommit,
@@ -381,6 +464,13 @@ export class GitReleases extends Context.Service<
         const findings = classifyReleaseFacts(changes.facts, settings);
         const now = yield* Clock.currentTimeMillis;
 
+        const errors = [
+          ...changes.errors,
+          ...(upstream && Result.isFailure(upstream)
+            ? [upstream.failure.message]
+            : []),
+        ];
+
         return {
           id: "",
           repo: repo.github,
@@ -389,6 +479,10 @@ export class GitReleases extends Context.Service<
           releaseTag: release.tag_name,
           releaseCommit,
           head,
+          upstreamBase:
+            upstream && Result.isSuccess(upstream)
+              ? upstream.success
+              : undefined,
           checkedAt: new Date(now).toISOString(),
           policyId: policyIdentity(settings),
           comparisonId: "",
@@ -403,9 +497,8 @@ export class GitReleases extends Context.Service<
           suggestion: "none",
           reviewed: false,
           complete:
-            changes.errors.length === 0 &&
-            findings.every((fact) => fact.complete),
-          errors: changes.errors,
+            errors.length === 0 && findings.every((fact) => fact.complete),
+          errors,
         } satisfies ReleaseSnapshot;
       });
 

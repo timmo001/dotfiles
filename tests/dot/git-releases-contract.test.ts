@@ -114,6 +114,34 @@ test("CalVer uses UTC dates, validates baselines and safely increments same-day 
   expect(nextReleaseTag(current)).toBe("1.0.1");
 });
 
+test("fork tags increment the counter and reset only when the upstream base advances", () => {
+  const config: ReleaseSettings = { ...settings(), versioning: "fork", fork: { upstream: "example/upstream", suffix: "downstream" } };
+  const current = { ...snapshot([file("src/app.ts")]), upstreamBase: "0.8.2" };
+  const next = (releaseTag: string, upstreamBase = current.upstreamBase) => nextReleaseTag({ ...current, releaseTag, upstreamBase }, config);
+  expect(next("0.8.2-downstream.0")).toBe("0.8.2-downstream.1");
+  expect(next("0.8.2-downstream.7", "0.9.0")).toBe("0.9.0-downstream.0");
+  expect(next("0.8.2")).toBe("0.8.2-downstream.0");
+  expect(nextReleaseTag({ ...current, releaseTag: "0.8.2-downstream.1", suggestion: "major" }, config)).toBe("0.8.2-downstream.2");
+  expect(() => next("0.9.0-downstream.0")).toThrow("older");
+  expect(() => next("0.8.2-other.0")).toThrow("X.Y.Z-downstream.N");
+  expect(() => next("v0.8.2-downstream.0")).toThrow("without a v prefix");
+  expect(() => nextReleaseTag({ ...current, releaseTag: "0.8.2", suggestion: "none" }, config)).toThrow("release impact");
+  expect(() => nextReleaseTag({ ...current, releaseTag: "0.8.2", upstreamBase: undefined }, config)).toThrow("upstream base");
+});
+
+test("fork config requires an upstream slug and a safe non-numeric suffix", () => {
+  const config: ReleaseSettings = { ...settings(), versioning: "fork", fork: { upstream: "example/upstream", suffix: "downstream" } };
+  const parse = (releases: ReleaseSettings) => parseDotGitConfigText(appendGitRepository("schema_version: 2\nrepositories: []\n", { ...repository, releases }), "fixture.yml");
+  expect(parse(config).repositories[0].releases).toEqual(config);
+  expect(parse({ ...settings(), versioning: "fork" }).valid).toBe(false);
+
+  for (const suffix of ["", "123", "fork.name", "fork/name", "fork+name"])
+    expect(parse({ ...config, fork: { upstream: "example/upstream", suffix } }).valid).toBe(false);
+
+  for (const upstream of ["upstream", "example/upstream/extra", "https://github.com/example/upstream", "../upstream"])
+    expect(parse({ ...config, fork: { upstream, suffix: "downstream" } }).valid).toBe(false);
+});
+
 test("UTC midnight invalidates the CalVer preview confirmation without writing", async () => {
   const config: ReleaseSettings = { ...settings(), policy: "application", versioning: "calver", publish: { version_files: [], commands: [] } };
   const current = { ...snapshot([file("src/app.ts")], "head", config), releaseTag: "20260910.2" };

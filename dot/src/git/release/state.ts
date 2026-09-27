@@ -320,6 +320,7 @@ export function applyReleaseReview(
     snapshot.releaseCommit,
     snapshot.head,
     snapshot.policyId,
+    ...(snapshot.upstreamBase ? [snapshot.upstreamBase] : []),
     findings.map((fact) => [
       fact.id,
       fact.complete,
