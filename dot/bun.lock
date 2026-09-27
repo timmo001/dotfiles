@@ -7,7 +7,7 @@
       "dependencies": {
         "@effect/platform-node": "4.0.0-rc.117",
         "@herdr/sdk": "github:timmo001/herdr-ts-sdk#ceea42fa1f06c4afb4ec434bdcc5132720a19ba2",
-        "@timmo001/effect-gh": "github:timmo001/effect-gh#3643c6856577966e3804f2611da6286b605c3566",
+        "@timmo001/effect-gh": "github:timmo001/effect-gh#550f0a09d6385b89c40b52feffa833b677aadc1f",
         "effect": "4.0.0-rc.117",
         "fast-xml-parser": "^5.11.1",
         "handlebars": "^4.7.9",
@@ -66,7 +66,7 @@
 
     "@redis/time-series": ["@redis/time-series@6.2.1", "", { "peerDependencies": { "@redis/client": "^6.2.1" } }, "sha512-kiYniph04dJOole+L359B6C9E+jYS2uDP7hca6Onj0xF38ZIpyxARO0Iq0W4ZRn1e8Q6vqW00QFZVSMRA/2Ijw=="],
 
-    "@timmo001/effect-gh": ["@timmo001/effect-gh@github:timmo001/effect-gh#3643c68", { "peerDependencies": { "effect": "4.0.0-rc.117" } }, "timmo001-effect-gh-3643c68", "sha512-6SFSuQrwaUoWuu6zY4IDu9cw5spATDHQ6aKFJ2/TZy+HIU9mI/18/nWGV30qBsgha5upMNIn3n/Tgoa205Lo/w=="],
+    "@timmo001/effect-gh": ["@timmo001/effect-gh@github:timmo001/effect-gh#550f0a0", { "peerDependencies": { "effect": "4.0.0-rc.117" } }, "timmo001-effect-gh-550f0a0", "sha512-VJmvMGTqXBrYBKimS0ih8/KRuoVyog+Oj/qBBRR8X05F3a0+AU8FSq3uDwUQeI2EuOXvA4iH+saAhizpgtQj0Q=="],
 
     "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 
