@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { Effect, FileSystem, Option, Schema } from "../../dot/node_modules/effect/dist/index.js";
-import { Agent, HerdrSdk, herdrSdkLayerFromOptions, Pane, PaneProcessInfo, Tab, Workspace } from "../../dot/node_modules/@herdr/sdk/src/index.ts";
+import { Agent, HerdrSdk, herdrSdkLayerFromOptions, Pane, PaneProcessInfo, Tab, Workspace } from "../../dot/node_modules/@timmo001/effect-herdr/src/index.ts";
 import { openHerdrRepo, type HerdrRepoOpenOptions } from "../../dot/src/commands/HerdrRepoOpen.js";
 import { HOME_DIR } from "../../dot/src/lib/paths.js";
 import { CommandExecutor } from "../../dot/src/services/CommandExecutor.js";

@@ -4,7 +4,7 @@ import { createServer, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect, Fiber, FileSystem, Layer, Queue, Schema, Stream } from "../../dot/node_modules/effect/dist/index.js";
-import { HerdrSdk, herdrConfigLayerFromOptions, herdrSdkLayerFromOptions, herdrTransportLayerWithoutDependencies, SessionSnapshot } from "../../dot/node_modules/@herdr/sdk/src/index.ts";
+import { HerdrSdk, herdrConfigLayerFromOptions, herdrSdkLayerFromOptions, herdrTransportLayerWithoutDependencies, SessionSnapshot } from "../../dot/node_modules/@timmo001/effect-herdr/src/index.ts";
 import { formatHerdrContext, HerdrContext, readHerdrContext, watchHerdrContext } from "../../dot/src/commands/HerdrContext.js";
 import { CommandError, CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
 
