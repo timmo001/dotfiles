@@ -111,18 +111,34 @@ function editText(
 
   if (dependency.manager === "mise") {
     let tools = false;
+    let toolTable = false;
     let count = 0;
 
     const updated = text.replace(/[^\r\n]+/g, (line) => {
-      if (/^\s*\[/.test(line)) tools = /^\s*\[tools\]\s*(?:#.*)?$/.test(line);
+      if (/^\s*\[/.test(line)) {
+        tools = /^\s*\[tools\]\s*(?:#.*)?$/.test(line);
 
-      if (!tools) return line;
+        const table =
+          /^\s*\[tools\.(?:"([^"\n]+)"|'([^'\n]+)'|([^\]\s]+))\]\s*(?:#.*)?$/.exec(
+            line,
+          );
+
+        toolTable =
+          !!table && (table[1] ?? table[2] ?? table[3]) === dependency.name;
+      }
+
+      if (!tools && !toolTable) return line;
 
       const key = /^\s*(?:"([^"\n]+)"|'([^'\n]+)'|([^\s=]+))\s*=\s*(.*)$/.exec(
         line,
       );
 
-      if (!key || (key[1] ?? key[2] ?? key[3]) !== dependency.name) return line;
+      if (
+        !key ||
+        (key[1] ?? key[2] ?? key[3]) !==
+          (toolTable ? "version" : dependency.name)
+      )
+        return line;
 
       const before =
         dependency.datasource === "git-refs"
@@ -140,7 +156,11 @@ function editText(
         dependency.datasource === "git-refs" ? `rev:${release.digest}` : next;
 
       const literal = [JSON.stringify(before), `'${before}'`].find(
-        (candidate) => key[4].includes(candidate),
+        (candidate) =>
+          toolTable
+            ? key[4].trimStart().startsWith(candidate) &&
+              /^\s*(?:#.*)?$/.test(key[4].trimStart().slice(candidate.length))
+            : key[4].includes(candidate),
       );
 
       if (!literal)

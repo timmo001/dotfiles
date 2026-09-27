@@ -74,6 +74,71 @@ test("recursive plugin matching preserves outside pins and inherited capture off
   );
 });
 
+test("mise tool tables update only the matching version pin", async () => {
+  const file = "mise.toml";
+
+  const original = `[tools]
+bun = "1.0.0"
+
+[tools."github:backnotprop/plannotator"]
+version = "0.27.20" # keep this setting
+minimum_release_age = "2h"
+
+[tools."github:other/tool"]
+version = "0.27.20"
+`;
+
+  const policy: DependencyPolicy = {
+    settings: {},
+    managers: {},
+    rules: [],
+    datasources: {},
+    regexManagers: [],
+  };
+
+  const prepared = await Effect.runPromise(
+    prepareDependencyEdits(
+      {
+        repository: "example/config",
+        target: "main",
+        sha: "base",
+        tree: [],
+        files: { [file]: original },
+      },
+      policy,
+      [
+        {
+          dependency: {
+            manager: "mise",
+            file,
+            name: "github:backnotprop/plannotator",
+            package: "backnotprop/plannotator",
+            datasource: "github-releases",
+            dependencyType: "tools",
+            current: "0.27.20",
+          },
+          group: "plannotator",
+          groups: ["plannotator"],
+          skippedBy: [],
+          selection: {
+            settings: {},
+            release: { version: "0.27.21" },
+            reason: "test",
+            blockers: [],
+          },
+        },
+      ],
+    ),
+  );
+
+  expect(prepared.files[file]).toBe(
+    original.replace(
+      'version = "0.27.20" # keep this setting',
+      'version = "0.27.21" # keep this setting',
+    ),
+  );
+});
+
 test("standalone exclusions cannot suppress checks for a mixed or unknown group", async () => {
   const config = await Effect.runPromise(
     decodeDependencyConfig(
