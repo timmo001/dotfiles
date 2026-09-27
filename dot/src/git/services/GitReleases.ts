@@ -471,7 +471,7 @@ export class GitReleases extends Context.Service<
             : []),
         ];
 
-        return {
+        const snapshot = {
           id: "",
           repo: repo.github,
           name: repo.name,
@@ -479,10 +479,6 @@ export class GitReleases extends Context.Service<
           releaseTag: release.tag_name,
           releaseCommit,
           head,
-          upstreamBase:
-            upstream && Result.isSuccess(upstream)
-              ? upstream.success
-              : undefined,
           checkedAt: new Date(now).toISOString(),
           policyId: policyIdentity(settings),
           comparisonId: "",
@@ -500,6 +496,10 @@ export class GitReleases extends Context.Service<
             errors.length === 0 && findings.every((fact) => fact.complete),
           errors,
         } satisfies ReleaseSnapshot;
+
+        return upstream && Result.isSuccess(upstream)
+          ? { ...snapshot, upstreamBase: upstream.success }
+          : snapshot;
       });
 
       const queryRepo = Effect.fn("GitReleases.queryRepo")(function* (
