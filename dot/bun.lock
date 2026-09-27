@@ -6,8 +6,8 @@
       "name": "dot-cli",
       "dependencies": {
         "@effect/platform-node": "4.0.0-rc.117",
-        "@herdr/sdk": "github:timmo001/herdr-ts-sdk#ceea42fa1f06c4afb4ec434bdcc5132720a19ba2",
-        "@timmo001/effect-gh": "github:timmo001/effect-gh#550f0a09d6385b89c40b52feffa833b677aadc1f",
+        "@timmo001/effect-gh": "0.1.0",
+        "@timmo001/effect-herdr": "0.8.2-timmo001.1",
         "effect": "4.0.0-rc.117",
         "fast-xml-parser": "^5.11.1",
         "handlebars": "^4.7.9",
@@ -52,8 +52,6 @@
 
     "@effect/tsgo-win32-x64": ["@effect/tsgo-win32-x64@0.46.1", "", { "os": "win32", "cpu": "x64" }, "sha512-hlRbeNlp0N/dfZZFl+xVzT3XfHYqPmkXzCadR6e5yoe/vyA3O9RnO5UrOBHsXvL2RTE6hrh8bRfx2Uu6g3LL5w=="],
 
-    "@herdr/sdk": ["@herdr/sdk@github:timmo001/herdr-ts-sdk#ceea42f", { "dependencies": { "@effect/platform-node-shared": "4.0.0-rc.117", "ajv": "^8.20.0", "effect": "4.0.0-rc.117" } }, "timmo001-effect-herdr-ceea42f", "sha512-skaXw7sJapzgYcvIA1KApTHBXwW34gdH4YfOE6e+CZ7SkHA5XS0I0rhDb+La85xNcEVYYrZODknCMdKj4hGn+A=="],
-
     "@nodable/entities": ["@nodable/entities@3.0.0", "", {}, "sha512-8L9xFeTYKhm49xfIypoe2W5wV1m/3Z58kT+7kR9A8OyFxcPduI4VmxaUMQyKYrRjUoLLSXv6EKKID5Tvj9cUVw=="],
 
     "@redis/bloom": ["@redis/bloom@6.2.1", "", { "peerDependencies": { "@redis/client": "^6.2.1" } }, "sha512-huQgNLaCIZfQ9SeLn4q9124uOUd8HbZDYHwwUzNcRgHqCHiHKl2dDxMqJCeWh8cMqZAoWuHR8XnWbDMIf+o7ag=="],
@@ -66,7 +64,9 @@
 
     "@redis/time-series": ["@redis/time-series@6.2.1", "", { "peerDependencies": { "@redis/client": "^6.2.1" } }, "sha512-kiYniph04dJOole+L359B6C9E+jYS2uDP7hca6Onj0xF38ZIpyxARO0Iq0W4ZRn1e8Q6vqW00QFZVSMRA/2Ijw=="],
 
-    "@timmo001/effect-gh": ["@timmo001/effect-gh@github:timmo001/effect-gh#550f0a0", { "peerDependencies": { "effect": "4.0.0-rc.117" } }, "timmo001-effect-gh-550f0a0", "sha512-VJmvMGTqXBrYBKimS0ih8/KRuoVyog+Oj/qBBRR8X05F3a0+AU8FSq3uDwUQeI2EuOXvA4iH+saAhizpgtQj0Q=="],
+    "@timmo001/effect-gh": ["@timmo001/effect-gh@0.1.0", "", { "peerDependencies": { "effect": "4.0.0-rc.117" } }, "sha512-i+/kJa4+IgBesWvdrZhD0Y6XY0KDJNTVIzxhtiQpXeyZO1HAO3eChNVe/r2n1YyF0T98cMONqRLiLbzJTGHgZA=="],
+
+    "@timmo001/effect-herdr": ["@timmo001/effect-herdr@0.8.2-timmo001.1", "", { "dependencies": { "@effect/platform-node-shared": "4.0.0-rc.117", "ajv": "^8.20.0", "effect": "4.0.0-rc.117" } }, "sha512-GENgs0sbhHt1YEpIKsYzCxuycaniQ13oW1j9TLS7FtWmOG08D35B4f4b/rV2EOgAYnUpoJl67LfBfoR5R0acOw=="],
 
     "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 

@@ -6,7 +6,7 @@ import {
   herdrConfigLayerFromOptions,
   herdrSdkLayerFromOptions,
   herdrTransportLayerWithoutDependencies,
-} from "@herdr/sdk";
+} from "@timmo001/effect-herdr";
 import {
   Duration,
   Effect,

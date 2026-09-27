@@ -13,8 +13,8 @@
   },
   "dependencies": {
     "@effect/platform-node": "4.0.0-rc.117",
-    "@herdr/sdk": "github:timmo001/herdr-ts-sdk#ceea42fa1f06c4afb4ec434bdcc5132720a19ba2",
-    "@timmo001/effect-gh": "github:timmo001/effect-gh#550f0a09d6385b89c40b52feffa833b677aadc1f",
+    "@timmo001/effect-gh": "0.1.0",
+    "@timmo001/effect-herdr": "0.8.2-timmo001.1",
     "effect": "4.0.0-rc.117",
     "fast-xml-parser": "^5.11.1",
     "handlebars": "^4.7.9",

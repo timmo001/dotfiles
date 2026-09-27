@@ -5,7 +5,7 @@ import {
   type Agent,
   type PaneId,
   type TabId,
-} from "@herdr/sdk";
+} from "@timmo001/effect-herdr";
 import { Cause, Duration, Effect, Option, Schedule, Schema } from "effect";
 import { existsSync, readFileSync } from "fs";
 import { join, resolve } from "path";
