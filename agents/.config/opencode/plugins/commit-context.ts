@@ -4,7 +4,7 @@
 
 import { $ } from "bun";
 import { OpenCode, type OpenCodeClient } from "@opencode/client/effect";
-import type { SessionListInput } from "@opencode/client/effect/api";
+import { Session } from "@opencode/schema/session";
 import { Service } from "@opencode/client/effect/service";
 import type { Endpoint } from "@opencode/client/service";
 import { Plugin } from "@opencode/plugin/effect";
@@ -269,19 +269,23 @@ export const makeCommitContextPlugin = (
               ? yield* collectSessionTree(
                   {
                     export: (sessionID) =>
-                      client.session.export({
-                        // SAFETY: IDs originate from the current session hook or schema-decoded session list.
-                        sessionID: sessionID as Parameters<
-                          typeof client.session.export
-                        >[0]["sessionID"],
-                      }).pipe(Effect.mapError((error) => new Error(String(error)))),
+                      Schema.decodeUnknownEffect(Session.ID)(sessionID).pipe(
+                        Effect.flatMap((id) => client.session.export({ sessionID: id })),
+                        Effect.mapError((error) => new Error(String(error))),
+                      ),
                     children: (parentID, cursor) =>
-                      client.session.list({
-                        // SAFETY: Parent IDs originate from the current session hook or schema-decoded session list.
-                        parentID: parentID as SessionListInput["parentID"],
-                        // SAFETY: Cursors originate from the schema-decoded preceding list page.
-                        cursor: cursor as SessionListInput["cursor"],
-                        limit: MAX_COMMIT_CONTEXT_SESSIONS,
+                      Effect.gen(function* () {
+                        const id = yield* Schema.decodeUnknownEffect(Session.ID)(parentID);
+
+                        const next = cursor === undefined ? undefined : yield* Schema.decodeUnknownEffect(
+                          Schema.String.pipe(Schema.brand("SessionsCursor")),
+                        )(cursor);
+
+                        return yield* client.session.list({
+                          parentID: id,
+                          cursor: next,
+                          limit: MAX_COMMIT_CONTEXT_SESSIONS,
+                        });
                       }).pipe(Effect.mapError((error) => new Error(String(error)))),
                   },
                   event.sessionID,
