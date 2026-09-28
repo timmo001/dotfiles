@@ -86,6 +86,12 @@
         "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.lock"
       ],
       "minimumReleaseAge": "2 hours"
+    },
+    {
+      "description": "Keep the dependency import runtime on a Node version Renovate supports.",
+      "matchFileNames": ["dot/deps-import/mise.toml"],
+      "matchDepNames": ["node"],
+      "allowedVersions": "<25"
     }
   ]
 }

@@ -13865,6 +13865,55 @@ policy:
             - "https://github.com/timmo001/**"
         set:
           priority: 300
+      - description:
+          - "Update the Effect runtime and integrations together."
+        match:
+          packages:
+            - "effect"
+            - "@effect/**"
+            - "!@effect/tsgo"
+            - "!@effect/language-service"
+        set:
+          groupName: "Effect"
+          groupSlug: "effect"
+      - description:
+          - "Keep coordinated OpenCode 2 packages together."
+        match:
+          dependencies:
+            - "@opencode/**"
+            - "npm:@opencode/**"
+            - "anomalyco/opencode"
+            - "github:anomalyco/opencode"
+        set:
+          groupName: "OpenCode 2"
+          groupSlug: "opencode-2"
+      - description:
+          - "Update OpenTUI packages together."
+        match:
+          packages:
+            - "@opentui/**"
+        set:
+          groupName: "OpenTUI"
+          groupSlug: "opentui"
+      - description:
+          - "Update Lit monorepo packages together."
+        match:
+          sourceUrls:
+            - "https://github.com/lit/lit"
+        set:
+          groupName: "Lit"
+          groupSlug: "lit"
+      - description:
+          - "Update Oxlint packages together."
+        match:
+          packages:
+            - "oxlint"
+            - "@oxlint/**"
+            - "oxlint-tsgolint"
+            - "eslint-plugin-oxlint"
+        set:
+          groupName: "oxlint"
+          groupSlug: "oxlint"
     regexManagers:
       - files:
           - "**/{j,t}sconfig.json"
@@ -13920,6 +13969,15 @@ policy:
             - "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.lock"
         set:
           minimumReleaseAge: "2 hours"
+      - description:
+          - "Keep the dependency import runtime on a Node version Renovate supports."
+        match:
+          dependencies:
+            - "node"
+          files:
+            - "dot/deps-import/mise.toml"
+        set:
+          allowedVersions: "<25"
     regexManagers:
       - files:
           - "/^mise\\.toml$/"
@@ -14522,7 +14580,7 @@ validation:
 import:
   source: "renovate.json"
   resolverVersion: "44.103.0"
-  overrideHash: "485f21302ab97c852fc2c5bfa53482a80e30acb435a05db4ce57b66c76f53012"
+  overrideHash: "a8786eb306f2e659f33d6d29782eaec0e30fdd2ef235c89911e42d759362cba1"
   baseDiagnostics:
     - path: "presets.description"
       disposition: "ignored"
