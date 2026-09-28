@@ -1,7 +1,7 @@
 import { NodeServices } from "@effect/platform-node";
 import { layer as ghLayer } from "@timmo001/effect-gh";
 import { Effect, Layer, Option } from "effect";
-import { CliConfig, CliError, Command } from "effect/unstable/cli";
+import { CliConfig, CliError, Command } from "effect/cli";
 import { mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { cliBuiltIns, dotCommand, getCliCommand } from "./cli/spec.js";

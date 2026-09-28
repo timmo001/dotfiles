@@ -11,7 +11,7 @@ import {
   Stream,
 } from "effect";
 import { TestClock } from "effect/testing";
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { GitHub } from "../src/git/services/GitHub.js";
 import { CommandExecutor } from "../src/services/CommandExecutor.js";
 import { ghOutput } from "../src/lib/gh.js";

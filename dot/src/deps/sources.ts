@@ -8,8 +8,8 @@ import {
   Predicate,
   Record,
 } from "effect";
-import { HttpClient, HttpClientResponse } from "effect/unstable/http";
-import { RateLimiter } from "effect/unstable/persistence";
+import { HttpClient, HttpClientResponse } from "effect/http";
+import { RateLimiter } from "effect/persistence";
 import jsonata from "jsonata";
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { DependencyPolicy } from "./config.js";

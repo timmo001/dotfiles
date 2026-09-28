@@ -4,7 +4,7 @@ import {
   HttpClient,
   HttpClientRequest,
   HttpClientResponse,
-} from "effect/unstable/http";
+} from "effect/http";
 import { existsSync } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";

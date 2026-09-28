@@ -8,7 +8,7 @@ import {
   Schema,
   Stream,
 } from "effect";
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { join } from "path";
 import { CACHE_DIR } from "../lib/paths.js";
 import { Config } from "../services/Config.js";
