@@ -1,87 +1,45 @@
 {
   "remove": ["omarchy.weather", "omarchy.agents"],
   "plugins": [
-    {
-      "id": "timmo.workspace-context"
-    },
+    { "id": "timmo.workspace-context" },
     {
       "id": "omarchy.keyboard-layout",
-      "placement": {
-        "section": "right",
-        "before": "omarchy.bluetooth"
-      }
+      "placement": { "section": "right", "before": "omarchy.bluetooth" }
     },
-    {
-      "id": "omarchy.system-update",
-      "placement": {
-        "section": "center"
-      }
-    },
+    { "id": "omarchy.system-update", "placement": { "section": "center" } },
     {
       "id": "timmo.workspaces",
       "replace": "omarchy.workspaces",
       "inheritSettings": false,
-      "placement": {
-        "section": "left",
-        "index": 1
-      },
-      "settings": {
-        "activeOpacity": 1,
-        "inactiveOpacity": 0.5
-      }
+      "placement": { "section": "left", "index": 1 },
+      "settings": { "activeOpacity": 1, "inactiveOpacity": 0.5 }
     },
     {
       "id": "omarchy.indicators",
-      "placement": {
-        "section": "left",
-        "after": "timmo.workspaces"
-      }
+      "placement": { "section": "left", "after": "timmo.workspaces" }
     },
     {
       "id": "timmo.twitch",
       "managed": true,
-      "placement": {
-        "section": "center",
-        "index": 0
-      },
-      "settings": {
-        "revealOnHover": true,
-        "primaryOnly": true
-      },
+      "placement": { "section": "center", "index": 0 },
+      "settings": { "revealOnHover": true, "primaryOnly": true },
       "hosts": {
-        "desktop": {
-          "primaryOutput": "HDMI-A-2"
-        },
-        "laptop": {
-          "primaryOutput": "eDP-1"
-        }
+        "desktop": { "primaryOutput": "HDMI-A-2" },
+        "laptop": { "primaryOutput": "eDP-1" }
       }
     },
     {
       "id": "timmo.git",
-      "placement": {
-        "section": "center",
-        "after": "timmo.twitch"
-      },
-      "settings": {
-        "revealOnHover": true,
-        "primaryOnly": true
-      },
+      "placement": { "section": "center", "after": "timmo.twitch" },
+      "settings": { "revealOnHover": true, "primaryOnly": true },
       "hosts": {
-        "desktop": {
-          "primaryOutput": "HDMI-A-2"
-        },
-        "laptop": {
-          "primaryOutput": "eDP-1"
-        }
+        "desktop": { "primaryOutput": "HDMI-A-2" },
+        "laptop": { "primaryOutput": "eDP-1" }
       }
     },
     {
       "id": "timmo.command",
-      "placement": {
-        "section": "center",
-        "before": "omarchy.system-update"
-      },
+      "placement": { "section": "center", "before": "omarchy.system-update" },
       "settings": {
         "primaryOnly": true,
         "run": "dot updates status",
@@ -99,112 +57,66 @@
         }
       },
       "hosts": {
-        "desktop": {
-          "primaryOutput": "HDMI-A-2"
-        },
-        "laptop": {
-          "primaryOutput": "eDP-1"
-        }
+        "desktop": { "primaryOutput": "HDMI-A-2" },
+        "laptop": { "primaryOutput": "eDP-1" }
       }
     },
     {
       "id": "timmo.home-assistant",
-      "placement": {
-        "section": "right",
-        "before": "omarchy.bluetooth"
-      },
-      "settings": {
-        "primaryOnly": true
-      },
+      "placement": { "section": "right", "before": "omarchy.bluetooth" },
+      "settings": { "primaryOnly": true },
       "hosts": {
-        "desktop": {
-          "host": "desktop",
-          "primaryOutput": "HDMI-A-2"
-        },
-        "laptop": {
-          "host": "laptop",
-          "primaryOutput": "eDP-1"
-        }
+        "desktop": { "host": "desktop", "primaryOutput": "HDMI-A-2" },
+        "laptop": { "host": "laptop", "primaryOutput": "eDP-1" }
       }
     },
     {
       "id": "timmo.system-bridge",
       "managed": true,
-      "placement": {
-        "section": "right",
-        "after": "timmo.home-assistant"
-      },
-      "settings": {
-        "primaryOnly": true
-      },
+      "placement": { "section": "right", "after": "timmo.home-assistant" },
+      "settings": { "primaryOnly": true },
       "hosts": {
-        "desktop": {
-          "primaryOutput": "HDMI-A-2"
-        },
-        "laptop": {
-          "primaryOutput": "eDP-1"
-        }
+        "desktop": { "primaryOutput": "HDMI-A-2" },
+        "laptop": { "primaryOutput": "eDP-1" }
       }
     },
     {
       "id": "timmo.notes",
       "managed": true,
-      "placement": {
-        "section": "center",
-        "after": "timmo.git"
-      },
+      "placement": { "section": "center", "after": "timmo.git" },
       "settings": {
         "primaryOnly": true,
         "workspaceContextFile": "dot-herdr-context.json",
         "workspaceContextRefreshCommand": "omarchy-shell timmo.workspace-context refresh"
       },
       "hosts": {
-        "desktop": {
-          "primaryOutput": "HDMI-A-2"
-        },
-        "laptop": {
-          "primaryOutput": "eDP-1"
-        }
+        "desktop": { "primaryOutput": "HDMI-A-2" },
+        "laptop": { "primaryOutput": "eDP-1" }
       }
     },
     {
       "id": "timmo.services",
-      "placement": {
-        "section": "center",
-        "after": "timmo.notes"
-      },
-      "settings": {
-        "primaryOnly": true
-      },
+      "placement": { "section": "center", "after": "timmo.notes" },
+      "settings": { "primaryOnly": true },
       "hosts": {
-        "desktop": {
-          "primaryOutput": "HDMI-A-2"
-        },
-        "laptop": {
-          "primaryOutput": "eDP-1"
-        }
+        "desktop": { "primaryOutput": "HDMI-A-2" },
+        "laptop": { "primaryOutput": "eDP-1" }
       }
     },
-    {
-      "id": "timmo.momentumctl",
-      "managed": true
-    },
-    {
-      "id": "timmo.workspace-relayout"
-    },
-    {
-      "id": "timmo.popup-loading"
-    },
+    { "id": "timmo.momentumctl", "managed": true },
+    { "id": "timmo.workspace-relayout" },
+    { "id": "timmo.popup-loading" },
     {
       "id": "timmo.clock",
       "managed": true,
       "replace": "omarchy.clock",
-      "placement": {
-        "section": "right"
-      },
-      "settings": {
-        "format": "HH:mm d MMM"
-      }
+      "placement": { "section": "right" },
+      "settings": { "format": "HH:mm d MMM" }
+    },
+    {
+      "id": "sceny.devices",
+      "managed": true,
+      "placement": { "section": "right", "before": "omarchy.bluetooth" }
     }
   ]
 }

@@ -21,3 +21,7 @@
 	path = omarchy/.config/omarchy/plugins/timmo.notes
 	url = https://github.com/timmo001/omarchy-notes.git
 	branch = dev
+[submodule "omarchy/.config/omarchy/plugins/sceny.devices"]
+	path = omarchy/.config/omarchy/plugins/sceny.devices
+	url = https://github.com/sceny/omarchy-devices.git
+	branch = main
