@@ -15,6 +15,9 @@ permission:
   subagent: allow
   edit: deny
   write: deny
+  external_directory:
+    "*": ask
+    "/tmp/opencode/**": allow
   bash:
     "*": ask
     "context git*": allow
