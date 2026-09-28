@@ -425,10 +425,6 @@ export function gitCommitRaw(
     }
 
     if (scoped) {
-      for (const path of options.paths) {
-        yield* staging.stageFile(process.cwd(), path);
-      }
-
       yield* staging.commit(process.cwd(), {
         message: subject,
         paths: options.paths,

@@ -200,6 +200,273 @@ export function commitIn(
   });
 }
 
+/** A {@link commitIn} request limited to an explicit set of pathspecs. */
+export interface ScopedCommitStep extends Omit<
+  CommitStep,
+  "paths" | "tolerateEmpty"
+> {
+  /** Pathspecs, relative to {@link CommitStep.cwd}, that make up the commit. */
+  readonly paths: readonly string[];
+}
+
+/** Pathspec that matches a repository-root-relative path exactly. */
+const topLiteral = (path: string) => `:(top,literal)${path}`;
+
+/** Split NUL-terminated git output into its non-empty fields. */
+const splitNul = (output: string) =>
+  output.split("\0").filter((field) => field.length > 0);
+
+/** Staged paths, root-relative, plus the path pairs git detects as renames. */
+interface StagedIndex {
+  readonly paths: ReadonlySet<string>;
+  readonly renames: readonly (readonly [string, string])[];
+}
+
+/** Read the staged set with `git diff --cached --name-status -z -M`. */
+function readStagedIndex(
+  cwd: string | undefined,
+): Effect.Effect<StagedIndex, never, CommandExecutor> {
+  return Effect.gen(function* () {
+    const fields = splitNul(
+      yield* readGitIn(cwd, ["diff", "--cached", "--name-status", "-z", "-M"]),
+    );
+
+    const paths = new Set<string>();
+    const renames: (readonly [string, string])[] = [];
+
+    for (let index = 0; index < fields.length;) {
+      const status = fields[index] ?? "";
+
+      if (status.startsWith("R") || status.startsWith("C")) {
+        const from = fields[index + 1];
+        const to = fields[index + 2];
+
+        if (from !== undefined && to !== undefined) {
+          if (status.startsWith("R")) {
+            paths.add(from);
+            renames.push([from, to]);
+          }
+
+          paths.add(to);
+        }
+
+        index += 3;
+      } else {
+        const path = fields[index + 1];
+
+        if (path !== undefined) paths.add(path);
+        index += 2;
+      }
+    }
+
+    return { paths, renames };
+  });
+}
+
+/** Root-relative staged paths matching `pathspecs`, without rename pairing. */
+function stagedMatching(
+  cwd: string | undefined,
+  pathspecs: readonly string[],
+): Effect.Effect<readonly string[], never, CommandExecutor> {
+  return readGitIn(cwd, [
+    "diff",
+    "--cached",
+    "--name-only",
+    "-z",
+    "--no-renames",
+    "--",
+    ...pathspecs,
+  ]).pipe(Effect.map(splitNul));
+}
+
+/**
+ * Stage each scoped pathspec without disturbing what is already staged. A
+ * pathspec with nothing staged is added as a whole, exactly as before. A
+ * pathspec that already matches staged entries (deletions, renames, partially
+ * staged files) keeps those entries as they are, and only its changed files
+ * that are not staged at all are added.
+ */
+function stageScope(
+  cwd: string | undefined,
+  top: string,
+  paths: readonly string[],
+  io: GitIo,
+): Effect.Effect<GitStepResult, never, CommandExecutor> {
+  return Effect.gen(function* () {
+    const staged = (yield* readStagedIndex(cwd)).paths;
+
+    for (const path of paths) {
+      if ((yield* stagedMatching(cwd, [path])).length === 0) {
+        const added = yield* runStep(cwd, ["add", "--", path], io);
+
+        if (!added.ok) return added;
+        continue;
+      }
+
+      const unstaged = [
+        ...new Set(
+          splitNul(
+            yield* readGitIn(cwd, [
+              "ls-files",
+              "-z",
+              "--full-name",
+              "--modified",
+              "--others",
+              "--exclude-standard",
+              "--",
+              path,
+            ]),
+          ),
+        ),
+      ].filter((file) => !staged.has(file));
+
+      if (unstaged.length === 0) continue;
+
+      const added = yield* runStep(
+        top,
+        ["add", "--", ...unstaged.map(topLiteral)],
+        io,
+      );
+
+      if (!added.ok) return added;
+    }
+
+    return { ok: true, text: "" };
+  });
+}
+
+/**
+ * Commit exactly the scoped paths while leaving every other staged entry
+ * staged. Scoped paths are staged by {@link stageScope}; staged entries outside
+ * the scope (keeping both sides of a staged rename together) have their index
+ * entries saved, are unstaged for a plain `git commit` of the prepared index,
+ * and are written back afterwards, whether the commit succeeds, fails, or is
+ * interrupted. Restoring the saved blobs rather than re-adding worktree files
+ * keeps partially staged content intact.
+ */
+export function commitScopedIn(
+  step: ScopedCommitStep,
+): Effect.Effect<CommitOutcome, never, CommandExecutor> {
+  const io = step.io ?? "inherit";
+
+  return Effect.gen(function* () {
+    const failed = (error: string): CommitOutcome => ({
+      ok: false,
+      committed: false,
+      text: "",
+      error,
+    });
+
+    const top = yield* readGitIn(step.cwd, ["rev-parse", "--show-toplevel"]);
+
+    if (!top) return failed("Not inside a git work tree.");
+    const staged = yield* stageScope(step.cwd, top, step.paths, io);
+
+    if (!staged.ok) return failed(staged.error ?? "git add failed");
+    const index = yield* readStagedIndex(top);
+    const scope = new Set(yield* stagedMatching(step.cwd, step.paths));
+
+    for (const [from, to] of index.renames) {
+      if (scope.has(from) || scope.has(to)) {
+        scope.add(from);
+        scope.add(to);
+      }
+    }
+
+    const others = [...index.paths].filter((path) => !scope.has(path));
+    const commitStep: CommitStep = { ...step, paths: undefined };
+
+    if (others.length === 0) return yield* commitIn(commitStep);
+
+    const saved = splitNul(
+      yield* readGitIn(top, [
+        "ls-files",
+        "-s",
+        "-z",
+        "--",
+        ...others.map(topLiteral),
+      ]),
+    ).flatMap((line) => {
+      const match = /^(\d+) ([0-9a-f]+) (\d)\t(.+)$/s.exec(line);
+
+      return match
+        ? [
+            {
+              mode: match[1] ?? "",
+              oid: match[2] ?? "",
+              stage: match[3] ?? "",
+              path: match[4] ?? "",
+            },
+          ]
+        : [];
+    });
+
+    if (saved.some((entry) => entry.stage !== "0")) {
+      return failed(
+        "Cannot scope a commit while the index has unresolved conflicts.",
+      );
+    }
+
+    const savedPaths = new Set(saved.map((entry) => entry.path));
+    const removed = others.filter((path) => !savedPaths.has(path));
+
+    const restore = Effect.gen(function* () {
+      const results: GitStepResult[] = [];
+
+      if (saved.length > 0) {
+        results.push(
+          yield* runStep(
+            top,
+            [
+              "update-index",
+              "--add",
+              ...saved.flatMap((entry) => [
+                "--cacheinfo",
+                `${entry.mode},${entry.oid},${entry.path}`,
+              ]),
+            ],
+            "capture",
+          ),
+        );
+      }
+
+      if (removed.length > 0) {
+        results.push(
+          yield* runStep(
+            top,
+            ["update-index", "--force-remove", "--", ...removed],
+            "capture",
+          ),
+        );
+      }
+
+      return results.find((result) => !result.ok);
+    });
+
+    const outcome = yield* Effect.gen(function* () {
+      const reset = yield* runStep(
+        top,
+        ["reset", "-q", "--", ...others.map(topLiteral)],
+        "capture",
+      );
+
+      if (!reset.ok) return failed(reset.error ?? "git reset failed");
+
+      return yield* commitIn(commitStep);
+    }).pipe(Effect.onInterrupt(() => restore));
+
+    const restoreFailure = yield* restore;
+
+    if (!restoreFailure) return outcome;
+
+    return {
+      ...outcome,
+      ok: false,
+      error: `Could not restore staged files outside the commit scope (${others.join(", ")}): ${restoreFailure.error ?? "git update-index failed"}`,
+    };
+  });
+}
+
 /** Options for {@link pushBranch}. */
 export interface PushOptions {
   /** Repository working directory; defaults to the process cwd. */

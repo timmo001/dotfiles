@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Schema } from "effect";
-import { gitOutput, gitRequired } from "../../lib/git.js";
-import { commitIn } from "../committer.js";
+import { gitOutput } from "../../lib/git.js";
+import { commitIn, commitScopedIn } from "../committer.js";
 import { ENV, envString } from "../../lib/env.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import type { GitStatusCode, StagedFile } from "../../types.js";
@@ -23,7 +23,10 @@ export class GitStagingError extends Schema.TaggedError<GitStagingError>()(
 export interface CommitOptions {
   /** Commit subject. Omit under `amend` to keep HEAD's message (`--no-edit`). */
   readonly message?: string;
-  /** Pathspecs to scope the commit to; empty commits the staged set. */
+  /**
+   * Pathspecs to scope the commit to; empty commits the staged set. Other
+   * staged entries are left staged after the commit.
+   */
   readonly paths?: readonly string[];
   /** Rewrite HEAD via `git commit --amend` instead of creating a new commit. */
   readonly amend?: boolean;
@@ -35,15 +38,11 @@ export interface GitStagingService {
   readonly getStatus: (
     repoPath: string,
   ) => Effect.Effect<readonly StagedFile[], GitStagingError>;
-  /** Stage a single file via `git add` */
-  readonly stageFile: (
-    repoPath: string,
-    file: string,
-  ) => Effect.Effect<void, GitStagingError>;
   /**
-   * Commit with the given options. When `paths` is provided, the commit is
-   * scoped to those pathspecs (`git commit -m <message> -- <paths>`) so only
-   * those files are recorded regardless of what else is staged. When `amend`
+   * Commit with the given options. When `paths` is provided, unstaged scoped
+   * files are staged, already staged ones are kept as staged, and only those
+   * paths are recorded; staged entries outside the scope are restored to their
+   * exact staged state afterwards (see {@link commitScopedIn}). When `amend`
    * is set the commit rewrites HEAD, and an omitted `message` keeps HEAD's
    * existing message via `--no-edit`.
    */
@@ -82,19 +81,16 @@ export class GitStaging extends Context.Service<
             }),
           ),
 
-        stageFile: (repoPath, file) => {
-          log(`Staging: ${file}`);
-
-          return provideExecutor(runGitVoid(repoPath, ["add", "--", file]));
-        },
-
         commit: (repoPath, { message, paths, amend }) => {
           log(
             `${amend ? "Amending" : "Committing"} in ${repoPath}: ${message ?? "(keep message)"}`,
           );
 
           return provideExecutor(
-            commitIn({ cwd: repoPath, message, paths, amend }).pipe(
+            (paths && paths.length > 0
+              ? commitScopedIn({ cwd: repoPath, message, paths, amend })
+              : commitIn({ cwd: repoPath, message, amend })
+            ).pipe(
               Effect.flatMap((outcome) =>
                 outcome.ok
                   ? Effect.void
@@ -124,19 +120,6 @@ const runGit = Effect.fn("GitStaging.runGit")(function* (
     Effect.mapError((error) => new GitStagingError({ message: error.message })),
   );
 });
-
-/** Run a git command that produces no meaningful output */
-function runGitVoid(
-  repoPath: string,
-  args: readonly string[],
-): Effect.Effect<void, GitStagingError, CommandExecutor> {
-  return gitRequired(args, { cwd: repoPath }).pipe(
-    Effect.tapError((error) =>
-      Effect.sync(() => log(`Error: ${error.message}`)),
-    ),
-    Effect.mapError((error) => new GitStagingError({ message: error.message })),
-  );
-}
 
 /**
  * Parse a single line of `git status --porcelain` output.
