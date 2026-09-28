@@ -54,14 +54,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Public `SKILL.md` files must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules. The standalone skills repo validates `agents/.agents/skills/`; this repo validates its local `.agents/skills/` root.
 - `dot agents-sync` mirrors the global private AGENTS source into agent harness instruction files; full `dot update` and `dot init` run that sync automatically.
 - Pinned private OpenCode packages, including plugins in `dotfiles-private/agents/.config/opencode/{opencode,tui}.json`, should be managed by an npm regex custom manager in `dotfiles-private/renovate.json`.
-
-### OpenCode Layer Boundaries
-
-- Commands are routing prompts: identify the user-facing intent, map `${ARGUMENTS}` to the target, name required skills or injected context, and define the output shape. Keep command-specific safety constraints visible.
-- Agents own execution posture: permissions, tool access, delegation defaults, and whether native plan mode is allowed. Do not duplicate reusable domain workflows in agent prompts.
-- Skills own reusable workflows and behavioural contracts. Prefer updating a skill when the same guidance would otherwise be repeated across commands or agents.
-- Plugins provide context, evidence, or enforcement hooks. Commands opt into plugin-provided context, and skills define how to consume it.
-- AGENTS guidance should stay to invariant repo policy, source-of-truth rules, and routing conventions rather than step-by-step command workflows.
+- Only add a command when it must force an agent profile or carry explicit authorisation (`/commit`, `/commit-push`). Everything else is a skill the model selects from its description.
 
 ## Omarchy Host Overrides
 
