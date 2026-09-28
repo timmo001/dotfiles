@@ -54,6 +54,8 @@ export interface HerdrRepoOpenOptions {
   readonly command?: string;
   /** Initial prompt delivered through Herdr after the selected agent is ready. */
   readonly prompt?: string;
+  /** File whose contents are sent as the initial prompt; excludes prompt. */
+  readonly promptFile?: string;
   /** Expected Herdr agent kind for an explicit command. */
   readonly agentKind?: string;
   /** Installed launcher identity from dot herdr agents. */
@@ -98,6 +100,25 @@ class TerminalNotReady extends Schema.TaggedError<TerminalNotReady>()(
 
 function fail(message: string, exitCode: 1 | 2 = 1): never {
   throw new HerdrRepoOpenError({ message, exitCode });
+}
+
+function readPromptFile(path: string): string {
+  let text: string;
+
+  try {
+    text = readFileSync(path, "utf8");
+  } catch (error) {
+    return fail(
+      existsSync(path)
+        ? `Could not read prompt file ${path}: ${formatCause(error)}`
+        : `Prompt file ${path} does not exist`,
+      2,
+    );
+  }
+
+  if (!text.trim()) return fail(`Prompt file ${path} is empty`, 2);
+
+  return text.trimEnd();
 }
 
 function canonicalLabel(options: HerdrRepoOpenOptions): string {
@@ -168,6 +189,14 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   if (options.layout !== undefined && options.modifiers !== undefined)
     return fail("Use only one of --layout or --modifiers", 2);
 
+  if (options.prompt !== undefined && options.promptFile !== undefined)
+    return fail("Use only one of --prompt or --prompt-file", 2);
+
+  const prompt =
+    options.promptFile === undefined
+      ? options.prompt
+      : readPromptFile(options.promptFile);
+
   const modifiers = options.modifiers ?? 0;
 
   const layout =
@@ -210,7 +239,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   const tabLabel = options.tabLabel ?? launcher?.label ?? "Shell";
 
   if (
-    (options.prompt !== undefined || options.agentName !== undefined) &&
+    (prompt !== undefined || options.agentName !== undefined) &&
     (!command || !agentKind)
   )
     return fail(
@@ -502,10 +531,10 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
     if (agentName !== undefined)
       agent = yield* herdr.agents.rename({ paneId: targetPane }, agentName);
 
-    if (options.prompt !== undefined)
+    if (prompt !== undefined)
       agent = yield* herdr.agents.prompt(
         { paneId: targetPane },
-        { text: options.prompt },
+        { text: prompt },
       );
   }
 
@@ -523,7 +552,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
           session: Option.getOrNull(agent.agentSession),
         }
       : null,
-    promptSent: options.prompt !== undefined && agent !== undefined,
+    promptSent: prompt !== undefined && agent !== undefined,
     model: selected?.model ?? null,
     sessionId: selected?.sessionId ?? null,
   };
