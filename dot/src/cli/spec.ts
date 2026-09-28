@@ -130,22 +130,21 @@ const optional = <A>(value: Option.Option<A>): A | undefined =>
 /** Effect global flags enabled by the `dot` command runner. */
 export const cliBuiltIns = [GlobalFlag.Help] as const;
 
-const describe = <C extends Command.Command.Any>(
-  command: C,
+const describe = <Name extends string, Input, ContextInput, E, R>(
+  command: Command.Command<Name, Input, ContextInput, E, R>,
   description: string,
   examples: readonly string[] = [],
   docs?: CliDocs,
-): C => {
+): Command.Command<Name, Input, ContextInput, E, R> => {
   const described = command.pipe(
     Command.withDescription(description),
     Command.withShortDescription(description.split("\n", 1)[0]),
     Command.withExamples(examples.map((example) => ({ command: example }))),
   );
 
-  // SAFETY: Metadata and annotation combinators preserve command input, error, and service types.
-  return (
-    docs ? described.pipe(Command.annotate(CliDocsAnnotation, docs)) : described
-  ) as C;
+  return docs
+    ? described.pipe(Command.annotate(CliDocsAnnotation, docs))
+    : described;
 };
 
 const initCommand = describe(
@@ -2135,13 +2134,29 @@ export interface InspectableCommand extends Command.Command.Any {
   };
 }
 
+function isInspectableCommand(
+  command: Command.Command.Any,
+): command is InspectableCommand {
+  return (
+    "buildHelpDoc" in command &&
+    command.buildHelpDoc instanceof Function &&
+    "config" in command &&
+    command.config instanceof Object &&
+    "flags" in command.config &&
+    Array.isArray(command.config.flags) &&
+    "arguments" in command.config &&
+    Array.isArray(command.config.arguments)
+  );
+}
+
 /** Read Effect's structured help directly from the executable command tree. */
 export function commandHelp(
   command: Command.Command.Any,
   path: ReadonlyArray<string>,
 ): HelpDoc.HelpDoc {
-  // SAFETY: Effect command instances expose buildHelpDoc on their runtime implementation.
-  const help = (command as InspectableCommand).buildHelpDoc(path);
+  if (!isInspectableCommand(command))
+    throw new Error("Unsupported Effect command");
+  const help = command.buildHelpDoc(path);
 
   return {
     ...help,
@@ -2161,8 +2176,10 @@ export function commandHelp(
 export function commandConfig(
   command: Command.Command.Any,
 ): InspectableCommand["config"] {
-  // SAFETY: Effect command instances expose config on their runtime implementation.
-  return (command as InspectableCommand).config;
+  if (!isInspectableCommand(command))
+    throw new Error("Unsupported Effect command");
+
+  return command.config;
 }
 
 /** Read optional generated-documentation extensions from a command annotation. */

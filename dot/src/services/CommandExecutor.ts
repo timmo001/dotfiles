@@ -199,31 +199,29 @@ function processLineStream(
           CommandError | Cause.Done
         >();
 
-        const proc = Bun.spawn([...fullCmd], {
+        const spawnOptions: Bun.SpawnOptions.OptionsObject<
+          "ignore",
+          "pipe",
+          "pipe"
+        > = {
           stdout: "pipe",
           stderr: "pipe",
           cwd: opts?.cwd,
           detached: true,
-        });
+        };
+
+        const proc = Bun.spawn([...fullCmd], spawnOptions);
 
         const stderrLines: string[] = [];
 
-        const stdout = pipeLines(
-          // SAFETY: Bun types pipe output as a readable stream when stdout is "pipe".
-          proc.stdout as ReadableStream<Uint8Array>,
-          (line) => {
-            Queue.offerUnsafe(queue, line);
-          },
-        );
+        const stdout = pipeLines(proc.stdout, (line) => {
+          Queue.offerUnsafe(queue, line);
+        });
 
-        const stderr = pipeLines(
-          // SAFETY: Bun types pipe output as a readable stream when stderr is "pipe".
-          proc.stderr as ReadableStream<Uint8Array>,
-          (line) => {
-            stderrLines.push(line);
-            Queue.offerUnsafe(queue, line);
-          },
-        );
+        const stderr = pipeLines(proc.stderr, (line) => {
+          stderrLines.push(line);
+          Queue.offerUnsafe(queue, line);
+        });
 
         void Promise.all([stdout, stderr, proc.exited])
           .then(([, , exitCode]) => {
@@ -362,26 +360,30 @@ export class CommandExecutor extends Context.Service<
         if (commandLogFile) {
           appendRawLog(commandLogFile, `\n$ ${fullCmd.join(" ")}\n`);
 
-          const proc = Bun.spawn(fullCmd, {
+          const spawnOptions: Bun.SpawnOptions.OptionsObject<
+            "inherit",
+            "pipe",
+            "pipe"
+          > = {
             stdin: "inherit",
             stdout: "pipe",
             stderr: "pipe",
             cwd: opts?.cwd,
             env,
-          });
+          };
+
+          const proc = Bun.spawn(fullCmd, spawnOptions);
 
           killOnAbort(proc, signal);
 
           const stdout = pipeProcessOutput(
-            // SAFETY: Bun types pipe output as a readable stream when stdout is "pipe".
-            proc.stdout as ReadableStream<Uint8Array>,
+            proc.stdout,
             process.stdout,
             commandLogFile,
           );
 
           const stderr = pipeProcessOutput(
-            // SAFETY: Bun types pipe output as a readable stream when stderr is "pipe".
-            proc.stderr as ReadableStream<Uint8Array>,
+            proc.stderr,
             process.stderr,
             commandLogFile,
           );

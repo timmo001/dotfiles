@@ -13,37 +13,61 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { buildSkillsMaintenance } from "../lib/skillsMaintenance.js";
 
-interface ChoicePrimitive extends Primitive.Primitive<unknown> {
-  readonly choiceKeys: readonly string[];
-}
-
-interface PathPrimitive extends Primitive.Primitive<unknown> {
-  readonly pathType: "file" | "directory" | "either";
-}
-
 type ParamWrapper = "Map" | "Transform" | "Optional" | "Variadic";
 
-type InspectableParam<Kind extends Param.ParamKind> =
-  | Param.Single<Kind, unknown>
-  | {
-      [Tag in ParamWrapper]: {
-        readonly _tag: Tag;
-        readonly param: Param.Param<Kind, unknown>;
-      };
-    }[ParamWrapper];
+type InspectableParam<Kind extends Param.ParamKind> = Param.Param<
+  Kind,
+  unknown
+> &
+  (
+    | Param.Single<Kind, unknown>
+    | {
+        [Tag in ParamWrapper]: {
+          readonly _tag: Tag;
+          readonly param: Param.Param<Kind, unknown>;
+        };
+      }[ParamWrapper]
+  );
 
 interface ParamMetadata {
   readonly isOptional: boolean;
   readonly isVariadic: boolean;
 }
 
+function isInspectableParam<Kind extends Param.ParamKind>(
+  param: Param.Param<Kind, unknown>,
+): param is InspectableParam<Kind> {
+  return "primitiveType" in param || "param" in param;
+}
+
+function isChoicePrimitive(
+  primitive: Primitive.Primitive<unknown>,
+): primitive is Primitive.Primitive<unknown> & {
+  readonly choiceKeys: readonly string[];
+} {
+  return "choiceKeys" in primitive && Array.isArray(primitive.choiceKeys);
+}
+
+function isPathPrimitive(
+  primitive: Primitive.Primitive<unknown>,
+): primitive is Primitive.Primitive<unknown> & {
+  readonly pathType: "file" | "directory" | "either";
+} {
+  return (
+    "pathType" in primitive &&
+    (primitive.pathType === "file" ||
+      primitive.pathType === "directory" ||
+      primitive.pathType === "either")
+  );
+}
+
 function extractSingleParams<Kind extends Param.ParamKind>(
   param: Param.Param<Kind, unknown>,
 ): readonly Param.Single<Kind, unknown>[] {
-  // SAFETY: Every non-Single Effect Param combinator stores its wrapped parameter in param.
-  const node = param as InspectableParam<Kind>;
+  if (!isInspectableParam(param))
+    throw new Error("Unsupported Effect parameter");
 
-  return Match.value(node).pipe(
+  return Match.value(param).pipe(
     Match.tag("Single", (node) => [node]),
     Match.orElse((node) => extractSingleParams(node.param)),
   );
@@ -52,10 +76,10 @@ function extractSingleParams<Kind extends Param.ParamKind>(
 function paramMetadata<Kind extends Param.ParamKind>(
   param: Param.Param<Kind, unknown>,
 ): ParamMetadata {
-  // SAFETY: Every non-Single Effect Param combinator stores its wrapped parameter in param.
-  const node = param as InspectableParam<Kind>;
+  if (!isInspectableParam(param))
+    throw new Error("Unsupported Effect parameter");
 
-  return Match.value(node).pipe(
+  return Match.value(param).pipe(
     Match.tag("Optional", (node) => {
       const nested = paramMetadata(node.param);
 
@@ -107,18 +131,18 @@ function argumentType(
     Match.tag("Int", () => CompletionType.Int()),
     Match.tag("Finite", () => CompletionType.Finite()),
     Match.tag("Date", () => CompletionType.Date()),
-    Match.tag("Choice", () =>
-      // SAFETY: Effect's Choice primitive stores its constructor keys on choiceKeys.
-      CompletionType.Choice({
-        values: (single.primitiveType as ChoicePrimitive).choiceKeys,
-      }),
-    ),
-    Match.tag("Path", () =>
-      // SAFETY: Effect's Path primitive stores its constructor path type on pathType.
-      CompletionType.Path({
-        pathType: (single.primitiveType as PathPrimitive).pathType,
-      }),
-    ),
+    Match.tag("Choice", () => {
+      if (!isChoicePrimitive(single.primitiveType))
+        throw new Error("Invalid Effect choice primitive");
+
+      return CompletionType.Choice({ values: single.primitiveType.choiceKeys });
+    }),
+    Match.tag("Path", () => {
+      if (!isPathPrimitive(single.primitiveType))
+        throw new Error("Invalid Effect path primitive");
+
+      return CompletionType.Path({ pathType: single.primitiveType.pathType });
+    }),
     Match.tag("FileText", "FileParse", "FileSchema", () =>
       CompletionType.Path({ pathType: "file" }),
     ),

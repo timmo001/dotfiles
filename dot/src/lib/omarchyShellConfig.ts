@@ -171,7 +171,7 @@ function isBarEntryArray(value: JsonValue): boolean {
 }
 
 /** Narrow parsed JSON to the {@link ShellConfig} shape this generator mutates. */
-function isShellConfig(value: JsonValue): value is JsonObject {
+function isShellConfig(value: JsonValue): value is JsonObject & ShellConfig {
   if (!isJsonObject(value)) return false;
   const bar = value.bar;
 
@@ -568,12 +568,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
 
   const target = join(omarchyDir, "shell.json");
 
-  // SAFETY: isShellConfig validates the ShellConfig fields consumed here.
-  const merged = mergeOmarchyShellConfig(
-    parsed as ShellConfig,
-    host,
-    managedPlugins,
-  );
+  const merged = mergeOmarchyShellConfig(parsed, host, managedPlugins);
 
   const rendered = `${JSON.stringify(merged, null, 2)}\n`;
 

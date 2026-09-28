@@ -153,7 +153,7 @@ export interface GitNotificationActionResult {
 // --- Git staging types ---
 
 /** Git status code for a file (first two columns of `git status --porcelain`) */
-export type GitStatusCode = "M" | "A" | "D" | "R" | "C" | "U" | "?" | "!";
+export type GitStatusCode = "M" | "A" | "D" | "R" | "C" | "U" | "T" | "?" | "!";
 
 /** A file tracked by `git status` with its staging state */
 export interface StagedFile {

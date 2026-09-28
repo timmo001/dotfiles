@@ -153,15 +153,13 @@ function parseStatusLine(line: string): readonly StagedFile[] {
   const results: StagedFile[] = [];
 
   // X column: staged changes (anything except ' ', '?' and '!')
-  if (x !== " " && x !== "?" && x !== "!") {
-    // SAFETY: porcelain v1 status columns contain GitStatusCode values here.
-    results.push({ path, status: x as GitStatusCode, staged: true });
+  if (isStatusCode(x) && x !== "?" && x !== "!") {
+    results.push({ path, status: x, staged: true });
   }
 
   // Y column: unstaged changes
-  if (y !== " " && y !== "?" && y !== "!") {
-    // SAFETY: porcelain v1 status columns contain GitStatusCode values here.
-    results.push({ path, status: y as GitStatusCode, staged: false });
+  if (isStatusCode(y) && y !== "?" && y !== "!") {
+    results.push({ path, status: y, staged: false });
   }
 
   // Untracked files: ?? means untracked (show as unstaged)
@@ -172,4 +170,18 @@ function parseStatusLine(line: string): readonly StagedFile[] {
   // Ignored files: !! (skip them)
 
   return results;
+}
+
+function isStatusCode(value: string | undefined): value is GitStatusCode {
+  return (
+    value === "M" ||
+    value === "A" ||
+    value === "D" ||
+    value === "R" ||
+    value === "C" ||
+    value === "U" ||
+    value === "T" ||
+    value === "?" ||
+    value === "!"
+  );
 }
