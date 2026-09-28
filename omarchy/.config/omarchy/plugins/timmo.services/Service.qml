@@ -16,6 +16,7 @@ Item {
   property string pendingUnit: ""
   property var installedAgents: []
   property string agentLaunchError: ""
+  property string copiedUnit: ""
 
   readonly property bool refreshing: statusProcess.running
   readonly property bool actionBusy: actionProcess.running
@@ -53,6 +54,30 @@ Item {
 
   function logs(unit) {
     Quickshell.execDetached(["dot", "services", "logs", unit])
+  }
+
+  function copyRunLogs(unit) {
+    if (copyProcess.running) return
+    copyProcess.unit = unit
+    copyProcess.command = ["bash", "-c", "set -o pipefail; dot services run-logs \"$1\" | wl-copy", "bash", unit]
+    copyProcess.running = true
+  }
+
+  Process {
+    id: copyProcess
+    property string unit: ""
+    onExited: function(exitCode) {
+      if (exitCode === 0) {
+        root.copiedUnit = copyProcess.unit
+        copiedReset.restart()
+      } else root.errorText = "Could not copy logs for " + copyProcess.unit
+    }
+  }
+
+  Timer {
+    id: copiedReset
+    interval: 2000
+    onTriggered: root.copiedUnit = ""
   }
 
   function applyAgents(raw) {

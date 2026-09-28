@@ -503,6 +503,16 @@ Panel {
                       }
 
                       PanelActionButton {
+                        enabled: root.service && rowSurface.status.runs.length > 0
+                        iconText: root.service && root.service.copiedUnit === rowSurface.status.unit ? "" : ""
+                        tooltipText: root.service && root.service.copiedUnit === rowSurface.status.unit
+                          ? "Copied" : "Copy the last 3 run logs"
+                        foreground: root.contentForeground
+                        fontFamily: root.contentFontFamily
+                        onClicked: root.service.copyRunLogs(rowSurface.status.unit)
+                      }
+
+                      PanelActionButton {
                         iconText: "󰈙"
                         tooltipText: rowSurface.status.latestLog ? "Open latest run log" : "Open journal"
                         foreground: root.contentForeground
