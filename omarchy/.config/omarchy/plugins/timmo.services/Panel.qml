@@ -12,6 +12,8 @@ Panel {
   property var hostWidget: null
   property var service: null
   property string expandedKey: ""
+  property string view: "services"
+  property var agentStatus: null
   readonly property var barIdentity: hostWidget || root
   readonly property color contentForeground: bar ? bar.foreground : Color.foreground
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
@@ -25,6 +27,11 @@ Panel {
 
   function buildPanelRows() {
     if (!service) return []
+    if (view === "agent") {
+      return [actionRow("back", "Back to services", "")].concat(service.installedAgents.map(function(agent) {
+        return actionRow("agent:" + agent.command, agent.label, "󱚣")
+      }))
+    }
     return service.services.map(function(status) {
       return {
         key: "service:" + status.unit,
@@ -33,6 +40,27 @@ Panel {
         value: status
       }
     })
+  }
+
+  function actionRow(action, label, icon) {
+    return { key: "action:" + action, action: action, primaryText: label, secondaryText: "", icon: icon }
+  }
+
+  function showView(nextView) {
+    view = nextView
+    filterController.reset()
+    panelFlick.contentY = 0
+  }
+
+  function showAgentPicker(status) {
+    agentStatus = status
+    if (service) service.agentLaunchError = ""
+    showView("agent")
+  }
+
+  function activateAction(action, modifiers) {
+    if (action === "back") showView("services")
+    else if (action.indexOf("agent:") === 0 && service) service.openAgent(agentStatus, action.slice(6), modifiers)
   }
 
   function healthColor(health) {
@@ -127,12 +155,15 @@ Panel {
 
   function activateEntry(entry) {
     if (!entry) return
+    if (entry.action) { activateAction(entry.action, 0); return }
     expandedKey = expandedKey === entry.key ? "" : entry.key
     Qt.callLater(scrollCursorIntoView)
   }
 
   function open() {
     expandedKey = ""
+    view = "services"
+    agentStatus = null
     filterController.reset()
     runtimeNow = Date.now()
     if (service) service.refresh()
@@ -152,12 +183,17 @@ Panel {
 
   function scrollCursorIntoView() {
     var entry = filterController.selectedEntry()
-    var item = entry ? rowRepeater.itemAt(filterController.filteredModel.indexOf(entry)) : null
+    var item = entry ? (view === "agent" ? agentRepeater : rowRepeater).itemAt(filterController.filteredModel.indexOf(entry)) : null
     if (!item) return
     var point = item.mapToItem(contentColumn, 0, 0)
     if (point.y < panelFlick.contentY) panelFlick.contentY = point.y
     else if (point.y + item.height > panelFlick.contentY + panelFlick.height)
       panelFlick.contentY = point.y + item.height - panelFlick.height
+  }
+
+  Connections {
+    target: root.service
+    function onAgentOpened() { if (root.view === "agent") root.close() }
   }
 
   Timer {
@@ -185,7 +221,7 @@ Panel {
       model: root.panelRows
       onActivateRequested: function(entry) { root.activateEntry(entry) }
       onRevealRequested: Qt.callLater(root.scrollCursorIntoView)
-      onCloseRequested: root.close()
+      onCloseRequested: if (root.view === "agent") root.showView("services"); else root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onRefreshRequested: if (root.service) root.service.refresh()
 
@@ -207,9 +243,10 @@ Panel {
 
           PanelHero {
             width: parent.width
-            title: "Services"
-            meta: root.heroMeta()
-            detail: root.service && root.service.loaded ? String(root.service.worst).toUpperCase() : ""
+            title: root.view === "agent" ? "Open in agent" : "Services"
+            meta: root.view === "agent" && root.agentStatus
+              ? root.agentStatus.label + " · " + root.agentStatus.repository.name : root.heroMeta()
+            detail: root.view === "services" && root.service && root.service.loaded ? String(root.service.worst).toUpperCase() : ""
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             iconComponent: Component {
@@ -223,21 +260,74 @@ Panel {
           }
 
           SectionHeading {
-            title: filterController.filterText || "Registered"
+            title: root.view === "agent" ? "Actions" : (filterController.filterText || "Registered")
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
-            refreshable: true
+            refreshable: root.view === "services"
             refreshing: root.service ? root.service.refreshing : false
             onRefreshRequested: if (root.service) root.service.refresh()
           }
 
           Column {
+            visible: root.view === "agent"
+            width: parent.width
+            spacing: Style.space(2)
+
+            Repeater {
+              id: agentRepeater
+              model: root.view === "agent" ? filterController.filteredModel : []
+
+              CursorSurface {
+                required property var modelData
+                x: Style.space(8)
+                width: Math.max(0, contentColumn.width - Style.space(16))
+                implicitHeight: agentRow.implicitHeight + Style.space(12)
+                hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
+                foreground: root.contentForeground
+                accent: root.contentForeground
+
+                Row {
+                  id: agentRow
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.leftMargin: Style.space(8)
+                  anchors.rightMargin: Style.space(8)
+                  spacing: Style.space(10)
+                  Text { width: Style.space(22); text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
+                  Text { width: Math.max(0, agentRow.width - Style.space(32)); text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
+                }
+
+                MouseArea {
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key)
+                  onClicked: function(mouse) { root.activateAction(modelData.action, mouse.modifiers) }
+                }
+              }
+            }
+          }
+
+          Text {
+            visible: root.view === "agent" && root.service !== null && root.service.agentLaunchError !== ""
+            width: parent.width
+            text: root.service ? root.service.agentLaunchError : ""
+            textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            color: root.contentForeground
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.caption
+          }
+
+          Column {
+            visible: root.view === "services"
             width: parent.width
             spacing: Style.space(2)
 
             Repeater {
               id: rowRepeater
-              model: filterController.filteredModel
+              model: root.view === "services" ? filterController.filteredModel : []
 
               CursorSurface {
                 id: rowSurface
@@ -404,6 +494,15 @@ Panel {
                       }
 
                       PanelActionButton {
+                        enabled: root.service && root.service.installedAgents.length > 0
+                        iconText: "󱚣"
+                        tooltipText: "Investigate in agent · " + rowSurface.status.repository.name
+                        foreground: root.contentForeground
+                        fontFamily: root.contentFontFamily
+                        onClicked: root.showAgentPicker(rowSurface.status)
+                      }
+
+                      PanelActionButton {
                         iconText: "󰈙"
                         tooltipText: rowSurface.status.latestLog ? "Open latest run log" : "Open journal"
                         foreground: root.contentForeground
@@ -450,7 +549,7 @@ Panel {
           }
 
           Text {
-            visible: root.service && root.service.errors.length > 0
+            visible: root.view === "services" && root.service && root.service.errors.length > 0
             width: parent.width
             text: root.service ? root.service.errors.map(function(error) { return "Invalid descriptor: " + error.file }).join("\n") : ""
             color: root.warningColor
@@ -460,7 +559,7 @@ Panel {
           }
 
           Text {
-            visible: filterController.count === 0
+            visible: root.view === "services" && filterController.count === 0
             width: parent.width
             text: filterController.filterText
               ? "No matches for “" + filterController.filterText + "”"

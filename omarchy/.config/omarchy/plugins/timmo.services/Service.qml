@@ -14,9 +14,14 @@ Item {
   property bool loaded: false
   property real currentTime: Date.now()
   property string pendingUnit: ""
+  property var installedAgents: []
+  property string agentLaunchError: ""
 
   readonly property bool refreshing: statusProcess.running
   readonly property bool actionBusy: actionProcess.running
+  readonly property bool agentLaunching: agentLaunchProcess.running
+
+  signal agentOpened()
   readonly property int failedCount: (counts.failed || 0) + (counts.missing || 0)
   readonly property int warningCount: (counts.warning || 0) + (counts.stale || 0) + (counts.degraded || 0) + (counts.inactive || 0)
   readonly property int attentionCount: failedCount + warningCount + errors.length
@@ -48,6 +53,40 @@ Item {
 
   function logs(unit) {
     Quickshell.execDetached(["dot", "services", "logs", unit])
+  }
+
+  function applyAgents(raw) {
+    try { installedAgents = JSON.parse(String(raw || "[]")) }
+    catch (error) { installedAgents = [] }
+  }
+
+  function openAgent(status, command, modifiers) {
+    if (!status || !command || agentLaunching) return
+    if (!installedAgents.some(function(value) { return value.command === command })) return
+    agentLaunchError = ""
+    agentLaunchProcess.command = ["dot", "services", "investigate", String(status.unit),
+      "--agent", String(command), "--modifiers", String(modifiers || 0)]
+    agentLaunchProcess.running = true
+  }
+
+  Process {
+    id: agentLaunchProcess
+    stderr: StdioCollector { id: agentLaunchStderr; waitForEnd: true }
+    onExited: function(exitCode) {
+      if (exitCode === 0) root.agentOpened()
+      else root.agentLaunchError = String(agentLaunchStderr.text || "Could not open the agent").trim().slice(0, 500)
+    }
+  }
+
+  Process {
+    id: agentDiscoveryProcess
+    command: ["dot", "herdr", "agents"]
+    running: true
+    stdout: StdioCollector { id: agentDiscoveryOutput; waitForEnd: true }
+    onExited: function(exitCode) {
+      if (exitCode === 0) root.applyAgents(agentDiscoveryOutput.text)
+      else root.installedAgents = []
+    }
   }
 
   Process {
