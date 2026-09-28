@@ -448,8 +448,8 @@ function addPlugin(paths: OmarchyPluginPaths, options: AddOptions) {
       cwd: options.checkout,
     })).trim();
 
-    const exactTag = yield* executor
-      .run("git", ["describe", "--tags", "--exact-match", "HEAD"], {
+    const currentBranch = yield* executor
+      .run("git", ["symbolic-ref", "--short", "HEAD"], {
         cwd: options.checkout,
       })
       .pipe(
@@ -457,34 +457,50 @@ function addPlugin(paths: OmarchyPluginPaths, options: AddOptions) {
         Effect.orElseSucceed(() => ""),
       );
 
-    const branch =
-      exactTag ||
-      (yield* executor
-        .run("git", ["symbolic-ref", "--short", "HEAD"], {
-          cwd: options.checkout,
-        })
-        .pipe(
-          Effect.map((value) => value.trim()),
-          Effect.orElseSucceed(() => ""),
-        )) ||
-      "main";
+    const exactTag = currentBranch
+      ? ""
+      : yield* executor
+          .run("git", ["describe", "--tags", "--exact-match", "HEAD"], {
+            cwd: options.checkout,
+          })
+          .pipe(
+            Effect.map((value) => value.trim()),
+            Effect.orElseSucceed(() => ""),
+          );
+
+    const branch = currentBranch || exactTag || "main";
 
     const submodulePath = `omarchy/.config/omarchy/plugins/${id}`;
 
     yield* Effect.gen(function* () {
+      // `submodule add -b` only accepts branches, so a tag is recorded afterwards.
       yield* runInherited(
         "git",
         [
           "submodule",
           "add",
-          "-b",
-          branch,
+          ...(exactTag ? [] : ["-b", branch]),
           "--",
           httpsGitUrl(options.url),
           submodulePath,
         ],
         paths.repo,
       );
+
+      if (exactTag) {
+        yield* executor.run(
+          "git",
+          [
+            "config",
+            "-f",
+            ".gitmodules",
+            `submodule.${submodulePath}.branch`,
+            exactTag,
+          ],
+          { cwd: paths.repo },
+        );
+      }
+
       yield* executor.run("git", ["checkout", "-q", sha], {
         cwd: join(paths.pluginsSource, id),
       });
