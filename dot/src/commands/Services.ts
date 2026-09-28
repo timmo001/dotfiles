@@ -168,6 +168,8 @@ const MESSAGE = {
   restart: "5eb03494b6584870a536b337290809b3",
 } as const;
 
+const RESUMED_MESSAGE = "8811e6df2a8e40f58a94cea26f8ebf14";
+
 const JournalEntry = Schema.Struct({
   __REALTIME_TIMESTAMP: Schema.String,
   MESSAGE_ID: Schema.String,
@@ -398,6 +400,44 @@ const readJournal = Effect.fn("Services.readJournal")(function* (
     .flatMap((line) => Option.toArray(decodeJournalEntry(line)))
     .reverse();
 });
+
+/** When the user manager last started or the system last woke from sleep. */
+const lastResume = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+
+  const started = unixMillis(
+    (yield* executor
+      .run("systemctl", [
+        "--user",
+        "show",
+        "--timestamp=unix",
+        "--property=UserspaceTimestamp",
+        "--value",
+      ])
+      .pipe(Effect.orElseSucceed(() => ""))).trim(),
+  );
+
+  const woke = decodeJournalEntry(
+    (yield* executor
+      .run("journalctl", [
+        "--boot",
+        "--no-pager",
+        "--output=json",
+        "--output-fields=MESSAGE_ID",
+        "--reverse",
+        "--lines=1",
+        `MESSAGE_ID=${RESUMED_MESSAGE}`,
+      ])
+      .pipe(Effect.orElseSucceed(() => ""))).trim(),
+  ).pipe(
+    Option.map((entry) =>
+      Math.round(Number(entry.__REALTIME_TIMESTAMP) / 1000),
+    ),
+    Option.getOrUndefined,
+  );
+
+  return Math.max(started ?? 0, woke ?? 0) || undefined;
+}).pipe(Effect.withSpan("Services.lastResume"));
 
 interface MutableRun {
   invocation: string;
@@ -644,6 +684,8 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
   const elapses =
     timers.length > 0 ? yield* nextElapses : new Map<string, number>();
 
+  const resumedAt = yield* lastResume;
+
   return yield* Effect.forEach(
     registered,
     Effect.fn("Services.collectOne")(function* ({ descriptor }) {
@@ -730,6 +772,18 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
         lastSuccessAt ??
         unixMillis(timer?.ActiveEnterTimestamp);
 
+      // Time spent powered off or asleep is not a missed run; wait for the
+      // first run after boot or resume before reporting staleness.
+      const awaitingFirstRun =
+        resumedAt !== undefined &&
+        (staleReference === undefined || staleReference < resumedAt) &&
+        !runs.some(
+          (run) =>
+            run.result !== "running" &&
+            run.started !== undefined &&
+            run.started >= resumedAt,
+        );
+
       const loaded =
         properties.LoadState === "loaded" &&
         (!timer || timer.LoadState === "loaded");
@@ -784,6 +838,7 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
               ? "inactive"
               : staleAfter !== undefined &&
                   staleReference !== undefined &&
+                  !awaitingFirstRun &&
                   now - staleReference > staleAfter
                 ? "stale"
                 : consecutiveFailures > 0
