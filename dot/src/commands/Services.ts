@@ -968,16 +968,82 @@ export const servicesLogs = Effect.fn("Services.logs")(function* (
 
 const EXCERPT_LINES = 80;
 
-const excerpt = (text: string) =>
+const excerpt = (text: string, lines = EXCERPT_LINES) =>
   text
     .trimEnd()
     .split("\n")
-    .slice(-EXCERPT_LINES)
+    .slice(-lines)
     .map((line) => (line.length > 400 ? `${line.slice(0, 400)}…` : line))
     .join("\n");
 
 const isoTime = (time: number | undefined) =>
   time === undefined ? "unknown" : new Date(time).toISOString();
+
+const runSummary = (run: ServiceRun) =>
+  [
+    isoTime(run.started),
+    run.result,
+    run.finished && run.started
+      ? `${Math.round((run.finished - run.started) / 1000)}s`
+      : undefined,
+    run.detail,
+    `invocation ${run.invocation}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+const RUN_LOG_LINES = 200;
+
+/** Print the journal output of a registered job's most recent runs. */
+export const servicesRunLogs = Effect.fn("Services.runLogs")(function* (
+  unit: string,
+  count: number,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const executor = yield* CommandExecutor;
+  const { file, descriptor } = yield* findRegistered(unit);
+  const [status] = yield* collectServiceStatus([{ file, descriptor }]);
+
+  if (!status)
+    return yield* new ServiceMonitorError({
+      message: `Could not read the status of ${unit}`,
+    });
+
+  const sections = [
+    `${status.label} (${status.unit}) · ${status.health} · ${status.summary}`,
+  ];
+
+  for (const run of status.runs.slice(0, count)) {
+    const output = yield* executor
+      .run("journalctl", [
+        "--user",
+        "--output=short-iso",
+        "--no-pager",
+        `_SYSTEMD_INVOCATION_ID=${run.invocation}`,
+        "+",
+        `USER_INVOCATION_ID=${run.invocation}`,
+      ])
+      .pipe(Effect.orElseSucceed(() => ""));
+
+    sections.push(
+      `## ${runSummary(run)}\n\n\`\`\`\n${excerpt(output, RUN_LOG_LINES) || "(no journal output)"}\n\`\`\``,
+    );
+  }
+
+  if (status.runs.length === 0) sections.push("No runs in the journal");
+
+  if (status.latestLog) {
+    const text = yield* fs
+      .readFileString(status.latestLog.path)
+      .pipe(Effect.orElseSucceed(() => ""));
+
+    sections.push(
+      `## Latest run log ${status.latestLog.path}\n\n\`\`\`\n${excerpt(text, RUN_LOG_LINES) || "(empty)"}\n\`\`\``,
+    );
+  }
+
+  yield* Console.log(sections.join("\n\n"));
+});
 
 const shellQuote = (value: string) =>
   /^[\w@%+=:,./-]+$/.test(value)
@@ -1031,19 +1097,7 @@ export const servicesInvestigate = Effect.fn("Services.investigate")(function* (
   if (status.latestLog)
     locations.push(`Latest run log: ${status.latestLog.path}`);
 
-  const runs = status.runs.map((run) =>
-    [
-      `- ${isoTime(run.started)}`,
-      run.result,
-      run.finished && run.started
-        ? `${Math.round((run.finished - run.started) / 1000)}s`
-        : undefined,
-      run.detail,
-      `invocation ${run.invocation}`,
-    ]
-      .filter(Boolean)
-      .join(" · "),
-  );
+  const runs = status.runs.map((run) => `- ${runSummary(run)}`);
 
   const journal = yield* executor
     .run("journalctl", [

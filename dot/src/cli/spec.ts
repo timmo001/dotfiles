@@ -37,6 +37,7 @@ import { updatesRefresh, updatesStatus } from "../commands/Updates.js";
 import {
   servicesInvestigate,
   servicesLogs,
+  servicesRunLogs,
   servicesNotify,
   servicesStart,
   servicesStatus,
@@ -566,6 +567,27 @@ const servicesCommand = describe(
         ),
         "Open a registered job's logs in a Herdr tab for the repository that owns it",
         ["dot services logs notes-capture-daemon.service"],
+      ),
+      describe(
+        Command.make(
+          "run-logs",
+          {
+            unit: serviceUnit,
+            count: Flag.Int("count").pipe(
+              Flag.withSchema(
+                Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 50 })),
+              ),
+              Flag.withDefault(3),
+              Flag.withDescription("Number of recent runs to include"),
+            ),
+          },
+          ({ unit, count }) => servicesRunLogs(unit, count),
+        ),
+        "Print the journal output of a registered job's most recent runs, newest first, with its latest run log",
+        [
+          "dot services run-logs dot-deps.timer",
+          "dot services run-logs skill-updates-agent.timer --count 5 | wl-copy",
+        ],
       ),
       describe(
         Command.make(

@@ -414,6 +414,34 @@ dot services logs [flags] <unit>
 dot services logs notes-capture-daemon.service
 ```
 
+### `dot services run-logs`
+
+Print the journal output of a registered job's most recent runs, newest first, with its latest run log
+
+```text
+dot services run-logs [flags] <unit>
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--count` `<integer>` | Number of recent runs to include |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<unit>` | Registered timer or service unit |
+
+**Examples**
+
+```bash
+dot services run-logs dot-deps.timer
+dot services run-logs skill-updates-agent.timer --count 5 | wl-copy
+```
+
 ### `dot services investigate`
 
 Open an agent in a registered job's repository, briefed with its recent runs, logs, file locations and commands to investigate them
