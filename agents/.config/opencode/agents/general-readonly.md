@@ -47,16 +47,6 @@ permission:
     "notes list*": allow
     "notes read*": allow
     "command -v*": allow
-    "ctx docs search*": allow
-    "ctx docs show*": allow
-    "ctx locate event*": allow
-    "ctx locate session*": allow
-    "ctx search*": allow
-    "ctx show event*": allow
-    "ctx show session*": allow
-    "ctx sources*": allow
-    "ctx sql*": allow
-    "ctx status*": allow
     "date*": allow
     "df*": allow
     "du*": allow
@@ -104,7 +94,6 @@ permission:
     "git tag -l": allow
     "id": allow
     "jq*": allow
-    "ctx doctor*": allow
     "diff *": allow
     "gh --version": allow
     "gh version": allow
