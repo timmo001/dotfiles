@@ -18,6 +18,19 @@ import type { DependencyRunLog } from "../../dot/src/deps/log";
 
 const testLayer = Layer.merge(NodeServices.layer, RetryBackoff.layer);
 
+const immediateRetryLayer = Layer.merge(
+  NodeServices.layer,
+  Layer.succeed(
+    RetryBackoff,
+    RetryBackoff.of({
+      retry: (effect, options) =>
+        effect.pipe(
+          Effect.retry({ times: options.times, while: options.while }),
+        ),
+    }),
+  ),
+);
+
 const command = Effect.fn("Test.git")(function* (
   argv: readonly string[],
   cwd: string,
@@ -172,7 +185,13 @@ test("target and ownership advance atomically, including server rejection", asyn
       ).toBe("Failure");
       expect(yield* remote.git("rev-parse", "main")).toBe(remote.base);
       expect(yield* remote.git("rev-parse", remote.ref)).toBe(before);
-      yield* Effect.promise(() => rm(hook));
+      yield* Effect.promise(() =>
+        writeFile(
+          hook,
+          '#!/bin/sh\ncase "$1" in refs/heads/dot-deps-state/*) rm "$0"; exit 1;; esac\n',
+          { mode: 0o755 },
+        ),
+      );
       yield* lease.publish(
         remote.directory,
         remote.candidate,
@@ -182,7 +201,7 @@ test("target and ownership advance atomically, including server rejection", asyn
       expect(yield* remote.git("rev-parse", "main")).toBe(remote.candidate);
       expect(yield* remote.git("rev-parse", remote.ref)).not.toBe(before);
       yield* lease.assertOwned;
-    }).pipe(Effect.scoped, Effect.provide(testLayer)),
+    }).pipe(Effect.scoped, Effect.provide(immediateRetryLayer)),
   );
 });
 
