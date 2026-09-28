@@ -117,6 +117,12 @@ async function launch(options: {
 
         if (command === "test" && args?.[0] === "-x") return record("executor.run", "", command, args);
 
+        if (command === `${HOME_DIR}/.local/bin/opencode2` && args?.[0] === "models")
+          return record("executor.models", "github-copilot/claude-opus-5.5\ngithub-copilot/gpt-6-astra\ngithub-copilot/gpt-6-sol\n", command, args);
+
+        if (command === `${HOME_DIR}/.local/bin/opencode2` && args?.[0] === "api" && args[1] === "post")
+          return record("executor.create", JSON.stringify({ data: { id: "ses_fixture", model: JSON.parse(args[4]).model, location: { directory } } }), command, args);
+
         return Effect.die(`Unexpected external command: ${command}`);
       },
       exitCode: () => Effect.succeed(0),
@@ -177,6 +183,19 @@ test("background agent launches resolve the wrapper, verify it and name the exac
     { method: "agents.rename", id: "w1:p1", input: "coord-fixture" },
     { method: "agents.prompt", id: "w1:p1", input: { text: "Investigate" } },
   ]);
+});
+
+test("a requested model is validated and assigned before opening and prompting the full TUI", async () => {
+  const calls = await launch({
+    request: { command: undefined, agent: "opencode2", model: "opus 5.5", prompt: "Investigate", noFocus: true },
+    processInfo: (id, read) => shellInfo(id, read > 2 ? { pid: 99, name: "opencode2", argv: ["/fixture/opencode2"] } : {}),
+    onResult: result => expect(result).toMatchObject({ model: "github-copilot/claude-opus-5.5", sessionId: "ses_fixture", promptSent: true }),
+  });
+
+  expect(calls.findIndex(call => call.method === "executor.models")).toBeLessThan(calls.findIndex(call => call.method === "executor.create"));
+  expect(calls.find(call => call.method === "executor.create")?.input).toMatchObject(["api", "post", "/api/session", "--data", expect.any(String)]);
+  expect(calls.find(call => call.method === "panes.sendInput")?.input).toMatchObject({ text: `${HOME_DIR}/.local/bin/opencode2 --session ses_fixture` });
+  expect(calls.findIndex(call => call.method === "executor.create")).toBeLessThan(calls.findIndex(call => call.method === "agents.prompt"));
 });
 
 test("background workspace creation returns owned resource IDs without focusing", async () => {

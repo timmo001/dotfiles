@@ -20,7 +20,7 @@ import {
   previewDependencies,
   serviceDependencies,
 } from "../commands/Dependencies.js";
-import { herdrRepoOpen } from "../commands/HerdrRepoOpen.js";
+import { herdrModel, herdrRepoOpen } from "../commands/HerdrRepoOpen.js";
 import { installedHerdrAgents } from "../commands/HerdrAgents.js";
 import { herdrContext } from "../commands/HerdrContext.js";
 import { herdrServerAction, herdrStart } from "../commands/HerdrServer.js";
@@ -1851,6 +1851,10 @@ const herdrRepoOpenCommand = describe(
         "agent",
         "Installed launcher from dot herdr agents, such as opencode2",
       ),
+      model: text(
+        "model",
+        "OpenCode 2 model or unique name match, selected before the new session starts; requires --agent opencode2",
+      ),
       agentName: text(
         "agent-name",
         "Unique Herdr agent name, assigned before prompting",
@@ -1885,6 +1889,7 @@ const herdrRepoOpenCommand = describe(
       prompt,
       agentKind,
       agent,
+      model,
       agentName,
       tabLabel,
       layout,
@@ -1899,11 +1904,12 @@ const herdrRepoOpenCommand = describe(
         prompt: optional(prompt),
         agentKind: optional(agentKind),
         agent: optional(agent),
+        model: optional(model),
         agentName: optional(agentName),
         tabLabel: optional(tabLabel),
       }),
   ),
-  "Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Use --agent to resolve the launcher, label and kind from dot herdr agents; it cannot be combined with a command or --agent-kind. Agent launches wait for readiness and verify the selected kind before naming or prompting. --no-focus leaves the current view alone. --json reports resource IDs, creation flags, agent details and whether the prompt was sent. Without a command or --agent, focus the workspace; an empty command opens a shell using the selected layout.",
+  "Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Use --agent to resolve the launcher, label and kind from dot herdr agents; it cannot be combined with a command or --agent-kind. With --agent opencode2, --model creates an OpenCode session on a uniquely matched model before launching the full TUI and sending any prompt. Agent launches wait for readiness and verify the selected kind before naming or prompting. --no-focus leaves the current view alone. --json reports resource IDs, creation flags, agent details, model and whether the prompt was sent. Without a command or --agent, focus the workspace; an empty command opens a shell using the selected layout.",
   [],
   {
     sections: [
@@ -1917,6 +1923,23 @@ const herdrRepoOpenCommand = describe(
       },
     ],
   },
+);
+
+const herdrModelCommand = describe(
+  Command.make(
+    "model",
+    {
+      target: Argument.String("target").pipe(
+        Argument.withDescription("Herdr agent name or pane ID"),
+      ),
+      model: Argument.String("model").pipe(
+        Argument.withDescription("OpenCode 2 model or unique name match"),
+      ),
+      json: bool("json", "Print the session ID and selected model as JSON"),
+    },
+    herdrModel,
+  ),
+  "Switch the model of an existing Herdr OpenCode 2 agent. Resolves a unique available model in the agent's project and updates its current OpenCode session through the API without sending a prompt.",
 );
 
 const herdrStartCommand = describe(
@@ -1951,6 +1974,7 @@ const herdr = describe(
       herdrStopCommand,
       herdrRestartCommand,
       herdrRepoOpenCommand,
+      herdrModelCommand,
       describe(
         Command.make(
           "context",

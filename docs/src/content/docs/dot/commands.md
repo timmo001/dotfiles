@@ -1642,7 +1642,7 @@ dot herdr restart
 
 ### `dot herdr repo-open`
 
-Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Use --agent to resolve the launcher, label and kind from dot herdr agents; it cannot be combined with a command or --agent-kind. Agent launches wait for readiness and verify the selected kind before naming or prompting. --no-focus leaves the current view alone. --json reports resource IDs, creation flags, agent details and whether the prompt was sent. Without a command or --agent, focus the workspace; an empty command opens a shell using the selected layout.
+Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Use --agent to resolve the launcher, label and kind from dot herdr agents; it cannot be combined with a command or --agent-kind. With --agent opencode2, --model creates an OpenCode session on a uniquely matched model before launching the full TUI and sending any prompt. Agent launches wait for readiness and verify the selected kind before naming or prompting. --no-focus leaves the current view alone. --json reports resource IDs, creation flags, agent details, model and whether the prompt was sent. Without a command or --agent, focus the workspace; an empty command opens a shell using the selected layout.
 
 ```text
 dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
@@ -1657,6 +1657,7 @@ dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
 | `--prompt` `<string>` | Initial prompt to send through Herdr after the agent is ready |
 | `--agent-kind` `<string>` | Expected Herdr agent kind for an explicit command |
 | `--agent` `<string>` | Installed launcher from dot herdr agents, such as opencode2 |
+| `--model` `<string>` | OpenCode 2 model or unique name match, selected before the new session starts; requires --agent opencode2 |
 | `--agent-name` `<string>` | Unique Herdr agent name, assigned before prompting |
 | `--no-focus` | Keep the current view focused without opening a terminal client |
 | `--json` | Print resource IDs, creation flags, agent details and prompt status as JSON |
@@ -1678,6 +1679,28 @@ dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
 1  Herdr operation failed
 2  Invalid arguments
 ```
+
+### `dot herdr model`
+
+Switch the model of an existing Herdr OpenCode 2 agent. Resolves a unique available model in the agent's project and updates its current OpenCode session through the API without sending a prompt.
+
+```text
+dot herdr model [flags] <target> <model>
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the session ID and selected model as JSON |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<target>` | Herdr agent name or pane ID |
+| `<model>` | OpenCode 2 model or unique name match |
 
 ### `dot herdr context`
 

@@ -2,8 +2,8 @@ import {
   AgentName,
   HerdrSdk,
   herdrSdkLayerFromOptions,
+  PaneId,
   type Agent,
-  type PaneId,
   type TabId,
 } from "@timmo001/effect-herdr";
 import { Cause, Duration, Effect, Option, Schedule, Schema } from "effect";
@@ -15,6 +15,11 @@ import { CACHE_DIR, CONFIG_DIR, HOME_DIR } from "../lib/paths.js";
 import { formatCause } from "../lib/schema.js";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
 import { installedHerdrAgents } from "./HerdrAgents.js";
+import {
+  createHerdrModelSession,
+  HerdrModelError,
+  switchHerdrModel,
+} from "./HerdrModel.js";
 
 const READINESS_SCHEDULE = Schedule.recurs(49).pipe(
   Schedule.addDelay(() => Effect.succeed("100 millis")),
@@ -53,6 +58,8 @@ export interface HerdrRepoOpenOptions {
   readonly agentKind?: string;
   /** Installed launcher identity from dot herdr agents. */
   readonly agent?: string;
+  /** OpenCode 2 model name or unique match, selected before launch. */
+  readonly model?: string;
   /** Unique name assigned to the verified agent before prompting. */
   readonly agentName?: string;
   /** Leave the current view focused and do not open a terminal client. */
@@ -190,6 +197,9 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
       2,
     );
 
+  if (options.model !== undefined && options.agent !== "opencode2")
+    return fail("--model requires --agent opencode2", 2);
+
   let command = launcher?.executable ?? options.command;
   const agentKind = launcher?.kind ?? options.agentKind;
   const tabLabel = options.tabLabel ?? launcher?.label ?? "Shell";
@@ -244,6 +254,13 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
       return fail("OpenCode 2 verification did not return an executable path");
     yield* executor.run("test", ["-x", expectedExecutable]);
   }
+
+  const selected =
+    options.model === undefined
+      ? undefined
+      : yield* createHerdrModelSession(options.model, directory);
+
+  if (selected && command) command += ` --session ${selected.sessionId}`;
 
   const socketPath = herdr.config.socketPath;
 
@@ -498,6 +515,8 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
         }
       : null,
     promptSent: options.prompt !== undefined && agent !== undefined,
+    model: selected?.model ?? null,
+    sessionId: selected?.sessionId ?? null,
   };
 });
 
@@ -525,13 +544,73 @@ export const herdrRepoOpen = (options: HerdrRepoOpenOptions) =>
               message:
                 error instanceof CommandError
                   ? error.stderr || `Herdr command failed: ${error.command}`
-                  : formatCause(error),
-              exitCode: 1,
+                  : error instanceof HerdrModelError
+                    ? error.message
+                    : formatCause(error),
+              exitCode: error instanceof HerdrModelError ? 2 : 1,
             });
 
       return Effect.sync(() => {
         process.stderr.write(`${failure.message}\n`);
         process.exitCode = failure.exitCode;
+      });
+    }),
+    Effect.asVoid,
+  );
+
+/** Switch the model of a named or pane-targeted Herdr OpenCode 2 agent. */
+export const herdrModel = (options: {
+  readonly target: string;
+  readonly model: string;
+  readonly json: boolean;
+}) =>
+  Effect.gen(function* () {
+    const herdr = yield* HerdrSdk;
+
+    const target = options.target.includes(":")
+      ? {
+          paneId: yield* Schema.decodeEffect(PaneId)(options.target),
+        }
+      : {
+          name: yield* Schema.decodeEffect(AgentName)(options.target),
+        };
+
+    const agent = yield* herdr.agents.get(target);
+
+    const directory =
+      Option.getOrUndefined(agent.foregroundCwd) ??
+      Option.getOrUndefined(agent.cwd);
+
+    if (!directory)
+      return fail("Herdr has not reported a working directory for this agent");
+
+    const result = yield* switchHerdrModel(
+      agent,
+      agent.paneId,
+      directory,
+      options.model,
+    );
+
+    process.stdout.write(
+      options.json
+        ? `${JSON.stringify(result)}\n`
+        : `Switched ${options.target} to ${result.model}\n`,
+    );
+  }).pipe(
+    Effect.provide(
+      herdrSdkLayerFromOptions({
+        socketPath: envString(ENV.HERDR_SOCKET_PATH) ?? DEFAULT_SOCKET_PATH,
+        requestTimeout: Duration.seconds(5),
+      }),
+    ),
+    Effect.catchCause((cause) => {
+      const error = Cause.squash(cause);
+
+      return Effect.sync(() => {
+        process.stderr.write(
+          `${error instanceof Error ? error.message : formatCause(error)}\n`,
+        );
+        process.exitCode = error instanceof HerdrModelError ? 2 : 1;
       });
     }),
     Effect.asVoid,

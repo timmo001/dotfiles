@@ -51,6 +51,12 @@ Discovery alone needs no new session. Keep focused work in the current session.
      --prompt "$brief" --json "$repo_label" "$repo_path"
    ```
 
+   For OpenCode 2 with a requested model, add `--model "$model"` to this
+   command. The opener resolves a unique available model, creates an OpenCode
+   session with it, then starts the full TUI on that session before sending the
+   brief. An ambiguous model name fails with the matching choices; use the full
+   `provider/model` ID to disambiguate. Do not select the model through TUI keys
+   or substitute `opencode mini`.
    Omit `--prompt` when the user only wants an agent opened. Worker names use the
    `coord-` prefix from `session-coordination`; the opener checks availability
    before launching and assigns the name before prompting. Omit `--agent` to
@@ -68,6 +74,14 @@ Discovery alone needs no new session. Keep focused work in the current session.
    status is a snapshot, not proof that work has completed. Do not list all agents
    again to rediscover these IDs or rename an agent already named by the opener.
    A workspace-only focus may return a null `paneId` because no pane was selected.
+
+To switch the model of an existing Herdr OpenCode 2 agent, identify its unique
+live name or pane ID, then use `dot herdr model <target> <model>`. It checks the
+running OpenCode 2 executable and Herdr-reported session ID, resolves the model
+in that session's project, and switches it through the OpenCode API without
+starting a new session or sending a prompt. Do not assume a model change is
+authorised for a worker you do not own; ask before changing another agent's
+active work.
 
 ## Alternate Runtimes And Focus
 
