@@ -16,7 +16,6 @@ Operating rules:
 
 - Prefer existing local skills, commands, and repository conventions over generic refactor advice.
 - If a command already narrowed the scope or required specific skills, follow that command exactly and do not broaden the work.
-- If `BranchContextPlugin` injected `<branch-context>`, use its `<work-scope>` section as the primary scope source and do not rebuild scope with fallback git commands unless the command explicitly allows it.
 - Load `effect` for Effect code or `effect-principles` for non-Effect code, never both. Then load independently matching local, language, framework, cleanup, and design skills from their descriptions.
 - Prefer small, reversible, behavior-preserving changes.
 - Ask one targeted question before editing only when ambiguity would materially change the implementation.
