@@ -90,7 +90,9 @@ active work.
 Use `dot herdr model <target> "opus 5.5#low"` or
 `dot herdr model <target> "opus 5.5" --variant low` to switch effort as well.
 For an effort-only request, retain the session's current provider and model and
-pass them with the requested variant. Omitting the variant selects the model's
+pass them with the requested variant. Apply `session-status` and query the exact
+OpenCode session ID before preserving its settings; the injected identity does
+not include the variant. Omitting the variant selects the model's
 default settings. The command verifies the resulting session model and variant;
 an already-running request keeps the settings it started with.
 

@@ -49,6 +49,7 @@ import { runSkillsMaintenance } from "../commands/Skills.js";
 import { runCommand } from "../commands/Run.js";
 import { stow } from "../commands/Stow.js";
 import { snapshot } from "../commands/Snapshot.js";
+import { sessionStatus } from "../commands/SessionStatus.js";
 import { systemUpdate } from "../commands/SystemUpdate.js";
 import { update, updateCheck, updateRepositories } from "../commands/Update.js";
 import { workspaceRelayout } from "../commands/WorkspaceRelayout.js";
@@ -1134,6 +1135,42 @@ const gitNotificationsCommand = describe(
 );
 
 const simpleCommands = [
+  describe(
+    Command.make(
+      "session-status",
+      {
+        sessionId: Argument.String("session-id").pipe(
+          Argument.withDescription(
+            "Exact OpenCode 2 session ID from the agent's injected context",
+          ),
+        ),
+        warnAt: Flag.Finite("warn-at").pipe(
+          Flag.withDefault(70),
+          Flag.filter(
+            (value) => value > 0 && value <= 100,
+            () => "Warning percentage must be greater than 0 and at most 100",
+          ),
+          Flag.withDescription(
+            "Context or input percentage prompting a scope or handoff review (default: 70)",
+          ),
+        ),
+        json: bool(
+          "json",
+          "Print model, limits, context measurement and cumulative usage as JSON",
+        ),
+      },
+      sessionStatus,
+    ),
+    "Query an OpenCode 2 session's model, variant and context pressure",
+    [
+      "dot session-status ses_example --json",
+      "dot session-status ses_example --warn-at 80",
+    ],
+    {
+      description:
+        "Read-only OpenCode 2 session inspection through the configured launcher. Pass the exact session ID supplied in the agent's environment context; it is not inferred from the focused pane, working directory or a guessed shell variable. Reports the selected model and variant, supported variants, model limits, latest completed assistant token measurement, its age, the latest completed compaction, and separately labelled cumulative usage and cost. Context tokens include non-cached input, cache reads and writes, output and reasoning, matching OpenCode's display. Input usage includes non-cached and cached input. Pressure uses whichever percentage is higher: context-window usage or input-limit usage. Current usage is unknown after compaction without a new measurement, after a model/variant switch, or with a staged revert. Later tool results and messages are not counted. Looks back through at most 20 messages per type and marks incomplete lookups. --warn-at defaults to 70 percent: a workflow heuristic, not a proven cognitive degradation threshold. The command does not change models, compact or open sessions.",
+    },
+  ),
   describe(
     Command.make(
       "snapshot",

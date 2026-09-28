@@ -558,6 +558,37 @@ dot omarchy-plugin remove [flags] <id> [<confirm>] [<save>]
 | `<confirm>` | Compatibility confirmation value |
 | `<save>` | Compatibility commit-offer value |
 
+## `dot session-status`
+
+Query an OpenCode 2 session's model, variant and context pressure
+
+```text
+dot session-status [flags] <session-id>
+```
+
+Read-only OpenCode 2 session inspection through the configured launcher. Pass the exact session ID supplied in the agent's environment context; it is not inferred from the focused pane, working directory or a guessed shell variable. Reports the selected model and variant, supported variants, model limits, latest completed assistant token measurement, its age, the latest completed compaction, and separately labelled cumulative usage and cost. Context tokens include non-cached input, cache reads and writes, output and reasoning, matching OpenCode's display. Input usage includes non-cached and cached input. Pressure uses whichever percentage is higher: context-window usage or input-limit usage. Current usage is unknown after compaction without a new measurement, after a model/variant switch, or with a staged revert. Later tool results and messages are not counted. Looks back through at most 20 messages per type and marks incomplete lookups. --warn-at defaults to 70 percent: a workflow heuristic, not a proven cognitive degradation threshold. The command does not change models, compact or open sessions.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--warn-at` `<number>` | Context or input percentage prompting a scope or handoff review (default: 70) |
+| `--json` | Print model, limits, context measurement and cumulative usage as JSON |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<session-id>` | Exact OpenCode 2 session ID from the agent's injected context |
+
+**Examples**
+
+```bash
+dot session-status ses_example --json
+dot session-status ses_example --warn-at 80
+```
+
 ## `dot snapshot`
 
 Save a CPU and memory snapshot with process rankings
