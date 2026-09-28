@@ -29,6 +29,32 @@ type MessagesResponse = { data: Message[] };
 
 type AnnotationDecision = { decision?: string };
 
+type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+
+function isRecord(value: JsonValue): value is { [key: string]: JsonValue } {
+  return value instanceof Object && !Array.isArray(value);
+}
+
+function isString(value: JsonValue): value is string {
+  return Object.prototype.toString.call(value) === "[object String]";
+}
+
+function isSession(value: JsonValue): value is JsonValue & Session {
+  return isRecord(value) && isString(value.id) &&
+    (value.title === undefined || isString(value.title)) &&
+    (value.location === undefined ||
+      (isRecord(value.location) &&
+        (value.location.directory === undefined || isString(value.location.directory))));
+}
+
+function isMessage(value: JsonValue): value is JsonValue & Message {
+  return isRecord(value) && (value.type === undefined || isString(value.type)) &&
+    (value.content === undefined ||
+      (Array.isArray(value.content) && value.content.every((part) =>
+        isRecord(part) && (part.type === undefined || isString(part.type)) &&
+        (part.text === undefined || isString(part.text)))));
+}
+
 const herdr = process.env.HERDR_BIN_PATH || "herdr";
 
 export function opencodeBinary(home = process.env.HOME): string {
@@ -72,23 +98,51 @@ async function run(
 }
 
 function parsePaneResponse(source: string): PaneResponse {
-  // SAFETY: Herdr owns this local CLI response and validates it against its pane schema.
-  return JSON.parse(source) as PaneResponse;
+  const value: JsonValue = JSON.parse(source);
+
+  if (!isRecord(value) || !isRecord(value.result) || !isRecord(value.result.pane) ||
+    !isString(value.result.pane.cwd) ||
+    (value.result.pane.terminal_title_stripped !== undefined &&
+      !isString(value.result.pane.terminal_title_stripped))) {
+    throw new Error("Invalid Herdr pane response");
+  }
+
+  return { result: { pane: {
+    cwd: value.result.pane.cwd,
+    terminal_title_stripped: value.result.pane.terminal_title_stripped,
+  } } };
 }
 
 function parseSessions(source: string): SessionsResponse {
-  // SAFETY: OpenCode owns this local API response and validates it against its API schema.
-  return JSON.parse(source) as SessionsResponse;
+  const value: JsonValue = JSON.parse(source);
+
+  if (!isRecord(value) || !Array.isArray(value.data) ||
+    !value.data.every(isSession)) {
+    throw new Error("Invalid OpenCode sessions response");
+  }
+
+  return { data: value.data };
 }
 
 function parseMessages(source: string): MessagesResponse {
-  // SAFETY: OpenCode owns this local API response and validates it against its API schema.
-  return JSON.parse(source) as MessagesResponse;
+  const value: JsonValue = JSON.parse(source);
+
+  if (!isRecord(value) || !Array.isArray(value.data) ||
+    !value.data.every(isMessage)) {
+    throw new Error("Invalid OpenCode messages response");
+  }
+
+  return { data: value.data };
 }
 
 function parseDecision(source: string): AnnotationDecision {
-  // SAFETY: Plannotator emits this response from its documented --json decision path.
-  return JSON.parse(source) as AnnotationDecision;
+  const value: JsonValue = JSON.parse(source);
+
+  if (!isRecord(value) || (value.decision !== undefined && !isString(value.decision))) {
+    throw new Error("Invalid Plannotator decision response");
+  }
+
+  return { decision: value.decision };
 }
 
 function paneTitle(value: string | undefined): string {

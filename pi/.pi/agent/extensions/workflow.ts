@@ -15,6 +15,32 @@ type CreatedTab = {
 	};
 };
 
+type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+
+function isRecord(value: JsonValue): value is { [key: string]: JsonValue } {
+	return value instanceof Object && !Array.isArray(value);
+}
+
+function isString(value: JsonValue): value is string {
+	return Object.prototype.toString.call(value) === "[object String]";
+}
+
+function parseCreatedTab(source: string): CreatedTab {
+	const value: JsonValue = JSON.parse(source);
+
+	if (!isRecord(value) || !isRecord(value.result) ||
+		!isRecord(value.result.tab) || !isRecord(value.result.root_pane) ||
+		(value.result.tab.tab_id !== undefined && !isString(value.result.tab.tab_id)) ||
+		(value.result.root_pane.pane_id !== undefined && !isString(value.result.root_pane.pane_id))) {
+		throw new Error("Invalid Herdr tab response");
+	}
+
+	return { result: {
+		tab: { tab_id: value.result.tab.tab_id },
+		root_pane: { pane_id: value.result.root_pane.pane_id },
+	} };
+}
+
 const buildContinuationPrompt = (reason: "manual" | "threshold" | "overflow") =>
 	`Compaction has completed (${reason}). Reconstruct the active task from the summary and retained context, reconcile it with the current worktree, then immediately continue the next unfinished step. Briefly state the recovered context before continuing. Do not wait for another user prompt unless the task is genuinely ambiguous or blocked.`;
 
@@ -78,8 +104,7 @@ export default function workflow(pi: ExtensionAPI) {
 					"--no-focus",
 				);
 
-// SAFETY: Herdr's create-tab JSON contract is represented by CreatedTab.
-const createdTab = JSON.parse(created.stdout) as CreatedTab;
+				const createdTab = parseCreatedTab(created.stdout);
 				createdTabId = createdTab.result?.tab?.tab_id;
 				const paneId = createdTab.result?.root_pane?.pane_id;
 
