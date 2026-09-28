@@ -7,6 +7,30 @@ import {
 } from "../../dot/node_modules/effect/dist/index.js";
 import { collectServiceStatus } from "../../dot/src/commands/Services";
 import { CommandExecutor } from "../../dot/src/services/CommandExecutor";
+import { Config } from "../../dot/src/services/Config";
+import { emptyDotGitConfig } from "../../dot/src/services/GitConfig";
+import { emptyMcpConfig } from "../../dot/src/mcp/sync/loadSpec";
+
+const config = Layer.succeed(Config, {
+  publicDotfiles: "/example/dotfiles",
+  privateDotfiles: null,
+  canUsePrivate: false,
+  privateReason: "fixture",
+  notesDir: "/example/notes",
+  omarchy: {
+    repoBase: "/example",
+    diffRepos: [],
+    worktreeRepos: [],
+    worktreeBranches: [],
+    expectedBranches: {},
+    enabled: false,
+  },
+  gitConfig: emptyDotGitConfig("fixture.yml"),
+  mcpConfig: emptyMcpConfig("fixture.yml"),
+  cacheDir: "/example/cache",
+  stateDir: "/example/state",
+  logDir: "/example/log",
+});
 
 // Use systemd's exit and terminal events: a non-zero exit is still a systemd
 // failure, but only explicitly mapped normal exits are warning/skipped outcomes.
@@ -80,7 +104,7 @@ const snapshot = async (exits: readonly number[], signalled = false) => {
           exitStatuses: { "2": "warning", "3": "skipped" },
         },
       },
-    ]).pipe(Effect.provide(Layer.merge(NodeServices.layer, executor))),
+    ]).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, executor, config))),
   );
 
   if (!status) throw new Error("Missing service status");
