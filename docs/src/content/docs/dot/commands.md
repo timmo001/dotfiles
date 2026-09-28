@@ -1462,7 +1462,7 @@ List reviewable pull requests and what was opened, merged or closed recently
 dot pr-queue [flags]
 ```
 
-Run the repository's review_search from private dot-git.yml (or --search) and classify each pull request deterministically: size from changed lines, failing and pending checks, latest reviews, review decision, unresolved review threads by author, labels, comment count and first-time contributors. --threads adds each unresolved thread's comments. Effort groups are small (up to 150 changed lines), medium (up to 400) and large; a failing check or requested changes makes a pull request not ready. The activity window lists every pull request merged, closed without merging or opened since --since, newest first, with size and labels, plus the net change in open pull requests. Read-only.
+Run the repository's review_search from private dot-git.yml (or --search) and classify each pull request deterministically: size from changed lines, failing and pending checks, latest reviews, review decision, unresolved review threads by author, labels, comment count and first-time contributors. --reviewable searches beyond the saved filter, includes PR descriptions, recent comments and thread text, and leaves judgement of those comments to the reviewer. --threads adds each unresolved thread's comments for the saved search. Effort groups are small (up to 150 changed lines), medium (up to 400) and large; a failing check or requested changes makes a pull request not ready. The activity window lists every pull request merged, closed without merging or opened since --since, newest first, with size and labels, plus the net change in open pull requests. Read-only.
 
 **Options**
 
@@ -1470,6 +1470,7 @@ Run the repository's review_search from private dot-git.yml (or --search) and cl
 | --- | --- |
 | `--repo` `<string>` | Repository slug (default: the current checkout) |
 | `--search` `<string>` | Pull request search overriding review_search from private dot-git.yml |
+| `--reviewable` | Search open non-draft PRs beyond the saved review search and include descriptions, review and PR comment text |
 | `--since` `<string>` | Activity window start: today, yesterday, YYYY-MM-DD (local midnight), an ISO timestamp, or an age such as 12h, 3d or 1w |
 | `--sort` `<choice>` | Queue order: effort groups (small, medium, large, not ready), or one table by updated, created or size (choices: effort, updated, created, size) |
 | `--only` `<choice>` | Print only the review queue or only the activity window (choices: queue, activity) |
@@ -1482,6 +1483,7 @@ Run the repository's review_search from private dot-git.yml (or --search) and cl
 
 ```bash
 dot pr-queue
+dot pr-queue --only queue --reviewable --json
 dot pr-queue --only activity --since 2026-09-19
 dot pr-queue --sort updated --since 3d --json
 ```

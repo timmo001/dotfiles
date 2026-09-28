@@ -28,6 +28,8 @@ export interface PrQueueOptions {
   readonly repo: string | undefined;
   /** Search overriding the repository's configured `review_search`. */
   readonly search: string | undefined;
+  /** Search all open, non-draft PRs for review rather than the saved review search. */
+  readonly reviewable: boolean;
   /** Start of the activity window: `today`, `yesterday`, a date, a timestamp or a relative age. */
   readonly since: string;
   /** Maximum pull requests listed from the search. */
@@ -79,6 +81,7 @@ type Context = typeof Context.Type;
 const QueueNode = Schema.Struct({
   number: Schema.Int,
   title: Schema.String,
+  body: Schema.optionalKey(Schema.String),
   url: Schema.String,
   createdAt: Schema.String,
   updatedAt: Schema.String,
@@ -91,7 +94,18 @@ const QueueNode = Schema.Struct({
   labels: Schema.Struct({
     nodes: Schema.Array(Schema.Struct({ name: Schema.String })),
   }),
-  comments: Schema.Struct({ totalCount: Schema.Int }),
+  comments: Schema.Struct({
+    totalCount: Schema.Int,
+    nodes: Schema.optionalKey(
+      Schema.Array(
+        Schema.Struct({
+          body: Schema.String,
+          url: Schema.String,
+          author: Login,
+        }),
+      ),
+    ),
+  }),
   reviewThreads: Schema.Struct({ nodes: Schema.Array(ReviewThread) }),
   latestReviews: Schema.Struct({
     nodes: Schema.Array(Schema.Struct({ author: Login, state: Schema.String })),
@@ -160,10 +174,13 @@ const QUEUE_QUERY = `query($q: String!, $first: Int!, $cursor: String, $bodies: 
     pageInfo { hasNextPage endCursor }
     nodes {
       ... on PullRequest {
-        number title url createdAt updatedAt additions deletions changedFiles reviewDecision authorAssociation
+        number title body @include(if: $bodies) url createdAt updatedAt additions deletions changedFiles reviewDecision authorAssociation
         author { login }
         labels(first: 30) { nodes { name } }
-        comments { totalCount }
+        comments(last: 10) {
+          totalCount
+          nodes @include(if: $bodies) { body url author { login } }
+        }
         reviewThreads(first: 100) {
           nodes { ${reviewThreadFields({ comments: 20, bodies: "$bodies" })} }
         }
@@ -219,6 +236,7 @@ const GROUP_TITLES: Record<Group, string> = {
 interface QueueItem {
   readonly number: number;
   readonly title: string;
+  readonly body?: string;
   readonly url: string;
   readonly author: string;
   readonly firstTimer: boolean;
@@ -233,6 +251,11 @@ interface QueueItem {
   readonly reviews: readonly string[];
   readonly labels: readonly string[];
   readonly comments: number;
+  readonly recentComments: readonly {
+    readonly body: string;
+    readonly url: string;
+    readonly author: typeof Login.Type;
+  }[];
   readonly openThreads: readonly ReviewThread[];
   readonly failing: readonly string[];
   readonly pending: number;
@@ -338,6 +361,7 @@ function classify(node: QueueNode, since: number): QueueItem {
   return {
     number: node.number,
     title: node.title,
+    ...(node.body !== undefined && { body: node.body }),
     url: node.url,
     author: author(node.author),
     firstTimer: FIRST_TIMERS.has(node.authorAssociation),
@@ -354,6 +378,7 @@ function classify(node: QueueNode, since: number): QueueItem {
     ),
     labels: node.labels.nodes.map((label) => label.name),
     comments: node.comments.totalCount,
+    recentComments: node.comments.nodes ?? [],
     openThreads: node.reviewThreads.nodes.filter(isOpenThread),
     failing,
     pending,
@@ -431,6 +456,53 @@ function renderThreads(items: readonly QueueItem[]): string[] {
         out.push(`[${totalCount - nodes.length} later comments omitted]`, "");
     }
   }
+
+  return out;
+}
+
+function renderComments(items: readonly QueueItem[]): string[] {
+  const withComments = items.filter((item) => item.recentComments.length > 0);
+
+  if (withComments.length === 0) return [];
+
+  const out = ["## Recent PR comments", ""];
+
+  for (const item of withComments) {
+    out.push(`### [#${item.number}](${item.url}) ${item.title}`, "");
+
+    for (const comment of item.recentComments) {
+      out.push(
+        `**${author(comment.author)}**: ${comment.url}`,
+        "",
+        quote(comment.body),
+        "",
+      );
+    }
+
+    if (item.comments > item.recentComments.length)
+      out.push(
+        `[${item.comments - item.recentComments.length} earlier comments omitted]`,
+        "",
+      );
+  }
+
+  return out;
+}
+
+function renderDescriptions(items: readonly QueueItem[]): string[] {
+  const withDescriptions = items.filter((item) => item.body);
+
+  if (withDescriptions.length === 0) return [];
+
+  const out = ["## PR descriptions", ""];
+
+  for (const item of withDescriptions)
+    out.push(
+      `### [#${item.number}](${item.url}) ${item.title}`,
+      "",
+      quote(item.body ?? ""),
+      "",
+    );
 
   return out;
 }
@@ -520,7 +592,11 @@ const run = Effect.fn("prQueue")(function* (options: PrQueueOptions) {
         ),
       ));
 
-  const configured = options.search ?? managed?.reviewSearch ?? "";
+  const configured =
+    options.search ??
+    (options.reviewable
+      ? `repo:${repo} is:pr is:open draft:false -label:"wait for backend" -label:"Do Not Review" -label:has-parent`
+      : (managed?.reviewSearch ?? ""));
 
   if (!configured && options.only !== "activity")
     return yield* new PrQueueError({
@@ -541,8 +617,11 @@ const run = Effect.fn("prQueue")(function* (options: PrQueueOptions) {
         QUEUE_QUERY,
         {
           q: `${search} is:pr`,
-          bodies: options.threads,
-          first: Math.min(50, options.limit - nodes.length),
+          bodies: options.threads || options.reviewable,
+          first: Math.min(
+            options.reviewable ? 10 : 50,
+            options.limit - nodes.length,
+          ),
           cursor,
         },
         QueueResponse,
@@ -732,9 +811,11 @@ const run = Effect.fn("prQueue")(function* (options: PrQueueOptions) {
       );
 
     out.push(
-      `Groups: small is up to ${SMALL_LINES} changed lines, medium up to ${MEDIUM_LINES}; not ready means a failing check or changes requested. "new" and "updated" are relative to the activity window. Open threads are unresolved review threads by author; pass --threads for their text.`,
+      `Groups: small is up to ${SMALL_LINES} changed lines, medium up to ${MEDIUM_LINES}; not ready means a failing check or changes requested. "new" and "updated" are relative to the activity window. Open threads are unresolved review threads by author${options.reviewable ? "." : "; pass --threads for their text."}`,
       "",
       ...renderThreads(items),
+      ...(options.reviewable ? renderDescriptions(items) : []),
+      ...(options.reviewable ? renderComments(items) : []),
     );
   }
 
