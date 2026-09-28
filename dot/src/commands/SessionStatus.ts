@@ -1,4 +1,4 @@
-import { Clock, Effect, Schema } from "effect";
+import { Clock, Effect, Schedule, Schema } from "effect";
 import { join } from "node:path";
 import { HOME_DIR } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -174,6 +174,12 @@ export const readSessionStatus = Effect.fn("readSessionStatus")(function* (
         `/api/model?location%5Bdirectory%5D=${encodeURIComponent(session.location.directory)}`,
         Catalogue,
         session.location.directory,
+      ).pipe(
+        Effect.repeat({
+          until: (catalogue) => catalogue.data.length > 0,
+          schedule: Schedule.spaced("250 millis"),
+          times: 20,
+        }),
       ),
       compaction: latest(
         sessionId,

@@ -1,5 +1,5 @@
 import { HerdrSdk, type Agent, type PaneId } from "@timmo001/effect-herdr";
-import { Effect, Option, Schema } from "effect";
+import { Effect, Option, Schedule, Schema } from "effect";
 import { join } from "path";
 import { HOME_DIR } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -60,12 +60,27 @@ export const resolveHerdrModel = Effect.fn("herdr.model.resolve")(function* (
   if (suffix !== undefined && requestedVariant !== undefined)
     return invalid("Use either #variant or --variant, not both");
 
-  const available = (yield* executor.run(OPENCODE, ["models"], {
-    cwd: directory,
-  }))
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => /^[^\s/#]+\/[^\s#]+$/.test(line));
+  // OpenCode loads a new directory's providers in the background and briefly reports no models.
+  const available = yield* executor
+    .run(OPENCODE, ["models"], { cwd: directory })
+    .pipe(
+      Effect.map((output) =>
+        output
+          .split("\n")
+          .map((line) => line.trim())
+          .filter((line) => /^[^\s/#]+\/[^\s#]+$/.test(line)),
+      ),
+      Effect.repeat({
+        until: (models) => models.length > 0,
+        schedule: Schedule.spaced("250 millis"),
+        times: 20,
+      }),
+    );
+
+  if (!available.length)
+    return invalid(
+      `OpenCode listed no models for ${directory}; its model catalogue may still be loading`,
+    );
 
   const exact = available.filter((model) => model.toLowerCase() === name);
 
