@@ -52,11 +52,15 @@ Discovery alone needs no new session. Keep focused work in the current session.
    ```
 
    For OpenCode 2 with a requested model, add `--model "$model"` to this
-   command. The opener resolves a unique available model, creates an OpenCode
+   command. The opener validates against `opencode2 models`, creates an OpenCode
    session with it, then starts the full TUI on that session before sending the
    brief. An ambiguous model name fails with the matching choices; use the full
    `provider/model` ID to disambiguate. Do not select the model through TUI keys
    or substitute `opencode mini`.
+   For effort or another variant, use `--model "opus 5.5#low"` or
+   `--model "opus 5.5" --variant low`, not both forms together. Variants are
+   checked against that model's catalogue in the target project before creating
+   the session. Do not assume every model offers the same effort levels.
    Omit `--prompt` when the user only wants an agent opened. Worker names use the
    `coord-` prefix from `session-coordination`; the opener checks availability
    before launching and assigns the name before prompting. Omit `--agent` to
@@ -82,6 +86,13 @@ in that session's project, and switches it through the OpenCode API without
 starting a new session or sending a prompt. Do not assume a model change is
 authorised for a worker you do not own; ask before changing another agent's
 active work.
+
+Use `dot herdr model <target> "opus 5.5#low"` or
+`dot herdr model <target> "opus 5.5" --variant low` to switch effort as well.
+For an effort-only request, retain the session's current provider and model and
+pass them with the requested variant. Omitting the variant selects the model's
+default settings. The command verifies the resulting session model and variant;
+an already-running request keeps the settings it started with.
 
 ## Alternate Runtimes And Focus
 

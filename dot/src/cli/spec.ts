@@ -1853,7 +1853,11 @@ const herdrRepoOpenCommand = describe(
       ),
       model: text(
         "model",
-        "OpenCode 2 model or unique name match, selected before the new session starts; requires --agent opencode2",
+        "OpenCode 2 model or unique name match, optionally with #variant; requires --agent opencode2",
+      ),
+      variant: text(
+        "variant",
+        "Model variant such as low; requires --model and cannot be combined with #variant",
       ),
       agentName: text(
         "agent-name",
@@ -1890,6 +1894,7 @@ const herdrRepoOpenCommand = describe(
       agentKind,
       agent,
       model,
+      variant,
       agentName,
       tabLabel,
       layout,
@@ -1905,6 +1910,7 @@ const herdrRepoOpenCommand = describe(
         agentKind: optional(agentKind),
         agent: optional(agent),
         model: optional(model),
+        variant: optional(variant),
         agentName: optional(agentName),
         tabLabel: optional(tabLabel),
       }),
@@ -1933,13 +1939,20 @@ const herdrModelCommand = describe(
         Argument.withDescription("Herdr agent name or pane ID"),
       ),
       model: Argument.String("model").pipe(
-        Argument.withDescription("OpenCode 2 model or unique name match"),
+        Argument.withDescription(
+          "OpenCode 2 model or unique name match, optionally with #variant",
+        ),
+      ),
+      variant: text(
+        "variant",
+        "Model variant such as low; cannot be combined with #variant",
       ),
       json: bool("json", "Print the session ID and selected model as JSON"),
     },
-    herdrModel,
+    ({ variant, ...input }) =>
+      herdrModel({ ...input, variant: optional(variant) }),
   ),
-  "Switch the model of an existing Herdr OpenCode 2 agent. Resolves a unique available model in the agent's project and updates its current OpenCode session through the API without sending a prompt.",
+  "Switch the model and variant of an existing Herdr OpenCode 2 agent. Validates the model with opencode2 models and any #variant or --variant against the project's model catalogue before updating the session through the API. Omitting the variant selects the model's default settings. Does not send a prompt or interrupt a request already in progress.",
 );
 
 const herdrStartCommand = describe(

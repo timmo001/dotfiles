@@ -1657,7 +1657,8 @@ dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
 | `--prompt` `<string>` | Initial prompt to send through Herdr after the agent is ready |
 | `--agent-kind` `<string>` | Expected Herdr agent kind for an explicit command |
 | `--agent` `<string>` | Installed launcher from dot herdr agents, such as opencode2 |
-| `--model` `<string>` | OpenCode 2 model or unique name match, selected before the new session starts; requires --agent opencode2 |
+| `--model` `<string>` | OpenCode 2 model or unique name match, optionally with #variant; requires --agent opencode2 |
+| `--variant` `<string>` | Model variant such as low; requires --model and cannot be combined with #variant |
 | `--agent-name` `<string>` | Unique Herdr agent name, assigned before prompting |
 | `--no-focus` | Keep the current view focused without opening a terminal client |
 | `--json` | Print resource IDs, creation flags, agent details and prompt status as JSON |
@@ -1682,7 +1683,7 @@ dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
 
 ### `dot herdr model`
 
-Switch the model of an existing Herdr OpenCode 2 agent. Resolves a unique available model in the agent's project and updates its current OpenCode session through the API without sending a prompt.
+Switch the model and variant of an existing Herdr OpenCode 2 agent. Validates the model with opencode2 models and any #variant or --variant against the project's model catalogue before updating the session through the API. Omitting the variant selects the model's default settings. Does not send a prompt or interrupt a request already in progress.
 
 ```text
 dot herdr model [flags] <target> <model>
@@ -1692,6 +1693,7 @@ dot herdr model [flags] <target> <model>
 
 | Option | Description |
 | --- | --- |
+| `--variant` `<string>` | Model variant such as low; cannot be combined with #variant |
 | `--json` | Print the session ID and selected model as JSON |
 | `--help` `-h` | Show help information |
 
@@ -1700,7 +1702,7 @@ dot herdr model [flags] <target> <model>
 | Argument | Description |
 | --- | --- |
 | `<target>` | Herdr agent name or pane ID |
-| `<model>` | OpenCode 2 model or unique name match |
+| `<model>` | OpenCode 2 model or unique name match, optionally with #variant |
 
 ### `dot herdr context`
 

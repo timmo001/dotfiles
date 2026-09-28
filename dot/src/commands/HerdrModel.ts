@@ -6,14 +6,29 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 
 const OPENCODE = join(HOME_DIR, ".local", "bin", "opencode2");
 
+const ModelRef = Schema.Struct({
+  id: Schema.String,
+  providerID: Schema.String,
+  variant: Schema.optionalKey(Schema.String),
+});
+
 const SessionResponse = Schema.Struct({
   data: Schema.Struct({
     id: Schema.String.check(Schema.isPattern(/^ses[a-zA-Z0-9_-]+$/)),
     location: Schema.Struct({ directory: Schema.String }),
-    model: Schema.optionalKey(
-      Schema.Struct({ id: Schema.String, providerID: Schema.String }),
-    ),
+    model: Schema.optionalKey(ModelRef),
   }),
+});
+
+const ModelCatalogue = Schema.Struct({
+  location: Schema.Struct({ directory: Schema.String }),
+  data: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      providerID: Schema.String,
+      variants: Schema.Array(Schema.Struct({ id: Schema.String })),
+    }),
+  ),
 });
 
 /** Failures resolving an OpenCode model or its Herdr-owned session. */
@@ -30,25 +45,37 @@ function invalid(message: string): never {
 export const resolveHerdrModel = Effect.fn("herdr.model.resolve")(function* (
   query: string,
   directory: string,
+  requestedVariant?: string,
 ) {
   const executor = yield* CommandExecutor;
-  const name = query.trim().toLowerCase().replace(/\s+/g, "-");
+  const [modelQuery = "", suffix, extra] = query.trim().split("#");
+  const name = modelQuery.trim().toLowerCase().replace(/\s+/g, "-");
+  const variant = requestedVariant?.trim() ?? suffix?.trim();
 
   if (!name) return invalid("A model name is required");
+
+  if (extra !== undefined || variant === "")
+    return invalid("Use a model name with one non-empty #variant or --variant");
+
+  if (suffix !== undefined && requestedVariant !== undefined)
+    return invalid("Use either #variant or --variant, not both");
 
   const available = (yield* executor.run(OPENCODE, ["models"], {
     cwd: directory,
   }))
     .split("\n")
     .map((line) => line.trim())
-    .filter((line) => /^[^\s/]+\/[^\s/]+$/.test(line));
+    .filter((line) => /^[^\s/#]+\/[^\s#]+$/.test(line));
 
   const exact = available.filter((model) => model.toLowerCase() === name);
 
   const matches = exact.length
     ? exact
     : available.filter((model) =>
-        model.toLowerCase().split("/")[1]?.includes(name),
+        model
+          .slice(model.indexOf("/") + 1)
+          .toLowerCase()
+          .includes(name),
       );
 
   if (matches.length !== 1)
@@ -62,18 +89,62 @@ export const resolveHerdrModel = Effect.fn("herdr.model.resolve")(function* (
 
   if (!selected) return invalid(`No available OpenCode model matches ${query}`);
 
-  const [providerID, id] = selected.split("/");
+  const providerID = selected.slice(0, selected.indexOf("/"));
+  const id = selected.slice(selected.indexOf("/") + 1);
 
   if (!providerID || !id) return invalid(`Invalid OpenCode model ${selected}`);
 
-  return { providerID, id, name: selected };
+  if (variant !== undefined) {
+    const output = yield* executor.run(
+      OPENCODE,
+      [
+        "api",
+        "get",
+        `/api/model?location%5Bdirectory%5D=${encodeURIComponent(directory)}`,
+      ],
+      { cwd: directory },
+    );
+
+    const catalogue = yield* Schema.decodeEffect(
+      Schema.fromJsonString(ModelCatalogue),
+    )(output);
+
+    if (catalogue.location.directory !== directory)
+      return invalid(
+        "OpenCode returned a model catalogue for another directory",
+      );
+
+    const model = catalogue.data.find(
+      (entry) => entry.id === id && entry.providerID === providerID,
+    );
+
+    if (!model)
+      return invalid(`Model ${selected} is missing from the project catalogue`);
+
+    if (!model.variants.some((entry) => entry.id === variant))
+      return invalid(
+        `Variant ${variant} is not available for ${selected}. Available variants: ${model.variants.map((entry) => entry.id).join(", ") || "none"}`,
+      );
+  }
+
+  return {
+    providerID,
+    id,
+    variant,
+    name: variant === undefined ? selected : `${selected}#${variant}`,
+  };
 });
 
 /** Create an OpenCode session with its model set before the TUI starts. */
 export const createHerdrModelSession = Effect.fn("herdr.model.create")(
-  function* (query: string, directory: string) {
+  function* (query: string, directory: string, requestedVariant?: string) {
     const executor = yield* CommandExecutor;
-    const { id, providerID, name } = yield* resolveHerdrModel(query, directory);
+
+    const { id, providerID, variant, name } = yield* resolveHerdrModel(
+      query,
+      directory,
+      requestedVariant,
+    );
 
     const output = yield* executor.run(
       OPENCODE,
@@ -84,7 +155,7 @@ export const createHerdrModelSession = Effect.fn("herdr.model.create")(
         "--data",
         JSON.stringify({
           location: { directory },
-          model: { id, providerID },
+          model: { id, providerID, variant },
         }),
       ],
       { cwd: directory },
@@ -99,7 +170,8 @@ export const createHerdrModelSession = Effect.fn("herdr.model.create")(
 
     if (
       session.data.model?.id !== id ||
-      session.data.model.providerID !== providerID
+      session.data.model.providerID !== providerID ||
+      (variant !== undefined && session.data.model.variant !== variant)
     )
       return invalid("OpenCode did not select the requested model");
 
@@ -144,6 +216,7 @@ export const switchHerdrModel = Effect.fn("herdr.model.switch")(function* (
   paneId: PaneId,
   directory: string,
   query: string,
+  requestedVariant?: string,
 ) {
   const executor = yield* CommandExecutor;
   yield* verifyHerdrOpenCode(agent, paneId, directory);
@@ -171,6 +244,7 @@ export const switchHerdrModel = Effect.fn("herdr.model.switch")(function* (
   const model = yield* resolveHerdrModel(
     query,
     session.data.location.directory,
+    requestedVariant,
   );
 
   yield* executor.run(
@@ -180,10 +254,33 @@ export const switchHerdrModel = Effect.fn("herdr.model.switch")(function* (
       "post",
       `/api/session/${reference.value}/model`,
       "--data",
-      JSON.stringify({ model: { id: model.id, providerID: model.providerID } }),
+      JSON.stringify({
+        model: {
+          id: model.id,
+          providerID: model.providerID,
+          variant: model.variant,
+        },
+      }),
     ],
     { cwd: session.data.location.directory },
   );
+
+  const updated = yield* executor.run(
+    OPENCODE,
+    ["api", "get", `/api/session/${reference.value}`],
+    { cwd: session.data.location.directory },
+  );
+
+  const confirmed = yield* Schema.decodeEffect(
+    Schema.fromJsonString(SessionResponse),
+  )(updated);
+
+  if (
+    confirmed.data.model?.id !== model.id ||
+    confirmed.data.model.providerID !== model.providerID ||
+    (confirmed.data.model.variant ?? "default") !== (model.variant ?? "default")
+  )
+    return invalid("OpenCode did not select the requested model and variant");
 
   return { sessionId: reference.value, model: model.name };
 });

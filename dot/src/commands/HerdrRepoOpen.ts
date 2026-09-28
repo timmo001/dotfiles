@@ -60,6 +60,8 @@ export interface HerdrRepoOpenOptions {
   readonly agent?: string;
   /** OpenCode 2 model name or unique match, selected before launch. */
   readonly model?: string;
+  /** Explicit model variant, mutually exclusive with a #variant suffix. */
+  readonly variant?: string;
   /** Unique name assigned to the verified agent before prompting. */
   readonly agentName?: string;
   /** Leave the current view focused and do not open a terminal client. */
@@ -200,6 +202,9 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   if (options.model !== undefined && options.agent !== "opencode2")
     return fail("--model requires --agent opencode2", 2);
 
+  if (options.variant !== undefined && options.model === undefined)
+    return fail("--variant requires --model", 2);
+
   let command = launcher?.executable ?? options.command;
   const agentKind = launcher?.kind ?? options.agentKind;
   const tabLabel = options.tabLabel ?? launcher?.label ?? "Shell";
@@ -258,7 +263,11 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   const selected =
     options.model === undefined
       ? undefined
-      : yield* createHerdrModelSession(options.model, directory);
+      : yield* createHerdrModelSession(
+          options.model,
+          directory,
+          options.variant,
+        );
 
   if (selected && command) command += ` --session ${selected.sessionId}`;
 
@@ -562,6 +571,7 @@ export const herdrRepoOpen = (options: HerdrRepoOpenOptions) =>
 export const herdrModel = (options: {
   readonly target: string;
   readonly model: string;
+  readonly variant?: string;
   readonly json: boolean;
 }) =>
   Effect.gen(function* () {
@@ -589,6 +599,7 @@ export const herdrModel = (options: {
       agent.paneId,
       directory,
       options.model,
+      options.variant,
     );
 
     process.stdout.write(

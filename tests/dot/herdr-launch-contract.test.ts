@@ -120,6 +120,12 @@ async function launch(options: {
         if (command === `${HOME_DIR}/.local/bin/opencode2` && args?.[0] === "models")
           return record("executor.models", "github-copilot/claude-opus-5.5\ngithub-copilot/gpt-6-astra\ngithub-copilot/gpt-6-sol\n", command, args);
 
+        if (command === `${HOME_DIR}/.local/bin/opencode2` && args?.[0] === "api" && args[1] === "get") {
+          expect(args[2]).toBe(`/api/model?location%5Bdirectory%5D=${encodeURIComponent(directory)}`);
+
+          return record("executor.variants", JSON.stringify({ location: { directory }, data: [{ id: "claude-opus-5.5", providerID: "github-copilot", variants: [{ id: "low" }, { id: "high" }] }] }), command, args);
+        }
+
         if (command === `${HOME_DIR}/.local/bin/opencode2` && args?.[0] === "api" && args[1] === "post")
           return record("executor.create", JSON.stringify({ data: { id: "ses_fixture", model: JSON.parse(args[4]).model, location: { directory } } }), command, args);
 
@@ -185,17 +191,26 @@ test("background agent launches resolve the wrapper, verify it and name the exac
   ]);
 });
 
-test("a requested model is validated and assigned before opening and prompting the full TUI", async () => {
+test.each([
+  { model: "opus 5.5", variant: undefined, selected: "github-copilot/claude-opus-5.5" },
+  { model: "opus 5.5#low", variant: undefined, selected: "github-copilot/claude-opus-5.5#low" },
+  { model: "opus 5.5", variant: "low", selected: "github-copilot/claude-opus-5.5#low" },
+])("a requested model and variant are validated before launching: %j", async ({ model, variant, selected }) => {
   const calls = await launch({
-    request: { command: undefined, agent: "opencode2", model: "opus 5.5", prompt: "Investigate", noFocus: true },
+    request: { command: undefined, agent: "opencode2", model, variant, prompt: "Investigate", noFocus: true },
     processInfo: (id, read) => shellInfo(id, read > 2 ? { pid: 99, name: "opencode2", argv: ["/fixture/opencode2"] } : {}),
-    onResult: result => expect(result).toMatchObject({ model: "github-copilot/claude-opus-5.5", sessionId: "ses_fixture", promptSent: true }),
+    onResult: result => expect(result).toMatchObject({ model: selected, sessionId: "ses_fixture", promptSent: true }),
   });
 
   expect(calls.findIndex(call => call.method === "executor.models")).toBeLessThan(calls.findIndex(call => call.method === "executor.create"));
-  expect(calls.find(call => call.method === "executor.create")?.input).toMatchObject(["api", "post", "/api/session", "--data", expect.any(String)]);
+  expect(calls.find(call => call.method === "executor.create")?.input).toEqual(["api", "post", "/api/session", "--data", JSON.stringify({ location: { directory }, model: { id: "claude-opus-5.5", providerID: "github-copilot", variant: selected.includes("#") ? "low" : undefined } })]);
   expect(calls.find(call => call.method === "panes.sendInput")?.input).toMatchObject({ text: `${HOME_DIR}/.local/bin/opencode2 --session ses_fixture` });
   expect(calls.findIndex(call => call.method === "executor.create")).toBeLessThan(calls.findIndex(call => call.method === "agents.prompt"));
+});
+
+test("unknown and conflicting variants fail before creating a session", async () => {
+  await expect(launch({ request: { command: undefined, agent: "opencode2", model: "opus 5.5#missing" } })).rejects.toThrow("Variant missing is not available");
+  await expect(launch({ request: { command: undefined, agent: "opencode2", model: "opus 5.5#low", variant: "high" } })).rejects.toThrow("Use either #variant or --variant, not both");
 });
 
 test("background workspace creation returns owned resource IDs without focusing", async () => {
