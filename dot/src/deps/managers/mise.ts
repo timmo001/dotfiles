@@ -45,7 +45,6 @@ const upstreams = {
   zls: "zigtools/zls",
   zoxide: "ajeetdsouza/zoxide",
   just: "casey/just",
-  hunk: "modem-dev/hunk",
 };
 
 /** Read backend-specific mise pins without executing mise or repository hooks. */

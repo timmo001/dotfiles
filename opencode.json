@@ -69,11 +69,6 @@
     },
     {
       "action": "read",
-      "resource": "~/.config/hunk/**",
-      "effect": "allow"
-    },
-    {
-      "action": "read",
       "resource": "~/.config/hypr/**",
       "effect": "allow"
     },
@@ -234,11 +229,6 @@
     },
     {
       "action": "edit",
-      "resource": "~/.config/hunk/**",
-      "effect": "deny"
-    },
-    {
-      "action": "edit",
       "resource": "~/.config/hypr/**",
       "effect": "deny"
     },
@@ -365,11 +355,6 @@
     {
       "action": "external_directory",
       "resource": "~/.config/herdr/**",
-      "effect": "allow"
-    },
-    {
-      "action": "external_directory",
-      "resource": "~/.config/hunk/**",
       "effect": "allow"
     },
     {
