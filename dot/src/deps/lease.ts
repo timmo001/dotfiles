@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
 import {
   Clock,
+  Duration,
   Effect,
   FileSystem,
   Ref,
@@ -23,6 +24,12 @@ const LeaseState = Schema.Struct({
 });
 
 const LEASE_MILLIS = 120_000;
+
+/** A lease push GitHub rejected without moving the ref, so repeating it is safe. */
+class LeasePushRejected extends Schema.TaggedError<LeasePushRejected>()(
+  "LeasePushRejected",
+  { message: Schema.String },
+) {}
 
 /** A remote run claim; publication advances the claim and target in one Git transaction. */
 export interface DependencyLease {
@@ -101,6 +108,40 @@ export const acquireDependencyLease = Effect.fn("Dependencies.acquireLease")(
       return { sha, state };
     });
 
+    // GitHub occasionally rejects a push outright ("remote rejected ... (failed)"),
+    // for example when two lease refs in one repository update together. A ref
+    // still at its parent means nothing changed, so the update can be repeated.
+    const repeatRejected = <A, E>(
+      attempt: Effect.Effect<A, E | LeasePushRejected>,
+    ) =>
+      backoff
+        .retry(attempt, {
+          initial: "1 second",
+          maxDelay: "8 seconds",
+          times: 4,
+          while: (error) => error instanceof LeasePushRejected,
+          onRetry: (error, delay) =>
+            error instanceof LeasePushRejected
+              ? log
+                  .event(
+                    `[WAIT] ${error.message}; retrying in ${Math.round(Duration.toMillis(delay) / 1000)}s`,
+                  )
+                  .pipe(Effect.orDie)
+              : Effect.void,
+        })
+        .pipe(
+          Effect.mapError((error) =>
+            error instanceof LeasePushRejected
+              ? new DependencyRunError({ message: error.message })
+              : error,
+          ),
+        );
+
+    const rejected = () =>
+      new LeasePushRejected({
+        message: `GitHub rejected the lease update for ${resource}`,
+      });
+
     const previous = yield* read;
     const now = yield* Clock.currentTimeMillis;
 
@@ -124,37 +165,45 @@ export const acquireDependencyLease = Effect.fn("Dependencies.acquireLease")(
         JSON.stringify(state),
       ]);
 
-    const state = {
-      version: 1 as const,
-      owner,
-      expiresAt: now + LEASE_MILLIS,
-      nextRunAt: 0,
-    };
-
-    const sha = yield* create(state, previous?.sha);
-    yield* git([
-      "push",
-      `--force-with-lease=${ref}:${previous?.sha ?? ""}`,
-      remote,
-      `${sha}:${ref}`,
-    ]).pipe(Effect.result);
-    const observed = yield* read;
-
-    if (observed?.sha !== sha) {
-      if (observed && observed.sha !== previous?.sha) {
-        yield* log.event(
-          `[SKIP] ${resource}: another machine acquired the run`,
+    const claimed = yield* repeatRejected(
+      Effect.gen(function* () {
+        const sha = yield* create(
+          {
+            version: 1,
+            owner,
+            expiresAt: (yield* Clock.currentTimeMillis) + LEASE_MILLIS,
+            nextRunAt: 0,
+          },
+          previous?.sha,
         );
 
-        return null;
-      }
+        yield* git([
+          "push",
+          `--force-with-lease=${ref}:${previous?.sha ?? ""}`,
+          remote,
+          `${sha}:${ref}`,
+        ]).pipe(Effect.result);
+        const observed = yield* read;
 
-      return yield* new DependencyRunError({
-        message: `Could not acquire remote dependency lease ${ref}`,
-      });
+        if (observed?.sha === sha) return observed;
+
+        if (observed?.sha === previous?.sha) return yield* rejected();
+
+        if (observed) return null;
+
+        return yield* new DependencyRunError({
+          message: `Could not acquire remote dependency lease ${ref}`,
+        });
+      }),
+    );
+
+    if (!claimed) {
+      yield* log.event(`[SKIP] ${resource}: another machine acquired the run`);
+
+      return null;
     }
 
-    const current = yield* Ref.make(observed);
+    const current = yield* Ref.make(claimed);
     yield* log.event(`[LEASE] Acquired ${resource}`);
 
     const owned = Effect.gen(function* () {
@@ -179,8 +228,6 @@ export const acquireDependencyLease = Effect.fn("Dependencies.acquireLease")(
           | { directory: string; commit: string; target: string; base: string }
           | undefined,
       ) {
-        const expected = yield* owned;
-
         if (publication)
           yield* git([
             "fetch",
@@ -189,68 +236,101 @@ export const acquireDependencyLease = Effect.fn("Dependencies.acquireLease")(
             publication.commit,
           ]);
 
-        const next = {
-          ...expected.state,
-          expiresAt: (yield* Clock.currentTimeMillis) + LEASE_MILLIS,
-        };
+        yield* repeatRejected(
+          Effect.gen(function* () {
+            const expected = yield* owned;
 
-        const nextSha = yield* create(next, expected.sha);
+            const next = {
+              ...expected.state,
+              expiresAt: (yield* Clock.currentTimeMillis) + LEASE_MILLIS,
+            };
 
-        const push = yield* git([
-          "push",
-          "--atomic",
-          `--force-with-lease=${ref}:${expected.sha}`,
-          ...(publication
-            ? [
-                `--force-with-lease=refs/heads/${publication.target}:${publication.base}`,
-              ]
-            : []),
-          remote,
-          `${nextSha}:${ref}`,
-          ...(publication
-            ? [`${publication.commit}:refs/heads/${publication.target}`]
-            : []),
-        ]).pipe(Effect.result);
+            const nextSha = yield* create(next, expected.sha);
 
-        const latest = yield* read;
+            const push = yield* git([
+              "push",
+              "--atomic",
+              `--force-with-lease=${ref}:${expected.sha}`,
+              ...(publication
+                ? [
+                    `--force-with-lease=refs/heads/${publication.target}:${publication.base}`,
+                  ]
+                : []),
+              remote,
+              `${nextSha}:${ref}`,
+              ...(publication
+                ? [`${publication.commit}:refs/heads/${publication.target}`]
+                : []),
+            ]).pipe(Effect.result);
 
-        if (latest?.sha !== nextSha)
-          return yield* new DependencyRunError({
-            message: `Dependency lease transaction failed for ${resource}${Result.isFailure(push) ? `: ${push.failure.message}` : ""}`,
-          });
-        yield* Ref.set(current, latest);
+            const latest = yield* read;
+
+            if (latest?.sha === nextSha) {
+              yield* Ref.set(current, latest);
+
+              return;
+            }
+
+            // An atomic push moves both refs or neither; a moved target is a real conflict.
+            if (
+              latest?.sha === expected.sha &&
+              (!publication ||
+                (yield* git([
+                  "ls-remote",
+                  "--refs",
+                  remote,
+                  `refs/heads/${publication.target}`,
+                ])).split(/\s/)[0] === publication.base)
+            )
+              return yield* rejected();
+
+            return yield* new DependencyRunError({
+              message: `Dependency lease transaction failed for ${resource}${Result.isFailure(push) ? `: ${push.failure.message}` : ""}`,
+            });
+          }),
+        );
       },
       (effect) => effect.pipe(Semaphore.withPermit(serial)),
     );
 
     yield* Effect.addFinalizer(() =>
-      Effect.gen(function* () {
-        const expected = yield* Ref.get(current);
-        const latest = yield* read;
+      repeatRejected(
+        Effect.gen(function* () {
+          const expected = yield* Ref.get(current);
+          const latest = yield* read;
 
-        if (latest?.sha !== expected.sha || latest.state.owner !== owner)
-          return;
+          if (latest?.sha !== expected.sha || latest.state.owner !== owner)
+            return;
 
-        const completed = yield* Clock.currentTimeMillis;
+          const completed = yield* Clock.currentTimeMillis;
 
-        const idle = {
-          version: 1 as const,
-          owner: null,
-          expiresAt: 0,
-          nextRunAt: cooldown
-            ? (Math.floor(completed / cooldown) + 1) * cooldown
-            : 0,
-        };
+          const idle = {
+            version: 1 as const,
+            owner: null,
+            expiresAt: 0,
+            nextRunAt: cooldown
+              ? (Math.floor(completed / cooldown) + 1) * cooldown
+              : 0,
+          };
 
-        const idleSha = yield* create(idle, expected.sha);
-        yield* git([
-          "push",
-          `--force-with-lease=${ref}:${expected.sha}`,
-          remote,
-          `${idleSha}:${ref}`,
-        ]);
-        yield* log.event(`[LEASE] Released ${resource}`);
-      }).pipe(
+          const idleSha = yield* create(idle, expected.sha);
+
+          const push = yield* git([
+            "push",
+            `--force-with-lease=${ref}:${expected.sha}`,
+            remote,
+            `${idleSha}:${ref}`,
+          ]).pipe(Effect.result);
+
+          const released = yield* read;
+
+          if (released?.sha === expected.sha) return yield* rejected();
+
+          if (released?.sha !== idleSha && Result.isFailure(push))
+            return yield* push.failure;
+          yield* log.event(`[LEASE] Released ${resource}`);
+        }),
+      ).pipe(
         Semaphore.withPermit(serial),
         Effect.catch((error) =>
           log
