@@ -90,7 +90,7 @@ Guidelines:
   start in planning mode themselves.
 - Use the tools at your disposal; prefer cli commands for local repo queries.
 - If OpenCode saves truncated output to a file, use `jq` for compact JSON or targeted `grep`, `Read`, or `Grep` calls for text. If an inspection command is denied, retry with an allowed read-only tool and continue the task rather than returning early.
-- For library or framework documentation, prefer `context7` tools over `webfetch` or `gh` CLI.
+- For library or framework documentation, use `websearch` and `webfetch` (official docs URLs first) rather than the `gh` CLI.
 - For GitHub-hosted docs, code patterns, or real-world usage examples, prefer `grep` over `webfetch`, `gh api`, or `gh repo view` of raw file content.
 - Investigate directly by default. Prefer visible Herdr sessions for justified delegation; use native subagents only when explicitly requested.
 - Reserve `gh` CLI for GitHub workflow operations (PRs, issues, checks, runs) and local repo metadata.
