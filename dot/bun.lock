@@ -7,7 +7,7 @@
       "dependencies": {
         "@effect/platform-node": "4.0.0-rc.117",
         "@timmo001/effect-gh": "0.1.0",
-        "@timmo001/effect-herdr": "0.8.2-timmo001.1",
+        "@timmo001/effect-herdr": "0.8.2-timmo001.2",
         "effect": "4.0.0-rc.117",
         "fast-xml-parser": "^5.11.1",
         "handlebars": "^4.7.9",
@@ -66,7 +66,7 @@
 
     "@timmo001/effect-gh": ["@timmo001/effect-gh@0.1.0", "", { "peerDependencies": { "effect": "4.0.0-rc.117" } }, "sha512-i+/kJa4+IgBesWvdrZhD0Y6XY0KDJNTVIzxhtiQpXeyZO1HAO3eChNVe/r2n1YyF0T98cMONqRLiLbzJTGHgZA=="],
 
-    "@timmo001/effect-herdr": ["@timmo001/effect-herdr@0.8.2-timmo001.1", "", { "dependencies": { "@effect/platform-node-shared": "4.0.0-rc.117", "ajv": "^8.20.0", "effect": "4.0.0-rc.117" } }, "sha512-GENgs0sbhHt1YEpIKsYzCxuycaniQ13oW1j9TLS7FtWmOG08D35B4f4b/rV2EOgAYnUpoJl67LfBfoR5R0acOw=="],
+    "@timmo001/effect-herdr": ["@timmo001/effect-herdr@0.8.2-timmo001.2", "", { "dependencies": { "@effect/platform-node-shared": "4.0.0-rc.118", "ajv": "^8.20.0", "effect": "4.0.0-rc.118" } }, "sha512-2mTplAybeXaUnctITNtmK3GRYtPUfZTMaJEVsTnSDOFjcgz/zoyQe5UEhEzIi0Rxzu13rA1bDMgiBBiJI09bTg=="],
 
     "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 
