@@ -46,7 +46,6 @@ permission:
     "notes context*": allow
     "notes list*": allow
     "notes read*": allow
-    "timeout *": allow
     "command -v*": allow
     "ctx docs search*": allow
     "ctx docs show*": allow
@@ -105,6 +104,24 @@ permission:
     "git tag -l": allow
     "id": allow
     "jq*": allow
+    "ctx doctor*": allow
+    "diff *": allow
+    "gh --version": allow
+    "gh version": allow
+    "gh * --help": allow
+    "git tag --list*": allow
+    "git tag -l *": allow
+    "mise which *": allow
+    "printf *": allow
+    "readlink *": allow
+    "rg *": allow
+    "strings *": allow
+    "systemctl --user cat *": allow
+    "systemctl --user show *": allow
+    "systemctl --user status *": allow
+    "printf*>*": deny
+    "rg* --pre*": deny
+    "git * --output*": deny
     "ls*": allow
     "pwd": allow
     "stat*": allow

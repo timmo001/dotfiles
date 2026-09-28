@@ -29,7 +29,6 @@ permission:
     "notes context*": allow
     "notes list*": allow
     "notes read*": allow
-    "timeout *": allow
     "gh issue list*": allow
     "gh issue view*": allow
     "gh pr checks*": allow

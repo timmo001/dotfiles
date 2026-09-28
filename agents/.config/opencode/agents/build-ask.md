@@ -14,7 +14,6 @@ permission:
   apply_patch: ask
   bash:
     "*": ask
-    "timeout *": allow
     "command -v*": allow
     "date*": allow
     "df*": allow
