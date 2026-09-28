@@ -123,8 +123,8 @@ function checkRepoHead(
 /**
  * Check that managed checkouts' local `origin/HEAD` symbolic-refs track their
  * remote default branch. A stale ref (e.g. after a default-branch rename)
- * misleads default-branch detection in `context git` and the branch-context
- * plugin, making the default branch look like a feature branch.
+ * misleads default-branch detection in `context git`, making the default
+ * branch look like a feature branch.
  */
 export const checkOriginHead = Effect.gen(function* () {
   const config = yield* Config;
