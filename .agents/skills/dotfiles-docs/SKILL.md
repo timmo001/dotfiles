@@ -9,7 +9,7 @@ metadata:
 
 Repo-local contract for `docs/` (Blume site at `dotfiles.timmo.dev`). Reinforces the Documentation section in repo-root `AGENTS.md`; does not replace `docs/AGENTS.md` toolchain notes.
 
-Load this whenever the work touches hand-written documentation in this repository. Pair with `maintain-docs` / `/update-docs` when catching docs up to code; this skill owns the local density and privacy rules those flows must follow here.
+Load this whenever the work touches hand-written documentation in this repository. Pair with `maintain-docs` when catching docs up to code; this skill owns the local density and privacy rules that flow must follow here.
 
 ## Purpose
 

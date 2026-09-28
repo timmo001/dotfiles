@@ -11,7 +11,6 @@ Plugins provide context, evidence, or enforcement hooks for OpenCode. Server plu
 
 | Plugin | Description |
 | --- | --- |
-| [`branch-context`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/branch-context.ts) | Injects branch-context blocks into command prompts before execution |
 | [`commit-context`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/commit-context.ts) | Injects session-attributed commit scope into commit command prompts |
 | [`context-capture`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/context-capture.ts) | Opt-in capture of the assembled starter context for token profiling |
 | [`env-protection`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/env-protection.ts) | Blocks direct access to .env files to prevent leaking secrets |
@@ -21,6 +20,4 @@ Plugins provide context, evidence, or enforcement hooks for OpenCode. Server plu
 | [`notification`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/notification.ts) | Sends contextual desktop notifications and terminal attention for agent events |
 | [`pitchfork-dev-server-guard`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/pitchfork-dev-server-guard.ts) | Enforces a project's declared pitchfork dev-server workflow for agents |
 | [`readonly-subagent-shell-guard`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/readonly-subagent-shell-guard.ts) | Rejects shell syntax that can turn read-only subagent commands into writes |
-| [`repo-notes`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/repo-notes.ts) | Injects repository note context into OpenCode note commands |
-| [`stack-context`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/stack-context.ts) | Injects codebase stack-context blocks into prompts |
 | [`subagent-chrome-devtools-guard`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/subagent-chrome-devtools-guard.ts) | Blocks Chrome DevTools tools from delegated subagent sessions |
