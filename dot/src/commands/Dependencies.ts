@@ -308,7 +308,11 @@ export const importRenovate = Effect.fn("Dependencies.importRenovate")(
       (finding) => finding.disposition === "blocked",
     );
 
-    yield* log.info(`Wrote ${result.path}`);
+    yield* log.info(
+      result.changed
+        ? `Wrote ${result.path}`
+        : `No changes; ${result.path} is already up to date`,
+    );
     yield* log.info(
       `Imported ${result.config.policy.base.rules.length + result.config.policy.overrides.rules.length} rules; ${blocked.length} unresolved settings`,
     );
@@ -325,8 +329,8 @@ export const importRenovate = Effect.fn("Dependencies.importRenovate")(
     );
 
     if (blocked.length)
-      yield* log.warn(
-        "Applicable unresolved settings block publication; preview checks their scope against the pinned repository",
+      yield* log.info(
+        "Unresolved settings only block publication when they match this repository's dependencies; dot deps checks that on each run",
       );
 
     if (!result.config.validation.checks.length)

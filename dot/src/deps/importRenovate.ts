@@ -398,6 +398,8 @@ export interface DependencyImportResult {
   readonly path: string;
   /** Validated configuration and redacted conversion diagnostics. */
   readonly config: DependencyConfig;
+  /** Whether the policy or editor schema differed from the saved files. */
+  readonly changed: boolean;
 }
 
 /** Authority to replace imported policy without changing Git history. */
@@ -596,6 +598,16 @@ export class DependencyImporter extends Context.Service<
                   "Dependency policy or editor schema has staged changes; finish those before importing",
               });
 
+            const rendered = renderDependencyConfig(imported);
+            const schema = renderDependencySchema();
+
+            if (
+              originalPath === dependencyPolicyFile &&
+              originalOutput === rendered &&
+              originalSchema === schema
+            )
+              return { path: output, config: imported, changed: false };
+
             const temporary = yield* fs.makeTempDirectoryScoped({
               directory: root,
               prefix: ".dot-deps-",
@@ -603,11 +615,11 @@ export class DependencyImporter extends Context.Service<
 
             yield* fs.writeFileString(
               join(temporary, dependencyPolicyFile),
-              renderDependencyConfig(imported),
+              rendered,
             );
             yield* fs.writeFileString(
               join(temporary, dependencyPolicySchemaFile),
-              renderDependencySchema(),
+              schema,
             );
             yield* fs.rename(
               join(temporary, dependencyPolicySchemaFile),
@@ -621,7 +633,7 @@ export class DependencyImporter extends Context.Service<
             )
               yield* fs.remove(join(root, originalPath));
 
-            return { path: output, config: imported };
+            return { path: output, config: imported, changed: true };
           },
           Effect.scoped,
           Effect.mapError((error) =>
