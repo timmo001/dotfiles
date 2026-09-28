@@ -325,7 +325,7 @@ Monitor registered systemd user services and timers
 dot services <subcommand> [flags]
 ```
 
-Each job registers itself with a JSON descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour"), restartLimit ({ count, within }) for long-running services, notify, and logs ({ dir, file }) for jobs that keep their own run logs. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations retain the last completed outcome. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel.
+Each job registers itself with a JSON descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour"), restartLimit ({ count, within }) for long-running services, notify, logs ({ dir, file }) for jobs that keep their own run logs, and repository (a GitHub owner/repo slug from dot-git.yml) naming the repository that logs and agents open in. Without repository, the repository containing the unit's executable is used, falling back to the public dotfiles. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations retain the last completed outcome. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel.
 
 **Options**
 
@@ -390,7 +390,7 @@ dot services start dot-deps.timer
 
 ### `dot services logs`
 
-Open a registered job's logs in a dotfiles Herdr tab
+Open a registered job's logs in a Herdr tab for the repository that owns it
 
 ```text
 dot services logs [flags] <unit>
@@ -412,6 +412,35 @@ dot services logs [flags] <unit>
 
 ```bash
 dot services logs notes-capture-daemon.service
+```
+
+### `dot services investigate`
+
+Open an agent in a registered job's repository, briefed with its recent runs, logs, file locations and commands to investigate them
+
+```text
+dot services investigate [flags] <unit>
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--agent` `<string>` | Installed launcher from dot herdr agents, such as opencode2 |
+| `--modifiers` `<integer>` | Qt keyboard modifier bitmask, as for dot herdr repo-open |
+| `--print` | Print the investigation brief instead of opening the agent |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<unit>` | Registered timer or service unit |
+
+**Examples**
+
+```bash
+dot services investigate skill-updates-agent.timer --agent opencode2
 ```
 
 ### `dot services notify`
