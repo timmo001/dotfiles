@@ -48,8 +48,13 @@ Discovery alone needs no new session. Keep focused work in the current session.
 
    ```sh
    dot herdr repo-open --agent "$launcher" --agent-name "$worker_name" \
-     --prompt "$brief" --json "$repo_label" "$repo_path"
+     --prompt-file "$brief_file" --json "$repo_label" "$repo_path"
    ```
+
+   Write multi-line briefs, or any text containing backticks, quotes or `$`, to
+   a file and pass `--prompt-file`; inline shell quoting keeps `\n` literal and
+   runs backticks or `$(...)`. Use `--prompt "$text"` only for a short
+   single-line prompt. A missing or empty file fails before anything launches.
 
    For OpenCode 2 with a requested model, add `--model "$model"` to this
    command. The opener validates against `opencode2 models`, creates an OpenCode
@@ -61,11 +66,11 @@ Discovery alone needs no new session. Keep focused work in the current session.
    `--model "opus 5.5" --variant low`, not both forms together. Variants are
    checked against that model's catalogue in the target project before creating
    the session. Do not assume every model offers the same effort levels.
-   Omit `--prompt` when the user only wants an agent opened. Worker names use the
-   `coord-` prefix from `session-coordination`; the opener checks availability
-   before launching and assigns the name before prompting. Omit `--agent` to
-   open or focus just the workspace. An empty command instead selects an idle
-   shell or creates a pane using the requested layout.
+   Omit the prompt flags when the user only wants an agent opened. Worker names
+   use the `coord-` prefix from `session-coordination`; the opener checks
+   availability before launching and assigns the name before prompting. Omit
+   `--agent` to open or focus just the workspace. An empty command instead
+   selects an idle shell or creates a pane using the requested layout.
 4. The opener uses the picker label to reuse a workspace or creates one when
    absent. Commands reuse an idle shell, searching the focused pane, its tab,
    then other tabs; otherwise they split right. Existing agents and foreground
@@ -105,7 +110,7 @@ an already-running request keeps the settings it started with.
   kind and foreground process, then names the agent and sends any brief. Trust
   that verification on success; no separate runtime lookup or prompt is needed.
 - For another wrapper or a command containing extra arguments, verify its actual
-  exec target first. Launch through the opener without `--prompt`, identify the
+  exec target first. Launch through the opener without a prompt flag, identify the
   pane, and check `herdr pane process-info` against that target. Wait for the
   detected agent to be ready, then use `herdr agent prompt`. Do not pretend that
   kind detection alone verifies an alternate runtime, or fall back to a different
