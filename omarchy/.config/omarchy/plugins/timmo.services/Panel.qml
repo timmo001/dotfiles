@@ -28,7 +28,7 @@ Panel {
   function buildPanelRows() {
     if (!service) return []
     if (view === "agent") {
-      return [actionRow("back", "Back to services", "")].concat(service.installedAgents.map(function(agent) {
+      return [actionRow("back", "Back to services", "")].concat(service.installedAgents.map(function(agent) {
         return actionRow("agent:" + agent.command, agent.label, "󱚣")
       }))
     }
