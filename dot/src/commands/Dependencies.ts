@@ -16,7 +16,7 @@ import {
 } from "../deps/importRenovate.js";
 import { RenovateResolver } from "../deps/renovateResolver.js";
 import { OutputLog } from "../services/OutputLog.js";
-import { FetchHttpClient } from "effect/unstable/http";
+import { FetchHttpClient } from "effect/http";
 import { DependencyDiskCache } from "../deps/cache.js";
 import { DependencyGithub } from "../deps/github.js";
 import { DependencySources } from "../deps/sources.js";

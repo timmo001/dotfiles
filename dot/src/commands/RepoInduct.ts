@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect";
-import { Prompt } from "effect/unstable/cli";
+import { Prompt } from "effect/cli";
 import { readFileSync } from "fs";
 import { basename, join, resolve } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";

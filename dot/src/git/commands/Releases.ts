@@ -1,5 +1,5 @@
 import { Effect, Result } from "effect";
-import { Prompt } from "effect/unstable/cli";
+import { Prompt } from "effect/cli";
 import { decodeJson } from "../../lib/schema.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { OutputLog } from "../../services/OutputLog.js";

@@ -8,7 +8,7 @@ import {
   GlobalFlag,
   type HelpDoc,
   type Param,
-} from "effect/unstable/cli";
+} from "effect/cli";
 import { agentsSync } from "../commands/AgentsSync.js";
 import { agentOxlint } from "../commands/AgentOxlint.js";
 import { repoInduct } from "../commands/RepoInduct.js";

@@ -1,5 +1,5 @@
 import { Data, Effect, Predicate, Terminal } from "effect";
-import { Prompt } from "effect/unstable/cli";
+import { Prompt } from "effect/cli";
 import { cliStyler } from "../../lib/ansi.js";
 import { writeText } from "./rows.js";
 import type {

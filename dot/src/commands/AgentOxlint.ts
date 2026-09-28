@@ -19,7 +19,7 @@ import {
   prepareGitRepoConfigEdit,
 } from "../lib/gitRepoConfig.js";
 import { canPromptForInduction, inductRepository } from "./RepoInduct.js";
-import { Prompt } from "effect/unstable/cli";
+import { Prompt } from "effect/cli";
 
 const MANAGED_DEPENDENCIES = {
   "@oxlint/plugins": packageJson.devDependencies["@oxlint/plugins"],

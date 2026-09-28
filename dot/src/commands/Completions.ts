@@ -4,7 +4,7 @@ import {
   type Command,
   type Param,
   type Primitive,
-} from "effect/unstable/cli";
+} from "effect/cli";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { commandConfig, commandHelp, dotCommand } from "../cli/spec.js";
