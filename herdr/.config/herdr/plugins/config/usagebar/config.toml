@@ -1,4 +1,0 @@
-# Agent Usage notifications stay disabled unless enabled deliberately.
-[notify]
-enabled = false
-remaining_thresholds = [50, 20, 10, 5]

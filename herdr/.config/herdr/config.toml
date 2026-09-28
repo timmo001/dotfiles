@@ -75,18 +75,6 @@ command = "dotfiles.yazi.open-tab"
 description = "open Yazi in a new tab"
 
 [[keys.command]]
-key = "prefix+u"
-type = "plugin_action"
-command = "usagebar.open-limits"
-description = "open agent usage limits"
-
-[[keys.command]]
-key = "prefix+shift+u"
-type = "plugin_action"
-command = "usagebar.refresh"
-description = "refresh agent usage"
-
-[[keys.command]]
 key = "prefix+f"
 type = "plugin_action"
 command = "timmo.workflow-watch.open"
@@ -144,15 +132,12 @@ row_gap = 0
 rows = [
   [
     "state_icon",
-    "$title",
+    "workspace",
+    "tab",
     "$pr",
   ],
   [
-    "$provider",
-    "$limit",
-  ],
-  [
-    "$context",
+    "agent",
     "machine",
   ],
 ]
