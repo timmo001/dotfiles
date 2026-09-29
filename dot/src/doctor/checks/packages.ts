@@ -14,6 +14,7 @@ import {
   loadPackageLists,
 } from "../../lib/archPackages.js";
 import { resolvedOmarchyHost } from "../../lib/omarchyHost.js";
+import { readListFile } from "../../lib/listFile.js";
 import type { ConfigService } from "../../services/Config.js";
 import type { CheckResult } from "../types.js";
 import {
@@ -113,17 +114,6 @@ function completePrivatePackageRepoConfig(
   };
 }
 
-function readPrivatePackageRepoConfigLines(filePath: string): string[] | null {
-  try {
-    return readFileSync(filePath, "utf-8")
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line && !line.startsWith("#"));
-  } catch {
-    return null;
-  }
-}
-
 /** Path to the private pacman repository snippet. */
 export function privatePacmanRepoConfigPath(): string {
   return (
@@ -156,7 +146,7 @@ export function loadPrivatePackageRepoConfig(
     sigLevel: "Optional TrustAll",
   };
 
-  const lines = readPrivatePackageRepoConfigLines(repoConfigFile);
+  const lines = readListFile(repoConfigFile);
 
   if (!lines) return null;
 
@@ -464,13 +454,68 @@ export function publicPackageKeyTrusted(
   );
 }
 
+/**
+ * Report whether each package is installed and current, ending with one
+ * install/update command for every missing or outdated package.
+ */
+function packageListResults<R>(
+  packages: readonly string[],
+  display: (pkg: string) => string,
+  updateFor: (pkg: string) => Effect.Effect<CheckResult | null, never, R>,
+) {
+  return Effect.gen(function* () {
+    const results: CheckResult[] = [];
+    const pending: string[] = [];
+
+    const checked = yield* Effect.forEach(
+      packages,
+      (pkg) =>
+        Effect.gen(function* () {
+          if (!(yield* isPackageInstalled(pkg)))
+            return { pkg, installed: false, update: null };
+
+          return { pkg, installed: true, update: yield* updateFor(pkg) };
+        }),
+      { concurrency: PACKAGE_CHECK_CONCURRENCY },
+    );
+
+    const updates: string[] = [];
+
+    for (const { pkg, installed, update } of checked) {
+      if (!installed) {
+        results.push({
+          severity: "warn",
+          message: `${display(pkg)} is missing`,
+        });
+        pending.push(pkg);
+        continue;
+      }
+
+      results.push({ severity: "ok", message: `${display(pkg)} is installed` });
+
+      if (update) {
+        results.push(update);
+        updates.push(pkg);
+      }
+    }
+
+    pending.push(...updates);
+
+    if (pending.length > 0)
+      results.push({
+        severity: "warn",
+        message: `Install/update with: omarchy-pkg-aur-add ${pending.join(" ")}`,
+      });
+
+    return results;
+  });
+}
+
 /** Check public AUR packages are installed and up-to-date */
 export const checkPublicPackages = Effect.gen(function* () {
   const config = yield* Config;
   const executor = yield* CommandExecutor;
   const results: CheckResult[] = [];
-  const missingPackages: string[] = [];
-  const updatePackages: string[] = [];
 
   const packagesFile =
     envString(ENV.DOT_PUBLIC_PACKAGES_FILE) ??
@@ -489,50 +534,9 @@ export const checkPublicPackages = Effect.gen(function* () {
 
   const hasYay = (yield* executor.exitCode("which", ["yay"])) === 0;
 
-  const checked = yield* Effect.forEach(
-    packages,
-    (pkg) =>
-      Effect.gen(function* () {
-        if (!(yield* isPackageInstalled(pkg)))
-          return { pkg, installed: false, update: null };
-
-        const update = yield* packageUpdateResult(
-          pkg,
-          PUBLIC_PACKAGE_REPOSITORY,
-          hasYay,
-        );
-
-        return { pkg, installed: true, update };
-      }),
-    { concurrency: PACKAGE_CHECK_CONCURRENCY },
+  return yield* packageListResults(packages, packageDisplayName, (pkg) =>
+    packageUpdateResult(pkg, PUBLIC_PACKAGE_REPOSITORY, hasYay),
   );
-
-  for (const { pkg, installed, update } of checked) {
-    const display = packageDisplayName(pkg);
-
-    if (!installed) {
-      results.push({ severity: "warn", message: `${display} is missing` });
-      missingPackages.push(pkg);
-      continue;
-    }
-
-    results.push({ severity: "ok", message: `${display} is installed` });
-
-    if (update) {
-      results.push(update);
-      updatePackages.push(pkg);
-    }
-  }
-
-  if (missingPackages.length > 0 || updatePackages.length > 0) {
-    const combined = [...missingPackages, ...updatePackages];
-    results.push({
-      severity: "warn",
-      message: `Install/update with: omarchy-pkg-aur-add ${combined.join(" ")}`,
-    });
-  }
-
-  return results;
 });
 
 /** Check the signed public package repository configuration and trusted key. */
@@ -637,47 +641,14 @@ export const checkPrivatePackages = Effect.gen(function* () {
     return results;
   }
 
-  const missingPackages: string[] = [];
-  const updatePackages: string[] = [];
   const repository = loadPrivatePackageRepoConfig(config)?.name;
 
-  const checked = yield* Effect.forEach(
+  return yield* packageListResults(
     packages,
+    (pkg) => pkg,
     (pkg) =>
-      Effect.gen(function* () {
-        if (!(yield* isPackageInstalled(pkg)))
-          return { pkg, installed: false, update: null };
-
-        const update = repository
-          ? yield* packageUpdateResult(pkg, repository, false)
-          : null;
-
-        return { pkg, installed: true, update };
-      }),
-    { concurrency: PACKAGE_CHECK_CONCURRENCY },
+      repository
+        ? packageUpdateResult(pkg, repository, false)
+        : Effect.succeed(null),
   );
-
-  for (const { pkg, installed, update } of checked) {
-    if (installed) {
-      results.push({ severity: "ok", message: `${pkg} is installed` });
-
-      if (update) {
-        results.push(update);
-        updatePackages.push(pkg);
-      }
-    } else {
-      results.push({ severity: "warn", message: `${pkg} is missing` });
-      missingPackages.push(pkg);
-    }
-  }
-
-  if (missingPackages.length > 0 || updatePackages.length > 0) {
-    const combined = [...missingPackages, ...updatePackages];
-    results.push({
-      severity: "warn",
-      message: `Install/update with: omarchy-pkg-aur-add ${combined.join(" ")}`,
-    });
-  }
-
-  return results;
 });

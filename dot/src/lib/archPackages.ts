@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { existsSync, readFileSync } from "fs";
+import { readListFile } from "./listFile.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
 /**
@@ -33,16 +33,7 @@ export function isPackageInstalled(
 
 /** Load a package list file: one package per line, skipping comments and blanks. */
 export function loadPackageList(filePath: string): readonly string[] {
-  try {
-    if (!existsSync(filePath)) return [];
-
-    return readFileSync(filePath, "utf-8")
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line && !line.startsWith("#"));
-  } catch {
-    return [];
-  }
+  return readListFile(filePath) ?? [];
 }
 
 /** Load and de-duplicate packages from multiple package list files. */

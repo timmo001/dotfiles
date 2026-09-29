@@ -1,13 +1,13 @@
 import { Gh } from "@timmo001/effect-gh";
 import { Effect } from "effect";
 import { cliStyler } from "./ansi.js";
-import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { ENV, envString } from "./env.js";
 import { ghOutput } from "./gh.js";
+import { readListFile } from "./listFile.js";
 import type { ConfigService } from "../services/Config.js";
 
 /** Resolve the path to the public gh CLI extensions list. */
@@ -24,12 +24,7 @@ export function ghExtensionsListPath(config: ConfigService): string {
  * install`. Returns an empty list when the file is missing.
  */
 export function loadGhExtensions(filePath: string): readonly string[] {
-  if (!existsSync(filePath)) return [];
-
-  return readFileSync(filePath, "utf-8")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith("#"));
+  return readListFile(filePath) ?? [];
 }
 
 /**
@@ -51,6 +46,21 @@ export function parseInstalledGhExtensions(
   return installed;
 }
 
+/** Installed gh extension repos, or an empty set when `gh` cannot list them. */
+export const installedGhExtensions: Effect.Effect<
+  ReadonlySet<string>,
+  never,
+  Gh
+> = Effect.gen(function* () {
+  const gh = yield* Gh;
+
+  const listed = yield* ghOutput(gh, ["extension", "list"]).pipe(
+    Effect.catch(() => Effect.succeed("")),
+  );
+
+  return parseInstalledGhExtensions(listed);
+});
+
 /**
  * Install any configured gh CLI extensions that are not already present.
  * Optional by design: a missing `gh` or a failed single-extension install is
@@ -63,7 +73,6 @@ export const installGhExtensions: Effect.Effect<
 > = Effect.gen(function* () {
   const config = yield* Config;
   const executor = yield* CommandExecutor;
-  const gh = yield* Gh;
   const log = yield* OutputLog;
 
   yield* log.section("Install GitHub CLI Extensions");
@@ -82,11 +91,7 @@ export const installGhExtensions: Effect.Effect<
     return;
   }
 
-  const listed = yield* ghOutput(gh, ["extension", "list"]).pipe(
-    Effect.catch(() => Effect.succeed("")),
-  );
-
-  const installed = parseInstalledGhExtensions(listed);
+  const installed = yield* installedGhExtensions;
 
   const missing = desired.filter((repo) => !installed.has(repo.toLowerCase()));
 
