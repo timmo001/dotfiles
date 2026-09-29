@@ -37,7 +37,7 @@ jobs:
           install: false
 
       - name: Install build toolchain
-        run: mise install zig zls rust
+        run: mise install zig rust
 
       - name: Build Terminal Control
         run: mise install --force cargo:terminal-control
