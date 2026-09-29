@@ -9,7 +9,7 @@
     "test": "bun test tests --pass-with-no-tests",
     "format": "prettier --write \"{src,tests}/**/*.ts\"",
     "format:check": "prettier --check \"{src,tests}/**/*.ts\"",
-    "prepare": "effect-tsgo patch"
+    "prepare": "effect-tsgo patch --typescript --force=false"
   },
   "dependencies": {
     "@effect/platform-node": "4.0.0-rc.118",
