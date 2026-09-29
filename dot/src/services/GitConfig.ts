@@ -6,12 +6,16 @@ import { displayPath, expandHomePath } from "../lib/paths.js";
 import {
   decodeJson,
   formatCause,
-  isBoolean,
   isJsonObject,
   isString,
-  type JsonObject,
   type JsonValue,
 } from "../lib/schema.js";
+import {
+  optionalString,
+  pushUnknownKeyDiagnostics,
+  requiredBoolean,
+  requiredString,
+} from "../lib/configDiagnostics.js";
 
 const TOP_LEVEL_KEYS = new Set([
   "schema_version",
@@ -647,16 +651,6 @@ function optionalAliases(
   });
 }
 
-function optionalString(
-  value: JsonValue,
-  location: string,
-  diagnostics: string[],
-): string | null {
-  if (value === undefined) return null;
-
-  return requiredString(value, location, diagnostics);
-}
-
 function parseNotifications(
   value: JsonValue,
   location: string,
@@ -754,46 +748,6 @@ function parseCheck(
   }
 
   return enabled === null || !schedule ? null : { enabled, schedule };
-}
-
-function requiredString(
-  value: JsonValue,
-  location: string,
-  diagnostics: string[],
-): string | null {
-  if (!isString(value) || value.trim().length === 0) {
-    diagnostics.push(`${location} must be a non-empty string`);
-
-    return null;
-  }
-
-  return value.trim();
-}
-
-function requiredBoolean(
-  value: JsonValue,
-  location: string,
-  diagnostics: string[],
-): boolean | null {
-  if (!isBoolean(value)) {
-    diagnostics.push(`${location} must be true or false`);
-
-    return null;
-  }
-
-  return value;
-}
-
-function pushUnknownKeyDiagnostics(
-  diagnostics: string[],
-  record: JsonObject,
-  allowed: ReadonlySet<string>,
-  location: string,
-): void {
-  for (const key of Object.keys(record)) {
-    if (!allowed.has(key))
-      diagnostics.push(`${location}.${key} is not supported`);
-  }
 }
 
 function pushDuplicateDiagnostics(
