@@ -30,6 +30,7 @@ const MANAGED_DEPENDENCIES = {
 const RULE_OVERRIDES = {
   "anti-slop/no-runtime-typeof": "warn",
   "anti-slop/require-safety-comment-for-type-assertion": "warn",
+  "typescript/no-non-null-assertion": "warn",
 } as const;
 
 const CONFIG_NAMES = new Set([
