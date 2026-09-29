@@ -1,5 +1,6 @@
 import { Gh } from "@timmo001/effect-gh";
 import { Effect } from "effect";
+import { cliStyler } from "./ansi.js";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -70,7 +71,7 @@ export const installGhExtensions: Effect.Effect<
   const desired = loadGhExtensions(ghExtensionsListPath(config));
 
   if (desired.length === 0) {
-    yield* log.info("No gh extensions configured");
+    yield* log.info(cliStyler().dim("No gh extensions configured"));
 
     return;
   }
@@ -90,7 +91,9 @@ export const installGhExtensions: Effect.Effect<
   const missing = desired.filter((repo) => !installed.has(repo.toLowerCase()));
 
   if (missing.length === 0) {
-    yield* log.info("All configured gh extensions are installed");
+    yield* log.info(
+      cliStyler().dim("All configured gh extensions are installed"),
+    );
 
     return;
   }

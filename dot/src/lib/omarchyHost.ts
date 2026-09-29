@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import { cliStyler } from "./ansi.js";
 import {
   existsSync,
   lstatSync,
@@ -207,7 +208,7 @@ function hyprHostLinkRequest(
 
 const updateHyprHostLink = (
   request: Extract<HostLinkRequest, { readonly status: "ensure" }>,
-  log: Pick<OutputLogService, "info" | "warn">,
+  log: Pick<OutputLogService, "info" | "success" | "warn">,
 ) =>
   Effect.gen(function* () {
     const action =
@@ -216,7 +217,7 @@ const updateHyprHostLink = (
       );
 
     if (action.kind === "ok") {
-      yield* log.info(action.message);
+      yield* log.info(cliStyler().dim(action.message));
 
       return;
     }
@@ -232,7 +233,7 @@ const updateHyprHostLink = (
     }
 
     symlinkSync(request.hostDir, request.hostLink, "dir");
-    yield* log.info(
+    yield* log.success(
       `Hypr host link set (${displayPath(request.hostLink)} -> hosts/${request.host})`,
     );
   });
@@ -272,7 +273,7 @@ function stowLinkContent(
  */
 export const ensureHyprConfigLink = (
   repoDir: string,
-  log: Pick<OutputLogService, "info" | "warn">,
+  log: Pick<OutputLogService, "info" | "success" | "warn">,
 ) =>
   Effect.gen(function* () {
     const home = homedir();
@@ -301,7 +302,7 @@ export const ensureHyprConfigLink = (
     removeIfPresent(tmpLink);
     symlinkSync(linkContent, tmpLink);
     renameSync(tmpLink, linkPath);
-    yield* log.info(
+    yield* log.success(
       `Repaired Hypr config link (${displayPath(linkPath)} -> hyprland.lua)`,
     );
   });
@@ -340,7 +341,7 @@ function removeIfPresent(path: string): void {
 /** Create or repair the host-selected Hypr config symlink used by one-branch config. */
 export const ensureHyprHostLink = (
   config: ConfigService,
-  log: Pick<OutputLogService, "info" | "warn">,
+  log: Pick<OutputLogService, "info" | "success" | "warn">,
   opts?: { readonly host?: string },
 ) =>
   Effect.gen(function* () {

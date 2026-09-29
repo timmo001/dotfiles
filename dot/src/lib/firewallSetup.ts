@@ -1,4 +1,5 @@
 import { Effect, Schema } from "effect";
+import { cliStyler } from "./ansi.js";
 import { existsSync, readFileSync } from "fs";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -344,7 +345,7 @@ export const configureFirewallRules: Effect.Effect<
   );
 
   if (toAdd.length === 0 && toRecomment.length === 0) {
-    yield* log.info("Firewall rules already configured");
+    yield* log.info(cliStyler().dim("Firewall rules already configured"));
 
     return;
   }
@@ -383,7 +384,7 @@ export const configureFirewallRules: Effect.Effect<
   }
 
   const changed = toAdd.length + toRecomment.length;
-  yield* log.info(
+  yield* log.success(
     `Configured ${changed} firewall rule${changed === 1 ? "" : "s"}`,
   );
 });

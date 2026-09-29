@@ -1,4 +1,5 @@
 import { Effect, Schema } from "effect";
+import { cliStyler } from "./ansi.js";
 import { existsSync } from "fs";
 import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -181,7 +182,7 @@ export const ensureStowInstalled: Effect.Effect<
   yield* log.section("Setup Prerequisites");
 
   if (yield* commandAvailable("stow")) {
-    yield* log.info("stow is already installed");
+    yield* log.info(cliStyler().dim("stow is already installed"));
 
     return;
   }
@@ -204,7 +205,7 @@ export const ensureGumInstalled: Effect.Effect<
   yield* log.section("Init Questionnaire Prerequisites");
 
   if (yield* commandAvailable("gum")) {
-    yield* log.info("gum is already installed");
+    yield* log.info(cliStyler().dim("gum is already installed"));
 
     return;
   }
@@ -238,7 +239,9 @@ export const installMiseTools: Effect.Effect<
   yield* log.section("Install Mise Tools");
 
   if (!miseConfigExists()) {
-    yield* log.info("No mise config found; skipping mise install");
+    yield* log.info(
+      cliStyler().dim("No mise config found; skipping mise install"),
+    );
 
     return;
   }
@@ -396,7 +399,9 @@ export function installMissingArchPackages(opts: {
     const missing = yield* missingPackages(config, opts.scope);
 
     if (missing.length === 0) {
-      yield* log.info(`${label} Arch packages already installed`);
+      yield* log.info(
+        cliStyler().dim(`${label} Arch packages already installed`),
+      );
 
       return;
     }

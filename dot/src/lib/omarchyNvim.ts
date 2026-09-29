@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import { cliStyler } from "./ansi.js";
 import {
   existsSync,
   lstatSync,
@@ -123,7 +124,7 @@ export function detectNvimThemeLink(): NvimThemeLink {
  * theme spec, undoing the omarchy-nvim package's mislocated link.
  */
 export const ensureNvimThemeLink = (
-  log: Pick<OutputLogService, "info" | "warn">,
+  log: Pick<OutputLogService, "info" | "success" | "warn">,
 ) =>
   Effect.gen(function* () {
     const link = detectNvimThemeLink();
@@ -132,7 +133,7 @@ export const ensureNvimThemeLink = (
     if (link.status === "not-installed") return;
 
     if (link.status === "ok") {
-      yield* log.info(`Neovim theme link OK (${path})`);
+      yield* log.info(cliStyler().dim(`Neovim theme link OK (${path})`));
 
       return;
     }
@@ -162,7 +163,7 @@ export const ensureNvimThemeLink = (
     }
 
     symlinkSync(link.desiredLinkContent, link.linkPath);
-    yield* log.info(
+    yield* log.success(
       `Repaired Neovim theme link (${path} -> ${link.desiredLinkContent})`,
     );
   });

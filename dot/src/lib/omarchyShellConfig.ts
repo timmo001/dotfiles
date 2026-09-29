@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import { cliStyler } from "./ansi.js";
 import {
   chmodSync,
   existsSync,
@@ -457,7 +458,9 @@ export const applyOmarchyShellConfig: Effect.Effect<
 
   if (!host) {
     yield* log.info(
-      "Skipping Omarchy shell config (OMARCHY_HOST and Hypr host link are unset)",
+      cliStyler().dim(
+        "Skipping Omarchy shell config (OMARCHY_HOST and Hypr host link are unset)",
+      ),
     );
 
     return false;
@@ -467,7 +470,9 @@ export const applyOmarchyShellConfig: Effect.Effect<
 
   if (!existsSync(omarchyDir)) {
     yield* log.info(
-      `Skipping Omarchy shell config (${displayPath(omarchyDir)} not found)`,
+      cliStyler().dim(
+        `Skipping Omarchy shell config (${displayPath(omarchyDir)} not found)`,
+      ),
     );
 
     return false;
@@ -477,7 +482,9 @@ export const applyOmarchyShellConfig: Effect.Effect<
 
   if (!existsSync(defaultPath)) {
     yield* log.info(
-      `Skipping Omarchy shell config (no default at ${displayPath(defaultPath)}; pre-Omarchy 4?)`,
+      cliStyler().dim(
+        `Skipping Omarchy shell config (no default at ${displayPath(defaultPath)}; pre-Omarchy 4?)`,
+      ),
     );
 
     return false;
@@ -578,7 +585,9 @@ export const applyOmarchyShellConfig: Effect.Effect<
 
   if (existing === rendered) {
     yield* log.info(
-      `Omarchy shell config up to date: ${displayPath(target)} (host: ${host})`,
+      cliStyler().dim(
+        `Omarchy shell config up to date: ${displayPath(target)} (host: ${host})`,
+      ),
     );
 
     return false;
@@ -595,7 +604,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
       rmSync(temporary, { force: true });
     }
   });
-  yield* log.info(
+  yield* log.success(
     `Wrote Omarchy shell config: ${displayPath(target)} (host: ${host})`,
   );
 

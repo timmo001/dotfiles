@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import { cliStyler } from "./ansi.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { runElevated } from "./elevatedCommand.js";
@@ -74,7 +75,7 @@ export const ensureLocalesGenerated: Effect.Effect<
   const missing = yield* missingLocales;
 
   if (missing.length === 0) {
-    yield* log.info("Required locales already generated");
+    yield* log.info(cliStyler().dim("Required locales already generated"));
 
     return;
   }
@@ -84,7 +85,7 @@ export const ensureLocalesGenerated: Effect.Effect<
   const exit = yield* runElevated("bash", ["-c", script]);
 
   if (exit === 0) {
-    yield* log.info("Locale generation complete");
+    yield* log.success("Locale generation complete");
   } else {
     yield* log.warn(
       `locale-gen failed (exit ${exit}); generate manually with: sudo locale-gen`,

@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import { cliStyler } from "./ansi.js";
 import { existsSync } from "fs";
 import { basename, dirname, join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -165,7 +166,7 @@ export const trustRepoMiseConfigs = Effect.fn("MiseTrust.repos")(function* (
     for (const configPath of configs) {
       if (yield* trustMiseConfig(configPath)) {
         trusted += 1;
-        yield* log.info(`Trusted mise config: ${displayPath(configPath)}`);
+        yield* log.success(`Trusted mise config: ${displayPath(configPath)}`);
       } else {
         yield* log.warn(
           `Failed to trust mise config: ${displayPath(configPath)}`,
@@ -175,12 +176,12 @@ export const trustRepoMiseConfigs = Effect.fn("MiseTrust.repos")(function* (
   }
 
   if (trusted === 0) {
-    yield* log.info("No mise configs found");
+    yield* log.info(cliStyler().dim("No mise configs found"));
 
     return;
   }
 
-  yield* log.info(
+  yield* log.success(
     `Trusted ${trusted} mise config${trusted === 1 ? "" : "s"} across ${reposWithConfigs} repositor${reposWithConfigs === 1 ? "y" : "ies"}`,
   );
 });
