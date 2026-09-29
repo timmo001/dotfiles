@@ -231,6 +231,10 @@ const updateCommand = describe(
         Flag.atLeast(0),
         Flag.withDescription("Internal post-hook repository"),
       ),
+      summaryFile: text(
+        "summary-file",
+        "Internal: write the final summary to this file instead of printing it",
+      ),
     },
     ({
       app,
@@ -242,6 +246,7 @@ const updateCommand = describe(
       pull,
       repo,
       stow: onlyStow,
+      summaryFile,
     }) =>
       Effect.gen(function* () {
         if (repo.length > 0) {
@@ -251,7 +256,8 @@ const updateCommand = describe(
             onlyStow ||
             app ||
             noSelfUpdate ||
-            postHookRepo.length > 0
+            postHookRepo.length > 0 ||
+            Option.isSome(summaryFile)
           )
             return yield* new CliError.InvalidValue({
               option: "repo",
@@ -273,10 +279,11 @@ const updateCommand = describe(
           selfUpdate: !noSelfUpdate,
           reload: !noReload,
           postHookRepos: postHookRepo,
+          summaryFile: optional(summaryFile),
         });
       }),
   ),
-  "Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update and --post-hook-repo flags support the active self-update handoff.",
+  "Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update and --post-hook-repo flags support the active self-update handoff; internal --summary-file lets system-update print the summary last.",
   [],
   {
     description:

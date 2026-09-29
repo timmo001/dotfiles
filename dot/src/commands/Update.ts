@@ -15,7 +15,7 @@ import { trustRepoMiseConfigs } from "../lib/miseTrust.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import { cliStyler } from "../lib/ansi.js";
 import { plural } from "../lib/runSummary.js";
-import { logUpdateSummary } from "../lib/updateSummary.js";
+import { logUpdateSummary, writeUpdateSummary } from "../lib/updateSummary.js";
 import {
   withSpinnerTimeout,
   withStepTimeout,
@@ -122,6 +122,8 @@ export interface UpdateOptions {
   readonly reload?: boolean;
   /** Repository names already pulled before restart, for post-hook handling. */
   readonly postHookRepos?: readonly string[];
+  /** Write the final summary to this file instead of printing it. */
+  readonly summaryFile?: string;
 }
 
 class UpdateError extends Schema.TaggedError<UpdateError>()("UpdateError", {
@@ -482,6 +484,7 @@ function restartUpdateArgs(
       name,
     ]),
     ...pulledRepoNames.flatMap((name) => [POST_HOOK_REPO_ARG, name]),
+    ...(opts?.summaryFile ? ["--summary-file", opts.summaryFile] : []),
   ];
 }
 
@@ -1349,7 +1352,9 @@ export const update = (opts?: UpdateOptions) =>
       }
     }
 
-    yield* logUpdateSummary(updatedRepos, completedActions);
+    yield* opts?.summaryFile
+      ? writeUpdateSummary(opts.summaryFile, updatedRepos, completedActions)
+      : logUpdateSummary(updatedRepos, completedActions);
 
     yield* log.section("Update Status");
     const executor = yield* CommandExecutor;

@@ -89,37 +89,22 @@ const runChild = Effect.fn("SystemUpdate.runChild")(function* (
   });
 });
 
-/** Select and run system maintenance steps in their fixed display order. */
-export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
-  readonly yes: boolean;
-}) {
-  const automatic =
-    options.yes ||
-    process.stdin.isTTY !== true ||
-    process.stdout.isTTY !== true;
-
-  const selected = automatic
-    ? UPDATE_CHOICES.map(({ value }) => value)
-    : yield* Prompt.run(
-        Prompt.MultiSelect({
-          message: "Choose updates:",
-          choices: UPDATE_CHOICES,
-        }),
-      ).pipe(
-        Effect.catchTag("QuitError", () => Effect.succeed([])),
-        // NodeTerminal retains its raw readline resource for a 10 ms idle window.
-        Effect.tap(() => Effect.sleep("20 millis")),
-      );
-
-  if (selected.length === 0) return;
-
+const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
+  selectedSet: ReadonlySet<UpdateChoice>,
+  automatic: boolean,
+  baseEnv: Readonly<Record<string, string>>,
+  summaryFile: string,
+) {
   const fs = yield* FileSystem.FileSystem;
-  const selectedSet = new Set<UpdateChoice>(selected);
-  const baseEnv = yield* temporarySudoEnvironment();
 
   if (selectedSet.has("dotfiles")) {
     section("Dotfiles");
-    const exitCode = yield* runChild("dot", ["update"], baseEnv);
+
+    const exitCode = yield* runChild(
+      "dot",
+      ["update", "--summary-file", summaryFile],
+      baseEnv,
+    );
 
     if (exitCode !== 0) {
       process.exitCode = exitCode;
@@ -179,4 +164,52 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
   );
 
   if (refreshExitCode !== 0) process.exitCode = refreshExitCode;
+});
+
+/** Select and run system maintenance steps in their fixed display order. */
+export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
+  readonly yes: boolean;
+}) {
+  const automatic =
+    options.yes ||
+    process.stdin.isTTY !== true ||
+    process.stdout.isTTY !== true;
+
+  const selected = automatic
+    ? UPDATE_CHOICES.map(({ value }) => value)
+    : yield* Prompt.run(
+        Prompt.MultiSelect({
+          message: "Choose updates:",
+          choices: UPDATE_CHOICES,
+        }),
+      ).pipe(
+        Effect.catchTag("QuitError", () => Effect.succeed([])),
+        // NodeTerminal retains its raw readline resource for a 10 ms idle window.
+        Effect.tap(() => Effect.sleep("20 millis")),
+      );
+
+  if (selected.length === 0) return;
+
+  const fs = yield* FileSystem.FileSystem;
+  const selectedSet = new Set<UpdateChoice>(selected);
+  const baseEnv = yield* temporarySudoEnvironment();
+
+  const summaryFile = join(
+    yield* fs
+      .makeTempDirectoryScoped({ directory: tmpdir(), prefix: "dot-summary-" })
+      .pipe(Effect.orDie),
+    "summary.txt",
+  );
+
+  // Print the dotfiles summary last, even when a later step fails.
+  const printSummary = fs.readFileString(summaryFile).pipe(
+    Effect.flatMap((summary) =>
+      Effect.sync(() => process.stdout.write(summary)),
+    ),
+    Effect.ignore,
+  );
+
+  yield* runSteps(selectedSet, automatic, baseEnv, summaryFile).pipe(
+    Effect.ensuring(printSummary),
+  );
 }, Effect.scoped);

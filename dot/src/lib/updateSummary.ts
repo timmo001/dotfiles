@@ -1,9 +1,10 @@
-import { Effect } from "effect";
-import { OutputLog } from "../services/OutputLog.js";
+import { Effect, FileSystem } from "effect";
+import { OutputLog, formatCliLine } from "../services/OutputLog.js";
 import { cliStyler } from "./ansi.js";
 import { gitOutput } from "./git.js";
 import { plural } from "./runSummary.js";
 import type { CommandExecutor } from "../services/CommandExecutor.js";
+import type { LogLevel } from "../services/OutputLog.js";
 import type { Styler } from "./ansi.js";
 
 /** Most commits listed per repository before the rest are counted. */
@@ -156,39 +157,48 @@ const repoHeading = (
   return `${style.label(style.accent(name))}  ${style.dim(`${changes.from} -> ${changes.to}`)}  ${stats}`;
 };
 
-const logRepoChanges = (repo: UpdatedRepo, style: Styler) =>
-  Effect.gen(function* () {
-    const log = yield* OutputLog;
+/** Receives one summary line at its log level. */
+type SummaryLine = (
+  level: Exclude<LogLevel, "error">,
+  message: string,
+) => Effect.Effect<void>;
 
+const renderRepoChanges = (
+  repo: UpdatedRepo,
+  style: Styler,
+  line: SummaryLine,
+) =>
+  Effect.gen(function* () {
     const changes = yield* readChanges(repo).pipe(
       Effect.orElseSucceed(() => null),
     );
 
     if (!changes) {
-      yield* log.info(style.label(style.accent(repo.name)));
-      yield* log.warn(`Could not read changes for ${repo.name}`);
+      yield* line("info", style.label(style.accent(repo.name)));
+      yield* line("warn", `Could not read changes for ${repo.name}`);
 
       return;
     }
 
-    yield* log.info(repoHeading(style, repo.name, changes));
+    yield* line("info", repoHeading(style, repo.name, changes));
 
     if (changes.commits.length > 0) {
-      yield* log.info(`  ${style.label("Commits")}`);
+      yield* line("info", `  ${style.label("Commits")}`);
 
       for (const commit of changes.commits.slice(0, MAX_COMMITS)) {
-        yield* log.info(`    ${style.warn(commit.sha)} ${commit.subject}`);
+        yield* line("info", `    ${style.warn(commit.sha)} ${commit.subject}`);
       }
 
       if (changes.commits.length > MAX_COMMITS) {
-        yield* log.info(
+        yield* line(
+          "info",
           `    ${style.dim(`...and ${changes.commits.length - MAX_COMMITS} more`)}`,
         );
       }
     }
 
     if (changes.files.length > 0) {
-      yield* log.info(`  ${style.label("Files changed")}`);
+      yield* line("info", `  ${style.label("Files changed")}`);
 
       const shown = changes.files.slice(0, MAX_FILES);
 
@@ -198,13 +208,15 @@ const logRepoChanges = (repo: UpdatedRepo, style: Styler) =>
       );
 
       for (const file of shown) {
-        yield* log.info(
+        yield* line(
+          "info",
           `    ${statusColour(style, file.status)} ${file.path.padEnd(width)}  ${lineCounts(style, file)}`,
         );
       }
 
       if (changes.files.length > MAX_FILES) {
-        yield* log.info(
+        yield* line(
+          "info",
           `    ${style.dim(`...and ${changes.files.length - MAX_FILES} more`)}`,
         );
       }
@@ -225,6 +237,39 @@ const mergeUpdatedRepos = (
   return [...merged.values()];
 };
 
+const renderUpdateSummary = (
+  updated: readonly UpdatedRepo[],
+  actions: readonly string[],
+  line: SummaryLine,
+) =>
+  Effect.gen(function* () {
+    const style = cliStyler();
+    const repos = mergeUpdatedRepos(updated);
+
+    yield* line("section", "Summary");
+
+    if (repos.length === 0) {
+      yield* line("info", style.dim("No repositories updated"));
+    } else {
+      yield* line(
+        "info",
+        style.label(`Updated repositories (${repos.length})`),
+      );
+
+      for (const repo of repos) {
+        yield* line("info", "");
+        yield* renderRepoChanges(repo, style, line);
+      }
+    }
+
+    yield* line("info", "");
+    yield* line("info", style.label("Actions taken"));
+
+    for (const action of actions) {
+      yield* line("success", action);
+    }
+  });
+
 /**
  * Log the repositories updated and workflow actions completed by `dot update`,
  * with the commits and changed files pulled into each repository.
@@ -235,27 +280,32 @@ export function logUpdateSummary(
 ): Effect.Effect<void, never, OutputLog | CommandExecutor> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
-    const style = cliStyler();
-    const repos = mergeUpdatedRepos(updated);
 
-    yield* log.section("Summary");
+    yield* renderUpdateSummary(updated, actions, (level, message) =>
+      log[level](message),
+    );
+  });
+}
 
-    if (repos.length === 0) {
-      yield* log.info(style.dim("No repositories updated"));
-    } else {
-      yield* log.info(style.label(`Updated repositories (${repos.length})`));
+/**
+ * Write the {@link logUpdateSummary} output to `path` as terminal-formatted
+ * text, so a parent command can print it after its later steps.
+ */
+export function writeUpdateSummary(
+  path: string,
+  updated: readonly UpdatedRepo[],
+  actions: readonly string[],
+): Effect.Effect<void, never, CommandExecutor | FileSystem.FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const output: string[] = [];
 
-      for (const repo of repos) {
-        yield* log.info("");
-        yield* logRepoChanges(repo, style);
-      }
-    }
+    yield* renderUpdateSummary(updated, actions, (level, message) =>
+      Effect.sync(() => output.push(formatCliLine(level, message))),
+    );
 
-    yield* log.info("");
-    yield* log.info(style.label("Actions taken"));
-
-    for (const action of actions) {
-      yield* log.success(action);
-    }
+    yield* fs
+      .writeFileString(path, output.join("\n") + "\n")
+      .pipe(Effect.orDie);
   });
 }
