@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from "fs";
 import { dirname, join } from "path";
+import { stripVTControlCharacters } from "util";
 import { Config } from "./Config.js";
 import { ANSI } from "../lib/ansi.js";
 import { mirrorConfiguredLog } from "../lib/logMirror.js";
@@ -92,7 +93,7 @@ function formatPlain(entry: LogEntry): string {
   const ts = new Date(entry.timestamp).toISOString();
   const label = entry.level.toUpperCase().padEnd(7);
 
-  return `${ts} [${label}] ${entry.message}`;
+  return `${ts} [${label}] ${stripVTControlCharacters(entry.message)}`;
 }
 
 /** Format a log entry with ANSI colours (for CLI stdout) */

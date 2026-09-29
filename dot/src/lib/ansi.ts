@@ -54,6 +54,10 @@ export interface Styler {
   readonly success: (text: string) => string;
   /** Style a warning line (yellow). */
   readonly warn: (text: string) => string;
+  /** Style an error or removal marker (red). */
+  readonly error: (text: string) => string;
+  /** Style a highlighted value such as a repository name (cyan). */
+  readonly accent: (text: string) => string;
   /**
    * Highlight markdown inline-code spans (`` `code` ``) within a line, dropping
    * the backticks and colouring the content as a command.
@@ -71,6 +75,8 @@ export const plainStyler: Styler = {
   dim: identity,
   success: identity,
   warn: identity,
+  error: identity,
+  accent: identity,
   markdown: identity,
 };
 
@@ -89,6 +95,8 @@ export const colorStyler: Styler = {
   dim: wrap(ANSI.dim),
   success: command,
   warn: wrap(ANSI.yellow),
+  error: wrap(ANSI.red),
+  accent: wrap(ANSI.cyan),
   markdown: (text) =>
     text.replace(/`([^`]+)`/g, (_match, code: string) => command(code)),
 };
