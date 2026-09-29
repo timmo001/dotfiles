@@ -1,13 +1,8 @@
-import {
-  closeSync,
-  existsSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
-import { Effect, Schedule, Schema } from "effect";
+import { acquireFileLock } from "../../lib/fileLock.js";
+import { Effect, Schema } from "effect";
 import { CACHE_DIR, STATE_DIR } from "../../lib/paths.js";
 import { formatCause } from "../../lib/schema.js";
 import { evidenceId } from "./changes.js";
@@ -201,55 +196,17 @@ export function withReleaseLock<A, E, R>(
   const path = join(paths.state, "write.lock");
 
   return Effect.gen(function* () {
-    const descriptor = yield* Effect.acquireRelease(
-      Effect.try({
-        try: () => {
-          mkdirSync(paths.state, { recursive: true, mode: 0o700 });
-
-          return openSync(path, "a+", 0o600);
-        },
-        catch: (error) =>
+    yield* acquireFileLock(path, { wait: "1 minute" }).pipe(
+      Effect.mapError(
+        (error) =>
           new ReleaseError({
-            message: `Could not open release lock: ${formatCause(error)}`,
+            message:
+              error.reason === "busy"
+                ? `Release state is locked: ${path}. Wait for the active scan before retrying`
+                : `Could not lock release state: ${error.message}`,
           }),
-      }),
-      (fd) => Effect.sync(() => closeSync(fd)),
+      ),
     );
-
-    const acquired = yield* Effect.try({
-      try: () => {
-        // The inherited descriptor shares the lock with this process. Keep the
-        // file in place so concurrent callers always lock the same inode.
-        const result = Bun.spawnSync(
-          ["flock", "--exclusive", "--nonblock", "0"],
-          {
-            stdin: descriptor,
-            stdout: "ignore",
-            stderr: "pipe",
-          },
-        );
-
-        if (result.exitCode === 0) return true;
-
-        if (result.exitCode === 1) return false;
-        throw new Error(result.stderr.toString().trim() || "flock failed");
-      },
-      catch: (error) =>
-        new ReleaseError({
-          message: `Could not lock release state: ${formatCause(error)}`,
-        }),
-    }).pipe(
-      Effect.repeat({
-        while: (locked) => !locked,
-        times: 239,
-        schedule: Schedule.spaced("250 millis"),
-      }),
-    );
-
-    if (!acquired)
-      return yield* new ReleaseError({
-        message: `Release state is locked: ${path}. Wait for the active scan before retrying`,
-      });
 
     return yield* effect;
   }).pipe(Effect.scoped);

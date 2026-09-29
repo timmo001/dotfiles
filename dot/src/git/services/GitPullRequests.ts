@@ -1,22 +1,9 @@
-import {
-  closeSync,
-  existsSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-} from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
+import { acquireFileLock } from "../../lib/fileLock.js";
 import { Gh, PullRequest } from "@timmo001/effect-gh";
-import {
-  Clock,
-  Context,
-  Effect,
-  Layer,
-  Result,
-  Schedule,
-  Schema,
-} from "effect";
+import { Clock, Context, Effect, Layer, Result, Schema } from "effect";
 import { Config } from "../../services/Config.js";
 import { managedGitRepos } from "../../services/GitConfig.js";
 import { formatCause } from "../../lib/schema.js";
@@ -177,45 +164,19 @@ export class GitPullRequests extends Context.Service<
                     new PullRequestsError({ message: formatCause(error) }),
                 });
 
-              // An inherited descriptor keeps the kernel lock held until this scope closes.
-              const descriptor = yield* Effect.acquireRelease(
-                io(() => {
-                  mkdirSync(directory, { recursive: true, mode: 0o700 });
-
-                  return openSync(join(directory, "write.lock"), "a+", 0o600);
-                }),
-                (fd) => Effect.sync(() => closeSync(fd)),
-              );
-
-              const acquired = yield* io(() => {
-                const result = Bun.spawnSync(
-                  ["flock", "--exclusive", "--nonblock", "0"],
-                  {
-                    stdin: descriptor,
-                    stdout: "ignore",
-                    stderr: "pipe",
-                  },
-                );
-
-                if (result.exitCode === 0) return true;
-
-                if (result.exitCode === 1) return false;
-                throw new Error(
-                  result.stderr.toString().trim() ||
-                    "Could not lock pull request state",
-                );
+              yield* acquireFileLock(join(directory, "write.lock"), {
+                wait: "1 minute",
               }).pipe(
-                Effect.repeat({
-                  while: (locked) => !locked,
-                  times: 239,
-                  schedule: Schedule.spaced("250 millis"),
-                }),
+                Effect.mapError(
+                  (error) =>
+                    new PullRequestsError({
+                      message:
+                        error.reason === "busy"
+                          ? "Pull request state is busy; retry shortly"
+                          : `Could not lock pull request state: ${error.message}`,
+                    }),
+                ),
               );
-
-              if (!acquired)
-                return yield* new PullRequestsError({
-                  message: "Pull request state is busy; retry shortly",
-                });
 
               let state = yield* io(() =>
                 existsSync(file)
