@@ -1,6 +1,6 @@
 import { Effect } from "effect";
-import { existsSync } from "fs";
-import { basename, join, relative } from "path";
+import { lstatSync, readdirSync, readlinkSync, statSync } from "fs";
+import { basename, dirname, join, relative, resolve } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
@@ -463,6 +463,45 @@ const stowRepo = (
     }
   });
 
+/** Whether any home link still points into a retired package directory. */
+function hasStowLinksInto(
+  root: string,
+  packageDir: string,
+  targetDir: string,
+): boolean {
+  let entries: string[];
+
+  try {
+    entries = readdirSync(packageDir);
+  } catch {
+    return false;
+  }
+
+  return entries.some((entry) => {
+    const target = join(targetDir, entry);
+
+    try {
+      const stat = lstatSync(target);
+
+      if (stat.isSymbolicLink()) {
+        const destination = resolve(dirname(target), readlinkSync(target));
+
+        return destination === root || destination.startsWith(`${root}/`);
+      }
+
+      const source = join(packageDir, entry);
+
+      return (
+        stat.isDirectory() &&
+        statSync(source).isDirectory() &&
+        hasStowLinksInto(root, source, target)
+      );
+    } catch {
+      return false;
+    }
+  });
+}
+
 /** Remove links left behind by packages that are no longer stowed. */
 const unstowLegacyInternalFolders = (
   repoDir: string,
@@ -480,7 +519,9 @@ const unstowLegacyInternalFolders = (
 ) =>
   Effect.gen(function* () {
     for (const folder of INTERNAL_STOW_FOLDERS) {
-      if (!existsSync(join(repoDir, folder))) continue;
+      const packageDir = join(repoDir, folder);
+
+      if (!hasStowLinksInto(packageDir, packageDir, HOME_DIR)) continue;
 
       const style = cliStyler();
 
