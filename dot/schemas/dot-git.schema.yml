@@ -162,7 +162,7 @@ $defs:
             - unknown
       submodules:
         $ref: "#/$defs/release_matches"
-        description: Exact repository-relative submodule paths.
+        description: Exact repository-relative submodule paths. When this is the first matching rule, it classifies the pin directly without an upstream comparison.
       subjects:
         $ref: "#/$defs/release_matches"
         description: Explicit commit-subject regular expressions attributed to surviving source lines or individual structured values. Reverted intent is excluded; each net fact is classified once.

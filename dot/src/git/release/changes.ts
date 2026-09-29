@@ -1064,6 +1064,16 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
     }
 
     if (fact.kind === "submodule") {
+      const pin = { ...fact, submodule: fact.path };
+
+      if (
+        settings.overrides?.find((rule) => releaseRuleMatches(rule, pin))
+          ?.submodules
+      ) {
+        facts.push(pin);
+        continue;
+      }
+
       const upstream = yield* Effect.gen(function* () {
         if (
           fact.path !== "vendor/anti-slop" ||
@@ -1145,8 +1155,7 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
       if (Result.isSuccess(upstream)) {
         facts.push(
           {
-            ...fact,
-            submodule: fact.path,
+            ...pin,
             evidenceUrl: upstream.success.evidenceUrl,
           },
           ...upstream.success.facts.map((finding) => ({
@@ -1156,7 +1165,7 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
         );
         commits.push(...upstream.success.commits);
       } else {
-        facts.push({ ...fact, submodule: fact.path, complete: false });
+        facts.push({ ...pin, complete: false });
         errors.push(upstream.failure.message);
       }
 
