@@ -479,7 +479,7 @@ function restartedUpdatedRepos(
 
 function restartUpdateArgs(
   opts: UpdateOptions | undefined,
-  pulledRepoName?: string,
+  ...pulledRepoNames: readonly string[]
 ): readonly string[] {
   return [
     "update",
@@ -490,25 +490,49 @@ function restartUpdateArgs(
       POST_HOOK_REPO_ARG,
       name,
     ]),
-    ...(pulledRepoName ? [POST_HOOK_REPO_ARG, pulledRepoName] : []),
+    ...pulledRepoNames.flatMap((name) => [POST_HOOK_REPO_ARG, name]),
   ];
 }
 
-/** Pull public dotfiles, then rebuild and restart only when the pull moved HEAD. */
+/**
+ * Pull public (and optionally private) dotfiles together, then restart when
+ * either moved. Public changes rebuild dot before the restart.
+ */
 function selfUpdateAndRestart(
   config: ConfigService,
   opts: UpdateOptions | undefined,
+  pullPrivate: boolean,
 ) {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
     yield* log.section("Self Update");
     const repoName = basename(config.publicDotfiles);
-    const moved = yield* safePull(repoName, config.publicDotfiles);
+    const privateDotfiles = pullPrivate ? config.privateDotfiles : undefined;
+    const privateName = privateDotfiles ? basename(privateDotfiles) : "";
+
+    const [moved, privateMoved] = yield* Effect.all(
+      [
+        safePull(repoName, config.publicDotfiles, false, !!privateDotfiles),
+        privateDotfiles
+          ? safePull(privateName, privateDotfiles, false, true)
+          : Effect.succeed(null),
+      ],
+      { concurrency: 2 },
+    );
+
+    const privateRestartNames = privateMoved ? [privateName] : [];
 
     if (!moved) {
+      if (privateMoved) {
+        yield* log.info("Restarting update to reload private configuration");
+        yield* restartDot(restartUpdateArgs(opts, ...privateRestartNames));
+
+        return { restarted: true, privatePulled: true };
+      }
+
       yield* log.info("No dotfiles changes; continuing without a rebuild");
 
-      return false;
+      return { restarted: false, privatePulled: !!privateDotfiles };
     }
 
     const rebuilt = yield* withStepTimeout(
@@ -525,9 +549,11 @@ function selfUpdateAndRestart(
 
     yield* log.success("Self update successful");
     yield* log.info("Restarting update with rebuilt dot binary");
-    yield* restartDot(restartUpdateArgs(opts, repoName));
+    yield* restartDot(
+      restartUpdateArgs(opts, repoName, ...privateRestartNames),
+    );
 
-    return true;
+    return { restarted: true, privatePulled: true };
   });
 }
 
@@ -980,10 +1006,10 @@ const haltOnLegacyHyprRepo = (config: ConfigService) =>
  * omarchy + worktrees, schedule-gated extras) via {@link DotDiff} and only
  * pulls repos that are behind upstream. It then marks any mise config files in
  * the tracked repos as trusted (best-effort) so `mise` never prompts for them
- * on this machine. Full updates pull public dotfiles first; when that pull
- * moves HEAD they rebuild and restart without self-update, and the restarted
- * run skips the final rebuild. Repositories pulled earlier in the run are not
- * fetched again by the scan.
+ * on this machine. Full updates pull public and private dotfiles together
+ * first; when the public pull moves HEAD they rebuild and restart without
+ * self-update, and the restarted run skips the final rebuild. Repositories
+ * pulled earlier in the run are not fetched again by the scan.
  * Pull notifications fire only when a repo actually moved, while post-hooks
  * (agents-sync) run on every full update and the changed-dotfiles handoff.
  * Ordinary flag-scoped runs skip them.
@@ -1019,8 +1045,13 @@ export const update = (opts?: UpdateOptions) =>
 
     yield* log.section("Update Workflow");
 
+    let privatePulled = false;
+
     if (isFullUpdate && opts?.selfUpdate !== false) {
-      if (yield* selfUpdateAndRestart(config, opts)) return;
+      const selfUpdate = yield* selfUpdateAndRestart(config, opts, doPull);
+
+      if (selfUpdate.restarted) return;
+      privatePulled = selfUpdate.privatePulled;
     }
 
     // Migration halt: a machine still on the retired omarchy-hypr clone must
@@ -1036,6 +1067,7 @@ export const update = (opts?: UpdateOptions) =>
     if (
       doPull &&
       config.privateDotfiles &&
+      !privatePulled &&
       !opts?.postHookRepos?.includes(basename(config.privateDotfiles))
     ) {
       const repoName = basename(config.privateDotfiles);
