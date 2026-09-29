@@ -2,6 +2,7 @@ import { NodeStream } from "@effect/platform-node";
 import {
   HerdrEvent,
   HerdrSdk,
+  HerdrServerError,
   HerdrTransport,
   herdrConfigLayerFromOptions,
   herdrSdkLayerFromOptions,
@@ -180,6 +181,14 @@ class HerdrContextDisconnected extends Schema.TaggedError<HerdrContextDisconnect
   { message: Schema.String },
 ) {}
 
+const SubscriptionLine = Schema.Union([
+  Schema.Struct({ data: HerdrEvent }),
+  Schema.Struct({
+    id: Schema.String,
+    error: Schema.Struct({ code: Schema.String, message: Schema.String }),
+  }),
+]);
+
 function contextEvent(
   event: HerdrEvent,
   context: HerdrContext | null,
@@ -270,13 +279,20 @@ export const watchHerdrContext = Effect.fn("watchHerdrContext")(function* (
         Stream.splitLines,
         Stream.filter((line) => line.trim() !== ""),
         Stream.mapEffect((line) =>
-          Schema.decodeEffect(
-            Schema.fromJsonString(Schema.Struct({ data: HerdrEvent })),
-          )(line),
+          Schema.decodeEffect(Schema.fromJsonString(SubscriptionLine))(line),
         ),
-        Stream.runForEach(({ data }) =>
+        Stream.runForEach((line) =>
           Effect.gen(function* () {
-            if (contextEvent(data, yield* Ref.get(current))) yield* request();
+            // Herdr ends a subscription with an error line, such as events_lost, after it falls behind.
+            if ("error" in line)
+              return yield* new HerdrServerError(
+                line.error.code,
+                line.error.message,
+                line.id,
+              );
+
+            if (contextEvent(line.data, yield* Ref.get(current)))
+              yield* request();
           }),
         ),
         Effect.andThen(
