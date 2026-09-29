@@ -4,6 +4,11 @@ import { existsSync, mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Launcher } from "../services/Launcher.js";
+import { OutputLog } from "../services/OutputLog.js";
+import {
+  RetryBackoff,
+  type RetryBackoffOptions,
+} from "../services/RetryBackoff.js";
 import { displayPath } from "./paths.js";
 import { ghOutput } from "./gh.js";
 import type { CommandError } from "../services/CommandExecutor.js";
@@ -102,24 +107,60 @@ export function gitOutput(
 export const GIT_REMOTE_TIMEOUT = Duration.seconds(10);
 
 /**
+ * Connection failures worth another attempt. Timeouts are excluded: each
+ * attempt is already bounded, and callers own any retry after a timeout.
+ * Access and missing-repository errors are not transient.
+ */
+const TRANSIENT_REMOTE_ERROR =
+  /connection (reset|closed|refused|timed out)|kex_exchange_identification|ssh_exchange_identification|broken pipe|could not resolve host|temporary failure in name resolution|network is unreachable|the remote end hung up unexpectedly/i;
+
+/** Whether a remote git failure is a transient connection problem. */
+export function isTransientRemoteError(message: string): boolean {
+  return TRANSIENT_REMOTE_ERROR.test(message);
+}
+
+/**
+ * Shared retry policy for remote operations: two retries with exponential
+ * backoff from 500ms, only after a transient connection failure or a failure
+ * matching the caller's `extra` pattern.
+ */
+export function transientRemoteRetry<E>(
+  message: (error: E) => string,
+  extra?: RegExp,
+): RetryBackoffOptions<E> {
+  return {
+    initial: "500 millis",
+    times: 2,
+    while: (error) =>
+      isTransientRemoteError(message(error)) ||
+      (extra?.test(message(error)) ?? false),
+  };
+}
+
+/** Whether a {@link gitRemoteOutput} failure came from its timeout. */
+export function isRemoteTimeout(message: string): boolean {
+  return / timed out after \d+s$/.test(message);
+}
+
+/**
  * Run a networked `git <args>` and return trimmed stdout, bounded by a timeout.
  *
- * Mirrors the update flow's remote-git pattern (see {@link gitRefreshRemoteHead}):
- * credential prompts are disabled with `GIT_TERMINAL_PROMPT=0`, and a hard
- * timeout interrupts the fiber when it fires, which kills the spawned process
- * (see `killOnAbort` in CommandExecutor). A slow or unreachable remote can never
- * block the caller. Shared so every remote git access in checks is prompt-free
- * and time-bounded rather than able to stall indefinitely.
+ * Credential prompts are disabled with `GIT_TERMINAL_PROMPT=0` and SSH runs in
+ * batch mode, so a private or unreachable remote fails instead of prompting.
+ * Each attempt has a hard timeout that kills the spawned process (see
+ * `killOnAbort` in CommandExecutor). Transient connection failures are retried
+ * twice with exponential backoff (see {@link isTransientRemoteError}).
  */
 export function gitRemoteOutput(
   args: readonly string[],
   opts?: GitCommandOptions,
   timeout: Duration.Duration = GIT_REMOTE_TIMEOUT,
-): Effect.Effect<string, GitCommandError, CommandExecutor> {
+): Effect.Effect<string, GitCommandError, CommandExecutor | RetryBackoff> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+    const backoff = yield* RetryBackoff;
 
-    return yield* executor
+    const attempt = executor
       .run(
         "env",
         [
@@ -143,6 +184,11 @@ export function gitRemoteOutput(
             ),
         }),
       );
+
+    return yield* backoff.retry(
+      attempt,
+      transientRemoteRetry((error) => error.message),
+    );
   });
 }
 
@@ -288,46 +334,42 @@ const REFRESH_REMOTE_HEAD_TIMEOUT = Duration.seconds(15);
  *
  * Queries the remote (`git remote set-head <remote> --auto`) and is non-fatal:
  * a missing remote, offline state, timeout, or any other failure resolves to
- * no-op so callers in the update/pull flow never break on it. Runs with
- * `GIT_TERMINAL_PROMPT=0` and a hard timeout so a private or unreachable remote
- * cannot block on a credential prompt or a stalled network connection.
+ * no-op so callers in the update/pull flow never break on it. Runs through
+ * {@link gitRemoteOutput}, so it is prompt-free, time-bounded and retried.
  */
 export function gitRefreshRemoteHead(
   repoPath: string,
   remote = "origin",
-): Effect.Effect<void, never, CommandExecutor> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    yield* executor
-      .exitCode(
-        "env",
-        [
-          "GIT_TERMINAL_PROMPT=0",
-          "git",
-          "remote",
-          "set-head",
-          remote,
-          "--auto",
-        ],
-        { cwd: repoPath },
-      )
-      .pipe(Effect.timeoutOption(REFRESH_REMOTE_HEAD_TIMEOUT), Effect.asVoid);
-  });
+): Effect.Effect<void, never, CommandExecutor | RetryBackoff> {
+  return gitRemoteOutput(
+    ["remote", "set-head", remote, "--auto"],
+    { cwd: repoPath },
+    REFRESH_REMOTE_HEAD_TIMEOUT,
+  ).pipe(Effect.ignore);
 }
+
+/** Per-attempt bound on the network fetch that starts a pull. */
+const PULL_FETCH_TIMEOUT = Duration.seconds(20);
 
 /**
  * Fast-forward a repository without stashing or rebasing local work. Returns
- * true only when the pull succeeds (exit 0). Runs with `GIT_TERMINAL_PROMPT=0`
- * so a private or unreachable remote fails fast instead of blocking on a
- * credential prompt. Timeout and retry are owned by the caller
+ * true only when the pull succeeds. The network fetch runs first through
+ * {@link gitRemoteOutput}, so it is prompt-free and retried after transient
+ * connection failures; the fast-forward and submodule checkout then run
+ * locally. Timeout and retry of the whole pull are owned by the caller
  * (see `safePull` in the update flow), which holds the
  * per-repo context needed to report and retry.
  */
 export function gitPullFastForward(
   repoPath: string,
-): Effect.Effect<boolean, never, CommandExecutor | Launcher> {
+): Effect.Effect<
+  boolean,
+  never,
+  CommandExecutor | Launcher | OutputLog | RetryBackoff
+> {
   return Effect.gen(function* () {
     const launcher = yield* Launcher;
+    const log = yield* OutputLog;
 
     // Pull updates submodules after moving the parent HEAD, so refuse active
     // submodule work first rather than leaving a partially applied pull. A
@@ -342,9 +384,24 @@ export function gitPullFastForward(
 
     if (submodulesClean !== 0) return false;
 
+    const fetchError = yield* gitRemoteOutput(
+      ["fetch", "--quiet", "--recurse-submodules=yes", "--jobs=8"],
+      { cwd: repoPath },
+      PULL_FETCH_TIMEOUT,
+    ).pipe(
+      Effect.as(null),
+      Effect.catch((error) => Effect.succeed(error.message)),
+    );
+
+    if (fetchError) {
+      yield* log.warn(fetchError);
+
+      return false;
+    }
+
     const exitCode = yield* launcher
       .stream(
-        "GIT_TERMINAL_PROMPT=0 git pull --no-rebase --ff-only --no-autostash --no-squash --no-edit --recurse-submodules && git submodule sync --recursive && GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive --checkout",
+        "git merge --ff-only --no-autostash --no-edit '@{u}' && git submodule sync --recursive && GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive --checkout --jobs=8",
         { cwd: repoPath },
       )
       .pipe(Effect.catch(() => Effect.succeed(1)));

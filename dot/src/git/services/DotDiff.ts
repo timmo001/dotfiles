@@ -1,12 +1,4 @@
-import {
-  Clock,
-  Context,
-  Duration,
-  Effect,
-  Layer,
-  Option,
-  Schema,
-} from "effect";
+import { Clock, Context, Duration, Effect, Layer, Schema } from "effect";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { createHash } from "crypto";
@@ -14,7 +6,13 @@ import type { DiffRepo, Repo, RepoCategory } from "../../types.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { OutputLog } from "../../services/OutputLog.js";
-import { gitCurrentBranchSync, isGitRepo } from "../../lib/git.js";
+import { RetryBackoff } from "../../services/RetryBackoff.js";
+import {
+  gitCurrentBranchSync,
+  gitRemoteOutput,
+  isGitRepo,
+  isRemoteTimeout,
+} from "../../lib/git.js";
 import { CACHE_DIR, displayPath } from "../../lib/paths.js";
 import { ENV, envInt, envString } from "../../lib/env.js";
 import { isWorkTime } from "../../lib/workTime.js";
@@ -40,6 +38,9 @@ const FETCH_TIMEOUT_SECONDS = 20;
 const FETCH_TIMEOUT = Duration.seconds(FETCH_TIMEOUT_SECONDS);
 
 const FETCH_CACHE_DIR = join(CACHE_DIR, "dot", "fetch-upstream");
+
+/** Repositories scanned at once; each may fetch from its remote. */
+const SCAN_CONCURRENCY = 8;
 
 /** Check if a fetch is needed based on TTL cache */
 function shouldFetch(
@@ -154,6 +155,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       const config = yield* Config;
       const executor = yield* CommandExecutor;
       const outputLog = yield* OutputLog;
+      const backoff = yield* RetryBackoff;
 
       /** Discover all omarchy repo targets (including worktrees) */
       const discoverOmarchyRepos = (): Array<{
@@ -364,48 +366,30 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
             const [remoteName] = trimmedRef.split("/", 1);
             const remoteBranch = trimmedRef.slice(remoteName.length + 1);
 
-            const fetchExit = yield* executor
-              .exitCode(
-                "env",
-                [
-                  "GIT_TERMINAL_PROMPT=0",
-                  "git",
-                  "fetch",
-                  "--quiet",
-                  remoteName,
-                  remoteBranch,
-                ],
+            const fetchError = (target: readonly string[]) =>
+              gitRemoteOutput(
+                ["fetch", "--quiet", ...target],
                 { cwd: repoPath },
-              )
-              .pipe(Effect.timeoutOption(FETCH_TIMEOUT));
+                FETCH_TIMEOUT,
+              ).pipe(
+                Effect.as(null),
+                Effect.catch((error) => Effect.succeed(error.message)),
+                Effect.provideService(CommandExecutor, executor),
+                Effect.provideService(RetryBackoff, backoff),
+              );
 
-            if (Option.isNone(fetchExit)) {
+            const branchError = yield* fetchError([remoteName, remoteBranch]);
+
+            // Fallback: fetch without branch if specific branch fetch failed
+            const error =
+              branchError && !isRemoteTimeout(branchError)
+                ? yield* fetchError([remoteName])
+                : branchError;
+
+            if (error && isRemoteTimeout(error)) {
               yield* outputLog.warn(
                 `Fetch timed out after ${FETCH_TIMEOUT_SECONDS}s for ${name}: ${displayPath(repoPath)}`,
               );
-            }
-
-            // Fallback: fetch without branch if specific branch fetch failed
-            if (Option.isSome(fetchExit) && fetchExit.value !== 0) {
-              const fallbackExit = yield* executor
-                .exitCode(
-                  "env",
-                  [
-                    "GIT_TERMINAL_PROMPT=0",
-                    "git",
-                    "fetch",
-                    "--quiet",
-                    remoteName,
-                  ],
-                  { cwd: repoPath },
-                )
-                .pipe(Effect.timeoutOption(FETCH_TIMEOUT));
-
-              if (Option.isNone(fallbackExit)) {
-                yield* outputLog.warn(
-                  `Fallback fetch timed out after ${FETCH_TIMEOUT_SECONDS}s for ${name}: ${displayPath(repoPath)}`,
-                );
-              }
             }
 
             recordFetch(repoPath, trimmedRef, nowSeconds);
@@ -467,7 +451,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
 
         const results = yield* Effect.all(
           repoList.map((r) => scanRepo(r.name, r.path, r.category)),
-          { concurrency: 4 },
+          { concurrency: SCAN_CONCURRENCY },
         );
 
         const repos = results.filter((r): r is DiffRepo => r !== null);

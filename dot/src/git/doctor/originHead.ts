@@ -3,7 +3,14 @@ import { existsSync } from "fs";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { managedGitRepos } from "../../services/GitConfig.js";
-import { gitOutput, gitRemoteOutput, isGitRepo } from "../../lib/git.js";
+import {
+  gitOutput,
+  gitRemoteOutput,
+  isGitRepo,
+  isRemoteTimeout,
+  isTransientRemoteError,
+} from "../../lib/git.js";
+import { RetryBackoff } from "../../services/RetryBackoff.js";
 import { HOME_DIR, displayPath } from "../../lib/paths.js";
 import type { CheckResult } from "../../doctor/types.js";
 
@@ -12,12 +19,11 @@ const REMOTE = "origin";
 
 /**
  * Max concurrent origin/HEAD comparisons. Each does a network `ls-remote`, so a
- * serial loop over many managed repos dominates doctor's runtime; a small
- * fan-out cuts that to a few waves without bursting SSH connections to the point
- * the remote throttles them. Each command is independently timeout-bounded (see
- * {@link gitRemoteOutput}), so a stalled remote never blocks the wave.
+ * serial loop over many managed repos dominates doctor's runtime. Each command
+ * is timeout-bounded and retries transient connection failures with backoff
+ * (see {@link gitRemoteOutput}), so a stalled remote never blocks the wave.
  */
-const HEAD_CHECK_CONCURRENCY = 4;
+const HEAD_CHECK_CONCURRENCY = 8;
 
 /** A managed checkout to inspect for a stale `origin/HEAD`. */
 interface RepoTarget {
@@ -69,25 +75,43 @@ function parseRemoteHeadBranch(lsRemoteOutput: string): string {
   return "";
 }
 
+/** A repo whose remote could not be reached after retries. */
+interface Unreachable {
+  readonly unreachable: string;
+}
+
 /**
  * Compare a single repo's local `origin/HEAD` against the remote's advertised
  * default branch. Returns `null` (skip) when the repo is missing, has no
- * `origin`, or the remote cannot be reached — so transient/offline states never
- * surface as failures.
+ * `origin`, or the remote advertises no HEAD, and {@link Unreachable} when a
+ * connection failure or timeout outlasts the retries.
  */
 function checkRepoHead(
   target: RepoTarget,
-): Effect.Effect<CheckResult | null, never, CommandExecutor> {
+): Effect.Effect<
+  CheckResult | Unreachable | null,
+  never,
+  CommandExecutor | RetryBackoff
+> {
   return Effect.gen(function* () {
     if (!existsSync(target.path) || !isGitRepo(target.path)) return null;
 
-    const remoteBranch = parseRemoteHeadBranch(
-      yield* gitRemoteOutput(["ls-remote", "--symref", REMOTE, "HEAD"], {
-        cwd: target.path,
-      }).pipe(Effect.catch(() => Effect.succeed(""))),
+    const remote = yield* gitRemoteOutput(
+      ["ls-remote", "--symref", REMOTE, "HEAD"],
+      { cwd: target.path },
+    ).pipe(
+      Effect.map((output) => ({ output, error: "" })),
+      Effect.catch((error) =>
+        Effect.succeed({ output: "", error: error.message }),
+      ),
     );
 
-    // No origin remote, offline, timed out, or remote advertises no HEAD.
+    if (isTransientRemoteError(remote.error) || isRemoteTimeout(remote.error))
+      return { unreachable: target.label };
+
+    const remoteBranch = parseRemoteHeadBranch(remote.output);
+
+    // No origin remote, or remote advertises no HEAD.
     if (!remoteBranch) return null;
 
     const localBranch = parseLocalHeadBranch(
@@ -151,8 +175,21 @@ export const checkOriginHead = Effect.gen(function* () {
   );
 
   const results: CheckResult[] = checked.filter(
-    (result): result is CheckResult => result !== null,
+    (result): result is CheckResult =>
+      result !== null && !("unreachable" in result),
   );
+
+  const unreachable = checked.flatMap((result) =>
+    result && "unreachable" in result ? [result.unreachable] : [],
+  );
+
+  if (unreachable.length > 0) {
+    results.push({
+      severity: "warn",
+      message: `Could not reach ${unreachable.length === 1 ? "1 remote" : `${unreachable.length} remotes`} to check origin/HEAD`,
+      detail: unreachable.join(", "),
+    });
+  }
 
   if (results.length === 0) {
     results.push({

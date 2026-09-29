@@ -3,6 +3,7 @@ import { Cause, Effect, Option } from "effect";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { GitHub } from "../git/services/GitHub.js";
+import { RetryBackoff } from "../services/RetryBackoff.js";
 import { checkDependencies } from "./checks/dependencies.js";
 import { checkGhExtensions } from "./checks/ghExtensions.js";
 import { checkLocale } from "./checks/locale.js";
@@ -55,7 +56,7 @@ interface SectionDef {
   readonly check: Effect.Effect<
     CheckResult[],
     unknown,
-    Config | CommandExecutor | GitHub | Gh
+    Config | CommandExecutor | GitHub | Gh | RetryBackoff
   >;
   readonly requiresPrivate?: boolean;
   readonly host?: string;
@@ -127,7 +128,11 @@ export const runDoctor = (
   onSection: (section: CheckSection) => Effect.Effect<void> = () => Effect.void,
   onStart: (names: readonly string[]) => Effect.Effect<void> = () =>
     Effect.void,
-): Effect.Effect<DoctorReport, never, Config | CommandExecutor | GitHub | Gh> =>
+): Effect.Effect<
+  DoctorReport,
+  never,
+  Config | CommandExecutor | GitHub | Gh | RetryBackoff
+> =>
   Effect.gen(function* () {
     const config = yield* Config;
 

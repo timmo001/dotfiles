@@ -6,6 +6,8 @@ import { Effect } from "../../dot/node_modules/effect/dist/index.js";
 import { gitPullFastForward } from "../../dot/src/lib/git.js";
 import { CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
 import { Launcher } from "../../dot/src/services/Launcher.js";
+import { OutputLog } from "../../dot/src/services/OutputLog.js";
+import { RetryBackoff } from "../../dot/src/services/RetryBackoff.js";
 
 const roots: string[] = [];
 
@@ -65,15 +67,28 @@ function fixture() {
   git(repo, ["config", "rebase.autoStash", "true"]);
   git(repo, ["config", "merge.autoStash", "true"]);
 
-  const pull = (path = repo) => Effect.runPromise(gitPullFastForward(path).pipe(
-    Effect.provideService(Launcher, Launcher.of({
-      stream: (command, options) => Effect.sync(() => Bun.spawnSync(["bash", "-c", command], { cwd: options?.cwd, env }).exitCode),
-      suspend: () => Effect.die("Unexpected suspend"),
-      suspendArgv: () => Effect.die("Unexpected suspendArgv"),
-      silent: () => Effect.die("Unexpected silent"),
-    })),
-    Effect.provide(CommandExecutor.layer),
-  ));
+  const pull = async (path = repo) => {
+    const saved = { ...process.env };
+    Object.assign(process.env, env);
+
+    try {
+      return await Effect.runPromise(gitPullFastForward(path).pipe(
+        Effect.provideService(Launcher, Launcher.of({
+          stream: (command, options) => Effect.sync(() => Bun.spawnSync(["bash", "-c", command], { cwd: options?.cwd, env }).exitCode),
+          suspend: () => Effect.die("Unexpected suspend"),
+          suspendArgv: () => Effect.die("Unexpected suspendArgv"),
+          silent: () => Effect.die("Unexpected silent"),
+        })),
+        // SAFETY: gitPullFastForward only calls OutputLog methods, and every
+        // property of this stub is a no-op method returning Effect.void.
+        Effect.provideService(OutputLog, new Proxy({}, { get: () => () => Effect.void }) as never),
+        Effect.provide(RetryBackoff.layer),
+        Effect.provide(CommandExecutor.layer),
+      ));
+    } finally {
+      process.env = saved;
+    }
+  };
 
   return { root, origin, repo, first, git, revision, pull };
 }

@@ -158,6 +158,7 @@ const CliLayers = Launcher.layer.pipe(
   Layer.provideMerge(OutputLog.layer),
   Layer.provideMerge(CommandExecutor.layer),
   Layer.provideMerge(Config.layer),
+  Layer.provideMerge(RetryBackoff.layer),
 );
 
 const NATIVE_COMMAND_TIMEOUT_SECONDS = {
@@ -240,7 +241,6 @@ const program = withNativeCommandTimeout(
     Layer.mergeAll(
       CliLayers,
       ProcessRunner.layer,
-      RetryBackoff.layer,
       NodeServices.layer,
       CliConfig.layer({ builtIns: cliBuiltIns }),
     ),

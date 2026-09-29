@@ -65,7 +65,7 @@ const SELECTABLE_UPDATE_FLAGS = [
 const REFRESH_REMOTE_HEAD_CONCURRENCY = 6;
 
 /** Limit simultaneous pulls so slow remotes do not hold up unrelated repos. */
-const REPO_PULL_CONCURRENCY = 4;
+const REPO_PULL_CONCURRENCY = 8;
 
 const LOCAL_HERDR_PLUGINS = [
   "terminal-title",
