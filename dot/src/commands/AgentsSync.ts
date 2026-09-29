@@ -1,13 +1,7 @@
 import { Effect } from "effect";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  unlinkSync,
-  writeFileSync,
-} from "fs";
-import { dirname, join } from "path";
+import { existsSync, readFileSync, unlinkSync } from "fs";
+import { join } from "path";
+import { writeFileAtomic } from "../lib/atomicWrite.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
@@ -29,9 +23,6 @@ interface HarnessTarget {
 
 /** Atomic write: mkdir -p, write to temp, rename over destination */
 function atomicWrite(dest: string, content: string): void {
-  const dir = dirname(dest);
-  mkdirSync(dir, { recursive: true });
-
   // Remove broken symlinks at dest (rename won't overwrite them on all platforms)
   try {
     const stat = existsSync(dest);
@@ -45,9 +36,7 @@ function atomicWrite(dest: string, content: string): void {
     // No existing file or symlink — nothing to remove
   }
 
-  const tmp = `${dest}.tmp.${process.pid}`;
-  writeFileSync(tmp, content, "utf-8");
-  renameSync(tmp, dest);
+  writeFileAtomic(dest, content, { createDirectory: true });
 }
 
 // ---------------------------------------------------------------------------

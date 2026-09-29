@@ -4,13 +4,12 @@ import {
   mkdtempSync,
   readFileSync,
   realpathSync,
-  renameSync,
   rmSync,
   writeFileSync,
 } from "fs";
 import { tmpdir } from "os";
-import { dirname, join } from "path";
-import { randomUUID } from "crypto";
+import { join } from "path";
+import { writeFileAtomic } from "../lib/atomicWrite.js";
 import { ENV, envString } from "../lib/env.js";
 import { HOME_DIR } from "../lib/paths.js";
 import { decodeJson, type JsonValue } from "../lib/schema.js";
@@ -573,17 +572,9 @@ export function savePresetsAtomically(
   path: string,
   presets: PresetsFile,
 ): void {
-  const target = realpathSync(path);
-  const temporary = join(dirname(target), `.${randomUUID()}.tmp`);
-
-  try {
-    writeFileSync(temporary, `${JSON.stringify(presets, null, 2)}\n`, {
-      mode: 0o644,
-    });
-    renameSync(temporary, target);
-  } finally {
-    rmSync(temporary, { force: true });
-  }
+  writeFileAtomic(realpathSync(path), `${JSON.stringify(presets, null, 2)}\n`, {
+    mode: 0o644,
+  });
 }
 
 function tempWorkspace(): number {

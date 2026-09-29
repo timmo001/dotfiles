@@ -3,11 +3,11 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
-  renameSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { OutputLog } from "../../services/OutputLog.js";
@@ -32,12 +32,11 @@ export class RepoMcpError extends Schema.TaggedError<RepoMcpError>()(
 const rememberRepositories = Effect.fn("McpSync.rememberRepositories")(
   (file: string, directories: readonly string[]) =>
     Effect.try({
-      try: () => {
-        mkdirSync(dirname(file), { recursive: true });
-        const temporary = `${file}.tmp.${process.pid}`;
-        writeFileSync(temporary, JSON.stringify(directories), { mode: 0o600 });
-        renameSync(temporary, file);
-      },
+      try: () =>
+        writeFileAtomic(file, JSON.stringify(directories), {
+          mode: 0o600,
+          createDirectory: true,
+        }),
       catch: (error) => new RepoMcpError({ message: String(error) }),
     }),
 );
@@ -156,10 +155,11 @@ export const syncRepoMcpConfigs = Effect.gen(function* () {
         }
 
         if (existing === content) return;
-        mkdirSync(dirname(target), { recursive: true });
-        const temporary = `${target}.tmp.${process.pid}`;
-        writeFileSync(temporary, content, { mode: 0o600 });
-        renameSync(temporary, target);
+
+        writeFileAtomic(target, content, {
+          mode: 0o600,
+          createDirectory: true,
+        });
       },
       catch: (error) => new RepoMcpError({ message: String(error) }),
     });

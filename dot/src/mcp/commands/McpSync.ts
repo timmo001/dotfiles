@@ -9,14 +9,9 @@
  * {@link file://./../../commands/AgentsSync.ts}.
  */
 import { Effect, Schema } from "effect";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  writeFileSync,
-} from "fs";
-import { dirname, join } from "path";
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
+import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { Config } from "../../services/Config.js";
 import { OutputLog } from "../../services/OutputLog.js";
 import { displayPath } from "../../lib/paths.js";
@@ -54,14 +49,6 @@ const HARNESS_RELATIVE_PATH = {
 class McpSyncError extends Schema.TaggedError<McpSyncError>()("McpSyncError", {
   message: Schema.String,
 }) {}
-
-/** Atomic JSON write: mkdir -p, write to temp, rename over destination. */
-function atomicWriteJson(dest: string, value: JsonValue): void {
-  mkdirSync(dirname(dest), { recursive: true });
-  const tmp = `${dest}.tmp.${process.pid}`;
-  writeFileSync(tmp, formatJson(value), "utf-8");
-  renameSync(tmp, dest);
-}
 
 /** Read an existing JSON object, or an empty object when absent. */
 function readJsonObject(path: string) {
@@ -222,7 +209,9 @@ export const mcpSync = Effect.gen(function* () {
       buildHarnessConfig(harness, dest, spec),
     );
 
-    yield* Effect.sync(() => atomicWriteJson(dest, built));
+    yield* Effect.sync(() =>
+      writeFileAtomic(dest, formatJson(built), { createDirectory: true }),
+    );
     const count = serversForHarness(spec, harness).length;
     yield* log.success(
       `${style.accent(harness)} ${plural(count, "server")} ${style.dim(displayPath(dest))}`,

@@ -4,12 +4,9 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
-  renameSync,
-  unlinkSync,
-  writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
+import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { Effect, Schedule, Schema } from "effect";
 import { CACHE_DIR, STATE_DIR } from "../../lib/paths.js";
 import { formatCause } from "../../lib/schema.js";
@@ -184,17 +181,9 @@ export const saveReleaseDocument = Effect.fn("releases.saveDocument")(
     yield* Effect.try({
       try: () => {
         mkdirSync(directory, { recursive: true, mode: 0o700 });
-        const temporary = join(directory, `.${name}.${randomUUID()}.tmp`);
-
-        try {
-          writeFileSync(temporary, JSON.stringify(value), {
-            mode: 0o600,
-            flag: "wx",
-          });
-          renameSync(temporary, join(directory, name));
-        } finally {
-          if (existsSync(temporary)) unlinkSync(temporary);
-        }
+        writeFileAtomic(join(directory, name), JSON.stringify(value), {
+          mode: 0o600,
+        });
       },
       catch: (error) =>
         new ReleaseError({

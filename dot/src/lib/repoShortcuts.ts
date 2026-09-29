@@ -1,5 +1,5 @@
-import { mkdirSync, renameSync, writeFileSync } from "fs";
-import { dirname, join } from "path";
+import { join } from "path";
+import { writeFileAtomic } from "./atomicWrite.js";
 import type { GitRepoShortcut } from "../services/GitConfig.js";
 import type { CaptureRepositoryOption } from "../commands/NotesCaptureSync.js";
 
@@ -31,10 +31,10 @@ export function writeRepoShortcuts(
   repositories: readonly GitRepoShortcut[],
 ): string {
   const target = join(cacheDir, "repo-shortcuts.zsh");
-  const temporary = `${target}.tmp`;
-  mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(temporary, renderRepoShortcuts(repositories));
-  renameSync(temporary, target);
+
+  writeFileAtomic(target, renderRepoShortcuts(repositories), {
+    createDirectory: true,
+  });
 
   return target;
 }
@@ -45,17 +45,16 @@ export function writeRepoPicker(
   repositories: readonly GitRepoShortcut[],
 ): string {
   const target = join(cacheDir, "repo-picker.json");
-  const temporary = `${target}.tmp`;
-  mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(
-    temporary,
+
+  writeFileAtomic(
+    target,
     `${JSON.stringify(
       repositories.map(({ name, path }) => ({ name, path })),
       null,
       2,
     )}\n`,
+    { createDirectory: true },
   );
-  renameSync(temporary, target);
 
   return target;
 }
@@ -66,10 +65,10 @@ export function writeCaptureRepositoryOptions(
   repositories: readonly CaptureRepositoryOption[],
 ): string {
   const target = join(cacheDir, "notes-capture-repositories.json");
-  const temporary = `${target}.tmp`;
-  mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(temporary, `${JSON.stringify(repositories, null, 2)}\n`);
-  renameSync(temporary, target);
+
+  writeFileAtomic(target, `${JSON.stringify(repositories, null, 2)}\n`, {
+    createDirectory: true,
+  });
 
   return target;
 }

@@ -4,12 +4,9 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
-  renameSync,
-  unlinkSync,
-  writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
+import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { Gh, PullRequest } from "@timmo001/effect-gh";
 import {
   Clock,
@@ -360,19 +357,9 @@ export class GitPullRequests extends Context.Service<
               }
 
               if (changed)
-                yield* io(() => {
-                  const temporary = join(directory, `.${randomUUID()}.tmp`);
-
-                  try {
-                    writeFileSync(temporary, JSON.stringify(state), {
-                      mode: 0o600,
-                      flag: "wx",
-                    });
-                    renameSync(temporary, file);
-                  } finally {
-                    if (existsSync(temporary)) unlinkSync(temporary);
-                  }
-                });
+                yield* io(() =>
+                  writeFileAtomic(file, JSON.stringify(state), { mode: 0o600 }),
+                );
 
               return {
                 repo: repo.github,

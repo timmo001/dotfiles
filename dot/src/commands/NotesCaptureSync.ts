@@ -1,14 +1,7 @@
 import { Effect, Option, Schema } from "effect";
-import {
-  chmodSync,
-  existsSync,
-  readFileSync,
-  renameSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-} from "fs";
+import { existsSync, readFileSync, statSync } from "fs";
 import { join } from "path";
+import { writeFileAtomic } from "../lib/atomicWrite.js";
 import { displayPath } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
@@ -190,16 +183,9 @@ export function liveCaptureConfig(source: string): LiveCaptureConfig {
 
 /** Atomically replace a private config while preserving restrictive permissions. */
 export function writePrivateConfig(destination: string, content: string): void {
-  const temporary = `${destination}.tmp.${process.pid}`;
-  const mode = existsSync(destination) ? statSync(destination).mode : 0o600;
-
-  try {
-    writeFileSync(temporary, content, { encoding: "utf-8", mode: 0o600 });
-    chmodSync(temporary, mode);
-    renameSync(temporary, destination);
-  } finally {
-    if (existsSync(temporary)) unlinkSync(temporary);
-  }
+  writeFileAtomic(destination, content, {
+    mode: existsSync(destination) ? statSync(destination).mode & 0o7777 : 0o600,
+  });
 }
 
 /** Regenerate the notes capture picker config from private watched repositories. */

@@ -1,14 +1,8 @@
 import { Effect } from "effect";
 import { cliStyler } from "./ansi.js";
-import {
-  chmodSync,
-  existsSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from "fs";
+import { existsSync, readFileSync } from "fs";
 import { join } from "path";
+import { writeFileAtomic } from "./atomicWrite.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "./paths.js";
@@ -593,17 +587,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
     return false;
   }
 
-  yield* Effect.sync(() => {
-    const temporary = `${target}.dot-${process.pid}`;
-
-    try {
-      writeFileSync(temporary, rendered, { mode: 0o600 });
-      chmodSync(temporary, 0o600);
-      renameSync(temporary, target);
-    } finally {
-      rmSync(temporary, { force: true });
-    }
-  });
+  yield* Effect.sync(() => writeFileAtomic(target, rendered, { mode: 0o600 }));
   yield* log.success(
     `Wrote Omarchy shell config: ${displayPath(target)} (host: ${host})`,
   );
