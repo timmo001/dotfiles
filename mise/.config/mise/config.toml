@@ -39,7 +39,7 @@ zoxide = "0.10.0"
 just = "1.58.0"
 uv = "0.12.20"
 [tools."npm:@opencode/cli"]
-version = "2.0.19"
+version = "2.0.20"
 bun_args = "--trust"
 
 [tools."aqua:herdrdev/herdr"]
