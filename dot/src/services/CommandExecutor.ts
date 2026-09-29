@@ -1,10 +1,19 @@
-import { Context, Effect, Layer, PlatformError, Schema, Stream } from "effect";
+import {
+  Context,
+  Effect,
+  Layer,
+  Option,
+  PlatformError,
+  Schema,
+  Stream,
+} from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { constants } from "node:os";
 import { writeMirroredLog } from "../lib/logMirror.js";
 import { expandHomePath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
 import { formatCause } from "../lib/schema.js";
+import { OutputLog } from "./OutputLog.js";
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
 
@@ -264,7 +273,7 @@ export class CommandExecutor extends Context.Service<
           log(`inherit: ${describe(fullCmd, opts?.cwd)}`);
           const commandLogFile = inheritedCommandLogFile();
 
-          return Effect.gen(function* () {
+          const run = Effect.gen(function* () {
             if (commandLogFile)
               writeMirroredLog(commandLogFile, `\n$ ${fullCmd.join(" ")}\n`);
 
@@ -302,6 +311,13 @@ export class CommandExecutor extends Context.Service<
 
             return exitCode;
           }).pipe(Effect.scoped, Effect.orDie);
+
+          // The child owns the terminal, so keep any spinner off its lines.
+          return Effect.serviceOption(OutputLog).pipe(
+            Effect.flatMap((log) =>
+              Option.isSome(log) ? log.value.withSpinnerPaused(run) : run,
+            ),
+          );
         },
       };
     }),

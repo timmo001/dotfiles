@@ -50,6 +50,15 @@ export interface OutputLogService {
    * or on a non-TTY where the spinner does not animate.
    */
   readonly updateSpinner: (label: string) => Effect.Effect<void>;
+  /**
+   * Run `effect` with any active spinner hidden, then redraw it afterwards.
+   *
+   * Use around child processes that write to the terminal directly, so the
+   * spinner does not redraw onto the line the child is about to print.
+   */
+  readonly withSpinnerPaused: <A, E, R>(
+    effect: Effect.Effect<A, E, R>,
+  ) => Effect.Effect<A, E, R>;
 }
 
 /** Braille spinner frames, matching opencode's standard Spinner (cli-spinners "dots"). */
@@ -91,21 +100,21 @@ function formatPlain(entry: LogEntry): string {
   return `${ts} [${label}] ${stripVTControlCharacters(entry.message)}`;
 }
 
-/** Format a log entry for CLI stdout, coloured only when colour is enabled */
-function formatAnsi(entry: LogEntry): string {
+/** Format a log line for CLI stdout, coloured only when colour is enabled. */
+export function formatCliLine(level: LogLevel, message: string): string {
   const style = cliStyler();
 
-  switch (entry.level) {
+  switch (level) {
     case "section":
-      return `\n${style.heading(entry.message)}`;
+      return `\n${style.heading(message)}`;
     case "info":
-      return `  ${entry.message}`;
+      return `  ${message}`;
     case "success":
-      return `  ${style.success("✓")} ${entry.message}`;
+      return `  ${style.success("✓")} ${message}`;
     case "warn":
-      return `  ${style.warn("[WARN]")} ${entry.message}`;
+      return `  ${style.warn("[WARN]")} ${message}`;
     case "error":
-      return `  ${style.error("[ERROR]")} ${entry.message}`;
+      return `  ${style.error("[ERROR]")} ${message}`;
   }
 }
 
@@ -225,8 +234,11 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
         startedAt: number;
       } | null = null;
 
+      // Nested pause count; the spinner stays hidden while any pause is active.
+      let paused = 0;
+
       const renderSpinner = (now: number): void => {
-        if (!spinner) return;
+        if (!spinner || paused > 0) return;
 
         const frame =
           SPINNER_FRAMES[spinner.frame % SPINNER_FRAMES.length] ??
@@ -262,10 +274,10 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
 
           // Clear the spinner line before a real log line, then redraw it
           // beneath so the spinner stays pinned to the bottom.
-          if (spinner) process.stdout.write(CLEAR_LINE);
-          process.stdout.write(formatAnsi(entry) + "\n");
+          if (spinner && paused === 0) process.stdout.write(CLEAR_LINE);
+          process.stdout.write(formatCliLine(level, message) + "\n");
 
-          if (spinner) renderSpinner(now);
+          renderSpinner(now);
         });
 
       const tick = Effect.gen(function* () {
@@ -339,6 +351,24 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
             spinner.label = label;
             renderSpinner(now);
           }),
+        withSpinnerPaused: (effect) =>
+          Effect.acquireUseRelease(
+            Effect.sync(() => {
+              paused += 1;
+
+              if (spinner && paused === 1)
+                process.stdout.write(CLEAR_LINE + SHOW_CURSOR);
+            }),
+            () => effect,
+            () =>
+              Effect.gen(function* () {
+                paused -= 1;
+
+                if (!spinner || paused > 0) return;
+                process.stdout.write(HIDE_CURSOR);
+                renderSpinner(yield* Clock.currentTimeMillis);
+              }),
+          ),
       };
     }),
   );
