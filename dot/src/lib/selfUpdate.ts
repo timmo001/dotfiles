@@ -1,12 +1,12 @@
 import { Effect, Option } from "effect";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
-import { renameSync, chmodSync, realpathSync } from "fs";
+import { realpathSync } from "fs";
 import { join, dirname } from "path";
 import { ENV, envString } from "./env.js";
 import {
   isBuildCurrent,
   sourceBuildKey,
-  writeBuildStamp,
+  installCompiledBinary,
 } from "./buildStamp.js";
 import { withSpinnerTimeout } from "./workflowStep.js";
 
@@ -97,11 +97,7 @@ export const rebuild = Effect.gen(function* () {
   log(`Built to: ${tmpPath}`);
 
   // Atomic rename over the real binary (not the symlink)
-  yield* Effect.sync(() => {
-    renameSync(tmpPath, BIN_PATH);
-    chmodSync(BIN_PATH, 0o755);
-    writeBuildStamp(BIN_PATH, buildKey);
-  });
+  yield* Effect.sync(() => installCompiledBinary(tmpPath, BIN_PATH, buildKey));
   log("Binary replaced");
 
   return true;

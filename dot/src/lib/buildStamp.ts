@@ -1,5 +1,12 @@
 import { Effect } from "effect";
-import { mkdirSync, readFileSync, statSync, writeFileSync } from "fs";
+import {
+  chmodSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  statSync,
+  writeFileSync,
+} from "fs";
 import { createHash } from "crypto";
 import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -69,4 +76,15 @@ export function writeBuildStamp(target: string, key: string | null): void {
 
   mkdirSync(STAMP_DIR, { recursive: true });
   writeFileSync(stampFile(target), `${key}\n${modified}`);
+}
+
+/** Make a freshly compiled binary executable, rename it over `target` and stamp it. */
+export function installCompiledBinary(
+  temporary: string,
+  target: string,
+  key: string | null,
+): void {
+  chmodSync(temporary, 0o755);
+  renameSync(temporary, target);
+  writeBuildStamp(target, key);
 }

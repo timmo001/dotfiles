@@ -1,11 +1,11 @@
 import { Effect, Schema } from "effect";
-import { chmodSync, existsSync, mkdirSync, renameSync, rmSync } from "fs";
+import { existsSync, mkdirSync, rmSync } from "fs";
 import { dirname, join } from "path";
 import { HOME_DIR } from "./paths.js";
 import {
   isBuildCurrent,
   sourceBuildKey,
-  writeBuildStamp,
+  installCompiledBinary,
 } from "./buildStamp.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
@@ -89,11 +89,7 @@ export const buildSkillsMaintenance = Effect.gen(function* () {
     });
   }
 
-  yield* Effect.sync(() => {
-    chmodSync(temporary, 0o755);
-    renameSync(temporary, target);
-    writeBuildStamp(target, buildKey);
-  });
+  yield* Effect.sync(() => installCompiledBinary(temporary, target, buildKey));
 
   return { target, built: true };
 });
