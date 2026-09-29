@@ -31,7 +31,7 @@ function contextFixture(options: {
   let snapshotRead = false;
 
   const snapshot = () => Schema.decodeUnknownSync(SessionSnapshot)({
-    version: "0.9.0", protocol: 22,
+    version: "0.9.2", protocol: 22,
     focused_workspace_id: "w1", focused_tab_id: "w1:t1",
     focused_pane_id: options.focusedPane === undefined ? "w1:p1" : options.focusedPane,
     workspaces: [{ workspace_id: "w1", active_tab_id: "w1:t1", label: "Project", number: 1, pane_count: 1, tab_count: 1, agent_status: "idle", focused: true }],
@@ -185,7 +185,7 @@ const watchServer = Effect.acquireRelease(
           buffer = buffer.slice(newline + 1);
           expect(["ping", "events.subscribe"]).toContain(request.method);
           socket.write(JSON.stringify({ id: request.id, result: request.method === "ping"
-            ? { type: "pong", version: "0.9.0", protocol: 22 }
+            ? { type: "pong", version: "0.9.2", protocol: 22 }
             : { type: "subscription_started" } }) + "\n");
 
           if (request.method === "events.subscribe") Queue.offerUnsafe(subscriptions, socket);
