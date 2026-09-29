@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, FileSystem } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { DotDiff, type DiffScanOptions } from "../services/DotDiff.js";
@@ -9,7 +9,6 @@ import { cliStyler, colorEnabled } from "../../lib/ansi.js";
 import type { DiffRepo } from "../../types.js";
 import { textLooksLikeBotActivity } from "../services/botActivity.js";
 import { handleCommandError, writeJsonLine, writeText } from "./rows.js";
-import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 /** Handle DotDiffError by printing to stderr and exiting */
@@ -55,7 +54,7 @@ export const diffBarJson = (opts?: DiffScanOptions) =>
       {
         concurrency: 4,
       },
-    )).filter((repo): repo is DiffRepo => repo !== null);
+    )).filter((repo) => repo !== null);
 
     yield* writeJsonLine(formatDiffBarJson(changed));
   }).pipe(Effect.withSpan("diff.barJson"), handleDiffError);
@@ -109,28 +108,37 @@ export const diffPanelJson = (opts?: DiffScanOptions) =>
   Effect.gen(function* () {
     const dotDiff = yield* DotDiff;
     const repos = yield* dotDiff.getAll(opts);
-    yield* writeJsonLine(formatDiffPanelJson(repos));
+    yield* writeJsonLine(yield* formatDiffPanelJson(repos));
   }).pipe(Effect.withSpan("diff.panelJson"), handleDiffError);
 
 /** Format all repository state for the native shell panel. */
-export function formatDiffPanelJson(repos: readonly DiffRepo[]) {
-  const toRow = (repo: DiffRepo) => ({
-    name: repo.name,
-    path: repo.path,
-    category: repo.category,
-    modified: repo.modified,
-    ahead: repo.ahead,
-    behind: repo.behind,
-    locked: existsSync(join(repo.path, ".git", "index.lock")),
+export const formatDiffPanelJson = Effect.fn("diff.formatPanelJson")(function* (
+  repos: readonly DiffRepo[],
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  const toRow = Effect.fnUntraced(function* (repo: DiffRepo) {
+    return {
+      name: repo.name,
+      path: repo.path,
+      category: repo.category,
+      modified: repo.modified,
+      ahead: repo.ahead,
+      behind: repo.behind,
+      locked: yield* fs
+        .exists(join(repo.path, ".git", "index.lock"))
+        .pipe(Effect.orElseSucceed(() => false)),
+    };
   });
 
   return {
-    changed: changedRepos(repos).map(toRow),
-    other: repos.flatMap((repo) =>
-      isUnchangedRepo(repo) ? [toRow(repo)] : [],
+    changed: yield* Effect.forEach(changedRepos(repos), toRow),
+    other: yield* Effect.forEach(
+      repos.filter((repo) => isUnchangedRepo(repo)),
+      toRow,
     ),
   };
-}
+});
 
 /** Default CLI text output with detailed state for all repositories. */
 export const diffRaw = (opts?: DiffScanOptions) =>

@@ -3,6 +3,7 @@ import { Gh, layer } from "@timmo001/effect-gh";
 import {
   Deferred,
   Effect,
+  FileSystem,
   Fiber,
   Layer,
   Match,
@@ -53,6 +54,15 @@ test("workflow permissions distinguish absent OAuth headers from a missing scope
     );
   }
 });
+
+const quota = { limit: 5000, used: 4990, remaining: 10, reset: 0 };
+
+const rateLimitJson = JSON.stringify({
+  resources: { core: quota, graphql: quota, search: quota },
+});
+
+const isRateLimit = (command: ChildProcess.StandardCommand) =>
+  command.args.includes("rate_limit");
 
 const fixture = Effect.fn("test.fixture")(function* (
   response: (
@@ -119,8 +129,8 @@ test("rate-limit retries retain full stderr, invalidate the cache and stop at th
       const stderr = `  rate limit exceeded\n${"x".repeat(70_000)}\n`;
 
       const fake = yield* fixture((command) =>
-        command.args[1] === "rate_limit"
-          ? { stdout: text("10\t0\n") }
+        isRateLimit(command)
+          ? { stdout: text(rateLimitJson) }
           : {
               stderr: text(stderr),
               exitCode: Deferred.succeed(failed, undefined).pipe(
@@ -146,12 +156,11 @@ test("rate-limit retries retain full stderr, invalidate the cache and stop at th
         rateLimited: true,
         retryable: true,
       });
-      expect(fake.commands.map((command) => command.args[1])).toEqual([
-        "rate_limit",
-        "user",
-        "rate_limit",
-        "user",
-      ]);
+      expect(
+        fake.commands.map((command) =>
+          isRateLimit(command) ? "rate_limit" : command.args[1],
+        ),
+      ).toEqual(["rate_limit", "user", "rate_limit", "user"]);
       expect(fake.releases()).toBe(4);
     }).pipe(Effect.provide(TestClock.layer())),
   );
@@ -162,8 +171,10 @@ test("JSON pages, jq output and decode failures keep their existing contracts", 
     Effect.gen(function* () {
       const fake = yield* fixture((command) => ({
         stdout: text(
-          Match.value(command.args[1]).pipe(
-            Match.when("rate_limit", () => "10\t0\n"),
+          Match.value(
+            isRateLimit(command) ? "rate_limit" : command.args[1],
+          ).pipe(
+            Match.when("rate_limit", () => rateLimitJson),
             Match.when("items", () => '[[{"id":1}],[]]'),
             Match.when("user", () => "  login\n"),
             Match.orElse(() => "invalid JSON"),
@@ -182,12 +193,7 @@ test("JSON pages, jq output and decode failures keep their existing contracts", 
         rateLimited: false,
       });
       expect(fake.commands.map((command) => command.args)).toEqual([
-        [
-          "api",
-          "rate_limit",
-          "--jq",
-          ".resources.core | [.remaining, .reset] | @tsv",
-        ],
+        ["api", "--method", "GET", "--", "rate_limit"],
         args,
         ["api", "user", "--jq", ".login"],
         ["api", "bad"],
@@ -208,7 +214,13 @@ test("captured clone keeps literal args, noninteractive git settings and domain 
       const error = yield* ghRepoCloneCaptured("owner/repo", "test clone", [
         "--depth",
         "1",
-      ]).pipe(Effect.provide(fake.sdk), Effect.flip);
+      ]).pipe(
+        Effect.provide(fake.sdk),
+        Effect.provide(
+          FileSystem.layerNoop({ makeDirectory: () => Effect.void }),
+        ),
+        Effect.flip,
+      );
 
       expect(error._tag).toBe("GitCommandError");
       expect(error).toMatchObject({

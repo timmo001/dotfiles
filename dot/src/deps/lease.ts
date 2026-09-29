@@ -7,6 +7,7 @@ import {
   FileSystem,
   Ref,
   Result,
+  Schedule,
   Schema,
   Semaphore,
 } from "effect";
@@ -14,7 +15,6 @@ import { STATE_DIR } from "../lib/paths.js";
 import { dependencyGit } from "./publish.js";
 import type { DependencyRunLog } from "./log.js";
 import { DependencyRunError } from "./state.js";
-import { RetryBackoff } from "../services/RetryBackoff.js";
 
 const LeaseState = Schema.Struct({
   version: Schema.Literal(1),
@@ -66,11 +66,9 @@ export const acquireDependencyLease = Effect.fn("Dependencies.acquireLease")(
     );
 
     const transport = dependencyGit(log, directory, timeout);
-    const backoff = yield* RetryBackoff;
 
     const git = (args: readonly string[]) =>
       transport(args).pipe(
-        Effect.provideService(RetryBackoff, backoff),
         Effect.mapError((error) =>
           error instanceof DependencyRunError
             ? error
@@ -115,28 +113,32 @@ export const acquireDependencyLease = Effect.fn("Dependencies.acquireLease")(
     const repeatRejected = <A, E>(
       attempt: Effect.Effect<A, E | LeasePushRejected>,
     ) =>
-      backoff
-        .retry(attempt, {
-          initial: "1 second",
-          maxDelay: "8 seconds",
+      attempt.pipe(
+        Effect.retry({
           times: 4,
-          while: (error) => error instanceof LeasePushRejected,
-          onRetry: (error, delay) =>
-            error instanceof LeasePushRejected
-              ? log
-                  .event(
-                    `[WAIT] ${error.message}; retrying in ${Math.round(Duration.toMillis(delay) / 1000)}s`,
-                  )
-                  .pipe(Effect.orDie)
-              : Effect.void,
-        })
-        .pipe(
-          Effect.mapError((error) =>
-            error instanceof LeasePushRejected
-              ? new DependencyRunError({ message: error.message })
-              : error,
+          schedule: Schedule.exponential("1 second").pipe(
+            Schedule.modifyDelay(({ duration }) =>
+              Effect.succeed(Duration.min(duration, Duration.seconds(8))),
+            ),
+            Schedule.setInputType<E | LeasePushRejected>(),
+            Schedule.tap(({ input, duration }) =>
+              input instanceof LeasePushRejected
+                ? log
+                    .event(
+                      `[WAIT] ${input.message}; retrying in ${Math.round(Duration.toMillis(duration) / 1000)}s`,
+                    )
+                    .pipe(Effect.orDie)
+                : Effect.void,
+            ),
           ),
-        );
+          while: (error) => error instanceof LeasePushRejected,
+        }),
+        Effect.mapError((error) =>
+          error instanceof LeasePushRejected
+            ? new DependencyRunError({ message: error.message })
+            : error,
+        ),
+      );
 
     const rejected = () =>
       new LeasePushRejected({

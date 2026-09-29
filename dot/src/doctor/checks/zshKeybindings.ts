@@ -1,8 +1,8 @@
 import { Effect } from "effect";
-import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { Config } from "../../services/Config.js";
 import { displayPath } from "../../lib/paths.js";
+import { readTextOrNull } from "../../lib/fsProbe.js";
 import type { CheckResult } from "../types.js";
 
 /** Match a `bindkey "^[[3~" delete-char` line (any inner whitespace). */
@@ -23,7 +23,9 @@ export const checkZshKeybindings = Effect.gen(function* () {
   const config = yield* Config;
   const zshrc = join(config.publicDotfiles, "zsh", ".zshrc");
 
-  if (!existsSync(zshrc)) {
+  const content = yield* readTextOrNull(zshrc);
+
+  if (content === null) {
     return [
       {
         severity: "warn",
@@ -31,8 +33,6 @@ export const checkZshKeybindings = Effect.gen(function* () {
       },
     ] satisfies CheckResult[];
   }
-
-  const content = readFileSync(zshrc, "utf-8");
 
   if (LITERAL_DELETE.test(content) || TERMINFO_DELETE.test(content)) {
     return [

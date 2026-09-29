@@ -1,5 +1,4 @@
-import { Effect, Option, Schema } from "effect";
-import { existsSync, readFileSync, statSync } from "fs";
+import { Effect, FileSystem, Option, Schema } from "effect";
 import { join } from "path";
 import { writeFileAtomic } from "../lib/atomicWrite.js";
 import { displayPath } from "../lib/paths.js";
@@ -182,16 +181,23 @@ export function liveCaptureConfig(source: string): LiveCaptureConfig {
 }
 
 /** Atomically replace a private config while preserving restrictive permissions. */
-export function writePrivateConfig(destination: string, content: string): void {
-  writeFileAtomic(destination, content, {
-    mode: existsSync(destination) ? statSync(destination).mode & 0o7777 : 0o600,
-  });
-}
+export const writePrivateConfig = Effect.fn("notesCaptureSync.writeConfig")(
+  function* (destination: string, content: string) {
+    const fs = yield* FileSystem.FileSystem;
+
+    const mode = (yield* fs.exists(destination))
+      ? (yield* fs.stat(destination)).mode & 0o7777
+      : 0o600;
+
+    yield* Effect.try(() => writeFileAtomic(destination, content, { mode }));
+  },
+);
 
 /** Regenerate the notes capture picker config from private watched repositories. */
 export const notesCaptureSync = Effect.gen(function* () {
   const config = yield* Config;
   const executor = yield* CommandExecutor;
+  const fs = yield* FileSystem.FileSystem;
   const log = yield* OutputLog;
 
   yield* log.section("Notes Capture Sync");
@@ -237,7 +243,9 @@ export const notesCaptureSync = Effect.gen(function* () {
   const destination = join(notes.path, CAPTURE_CONFIG_PATH);
   const template = join(notes.path, CAPTURE_CONFIG_TEMPLATE_PATH);
 
-  if (!existsSync(destination) && !existsSync(template)) {
+  const destinationExists = yield* fs.exists(destination).pipe(Effect.orDie);
+
+  if (!destinationExists && !(yield* fs.exists(template).pipe(Effect.orDie))) {
     yield* log.warn(`Skipped (missing template): ${displayPath(template)}`);
 
     return;
@@ -282,26 +290,26 @@ export const notesCaptureSync = Effect.gen(function* () {
       }),
   });
 
+  const source = yield* fs
+    .readFileString(destinationExists ? destination : template)
+    .pipe(Effect.orDie);
+
   const output = yield* Effect.try({
-    try: () =>
-      mergeCaptureRepositories(
-        readFileSync(existsSync(destination) ? destination : template, "utf-8"),
-        repositories,
-        live,
-      ),
+    try: () => mergeCaptureRepositories(source, repositories, live),
     catch: (error) =>
       new NotesCaptureSyncError({
         message: `Invalid Wrangler config ${displayPath(destination)}: ${String(error)}`,
       }),
   });
 
-  yield* Effect.try({
-    try: () => writePrivateConfig(destination, output),
-    catch: (error) =>
-      new NotesCaptureSyncError({
-        message: `Could not write ${displayPath(destination)}: ${String(error)}`,
-      }),
-  });
+  yield* writePrivateConfig(destination, output).pipe(
+    Effect.mapError(
+      (error) =>
+        new NotesCaptureSyncError({
+          message: `Could not write ${displayPath(destination)}: ${String(error)}`,
+        }),
+    ),
+  );
   yield* log.info(
     `${repositories.length} repositor${repositories.length === 1 ? "y" : "ies"} -> ${displayPath(destination)}`,
   );

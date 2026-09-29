@@ -1,5 +1,4 @@
-import { Effect, Schema } from "effect";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { Effect, FileSystem, Schema } from "effect";
 import { basename, isAbsolute, join, relative, resolve } from "path";
 import packageJson from "../../../package.json" with { type: "json" };
 import { decodeJson, isJsonObject, isString } from "../lib/schema.js";
@@ -112,35 +111,41 @@ function cachePaths(cacheDir: string): AgentOxlintCache {
   };
 }
 
-function readText(path: string): string | null {
-  try {
-    return readFileSync(path, "utf-8");
-  } catch {
-    return null;
-  }
-}
+const readText = Effect.fn("agentOxlint.readText")(function* (path: string) {
+  const fs = yield* FileSystem.FileSystem;
 
-function installedVersion(path: string): string | null {
-  try {
-    const value = decodeJson(JSON.parse(readFileSync(path, "utf-8")));
+  return yield* fs.readFileString(path).pipe(Effect.orElseSucceed(() => null));
+});
+
+const installedVersion = Effect.fn("agentOxlint.installedVersion")(function* (
+  path: string,
+) {
+  const contents = yield* readText(path);
+
+  if (contents === null) return null;
+
+  return yield* Effect.try(() => {
+    const value = decodeJson(JSON.parse(contents));
 
     return isJsonObject(value) && isString(value.version)
       ? value.version
       : null;
-  } catch {
-    return null;
-  }
-}
+  }).pipe(Effect.orElseSucceed(() => null));
+});
 
-function cacheReady(cache: AgentOxlintCache): boolean {
+const cacheReady = Effect.fn("agentOxlint.cacheReady")(function* (
+  cache: AgentOxlintCache,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
   return (
-    readText(cache.manifest) === CACHE_MANIFEST &&
-    readText(cache.config) === CACHE_CONFIG &&
-    existsSync(cache.binary) &&
-    installedVersion(
+    (yield* readText(cache.manifest)) === CACHE_MANIFEST &&
+    (yield* readText(cache.config)) === CACHE_CONFIG &&
+    (yield* fs.exists(cache.binary).pipe(Effect.orElseSucceed(() => false))) &&
+    (yield* installedVersion(
       join(cache.directory, "node_modules", "oxlint", "package.json"),
-    ) === MANAGED_DEPENDENCIES.oxlint &&
-    installedVersion(
+    )) === MANAGED_DEPENDENCIES.oxlint &&
+    (yield* installedVersion(
       join(
         cache.directory,
         "node_modules",
@@ -148,8 +153,8 @@ function cacheReady(cache: AgentOxlintCache): boolean {
         "plugins",
         "package.json",
       ),
-    ) === MANAGED_DEPENDENCIES["@oxlint/plugins"] &&
-    installedVersion(
+    )) === MANAGED_DEPENDENCIES["@oxlint/plugins"] &&
+    (yield* installedVersion(
       join(
         cache.directory,
         "node_modules",
@@ -157,39 +162,60 @@ function cacheReady(cache: AgentOxlintCache): boolean {
         "oxlint-rules",
         "package.json",
       ),
-    ) === MANAGED_DEPENDENCIES["@timmo001/oxlint-rules"]
+    )) === MANAGED_DEPENDENCIES["@timmo001/oxlint-rules"]
   );
-}
+});
 
-function writeCache(cache: AgentOxlintCache): void {
-  mkdirSync(cache.directory, { recursive: true });
-  writeFileSync(cache.manifest, CACHE_MANIFEST);
-  writeFileSync(cache.config, CACHE_CONFIG);
-}
+const writeCache = Effect.fn("agentOxlint.writeCache")(function* (
+  cache: AgentOxlintCache,
+) {
+  const fs = yield* FileSystem.FileSystem;
 
-function packageUsesOxlint(path: string): boolean {
-  const contents = readText(path);
+  yield* fs.makeDirectory(cache.directory, { recursive: true });
+  yield* fs.writeFileString(cache.manifest, CACHE_MANIFEST);
+  yield* fs.writeFileString(cache.config, CACHE_CONFIG);
+});
+
+const packageUsesOxlint = Effect.fn("agentOxlint.packageUsesOxlint")(function* (
+  path: string,
+) {
+  const contents = yield* readText(path);
 
   return contents !== null && /\boxlint\b/.test(contents);
-}
+});
 
-function hasLocalOxlint(root: string, files: readonly string[]): boolean {
-  if (existsSync(join(root, "node_modules", ".bin", "oxlint"))) return true;
+const hasLocalOxlint = Effect.fn("agentOxlint.hasLocalOxlint")(function* (
+  root: string,
+  files: readonly string[],
+) {
+  const fs = yield* FileSystem.FileSystem;
 
-  if ([...CONFIG_NAMES].some((name) => existsSync(join(root, name))))
-    return true;
+  const exists = (path: string) =>
+    fs.exists(path).pipe(Effect.orElseSucceed(() => false));
 
-  if (packageUsesOxlint(join(root, "package.json"))) return true;
+  if (yield* exists(join(root, "node_modules", ".bin", "oxlint"))) return true;
 
-  return files.some((file) => {
+  for (const name of CONFIG_NAMES) {
+    if (yield* exists(join(root, name))) return true;
+  }
+
+  if (yield* packageUsesOxlint(join(root, "package.json"))) return true;
+
+  for (const file of files) {
     const name = basename(file);
 
-    return (
-      CONFIG_NAMES.has(name) ||
-      (name === "package.json" && packageUsesOxlint(join(root, file)))
-    );
-  });
-}
+    if (CONFIG_NAMES.has(name)) return true;
+
+    if (
+      name === "package.json" &&
+      (yield* packageUsesOxlint(join(root, file)))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+});
 
 function pathInsideRoot(root: string, path: string): boolean {
   const absolute = isAbsolute(path) ? resolve(path) : resolve(root, path);
@@ -301,7 +327,7 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
     if (!(yield* optInRepository(root))) return;
 
     if (!options.all && options.paths.length === 0) return;
-    gitConfig = loadDotGitConfig(config.gitConfig.filePath);
+    gitConfig = yield* loadDotGitConfig(config.gitConfig.filePath);
   }
 
   if (options.force) {
@@ -328,7 +354,7 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
       ),
     )).split("\n");
 
-  if (hasLocalOxlint(root, files) && !options.force) {
+  if ((yield* hasLocalOxlint(root, files)) && !options.force) {
     yield* log.info("Repository Oxlint takes precedence; skipping agent pass");
 
     return;
@@ -336,12 +362,12 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
 
   const cache = cachePaths(config.cacheDir);
 
-  if (!cacheReady(cache)) {
-    yield* Effect.try({
-      try: () => writeCache(cache),
-      catch: (error) =>
+  if (!(yield* cacheReady(cache))) {
+    yield* writeCache(cache).pipe(
+      Effect.mapError((error) =>
         fail(`agent-oxlint: could not prepare managed cache: ${String(error)}`),
-    });
+      ),
+    );
 
     const installExit = yield* executor.inherit("bun", [
       "install",
@@ -356,7 +382,7 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
       return;
     }
 
-    if (!cacheReady(cache)) {
+    if (!(yield* cacheReady(cache))) {
       return yield* fail(
         "agent-oxlint: managed cache is incomplete after install",
       );

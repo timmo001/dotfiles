@@ -1,6 +1,6 @@
 import { Effect } from "effect";
-import { existsSync, lstatSync, readlinkSync } from "fs";
 import { join } from "path";
+import { lstatOrNull, pathExists, readLinkOrNull } from "../../lib/fsProbe.js";
 import { Config } from "../../services/Config.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
 import type { CheckResult } from "../types.js";
@@ -25,7 +25,7 @@ export const checkOpencode = Effect.gen(function* () {
   // Check external skills directory (~/.agents/skills/)
   const externalSkillsPath = join(HOME_DIR, ".agents", "skills");
 
-  if (existsSync(externalSkillsPath)) {
+  if (yield* pathExists(externalSkillsPath)) {
     results.push({
       severity: "ok",
       message: `OpenCode external skills path exists: ${displayPath(externalSkillsPath)}`,
@@ -40,7 +40,7 @@ export const checkOpencode = Effect.gen(function* () {
   // Warn if legacy skills dir still exists under ~/.config/opencode/
   const legacySkillsPath = join(CONFIG_DIR, "opencode", "skills");
 
-  if (existsSync(legacySkillsPath) || lstatExists(legacySkillsPath)) {
+  if (yield* entryPresent(legacySkillsPath)) {
     results.push({
       severity: "warn",
       message: `Legacy skills path still exists: ${displayPath(legacySkillsPath)} (skills now live at ~/.agents/skills/)`,
@@ -53,7 +53,7 @@ export const checkOpencode = Effect.gen(function* () {
     const canonicalPath = join(CONFIG_DIR, "opencode", name);
     const legacyPath = join(HOME_DIR, ".opencode", name);
 
-    if (existsSync(canonicalPath)) {
+    if (yield* pathExists(canonicalPath)) {
       results.push({
         severity: "ok",
         message: `OpenCode canonical path exists: ${displayPath(canonicalPath)}`,
@@ -65,14 +65,12 @@ export const checkOpencode = Effect.gen(function* () {
       });
     }
 
-    if (existsSync(legacyPath) || lstatExists(legacyPath)) {
+    if (yield* entryPresent(legacyPath)) {
       foundLegacy = true;
 
-      const isSymlink =
-        lstatExists(legacyPath) && lstatSync(legacyPath).isSymbolicLink();
+      const target = yield* readLinkOrNull(legacyPath);
 
-      if (isSymlink) {
-        const target = readlinkSync(legacyPath);
+      if (target !== null) {
         results.push({
           severity: "warn",
           message: `Legacy OpenCode path still exists: ${displayPath(legacyPath)} -> ${target}`,
@@ -99,12 +97,11 @@ export const checkOpencode = Effect.gen(function* () {
     ]) {
       const path = join(base, name);
 
-      if (existsSync(path) || lstatExists(path)) {
+      if (yield* entryPresent(path)) {
         foundLegacy = true;
-        const isSymlink = lstatExists(path) && lstatSync(path).isSymbolicLink();
+        const target = yield* readLinkOrNull(path);
 
-        if (isSymlink) {
-          const target = readlinkSync(path);
+        if (target !== null) {
           results.push({
             severity: "warn",
             message: `Legacy OpenCode singular path still exists: ${displayPath(path)} -> ${target}`,
@@ -132,7 +129,7 @@ export const checkOpencode = Effect.gen(function* () {
       ? [join(config.privateDotfiles, "agents/.opencode")]
       : []),
   ]) {
-    if (existsSync(legacySource) || lstatExists(legacySource)) {
+    if (yield* entryPresent(legacySource)) {
       foundLegacy = true;
       results.push({
         severity: "warn",
@@ -154,13 +151,9 @@ export const checkOpencode = Effect.gen(function* () {
   return results;
 });
 
-/** Safe lstat check that returns false instead of throwing */
-function lstatExists(path: string): boolean {
-  try {
-    lstatSync(path);
-
-    return true;
-  } catch {
-    return false;
-  }
-}
+/** Whether an entry exists, including a broken symlink. */
+const entryPresent = Effect.fn("Opencode.entryPresent")(function* (
+  path: string,
+) {
+  return (yield* lstatOrNull(path)) !== null;
+});

@@ -1,6 +1,5 @@
-import { Effect, Schema } from "effect";
+import { Effect, FileSystem, Schema } from "effect";
 import { Prompt } from "effect/cli";
-import { readFileSync } from "fs";
 import { basename, join, resolve } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
@@ -130,19 +129,22 @@ export const inductRepository = Effect.fn("repoInduct.run")(
 
     const edit = yield* prepareGitRepoConfigEdit();
     const executor = yield* CommandExecutor;
+    const fs = yield* FileSystem.FileSystem;
     const log = yield* OutputLog;
 
-    const presets = yield* Effect.try({
-      try: () =>
-        Bun.YAML.parse(
-          readFileSync(join(edit.privateRoot, "dot-git-presets.yml"), "utf-8"),
+    const rawPresets = yield* fs
+      .readFileString(join(edit.privateRoot, "dot-git-presets.yml"))
+      .pipe(
+        Effect.flatMap((source) => Effect.try(() => Bun.YAML.parse(source))),
+        Effect.mapError(
+          (error) =>
+            new GitRepoConfigError({
+              message: `Could not read private dot-git-presets.yml: ${formatCause(error)}`,
+            }),
         ),
-      catch: (error) =>
-        new GitRepoConfigError({
-          message: `Could not read private dot-git-presets.yml: ${formatCause(error)}`,
-        }),
-    }).pipe(
-      Effect.flatMap(Schema.decodeUnknownEffect(Presets)),
+      );
+
+    const presets = yield* Schema.decodeUnknownEffect(Presets)(rawPresets).pipe(
       Effect.mapError(
         (error) =>
           new GitRepoConfigError({

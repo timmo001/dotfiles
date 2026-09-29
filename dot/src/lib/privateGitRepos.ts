@@ -1,9 +1,9 @@
 import { Effect, Schema } from "effect";
-import { existsSync } from "fs";
 import { Config } from "../services/Config.js";
 import { managedGitRepos } from "../services/GitConfig.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { ghRepoClone, ghRepoCloneCaptured } from "./git.js";
+import { pathExists } from "./fsProbe.js";
 
 /** Domain error for private git repository bootstrap failures. */
 export class GitConfigRepoError extends Schema.TaggedError<GitConfigRepoError>()(
@@ -51,8 +51,9 @@ export function cloneMissingGitConfigRepos(opts?: {
       return cloned;
     }
 
-    const missing = managedGitRepos(config.gitConfig).filter(
-      (repo) => !existsSync(repo.path),
+    const missing = yield* Effect.filter(
+      managedGitRepos(config.gitConfig),
+      (repo) => Effect.map(pathExists(repo.path), (exists) => !exists),
     );
 
     if (missing.length === 0) return cloned;

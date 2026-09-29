@@ -1,5 +1,4 @@
-import { Context, Effect, Layer } from "effect";
-import { existsSync, mkdirSync, statSync } from "fs";
+import { Context, Effect, FileSystem, Layer, Option } from "effect";
 import { join } from "path";
 import {
   defaultDotGitConfigPath,
@@ -68,7 +67,9 @@ export interface ConfigService {
 export class Config extends Context.Service<Config, ConfigService>()("Config") {
   static readonly layer = Layer.effect(
     Config,
-    Effect.sync(() => {
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+
       const publicDotfiles = expandHomePath(
         envString(ENV.DOTFILES_PUBLIC_DIR) ?? join(CONFIG_DIR, "dotfiles"),
       );
@@ -78,7 +79,10 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
           join(CONFIG_DIR, "dotfiles-private"),
       );
 
-      const privateExists = existsSync(join(privatePath, ".git"));
+      const privateExists = yield* fs
+        .exists(join(privatePath, ".git"))
+        .pipe(Effect.orElseSucceed(() => false));
+
       let canUsePrivate = false;
       let privateReason: string;
 
@@ -90,18 +94,19 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
       } else if (!privateExists) {
         privateReason = `private repo not present (${privatePath})`;
       } else {
-        try {
-          const stat = statSync(privatePath);
-          const uid = process.getuid?.();
+        const stat = yield* fs.stat(privatePath).pipe(Effect.option);
+        const uid = process.getuid?.();
 
-          if (uid !== undefined && stat.uid !== uid) {
-            privateReason = `private repo not owned by current user (${privatePath})`;
-          } else {
-            canUsePrivate = true;
-            privateReason = "private repo access granted";
-          }
-        } catch {
+        if (Option.isNone(stat)) {
           privateReason = `private repo not accessible (${privatePath})`;
+        } else if (
+          uid !== undefined &&
+          Option.getOrUndefined(stat.value.uid) !== uid
+        ) {
+          privateReason = `private repo not owned by current user (${privatePath})`;
+        } else {
+          canUsePrivate = true;
+          privateReason = "private repo access granted";
         }
       }
 
@@ -137,23 +142,22 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
         defaultDotGitConfigPath(privatePath);
 
       const gitConfig = canUsePrivate
-        ? loadDotGitConfig(gitConfigFile)
+        ? yield* loadDotGitConfig(gitConfigFile)
         : emptyDotGitConfig(gitConfigFile);
 
       const mcpConfigFile =
         envString(ENV.DOT_MCP_CONFIG_FILE) ?? defaultMcpConfigPath(privatePath);
 
       const mcpConfig = canUsePrivate
-        ? loadMcpConfig(mcpConfigFile)
+        ? yield* loadMcpConfig(mcpConfigFile)
         : emptyMcpConfig(mcpConfigFile);
 
       const cacheDir = join(CACHE_DIR, "dot");
       const stateDir = join(STATE_DIR, "dot");
       const logDir = join(stateDir, "logs");
 
-      // Ensure directories exist
-      mkdirSync(cacheDir, { recursive: true });
-      mkdirSync(logDir, { recursive: true });
+      yield* fs.makeDirectory(logDir, { recursive: true }).pipe(Effect.orDie);
+      yield* fs.makeDirectory(cacheDir, { recursive: true }).pipe(Effect.orDie);
 
       return {
         publicDotfiles,

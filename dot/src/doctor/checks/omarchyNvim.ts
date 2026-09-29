@@ -13,8 +13,8 @@ import type { CheckResult } from "../types.js";
  * instead of the selected omarchy theme. `dot update` repairs it; this surfaces
  * the state.
  */
-export const checkNvimThemeLink = Effect.sync(() => {
-  const link = detectNvimThemeLink();
+export const checkNvimThemeLink = Effect.gen(function* () {
+  const link = yield* detectNvimThemeLink();
   const path = displayPath(link.linkPath);
 
   if (link.status === "not-installed") {

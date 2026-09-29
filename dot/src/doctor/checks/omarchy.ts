@@ -1,6 +1,6 @@
 import { Effect } from "effect";
-import { existsSync, lstatSync, readlinkSync } from "fs";
 import { dirname, join } from "path";
+import { lstatOrNull, pathExists, readLinkOrNull } from "../../lib/fsProbe.js";
 import { Config } from "../../services/Config.js";
 import type { CheckResult } from "../types.js";
 import { readGitBranch, readGitUpstream, upstreamBranch } from "../git.js";
@@ -108,44 +108,50 @@ function branchNameOrUnknown(branch: string): string {
   return branch === "" ? "unknown" : branch;
 }
 
-function checkHyprHostLink(
+const checkHyprHostLink = Effect.fn("Omarchy.checkHyprHostLink")(function* (
   hostLink: string,
   hostDir: string,
   host: string,
-): CheckResult {
-  try {
-    const stat = lstatSync(hostLink);
+) {
+  const missing = {
+    severity: "warn",
+    message: `Missing Hypr host link ${displayPath(hostLink)} (run: dot stow)`,
+  } satisfies CheckResult;
 
-    if (!stat.isSymbolicLink()) {
-      return {
-        severity: "warn",
-        message: `${displayPath(hostLink)} exists but is not a symlink`,
-      };
-    }
+  const stat = yield* lstatOrNull(hostLink);
 
-    const target = resolveLinkTarget(hostLink, readlinkSync(hostLink));
+  if (stat === null) return missing;
 
-    if (target === hostDir) {
-      return {
-        severity: "ok",
-        message: `Hypr host link OK (${displayPath(hostLink)} -> hosts/${host})`,
-      };
-    }
-
+  if (stat.type !== "SymbolicLink") {
     return {
       severity: "warn",
-      message: `Hypr host link mismatch (expected hosts/${host}, found ${displayPath(target)})`,
-    };
-  } catch {
-    return {
-      severity: "warn",
-      message: `Missing Hypr host link ${displayPath(hostLink)} (run: dot stow)`,
-    };
+      message: `${displayPath(hostLink)} exists but is not a symlink`,
+    } satisfies CheckResult;
   }
-}
 
-function checkHyprHost(config: ConfigService): CheckResult[] {
-  const host = resolvedOmarchyHost(config);
+  const linkTarget = yield* readLinkOrNull(hostLink);
+
+  if (linkTarget === null) return missing;
+
+  const target = resolveLinkTarget(hostLink, linkTarget);
+
+  if (target === hostDir) {
+    return {
+      severity: "ok",
+      message: `Hypr host link OK (${displayPath(hostLink)} -> hosts/${host})`,
+    } satisfies CheckResult;
+  }
+
+  return {
+    severity: "warn",
+    message: `Hypr host link mismatch (expected hosts/${host}, found ${displayPath(target)})`,
+  } satisfies CheckResult;
+});
+
+const checkHyprHost = Effect.fn("Omarchy.checkHyprHost")(function* (
+  config: ConfigService,
+) {
+  const host = yield* resolvedOmarchyHost(config);
 
   if (!host) {
     return [
@@ -153,30 +159,30 @@ function checkHyprHost(config: ConfigService): CheckResult[] {
         severity: "warn",
         message: "OMARCHY_HOST is not set — cannot check Hypr host link",
       },
-    ];
+    ] satisfies CheckResult[];
   }
 
   const repoPath = hyprRepoPath(config);
   const hostDir = join(repoPath, "hosts", host);
   const hostLink = join(repoPath, "host");
 
-  if (!existsSync(hostDir)) {
+  if (!(yield* pathExists(hostDir))) {
     return [
       {
         severity: "warn",
         message: `Missing Hypr host config ${displayPath(hostDir)}`,
       },
-    ];
+    ] satisfies CheckResult[];
   }
 
-  return [checkHyprHostLink(hostLink, hostDir, host)];
-}
+  return [yield* checkHyprHostLink(hostLink, hostDir, host)];
+});
 
 const checkOmarchyRepo = (config: ConfigService, repoName: string) =>
   Effect.gen(function* () {
     const repoPath = join(config.omarchy.repoBase, repoName);
 
-    if (!isGitRepo(repoPath)) {
+    if (!(yield* isGitRepo(repoPath))) {
       return [
         {
           severity: "warn",
@@ -313,7 +319,7 @@ export const checkOmarchy = Effect.gen(function* () {
     results.push(...(yield* checkOmarchyWorktrees(config, repoName)));
   }
 
-  results.push(...checkHyprHost(config));
+  results.push(...(yield* checkHyprHost(config)));
 
   return results;
 });

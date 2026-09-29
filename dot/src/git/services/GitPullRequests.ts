@@ -1,9 +1,17 @@
-import { existsSync, readFileSync } from "node:fs";
+import { NodeServices } from "@effect/platform-node";
 import { join } from "node:path";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { acquireFileLock } from "../../lib/fileLock.js";
 import { Gh, PullRequest } from "@timmo001/effect-gh";
-import { Clock, Context, Effect, Layer, Result, Schema } from "effect";
+import {
+  Clock,
+  Context,
+  Effect,
+  FileSystem,
+  Layer,
+  Result,
+  Schema,
+} from "effect";
 import { Config } from "../../services/Config.js";
 import { managedGitRepos } from "../../services/GitConfig.js";
 import { formatCause } from "../../lib/schema.js";
@@ -111,6 +119,7 @@ export class GitPullRequests extends Context.Service<
       const config = yield* Config;
       const github = yield* GitHub;
       const gh = yield* Gh;
+      const fs = yield* FileSystem.FileSystem;
 
       const query = Effect.fn("GitPullRequests.query")(function* (
         options: PullRequestQuery,
@@ -167,6 +176,7 @@ export class GitPullRequests extends Context.Service<
               yield* acquireFileLock(join(directory, "write.lock"), {
                 wait: "1 minute",
               }).pipe(
+                Effect.provide(NodeServices.layer),
                 Effect.mapError(
                   (error) =>
                     new PullRequestsError({
@@ -178,12 +188,27 @@ export class GitPullRequests extends Context.Service<
                 ),
               );
 
-              let state = yield* io(() =>
-                existsSync(file)
-                  ? Schema.decodeUnknownSync(PullRequestState)(
-                      JSON.parse(readFileSync(file, "utf8")),
-                    )
-                  : emptyState(),
+              let state = yield* fs.exists(file).pipe(
+                Effect.flatMap((exists) =>
+                  exists
+                    ? fs
+                        .readFileString(file)
+                        .pipe(
+                          Effect.flatMap((text) =>
+                            io(() =>
+                              Schema.decodeUnknownSync(PullRequestState)(
+                                JSON.parse(text),
+                              ),
+                            ),
+                          ),
+                        )
+                    : Effect.succeed(emptyState()),
+                ),
+                Effect.mapError((error) =>
+                  error instanceof PullRequestsError
+                    ? error
+                    : new PullRequestsError({ message: formatCause(error) }),
+                ),
               );
 
               const now = yield* Clock.currentTimeMillis;
@@ -357,5 +382,5 @@ export class GitPullRequests extends Context.Service<
 
       return { query };
     }),
-  );
+  ).pipe(Layer.provide(NodeServices.layer));
 }

@@ -1,5 +1,4 @@
-import { Clock, Effect, Match, Schema } from "effect";
-import { appendFileSync, mkdirSync, rmSync } from "fs";
+import { Clock, Effect, FileSystem, Match, Option, Schema } from "effect";
 import { dirname, join } from "path";
 import { HOME_DIR, STATE_DIR, expandHomePath } from "../lib/paths.js";
 import { decodeJson, type JsonValue } from "../lib/schema.js";
@@ -463,12 +462,20 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
   options: WorkspaceSetupOptions,
 ) {
   const executor = yield* CommandExecutor;
+  const fs = yield* FileSystem.FileSystem;
   const config = resolveWorkspaceSetupConfig(options);
   const startedAt = yield* Clock.currentTimeMillis;
   const logFile = config.logFile ?? timestampedLogPath(startedAt);
-  mkdirSync(LOG_DIRECTORY, { recursive: true });
-  mkdirSync(dirname(logFile), { recursive: true });
-  appendFileSync(logFile, "");
+  yield* fs
+    .makeDirectory(LOG_DIRECTORY, { recursive: true })
+    .pipe(Effect.orDie);
+  yield* fs
+    .makeDirectory(dirname(logFile), { recursive: true })
+    .pipe(Effect.orDie);
+  yield* fs.writeFileString(logFile, "", { flag: "a" }).pipe(Effect.orDie);
+
+  const appendLog = (line: string) =>
+    fs.writeFileString(logFile, `${line}\n`, { flag: "a" }).pipe(Effect.orDie);
 
   const showOverlay = (message: string) =>
     executor.run("popup-loading", ["show", message]).pipe(Effect.ignore);
@@ -487,7 +494,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       const timestamp = new Date(now).toLocaleString("sv-SE");
       const line = `[workspace-setup ${timestamp}] ${message}`;
       console.log(line);
-      appendFileSync(logFile, `${line}\n`);
+      yield* appendLog(line);
       const overlay = overlayProgress(message);
 
       if (overlay !== undefined) yield* showOverlay(overlay);
@@ -713,7 +720,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
   if (config.startupDelay > 0) {
     const line = `[workspace-setup] Sleeping ${config.startupDelay}s before startup`;
     console.log(line);
-    appendFileSync(logFile, `${line}\n`);
+    yield* appendLog(line);
     yield* Effect.sleep(`${config.startupDelay} seconds`);
   }
 
@@ -985,12 +992,18 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
     const now = yield* Clock.currentTimeMillis;
     const cutoff = now - 7 * 24 * 60 * 60 * 1000;
 
-    for (const entry of new Bun.Glob("workspace-setup-*.log").scanSync({
-      cwd: LOG_DIRECTORY,
-      absolute: true,
-      onlyFiles: true,
-    })) {
-      if (Bun.file(entry).lastModified < cutoff) rmSync(entry, { force: true });
+    const entries = yield* fs.readDirectory(LOG_DIRECTORY).pipe(Effect.orDie);
+
+    for (const name of entries) {
+      if (!/^workspace-setup-.*\.log$/.test(name)) continue;
+
+      const entry = join(LOG_DIRECTORY, name);
+      const info = yield* fs.stat(entry).pipe(Effect.orDie);
+      const modified = Option.getOrElse(info.mtime, () => new Date(0));
+
+      if (info.type === "File" && modified.getTime() < cutoff) {
+        yield* fs.remove(entry, { force: true }).pipe(Effect.orDie);
+      }
     }
   });
 

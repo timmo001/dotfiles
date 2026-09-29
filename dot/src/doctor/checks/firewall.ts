@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { existsSync } from "fs";
+import { pathExists } from "../../lib/fsProbe.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { displayPath } from "../../lib/paths.js";
 import {
@@ -38,7 +38,7 @@ export const checkFirewall = Effect.gen(function* () {
 
   const rulesPath = ufwRulesFilePath();
 
-  if (!existsSync(rulesPath)) {
+  if (!(yield* pathExists(rulesPath))) {
     results.push({
       severity: "warn",
       message: `ufw rules file not found: ${displayPath(rulesPath)}`,
@@ -49,7 +49,7 @@ export const checkFirewall = Effect.gen(function* () {
     return results;
   }
 
-  const present = presentUfwTuples();
+  const present = yield* presentUfwTuples();
   const missing: string[] = [];
   let needsReconcile = false;
 

@@ -1,6 +1,5 @@
-import { existsSync, readFileSync } from "fs";
 import { join } from "path";
-import { Cron, Schema } from "effect";
+import { Cron, Effect, FileSystem, Schema } from "effect";
 import { ReleaseSettings } from "../git/release/types.js";
 import { displayPath, expandHomePath } from "../lib/paths.js";
 import {
@@ -161,29 +160,36 @@ export function emptyDotGitConfig(
 }
 
 /** Load and strictly validate the private dot git YAML config. */
-export function loadDotGitConfig(filePath: string): DotGitConfig {
-  if (!existsSync(filePath)) {
+export const loadDotGitConfig = Effect.fn("GitConfig.load")(function* (
+  filePath: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  if (!(yield* fs.exists(filePath).pipe(Effect.orElseSucceed(() => false)))) {
     return emptyDotGitConfig(filePath, [
       `Missing private git config: ${displayPath(filePath)}`,
     ]);
   }
 
-  try {
-    return parseDotGitConfigText(readFileSync(filePath, "utf-8"), filePath);
-  } catch (error) {
-    return {
-      filePath,
-      present: true,
-      valid: false,
-      repositories: [],
-      shortcuts: [],
-      browsers: {},
-      diagnostics: [
-        `Could not read private git config ${displayPath(filePath)}: ${formatError(error)}`,
-      ],
-    };
-  }
-}
+  return yield* fs.readFileString(filePath).pipe(
+    Effect.flatMap((text) =>
+      Effect.try(() => parseDotGitConfigText(text, filePath)),
+    ),
+    Effect.catch((error) =>
+      Effect.succeed<DotGitConfig>({
+        filePath,
+        present: true,
+        valid: false,
+        repositories: [],
+        shortcuts: [],
+        browsers: {},
+        diagnostics: [
+          `Could not read private git config ${displayPath(filePath)}: ${formatError(error.cause)}`,
+        ],
+      }),
+    ),
+  );
+});
 
 /** Validate a proposed config in memory using the same rules as the file loader. */
 export function parseDotGitConfigText(

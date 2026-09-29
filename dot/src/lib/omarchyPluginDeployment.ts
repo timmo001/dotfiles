@@ -1,69 +1,92 @@
-import { Effect } from "effect";
-import {
-  cpSync,
-  existsSync,
-  lstatSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-} from "fs";
+import { Effect, FileSystem, type PlatformError } from "effect";
 import { basename, dirname, join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { LauncherError } from "../services/Launcher.js";
+import { lstatOrNull, pathExists } from "./fsProbe.js";
 
 /** Discover real plugin submodule directories in the Omarchy stow package. */
-export function omarchyPluginSubmodules(repo: string): string[] {
-  const directory = join(repo, "omarchy/.config/omarchy/plugins");
+export const omarchyPluginSubmodules = Effect.fn("OmarchyPlugin.submodules")(
+  function* (repo: string) {
+    const fs = yield* FileSystem.FileSystem;
+    const directory = join(repo, "omarchy/.config/omarchy/plugins");
 
-  if (!existsSync(directory)) return [];
+    if (!(yield* pathExists(directory))) return [];
 
-  return readdirSync(directory, { withFileTypes: true })
-    .filter(
-      (entry) =>
-        entry.isDirectory() &&
-        /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(entry.name) &&
-        !entry.name.includes(".."),
-    )
-    .map((entry) => join(directory, entry.name))
-    .filter((source) =>
-      lstatSync(join(source, ".git"), { throwIfNoEntry: false })?.isFile(),
-    );
-}
+    const names = yield* fs.readDirectory(directory);
+    const sources: string[] = [];
 
-function sameFiles(source: string, target: string): boolean {
-  const expected = lstatSync(source);
-  const actual = lstatSync(target, { throwIfNoEntry: false });
+    for (const name of names) {
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name) || name.includes("..")) {
+        continue;
+      }
 
-  if (!actual || expected.isSymbolicLink() || actual.isSymbolicLink())
+      const source = join(directory, name);
+
+      if ((yield* lstatOrNull(source))?.type !== "Directory") continue;
+
+      if ((yield* lstatOrNull(join(source, ".git")))?.type === "File") {
+        sources.push(source);
+      }
+    }
+
+    return sources;
+  },
+);
+
+const sameFiles = Effect.fn("OmarchyPlugin.sameFiles")(function* (
+  source: string,
+  target: string,
+): Effect.fn.Return<
+  boolean,
+  PlatformError.PlatformError,
+  FileSystem.FileSystem
+> {
+  const fs = yield* FileSystem.FileSystem;
+  const expected = yield* lstatOrNull(source);
+  const actual = yield* lstatOrNull(target);
+
+  if (
+    !expected ||
+    !actual ||
+    expected.type === "SymbolicLink" ||
+    actual.type === "SymbolicLink"
+  ) {
     return false;
+  }
 
-  if (expected.isDirectory() && actual.isDirectory()) {
-    const names = readdirSync(source)
+  if (expected.type === "Directory" && actual.type === "Directory") {
+    const names = (yield* fs.readDirectory(source))
       .filter((name) => name !== ".git")
       .sort();
 
-    const targets = readdirSync(target).sort();
+    const targets = (yield* fs.readDirectory(target)).sort();
 
-    return (
-      names.length === targets.length &&
-      names.every(
-        (name, index) =>
-          name === targets[index] &&
-          sameFiles(join(source, name), join(target, name)),
-      )
-    );
+    if (names.length !== targets.length) return false;
+
+    for (const [index, name] of names.entries()) {
+      if (name !== targets[index]) return false;
+
+      if (!(yield* sameFiles(join(source, name), join(target, name)))) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
-  return (
-    expected.isFile() &&
-    actual.isFile() &&
-    (expected.mode & 0o777) === (actual.mode & 0o777) &&
-    readFileSync(source).equals(readFileSync(target))
-  );
-}
+  if (
+    expected.type !== "File" ||
+    actual.type !== "File" ||
+    (expected.mode & 0o777) !== (actual.mode & 0o777)
+  ) {
+    return false;
+  }
+
+  const sourceBytes = yield* fs.readFile(source);
+  const targetBytes = yield* fs.readFile(target);
+
+  return Buffer.from(sourceBytes).equals(Buffer.from(targetBytes));
+});
 
 /** Copy and validate a plugin before replacing its live files, retaining a backup. */
 export const deployOmarchyPlugin = Effect.fn("deployOmarchyPlugin")(function* (
@@ -72,61 +95,79 @@ export const deployOmarchyPlugin = Effect.fn("deployOmarchyPlugin")(function* (
   repo: string,
 ) {
   const executor = yield* CommandExecutor;
+  const fs = yield* FileSystem.FileSystem;
 
-  const filesystem = <T>(action: () => T) =>
-    Effect.try({
-      try: action,
-      catch: (error) =>
-        new LauncherError({
-          message: `Could not deploy ${basename(source)}: ${String(error)}`,
-          exitCode: 1,
-        }),
-    });
+  const filesystem = <A, R>(
+    action: Effect.Effect<A, PlatformError.PlatformError, R>,
+  ) =>
+    action.pipe(
+      Effect.mapError(
+        (error) =>
+          new LauncherError({
+            message: `Could not deploy ${basename(source)}: ${String(error)}`,
+            exitCode: 1,
+          }),
+      ),
+    );
 
   // Validate even unchanged sources, and never copy development symlinks.
   yield* executor.run("omarchy-plugin-validate", [source]);
 
-  if (yield* filesystem(() => sameFiles(source, target))) return null;
+  if (yield* filesystem(sameFiles(source, target))) return null;
 
   const stage = yield* Effect.acquireRelease(
-    filesystem(() => {
-      mkdirSync(dirname(target), { recursive: true });
+    filesystem(
+      Effect.gen(function* () {
+        yield* fs.makeDirectory(dirname(target), { recursive: true });
 
-      return mkdtempSync(join(dirname(target), ".dot-plugin-"));
-    }),
+        return yield* fs.makeTempDirectory({
+          directory: dirname(target),
+          prefix: ".dot-plugin-",
+        });
+      }),
+    ),
     (directory) =>
-      Effect.sync(() => rmSync(directory, { recursive: true, force: true })),
+      fs
+        .remove(directory, { recursive: true, force: true })
+        .pipe(Effect.ignore),
   );
 
-  yield* filesystem(() =>
-    cpSync(source, stage, {
-      recursive: true,
-      dereference: false,
-      filter: (file) => file !== join(source, ".git"),
+  yield* filesystem(
+    Effect.gen(function* () {
+      yield* fs.copy(source, stage, { overwrite: true });
+      yield* fs.remove(join(stage, ".git"), { recursive: true, force: true });
     }),
   );
   yield* executor.run("omarchy-plugin-validate", [stage]);
 
-  return yield* filesystem(() => {
-    let backup: string | null = null;
+  return yield* filesystem(
+    Effect.gen(function* () {
+      let backup: string | null = null;
 
-    if (lstatSync(target, { throwIfNoEntry: false })) {
-      const backups = join(repo, "backup/omarchy-plugins");
-      mkdirSync(backups, { recursive: true });
-      backup = join(
-        mkdtempSync(join(backups, `${basename(source)}-`)),
-        "plugin",
-      );
-      renameSync(target, backup);
-    }
+      if (yield* lstatOrNull(target)) {
+        const backups = join(repo, "backup/omarchy-plugins");
+        yield* fs.makeDirectory(backups, { recursive: true });
+        backup = join(
+          yield* fs.makeTempDirectory({
+            directory: backups,
+            prefix: `${basename(source)}-`,
+          }),
+          "plugin",
+        );
+        yield* fs.rename(target, backup);
+      }
 
-    try {
-      renameSync(stage, target);
-    } catch (error) {
-      if (backup) renameSync(backup, target);
-      throw error;
-    }
+      yield* fs
+        .rename(stage, target)
+        .pipe(
+          Effect.tapError(() =>
+            backup
+              ? fs.rename(backup, target).pipe(Effect.ignore)
+              : Effect.void,
+          ),
+        );
 
-    return { target, backup };
-  });
+      return { target, backup };
+    }),
+  );
 }, Effect.scoped);

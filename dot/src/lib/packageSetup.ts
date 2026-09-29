@@ -1,6 +1,5 @@
-import { Effect, Schema } from "effect";
+import { Effect, type FileSystem, Schema } from "effect";
 import { cliStyler } from "./ansi.js";
-import { existsSync } from "fs";
 import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
@@ -14,6 +13,7 @@ import {
   loadPackageLists,
 } from "./archPackages.js";
 import { resolvedOmarchyHost } from "./omarchyHost.js";
+import { pathExists } from "./fsProbe.js";
 import type { ConfigService } from "../services/Config.js";
 
 /** Domain error for package setup failures. */
@@ -27,20 +27,14 @@ class PackageSetupError extends Schema.TaggedError<PackageSetupError>()(
 /** Arch package list scope handled by init. */
 export type ArchPackageScope = "public" | "private";
 
-function packageListPath(
+const packageListPath = Effect.fn("PackageSetup.packageListPath")(function* (
   config: ConfigService,
   scope: ArchPackageScope,
-): string | null {
-  const pathForScope = {
-    public: publicPackageListPath,
-    private: privatePackageListPath,
-  } satisfies Record<
-    ArchPackageScope,
-    (config: ConfigService) => string | null
-  >;
-
-  return pathForScope[scope](config);
-}
+) {
+  return scope === "public"
+    ? publicPackageListPath(config)
+    : yield* privatePackageListPath(config);
+});
 
 function publicPackageListPath(config: ConfigService): string {
   return (
@@ -49,11 +43,17 @@ function publicPackageListPath(config: ConfigService): string {
   );
 }
 
-function privatePackageListPath(config: ConfigService): string | null {
-  return privatePackageListPaths(config)[0] ?? null;
-}
+const privatePackageListPath = Effect.fn("PackageSetup.privatePackageListPath")(
+  function* (config: ConfigService) {
+    return (yield* privatePackageListPaths(config))[0] ?? null;
+  },
+);
 
-function privatePackageListPaths(config: ConfigService): readonly string[] {
+const privatePackageListPaths = Effect.fn(
+  "PackageSetup.privatePackageListPaths",
+)(function* (
+  config: ConfigService,
+): Effect.fn.Return<readonly string[], never, FileSystem.FileSystem> {
   const override = envString(ENV.DOT_PRIVATE_PACKAGES_FILE);
 
   if (override) return [override];
@@ -61,10 +61,10 @@ function privatePackageListPaths(config: ConfigService): readonly string[] {
   if (!config.privateDotfiles) return [];
 
   const base = join(config.privateDotfiles, ".dot-private-packages");
-  const host = resolvedOmarchyHost(config);
+  const host = yield* resolvedOmarchyHost(config);
 
   return host ? [base, `${base}--${host}`] : [base];
-}
+});
 
 const scopeLabel = (scope: ArchPackageScope): string =>
   scope === "public" ? "Public" : "Private";
@@ -88,25 +88,25 @@ function commandAvailable(
   });
 }
 
-function requirePackageListPath(
-  config: ConfigService,
-  scope: ArchPackageScope,
-): Effect.Effect<string, PackageSetupError> {
-  const filePath = packageListPath(config, scope);
+const requirePackageListPath = Effect.fn("PackageSetup.requirePackageListPath")(
+  function* (config: ConfigService, scope: ArchPackageScope) {
+    const filePath = yield* packageListPath(config, scope);
 
-  return filePath
-    ? Effect.succeed(filePath)
-    : fail(`Missing ${scope} package list path`);
-}
+    return filePath
+      ? filePath
+      : yield* fail(`Missing ${scope} package list path`);
+  },
+);
 
-function assertPackageListExists(
-  scope: ArchPackageScope,
-  filePath: string,
-): Effect.Effect<void, PackageSetupError> {
-  return existsSync(filePath)
-    ? Effect.void
-    : fail(`Missing ${scope} package list: ${displayPath(filePath)}`);
-}
+const assertPackageListExists = Effect.fn("PackageSetup.assertListExists")(
+  function* (scope: ArchPackageScope, filePath: string) {
+    if (!(yield* pathExists(filePath))) {
+      return yield* fail(
+        `Missing ${scope} package list: ${displayPath(filePath)}`,
+      );
+    }
+  },
+);
 
 function missingFromPackageList(
   packages: readonly string[],
@@ -125,14 +125,18 @@ function missingFromPackageList(
 function missingPackages(
   config: ConfigService,
   scope: ArchPackageScope,
-): Effect.Effect<readonly string[], PackageSetupError, CommandExecutor> {
+): Effect.Effect<
+  readonly string[],
+  PackageSetupError,
+  CommandExecutor | FileSystem.FileSystem
+> {
   return Effect.gen(function* () {
     const filePath = yield* requirePackageListPath(config, scope);
     yield* assertPackageListExists(scope, filePath);
 
     const packages =
       scope === "private"
-        ? loadPackageLists(privatePackageListPaths(config))
+        ? loadPackageLists(yield* privatePackageListPaths(config))
         : loadPackageList(filePath);
 
     return yield* missingFromPackageList(packages);
@@ -217,28 +221,34 @@ export const ensureGumInstalled: Effect.Effect<
   );
 });
 
-function miseConfigExists(): boolean {
-  return [
-    envString(ENV.MISE_GLOBAL_CONFIG_FILE),
-    join(CONFIG_DIR, "mise", "config.toml"),
-    join(CONFIG_DIR, "mise", "config.json"),
-    join(HOME_DIR, ".mise.toml"),
-    join(HOME_DIR, ".tool-versions"),
-  ].some((filePath) => filePath !== undefined && existsSync(filePath));
-}
+const miseConfigExists = Effect.fn("PackageSetup.miseConfigExists")(
+  function* () {
+    for (const filePath of [
+      envString(ENV.MISE_GLOBAL_CONFIG_FILE),
+      join(CONFIG_DIR, "mise", "config.toml"),
+      join(CONFIG_DIR, "mise", "config.json"),
+      join(HOME_DIR, ".mise.toml"),
+      join(HOME_DIR, ".tool-versions"),
+    ]) {
+      if (filePath !== undefined && (yield* pathExists(filePath))) return true;
+    }
+
+    return false;
+  },
+);
 
 /** Ensure mise is installed and install stowed mise-managed tool versions. */
 export const installMiseTools: Effect.Effect<
   void,
   PackageSetupError,
-  CommandExecutor | OutputLog
+  CommandExecutor | OutputLog | FileSystem.FileSystem
 > = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
 
   yield* log.section("Install Mise Tools");
 
-  if (!miseConfigExists()) {
+  if (!(yield* miseConfigExists())) {
     yield* log.info(
       cliStyler().dim("No mise config found; skipping mise install"),
     );
@@ -387,7 +397,7 @@ export function installMissingArchPackages(opts: {
 }): Effect.Effect<
   void,
   PackageSetupError,
-  Config | CommandExecutor | OutputLog
+  Config | CommandExecutor | OutputLog | FileSystem.FileSystem
 > {
   return Effect.gen(function* () {
     const config = yield* Config;

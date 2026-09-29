@@ -1,12 +1,4 @@
-import { Effect } from "effect";
-import {
-  chmodSync,
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  statSync,
-  writeFileSync,
-} from "fs";
+import { Effect, FileSystem, Option } from "effect";
 import { createHash } from "crypto";
 import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -17,13 +9,22 @@ const STAMP_DIR = join(CACHE_DIR, "dot", "build-stamps");
 const stampFile = (target: string) =>
   join(STAMP_DIR, createHash("sha1").update(target).digest("hex"));
 
-const targetModified = (target: string) => {
-  try {
-    return String(statSync(target).mtimeMs);
-  } catch {
-    return null;
-  }
-};
+const targetModified = Effect.fn("BuildStamp.targetModified")(function* (
+  target: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  const info = yield* fs
+    .stat(target)
+    .pipe(Effect.orElseSucceed((): FileSystem.File.Info | null => null));
+
+  if (info === null) return null;
+
+  return Option.match(info.mtime, {
+    onNone: () => null,
+    onSome: (mtime) => String(mtime.getTime()),
+  });
+});
 
 /**
  * Identify a clean source directory by its committed tree and the Bun version.
@@ -54,37 +55,44 @@ export const sourceBuildKey = Effect.fn("BuildStamp.sourceBuildKey")(function* (
 });
 
 /** Whether the target was last built from this key and has not changed since. */
-export function isBuildCurrent(target: string, key: string | null): boolean {
+export const isBuildCurrent = Effect.fn("BuildStamp.isBuildCurrent")(function* (
+  target: string,
+  key: string | null,
+) {
   if (!key) return false;
 
-  const modified = targetModified(target);
+  const fs = yield* FileSystem.FileSystem;
+  const modified = yield* targetModified(target);
 
   if (!modified) return false;
 
-  try {
-    return readFileSync(stampFile(target), "utf-8") === `${key}\n${modified}`;
-  } catch {
-    return false;
-  }
-}
+  return yield* fs.readFileString(stampFile(target)).pipe(
+    Effect.map((stamp) => stamp === `${key}\n${modified}`),
+    Effect.orElseSucceed(() => false),
+  );
+});
 
 /** Record the key a freshly built target came from. */
-export function writeBuildStamp(target: string, key: string | null): void {
-  const modified = targetModified(target);
+export const writeBuildStamp = Effect.fn("BuildStamp.writeBuildStamp")(
+  function* (target: string, key: string | null) {
+    const modified = yield* targetModified(target);
 
-  if (!key || !modified) return;
+    if (!key || !modified) return;
 
-  mkdirSync(STAMP_DIR, { recursive: true });
-  writeFileSync(stampFile(target), `${key}\n${modified}`);
-}
+    const fs = yield* FileSystem.FileSystem;
+
+    yield* fs.makeDirectory(STAMP_DIR, { recursive: true });
+    yield* fs.writeFileString(stampFile(target), `${key}\n${modified}`);
+  },
+);
 
 /** Make a freshly compiled binary executable, rename it over `target` and stamp it. */
-export function installCompiledBinary(
-  temporary: string,
-  target: string,
-  key: string | null,
-): void {
-  chmodSync(temporary, 0o755);
-  renameSync(temporary, target);
-  writeBuildStamp(target, key);
-}
+export const installCompiledBinary = Effect.fn(
+  "BuildStamp.installCompiledBinary",
+)(function* (temporary: string, target: string, key: string | null) {
+  const fs = yield* FileSystem.FileSystem;
+
+  yield* fs.chmod(temporary, 0o755);
+  yield* fs.rename(temporary, target);
+  yield* writeBuildStamp(target, key);
+});

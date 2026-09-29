@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { existsSync } from "fs";
+import { pathExists } from "../../lib/fsProbe.js";
 import { Config } from "../../services/Config.js";
 import { managedGitRepos } from "../../services/GitConfig.js";
 import { gitExitCode } from "../../lib/git.js";
@@ -13,7 +13,7 @@ export const checkRepos = Effect.gen(function* () {
   const results: CheckResult[] = [];
 
   // Public dotfiles
-  if (existsSync(config.publicDotfiles)) {
+  if (yield* pathExists(config.publicDotfiles)) {
     results.push({
       severity: "ok",
       message: `Found ${displayPath(config.publicDotfiles)}`,
@@ -28,7 +28,7 @@ export const checkRepos = Effect.gen(function* () {
   // Private dotfiles
   const privatePath = `${HOME_DIR}/.config/dotfiles-private`;
 
-  if (existsSync(privatePath)) {
+  if (yield* pathExists(privatePath)) {
     results.push({
       severity: "ok",
       message: `Found ${displayPath(privatePath)}`,
@@ -53,7 +53,7 @@ export const checkRepos = Effect.gen(function* () {
       });
     } else {
       for (const repo of managedGitRepos(config.gitConfig)) {
-        if (!existsSync(repo.path)) {
+        if (!(yield* pathExists(repo.path))) {
           results.push({
             severity: "warn",
             message: `Missing private git repo ${repo.name}: ${displayPath(repo.path)}`,

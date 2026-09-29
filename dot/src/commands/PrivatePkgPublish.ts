@@ -1,12 +1,4 @@
-import { Effect } from "effect";
-import {
-  copyFileSync,
-  existsSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-} from "fs";
+import { Effect, FileSystem, Option } from "effect";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -39,20 +31,25 @@ function packageMapFile(config: ConfigService): string | null {
   );
 }
 
-function readPrivatePackageMap(
-  config: ConfigService,
-): ReadonlyMap<string, string> {
-  const filePath = packageMapFile(config);
+const readPrivatePackageMap = Effect.fn("PrivatePkgPublish.readPackageMap")(
+  function* (config: ConfigService) {
+    const fs = yield* FileSystem.FileSystem;
+    const filePath = packageMapFile(config);
 
-  if (!filePath || !existsSync(filePath)) return new Map();
+    if (!filePath || !(yield* fs.exists(filePath).pipe(Effect.orDie))) {
+      return new Map<string, string>();
+    }
 
-  return new Map(
-    readFileSync(filePath, "utf-8")
-      .split("\n")
-      .map(parsePrivatePackageMapLine)
-      .filter((entry): entry is readonly [string, string] => entry !== null),
-  );
-}
+    const source = yield* fs.readFileString(filePath).pipe(Effect.orDie);
+
+    return new Map(
+      source
+        .split("\n")
+        .map(parsePrivatePackageMapLine)
+        .filter((entry) => entry !== null),
+    );
+  },
+);
 
 function parsePrivatePackageMapLine(
   rawLine: string,
@@ -86,28 +83,44 @@ function privatePackageMapEntry(
   return [key, value];
 }
 
-function latestRuntimeArtifact(
-  distDir: string,
-  packageName: string,
-): string | null {
-  if (!existsSync(distDir)) return null;
+const latestRuntimeArtifact = Effect.fn("PrivatePkgPublish.latestArtifact")(
+  function* (distDir: string, packageName: string) {
+    const fs = yield* FileSystem.FileSystem;
 
-  const artifacts = readdirSync(distDir)
-    .filter(
-      (name) =>
-        name.startsWith(`${packageName}-`) &&
-        name.endsWith(".pkg.tar.zst") &&
-        !name.includes("-debug-"),
-    )
-    .map((name) => join(distDir, name))
-    .sort((left, right) => {
-      const mtimeDelta = statSync(left).mtimeMs - statSync(right).mtimeMs;
+    if (!(yield* fs.exists(distDir).pipe(Effect.orDie))) return null;
 
-      return mtimeDelta === 0 ? left.localeCompare(right) : mtimeDelta;
+    const names = yield* fs.readDirectory(distDir).pipe(Effect.orDie);
+
+    const paths = names
+      .filter(
+        (name) =>
+          name.startsWith(`${packageName}-`) &&
+          name.endsWith(".pkg.tar.zst") &&
+          !name.includes("-debug-"),
+      )
+      .map((name) => join(distDir, name));
+
+    const artifacts = yield* Effect.forEach(paths, (path) =>
+      fs.stat(path).pipe(
+        Effect.map((info) => ({
+          path,
+          mtimeMs: Option.getOrElse(info.mtime, () => new Date(0)).getTime(),
+        })),
+        Effect.orDie,
+      ),
+    );
+
+    artifacts.sort((left, right) => {
+      const mtimeDelta = left.mtimeMs - right.mtimeMs;
+
+      return mtimeDelta === 0
+        ? left.path.localeCompare(right.path)
+        : mtimeDelta;
     });
 
-  return artifacts.length > 0 ? artifacts[artifacts.length - 1] : null;
-}
+    return artifacts.length > 0 ? artifacts[artifacts.length - 1].path : null;
+  },
+);
 
 function isRuntimePackageArtifact(
   packageName: string,
@@ -120,23 +133,34 @@ function isRuntimePackageArtifact(
   );
 }
 
-function removeRepoSidecars(repoPath: string): void {
-  for (const fileName of readdirSync(repoPath)) {
-    if (!fileName.endsWith(".old") && !fileName.endsWith(".lck")) continue;
-    rmSync(join(repoPath, fileName), { force: true, recursive: true });
-  }
-}
+const removeRepoSidecars = Effect.fn("PrivatePkgPublish.removeSidecars")(
+  function* (repoPath: string) {
+    const fs = yield* FileSystem.FileSystem;
+    const names = yield* fs.readDirectory(repoPath).pipe(Effect.orDie);
 
-function removePreviousPackageArtifacts(
-  repoPath: string,
-  packageName: string,
-): void {
-  for (const fileName of readdirSync(repoPath).filter((name) =>
+    for (const fileName of names) {
+      if (!fileName.endsWith(".old") && !fileName.endsWith(".lck")) continue;
+      yield* fs
+        .remove(join(repoPath, fileName), { force: true, recursive: true })
+        .pipe(Effect.orDie);
+    }
+  },
+);
+
+const removePreviousPackageArtifacts = Effect.fn(
+  "PrivatePkgPublish.removePreviousArtifacts",
+)(function* (repoPath: string, packageName: string) {
+  const fs = yield* FileSystem.FileSystem;
+  const names = yield* fs.readDirectory(repoPath).pipe(Effect.orDie);
+
+  for (const fileName of names.filter((name) =>
     shouldRemovePackageArtifact(packageName, name),
   )) {
-    rmSync(join(repoPath, fileName), { force: true });
+    yield* fs
+      .remove(join(repoPath, fileName), { force: true })
+      .pipe(Effect.orDie);
   }
-}
+});
 
 function shouldRemovePackageArtifact(
   packageName: string,
@@ -149,15 +173,20 @@ function shouldRemovePackageArtifact(
   );
 }
 
-function publishedRuntimeArtifacts(repoPath: string): readonly string[] {
-  return readdirSync(repoPath)
+const publishedRuntimeArtifacts = Effect.fn(
+  "PrivatePkgPublish.publishedArtifacts",
+)(function* (repoPath: string) {
+  const fs = yield* FileSystem.FileSystem;
+  const names = yield* fs.readDirectory(repoPath).pipe(Effect.orDie);
+
+  return names
     .filter(
       (fileName) =>
         fileName.endsWith(".pkg.tar.zst") && !fileName.includes("-debug-"),
     )
     .sort()
     .map((fileName) => join(repoPath, fileName));
-}
+});
 
 function markFailure(
   log: OutputLogService,
@@ -192,9 +221,14 @@ function runRequired(
 
 function supportsDenoPackageArch(
   sourceRepo: string,
-): Effect.Effect<boolean, never, CommandExecutor> {
+): Effect.Effect<boolean, never, CommandExecutor | FileSystem.FileSystem> {
   return Effect.gen(function* () {
-    if (!existsSync(join(sourceRepo, "deno.json"))) return false;
+    const fs = yield* FileSystem.FileSystem;
+
+    if (!(yield* fs.exists(join(sourceRepo, "deno.json")).pipe(Effect.orDie))) {
+      return false;
+    }
+
     const executor = yield* CommandExecutor;
 
     const output = yield* executor
@@ -208,8 +242,13 @@ function supportsDenoPackageArch(
 function buildPackage(
   packageName: string,
   sourceRepo: string,
-): Effect.Effect<boolean, never, CommandExecutor | OutputLog> {
+): Effect.Effect<
+  boolean,
+  never,
+  CommandExecutor | FileSystem.FileSystem | OutputLog
+> {
   return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
     const log = yield* OutputLog;
     yield* log.section(`Build private package: ${packageName}`);
 
@@ -222,7 +261,7 @@ function buildPackage(
       ]);
     }
 
-    if (existsSync(join(sourceRepo, "Makefile"))) {
+    if (yield* fs.exists(join(sourceRepo, "Makefile")).pipe(Effect.orDie)) {
       return yield* runRequired("make", ["create_arch"], { cwd: sourceRepo });
     }
 
@@ -237,26 +276,33 @@ function publishArtifact(
   repo: PrivatePackageRepoConfig,
   packageName: string,
   runtimePackage: string,
-): Effect.Effect<boolean, never, CommandExecutor | OutputLog> {
+): Effect.Effect<
+  boolean,
+  never,
+  CommandExecutor | FileSystem.FileSystem | OutputLog
+> {
   return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
     const log = yield* OutputLog;
     yield* log.section(`Publish private package: ${packageName}`);
 
-    if (!existsSync(repo.path)) {
+    if (!(yield* fs.exists(repo.path).pipe(Effect.orDie))) {
       return yield* markFailure(
         log,
         `Missing private package repo clone: ${displayPath(repo.path)}`,
       );
     }
 
-    removePreviousPackageArtifacts(repo.path, packageName);
-    copyFileSync(
-      runtimePackage,
-      join(repo.path, runtimePackage.split("/").pop() ?? packageName),
-    );
-    removeRepoSidecars(repo.path);
+    yield* removePreviousPackageArtifacts(repo.path, packageName);
+    yield* fs
+      .copyFile(
+        runtimePackage,
+        join(repo.path, runtimePackage.split("/").pop() ?? packageName),
+      )
+      .pipe(Effect.orDie);
+    yield* removeRepoSidecars(repo.path);
 
-    const artifacts = publishedRuntimeArtifacts(repo.path);
+    const artifacts = yield* publishedRuntimeArtifacts(repo.path);
 
     if (artifacts.length === 0) {
       return yield* markFailure(
@@ -267,7 +313,7 @@ function publishArtifact(
 
     const repoDb = join(repo.path, `${repo.name}.db.tar.gz`);
     const added = yield* runRequired("repo-add", [repoDb, ...artifacts]);
-    removeRepoSidecars(repo.path);
+    yield* removeRepoSidecars(repo.path);
 
     return added;
   });
@@ -362,6 +408,7 @@ function runGitPublishStep(
 export const privatePkgPublish = (args: PrivatePkgPublishArgs) =>
   Effect.gen(function* () {
     const config = yield* Config;
+    const fs = yield* FileSystem.FileSystem;
     const log = yield* OutputLog;
 
     if (!config.canUsePrivate) {
@@ -373,7 +420,7 @@ export const privatePkgPublish = (args: PrivatePkgPublishArgs) =>
       return;
     }
 
-    const repo = loadPrivatePackageRepoConfig(config);
+    const repo = yield* loadPrivatePackageRepoConfig(config);
 
     if (!repo) {
       yield* markFailure(log, "Missing private package repo config");
@@ -383,7 +430,7 @@ export const privatePkgPublish = (args: PrivatePkgPublishArgs) =>
 
     yield* setupPrivateRepo;
 
-    const packageMap = readPrivatePackageMap(config);
+    const packageMap = yield* readPrivatePackageMap(config);
     const sourceRepo = packageMap.get(args.packageName);
 
     if (!sourceRepo) {
@@ -402,7 +449,7 @@ export const privatePkgPublish = (args: PrivatePkgPublishArgs) =>
       return;
     }
 
-    if (!existsSync(sourceRepo)) {
+    if (!(yield* fs.exists(sourceRepo).pipe(Effect.orDie))) {
       yield* markFailure(
         log,
         `Missing package source repo: ${displayPath(sourceRepo)}`,
@@ -420,7 +467,11 @@ export const privatePkgPublish = (args: PrivatePkgPublishArgs) =>
     }
 
     const distDir = join(sourceRepo, "dist");
-    const runtimePackage = latestRuntimeArtifact(distDir, args.packageName);
+
+    const runtimePackage = yield* latestRuntimeArtifact(
+      distDir,
+      args.packageName,
+    );
 
     if (!runtimePackage) {
       yield* markFailure(

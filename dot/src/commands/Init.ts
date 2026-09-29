@@ -1,12 +1,14 @@
 import type { Gh } from "@timmo001/effect-gh";
-import { Duration, Effect, Schema } from "effect";
 import {
-  existsSync,
-  lstatSync,
-  readFileSync,
-  readlinkSync,
-  readdirSync,
-} from "fs";
+  Duration,
+  Effect,
+  FileSystem,
+  Predicate,
+  Schema,
+  Stream,
+  type PlatformError,
+} from "effect";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { basename, join } from "path";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -96,6 +98,15 @@ function fail(message: string): Effect.Effect<never, InitError> {
   return Effect.fail(new InitError({ message }));
 }
 
+const fsError = (error: PlatformError.PlatformError) =>
+  new InitError({ message: error.message });
+
+const pathExists = Effect.fn("init.pathExists")(function* (path: string) {
+  const fs = yield* FileSystem.FileSystem;
+
+  return yield* fs.exists(path).pipe(Effect.mapError(fsError));
+});
+
 function requiredInitStep<E, R>(
   label: string,
   seconds: number,
@@ -108,17 +119,14 @@ function requiredInitStep<E, R>(
   });
 }
 
-function symlinkTarget(path: string): string | null {
-  try {
-    const stat = lstatSync(path);
+const symlinkTarget = Effect.fn("init.symlinkTarget")(function* (path: string) {
+  const fs = yield* FileSystem.FileSystem;
 
-    if (!stat.isSymbolicLink()) return null;
-
-    return resolveLinkTarget(path, readlinkSync(path));
-  } catch {
-    return null;
-  }
-}
+  return yield* fs.readLink(path).pipe(
+    Effect.map((target) => resolveLinkTarget(path, target)),
+    Effect.orElseSucceed(() => null),
+  );
+});
 
 function isManagedTarget(target: string, config: ConfigService): boolean {
   if (target.startsWith(config.publicDotfiles)) return true;
@@ -128,44 +136,56 @@ function isManagedTarget(target: string, config: ConfigService): boolean {
     : false;
 }
 
-function isManagedSymlink(path: string, config: ConfigService): boolean {
-  const target = symlinkTarget(path);
+const isManagedSymlink = Effect.fn("init.isManagedSymlink")(function* (
+  path: string,
+  config: ConfigService,
+) {
+  const target = yield* symlinkTarget(path);
 
   return target ? isManagedTarget(target, config) : false;
-}
+});
 
-function gitConfigIncludesManagedPath(): boolean {
+const gitConfigIncludesManagedPath = Effect.fn(
+  "init.gitConfigIncludesManagedPath",
+)(function* () {
+  const fs = yield* FileSystem.FileSystem;
   const gitConfigFile = join(CONFIG_DIR, "git", "config");
 
-  if (!existsSync(gitConfigFile)) return false;
+  if (!(yield* pathExists(gitConfigFile))) return false;
 
-  return readFileSync(gitConfigFile, "utf-8").includes(
-    `path = ${GIT_INCLUDE_PATH}`,
-  );
-}
+  const content = yield* fs
+    .readFileString(gitConfigFile)
+    .pipe(Effect.mapError(fsError));
 
-function existingInitSignals(config: ConfigService): readonly string[] {
+  return content.includes(`path = ${GIT_INCLUDE_PATH}`);
+});
+
+const existingInitSignals = Effect.fn("init.existingInitSignals")(function* (
+  config: ConfigService,
+) {
   const signals: string[] = [];
 
-  if (gitConfigIncludesManagedPath()) {
+  if (yield* gitConfigIncludesManagedPath()) {
     signals.push(`managed git include (${GIT_INCLUDE_PATH})`);
   }
 
-  if (isManagedSymlink(join(HOME_DIR, ".local", "bin", "dot"), config)) {
+  if (yield* isManagedSymlink(join(HOME_DIR, ".local", "bin", "dot"), config)) {
     signals.push("managed dot binary symlink (~/.local/bin/dot)");
   }
 
-  if (isManagedSymlink(join(CONFIG_DIR, "git", "config.dotfiles"), config)) {
+  if (
+    yield* isManagedSymlink(join(CONFIG_DIR, "git", "config.dotfiles"), config)
+  ) {
     signals.push("managed git config symlink (~/.config/git/config.dotfiles)");
   }
 
   return signals;
-}
+});
 
 function assertFreshInitTarget(
   config: ConfigService,
   force: boolean,
-): Effect.Effect<void, InitError, OutputLog> {
+): Effect.Effect<void, InitError, FileSystem.FileSystem | OutputLog> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
     const completeMarker = initCompleteMarker(config);
@@ -179,13 +199,13 @@ function assertFreshInitTarget(
       return;
     }
 
-    if (existsSync(completeMarker)) {
+    if (yield* pathExists(completeMarker)) {
       return yield* fail(
         `dot init has already completed on this machine (${displayPath(completeMarker)}). Use dot update for ongoing maintenance.`,
       );
     }
 
-    if (existsSync(inProgressMarker)) {
+    if (yield* pathExists(inProgressMarker)) {
       yield* log.warn(
         `Retrying incomplete init attempt (${displayPath(inProgressMarker)})`,
       );
@@ -193,7 +213,7 @@ function assertFreshInitTarget(
       return;
     }
 
-    const signals = existingInitSignals(config);
+    const signals = yield* existingInitSignals(config);
 
     if (signals.length >= 2) {
       return yield* fail(
@@ -226,7 +246,7 @@ function assertQuestionnaireTty(): Effect.Effect<void, InitError> {
 function promptForHost(): Effect.Effect<
   string,
   InitError,
-  CommandExecutor | OutputLog
+  ChildProcessSpawner.ChildProcessSpawner | CommandExecutor | OutputLog
 > {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
@@ -237,11 +257,13 @@ function promptForHost(): Effect.Effect<
       );
     }
 
-    return yield* Effect.tryPromise({
-      try: async () => {
-        const proc = Bun.spawn(
+    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+
+    return yield* Effect.gen(function* () {
+      const proc = yield* spawner.spawn(
+        ChildProcess.make(
+          "gum",
           [
-            "gum",
             "choose",
             "--header",
             "Select Omarchy host for this machine",
@@ -254,28 +276,43 @@ function promptForHost(): Effect.Effect<
             stdout: "pipe",
             stderr: "inherit",
           },
-        );
+        ),
+      );
 
-        const output = await new Response(proc.stdout).text();
-        const exitCode = await proc.exited;
+      const output = yield* proc.stdout.pipe(
+        Stream.decodeText(),
+        Stream.mkString,
+      );
 
-        if (exitCode !== 0) {
-          throw new Error(`gum choose exited ${exitCode}`);
-        }
+      const exitCode = yield* proc.exitCode;
 
-        return output.trim();
-      },
-      catch: (error) =>
-        new InitError({
-          message: `Init questionnaire failed: ${error instanceof Error ? error.message : String(error)}`,
-        }),
-    });
+      if (exitCode !== 0) {
+        return yield* new InitError({
+          message: `Init questionnaire failed: gum choose exited ${exitCode}`,
+        });
+      }
+
+      return output.trim();
+    }).pipe(
+      Effect.scoped,
+      Effect.mapError((error) =>
+        Predicate.isTagged(error, "InitError")
+          ? error
+          : new InitError({
+              message: `Init questionnaire failed: ${error.message}`,
+            }),
+      ),
+    );
   });
 }
 
 function resolveInitOptions(
   options: InitOptions,
-): Effect.Effect<InitOptions, InitError, CommandExecutor | OutputLog> {
+): Effect.Effect<
+  InitOptions,
+  InitError,
+  ChildProcessSpawner.ChildProcessSpawner | CommandExecutor | OutputLog
+> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
     yield* log.section("Init Questionnaire");
@@ -346,7 +383,11 @@ function persistOmarchyHostEnv(
 function ensureInitHyprHostLink(
   config: ConfigService,
   options: InitOptions,
-): Effect.Effect<void, InitError, CommandExecutor | OutputLog> {
+): Effect.Effect<
+  void,
+  InitError,
+  CommandExecutor | FileSystem.FileSystem | OutputLog
+> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
 
@@ -367,7 +408,7 @@ function ensureInitHyprHostLink(
       host,
     );
 
-    if (!existsSync(sourceHostDir)) {
+    if (!(yield* pathExists(sourceHostDir))) {
       return yield* fail(
         `Unknown Hypr host '${host}': missing ${displayPath(sourceHostDir)}. Pass --host <name> with a configured host.`,
       );
@@ -385,7 +426,7 @@ function ensureInitHyprHostLink(
     // there yet, the stow phase creates the host link after stowing.
     const liveHostDir = join(hyprRepoPath(config), "hosts", host);
 
-    if (!existsSync(liveHostDir)) {
+    if (!(yield* pathExists(liveHostDir))) {
       yield* log.info(
         cliStyler().dim(
           `Hypr host '${host}' selected; host link will be created during stow`,
@@ -401,14 +442,18 @@ function ensureInitHyprHostLink(
 
 function configureGitInclude(
   config: ConfigService,
-): Effect.Effect<void, InitError, CommandExecutor | OutputLog> {
+): Effect.Effect<
+  void,
+  InitError,
+  CommandExecutor | FileSystem.FileSystem | OutputLog
+> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
     const managedConfig = join(CONFIG_DIR, "git", "config.dotfiles");
 
     yield* log.section("Configure Git");
 
-    if (!existsSync(managedConfig)) {
+    if (!(yield* pathExists(managedConfig))) {
       if (!config.canUsePrivate) {
         yield* log.warn(
           `Skipping managed Git include (${config.privateReason})`,
@@ -422,7 +467,7 @@ function configureGitInclude(
       );
     }
 
-    if (gitConfigIncludesManagedPath()) {
+    if (yield* gitConfigIncludesManagedPath()) {
       yield* log.info(
         cliStyler().dim(
           "Git config already includes managed dotfiles settings",
@@ -445,9 +490,17 @@ function configureGitInclude(
   });
 }
 
-function pacmanHookFiles(hooksSource: string): readonly string[] {
-  return readdirSync(hooksSource).filter((name) => name.endsWith(".hook"));
-}
+const pacmanHookFiles = Effect.fn("init.pacmanHookFiles")(function* (
+  hooksSource: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  const names = yield* fs
+    .readDirectory(hooksSource)
+    .pipe(Effect.mapError(fsError));
+
+  return names.filter((name) => name.endsWith(".hook"));
+});
 
 function installPacmanHook(
   hooksSource: string,
@@ -472,7 +525,7 @@ function installPacmanHook(
 function installPacmanHooks(): Effect.Effect<
   void,
   InitError,
-  CommandExecutor | OutputLog
+  CommandExecutor | FileSystem.FileSystem | OutputLog
 > {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
@@ -480,7 +533,7 @@ function installPacmanHooks(): Effect.Effect<
 
     yield* log.section("Install Pacman Hooks");
 
-    if (!existsSync(hooksSource)) {
+    if (!(yield* pathExists(hooksSource))) {
       yield* log.info(
         cliStyler().dim(
           `No pacman hooks directory found: ${displayPath(hooksSource)}`,
@@ -490,7 +543,7 @@ function installPacmanHooks(): Effect.Effect<
       return;
     }
 
-    const hookFiles = pacmanHookFiles(hooksSource);
+    const hookFiles = yield* pacmanHookFiles(hooksSource);
 
     if (hookFiles.length === 0) {
       yield* log.info(cliStyler().dim("No pacman hooks configured"));
@@ -522,7 +575,11 @@ function runUserSystemctl(
 function enableUserUnit(
   unit: string,
   sectionTitle: string,
-): Effect.Effect<void, InitError, CommandExecutor | OutputLog> {
+): Effect.Effect<
+  void,
+  InitError,
+  CommandExecutor | FileSystem.FileSystem | OutputLog
+> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
     const log = yield* OutputLog;
@@ -536,7 +593,7 @@ function enableUserUnit(
       return;
     }
 
-    if (!existsSync(unitPath)) {
+    if (!(yield* pathExists(unitPath))) {
       return yield* fail(`Missing systemd user unit: ${displayPath(unitPath)}`);
     }
 
@@ -548,8 +605,8 @@ function enableUserUnit(
 
 function syncAgentsStrict(): Effect.Effect<
   void,
-  InitError,
-  Config | OutputLog
+  unknown,
+  Config | FileSystem.FileSystem | OutputLog
 > {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
@@ -558,7 +615,7 @@ function syncAgentsStrict(): Effect.Effect<
       envString(ENV.DOT_AGENTS_SYNC_SOURCE) ??
       join(CONFIG_DIR, "opencode", "AGENTS.md");
 
-    if (!existsSync(source)) {
+    if (!(yield* pathExists(source))) {
       yield* log.warn(
         `Skipping agents sync; source missing: ${displayPath(source)}`,
       );
@@ -572,7 +629,11 @@ function syncAgentsStrict(): Effect.Effect<
 
 function setupPrivatePackages(
   config: ConfigService,
-): Effect.Effect<void, unknown, Config | CommandExecutor | OutputLog | Gh> {
+): Effect.Effect<
+  void,
+  unknown,
+  Config | CommandExecutor | FileSystem.FileSystem | OutputLog | Gh
+> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
 
@@ -652,14 +713,22 @@ function currentUsername(): Effect.Effect<
 }
 
 /** Whether the given shell path is already registered in /etc/shells. */
-function shellRegisteredInEtcShells(shellPath: string): boolean {
-  if (!existsSync(ETC_SHELLS)) return false;
+const shellRegisteredInEtcShells = Effect.fn("init.shellRegistered")(function* (
+  shellPath: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
 
-  return readFileSync(ETC_SHELLS, "utf-8")
+  if (!(yield* pathExists(ETC_SHELLS))) return false;
+
+  const content = yield* fs
+    .readFileString(ETC_SHELLS)
+    .pipe(Effect.mapError(fsError));
+
+  return content
     .split("\n")
     .map((line) => line.trim())
     .includes(shellPath);
-}
+});
 
 /**
  * Ensure zsh is the user's login shell.
@@ -671,7 +740,7 @@ function shellRegisteredInEtcShells(shellPath: string): boolean {
 function ensureLoginShellZsh(): Effect.Effect<
   void,
   InitError,
-  CommandExecutor | OutputLog
+  CommandExecutor | FileSystem.FileSystem | OutputLog
 > {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
@@ -685,7 +754,7 @@ function ensureLoginShellZsh(): Effect.Effect<
       return;
     }
 
-    if (!shellRegisteredInEtcShells(zshPath)) {
+    if (!(yield* shellRegisteredInEtcShells(zshPath))) {
       const exitCode = yield* runElevated("sh", [
         "-c",
         'printf "%s\\n" "$1" >> "$2"',
@@ -735,7 +804,13 @@ export function init(
 ): Effect.Effect<
   void,
   unknown,
-  Config | CommandExecutor | OutputLog | Launcher | Gh
+  | Config
+  | ChildProcessSpawner.ChildProcessSpawner
+  | CommandExecutor
+  | FileSystem.FileSystem
+  | OutputLog
+  | Launcher
+  | Gh
 > {
   return Effect.gen(function* () {
     const config = yield* Config;
@@ -750,12 +825,10 @@ export function init(
 
     yield* log.section("Initialization Workflow");
 
-    if (envString(ENV.DOT_LOG_FILE)) {
-      yield* log.info(
-        cliStyler().dim(
-          `Init log: ${displayPath(envString(ENV.DOT_LOG_FILE)!)}`,
-        ),
-      );
+    const logFile = envString(ENV.DOT_LOG_FILE);
+
+    if (logFile) {
+      yield* log.info(cliStyler().dim(`Init log: ${displayPath(logFile)}`));
     }
 
     yield* assertFreshInitTarget(config, optionsInput.force);

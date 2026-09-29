@@ -1,21 +1,30 @@
 import { Effect } from "effect";
-import { existsSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
 import { CONFIG_DIR } from "../../lib/paths.js";
+import {
+  pathExists,
+  readDirectoryOrNull,
+  readTextOrNull,
+} from "../../lib/fsProbe.js";
 import type { CheckResult } from "../types.js";
 
 /** Check pacman hooks are installed and up to date */
-export const checkPacmanHooks = Effect.sync(() => {
+export const checkPacmanHooks = Effect.gen(function* () {
   const results: CheckResult[] = [];
 
   const hooksSource = join(CONFIG_DIR, "pacman-hooks");
 
-  if (!existsSync(hooksSource)) {
+  if (!(yield* pathExists(hooksSource))) {
     // No hooks configured, nothing to check
     return results;
   }
 
-  const hookFiles = hookFileNames(hooksSource);
+  const entries = yield* readDirectoryOrNull(hooksSource);
+
+  const hookFiles =
+    entries === null
+      ? null
+      : entries.filter((fileName) => fileName.endsWith(".hook"));
 
   if (hookFiles === null) {
     return results;
@@ -25,7 +34,7 @@ export const checkPacmanHooks = Effect.sync(() => {
     const sourceFile = join(hooksSource, hookName);
     const installedFile = join("/etc/pacman.d/hooks", hookName);
 
-    if (!existsSync(installedFile)) {
+    if (!(yield* pathExists(installedFile))) {
       results.push({
         severity: "warn",
         message: `Pacman hook not installed: ${hookName}`,
@@ -34,8 +43,8 @@ export const checkPacmanHooks = Effect.sync(() => {
       continue;
     }
 
-    const sourceContent = readTextFile(sourceFile);
-    const installedContent = readTextFile(installedFile);
+    const sourceContent = yield* readTextOrNull(sourceFile);
+    const installedContent = yield* readTextOrNull(installedFile);
 
     if (sourceContent === null || installedContent === null) {
       results.push({
@@ -58,19 +67,3 @@ export const checkPacmanHooks = Effect.sync(() => {
 
   return results;
 });
-
-function hookFileNames(path: string): string[] | null {
-  try {
-    return readdirSync(path).filter((fileName) => fileName.endsWith(".hook"));
-  } catch {
-    return null;
-  }
-}
-
-function readTextFile(path: string): string | null {
-  try {
-    return readFileSync(path, "utf-8");
-  } catch {
-    return null;
-  }
-}

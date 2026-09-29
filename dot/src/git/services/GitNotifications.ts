@@ -1,3 +1,4 @@
+import { NodeServices } from "@effect/platform-node";
 import { Clock, Context, Effect, Layer, Option, Schema } from "effect";
 import type {
   GitNotificationAction,
@@ -197,7 +198,10 @@ export class GitNotifications extends Context.Service<
             )
               ? yield* isWorkTime((message) =>
                   Effect.sync(() => log(message)),
-                ).pipe(Effect.provideService(Config, config))
+                ).pipe(
+                  Effect.provideService(Config, config),
+                  Effect.provide(NodeServices.layer),
+                )
               : false;
 
           const now = new Date(yield* Clock.currentTimeMillis);
@@ -209,9 +213,7 @@ export class GitNotifications extends Context.Service<
             { concurrency: 4 },
           );
 
-          return filtered.filter(
-            (thread): thread is GitNotificationThread => thread !== null,
-          );
+          return filtered.filter((thread) => thread !== null);
         });
       };
 

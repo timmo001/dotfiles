@@ -1,6 +1,6 @@
-import { readdirSync, statSync } from "fs";
+import { Effect, FileSystem } from "effect";
 import { join } from "path";
-import { ConfigService } from "../services/Config.js";
+import type { ConfigService } from "../services/Config.js";
 import { resolvedOmarchyHost } from "./omarchyHost.js";
 
 /** Top-level repo directories that are not active stow packages. */
@@ -74,19 +74,23 @@ const NO_FOLDING_TARGET_PREFIXES = [
  * @param repoDir - Absolute path to the stow repo root.
  * @param folder - Stow package directory name within `repoDir`.
  */
-export function requiresNoFolding(repoDir: string, folder: string): boolean {
-  const packageDir = join(repoDir, folder);
+export const requiresNoFolding = Effect.fn("StowFolders.requiresNoFolding")(
+  function* (repoDir: string, folder: string) {
+    const fs = yield* FileSystem.FileSystem;
+    const packageDir = join(repoDir, folder);
 
-  return NO_FOLDING_TARGET_PREFIXES.some((prefix) => {
-    try {
-      statSync(join(packageDir, prefix));
+    for (const prefix of NO_FOLDING_TARGET_PREFIXES) {
+      const found = yield* fs.stat(join(packageDir, prefix)).pipe(
+        Effect.as(true),
+        Effect.orElseSucceed(() => false),
+      );
 
-      return true;
-    } catch {
-      return false;
+      if (found) return true;
     }
-  });
-}
+
+    return false;
+  },
+);
 
 /**
  * List top-level stow package directories in a repo.
@@ -94,38 +98,40 @@ export function requiresNoFolding(repoDir: string, folder: string): boolean {
  * Filters out non-directory entries, dotfiles, internal folders, the backup
  * folder, and host-specific packages that don't match `OMARCHY_HOST`.
  */
-export function listStowFolders(
-  repoDir: string,
-  config?: ConfigService,
-): string[] {
-  const host = config ? (resolvedOmarchyHost(config) ?? "") : "";
-  const entries = readdirSync(repoDir);
+export const listStowFolders = Effect.fn("StowFolders.listStowFolders")(
+  function* (repoDir: string, config?: ConfigService) {
+    const fs = yield* FileSystem.FileSystem;
+    const host = config ? ((yield* resolvedOmarchyHost(config)) ?? "") : "";
+    const entries = yield* fs.readDirectory(repoDir).pipe(Effect.orDie);
+    const folders: string[] = [];
 
-  return entries.filter((entry) => {
-    const fullPath = join(repoDir, entry);
+    for (const entry of entries) {
+      const isDirectory = yield* fs.stat(join(repoDir, entry)).pipe(
+        Effect.map((info) => info.type === "Directory"),
+        Effect.orElseSucceed(() => false),
+      );
 
-    try {
-      if (!statSync(fullPath).isDirectory()) return false;
-    } catch {
-      return false;
+      if (!isDirectory) continue;
+
+      // Skip backup folder (only used during install)
+      if (entry === "backup") continue;
+
+      // Skip repo internals that are not stow packages.
+      if (INTERNAL_FOLDERS.has(entry)) continue;
+
+      // Skip dot-internal directories that aren't stow packages
+      if (entry.startsWith(".")) continue;
+
+      // Host-specific packages use double-dash: <name>--<host>
+      if (entry.includes("--")) {
+        const hostSuffix = entry.slice(entry.lastIndexOf("--") + 2);
+
+        if (hostSuffix !== host) continue;
+      }
+
+      folders.push(entry);
     }
 
-    // Skip backup folder (only used during install)
-    if (entry === "backup") return false;
-
-    // Skip repo internals that are not stow packages.
-    if (INTERNAL_FOLDERS.has(entry)) return false;
-
-    // Skip dot-internal directories that aren't stow packages
-    if (entry.startsWith(".")) return false;
-
-    // Host-specific packages use double-dash: <name>--<host>
-    if (entry.includes("--")) {
-      const hostSuffix = entry.split("--").pop()!;
-
-      if (hostSuffix !== host) return false;
-    }
-
-    return true;
-  });
-}
+    return folders;
+  },
+);

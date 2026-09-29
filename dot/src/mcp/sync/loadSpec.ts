@@ -5,9 +5,8 @@
  * strict-ish validation into a typed spec with human-readable diagnostics, and
  * an empty-config fallback when the private file is absent.
  */
-import { existsSync, readFileSync } from "fs";
 import { join } from "path";
-import { Schema } from "effect";
+import { Effect, FileSystem, Schema } from "effect";
 import { displayPath } from "../../lib/paths.js";
 import {
   decodeJson,
@@ -126,37 +125,46 @@ export function emptyMcpConfig(
 }
 
 /** Load and validate the private MCP sync YAML spec. */
-export function loadMcpConfig(filePath: string): DotMcpConfig {
-  if (!existsSync(filePath)) {
+export const loadMcpConfig = Effect.fn("McpSpec.load")(function* (
+  filePath: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  if (!(yield* fs.exists(filePath).pipe(Effect.orElseSucceed(() => false)))) {
     return emptyMcpConfig(filePath, [
       `Missing private MCP config: ${displayPath(filePath)}`,
     ]);
   }
 
-  try {
-    const parsed = decodeJson(Bun.YAML.parse(readFileSync(filePath, "utf-8")));
-    const diagnostics: string[] = [];
-    const servers = parseSpec(parsed, diagnostics);
+  return yield* fs.readFileString(filePath).pipe(
+    Effect.flatMap((source) =>
+      Effect.try(() => {
+        const parsed = decodeJson(Bun.YAML.parse(source));
+        const diagnostics: string[] = [];
+        const servers = parseSpec(parsed, diagnostics);
 
-    return {
-      filePath,
-      present: true,
-      valid: diagnostics.length === 0,
-      spec: diagnostics.length === 0 ? { servers } : EMPTY_SPEC,
-      diagnostics,
-    };
-  } catch (error) {
-    return {
-      filePath,
-      present: true,
-      valid: false,
-      spec: EMPTY_SPEC,
-      diagnostics: [
-        `Could not read private MCP config ${displayPath(filePath)}: ${formatError(error)}`,
-      ],
-    };
-  }
-}
+        return {
+          filePath,
+          present: true,
+          valid: diagnostics.length === 0,
+          spec: diagnostics.length === 0 ? { servers } : EMPTY_SPEC,
+          diagnostics,
+        } satisfies DotMcpConfig;
+      }),
+    ),
+    Effect.catch((error) =>
+      Effect.succeed({
+        filePath,
+        present: true,
+        valid: false,
+        spec: EMPTY_SPEC,
+        diagnostics: [
+          `Could not read private MCP config ${displayPath(filePath)}: ${formatError(error)}`,
+        ],
+      } satisfies DotMcpConfig),
+    ),
+  );
+});
 
 function parseSpec(
   value: JsonValue,

@@ -8,8 +8,7 @@
  * in the sync adapters; this orchestrator owns IO and logging, mirroring
  * {@link file://./../../commands/AgentsSync.ts}.
  */
-import { Effect, Schema } from "effect";
-import { existsSync, readFileSync } from "fs";
+import { Effect, FileSystem, Schema } from "effect";
 import { join } from "path";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { Config } from "../../services/Config.js";
@@ -51,15 +50,21 @@ class McpSyncError extends Schema.TaggedError<McpSyncError>()("McpSyncError", {
 }) {}
 
 /** Read an existing JSON object, or an empty object when absent. */
-function readJsonObject(path: string) {
-  if (!existsSync(path)) return {};
+const readJsonObject = Effect.fn("McpSync.readJsonObject")(function* (
+  path: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
 
-  try {
-    return decodeJsonObject(JSON.parse(readFileSync(path, "utf-8")));
-  } catch {
-    throw new Error(`${displayPath(path)} is not a JSON object`);
-  }
-}
+  if (!(yield* fs.exists(path).pipe(Effect.orElseSucceed(() => false))))
+    return {};
+
+  const text = yield* fs.readFileString(path).pipe(Effect.orDie);
+
+  return yield* Effect.try({
+    try: () => decodeJsonObject(JSON.parse(text)),
+    catch: () => new Error(`${displayPath(path)} is not a JSON object`),
+  }).pipe(Effect.orDie);
+});
 
 /**
  * Refresh spec-managed MCP permission gates and migrate legacy tool entries.
@@ -128,10 +133,9 @@ function mergePermissions(existing: MutableJsonConfig, spec: McpSyncSpec) {
 /** Build the full harness config object, preserving unrelated existing keys. */
 function buildHarnessConfig(
   harness: McpHarness,
-  path: string,
+  existing: MutableJsonConfig,
   spec: McpSyncSpec,
 ) {
-  const existing = readJsonObject(path);
   const config: MutableJsonConfig = { ...existing };
 
   if (harness === "opencode") {
@@ -205,8 +209,10 @@ export const mcpSync = Effect.gen(function* () {
   for (const harness of MCP_HARNESSES) {
     const dest = join(privateDotfiles, HARNESS_RELATIVE_PATH[harness]);
 
+    const existing = yield* readJsonObject(dest);
+
     const built = yield* Effect.sync(() =>
-      buildHarnessConfig(harness, dest, spec),
+      buildHarnessConfig(harness, existing, spec),
     );
 
     yield* Effect.sync(() =>

@@ -1,5 +1,4 @@
-import { Effect } from "effect";
-import { existsSync, readFileSync, unlinkSync } from "fs";
+import { Effect, FileSystem } from "effect";
 import { join } from "path";
 import { writeFileAtomic } from "../lib/atomicWrite.js";
 import { Config } from "../services/Config.js";
@@ -22,22 +21,21 @@ interface HarnessTarget {
 }
 
 /** Atomic write: mkdir -p, write to temp, rename over destination */
-function atomicWrite(dest: string, content: string): void {
-  // Remove broken symlinks at dest (rename won't overwrite them on all platforms)
-  try {
-    const stat = existsSync(dest);
+const atomicWrite = Effect.fn("AgentsSync.atomicWrite")(function* (
+  dest: string,
+  content: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
 
-    if (!stat) {
-      // lstatSync would tell us if it's a dangling symlink, but
-      // the simplest approach: unlink if the path entry exists but is unresolvable
-      unlinkSync(dest);
-    }
-  } catch {
-    // No existing file or symlink — nothing to remove
+  // Remove broken symlinks at dest (rename won't overwrite them on all platforms)
+  if (!(yield* fs.exists(dest))) {
+    yield* fs.remove(dest).pipe(Effect.ignore);
   }
 
-  writeFileAtomic(dest, content, { createDirectory: true });
-}
+  yield* Effect.sync(() =>
+    writeFileAtomic(dest, content, { createDirectory: true }),
+  );
+});
 
 // ---------------------------------------------------------------------------
 // Targets
@@ -91,6 +89,7 @@ const targets: readonly HarnessTarget[] = [cursorTarget, claudeTarget];
  */
 export const agentsSync = Effect.gen(function* () {
   yield* Config;
+  const fs = yield* FileSystem.FileSystem;
   const log = yield* OutputLog;
 
   yield* log.section("Agents Rules Sync");
@@ -99,13 +98,13 @@ export const agentsSync = Effect.gen(function* () {
     envString(ENV.DOT_AGENTS_SYNC_SOURCE) ??
     join(CONFIG_DIR, "opencode", "AGENTS.md");
 
-  if (!existsSync(source)) {
+  if (!(yield* fs.exists(source).pipe(Effect.orDie))) {
     yield* log.warn(`Skipped (missing source): ${displayPath(source)}`);
 
     return;
   }
 
-  const content = readFileSync(source, "utf-8");
+  const content = yield* fs.readFileString(source).pipe(Effect.orDie);
 
   const metadata: SyncMetadata = {
     source: displayPath(source),
@@ -116,7 +115,7 @@ export const agentsSync = Effect.gen(function* () {
     const dest = target.outputPath();
     const output = target.transform(content, metadata);
 
-    yield* Effect.sync(() => atomicWrite(dest, output));
+    yield* atomicWrite(dest, output);
     yield* log.success(
       `${cliStyler().accent(target.name)} ${cliStyler().dim(displayPath(dest))}`,
     );

@@ -1,6 +1,5 @@
-import { Effect } from "effect";
+import { Effect, FileSystem } from "effect";
 import { cliStyler } from "./ansi.js";
-import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { writeFileAtomic } from "./atomicWrite.js";
 import { Config } from "../services/Config.js";
@@ -8,6 +7,7 @@ import { OutputLog } from "../services/OutputLog.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "./paths.js";
 import { ENV, envString } from "./env.js";
 import { resolvedOmarchyHost } from "./omarchyHost.js";
+import { pathExists, readTextOrNull } from "./fsProbe.js";
 import {
   decodeJson,
   isBoolean,
@@ -441,14 +441,15 @@ export function mergeOmarchyShellConfig(
 export const applyOmarchyShellConfig: Effect.Effect<
   boolean,
   never,
-  Config | OutputLog
+  Config | OutputLog | FileSystem.FileSystem
 > = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
   const config = yield* Config;
   const log = yield* OutputLog;
 
   if (!config.omarchy.enabled) return false;
 
-  const host = resolvedOmarchyHost(config);
+  const host = yield* resolvedOmarchyHost(config);
 
   if (!host) {
     yield* log.info(
@@ -462,7 +463,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
 
   const omarchyDir = join(CONFIG_DIR, "omarchy");
 
-  if (!existsSync(omarchyDir)) {
+  if (!(yield* pathExists(omarchyDir))) {
     yield* log.info(
       cliStyler().dim(
         `Skipping Omarchy shell config (${displayPath(omarchyDir)} not found)`,
@@ -474,7 +475,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
 
   const defaultPath = omarchyDefaultShellConfigPath();
 
-  if (!existsSync(defaultPath)) {
+  if (!(yield* pathExists(defaultPath))) {
     yield* log.info(
       cliStyler().dim(
         `Skipping Omarchy shell config (no default at ${displayPath(defaultPath)}; pre-Omarchy 4?)`,
@@ -484,13 +485,17 @@ export const applyOmarchyShellConfig: Effect.Effect<
     return false;
   }
 
-  const parsed = yield* Effect.sync((): JsonValue | undefined => {
+  const defaultText = yield* readTextOrNull(defaultPath);
+
+  const parsed = ((): JsonValue | undefined => {
     try {
-      return decodeJson(JSON.parse(readFileSync(defaultPath, "utf-8")));
+      if (defaultText === null) return undefined;
+
+      return decodeJson(JSON.parse(defaultText));
     } catch {
       return undefined;
     }
-  });
+  })();
 
   if (parsed === undefined) {
     yield* log.warn(
@@ -513,15 +518,17 @@ export const applyOmarchyShellConfig: Effect.Effect<
     "omarchy-plugins.json",
   );
 
-  let managedPlugins = yield* Effect.sync((): ManagedPluginConfig | null => {
+  const managedPluginsText = yield* readTextOrNull(managedPluginsPath);
+
+  let managedPlugins = ((): ManagedPluginConfig | null => {
     try {
-      return parseManagedPlugins(
-        decodeJson(JSON.parse(readFileSync(managedPluginsPath, "utf-8"))),
-      );
+      if (managedPluginsText === null) return null;
+
+      return parseManagedPlugins(decodeJson(JSON.parse(managedPluginsText)));
     } catch {
       return null;
     }
-  });
+  })();
 
   if (managedPlugins === null) {
     yield* log.warn(
@@ -537,20 +544,22 @@ export const applyOmarchyShellConfig: Effect.Effect<
       "omarchy-plugins.json",
     );
 
-    if (existsSync(privateManagedPluginsPath)) {
-      const privateManagedPlugins = yield* Effect.sync(
-        (): ManagedPluginConfig | null => {
-          try {
-            return parseManagedPlugins(
-              decodeJson(
-                JSON.parse(readFileSync(privateManagedPluginsPath, "utf-8")),
-              ),
-            );
-          } catch {
-            return null;
-          }
-        },
+    if (yield* pathExists(privateManagedPluginsPath)) {
+      const privateManagedPluginsText = yield* readTextOrNull(
+        privateManagedPluginsPath,
       );
+
+      const privateManagedPlugins = ((): ManagedPluginConfig | null => {
+        try {
+          if (privateManagedPluginsText === null) return null;
+
+          return parseManagedPlugins(
+            decodeJson(JSON.parse(privateManagedPluginsText)),
+          );
+        } catch {
+          return null;
+        }
+      })();
 
       if (privateManagedPlugins === null) {
         yield* log.warn(
@@ -573,8 +582,8 @@ export const applyOmarchyShellConfig: Effect.Effect<
 
   const rendered = `${JSON.stringify(merged, null, 2)}\n`;
 
-  const existing = existsSync(target)
-    ? yield* Effect.sync(() => readFileSync(target, "utf-8"))
+  const existing = (yield* pathExists(target))
+    ? yield* fs.readFileString(target).pipe(Effect.orDie)
     : null;
 
   if (existing === rendered) {

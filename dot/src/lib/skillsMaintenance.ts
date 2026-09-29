@@ -1,5 +1,4 @@
-import { Effect, Schema } from "effect";
-import { existsSync, mkdirSync, rmSync } from "fs";
+import { Effect, FileSystem, Schema } from "effect";
 import { dirname, join } from "path";
 import { HOME_DIR } from "./paths.js";
 import {
@@ -9,6 +8,7 @@ import {
 } from "./buildStamp.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
+import { pathExists } from "./fsProbe.js";
 
 /** Failure while building the installed skill-maintenance executable. */
 export class SkillsMaintenanceBuildError extends Schema.TaggedError<SkillsMaintenanceBuildError>()(
@@ -16,17 +16,19 @@ export class SkillsMaintenanceBuildError extends Schema.TaggedError<SkillsMainte
   { message: Schema.String },
 ) {}
 
-/** Resolve the preferred standalone skills source. */
-export function skillsMaintenanceSource(
-  publicDotfiles: string,
-  home = HOME_DIR,
-): string {
-  const writable = join(home, "repos", "skills");
+const buildError = (error: { readonly message: string }) =>
+  new SkillsMaintenanceBuildError({ message: error.message });
 
-  return existsSync(join(writable, "src", "index.ts"))
-    ? writable
-    : join(publicDotfiles, "agents", ".agents", "skills");
-}
+/** Resolve the preferred standalone skills source. */
+export const skillsMaintenanceSource = Effect.fn("SkillsMaintenance.source")(
+  function* (publicDotfiles: string, home = HOME_DIR) {
+    const writable = join(home, "repos", "skills");
+
+    return (yield* pathExists(join(writable, "src", "index.ts")))
+      ? writable
+      : join(publicDotfiles, "agents", ".agents", "skills");
+  },
+);
 
 /**
  * Compile and atomically install the standalone skill-maintenance executable,
@@ -35,7 +37,8 @@ export function skillsMaintenanceSource(
 export const buildSkillsMaintenance = Effect.gen(function* () {
   const config = yield* Config;
   const executor = yield* CommandExecutor;
-  const source = skillsMaintenanceSource(config.publicDotfiles);
+  const fs = yield* FileSystem.FileSystem;
+  const source = yield* skillsMaintenanceSource(config.publicDotfiles);
   const entrypoint = join(source, "src", "index.ts");
 
   const target = join(
@@ -48,7 +51,7 @@ export const buildSkillsMaintenance = Effect.gen(function* () {
 
   const temporary = `${target}.new`;
 
-  if (!existsSync(entrypoint)) {
+  if (!(yield* pathExists(entrypoint))) {
     return yield* new SkillsMaintenanceBuildError({
       message: `Skill maintenance source is unavailable: ${entrypoint}`,
     });
@@ -56,12 +59,14 @@ export const buildSkillsMaintenance = Effect.gen(function* () {
 
   const buildKey = yield* sourceBuildKey(source);
 
-  if (isBuildCurrent(target, buildKey)) return { target, built: false };
+  if (yield* isBuildCurrent(target, buildKey)) return { target, built: false };
 
-  yield* Effect.sync(() => {
-    mkdirSync(dirname(target), { recursive: true });
-    rmSync(temporary, { force: true });
-  });
+  yield* fs
+    .makeDirectory(dirname(target), { recursive: true })
+    .pipe(
+      Effect.andThen(fs.remove(temporary, { force: true })),
+      Effect.mapError(buildError),
+    );
 
   const installCode = yield* executor.inherit(
     "bun",
@@ -82,14 +87,18 @@ export const buildSkillsMaintenance = Effect.gen(function* () {
   );
 
   if (buildCode !== 0) {
-    yield* Effect.sync(() => rmSync(temporary, { force: true }));
+    yield* fs
+      .remove(temporary, { force: true })
+      .pipe(Effect.mapError(buildError));
 
     return yield* new SkillsMaintenanceBuildError({
       message: `Skill-maintenance build exited ${buildCode}`,
     });
   }
 
-  yield* Effect.sync(() => installCompiledBinary(temporary, target, buildKey));
+  yield* installCompiledBinary(temporary, target, buildKey).pipe(
+    Effect.mapError(buildError),
+  );
 
   return { target, built: true };
 });

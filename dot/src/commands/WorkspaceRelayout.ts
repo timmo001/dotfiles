@@ -1,12 +1,4 @@
-import { Cause, Effect, Option, Schema } from "effect";
-import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  realpathSync,
-  rmSync,
-  writeFileSync,
-} from "fs";
+import { Cause, Effect, FileSystem, Option, Schema } from "effect";
 import { tmpdir } from "os";
 import { join } from "path";
 import { writeFileAtomic } from "../lib/atomicWrite.js";
@@ -555,27 +547,45 @@ function presetsPath(): string {
   );
 }
 
-function loadPresets(path: string): PresetsFile {
-  try {
-    return decodePresets(JSON.parse(readFileSync(path, "utf8")));
-  } catch (error) {
-    if (error instanceof WorkspaceRelayoutError) throw error;
+const loadPresets = Effect.fn("workspaceRelayout.loadPresets")(function* (
+  path: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
 
-    return fail(
-      `Could not read presets: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-}
+  const source = yield* fs.readFileString(path).pipe(
+    Effect.mapError(
+      (error) =>
+        new WorkspaceRelayoutError({
+          message: `Could not read presets: ${error.message}`,
+        }),
+    ),
+    Effect.orDie,
+  );
+
+  return yield* Effect.try({
+    try: () => decodePresets(JSON.parse(source)),
+    catch: (error) =>
+      error instanceof WorkspaceRelayoutError
+        ? error
+        : new WorkspaceRelayoutError({
+            message: `Could not read presets: ${error instanceof Error ? error.message : String(error)}`,
+          }),
+  }).pipe(Effect.orDie);
+});
 
 /** Atomically replace preset contents while preserving a stowed symlink. */
-export function savePresetsAtomically(
-  path: string,
-  presets: PresetsFile,
-): void {
-  writeFileAtomic(realpathSync(path), `${JSON.stringify(presets, null, 2)}\n`, {
-    mode: 0o644,
-  });
-}
+export const savePresetsAtomically = Effect.fn("workspaceRelayout.savePresets")(
+  function* (path: string, presets: PresetsFile) {
+    const fs = yield* FileSystem.FileSystem;
+    const target = yield* fs.realPath(path).pipe(Effect.orDie);
+
+    yield* Effect.sync(() =>
+      writeFileAtomic(target, `${JSON.stringify(presets, null, 2)}\n`, {
+        mode: 0o644,
+      }),
+    );
+  },
+);
 
 function tempWorkspace(): number {
   const raw = process.env.WORKSPACE_RELAYOUT_TEMP_WS;
@@ -620,6 +630,7 @@ function commandAvailable(command: string): boolean {
 export const workspaceRelayout = Effect.fn("workspaceRelayout")(
   function* (options: { readonly edit: boolean }) {
     const executor = yield* CommandExecutor;
+    const fs = yield* FileSystem.FileSystem;
 
     const notify = (title: string, message: string) =>
       executor
@@ -696,7 +707,7 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
       }
 
       const path = presetsPath();
-      const presets = loadPresets(path);
+      const presets = yield* loadPresets(path);
       const count = String(clients.length);
       const available = presets.layouts[count] ?? [];
 
@@ -716,54 +727,60 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
             Effect.orElseSucceed(() => ""),
           );
 
-      const pickLayout = (prompt: string, choices: readonly string[]) => {
-        const directory = mkdtempSync(join(tmpdir(), "workspace-relayout-"));
+      const pickLayout = (prompt: string, choices: readonly string[]) =>
+        Effect.gen(function* () {
+          const directory = yield* fs
+            .makeTempDirectory({
+              directory: tmpdir(),
+              prefix: "workspace-relayout-",
+            })
+            .pipe(Effect.orDie);
 
-        return Effect.gen(function* () {
-          const selectionFile = join(directory, "selection");
-          const doneFile = join(directory, "done");
-          writeFileSync(selectionFile, "");
+          return yield* Effect.gen(function* () {
+            const selectionFile = join(directory, "selection");
+            const doneFile = join(directory, "done");
+            yield* fs.writeFileString(selectionFile, "").pipe(Effect.orDie);
 
-          const summoned = yield* executor
-            .run("omarchy-shell", [
-              "shell",
-              "summon",
-              PICKER_PLUGIN,
-              JSON.stringify({
-                prompt,
-                options: [...choices],
-                selectionFile,
-                doneFile,
-                width: 460,
-                maxHeight: 360,
-              }),
-            ])
-            .pipe(
-              Effect.map((output) => output.trim()),
-              Effect.orElseSucceed(() => ""),
+            const summoned = yield* executor
+              .run("omarchy-shell", [
+                "shell",
+                "summon",
+                PICKER_PLUGIN,
+                JSON.stringify({
+                  prompt,
+                  options: [...choices],
+                  selectionFile,
+                  doneFile,
+                  width: 460,
+                  maxHeight: 360,
+                }),
+              ])
+              .pipe(
+                Effect.map((output) => output.trim()),
+                Effect.orElseSucceed(() => ""),
+              );
+
+            if (summoned !== "ok") {
+              return fail("Workspace relayout picker is not available");
+            }
+
+            while (!(yield* fs.exists(doneFile).pipe(Effect.orDie))) {
+              yield* Effect.sleep("50 millis");
+            }
+
+            return parsePickerChoice(
+              (yield* fs.exists(selectionFile).pipe(Effect.orDie))
+                ? yield* fs.readFileString(selectionFile).pipe(Effect.orDie)
+                : "",
             );
-
-          if (summoned !== "ok") {
-            return fail("Workspace relayout picker is not available");
-          }
-
-          while (!existsSync(doneFile)) {
-            yield* Effect.sleep("50 millis");
-          }
-
-          return parsePickerChoice(
-            existsSync(selectionFile)
-              ? readFileSync(selectionFile, "utf8")
-              : "",
-          );
-        }).pipe(
-          Effect.ensuring(
-            Effect.sync(() =>
-              rmSync(directory, { recursive: true, force: true }),
+          }).pipe(
+            Effect.ensuring(
+              fs
+                .remove(directory, { recursive: true, force: true })
+                .pipe(Effect.ignore),
             ),
-          ),
-        );
-      };
+          );
+        });
 
       const input = (prompt: string, fallback: string) =>
         executor.run("omarchy-menu-input", [prompt, "--width", "460"]).pipe(
@@ -795,7 +812,7 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
           );
 
           presets.layouts[count] = [...available, { group, name, tree }];
-          savePresetsAtomically(path, presets);
+          yield* savePresetsAtomically(path, presets);
           yield* notify(title, `Added ${name}`);
 
           return;
@@ -825,7 +842,7 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
             ...available,
             { group: selectedGroup, name, tree },
           ];
-          savePresetsAtomically(path, presets);
+          yield* savePresetsAtomically(path, presets);
           yield* notify(title, `Added ${name}`);
 
           return;
@@ -837,7 +854,7 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
           return fail("The selected layout is no longer available");
         const selected = inGroup[selectedIndex];
         selected.tree = tree;
-        savePresetsAtomically(path, presets);
+        yield* savePresetsAtomically(path, presets);
         yield* notify(title, `Updated ${selected.name}`);
 
         return;

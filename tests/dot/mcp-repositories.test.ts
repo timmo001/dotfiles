@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { Effect, Layer } from "../../dot/node_modules/effect/dist/index.js";
+import { NodeServices } from "../../dot/node_modules/@effect/platform-node/dist/index.js";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -67,16 +68,24 @@ servers:
     enabled:
       opencode: true
 `);
-  const mcpConfig = loadMcpConfig(specFile);
+  const mcpConfigEffect = loadMcpConfig(specFile).pipe(Effect.provide(NodeServices.layer));
 
-  const sync = (enabled: boolean) => Effect.runPromise(syncRepoMcpConfigs.pipe(
+  const sync = async (enabled: boolean) => {
+    const mcpConfig = await Effect.runPromise(mcpConfigEffect);
+
+    return Effect.runPromise(syncRepoMcpConfigs.pipe(
     Effect.provide(CommandExecutor.layer),
+    Effect.provide(NodeServices.layer),
     Effect.provide(Layer.mock(Config, { gitConfig: config(enabled), mcpConfig, stateDir })),
     Effect.provide(Layer.mock(OutputLog, { info: () => Effect.void, warn: () => Effect.void })),
-  ));
+  )); };
 
-  const syncGlobal = () => Effect.runPromise(mcpSync.pipe(
+  const syncGlobal = async () => {
+    const mcpConfig = await Effect.runPromise(mcpConfigEffect);
+
+    return Effect.runPromise(mcpSync.pipe(
     Effect.provide(CommandExecutor.layer),
+    Effect.provide(NodeServices.layer),
     Effect.provide(Layer.mock(Config, {
       gitConfig: config(true), mcpConfig, stateDir,
       canUsePrivate: true, privateDotfiles: directory,
@@ -84,7 +93,7 @@ servers:
     Effect.provide(Layer.mock(OutputLog, {
       section: () => Effect.void, info: () => Effect.void, success: () => Effect.void, warn: () => Effect.void,
     })),
-  ));
+  )); };
 
   return { directory, target, sync, syncGlobal };
 }

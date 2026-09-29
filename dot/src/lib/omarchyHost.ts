@@ -1,18 +1,12 @@
-import { Effect } from "effect";
+import { Effect, FileSystem, Match, PlatformError } from "effect";
 import { cliStyler } from "./ansi.js";
-import {
-  existsSync,
-  lstatSync,
-  readlinkSync,
-  renameSync,
-  symlinkSync,
-  unlinkSync,
-} from "fs";
 import { homedir } from "os";
 import { dirname, join, relative, resolve } from "path";
+
 import type { ConfigService } from "../services/Config.js";
 import type { OutputLogService } from "../services/OutputLog.js";
-import { gitRemoteOriginSync, isGitRepo } from "./git.js";
+import { gitRemoteOrigin, isGitRepo } from "./git.js";
+import { pathExists, readLinkOrNull } from "./fsProbe.js";
 import { displayPath } from "./paths.js";
 import { ENV, envString } from "./env.js";
 
@@ -29,26 +23,25 @@ export function currentOmarchyHost(): string | null {
 }
 
 /** Return the active host selected by `~/.config/hypr/host`, if available. */
-export function currentHyprHostLink(config: ConfigService): string | null {
-  const hostLink = join(hyprRepoPath(config), "host");
+export const currentHyprHostLink = Effect.fn("OmarchyHost.currentHyprHostLink")(
+  function* (config: ConfigService) {
+    const hostLink = join(hyprRepoPath(config), "host");
+    const linkTarget = yield* readLinkOrNull(hostLink);
 
-  try {
-    const stat = lstatSync(hostLink);
-
-    if (!stat.isSymbolicLink()) return null;
-    const target = resolveLinkTarget(hostLink, readlinkSync(hostLink));
+    if (linkTarget === null) return null;
+    const target = resolveLinkTarget(hostLink, linkTarget);
     const host = relative(join(hyprRepoPath(config), "hosts"), target);
 
     return host && !host.startsWith("..") && !host.includes("/") ? host : null;
-  } catch {
-    return null;
-  }
-}
+  },
+);
 
 /** Resolve the active Omarchy host from the session env, then the Hypr host link. */
-export function resolvedOmarchyHost(config: ConfigService): string | null {
-  return currentOmarchyHost() ?? currentHyprHostLink(config);
-}
+export const resolvedOmarchyHost = Effect.fn("OmarchyHost.resolvedOmarchyHost")(
+  function* (config: ConfigService) {
+    return currentOmarchyHost() ?? (yield* currentHyprHostLink(config));
+  },
+);
 
 /** Return the base Hypr repository path from the Omarchy repo config. */
 export function hyprRepoPath(config: ConfigService): string {
@@ -75,21 +68,23 @@ export interface LegacyHyprRepo {
  * {@link LEGACY_HYPR_REPO_SLUG} at `~/.config/hypr` must back it up before stow
  * can take over. Used by the doctor check and the `dot update` migration halt.
  */
-export function detectLegacyHyprRepo(config: ConfigService): LegacyHyprRepo {
+export const detectLegacyHyprRepo = Effect.fn(
+  "OmarchyHost.detectLegacyHyprRepo",
+)(function* (config: ConfigService) {
   const repoPath = hyprRepoPath(config);
 
-  if (!isGitRepo(repoPath)) {
-    return { present: false, repoPath, remote: "" };
+  if (!(yield* isGitRepo(repoPath))) {
+    return { present: false, repoPath, remote: "" } satisfies LegacyHyprRepo;
   }
 
-  const remote = gitRemoteOriginSync(repoPath);
+  const remote = yield* gitRemoteOrigin(repoPath);
 
   return {
     present: remote.includes(LEGACY_HYPR_REPO_SLUG),
     repoPath,
     remote,
-  };
-}
+  } satisfies LegacyHyprRepo;
+});
 
 type HostLinkStatus =
   "missing" | "ok" | "repair" | "not-symlink" | "inspect-failed";
@@ -136,85 +131,114 @@ const hostLinkActions = {
   ) => HostLinkAction
 >;
 
-function isMissingLinkError(cause: unknown): boolean {
-  return cause instanceof Error && cause.message.includes("ENOENT");
-}
+type LinkReadFailure = "missing" | "not-symlink" | "inspect-failed";
 
-function inspectErrorStatus(cause: unknown): HostLinkTarget {
-  if (isMissingLinkError(cause)) return { status: "missing" };
+const linkInspectionTypeByFailure = {
+  missing: "missing",
+  "not-symlink": "different",
+  "inspect-failed": "unreadable",
+} as const satisfies Record<LinkReadFailure, LinkInspection["type"]>;
 
-  return { status: "inspect-failed" };
-}
+const readLinkFailureStatus = Effect.fn("OmarchyHost.readLinkFailureStatus")(
+  function* (linkPath: string, error: PlatformError.PlatformError) {
+    const known = Match.value(error.reason._tag).pipe(
+      Match.when("NotFound", () => "missing" as const),
+      Match.when("PermissionDenied", () => "inspect-failed" as const),
+      Match.orElse(() => undefined),
+    );
 
-function readHostLinkTarget(hostLink: string): HostLinkTarget {
-  try {
-    const stat = lstatSync(hostLink);
+    if (known) return known;
 
-    if (!stat.isSymbolicLink()) return { status: "not-symlink" };
+    const fallback: LinkReadFailure = (yield* pathExists(linkPath))
+      ? "not-symlink"
+      : "inspect-failed";
 
-    return {
-      status: "target",
-      target: resolveLinkTarget(hostLink, readlinkSync(hostLink)),
-    };
-  } catch (error) {
-    return inspectErrorStatus(error);
-  }
-}
+    return fallback;
+  },
+);
 
-function inspectHostLink(hostLink: string, hostDir: string): HostLinkStatus {
-  const link = readHostLinkTarget(hostLink);
+const readHostLinkTarget = Effect.fn("OmarchyHost.readHostLinkTarget")(
+  function* (hostLink: string) {
+    const fs = yield* FileSystem.FileSystem;
+
+    return yield* fs.readLink(hostLink).pipe(
+      Effect.map((target): HostLinkTarget => ({
+        status: "target",
+        target: resolveLinkTarget(hostLink, target),
+      })),
+      Effect.catch((error) =>
+        readLinkFailureStatus(hostLink, error).pipe(
+          Effect.map((status): HostLinkTarget => ({ status })),
+        ),
+      ),
+    );
+  },
+);
+
+const inspectHostLink = Effect.fn("OmarchyHost.inspectHostLink")(function* (
+  hostLink: string,
+  hostDir: string,
+) {
+  const link = yield* readHostLinkTarget(hostLink);
 
   if (link.status !== "target") return link.status;
 
   return link.target === hostDir ? "ok" : "repair";
-}
+});
 
 function requestedOmarchyHost(hostOverride?: string): string | null {
   return hostOverride?.trim() || currentOmarchyHost();
 }
 
-function hostLinkRequestForHost(
-  config: ConfigService,
-  host: string,
-): HostLinkRequest {
-  const repoPath = hyprRepoPath(config);
-  const hostDir = join(repoPath, "hosts", host);
+const hostLinkRequestForHost = Effect.fn("OmarchyHost.hostLinkRequestForHost")(
+  function* (config: ConfigService, host: string) {
+    const repoPath = hyprRepoPath(config);
+    const hostDir = join(repoPath, "hosts", host);
 
-  return existsSync(hostDir)
-    ? { status: "ensure", host, hostDir, hostLink: join(repoPath, "host") }
-    : {
+    return (yield* pathExists(hostDir))
+      ? ({
+          status: "ensure",
+          host,
+          hostDir,
+          hostLink: join(repoPath, "host"),
+        } satisfies HostLinkRequest)
+      : ({
+          status: "skip",
+          message: `Skipping Hypr host link (missing ${displayPath(hostDir)})`,
+        } satisfies HostLinkRequest);
+  },
+);
+
+const hyprHostLinkRequest = Effect.fn("OmarchyHost.hyprHostLinkRequest")(
+  function* (config: ConfigService, hostOverride?: string) {
+    if (!config.omarchy.enabled) {
+      return { status: "disabled" } satisfies HostLinkRequest;
+    }
+
+    const host = requestedOmarchyHost(hostOverride);
+
+    if (!host) {
+      return {
         status: "skip",
-        message: `Skipping Hypr host link (missing ${displayPath(hostDir)})`,
-      };
-}
+        message: "Skipping Hypr host link (OMARCHY_HOST is unset)",
+      } satisfies HostLinkRequest;
+    }
 
-function hyprHostLinkRequest(
-  config: ConfigService,
-  hostOverride?: string,
-): HostLinkRequest {
-  if (!config.omarchy.enabled) return { status: "disabled" };
-
-  const host = requestedOmarchyHost(hostOverride);
-
-  if (!host) {
-    return {
-      status: "skip",
-      message: "Skipping Hypr host link (OMARCHY_HOST is unset)",
-    };
-  }
-
-  return hostLinkRequestForHost(config, host);
-}
+    return yield* hostLinkRequestForHost(config, host);
+  },
+);
 
 const updateHyprHostLink = (
   request: Extract<HostLinkRequest, { readonly status: "ensure" }>,
   log: Pick<OutputLogService, "info" | "success" | "warn">,
 ) =>
   Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+
     const action =
-      hostLinkActions[inspectHostLink(request.hostLink, request.hostDir)](
-        request,
-      );
+      hostLinkActions[
+        yield* inspectHostLink(request.hostLink, request.hostDir)
+      ](request);
 
     if (action.kind === "ok") {
       yield* log.info(cliStyler().dim(action.message));
@@ -229,10 +253,10 @@ const updateHyprHostLink = (
     }
 
     if (action.kind === "repair") {
-      unlinkSync(request.hostLink);
+      yield* fs.remove(request.hostLink).pipe(Effect.orDie);
     }
 
-    symlinkSync(request.hostDir, request.hostLink, "dir");
+    yield* fs.symlink(request.hostDir, request.hostLink).pipe(Effect.orDie);
     yield* log.success(
       `Hypr host link set (${displayPath(request.hostLink)} -> hosts/${request.host})`,
     );
@@ -276,17 +300,18 @@ export const ensureHyprConfigLink = (
   log: Pick<OutputLogService, "info" | "success" | "warn">,
 ) =>
   Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
     const home = homedir();
     const linkPath = join(home, HYPR_CONFIG_REL);
     const sourceFile = join(repoDir, "hypr", HYPR_CONFIG_REL);
 
-    if (!existsSync(sourceFile)) return;
+    if (!(yield* pathExists(sourceFile))) return;
 
-    if (!existsSync(dirname(linkPath))) return;
+    if (!(yield* pathExists(dirname(linkPath)))) return;
 
     const linkContent = stowLinkContent(home, linkPath, sourceFile);
 
-    const currentLink = inspectLink(linkPath, linkContent);
+    const currentLink = yield* inspectLink(linkPath, linkContent);
 
     if (currentLink.type === "matching") return;
 
@@ -299,9 +324,9 @@ export const ensureHyprConfigLink = (
     }
 
     const tmpLink = `${linkPath}.dot-${process.pid}`;
-    removeIfPresent(tmpLink);
-    symlinkSync(linkContent, tmpLink);
-    renameSync(tmpLink, linkPath);
+    yield* fs.remove(tmpLink).pipe(Effect.ignore);
+    yield* fs.symlink(linkContent, tmpLink).pipe(Effect.orDie);
+    yield* fs.rename(tmpLink, linkPath).pipe(Effect.orDie);
     yield* log.success(
       `Repaired Hypr config link (${displayPath(linkPath)} -> hyprland.lua)`,
     );
@@ -311,32 +336,25 @@ interface LinkInspection {
   readonly type: "matching" | "different" | "missing" | "unreadable";
 }
 
-function inspectLink(
+const inspectLink = Effect.fn("OmarchyHost.inspectLink")(function* (
   linkPath: string,
   expectedContent: string,
-): LinkInspection {
-  try {
-    const stat = lstatSync(linkPath);
+) {
+  const fs = yield* FileSystem.FileSystem;
 
-    if (stat.isSymbolicLink() && readlinkSync(linkPath) === expectedContent) {
-      return { type: "matching" };
-    }
-
-    return { type: "different" };
-  } catch (error) {
-    return isMissingLinkError(error)
-      ? { type: "missing" }
-      : { type: "unreadable" };
-  }
-}
-
-function removeIfPresent(path: string): void {
-  try {
-    unlinkSync(path);
-  } catch {
-    // No stale temp link to clear.
-  }
-}
+  return yield* fs.readLink(linkPath).pipe(
+    Effect.map((content): LinkInspection => ({
+      type: content === expectedContent ? "matching" : "different",
+    })),
+    Effect.catch((error) =>
+      readLinkFailureStatus(linkPath, error).pipe(
+        Effect.map((status): LinkInspection => ({
+          type: linkInspectionTypeByFailure[status],
+        })),
+      ),
+    ),
+  );
+});
 
 /** Create or repair the host-selected Hypr config symlink used by one-branch config. */
 export const ensureHyprHostLink = (
@@ -345,7 +363,7 @@ export const ensureHyprHostLink = (
   opts?: { readonly host?: string },
 ) =>
   Effect.gen(function* () {
-    const request = hyprHostLinkRequest(config, opts?.host);
+    const request = yield* hyprHostLinkRequest(config, opts?.host);
 
     if (request.status === "disabled") return;
 

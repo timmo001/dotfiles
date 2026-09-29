@@ -1,5 +1,4 @@
-import { Effect, Option } from "effect";
-import { writeFileSync } from "fs";
+import { Effect, FileSystem, Option } from "effect";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -67,6 +66,7 @@ function formatReport(report: DoctorReport): string {
 export const doctor = () =>
   Effect.gen(function* () {
     const config = yield* Config;
+    const fs = yield* FileSystem.FileSystem;
     const log = yield* OutputLog;
     const style = cliStyler();
 
@@ -181,7 +181,9 @@ export const doctor = () =>
 
     // Write report to file
     const reportPath = join(config.logDir, `doctor-${report.timestamp}.log`);
-    writeFileSync(reportPath, formatReport(report));
+    yield* fs
+      .writeFileString(reportPath, formatReport(report))
+      .pipe(Effect.orDie);
 
     // Final summary
     const passed = report.sections.reduce(

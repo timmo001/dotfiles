@@ -24,7 +24,7 @@ export const Dependency = Schema.Struct({
 });
 
 /** Decoded dependency occurrence. */
-export interface Dependency extends Schema.Schema.Type<typeof Dependency> {}
+export type Dependency = typeof Dependency.Type;
 
 /** Provider release metadata, decoded before version selection. */
 export const Release = Schema.Struct({
@@ -34,7 +34,7 @@ export const Release = Schema.Struct({
 });
 
 /** Decoded provider release. */
-export interface Release extends Schema.Schema.Type<typeof Release> {}
+export type Release = typeof Release.Type;
 
 /** Metadata shared by all occurrences of one upstream dependency. */
 export const Releases = Schema.Struct({
@@ -45,7 +45,7 @@ export const Releases = Schema.Struct({
 });
 
 /** Decoded version lookup. */
-export interface Releases extends Schema.Schema.Type<typeof Releases> {}
+export type Releases = typeof Releases.Type;
 
 /** Immutable tree entry; gitlinks are never traversed. */
 export const TreeEntry = Schema.Struct({
@@ -56,7 +56,7 @@ export const TreeEntry = Schema.Struct({
 });
 
 /** Decoded tree entry. */
-export interface TreeEntry extends Schema.Schema.Type<typeof TreeEntry> {}
+export type TreeEntry = typeof TreeEntry.Type;
 
 /** Pinned repository inputs, never read from the caller's mutable branch. */
 export interface Snapshot {

@@ -1,10 +1,9 @@
 import { Effect } from "effect";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { ENV, envString } from "./env.js";
 
 let sudoKeepAliveActive = false;
-
-type KeepAliveProcess = Pick<Bun.Subprocess, "kill">;
 
 function isRoot(): boolean {
   return process.getuid?.() === 0;
@@ -54,45 +53,50 @@ export function chooseElevationBinary(
 /** Prompt once for sudo and keep the credential alive for the scoped effect. */
 export function withSudoKeepAlive<E, R>(
   effect: Effect.Effect<void, E, R>,
-): Effect.Effect<void, E, R | CommandExecutor> {
+): Effect.Effect<
+  void,
+  E,
+  R | CommandExecutor | ChildProcessSpawner.ChildProcessSpawner
+> {
   if (isRoot()) return effect;
 
-  return Effect.acquireUseRelease(
-    Effect.gen(function* () {
-      const executor = yield* CommandExecutor;
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
 
-      if ((yield* executor.exitCode("which", ["sudo"])) !== 0) return null;
+    if ((yield* executor.exitCode("which", ["sudo"])) !== 0)
+      return yield* effect;
 
-      const exitCode = yield* executor.inherit("sudo", ["-v"]);
+    const exitCode = yield* executor.inherit("sudo", ["-v"]);
 
-      if (exitCode !== 0) return null;
+    if (exitCode !== 0) return yield* effect;
 
-      sudoKeepAliveActive = true;
+    return yield* Effect.scoped(
+      Effect.gen(function* () {
+        yield* Effect.acquireRelease(
+          Effect.sync(() => {
+            sudoKeepAliveActive = true;
+          }),
+          () =>
+            Effect.sync(() => {
+              sudoKeepAliveActive = false;
+            }),
+        );
 
-      return Bun.spawn(
-        ["sh", "-c", "while true; do sudo -n true; sleep 60; done"],
-        {
-          stdin: "ignore",
-          stdout: "ignore",
-          stderr: "ignore",
-        },
-      );
-    }),
-    () => effect,
-    (keepAlive) =>
-      Effect.sync(() => {
-        sudoKeepAliveActive = false;
-        killKeepAlive(keepAlive);
+        yield* spawner
+          .spawn(
+            ChildProcess.make(
+              "sh",
+              ["-c", "while true; do sudo -n true; sleep 60; done"],
+              { stdin: "ignore", stdout: "ignore", stderr: "ignore" },
+            ),
+          )
+          .pipe(Effect.orDie);
+
+        return yield* effect;
       }),
-  );
-}
-
-function killKeepAlive(keepAlive: KeepAliveProcess | null): void {
-  try {
-    keepAlive?.kill();
-  } catch {
-    // The keepalive process may have already exited if sudo validation expired.
-  }
+    );
+  });
 }
 
 /** Resolve a command through pkexec/sudo when the current process is not root. */

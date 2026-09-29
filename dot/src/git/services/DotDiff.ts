@@ -1,14 +1,21 @@
-import { Clock, Context, Duration, Effect, Layer, Schema } from "effect";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { NodeServices } from "@effect/platform-node";
+import {
+  Clock,
+  Context,
+  Duration,
+  Effect,
+  FileSystem,
+  Layer,
+  Schema,
+} from "effect";
 import { join } from "path";
 import { createHash } from "crypto";
 import type { DiffRepo, Repo, RepoCategory } from "../../types.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { OutputLog } from "../../services/OutputLog.js";
-import { RetryBackoff } from "../../services/RetryBackoff.js";
 import {
-  gitCurrentBranchSync,
+  gitCurrentBranch,
   gitRemoteOutput,
   isGitRepo,
   isRemoteTimeout,
@@ -42,62 +49,69 @@ const FETCH_CACHE_DIR = join(CACHE_DIR, "dot", "fetch-upstream");
 /** Repositories scanned at once; each may fetch from its remote. */
 const SCAN_CONCURRENCY = 8;
 
-/** Check if a fetch is needed based on TTL cache */
-function shouldFetch(
-  repoPath: string,
-  upstreamRef: string,
-  nowSeconds: number,
-): boolean {
-  if (FETCH_TTL_SECONDS <= 0) return true;
-
-  mkdirSync(FETCH_CACHE_DIR, { recursive: true });
-
+/** Path of the TTL cache entry for a repository's upstream ref */
+function fetchCacheFile(repoPath: string, upstreamRef: string): string {
   const cacheKey = createHash("sha1")
     .update(`${repoPath}\n${upstreamRef}\n`)
     .digest("hex");
 
-  const cacheFile = join(FETCH_CACHE_DIR, cacheKey);
-
-  try {
-    const lastAttempt = parseInt(readFileSync(cacheFile, "utf-8").trim(), 10);
-
-    if (!isNaN(lastAttempt)) {
-      if (nowSeconds - lastAttempt < FETCH_TTL_SECONDS) {
-        log(
-          `${repoPath}: fetch cache hit (${nowSeconds - lastAttempt}s < ${FETCH_TTL_SECONDS}s TTL)`,
-        );
-
-        return false;
-      }
-    }
-  } catch {
-    // Cache miss or unreadable — proceed with fetch
-  }
-
-  return true;
+  return join(FETCH_CACHE_DIR, cacheKey);
 }
 
-/** Record a fetch attempt timestamp in the TTL cache */
-function recordFetch(
+/** Check if a fetch is needed based on TTL cache */
+const shouldFetch = Effect.fn("DotDiff.shouldFetch")(function* (
   repoPath: string,
   upstreamRef: string,
   nowSeconds: number,
-): void {
+) {
+  if (FETCH_TTL_SECONDS <= 0) return true;
+
+  const fs = yield* FileSystem.FileSystem;
+
+  yield* fs
+    .makeDirectory(FETCH_CACHE_DIR, { recursive: true })
+    .pipe(Effect.orDie);
+
+  const lastAttempt = yield* fs
+    .readFileString(fetchCacheFile(repoPath, upstreamRef))
+    .pipe(
+      Effect.map((content) => parseInt(content.trim(), 10)),
+      // Cache miss or unreadable — proceed with fetch
+      Effect.orElseSucceed(() => NaN),
+    );
+
+  if (!isNaN(lastAttempt) && nowSeconds - lastAttempt < FETCH_TTL_SECONDS) {
+    log(
+      `${repoPath}: fetch cache hit (${nowSeconds - lastAttempt}s < ${FETCH_TTL_SECONDS}s TTL)`,
+    );
+
+    return false;
+  }
+
+  return true;
+});
+
+/** Record a fetch attempt timestamp in the TTL cache */
+const recordFetch = Effect.fn("DotDiff.recordFetch")(function* (
+  repoPath: string,
+  upstreamRef: string,
+  nowSeconds: number,
+) {
   if (FETCH_TTL_SECONDS <= 0) return;
 
-  try {
-    mkdirSync(FETCH_CACHE_DIR, { recursive: true });
+  const fs = yield* FileSystem.FileSystem;
 
-    const cacheKey = createHash("sha1")
-      .update(`${repoPath}\n${upstreamRef}\n`)
-      .digest("hex");
-
-    const cacheFile = join(FETCH_CACHE_DIR, cacheKey);
-    writeFileSync(cacheFile, `${nowSeconds}\n`);
-  } catch {
+  yield* fs.makeDirectory(FETCH_CACHE_DIR, { recursive: true }).pipe(
+    Effect.andThen(
+      fs.writeFileString(
+        fetchCacheFile(repoPath, upstreamRef),
+        `${nowSeconds}\n`,
+      ),
+    ),
     // Non-fatal — cache write failure doesn't block diff
-  }
-}
+    Effect.ignore,
+  );
+});
 
 /** Record a repository's upstream as freshly fetched so scans skip fetching it again. */
 export const recordUpstreamFetch = Effect.fn("DotDiff.recordUpstreamFetch")(
@@ -113,7 +127,7 @@ export const recordUpstreamFetch = Effect.fn("DotDiff.recordUpstreamFetch")(
     if (!trimmedRef) return;
 
     const nowSeconds = Math.floor((yield* Clock.currentTimeMillis) / 1000);
-    recordFetch(repoPath, trimmedRef, nowSeconds);
+    yield* recordFetch(repoPath, trimmedRef, nowSeconds);
   },
 );
 
@@ -155,65 +169,66 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       const config = yield* Config;
       const executor = yield* CommandExecutor;
       const outputLog = yield* OutputLog;
-      const backoff = yield* RetryBackoff;
+      const platform = NodeServices.layer;
+      const fs = yield* FileSystem.FileSystem;
+
+      const exists = (path: string) =>
+        fs.exists(path).pipe(Effect.orElseSucceed(() => false));
 
       /** Discover all omarchy repo targets (including worktrees) */
-      const discoverOmarchyRepos = (): Array<{
-        name: string;
-        path: string;
-        category: RepoCategory;
-      }> => {
-        if (!config.omarchy.enabled) return [];
+      const discoverOmarchyRepos = Effect.fn("DotDiff.discoverOmarchyRepos")(
+        function* () {
+          if (!config.omarchy.enabled) return [];
 
-        const targets: Array<{
-          name: string;
-          path: string;
-          category: RepoCategory;
-        }> = [];
+          const targets: Array<{
+            name: string;
+            path: string;
+            category: RepoCategory;
+          }> = [];
 
-        const { repoBase, diffRepos, worktreeRepos, worktreeBranches } =
-          config.omarchy;
+          const { repoBase, diffRepos, worktreeRepos, worktreeBranches } =
+            config.omarchy;
 
-        for (const repoName of diffRepos) {
-          const repoPath = join(repoBase, repoName);
-          targets.push({
-            name: `omarchy:${repoName}`,
-            path: repoPath,
-            category: "omarchy",
-          });
-
-          // Check for worktree branches
-          if (!worktreeRepos.includes(repoName)) continue;
-
-          if (!isGitRepo(repoPath)) continue;
-
-          // Get current branch to skip it in worktree enumeration
-          const currentBranch = gitCurrentBranchSync(repoPath);
-
-          for (const branch of worktreeBranches) {
-            if (branch === currentBranch) continue;
-            const worktreePath = join(repoBase, `${repoName}-${branch}`);
+          for (const repoName of diffRepos) {
+            const repoPath = join(repoBase, repoName);
             targets.push({
-              name: `omarchy:${repoName}-${branch}`,
-              path: worktreePath,
+              name: `omarchy:${repoName}`,
+              path: repoPath,
               category: "omarchy",
             });
-          }
-        }
 
-        return targets;
-      };
+            // Check for worktree branches
+            if (!worktreeRepos.includes(repoName)) continue;
+
+            if (!(yield* isGitRepo(repoPath).pipe(Effect.provide(platform))))
+              continue;
+
+            // Get current branch to skip it in worktree enumeration
+            const currentBranch = yield* gitCurrentBranch(repoPath).pipe(
+              Effect.provide(platform),
+            );
+
+            for (const branch of worktreeBranches) {
+              if (branch === currentBranch) continue;
+              const worktreePath = join(repoBase, `${repoName}-${branch}`);
+              targets.push({
+                name: `omarchy:${repoName}-${branch}`,
+                path: worktreePath,
+                category: "omarchy",
+              });
+            }
+          }
+
+          return targets;
+        },
+      );
 
       /** Build the full list of tracked repos */
-      const buildRepoList = (
+      const buildRepoList = Effect.fn("DotDiff.buildRepoList")(function* (
         scheduledOnly = false,
         workTimeActive = false,
         now: Date = new Date(),
-      ): Array<{
-        name: string;
-        path: string;
-        category: RepoCategory;
-      }> => {
+      ) {
         const repos: Array<{
           name: string;
           path: string;
@@ -244,7 +259,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         };
 
         // Public dotfiles
-        if (existsSync(config.publicDotfiles)) {
+        if (yield* exists(config.publicDotfiles)) {
           addRepo({
             name: "Dotfiles",
             path: config.publicDotfiles,
@@ -254,7 +269,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
 
         // Private dotfiles
         if (config.canUsePrivate && config.privateDotfiles) {
-          if (existsSync(config.privateDotfiles)) {
+          if (yield* exists(config.privateDotfiles)) {
             addRepo({
               name: "Dotfiles Private",
               path: config.privateDotfiles,
@@ -264,7 +279,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         }
 
         // Notes
-        if (existsSync(config.notesDir)) {
+        if (yield* exists(config.notesDir)) {
           addRepo({
             name: "Notes",
             path: config.notesDir,
@@ -273,10 +288,10 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         }
 
         // Omarchy repos
-        const omarchyTargets = discoverOmarchyRepos();
+        const omarchyTargets = yield* discoverOmarchyRepos();
 
         for (const target of omarchyTargets) {
-          if (existsSync(target.path)) {
+          if (yield* exists(target.path)) {
             addRepo(target);
           }
         }
@@ -297,7 +312,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           );
 
           for (const extra of visible) {
-            if (existsSync(extra.path)) {
+            if (yield* exists(extra.path)) {
               addRepo({
                 name: extra.name,
                 path: extra.path,
@@ -308,7 +323,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         }
 
         return repos;
-      };
+      });
 
       /** Scan a single repo for git status */
       const scanRepo = Effect.fn("DotDiff.scanRepo")(function* (
@@ -316,7 +331,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         repoPath: string,
         category: RepoCategory,
       ): Effect.fn.Return<DiffRepo | null, DotDiffError> {
-        if (!isGitRepo(repoPath)) {
+        if (!(yield* isGitRepo(repoPath).pipe(Effect.provide(platform)))) {
           log(`${name}: not a git repo, skipping`);
 
           return null;
@@ -362,7 +377,12 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
             (yield* Clock.currentTimeMillis) / 1000,
           );
 
-          if (trimmedRef && shouldFetch(repoPath, trimmedRef, nowSeconds)) {
+          if (
+            trimmedRef &&
+            (yield* shouldFetch(repoPath, trimmedRef, nowSeconds).pipe(
+              Effect.provideService(FileSystem.FileSystem, fs),
+            ))
+          ) {
             const [remoteName] = trimmedRef.split("/", 1);
             const remoteBranch = trimmedRef.slice(remoteName.length + 1);
 
@@ -375,7 +395,6 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
                 Effect.as(null),
                 Effect.catch((error) => Effect.succeed(error.message)),
                 Effect.provideService(CommandExecutor, executor),
-                Effect.provideService(RetryBackoff, backoff),
               );
 
             const branchError = yield* fetchError([remoteName, remoteBranch]);
@@ -392,7 +411,9 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
               );
             }
 
-            recordFetch(repoPath, trimmedRef, nowSeconds);
+            yield* recordFetch(repoPath, trimmedRef, nowSeconds).pipe(
+              Effect.provideService(FileSystem.FileSystem, fs),
+            );
           }
 
           const aheadStr = yield* executor
@@ -434,16 +455,19 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           )
             ? yield* isWorkTime((message) =>
                 Effect.sync(() => log(message)),
-              ).pipe(Effect.provideService(Config, config))
+              ).pipe(
+                Effect.provideService(Config, config),
+                Effect.provide(platform),
+              )
             : false;
 
         const now = new Date(yield* Clock.currentTimeMillis);
 
-        const repoList = buildRepoList(
+        const repoList = (yield* buildRepoList(
           opts?.scheduledOnly,
           workTimeActive,
           now,
-        ).filter(
+        )).filter(
           (repo) => !opts?.categories || opts.categories.has(repo.category),
         );
 
@@ -454,7 +478,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           { concurrency: SCAN_CONCURRENCY },
         );
 
-        const repos = results.filter((r): r is DiffRepo => r !== null);
+        const repos = results.filter((r) => r !== null);
         log(`Scan complete: ${repos.length} repos found`);
 
         return repos;
@@ -472,5 +496,5 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           }),
       };
     }),
-  );
+  ).pipe(Layer.provide(NodeServices.layer));
 }

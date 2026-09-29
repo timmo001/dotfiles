@@ -1,6 +1,6 @@
 import { Effect } from "effect";
-import { existsSync, lstatSync } from "fs";
 import { join } from "path";
+import { isSymbolicLink, pathExists } from "../../lib/fsProbe.js";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
@@ -13,7 +13,7 @@ export const checkBrowserFlags = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const results: CheckResult[] = [];
 
-  const host = resolvedOmarchyHost(config) ?? "";
+  const host = yield* resolvedOmarchyHost(config) ?? "";
   const browserFlagsHostPkg = `chromium--${host}`;
 
   const browserFlagsPkgDir = config.privateDotfiles
@@ -29,14 +29,14 @@ export const checkBrowserFlags = Effect.gen(function* () {
     "chromium-flags.conf",
   );
 
-  if (host && browserFlagsPkgDir && existsSync(browserFlagsPkgDir)) {
+  if (host && browserFlagsPkgDir && (yield* pathExists(browserFlagsPkgDir))) {
     let flagsOk = true;
 
     for (const flagFile of [
       join(CONFIG_DIR, "chromium-flags.conf"),
       join(CONFIG_DIR, "chrome-flags.conf"),
     ]) {
-      if (!existsSync(flagFile)) {
+      if (!(yield* pathExists(flagFile))) {
         results.push({
           severity: "error",
           message: `Missing ${displayPath(flagFile)}`,
@@ -44,7 +44,7 @@ export const checkBrowserFlags = Effect.gen(function* () {
         });
         flagsOk = false;
       } else {
-        const isSymlink = isSymbolicLink(flagFile);
+        const isSymlink = yield* isSymbolicLink(flagFile);
 
         if (isSymlink === null) {
           flagsOk = false;
@@ -85,8 +85,8 @@ export const checkBrowserFlags = Effect.gen(function* () {
 
   // Diff live flags against omarchy defaults
   if (
-    existsSync(omarchyDefaultFlags) &&
-    existsSync(join(CONFIG_DIR, "chromium-flags.conf"))
+    (yield* pathExists(omarchyDefaultFlags)) &&
+    (yield* pathExists(join(CONFIG_DIR, "chromium-flags.conf")))
   ) {
     const diffResult = yield* executor
       .run("bash", [
@@ -107,7 +107,7 @@ export const checkBrowserFlags = Effect.gen(function* () {
         detail: diffResult.trim(),
       });
     }
-  } else if (!existsSync(omarchyDefaultFlags)) {
+  } else if (!(yield* pathExists(omarchyDefaultFlags))) {
     results.push({
       severity: "warn",
       message: `Omarchy default chromium-flags.conf not found at ${displayPath(omarchyDefaultFlags)}`,
@@ -116,11 +116,3 @@ export const checkBrowserFlags = Effect.gen(function* () {
 
   return results;
 });
-
-function isSymbolicLink(path: string): boolean | null {
-  try {
-    return lstatSync(path).isSymbolicLink();
-  } catch {
-    return null;
-  }
-}

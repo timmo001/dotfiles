@@ -1,12 +1,4 @@
-import { Effect, Schema } from "effect";
-import {
-  chmodSync,
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "fs";
+import { Effect, FileSystem, Schema } from "effect";
 import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -106,22 +98,29 @@ export function withPublicPackageRepoInclude(contents: string): string {
 }
 
 /** Whether the public repo snippet exactly matches the required configuration. */
-export function publicPackageRepoConfigMatches(): boolean {
+export const publicPackageRepoConfigMatches = Effect.fn(
+  "SetupPublicRepo.configMatches",
+)(function* () {
+  const fs = yield* FileSystem.FileSystem;
   const path = publicPacmanRepoConfigPath();
 
   return (
-    existsSync(path) &&
-    readFileSync(path, "utf-8").trimEnd() ===
+    (yield* fs.exists(path).pipe(Effect.orDie)) &&
+    (yield* fs.readFileString(path).pipe(Effect.orDie)).trimEnd() ===
       publicPackageRepoConfigContents().trimEnd()
   );
-}
+});
 
 /** Whether the public include is present before every package repository. */
-export function publicPackageRepoIncludeRegistered(): boolean {
+export const publicPackageRepoIncludeRegistered = Effect.fn(
+  "SetupPublicRepo.includeRegistered",
+)(function* () {
+  const fs = yield* FileSystem.FileSystem;
   const path = publicPacmanMainConfigPath();
 
-  if (!existsSync(path)) return false;
-  const lines = readFileSync(path, "utf-8").split("\n");
+  if (!(yield* fs.exists(path).pipe(Effect.orDie))) return false;
+
+  const lines = (yield* fs.readFileString(path).pipe(Effect.orDie)).split("\n");
 
   const includeIndex = lines.findIndex(
     (line) => line.trim() === publicPackageRepoIncludeLine(),
@@ -136,29 +135,38 @@ export function publicPackageRepoIncludeRegistered(): boolean {
   return (
     includeIndex >= 0 && (firstRepository < 0 || includeIndex < firstRepository)
   );
-}
+});
 
-function createTempDirectory(): Effect.Effect<string, SetupPublicRepoError> {
-  return Effect.try({
-    try: () => {
-      const path = mkdtempSync(
-        join(envString(ENV.TMPDIR) ?? "/tmp", "dot-public-repo-"),
+const createTempDirectory = Effect.fn("SetupPublicRepo.createTempDirectory")(
+  function* () {
+    const fs = yield* FileSystem.FileSystem;
+
+    return yield* fs
+      .makeTempDirectory({
+        directory: envString(ENV.TMPDIR) ?? "/tmp",
+        prefix: "dot-public-repo-",
+      })
+      .pipe(
+        Effect.tap((path) => fs.chmod(path, 0o700)),
+        Effect.mapError(
+          (error) =>
+            new SetupPublicRepoError({
+              message: `Could not create private temporary directory: ${String(error)}`,
+            }),
+        ),
       );
+  },
+);
 
-      chmodSync(path, 0o700);
+const removeTempDirectory = Effect.fn("SetupPublicRepo.removeTempDirectory")(
+  function* (path: string) {
+    const fs = yield* FileSystem.FileSystem;
 
-      return path;
-    },
-    catch: (error) =>
-      new SetupPublicRepoError({
-        message: `Could not create private temporary directory: ${String(error)}`,
-      }),
-  });
-}
-
-function removeTempDirectory(path: string): Effect.Effect<void> {
-  return Effect.sync(() => rmSync(path, { recursive: true, force: true }));
-}
+    yield* fs
+      .remove(path, { recursive: true, force: true })
+      .pipe(Effect.ignore);
+  },
+);
 
 function installFile(
   source: string,
@@ -251,41 +259,54 @@ function trustPublicRepositoryKey(
 
 function configurePublicRepository(
   tempDirectory: string,
-): Effect.Effect<void, SetupPublicRepoError, CommandExecutor> {
+): Effect.Effect<
+  void,
+  SetupPublicRepoError,
+  CommandExecutor | FileSystem.FileSystem
+> {
   return Effect.gen(function* () {
-    if (!publicPackageRepoConfigMatches()) {
+    const fs = yield* FileSystem.FileSystem;
+
+    if (!(yield* publicPackageRepoConfigMatches())) {
       const snippetPath = join(tempDirectory, "timmo.conf");
-      yield* Effect.try({
-        try: () =>
-          writeFileSync(snippetPath, publicPackageRepoConfigContents()),
-        catch: (error) =>
-          new SetupPublicRepoError({
-            message: `Could not write public repository config: ${String(error)}`,
-          }),
-      });
+
+      yield* fs
+        .writeFileString(snippetPath, publicPackageRepoConfigContents())
+        .pipe(
+          Effect.mapError(
+            (error) =>
+              new SetupPublicRepoError({
+                message: `Could not write public repository config: ${String(error)}`,
+              }),
+          ),
+        );
       yield* installFile(snippetPath, publicPacmanRepoConfigPath());
     }
 
-    if (!publicPackageRepoIncludeRegistered()) {
+    if (!(yield* publicPackageRepoIncludeRegistered())) {
       const mainConfigPath = publicPacmanMainConfigPath();
 
-      const mainConfig = yield* Effect.try({
-        try: () => readFileSync(mainConfigPath, "utf-8"),
-        catch: (error) =>
-          new SetupPublicRepoError({
-            message: `Could not read ${displayPath(mainConfigPath)}: ${String(error)}`,
-          }),
-      });
+      const mainConfig = yield* fs.readFileString(mainConfigPath).pipe(
+        Effect.mapError(
+          (error) =>
+            new SetupPublicRepoError({
+              message: `Could not read ${displayPath(mainConfigPath)}: ${String(error)}`,
+            }),
+        ),
+      );
 
       const updatedPath = join(tempDirectory, "pacman.conf");
-      yield* Effect.try({
-        try: () =>
-          writeFileSync(updatedPath, withPublicPackageRepoInclude(mainConfig)),
-        catch: (error) =>
-          new SetupPublicRepoError({
-            message: `Could not prepare ${displayPath(mainConfigPath)}: ${String(error)}`,
-          }),
-      });
+
+      yield* fs
+        .writeFileString(updatedPath, withPublicPackageRepoInclude(mainConfig))
+        .pipe(
+          Effect.mapError(
+            (error) =>
+              new SetupPublicRepoError({
+                message: `Could not prepare ${displayPath(mainConfigPath)}: ${String(error)}`,
+              }),
+          ),
+        );
       yield* installFile(updatedPath, mainConfigPath);
     }
   });
@@ -305,8 +326,8 @@ export const setupPublicRepo = Effect.gen(function* () {
   }).pipe(Effect.ensuring(removeTempDirectory(tempDirectory)));
 
   if (
-    !publicPackageRepoConfigMatches() ||
-    !publicPackageRepoIncludeRegistered()
+    !(yield* publicPackageRepoConfigMatches()) ||
+    !(yield* publicPackageRepoIncludeRegistered())
   ) {
     return yield* fail(
       "Public package repository setup did not reach ready state",

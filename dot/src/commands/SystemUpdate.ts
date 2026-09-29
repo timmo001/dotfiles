@@ -1,6 +1,5 @@
-import { Effect, Scope } from "effect";
+import { Effect, FileSystem, Scope } from "effect";
 import { Prompt } from "effect/cli";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { isAgent } from "../lib/agent.js";
@@ -47,7 +46,7 @@ function section(title: string): void {
 function temporarySudoEnvironment(): Effect.Effect<
   Readonly<Record<string, string>>,
   never,
-  Scope.Scope
+  FileSystem.FileSystem | Scope.Scope
 > {
   if (
     !isAgent() ||
@@ -56,19 +55,22 @@ function temporarySudoEnvironment(): Effect.Effect<
     return Effect.succeed({});
   }
 
-  return Effect.acquireRelease(
-    Effect.sync(() => {
-      const directory = mkdtempSync(join(tmpdir(), "dot-system-update-"));
-      symlinkSync(
-        join(HOME_DIR, ".local", "libexec", "update-sudo"),
-        join(directory, "sudo"),
-      );
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
 
-      return directory;
-    }),
-    (directory) =>
-      Effect.sync(() => rmSync(directory, { recursive: true, force: true })),
-  ).pipe(
+    const directory = yield* fs.makeTempDirectoryScoped({
+      directory: tmpdir(),
+      prefix: "dot-system-update-",
+    });
+
+    yield* fs.symlink(
+      join(HOME_DIR, ".local", "libexec", "update-sudo"),
+      join(directory, "sudo"),
+    );
+
+    return directory;
+  }).pipe(
+    Effect.orDie,
     Effect.map((directory) => ({
       PATH: `${directory}:${process.env.PATH ?? ""}`,
     })),
@@ -111,6 +113,7 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
 
   if (selected.length === 0) return;
 
+  const fs = yield* FileSystem.FileSystem;
   const selectedSet = new Set<UpdateChoice>(selected);
   const baseEnv = yield* temporarySudoEnvironment();
 
@@ -130,9 +133,7 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
     let exitCode = yield* runChild("dot", ["stow", "--public"], baseEnv);
 
     if (exitCode === 0) {
-      yield* Effect.sync(() =>
-        mkdirSync(join(STATE_DIR, "mise"), { recursive: true }),
-      );
+      yield* fs.makeDirectory(join(STATE_DIR, "mise"), { recursive: true });
       exitCode = yield* runChild("omarchy", ["update", "-y"], {
         ...baseEnv,
         MISE_GLOBAL_CONFIG_FILE: join(STATE_DIR, "mise", "omarchy-config.toml"),

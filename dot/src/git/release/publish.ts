@@ -1,13 +1,5 @@
-import {
-  appendFileSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  realpathSync,
-  writeFileSync,
-} from "node:fs";
 import { join, relative } from "node:path";
-import { Clock, Effect, Option, Schema, Stream } from "effect";
+import { Clock, Effect, FileSystem, Option, Schema, Stream } from "effect";
 import semver from "semver";
 import {
   CommandError,
@@ -368,6 +360,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
   confirmation: string | undefined,
   report: ReleaseProgress,
 ) {
+  const fs = yield* FileSystem.FileSystem;
   const recipe = settings.publish;
 
   if (!recipe)
@@ -379,12 +372,14 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
   let logFile: string | undefined;
 
   const progress = Effect.fn("releases.progress")(function* (message: string) {
-    yield* Effect.try({
-      try: () => {
-        if (logFile) appendFileSync(logFile, message + "\n");
-      },
-      catch: (error) => new ReleaseError({ message: formatCause(error) }),
-    });
+    if (logFile)
+      yield* fs
+        .writeFileString(logFile, message + "\n", { flag: "a" })
+        .pipe(
+          Effect.mapError(
+            (error) => new ReleaseError({ message: formatCause(error) }),
+          ),
+        );
     yield* report(message);
   });
 
@@ -575,32 +570,37 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
         "The release plan changed; read the new preview before confirming",
     });
 
-  yield* Effect.try({
-    try: () => {
-      mkdirSync(releasePaths(repo.github).state, {
-        recursive: true,
-        mode: 0o700,
-      });
-      appendFileSync(
-        logPath,
-        "Confirmed release plan\n" + steps.join("\n") + "\n\n",
-        { mode: 0o600 },
-      );
-      logFile = logPath;
-    },
-    catch: (error) => new ReleaseError({ message: formatCause(error) }),
-  });
+  yield* Effect.gen(function* () {
+    yield* fs.makeDirectory(releasePaths(repo.github).state, {
+      recursive: true,
+      mode: 0o700,
+    });
+    yield* fs.writeFileString(
+      logPath,
+      "Confirmed release plan\n" + steps.join("\n") + "\n\n",
+      { flag: "a", mode: 0o600 },
+    );
+    logFile = logPath;
+  }).pipe(
+    Effect.mapError(
+      (error) => new ReleaseError({ message: formatCause(error) }),
+    ),
+  );
 
   const directory = needsPreparation
-    ? yield* Effect.try({
-        try: () => {
-          const base = join(releasePaths(repo.github).state, "preparations");
-          mkdirSync(base, { recursive: true, mode: 0o700 });
+    ? yield* Effect.gen(function* () {
+        const base = join(releasePaths(repo.github).state, "preparations");
+        yield* fs.makeDirectory(base, { recursive: true, mode: 0o700 });
 
-          return join(mkdtempSync(join(base, "release-")), "source");
-        },
-        catch: (error) => new ReleaseError({ message: formatCause(error) }),
-      })
+        return join(
+          yield* fs.makeTempDirectory({ directory: base, prefix: "release-" }),
+          "source",
+        );
+      }).pipe(
+        Effect.mapError(
+          (error) => new ReleaseError({ message: formatCause(error) }),
+        ),
+      )
     : repo.path;
 
   const run = Effect.fn("releases.runStep")(function* (
@@ -647,20 +647,25 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
         yield* progress(
           `Updating ${file.path}: ${file.before} -> ${file.after}`,
         );
-        yield* Effect.try({
-          try: () => {
-            const path = realpathSync(join(directory, file.path));
+        yield* Effect.gen(function* () {
+          const path = yield* fs.realPath(join(directory, file.path));
 
-            if (relative(realpathSync(directory), path).startsWith(".."))
-              throw new Error(`${file.path} leaves the prepared worktree`);
-            const content = readFileSync(path, "utf8");
-            writeFileSync(
-              path,
-              prepareReleaseVersion(content, file.file, version).content,
+          if (relative(yield* fs.realPath(directory), path).startsWith(".."))
+            return yield* Effect.fail(
+              new Error(`${file.path} leaves the prepared worktree`),
             );
-          },
-          catch: (error) => new ReleaseError({ message: formatCause(error) }),
-        });
+          const content = yield* fs.readFileString(path);
+          yield* fs.writeFileString(
+            path,
+            yield* Effect.try(
+              () => prepareReleaseVersion(content, file.file, version).content,
+            ),
+          );
+        }).pipe(
+          Effect.mapError(
+            (error) => new ReleaseError({ message: formatCause(error) }),
+          ),
+        );
       }
 
       for (const command of recipe.commands)
@@ -692,20 +697,28 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
 
       for (const file of prepared) {
         const original = yield* git(["show", `${snapshot.head}:${file.path}`]);
-        yield* Effect.try({
-          try: () => {
-            const expected =
-              file.before === file.after
-                ? original
-                : prepareReleaseVersion(original, file.file, version).content;
+        yield* Effect.gen(function* () {
+          const expected =
+            file.before === file.after
+              ? original
+              : yield* Effect.try(
+                  () =>
+                    prepareReleaseVersion(original, file.file, version).content,
+                );
 
-            if (readFileSync(join(directory, file.path), "utf8") !== expected)
-              throw new Error(
+          if (
+            (yield* fs.readFileString(join(directory, file.path))) !== expected
+          )
+            return yield* Effect.fail(
+              new Error(
                 `Validation changed ${file.path} beyond its agreed version bump`,
-              );
-          },
-          catch: (error) => new ReleaseError({ message: formatCause(error) }),
-        });
+              ),
+            );
+        }).pipe(
+          Effect.mapError(
+            (error) => new ReleaseError({ message: formatCause(error) }),
+          ),
+        );
       }
 
       if (

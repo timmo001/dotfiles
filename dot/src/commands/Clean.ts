@@ -43,7 +43,7 @@ const unstowRepo = Effect.fn("clean.unstowRepo")(function* (
 ) {
   const config = yield* Config;
   const log = yield* OutputLog;
-  const folders = listStowFolders(repoDir, config).sort();
+  const folders = (yield* listStowFolders(repoDir, config)).sort();
   const style = cliStyler();
 
   yield* log.info(style.dim(displayPath(repoDir)));

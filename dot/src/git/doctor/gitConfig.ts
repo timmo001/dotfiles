@@ -1,20 +1,22 @@
-import { Effect } from "effect";
-import { existsSync, readFileSync } from "fs";
+import { Effect, FileSystem } from "effect";
 import { join } from "path";
 import { CONFIG_DIR, displayPath } from "../../lib/paths.js";
 import type { CheckResult } from "../../doctor/types.js";
 
 /** Check git config includes the managed dotfiles settings */
-export const checkGitConfig = Effect.sync(() => {
+export const checkGitConfig = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
   const results: CheckResult[] = [];
 
   const gitConfigFile = join(CONFIG_DIR, "git", "config");
   const gitConfigDotfiles = join(CONFIG_DIR, "git", "config.dotfiles");
   const gitIncludePath = "~/.config/git/config.dotfiles";
 
-  if (existsSync(gitConfigDotfiles)) {
-    if (existsSync(gitConfigFile)) {
-      const content = readTextFile(gitConfigFile);
+  if (yield* fs.exists(gitConfigDotfiles).pipe(Effect.orDie)) {
+    if (yield* fs.exists(gitConfigFile).pipe(Effect.orDie)) {
+      const content = yield* fs
+        .readFileString(gitConfigFile)
+        .pipe(Effect.orElseSucceed(() => null));
 
       if (content === null) {
         results.push({
@@ -50,11 +52,3 @@ export const checkGitConfig = Effect.sync(() => {
 
   return results;
 });
-
-function readTextFile(path: string): string | null {
-  try {
-    return readFileSync(path, "utf-8");
-  } catch {
-    return null;
-  }
-}

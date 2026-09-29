@@ -1,6 +1,5 @@
 import { NodeFileSystem } from "@effect/platform-node";
 import { Effect } from "effect";
-import { accessSync, constants, existsSync } from "fs";
 import { join, resolve } from "path";
 import {
   CommandExecutor,
@@ -8,6 +7,8 @@ import {
 } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { GitHub } from "../../git/services/GitHub.js";
+import { pathExists } from "../../lib/fsProbe.js";
+import { spawnCaptured } from "../../lib/spawnText.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
 import { resolvedOmarchyHost } from "../../lib/omarchyHost.js";
 import {
@@ -33,47 +34,49 @@ function userSystemdUnitPath(unit: string): string {
   return join(CONFIG_DIR, "systemd", "user", unit);
 }
 
-function executableExists(path: string): boolean {
-  try {
-    accessSync(path, constants.X_OK);
-
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function addExecutablePresenceCheck(
-  results: CheckResult[],
+const executableExists = Effect.fn("Systemd.executableExists")(function* (
   path: string,
-  okMessage: string,
-  warnMessage: string,
-  detail?: string,
-): void {
-  results.push(
-    executableExists(path)
-      ? { severity: "ok", message: okMessage }
-      : {
-          severity: "warn",
-          message: warnMessage,
-          ...(detail && { detail }),
-        },
+) {
+  const result = yield* spawnCaptured("test", ["-x", path]).pipe(
+    Effect.orElseSucceed(() => ({ exitCode: 1 })),
   );
-}
 
-function addFilePresenceCheck(
+  return result.exitCode === 0;
+});
+
+const addExecutablePresenceCheck = Effect.fn("Systemd.addExecutableCheck")(
+  function* (
+    results: CheckResult[],
+    path: string,
+    okMessage: string,
+    warnMessage: string,
+    detail?: string,
+  ) {
+    results.push(
+      (yield* executableExists(path))
+        ? { severity: "ok", message: okMessage }
+        : {
+            severity: "warn",
+            message: warnMessage,
+            ...(detail && { detail }),
+          },
+    );
+  },
+);
+
+const addFilePresenceCheck = Effect.fn("Systemd.addFileCheck")(function* (
   results: CheckResult[],
   path: string,
   okMessage: string,
   warnMessage: string,
   detail: string,
-): void {
+) {
   results.push(
-    existsSync(path)
+    (yield* pathExists(path))
       ? { severity: "ok", message: okMessage }
       : { severity: "warn", message: warnMessage, detail },
   );
-}
+});
 
 const checkRequiredUserUnit = (
   results: CheckResult[],
@@ -147,14 +150,14 @@ const checkRequiredUserUnitSetup = (setup: RequiredUserUnitSetup) =>
     const results: CheckResult[] = [];
     const enableDetail = `Enable with: systemctl --user enable --now ${setup.unit}`;
 
-    addExecutablePresenceCheck(
+    yield* addExecutablePresenceCheck(
       results,
       setup.scriptPath,
       setup.scriptOkMessage,
       setup.scriptWarnMessage,
       setup.scriptDetail,
     );
-    addFilePresenceCheck(
+    yield* addFilePresenceCheck(
       results,
       setup.unitPath,
       setup.unitOkMessage,
@@ -225,14 +228,14 @@ export const checkDoctorNotify = checkRequiredUserUnitSetup({
 
 /** Check the optional dependency timer's installation and enablement. */
 export const checkDependencyService = Effect.gen(function* () {
-  if (!existsSync(join(CONFIG_DIR, "dot", "dependency-service.json")))
+  if (!(yield* pathExists(join(CONFIG_DIR, "dot", "dependency-service.json"))))
     return [];
 
   const executor = yield* CommandExecutor;
   const results: CheckResult[] = [];
 
   for (const unit of ["dot-deps.service", "dot-deps.timer"])
-    addFilePresenceCheck(
+    yield* addFilePresenceCheck(
       results,
       userSystemdUnitPath(unit),
       `Dependency unit found: ${unit}`,
@@ -289,7 +292,7 @@ export const checkNotesCaptureDaemon = Effect.gen(function* () {
   const unit = "notes-capture-daemon.service";
   const results: CheckResult[] = [];
 
-  addFilePresenceCheck(
+  yield* addFilePresenceCheck(
     results,
     userSystemdUnitPath(unit),
     `Notes capture unit found: ${unit}`,
@@ -342,13 +345,13 @@ export const checkDailyVolumeReset = Effect.gen(function* () {
   const config = yield* Config;
   const executor = yield* CommandExecutor;
   const results: CheckResult[] = [];
-  const host = resolvedOmarchyHost(config) ?? "unset";
+  const host = yield* resolvedOmarchyHost(config) ?? "unset";
 
   const script = join(HOME_DIR, ".local", "bin", "daily-volume-zero");
   const serviceUnit = userSystemdUnitPath("daily-volume-zero.service");
   const timerUnit = userSystemdUnitPath(DAILY_VOLUME_ZERO_TIMER_UNIT);
 
-  if (existsSync(script)) {
+  if (yield* pathExists(script)) {
     results.push({
       severity: "ok",
       message: `Daily volume reset script found: ${displayPath(script)}`,
@@ -360,7 +363,7 @@ export const checkDailyVolumeReset = Effect.gen(function* () {
     });
   }
 
-  if (existsSync(serviceUnit)) {
+  if (yield* pathExists(serviceUnit)) {
     results.push({
       severity: "ok",
       message: `Daily volume reset service unit file found: ${displayPath(serviceUnit)}`,
@@ -378,7 +381,7 @@ export const checkDailyVolumeReset = Effect.gen(function* () {
     });
   }
 
-  if (existsSync(timerUnit)) {
+  if (yield* pathExists(timerUnit)) {
     results.push({
       severity: "ok",
       message: `Daily volume reset timer unit file found: ${displayPath(timerUnit)}`,

@@ -1,4 +1,5 @@
 import { Cause, Effect, Schema } from "effect";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { decodeJson, type JsonValue } from "../lib/schema.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
@@ -221,6 +222,7 @@ const runLaunchFloatingWebapp = Effect.fn("launchFloatingWebapp")(function* (
   }
 
   const executor = yield* CommandExecutor;
+  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
   let address = options.address;
 
   if (!address) {
@@ -247,20 +249,21 @@ const runLaunchFloatingWebapp = Effect.fn("launchFloatingWebapp")(function* (
     ]);
 
     address = yield* Effect.gen(function* () {
-      yield* Effect.sync(() => {
-        try {
-          const proc = Bun.spawn(["omarchy-launch-webapp", url], {
+      yield* spawner
+        .spawn(
+          ChildProcess.make("omarchy-launch-webapp", [url], {
             stdin: "ignore",
             stdout: "ignore",
             stderr: "ignore",
             detached: true,
-          });
-
-          proc.unref();
-        } catch {
-          // Discovery timeout owns launch failure.
-        }
-      });
+          }),
+        )
+        .pipe(
+          Effect.flatMap((child) => child.unref),
+          Effect.asVoid,
+          Effect.scoped,
+          Effect.ignore,
+        );
 
       for (let attempt = 0; attempt < DETECT_ATTEMPTS; attempt += 1) {
         const clients = decodeResponse(

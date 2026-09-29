@@ -1,12 +1,5 @@
-import { Effect, Match, Option, Schedule, Schema } from "effect";
-import {
-  closeSync,
-  existsSync,
-  mkdirSync,
-  openSync,
-  readlinkSync,
-  statSync,
-} from "fs";
+import { Effect, FileSystem, Match, Option, Schedule, Schema } from "effect";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { join } from "path";
 import { ENV, envFlag } from "../lib/env.js";
 import { STATE_DIR } from "../lib/paths.js";
@@ -159,21 +152,25 @@ export const herdrServerPid = Effect.fn("HerdrServer.pid")(function* (
   }
 
   const pid = Number(result);
-  yield* Effect.try({
-    try: () => {
-      if (
-        statSync(`/proc/${pid}`).uid !== process.getuid?.() ||
-        !readlinkSync(`/proc/${pid}/exe`)
-          .replace(/ \(deleted\)$/, "")
-          .endsWith("/herdr")
-      ) {
-        throw new Error(
-          "Cannot identify the Herdr server executable for this user.",
-        );
-      }
-    },
-    catch: (error) => new HerdrServerError({ message: formatCause(error) }),
-  });
+  const fs = yield* FileSystem.FileSystem;
+
+  yield* Effect.gen(function* () {
+    const info = yield* fs.stat(`/proc/${pid}`);
+    const exe = yield* fs.readLink(`/proc/${pid}/exe`);
+
+    if (
+      Option.getOrUndefined(info.uid) !== process.getuid?.() ||
+      !exe.replace(/ \(deleted\)$/, "").endsWith("/herdr")
+    ) {
+      return yield* Effect.fail(
+        new Error("Cannot identify the Herdr server executable for this user."),
+      );
+    }
+  }).pipe(
+    Effect.mapError(
+      (error) => new HerdrServerError({ message: formatCause(error) }),
+    ),
+  );
 
   return pid;
 });
@@ -305,46 +302,47 @@ const checkPanes = Effect.fn("HerdrServer.checkPanes")(function* (
 
 const launch = Effect.gen(function* () {
   const logPath = join(STATE_DIR, "herdr-restart.log");
+  const fs = yield* FileSystem.FileSystem;
+  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
 
-  return yield* Effect.try({
-    try: () => {
-      mkdirSync(STATE_DIR, { recursive: true });
-      const log = openSync(logPath, "a", 0o600);
+  return yield* Effect.gen(function* () {
+    yield* fs.makeDirectory(STATE_DIR, { recursive: true });
+    yield* fs.writeFileString(logPath, "", { flag: "a", mode: 0o600 });
 
-      try {
-        const child = Bun.spawn(
-          [
-            "env",
-            ...cleanEnvironmentArgs(),
-            "uwsm-app",
-            "-s",
-            "b",
-            "--",
-            "env",
-            "USAGEBAR_DISABLE_BROWSER_COOKIES=1",
-            "herdr",
-            "server",
-          ],
-          {
-            stdin: "ignore",
-            stdout: log,
-            stderr: log,
-            detached: true,
-          },
-        );
+    const child = yield* spawner.spawn(
+      ChildProcess.make(
+        "sh",
+        [
+          "-c",
+          'exec "$@" >>"$0" 2>&1',
+          logPath,
+          "env",
+          ...cleanEnvironmentArgs(),
+          "uwsm-app",
+          "-s",
+          "b",
+          "--",
+          "env",
+          "USAGEBAR_DISABLE_BROWSER_COOKIES=1",
+          "herdr",
+          "server",
+        ],
+        { stdin: "ignore", stdout: "ignore", stderr: "ignore", detached: true },
+      ),
+    );
 
-        child.unref();
+    yield* child.unref.pipe(Effect.asVoid);
 
-        return child;
-      } finally {
-        closeSync(log);
-      }
-    },
-    catch: (error) =>
-      new HerdrServerError({
-        message: `Could not launch Herdr: ${formatCause(error)}. See ${logPath}.`,
-      }),
-  });
+    return child;
+  }).pipe(
+    Effect.scoped,
+    Effect.mapError(
+      (error) =>
+        new HerdrServerError({
+          message: `Could not launch Herdr: ${formatCause(error)}. See ${logPath}.`,
+        }),
+    ),
+  );
 }).pipe(Effect.withSpan("HerdrServer.launch"));
 
 const reportError = Effect.fn("HerdrServer.reportError")(function* (error: {
@@ -438,7 +436,11 @@ export const herdrServerAction = Effect.fn("herdrServerAction")(
       `Herdr is clean. ${action === "restart" ? "Restarting" : "Stopping"} the default server...`,
     );
     yield* run(`/proc/${pid}/exe`, ["server", "stop"], session.socket_path);
-    yield* Effect.sync(() => !existsSync(`/proc/${pid}`)).pipe(
+    const fs = yield* FileSystem.FileSystem;
+
+    yield* fs.exists(`/proc/${pid}`).pipe(
+      Effect.map((present) => !present),
+      Effect.orDie,
       Effect.filterOrFail(
         (exited) => exited,
         () =>
@@ -463,7 +465,10 @@ export const herdrServerAction = Effect.fn("herdrServerAction")(
     const child = yield* launch;
 
     const ready = Effect.gen(function* () {
-      if (child.exitCode !== null && child.exitCode !== 0)
+      if (
+        !(yield* child.isRunning.pipe(Effect.orDie)) &&
+        (yield* child.exitCode.pipe(Effect.orDie)) !== 0
+      )
         return yield* new HerdrServerError({
           message: "Herdr failed to start.",
         });

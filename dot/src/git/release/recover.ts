@@ -1,5 +1,4 @@
-import { existsSync } from "node:fs";
-import { Effect, Result } from "effect";
+import { Effect, FileSystem, Result } from "effect";
 import { Prompt } from "effect/cli";
 import { installedHerdrAgents } from "../../commands/HerdrAgents.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
@@ -17,6 +16,7 @@ export const recoverRelease = Effect.fn("releases.recover")(function* (
 ) {
   const config = yield* Config;
   const executor = yield* CommandExecutor;
+  const fs = yield* FileSystem.FileSystem;
 
   const repo = config.gitConfig.repositories.find((repo) =>
     [repo.name, repo.github].some(
@@ -27,6 +27,10 @@ export const recoverRelease = Effect.fn("releases.recover")(function* (
   yield* writeText(`\nRelease failed: ${failure.message}\n`);
 
   while (true) {
+    const logExists = logPath
+      ? yield* fs.exists(logPath).pipe(Effect.orDie)
+      : false;
+
     const choice = yield* Prompt.run(
       Prompt.Select({
         message: "What would you like to do?",
@@ -36,7 +40,7 @@ export const recoverRelease = Effect.fn("releases.recover")(function* (
             value: "repo",
           },
           { title: "Open an agent in dotfiles", value: "dotfiles" },
-          ...(logPath && existsSync(logPath)
+          ...(logExists
             ? [{ title: "Read the full progress log", value: "log" }]
             : []),
           { title: "Give up", value: "quit" },

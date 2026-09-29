@@ -1,13 +1,6 @@
-import { Data, Duration, Effect, Schema } from "effect";
-import {
-  existsSync,
-  lstatSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from "fs";
+import { Data, Duration, Effect, FileSystem, Schema, Stream } from "effect";
 import { join } from "path";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { Config } from "../services/Config.js";
 import { deployOmarchyPlugin } from "../lib/omarchyPluginDeployment.js";
 import { gitRemoteOutput } from "../lib/git.js";
@@ -84,7 +77,9 @@ export const OmarchyPluginInput = Data.taggedEnum<OmarchyPluginInput>();
 type PluginEffect = Effect.Effect<
   void,
   OmarchyPluginError | CommandError,
-  CommandExecutor
+  | CommandExecutor
+  | FileSystem.FileSystem
+  | ChildProcessSpawner.ChildProcessSpawner
 >;
 
 function fail(message: string): Effect.Effect<never, OmarchyPluginError> {
@@ -95,9 +90,17 @@ function validPluginId(id: string): boolean {
   return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id) && !id.includes("..");
 }
 
-function pathExists(path: string): boolean {
-  return lstatSync(path, { throwIfNoEntry: false }) !== undefined;
-}
+const pathExists = Effect.fn("OmarchyPlugin.pathExists")(function* (
+  path: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  return yield* fs.readLink(path).pipe(
+    Effect.as(true),
+    Effect.catch(() => fs.exists(path)),
+    Effect.orElseSucceed(() => false),
+  );
+});
 
 function requirePluginId(
   id: string | undefined,
@@ -136,27 +139,32 @@ function pluginEntries(registry: JsonObject): readonly JsonObject[] {
   });
 }
 
-function readRegistry(
+const readRegistry = Effect.fn("OmarchyPlugin.readRegistry")(function* (
   paths: OmarchyPluginPaths,
-): Effect.Effect<JsonObject, OmarchyPluginError> {
-  return Effect.try({
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  const invalid = (detail: string) =>
+    new OmarchyPluginError({
+      message: `invalid managed plugin registry: ${paths.registry}: ${detail}`,
+    });
+
+  const text = yield* fs
+    .readFileString(paths.registry)
+    .pipe(Effect.mapError((error) => invalid(String(error))));
+
+  return yield* Effect.try({
     try: () => {
-      const registry = decodeJsonObject(
-        JSON.parse(readFileSync(paths.registry, "utf8")),
-      );
+      const registry = decodeJsonObject(JSON.parse(text));
 
       pluginEntries(registry);
 
       return registry;
     },
     catch: (error) =>
-      error instanceof OmarchyPluginError
-        ? error
-        : new OmarchyPluginError({
-            message: `invalid managed plugin registry: ${paths.registry}: ${String(error)}`,
-          }),
+      error instanceof OmarchyPluginError ? error : invalid(String(error)),
   });
-}
+});
 
 function managedPluginIds(paths: OmarchyPluginPaths) {
   return readRegistry(paths).pipe(
@@ -172,12 +180,9 @@ function isManaged(paths: OmarchyPluginPaths, id: string) {
   return managedPluginIds(paths).pipe(Effect.map((ids) => ids.includes(id)));
 }
 
-function fsEffect(action: () => void, message: string) {
-  return Effect.try({
-    try: action,
-    catch: (error) =>
-      new OmarchyPluginError({ message: `${message}: ${String(error)}` }),
-  });
+function fsError(message: string) {
+  return (error: { readonly message: string }) =>
+    new OmarchyPluginError({ message: `${message}: ${error.message}` });
 }
 
 function commandFailure(command: string, exitCode: number) {
@@ -219,15 +224,22 @@ function unstage(paths: OmarchyPluginPaths, id: string) {
 
 function writeRegistry(paths: OmarchyPluginPaths, registry: JsonObject) {
   return Effect.gen(function* () {
-    if (!existsSync(paths.prettier)) {
+    const fs = yield* FileSystem.FileSystem;
+
+    if (
+      !(yield* fs
+        .exists(paths.prettier)
+        .pipe(Effect.orElseSucceed(() => false)))
+    ) {
       return yield* fail(`Prettier not found: ${paths.prettier}`);
     }
 
     const temporary = `${paths.registry}.tmp.${process.pid}`;
-    yield* fsEffect(
-      () => writeFileSync(temporary, `${JSON.stringify(registry)}\n`),
-      `could not write temporary registry`,
-    );
+
+    yield* fs
+      .writeFileString(temporary, `${JSON.stringify(registry)}\n`)
+      .pipe(Effect.mapError(fsError(`could not write temporary registry`)));
+
     yield* Effect.gen(function* () {
       const executor = yield* CommandExecutor;
       yield* executor
@@ -240,12 +252,15 @@ function writeRegistry(paths: OmarchyPluginPaths, registry: JsonObject) {
               }),
           ),
         );
-      yield* fsEffect(
-        () => renameSync(temporary, paths.registry),
-        `could not replace managed plugin registry`,
-      );
+      yield* fs
+        .rename(temporary, paths.registry)
+        .pipe(
+          Effect.mapError(fsError(`could not replace managed plugin registry`)),
+        );
     }).pipe(
-      Effect.ensuring(Effect.sync(() => rmSync(temporary, { force: true }))),
+      Effect.ensuring(
+        fs.remove(temporary, { force: true }).pipe(Effect.ignore),
+      ),
     );
   });
 }
@@ -253,21 +268,29 @@ function writeRegistry(paths: OmarchyPluginPaths, registry: JsonObject) {
 function restoreRegistry(paths: OmarchyPluginPaths, contents: string) {
   const temporary = `${paths.registry}.tmp.${process.pid}`;
 
-  return fsEffect(() => {
-    try {
-      writeFileSync(temporary, contents);
-      renameSync(temporary, paths.registry);
-    } finally {
-      rmSync(temporary, { force: true });
-    }
-  }, "could not restore managed plugin registry");
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+
+    yield* Effect.gen(function* () {
+      yield* fs.writeFileString(temporary, contents);
+      yield* fs.rename(temporary, paths.registry);
+    }).pipe(
+      Effect.ensuring(
+        fs.remove(temporary, { force: true }).pipe(Effect.ignore),
+      ),
+      Effect.mapError(fsError("could not restore managed plugin registry")),
+    );
+  });
 }
 
 function removeLivePlugin(paths: OmarchyPluginPaths, id: string) {
-  return fsEffect(
-    () => rmSync(join(paths.pluginsLive, id), { recursive: true, force: true }),
-    `could not remove live plugin '${id}'`,
-  );
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+
+    yield* fs
+      .remove(join(paths.pluginsLive, id), { recursive: true, force: true })
+      .pipe(Effect.mapError(fsError(`could not remove live plugin '${id}'`)));
+  });
 }
 
 function rescanPlugins() {
@@ -296,28 +319,33 @@ function interactive(): boolean {
 }
 
 function choose(header: string, choices: readonly string[]) {
-  return Effect.tryPromise({
-    try: async (signal) => {
-      const proc = Bun.spawn(
-        ["gum", "choose", `--header=${header}`, "--selected", "No", ...choices],
-        {
-          stdin: "ignore",
-          stdout: "pipe",
-          stderr: "inherit",
-          env: process.env,
-          signal,
-        },
-      );
+  return Effect.gen(function* () {
+    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
 
-      const output = await new Response(proc.stdout).text();
+    const proc = yield* spawner.spawn(
+      ChildProcess.make(
+        "gum",
+        ["choose", `--header=${header}`, "--selected", "No", ...choices],
+        { stdin: "ignore", stdout: "pipe", stderr: "inherit" },
+      ),
+    );
 
-      return (await proc.exited) === 0 ? output.trim() : "";
-    },
-    catch: (error) =>
-      new OmarchyPluginError({
-        message: `could not open choice prompt: ${String(error)}`,
-      }),
-  }).pipe(Effect.orElseSucceed(() => ""));
+    const output = yield* proc.stdout.pipe(
+      Stream.decodeText(),
+      Stream.mkString,
+    );
+
+    return (yield* proc.exitCode) === 0 ? output.trim() : "";
+  }).pipe(
+    Effect.scoped,
+    Effect.mapError(
+      (error) =>
+        new OmarchyPluginError({
+          message: `could not open choice prompt: ${String(error)}`,
+        }),
+    ),
+    Effect.orElseSucceed(() => ""),
+  );
 }
 
 function confirm(message: string) {
@@ -407,12 +435,23 @@ function parsePlacement(
   });
 }
 
-function manifestDefaultSection(checkout: string) {
-  return Effect.try({
+const manifestDefaultSection = Effect.fn(
+  "OmarchyPlugin.manifestDefaultSection",
+)(function* (checkout: string) {
+  const fs = yield* FileSystem.FileSystem;
+
+  const failure = (detail: string) =>
+    new OmarchyPluginError({
+      message: `could not read plugin manifest: ${detail}`,
+    });
+
+  const text = yield* fs
+    .readFileString(join(checkout, "manifest.json"))
+    .pipe(Effect.mapError((error) => failure(String(error))));
+
+  return yield* Effect.try({
     try: () => {
-      const manifest = decodeJsonObject(
-        JSON.parse(readFileSync(join(checkout, "manifest.json"), "utf8")),
-      );
+      const manifest = decodeJsonObject(JSON.parse(text));
 
       const barWidget = manifest.barWidget;
 
@@ -420,30 +459,30 @@ function manifestDefaultSection(checkout: string) {
         ? barWidget.defaultSection
         : "center";
     },
-    catch: (error) =>
-      new OmarchyPluginError({
-        message: `could not read plugin manifest: ${String(error)}`,
-      }),
+    catch: (error) => failure(String(error)),
   });
-}
+});
 
 function addPlugin(paths: OmarchyPluginPaths, options: AddOptions) {
   return Effect.gen(function* () {
     const id = yield* requirePluginId(options.id);
 
-    if (pathExists(join(paths.pluginsSource, id))) {
+    if (yield* pathExists(join(paths.pluginsSource, id))) {
       return yield* fail(`managed plugin '${id}' already exists`);
     }
 
     const executor = yield* CommandExecutor;
 
-    const registryBeforeAdd = yield* Effect.try({
-      try: () => readFileSync(paths.registry, "utf8"),
-      catch: (error) =>
-        new OmarchyPluginError({
-          message: `could not read managed plugin registry: ${String(error)}`,
-        }),
-    });
+    const registryBeforeAdd = yield* (yield* FileSystem.FileSystem)
+      .readFileString(paths.registry)
+      .pipe(
+        Effect.mapError(
+          (error) =>
+            new OmarchyPluginError({
+              message: `could not read managed plugin registry: ${String(error)}`,
+            }),
+        ),
+      );
 
     const sha = (yield* executor.run("git", ["rev-parse", "HEAD"], {
       cwd: options.checkout,
@@ -648,11 +687,16 @@ function leftoverParts(paths: OmarchyPluginPaths, id: string) {
     const submodulePath = `omarchy/.config/omarchy/plugins/${id}`;
     const leftovers: string[] = [];
 
-    if (pathExists(join(paths.pluginsSource, id))) leftovers.push("source");
+    if (yield* pathExists(join(paths.pluginsSource, id)))
+      leftovers.push("source");
 
-    if (pathExists(join(paths.pluginsLive, id))) leftovers.push("live");
+    if (yield* pathExists(join(paths.pluginsLive, id))) leftovers.push("live");
 
-    if (existsSync(join(paths.repo, ".git", "modules", submodulePath)))
+    if (
+      yield* (yield* FileSystem.FileSystem)
+        .exists(join(paths.repo, ".git", "modules", submodulePath))
+        .pipe(Effect.orElseSucceed(() => false))
+    )
       leftovers.push("module-cache");
 
     const configKeys = yield* executor
@@ -697,6 +741,8 @@ function removePlugin(
   offerSave: boolean,
 ): PluginEffect {
   return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+
     yield* requirePluginId(id);
 
     if (!(yield* isManaged(paths, id))) {
@@ -740,14 +786,11 @@ function removePlugin(
         });
       }
 
-      yield* fsEffect(
-        () =>
-          rmSync(join(paths.pluginsSource, id), {
-            recursive: true,
-            force: true,
-          }),
-        `could not remove plugin source '${id}'`,
-      );
+      yield* fs
+        .remove(join(paths.pluginsSource, id), { recursive: true, force: true })
+        .pipe(
+          Effect.mapError(fsError(`could not remove plugin source '${id}'`)),
+        );
       yield* executor.exitCode(
         "git",
         ["config", "--remove-section", `submodule.${submodulePath}`],
@@ -764,14 +807,16 @@ function removePlugin(
         ],
         { cwd: paths.repo },
       );
-      yield* fsEffect(
-        () =>
-          rmSync(join(paths.repo, ".git", "modules", submodulePath), {
-            recursive: true,
-            force: true,
-          }),
-        `could not remove plugin module cache '${id}'`,
-      );
+      yield* fs
+        .remove(join(paths.repo, ".git", "modules", submodulePath), {
+          recursive: true,
+          force: true,
+        })
+        .pipe(
+          Effect.mapError(
+            fsError(`could not remove plugin module cache '${id}'`),
+          ),
+        );
       const registry = yield* readRegistry(paths);
       yield* writeRegistry(paths, {
         ...registry,
@@ -820,7 +865,11 @@ export const omarchyPlugin = Effect.fn("omarchyPlugin")(function* (
     pathOverrides ??
     defaultPaths(process.env.DOTFILES_REPO ?? config.publicDotfiles);
 
-  if (!existsSync(paths.registry)) {
+  const fs = yield* FileSystem.FileSystem;
+
+  if (
+    !(yield* fs.exists(paths.registry).pipe(Effect.orElseSucceed(() => false)))
+  ) {
     return yield* fail(`managed plugin registry not found: ${paths.registry}`);
   }
 

@@ -6,8 +6,16 @@ import {
   type Agent,
   type TabId,
 } from "@timmo001/effect-herdr";
-import { Cause, Duration, Effect, Option, Schedule, Schema } from "effect";
-import { existsSync, readFileSync } from "fs";
+import {
+  Cause,
+  Duration,
+  Effect,
+  FileSystem,
+  Option,
+  Schedule,
+  Schema,
+} from "effect";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { join, resolve } from "path";
 import { ENV, envString } from "../lib/env.js";
 import { localHerdrAttachment } from "../lib/herdrAttachment.js";
@@ -102,44 +110,57 @@ function fail(message: string, exitCode: 1 | 2 = 1): never {
   throw new HerdrRepoOpenError({ message, exitCode });
 }
 
-function readPromptFile(path: string): string {
-  let text: string;
+const readPromptFile = Effect.fn("herdrRepoOpen.readPromptFile")(function* (
+  path: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
 
-  try {
-    text = readFileSync(path, "utf8");
-  } catch (error) {
-    return fail(
-      existsSync(path)
-        ? `Could not read prompt file ${path}: ${formatCause(error)}`
-        : `Prompt file ${path} does not exist`,
-      2,
-    );
-  }
+  const text = yield* fs.readFileString(path).pipe(
+    Effect.catch((error) =>
+      fs.exists(path).pipe(
+        Effect.orElseSucceed(() => false),
+        Effect.map((present) =>
+          fail(
+            present
+              ? `Could not read prompt file ${path}: ${formatCause(error)}`
+              : `Prompt file ${path} does not exist`,
+            2,
+          ),
+        ),
+      ),
+    ),
+  );
 
   if (!text.trim()) return fail(`Prompt file ${path} is empty`, 2);
 
   return text.trimEnd();
-}
+});
 
-function canonicalLabel(options: HerdrRepoOpenOptions): string {
+const canonicalLabel = Effect.fn("herdrRepoOpen.canonicalLabel")(function* (
+  options: HerdrRepoOpenOptions,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
   const path =
     options.pickerCache ?? join(CACHE_DIR, "dot", "repo-picker.json");
 
-  if (!existsSync(path)) return options.label;
-
-  try {
-    const entries = Schema.decodeUnknownSync(PickerCacheSchema)(
-      JSON.parse(readFileSync(path, "utf8")),
-    );
-
-    return (
-      entries.find((entry) => entry.path === options.directory)?.name ??
-      options.label
-    );
-  } catch {
+  if (!(yield* fs.exists(path).pipe(Effect.orElseSucceed(() => false))))
     return options.label;
-  }
-}
+
+  return yield* fs.readFileString(path).pipe(
+    Effect.map((text) => {
+      const entries = Schema.decodeUnknownSync(PickerCacheSchema)(
+        JSON.parse(text),
+      );
+
+      return (
+        entries.find((entry) => entry.path === options.directory)?.name ??
+        options.label
+      );
+    }),
+    Effect.catchCause(() => Effect.succeed(options.label)),
+  );
+});
 
 const readIdleShell = Effect.fn("herdrRepoOpen.readIdleShell")(function* (
   paneId: PaneId,
@@ -183,7 +204,8 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 ) {
   const executor = yield* CommandExecutor;
   const herdr = yield* HerdrSdk;
-  const label = canonicalLabel(options);
+  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+  const label = yield* canonicalLabel(options);
   const directory = resolve(options.directory);
 
   if (options.layout !== undefined && options.modifiers !== undefined)
@@ -195,7 +217,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   const prompt =
     options.promptFile === undefined
       ? options.prompt
-      : readPromptFile(options.promptFile);
+      : yield* readPromptFile(options.promptFile);
 
   const modifiers = options.modifiers ?? 0;
 
@@ -307,11 +329,11 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 
   const launchTerminal =
     runtime.launchTerminal ??
-    Effect.try({
-      try: () => {
-        const process = Bun.spawn(
+    spawner
+      .spawn(
+        ChildProcess.make(
+          "uwsm",
           [
-            "uwsm",
             "app",
             "--",
             "ghostty-host-config",
@@ -327,16 +349,20 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
             stderr: "ignore",
             detached: true,
           },
-        );
-
-        process.unref();
-      },
-      catch: (error) =>
-        new HerdrRepoOpenError({
-          message: `Could not launch the Herdr terminal: ${formatCause(error)}`,
-          exitCode: 1,
-        }),
-    });
+        ),
+      )
+      .pipe(
+        Effect.flatMap((child) => child.unref),
+        Effect.asVoid,
+        Effect.scoped,
+        Effect.mapError(
+          (error) =>
+            new HerdrRepoOpenError({
+              message: `Could not launch the Herdr terminal: ${formatCause(error)}`,
+              exitCode: 1,
+            }),
+        ),
+      );
 
   const initiallyReady = options.noFocus || (yield* clientReady);
 

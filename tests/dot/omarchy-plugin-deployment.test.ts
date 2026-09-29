@@ -14,6 +14,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "../../dot/node_modules/effect/dist/index.js";
+import { NodeServices } from "../../dot/node_modules/@effect/platform-node/dist/index.js";
 import {
   deployOmarchyPlugin,
   omarchyPluginSubmodules,
@@ -74,6 +75,7 @@ function fixture() {
             inherit: () => Effect.die("Unexpected inherit"),
           }),
         ),
+        Effect.provide(NodeServices.layer),
       ),
     );
 
@@ -82,7 +84,11 @@ function fixture() {
 
 test("stow leaves deployed plugin files real, executable and unchanged on repeat", async () => {
   const f = fixture();
-  expect(omarchyPluginSubmodules(f.repo)).toEqual([f.source]);
+  expect(
+    await Effect.runPromise(
+      omarchyPluginSubmodules(f.repo).pipe(Effect.provide(NodeServices.layer)),
+    ),
+  ).toEqual([f.source]);
   const result = await f.deploy();
   expect(result?.backup).toBeTruthy();
   expect(f.calls.length).toBe(2);

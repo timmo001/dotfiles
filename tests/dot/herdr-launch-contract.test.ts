@@ -1,9 +1,19 @@
 import { expect, test } from "bun:test";
-import { Effect, FileSystem, Option, Schema } from "../../dot/node_modules/effect/dist/index.js";
+import { Effect, Option, Schema } from "../../dot/node_modules/effect/dist/index.js";
+import { NodeServices } from "../../dot/node_modules/@effect/platform-node/dist/index.js";
 import { Agent, HerdrSdk, herdrSdkLayerFromOptions, Pane, PaneProcessInfo, Tab, Workspace } from "../../dot/node_modules/@timmo001/effect-herdr/src/index.ts";
 import { openHerdrRepo, type HerdrRepoOpenOptions } from "../../dot/src/commands/HerdrRepoOpen.js";
 import { HOME_DIR } from "../../dot/src/lib/paths.js";
 import { CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
+
+type HerdrCallInput =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | readonly HerdrCallInput[]
+  | { readonly [key: string]: HerdrCallInput };
 
 const directory = "/fixture/repo";
 
@@ -45,7 +55,7 @@ async function launch(options: {
     pane_count: 1, agent_status: "idle", focused: false,
   });
 
-  const calls: { method: string; id?: string; input?: unknown }[] = [];
+  const calls: { method: string; id?: string; input?: HerdrCallInput }[] = [];
   const reads = new Map<string, number>();
 
   let agent = Schema.decodeUnknownSync(Agent)({
@@ -54,7 +64,7 @@ async function launch(options: {
     name: options.nameTaken ? options.request?.agentName : null,
   });
 
-  const record = <A, Input = undefined>(method: string, result: A, id?: string, input?: Input) => Effect.sync(() => {
+  const record = <A>(method: string, result: A, id?: string, input?: HerdrCallInput) => Effect.sync(() => {
     calls.push({ method, id, input });
 
     return result;
@@ -135,7 +145,7 @@ async function launch(options: {
       inherit: () => Effect.die("Unexpected external command"),
       stream: () => { throw new Error("Unexpected external command"); },
     })),
-    Effect.provide(FileSystem.layerNoop({})),
+    Effect.provide(NodeServices.layer),
   );
 
   const result = await Effect.runPromise(program);

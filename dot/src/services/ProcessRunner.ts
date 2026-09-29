@@ -1,5 +1,6 @@
-import { Context, Deferred, Effect, Layer, Option, Schema } from "effect";
-import { constants } from "node:os";
+import { Context, Deferred, Effect, Layer, Schema } from "effect";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
+import { exitStatus } from "./CommandExecutor.js";
 
 /** Failure to start, observe, or clean up an owned process group. */
 export class ProcessRunError extends Schema.TaggedError<ProcessRunError>()(
@@ -31,122 +32,85 @@ export interface ProcessRunnerService {
   ) => Effect.Effect<number, ProcessRunError | ProcessRunTimeout>;
 }
 
-const missingProcess = Schema.is(
-  Schema.Struct({ code: Schema.Literal("ESRCH") }),
-);
-
-const signalGroup = Effect.fn("ProcessRunner.signalGroup")(
-  (pid: number, signal: NodeJS.Signals | 0) =>
-    Effect.try({
-      try: () => {
-        try {
-          process.kill(-pid, signal);
-
-          return true;
-        } catch (error) {
-          if (missingProcess(error)) return false;
-          throw error;
-        }
-      },
-      catch: (error) => new ProcessRunError({ message: String(error) }),
-    }),
-);
-
 /** Effect service for {@link ProcessRunnerService}. */
 export class ProcessRunner extends Context.Service<
   ProcessRunner,
   ProcessRunnerService
 >()("dot/ProcessRunner") {
-  /** Own Bun subprocesses directly so both waiting and cleanup stay bounded. */
-  static readonly layer = Layer.succeed(ProcessRunner, {
-    run: Effect.fn("ProcessRunner.run")(function* (
-      command: string,
-      args: readonly string[],
-      options: ProcessRunOptions,
-    ) {
-      const interrupted = yield* Deferred.make<number>();
+  /**
+   * Spawn each command as its own process group. Closing the scope sends the
+   * group SIGTERM and escalates to SIGKILL after `killAfter`, whether the
+   * command exited, timed out or dot was signalled.
+   */
+  static readonly layer = Layer.effect(
+    ProcessRunner,
+    Effect.gen(function* () {
+      const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
 
-      const onInterrupt = () =>
-        Deferred.doneUnsafe(interrupted, Effect.succeed(130));
+      return {
+        run: Effect.fn("ProcessRunner.run")(function* (
+          command: string,
+          args: readonly string[],
+          options: ProcessRunOptions,
+        ) {
+          const interrupted = yield* Deferred.make<number>();
 
-      const onTerminate = () =>
-        Deferred.doneUnsafe(interrupted, Effect.succeed(143));
+          const onInterrupt = () =>
+            Deferred.doneUnsafe(interrupted, Effect.succeed(130));
 
-      const onHangup = () =>
-        Deferred.doneUnsafe(interrupted, Effect.succeed(129));
+          const onTerminate = () =>
+            Deferred.doneUnsafe(interrupted, Effect.succeed(143));
 
-      yield* Effect.acquireRelease(
-        Effect.sync(() => {
-          process.on("SIGINT", onInterrupt);
-          process.on("SIGTERM", onTerminate);
-          process.on("SIGHUP", onHangup);
-        }),
-        () =>
-          Effect.sync(() => {
-            process.off("SIGINT", onInterrupt);
-            process.off("SIGTERM", onTerminate);
-            process.off("SIGHUP", onHangup);
-          }),
-      );
+          const onHangup = () =>
+            Deferred.doneUnsafe(interrupted, Effect.succeed(129));
 
-      const child = yield* Effect.acquireRelease(
-        Effect.try({
-          try: () =>
-            Bun.spawn([command, ...args], {
-              stdin: "inherit",
-              stdout: "inherit",
-              stderr: "inherit",
-              detached: true,
+          yield* Effect.acquireRelease(
+            Effect.sync(() => {
+              process.on("SIGINT", onInterrupt);
+              process.on("SIGTERM", onTerminate);
+              process.on("SIGHUP", onHangup);
             }),
-          catch: (error) => new ProcessRunError({ message: String(error) }),
-        }),
-        (child) =>
-          Effect.gen(function* () {
-            if (!(yield* signalGroup(child.pid, "SIGTERM"))) return;
+            () =>
+              Effect.sync(() => {
+                process.off("SIGINT", onInterrupt);
+                process.off("SIGTERM", onTerminate);
+                process.off("SIGHUP", onHangup);
+              }),
+          );
 
-            const stopped = yield* Effect.gen(function* () {
-              while (yield* signalGroup(child.pid, 0))
-                yield* Effect.sleep("50 millis");
-            }).pipe(Effect.timeoutOption(options.killAfter));
-
-            if (Option.isNone(stopped))
-              yield* signalGroup(child.pid, "SIGKILL");
-
-            const exited = yield* Effect.promise(() => child.exited).pipe(
-              Effect.timeoutOption("1 second"),
+          const child = yield* spawner
+            .spawn(
+              ChildProcess.make(command, args, {
+                stdin: "inherit",
+                stdout: "inherit",
+                stderr: "inherit",
+                detached: true,
+                forceKillAfter: options.killAfter,
+              }),
+            )
+            .pipe(
+              Effect.mapError(
+                (error) => new ProcessRunError({ message: String(error) }),
+              ),
             );
 
-            if (Option.isNone(exited)) {
-              console.error(
-                `dot run: process ${child.pid} has not exited after SIGKILL`,
-              );
-            }
-          }).pipe(
-            Effect.orDie,
-            Effect.ensuring(Effect.sync(() => child.unref())),
-          ),
-      );
-
-      return yield* Effect.raceFirst(
-        Effect.tryPromise({
-          try: () => child.exited,
-          catch: (error) => new ProcessRunError({ message: String(error) }),
-        }).pipe(
-          Effect.map((exitCode) =>
-            child.signalCode === null
-              ? exitCode
-              : 128 + constants.signals[child.signalCode],
-          ),
-          Effect.timeoutOrElse({
-            duration: options.timeout,
-            orElse: () =>
-              Effect.fail(
-                new ProcessRunTimeout({ milliseconds: options.timeout }),
+          return yield* Effect.raceFirst(
+            exitStatus(child).pipe(
+              Effect.mapError(
+                (error) => new ProcessRunError({ message: String(error) }),
               ),
-          }),
-        ),
-        Deferred.await(interrupted),
-      );
-    }, Effect.scoped),
-  });
+              Effect.timeoutOrElse({
+                duration: options.timeout,
+                orElse: () =>
+                  Effect.fail(
+                    new ProcessRunTimeout({ milliseconds: options.timeout }),
+                  ),
+              }),
+            ),
+            Deferred.await(interrupted),
+          );
+        }, Effect.scoped),
+      };
+    }),
+  );
 }

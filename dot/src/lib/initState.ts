@@ -1,7 +1,7 @@
-import { Effect, Schema } from "effect";
-import { existsSync, unlinkSync, writeFileSync } from "fs";
+import { Effect, FileSystem, Schema } from "effect";
 import { join } from "path";
 import { displayPath } from "./paths.js";
+import { pathExists } from "./fsProbe.js";
 import type { ConfigService } from "../services/Config.js";
 
 interface InitMarkerOptions {
@@ -47,24 +47,27 @@ export function initInProgressMarker(config: ConfigService): string {
   return join(config.stateDir, "init.in-progress.json");
 }
 
-function writeJsonFile(
+const writeJsonFile = Effect.fn("InitState.writeJsonFile")(function* (
   path: string,
   value: InitMarker,
-): Effect.Effect<void, InitStateError> {
-  return Effect.try({
-    try: () => writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`),
-    catch: (error) =>
-      new InitStateError({
-        message: `Could not write ${displayPath(path)}: ${String(error)}`,
-      }),
-  });
-}
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  yield* fs.writeFileString(path, `${JSON.stringify(value, null, 2)}\n`).pipe(
+    Effect.mapError(
+      (error) =>
+        new InitStateError({
+          message: `Could not write ${displayPath(path)}: ${error.message}`,
+        }),
+    ),
+  );
+});
 
 /** Write the in-progress marker for a first-use setup attempt. */
 export function writeInitInProgressMarker(
   config: ConfigService,
   options: InitMarkerOptions,
-): Effect.Effect<void, InitStateError> {
+): Effect.Effect<void, InitStateError, FileSystem.FileSystem> {
   return writeJsonFile(initInProgressMarker(config), {
     status: "in-progress",
     startedAt: new Date().toISOString(),
@@ -76,7 +79,7 @@ export function writeInitInProgressMarker(
 export function writeInitCompleteMarker(
   config: ConfigService,
   source: InitCompleteSource,
-): Effect.Effect<void, InitStateError> {
+): Effect.Effect<void, InitStateError, FileSystem.FileSystem> {
   return Effect.gen(function* () {
     const inProgressMarker = initInProgressMarker(config);
     yield* writeJsonFile(initCompleteMarker(config), {
@@ -85,14 +88,17 @@ export function writeInitCompleteMarker(
       source,
     });
 
-    if (existsSync(inProgressMarker)) {
-      yield* Effect.try({
-        try: () => unlinkSync(inProgressMarker),
-        catch: (error) =>
-          new InitStateError({
-            message: `Could not remove ${displayPath(inProgressMarker)}: ${String(error)}`,
-          }),
-      });
+    if (yield* pathExists(inProgressMarker)) {
+      const fs = yield* FileSystem.FileSystem;
+
+      yield* fs.remove(inProgressMarker).pipe(
+        Effect.mapError(
+          (error) =>
+            new InitStateError({
+              message: `Could not remove ${displayPath(inProgressMarker)}: ${error.message}`,
+            }),
+        ),
+      );
     }
   });
 }
@@ -101,11 +107,15 @@ export function writeInitCompleteMarker(
 export function ensureInitCompleteMarker(
   config: ConfigService,
   source: InitCompleteSource,
-): Effect.Effect<InitCompleteMarkerStatus, InitStateError> {
+): Effect.Effect<
+  InitCompleteMarkerStatus,
+  InitStateError,
+  FileSystem.FileSystem
+> {
   return Effect.gen(function* () {
-    if (existsSync(initCompleteMarker(config))) return "exists";
+    if (yield* pathExists(initCompleteMarker(config))) return "exists";
 
-    if (existsSync(initInProgressMarker(config))) return "in-progress";
+    if (yield* pathExists(initInProgressMarker(config))) return "in-progress";
     yield* writeInitCompleteMarker(config, source);
 
     return "created";

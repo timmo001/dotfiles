@@ -1,6 +1,6 @@
 import { Effect } from "effect";
-import { existsSync, readFileSync } from "fs";
 import { join, basename } from "path";
+import { pathExists, readTextOrNull } from "../../lib/fsProbe.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { CONFIG_DIR, HOME_DIR } from "../../lib/paths.js";
 import { ENV, envString } from "../../lib/env.js";
@@ -90,7 +90,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
   for (const nodePath of renderNodesOutput.trim().split("\n").filter(Boolean)) {
     const driverLink = join(nodePath, "device", "driver");
 
-    if (!existsSync(driverLink)) continue;
+    if (!(yield* pathExists(driverLink))) continue;
 
     const driverResult = yield* executor
       .run("readlink", ["-f", driverLink])
@@ -130,7 +130,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
       let renderDriverName = "";
       const driverLink = join(sysNode, "device", "driver");
 
-      if (existsSync(driverLink)) {
+      if (yield* pathExists(driverLink)) {
         const driverResult = yield* executor
           .run("readlink", ["-f", driverLink])
           .pipe(Effect.catch(() => Effect.succeed("")));
@@ -209,8 +209,8 @@ export const checkHardwareVideo = Effect.gen(function* () {
   ];
 
   for (const { name, wrapper } of browsers) {
-    if (existsSync(wrapper)) {
-      const content = readTextFile(wrapper);
+    if (yield* pathExists(wrapper)) {
+      const content = yield* readTextOrNull(wrapper);
 
       if (content !== null) {
         const driverMatch = content.match(
@@ -241,8 +241,8 @@ export const checkHardwareVideo = Effect.gen(function* () {
   ];
 
   for (const { name, path } of flagsFiles) {
-    if (existsSync(path)) {
-      const content = readTextFile(path);
+    if (yield* pathExists(path)) {
+      const content = yield* readTextOrNull(path);
 
       if (content !== null) {
         results.push(...browserVideoFlagResults(name, content));
@@ -295,11 +295,3 @@ export const checkHardwareVideo = Effect.gen(function* () {
 
   return results;
 });
-
-function readTextFile(path: string): string | null {
-  try {
-    return readFileSync(path, "utf-8");
-  } catch {
-    return null;
-  }
-}

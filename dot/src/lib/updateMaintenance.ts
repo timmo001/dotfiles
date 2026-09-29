@@ -68,10 +68,11 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
 
     if (repo.category !== "dotfiles") return pending;
 
-    for (const folder of listStowFolders(repo.path, config).sort()) {
+    for (const folder of (yield* listStowFolders(repo.path, config)).sort()) {
       const flags = ["--simulate", "--verbose"];
 
-      if (requiresNoFolding(repo.path, folder)) flags.push("--no-folding");
+      if (yield* requiresNoFolding(repo.path, folder))
+        flags.push("--no-folding");
 
       if (folder === "agents") {
         flags.push(

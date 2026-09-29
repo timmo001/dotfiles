@@ -1,5 +1,4 @@
-import { Effect } from "effect";
-import { existsSync } from "fs";
+import { Effect, FileSystem } from "effect";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { managedGitRepos } from "../../services/GitConfig.js";
@@ -10,7 +9,6 @@ import {
   isRemoteTimeout,
   isTransientRemoteError,
 } from "../../lib/git.js";
-import { RetryBackoff } from "../../services/RetryBackoff.js";
 import { HOME_DIR, displayPath } from "../../lib/paths.js";
 import type { CheckResult } from "../../doctor/types.js";
 
@@ -91,10 +89,16 @@ function checkRepoHead(
 ): Effect.Effect<
   CheckResult | Unreachable | null,
   never,
-  CommandExecutor | RetryBackoff
+  CommandExecutor | FileSystem.FileSystem
 > {
   return Effect.gen(function* () {
-    if (!existsSync(target.path) || !isGitRepo(target.path)) return null;
+    const fs = yield* FileSystem.FileSystem;
+
+    if (
+      !(yield* fs.exists(target.path).pipe(Effect.orDie)) ||
+      !isGitRepo(target.path)
+    )
+      return null;
 
     const remote = yield* gitRemoteOutput(
       ["ls-remote", "--symref", REMOTE, "HEAD"],

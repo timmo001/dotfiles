@@ -8,26 +8,20 @@ import {
   Deferred,
   Effect,
   Exit,
-  Layer,
   Scope,
 } from "../../dot/node_modules/effect/dist/index.js";
+import { TestClock } from "../../dot/node_modules/effect/dist/testing/index.js";
 import { acquireDependencyLease } from "../../dot/src/deps/lease";
 import { DependencyRunError } from "../../dot/src/deps/state";
-import { RetryBackoff } from "../../dot/src/services/RetryBackoff";
 import type { DependencyRunLog } from "../../dot/src/deps/log";
 
-const testLayer = Layer.merge(NodeServices.layer, RetryBackoff.layer);
+const testLayer = NodeServices.layer;
 
-const immediateRetryLayer = Layer.merge(
-  NodeServices.layer,
-  Layer.succeed(
-    RetryBackoff,
-    RetryBackoff.of({
-      retry: (effect, options) =>
-        effect.pipe(
-          Effect.retry({ times: options.times, while: options.while }),
-        ),
-    }),
+const advanceClock = Effect.forkScoped(
+  Effect.forever(
+    TestClock.adjust("1 second").pipe(
+      Effect.andThen(TestClock.withLive(Effect.sleep("5 millis"))),
+    ),
   ),
 );
 
@@ -159,6 +153,7 @@ test("concurrent machines get one claim and a shared cooldown", async () => {
 test("target and ownership advance atomically, including server rejection", async () => {
   await Effect.runPromise(
     Effect.gen(function* () {
+      yield* advanceClock;
       const remote = yield* fixture();
 
       const lease = yield* acquireDependencyLease(
@@ -201,7 +196,11 @@ test("target and ownership advance atomically, including server rejection", asyn
       expect(yield* remote.git("rev-parse", "main")).toBe(remote.candidate);
       expect(yield* remote.git("rev-parse", remote.ref)).not.toBe(before);
       yield* lease.assertOwned;
-    }).pipe(Effect.scoped, Effect.provide(immediateRetryLayer)),
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(TestClock.layer()),
+      Effect.provide(testLayer),
+    ),
   );
 });
 

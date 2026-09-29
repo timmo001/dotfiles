@@ -2,7 +2,8 @@ import { expect, test } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Clock, Effect, Stream } from "../../dot/node_modules/effect/dist/index.js";
+import { Clock, Effect, type Layer, Stream } from "../../dot/node_modules/effect/dist/index.js";
+import { NodeServices } from "../../dot/node_modules/@effect/platform-node/dist/index.js";
 import { appendGitRepository } from "../../dot/src/lib/gitRepoConfig.js";
 import { parseDotGitConfigText, type GitManagedRepo } from "../../dot/src/services/GitConfig.js";
 import { bunLockChanges, collectReleaseChanges, goModuleChanges, manifestChanges, releaseFact } from "../../dot/src/git/release/changes.js";
@@ -11,9 +12,10 @@ import { acceptReleaseSnapshot, applyReleaseReview, assertReleaseSelection, empt
 import { CommandError, CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
 import { deliverReleaseNotification } from "../../dot/src/git/services/GitReleases.js";
 import { GitHub } from "../../dot/src/git/services/GitHub.js";
-import { RetryBackoff } from "../../dot/src/services/RetryBackoff.js";
 import { nextReleaseTag, prepareReleaseVersion, publishRelease } from "../../dot/src/git/release/publish.js";
 import type { ReleaseFact, ReleaseReviewState, ReleaseSettings, ReleaseSnapshot } from "../../dot/src/git/release/types.js";
+
+const runP = <A, E>(effect: Effect.Effect<A, E, Layer.Success<typeof NodeServices.layer>>) => Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer)));
 
 const repository: GitManagedRepo = {
   name: "Example", path: "/example", github: "example/project", aliases: [], postUpdate: null, agentOxlint: false,
@@ -72,7 +74,7 @@ test("release confirmation binds the reviewed head and recipe before any write",
     },
   });
 
-  const run = (recipe = config, confirmation?: string) => Effect.runPromise(publishRelease(repository, recipe, current, confirmation, () => Effect.void).pipe(
+  const run = (recipe = config, confirmation?: string) => runP(publishRelease(repository, recipe, current, confirmation, () => Effect.void).pipe(
     Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github),
   ));
 
@@ -166,7 +168,7 @@ test("UTC midnight invalidates the CalVer preview confirmation without writing",
     api: () => Effect.die("Unexpected API call"), run: () => Effect.die("Unexpected release"),
   });
 
-  const run = (confirmation?: string) => Effect.runPromise(Clock.clockWith((clock) => publishRelease(repository, config, current, confirmation, () => Effect.void).pipe(
+  const run = (confirmation?: string) => runP(Clock.clockWith((clock) => publishRelease(repository, config, current, confirmation, () => Effect.void).pipe(
     Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github),
     Effect.provideService(Clock.Clock, {
       sleep: clock.sleep.bind(clock), currentTimeMillis: Effect.succeed(now), currentTimeMillisUnsafe: () => now,
@@ -232,6 +234,7 @@ test("prepared Python and JSON writes are exact and validation cannot widen the 
       import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
       import { join } from "node:path";
       import { Effect, Stream } from ${module("node_modules/effect/dist/index.js")};
+      import { NodeServices } from ${module("node_modules/@effect/platform-node/dist/index.js")};
       import { CommandExecutor } from ${module("src/services/CommandExecutor.ts")};
       import { GitHub } from ${module("src/git/services/GitHub.ts")};
       import { publishRelease } from ${module("src/git/release/publish.ts")};
@@ -272,7 +275,7 @@ test("prepared Python and JSON writes are exact and validation cannot widen the 
         json: () => Effect.succeed({ tag_name: "1.0.0", draft: false, prerelease: false }),
         api: () => Effect.die("Unexpected API"), run: () => Effect.die("Unexpected release"),
       });
-      const run = (confirmation) => Effect.runPromise(publishRelease(repo, config, snapshot, confirmation, () => Effect.void).pipe(Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github)));
+      const run = (confirmation) => Effect.runPromise(publishRelease(repo, config, snapshot, confirmation, () => Effect.void).pipe(Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github), Effect.provide(NodeServices.layer)));
       const preview = await run();
       try { await run(preview.plan.id); throw new Error("Accepted widened version edit"); }
       catch (error) { if (!validated || !String(error).includes("Validation changed setup.py beyond its agreed version bump")) throw error; }
@@ -298,12 +301,12 @@ test("release query exposes the authoritative CalVer proposal and review can cle
 
     const child = Bun.spawn(["bun", "--eval", `
       import { Clock, Effect, Layer } from ${module("node_modules/effect/dist/index.js")};
+      import { NodeServices } from ${module("node_modules/@effect/platform-node/dist/index.js")};
       import { Config } from ${module("src/services/Config.ts")};
       import { CommandExecutor } from ${module("src/services/CommandExecutor.ts")};
       import { parseDotGitConfigText } from ${module("src/services/GitConfig.ts")};
       import { GitHub } from ${module("src/git/services/GitHub.ts")};
       import { GitReleases } from ${module("src/git/services/GitReleases.ts")};
-      import { RetryBackoff } from ${module("src/services/RetryBackoff.ts")};
       const github = GitHub.of({
         isAvailable: () => Effect.succeed(true),
         json: () => Effect.succeed({ tag_name: "v20260910.2", draft: false, prerelease: false, published_at: "2026-09-10T00:00:00Z" }),
@@ -323,8 +326,8 @@ test("release query exposes the authoritative CalVer proposal and review can cle
           const reviewed = yield* service.action({ repo: entry.repo, snapshot: entry.snapshot.id, target: "overall", impact: "none" });
           if (reviewed.nextVersion !== null) throw new Error("Quiet review still proposes a release");
           return entry.nextVersion;
-        }).pipe(Effect.provide(GitReleases.layer), Effect.provide(RetryBackoff.layer), Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github), Effect.provide(Layer.mock(Config, { gitConfig: parseDotGitConfigText(${JSON.stringify(source)}, "fixture.yml") })));
-      }).pipe(Effect.provide(CommandExecutor.layer));
+        }).pipe(Effect.provide(GitReleases.layer), Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github), Effect.provide(Layer.mock(Config, { gitConfig: parseDotGitConfigText(${JSON.stringify(source)}, "fixture.yml") })));
+      }).pipe(Effect.provide(CommandExecutor.layer), Effect.provide(NodeServices.layer));
       const now = Date.parse("2026-09-11T00:00:00Z");
       const tag = await Effect.runPromise(Clock.clockWith((clock) => program.pipe(Effect.provideService(Clock.Clock, {
         sleep: clock.sleep.bind(clock), currentTimeMillis: Effect.succeed(now), currentTimeMillisUnsafe: () => now,
@@ -632,14 +635,15 @@ test("release locks recover when a process exits without running finalisers", as
 
   try {
     const child = Bun.spawn(["bun", "--eval", `
+      import { NodeServices } from ${module("node_modules/@effect/platform-node/dist/index.js")};
       import { Effect } from ${module("node_modules/effect/dist/index.js")};
       import { withReleaseLock } from ${module("src/git/release/state.ts")};
-      await Effect.runPromise(withReleaseLock(${JSON.stringify(paths)}, Effect.sync(() => process.exit(0))));
+      await Effect.runPromise(withReleaseLock(${JSON.stringify(paths)}, Effect.sync(() => process.exit(0))).pipe(Effect.provide(NodeServices.layer)));
     `], { stdout: "pipe", stderr: "pipe" });
 
     expect(await child.exited).toBe(0);
     expect(existsSync(join(paths.state, "write.lock"))).toBe(true);
-    expect(await Effect.runPromise(withReleaseLock(paths, Effect.succeed("recovered")).pipe(Effect.timeout("2 seconds")))).toBe("recovered");
+    expect(await runP(withReleaseLock(paths, Effect.succeed("recovered")).pipe(Effect.timeout("2 seconds")))).toBe("recovered");
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -649,17 +653,17 @@ test("atomic locked persistence retains a failed scan's snapshot and concurrent 
   const current = snapshot([file("src/first.ts"), file("src/second.ts")]);
 
   try {
-    await Effect.runPromise(withReleaseLock(paths, saveReleaseDocument(paths.cache, "snapshot.json", { ...emptyReleaseCache(), snapshot: current, error: "Upstream unavailable" })));
+    await runP(withReleaseLock(paths, saveReleaseDocument(paths.cache, "snapshot.json", { ...emptyReleaseCache(), snapshot: current, error: "Upstream unavailable" })));
     const legacyReview = { ...emptyReleaseReview(), acknowledged: current.notificationId, delivered: current.notificationId };
-    await Effect.runPromise(withReleaseLock(paths, saveReleaseDocument(paths.state, "review.json", legacyReview)));
-    await Promise.all(current.findings.map((finding) => Effect.runPromise(withReleaseLock(paths, Effect.gen(function* () {
+    await runP(withReleaseLock(paths, saveReleaseDocument(paths.state, "review.json", legacyReview)));
+    await Promise.all(current.findings.map((finding) => runP(withReleaseLock(paths, Effect.gen(function* () {
       const { cache, review } = yield* readReleaseState(paths);
       expect(cache.snapshot?.id).toBe(current.id);
       expect(cache.error).toBe("Upstream unavailable");
       yield* Effect.sleep("10 millis");
       yield* saveReleaseDocument(paths.state, "review.json", reviewRelease(current, review, finding.id, "none"));
     })))));
-    const saved = await Effect.runPromise(withReleaseLock(paths, readReleaseState(paths)));
+    const saved = await runP(withReleaseLock(paths, readReleaseState(paths)));
     expect(saved.review).not.toHaveProperty("acknowledged");
     expect(saved.review.delivered).toBe(current.notificationId);
     expect(Object.keys(saved.review.findings)).toHaveLength(2);
@@ -699,7 +703,7 @@ test("delivery retries failures, serialises success, and preserves pending evide
       }),
     ));
 
-  const lockedDelivery = (current: ReleaseSnapshot) => Effect.runPromise(withReleaseLock(paths, Effect.gen(function* () {
+  const lockedDelivery = (current: ReleaseSnapshot) => runP(withReleaseLock(paths, Effect.gen(function* () {
     const { review } = yield* readReleaseState(paths);
     const next = yield* deliver(current, review);
     yield* saveReleaseDocument(paths.state, "review.json", next);
@@ -718,7 +722,7 @@ test("delivery retries failures, serialises success, and preserves pending evide
     expect(calls[1].command).toBe("omarchy");
     expect(calls[1].args.slice(0, 6)).toEqual(["notification", "send", "--app-name", "Git releases", "--urgency", "normal"]);
     expect(calls[1].args.slice(-6)).toEqual(["--exec", "dot", "git-releases", "--open", "--repo", "example/project"]);
-    const saved = (await Effect.runPromise(readReleaseState(paths))).review;
+    const saved = (await runP(readReleaseState(paths))).review;
     expect(saved.deliveredAt).toBe("2026-09-10T12:00:00.000Z");
     expect(saved.deliveryError).toBeNull();
     await lockedDelivery(snapshot([file("src/rule.ts"), file(".github/workflows/ci.yml")], "quiet-head"));
@@ -737,7 +741,7 @@ test("delivery retries failures, serialises success, and preserves pending evide
       [snapshot([file(".github/workflows/ci.yml")]), emptyReleaseReview(), false, settings()],
       [original, emptyReleaseReview(), false, { ...settings(), notifications: { ...settings().notifications, minimum_impact: "minor" as const } }],
       [original, emptyReleaseReview(), false, { ...settings(), notifications: { ...settings().notifications, enabled: false } }],
-    ] as const) expect((await Effect.runPromise(deliver(candidate, state, stale, config))).pending).toBeNull();
+    ] as const) expect((await runP(deliver(candidate, state, stale, config))).pending).toBeNull();
     expect(calls).toHaveLength(3);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
@@ -835,7 +839,7 @@ function gitHistory() {
   return {
     root,
     commit: (files: Record<string, string>, subject: string, parent?: string) => git(["commit-tree", tree(files), ...(parent ? ["-p", parent] : []), "-m", subject]),
-    collect: (before: string, after: string, config: ReleaseSettings) => Effect.runPromise(collectReleaseChanges(root, before, after, config, join(root, "cache")).pipe(Effect.provide(RetryBackoff.layer), Effect.provide(CommandExecutor.layer))),
+    collect: (before: string, after: string, config: ReleaseSettings) => Effect.runPromise(collectReleaseChanges(root, before, after, config, join(root, "cache")).pipe(Effect.provide(CommandExecutor.layer), Effect.provide(NodeServices.layer))),
     close: () => rmSync(root, { recursive: true, force: true }),
   };
 }

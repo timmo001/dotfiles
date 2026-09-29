@@ -2,8 +2,7 @@ import { NodeServices } from "@effect/platform-node";
 import { layer as ghLayer } from "@timmo001/effect-gh";
 import { Effect, Layer, Option } from "effect";
 import { CliConfig, CliError, Command } from "effect/cli";
-import { mkdirSync } from "fs";
-import { dirname, join } from "path";
+import { join } from "path";
 import { cliBuiltIns, dotCommand, getCliCommand } from "./cli/spec.js";
 import {
   bootstrapGhRepoClone,
@@ -27,7 +26,6 @@ import { Config } from "./services/Config.js";
 import { Launcher } from "./services/Launcher.js";
 import { OutputLog } from "./services/OutputLog.js";
 import { ProcessRunner } from "./services/ProcessRunner.js";
-import { RetryBackoff } from "./services/RetryBackoff.js";
 
 const DEFAULT_INIT_LOG_FILE = join(STATE_DIR, "dot", "init.log");
 
@@ -104,7 +102,6 @@ function prepareInit(): void {
   const logFile = envString(ENV.DOT_LOG_FILE);
 
   if (!logFile) return;
-  mkdirSync(dirname(logFile), { recursive: true });
   writeMirroredLog(logFile, "", { truncate: true });
 
   if (envString(ENV.DOT_ALLOW_PRIVATE) === "never") return;
@@ -154,11 +151,12 @@ const CliLayers = Launcher.layer.pipe(
   Layer.provideMerge(GitPullRequests.layer),
   Layer.provideMerge(GitStaging.layer),
   Layer.provideMerge(GitHub.layer),
-  Layer.provideMerge(ghLayer().pipe(Layer.provide(NodeServices.layer))),
+  Layer.provideMerge(ghLayer()),
   Layer.provideMerge(OutputLog.layer),
   Layer.provideMerge(CommandExecutor.layer),
   Layer.provideMerge(Config.layer),
-  Layer.provideMerge(RetryBackoff.layer),
+  Layer.provideMerge(ProcessRunner.layer),
+  Layer.provideMerge(NodeServices.layer),
 );
 
 const NATIVE_COMMAND_TIMEOUT_SECONDS = {
@@ -238,12 +236,7 @@ const program = withNativeCommandTimeout(
   commandProgram,
 ).pipe(
   Effect.provide(
-    Layer.mergeAll(
-      CliLayers,
-      ProcessRunner.layer,
-      NodeServices.layer,
-      CliConfig.layer({ builtIns: cliBuiltIns }),
-    ),
+    Layer.mergeAll(CliLayers, CliConfig.layer({ builtIns: cliBuiltIns })),
   ),
   Effect.catch((error) =>
     Effect.sync(() => {

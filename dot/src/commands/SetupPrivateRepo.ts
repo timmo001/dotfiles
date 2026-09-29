@@ -1,6 +1,5 @@
 import type { Gh } from "@timmo001/effect-gh";
-import { Effect, Option, Schema } from "effect";
-import { existsSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "fs";
+import { Effect, FileSystem, Option, Schema } from "effect";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -40,45 +39,62 @@ class SetupPrivateRepoError extends Schema.TaggedError<SetupPrivateRepoError>()(
   },
 ) {}
 
-function privatePackageRepoReady(repo: PrivatePackageRepoConfig): boolean {
-  return (
-    privatePackageRepoRegistered(repo) &&
-    privatePackageRepoIncludeRegistered() &&
-    privatePackageRepoConfigMatches(repo)
-  );
-}
-
-function privatePackageRepoInstalled(repo: PrivatePackageRepoConfig): boolean {
-  return (
-    privatePackageMirrorHasDatabase(repo) &&
-    privatePackageRepoRegistered(repo) &&
-    privatePackageRepoIncludeRegistered() &&
-    privatePackageRepoConfigMatches(repo)
-  );
-}
-
-function privatePackageMirrorHasDatabase(
-  repo: PrivatePackageRepoConfig,
-): boolean {
-  try {
-    return readdirSync(repo.mirrorPath).some(
-      (entry) =>
-        entry === `${repo.name}.db` ||
-        entry === `${repo.name}.db.tar.gz` ||
-        entry === `${repo.name}.db.tar.zst`,
+const privatePackageRepoReady = Effect.fn("SetupPrivateRepo.repoReady")(
+  function* (repo: PrivatePackageRepoConfig) {
+    return (
+      (yield* privatePackageRepoRegistered(repo)) &&
+      (yield* privatePackageRepoIncludeRegistered()) &&
+      (yield* privatePackageRepoConfigMatches(repo))
     );
-  } catch {
-    return false;
-  }
-}
+  },
+);
 
-function privatePacmanRepoConfigCurrent(
-  repo: PrivatePackageRepoConfig,
-): boolean {
-  return (
-    privatePackageRepoRegistered(repo) && privatePackageRepoConfigMatches(repo)
+const privatePackageMirrorHasDatabase = Effect.fn(
+  "SetupPrivateRepo.mirrorHasDatabase",
+)(function* (repo: PrivatePackageRepoConfig) {
+  const fs = yield* FileSystem.FileSystem;
+
+  return yield* fs.readDirectory(repo.mirrorPath).pipe(
+    Effect.map((entries) =>
+      entries.some(
+        (entry) =>
+          entry === `${repo.name}.db` ||
+          entry === `${repo.name}.db.tar.gz` ||
+          entry === `${repo.name}.db.tar.zst`,
+      ),
+    ),
+    Effect.orElseSucceed(() => false),
   );
-}
+});
+
+const privatePackageRepoInstalled = Effect.fn("SetupPrivateRepo.installed")(
+  function* (repo: PrivatePackageRepoConfig) {
+    return (
+      (yield* privatePackageMirrorHasDatabase(repo)) &&
+      (yield* privatePackageRepoRegistered(repo)) &&
+      (yield* privatePackageRepoIncludeRegistered()) &&
+      (yield* privatePackageRepoConfigMatches(repo))
+    );
+  },
+);
+
+const privatePacmanRepoConfigCurrent = Effect.fn(
+  "SetupPrivateRepo.repoConfigCurrent",
+)(function* (repo: PrivatePackageRepoConfig) {
+  return (
+    (yield* privatePackageRepoRegistered(repo)) &&
+    (yield* privatePackageRepoConfigMatches(repo))
+  );
+});
+
+const pathExists = (fs: FileSystem.FileSystem, path: string) =>
+  fs
+    .exists(path)
+    .pipe(
+      Effect.mapError(
+        (error) => new SetupPrivateRepoError({ message: error.message }),
+      ),
+    );
 
 function fail(message: string): Effect.Effect<never, SetupPrivateRepoError> {
   return Effect.fail(new SetupPrivateRepoError({ message }));
@@ -120,21 +136,32 @@ function runElevatedPrivateRepoCommand(
 
 function removePartialClone(
   repo: PrivatePackageRepoConfig,
-): Effect.Effect<void, SetupPrivateRepoError> {
-  return Effect.try({
-    try: () => rmSync(repo.path, { recursive: true, force: true }),
-    catch: (error) =>
-      new SetupPrivateRepoError({
-        message: `Could not remove partial private package repo clone ${displayPath(repo.path)}: ${String(error)}`,
-      }),
+): Effect.Effect<void, SetupPrivateRepoError, FileSystem.FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+
+    yield* fs.remove(repo.path, { recursive: true, force: true }).pipe(
+      Effect.mapError(
+        (error) =>
+          new SetupPrivateRepoError({
+            message: `Could not remove partial private package repo clone ${displayPath(repo.path)}: ${String(error)}`,
+          }),
+      ),
+    );
   });
 }
 
 function clonePrivatePackageRepo(
   repo: PrivatePackageRepoConfig,
-): Effect.Effect<void, SetupPrivateRepoError, Gh | OutputLog> {
+): Effect.Effect<
+  void,
+  SetupPrivateRepoError,
+  FileSystem.FileSystem | Gh | OutputLog
+> {
   return Effect.gen(function* () {
-    if (existsSync(repo.path)) return;
+    const fs = yield* FileSystem.FileSystem;
+
+    if (yield* pathExists(fs, repo.path)) return;
 
     if (!repo.remote) {
       return yield* fail(
@@ -167,47 +194,62 @@ function clonePrivatePackageRepo(
 
 function removeTempFile(
   tempPath: string,
-): Effect.Effect<void, SetupPrivateRepoError> {
-  return Effect.try({
-    try: () => unlinkSync(tempPath),
-    catch: (error) =>
-      new SetupPrivateRepoError({
-        message: `Could not remove temp file ${displayPath(tempPath)}: ${String(error)}`,
-      }),
+): Effect.Effect<void, SetupPrivateRepoError, FileSystem.FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+
+    yield* fs.remove(tempPath).pipe(
+      Effect.mapError(
+        (error) =>
+          new SetupPrivateRepoError({
+            message: `Could not remove temp file ${displayPath(tempPath)}: ${String(error)}`,
+          }),
+      ),
+    );
   });
 }
 
 function writeTempPrivatePacmanRepoConfig(
   repo: PrivatePackageRepoConfig,
-): Effect.Effect<string, SetupPrivateRepoError> {
-  return Effect.try({
-    try: () => {
-      const tempPath = join(
-        envString(ENV.TMPDIR) ?? "/tmp",
-        `dot-private-pacman-${process.pid}.conf`,
+): Effect.Effect<string, SetupPrivateRepoError, FileSystem.FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+
+    const tempPath = join(
+      envString(ENV.TMPDIR) ?? "/tmp",
+      `dot-private-pacman-${process.pid}.conf`,
+    );
+
+    yield* fs
+      .writeFileString(tempPath, privatePackageRepoConfigContents(repo))
+      .pipe(
+        Effect.mapError(
+          (error) =>
+            new SetupPrivateRepoError({
+              message: `Could not write private pacman repo temp config: ${String(error)}`,
+            }),
+        ),
       );
 
-      writeFileSync(tempPath, privatePackageRepoConfigContents(repo));
-
-      return tempPath;
-    },
-    catch: (error) =>
-      new SetupPrivateRepoError({
-        message: `Could not write private pacman repo temp config: ${String(error)}`,
-      }),
+    return tempPath;
   });
 }
 
 /** Sync the private package repository mirror consumed by pacman. */
 function syncPrivatePackageRepoMirror(
   repo: PrivatePackageRepoConfig,
-): Effect.Effect<void, SetupPrivateRepoError, CommandExecutor | OutputLog> {
+): Effect.Effect<
+  void,
+  SetupPrivateRepoError,
+  CommandExecutor | FileSystem.FileSystem | OutputLog
+> {
   return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
     const log = yield* OutputLog;
 
     yield* log.section("Sync private package repo mirror");
 
-    if (!existsSync(repo.path)) {
+    if (!(yield* pathExists(fs, repo.path))) {
       return yield* fail(
         `Missing private package repo source clone: ${displayPath(repo.path)}`,
       );
@@ -243,11 +285,15 @@ function syncPrivatePackageRepoMirror(
 /** Write the private pacman repository snippet when it is missing or outdated. */
 function configurePrivatePacmanRepo(
   repo: PrivatePackageRepoConfig,
-): Effect.Effect<void, SetupPrivateRepoError, CommandExecutor | OutputLog> {
+): Effect.Effect<
+  void,
+  SetupPrivateRepoError,
+  CommandExecutor | FileSystem.FileSystem | OutputLog
+> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
 
-    if (privatePacmanRepoConfigCurrent(repo)) return;
+    if (yield* privatePacmanRepoConfigCurrent(repo)) return;
 
     yield* log.section("Configure private pacman repo");
     const tempPath = yield* writeTempPrivatePacmanRepoConfig(repo);
@@ -282,12 +328,12 @@ function refreshPrivatePacmanMetadata(): Effect.Effect<
 function registerPrivatePacmanRepoInclude(): Effect.Effect<
   void,
   SetupPrivateRepoError,
-  CommandExecutor | OutputLog
+  CommandExecutor | OutputLog | FileSystem.FileSystem
 > {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
 
-    if (privatePackageRepoIncludeRegistered()) return;
+    if (yield* privatePackageRepoIncludeRegistered()) return;
 
     yield* log.section("Register private pacman repo include");
     yield* runElevatedPrivateRepoCommand(
@@ -313,12 +359,16 @@ export const setupPrivatePackageRepo = (
 ): Effect.Effect<
   void,
   SetupPrivateRepoError,
-  CommandExecutor | OutputLog | Gh
+  CommandExecutor | FileSystem.FileSystem | OutputLog | Gh
 > =>
   Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
     const log = yield* OutputLog;
 
-    if (!existsSync(repo.path) && privatePackageRepoInstalled(repo)) {
+    if (
+      !(yield* pathExists(fs, repo.path)) &&
+      (yield* privatePackageRepoInstalled(repo))
+    ) {
       yield* log.info(
         "Private pacman repo already configured; skipping source clone",
       );
@@ -333,7 +383,7 @@ export const setupPrivatePackageRepo = (
     yield* registerPrivatePacmanRepoInclude();
     yield* refreshPrivatePacmanMetadata();
 
-    if (!privatePackageRepoReady(repo)) {
+    if (!(yield* privatePackageRepoReady(repo))) {
       return yield* fail("Private pacman repo setup did not reach ready state");
     }
   });
@@ -349,7 +399,7 @@ export const setupPrivateRepo = Effect.gen(function* () {
     );
   }
 
-  const repo = loadPrivatePackageRepoConfig(config);
+  const repo = yield* loadPrivatePackageRepoConfig(config);
 
   if (!repo) {
     return yield* fail("Missing private package repo config");

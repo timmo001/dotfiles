@@ -1,5 +1,5 @@
-import { Duration, Effect, Schedule, Schema } from "effect";
-import { closeSync, mkdirSync, openSync } from "fs";
+import { Duration, Effect, FileSystem, Schedule, Schema, Stream } from "effect";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { dirname } from "path";
 
 /** Failure to open or acquire an exclusive kernel file lock. */
@@ -14,29 +14,34 @@ export class FileLockError extends Schema.TaggedError<FileLockError>()(
 
 const LOCK_POLL = Duration.millis(250);
 
+/** Line the holder prints once `flock` has taken the lock. */
+const LOCKED_MARKER = "locked";
+
 /**
  * Hold an exclusive `flock` on `path` until the surrounding scope closes.
  *
- * The lock lives on an inherited descriptor, so the kernel releases it even
- * if dot crashes. The file stays in place so every caller locks the same
- * inode. Without `wait`, a held lock fails immediately as `busy`.
+ * The lock is held by a `flock` child that keeps the file open while it waits
+ * for its stdin to close, so the kernel releases the lock when the scope
+ * closes or if dot crashes. The file stays in place so every caller locks the
+ * same inode. Without `wait`, a held lock fails immediately as `busy`.
  */
 export const acquireFileLock = Effect.fn("fileLock.acquire")(function* (
   path: string,
   options: { readonly wait?: Duration.Input } = {},
 ) {
-  const descriptor = yield* Effect.acquireRelease(
-    Effect.try({
-      try: () => {
-        mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  const fs = yield* FileSystem.FileSystem;
+  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
 
-        return openSync(path, "a+", 0o600);
-      },
-      catch: (error) =>
-        new FileLockError({ reason: "failed", message: String(error) }),
-    }),
-    (fd) => Effect.sync(() => closeSync(fd)),
-  );
+  const failed = (error: { readonly message: string }) =>
+    new FileLockError({ reason: "failed", message: error.message });
+
+  yield* fs
+    .makeDirectory(dirname(path), { recursive: true, mode: 0o700 })
+    .pipe(Effect.mapError(failed));
+
+  yield* fs
+    .writeFileString(path, "", { flag: "a+", mode: 0o600 })
+    .pipe(Effect.mapError(failed));
 
   const polls = options.wait
     ? Math.floor(
@@ -45,25 +50,48 @@ export const acquireFileLock = Effect.fn("fileLock.acquire")(function* (
       )
     : 0;
 
-  const acquired = yield* Effect.try({
-    try: () => {
-      const result = Bun.spawnSync(
-        ["flock", "--exclusive", "--nonblock", "0"],
-        { stdin: descriptor, stdout: "ignore", stderr: "pipe" },
-      );
+  const attempt = Effect.gen(function* () {
+    const handle = yield* spawner.spawn(
+      ChildProcess.make(
+        "flock",
+        [
+          "--exclusive",
+          "--nonblock",
+          path,
+          "sh",
+          "-c",
+          `echo ${LOCKED_MARKER}; exec cat`,
+        ],
+        { stdin: "pipe", stdout: "pipe", stderr: "pipe" },
+      ),
+    );
 
-      if (result.exitCode === 0) return true;
+    const firstLine = yield* handle.stdout.pipe(
+      Stream.decodeText(),
+      Stream.splitLines,
+      Stream.take(1),
+      Stream.runCollect,
+    );
 
-      if (result.exitCode === 1) return false;
+    if (firstLine[0] === LOCKED_MARKER) return true;
 
-      throw new Error(result.stderr.toString().trim() || "flock failed");
-    },
-    catch: (error) =>
-      new FileLockError({
-        reason: "failed",
-        message: error instanceof Error ? error.message : String(error),
-      }),
+    const exitCode = yield* handle.exitCode;
+
+    if (exitCode === 1) return false;
+
+    const stderr = yield* handle.stderr.pipe(
+      Stream.decodeText(),
+      Stream.mkString,
+    );
+
+    return yield* Effect.fail(new Error(stderr.trim() || "flock failed"));
   }).pipe(
+    Effect.mapError((error) =>
+      failed(error instanceof Error ? error : { message: String(error) }),
+    ),
+  );
+
+  const acquired = yield* attempt.pipe(
     Effect.repeat({
       while: (locked) => !locked,
       times: polls,

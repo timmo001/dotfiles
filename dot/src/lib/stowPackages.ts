@@ -1,6 +1,6 @@
-import { Effect } from "effect";
-import { lstatSync, readdirSync, readlinkSync, statSync } from "fs";
+import { Effect, type FileSystem } from "effect";
 import { basename, dirname, join, relative, resolve } from "path";
+import { lstatOrNull, readDirectoryOrNull, readLinkOrNull } from "./fsProbe.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
@@ -92,11 +92,13 @@ export const runStow = Effect.fn("stow.run")(function* (
 });
 
 /** Home-relative plugin paths that are deployed rather than stowed. */
-function pluginTargets(repoDir: string): string[] {
-  return omarchyPluginSubmodules(repoDir).map((source) =>
+const pluginTargets = Effect.fn("stow.pluginTargets")(function* (
+  repoDir: string,
+) {
+  return (yield* omarchyPluginSubmodules(repoDir)).map((source) =>
     relative(join(repoDir, "omarchy"), source),
   );
-}
+});
 
 /**
  * Remove or back up retired links and cloned repositories that would
@@ -165,11 +167,14 @@ export const backupUnmanagedTargets = Effect.fn("stow.backupUnmanaged")(
     const log = yield* OutputLog;
     const style = cliStyler();
 
+    const folders = (yield* listStowFolders(repoDir, config)).sort();
+    const pluginTargetList = yield* pluginTargets(repoDir);
+
     const moves = yield* Effect.sync(() =>
       backupUnmanagedStowTargets(
         repoDir,
-        config,
-        new Set([...extraIgnored, ...pluginTargets(repoDir)]),
+        folders,
+        new Set([...extraIgnored, ...pluginTargetList]),
       ),
     );
 
@@ -201,7 +206,7 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
   const config = yield* Config;
   const log = yield* OutputLog;
   const launcher = yield* Launcher;
-  const folders = listStowFolders(repoDir, config).sort();
+  const folders = (yield* listStowFolders(repoDir, config)).sort();
   const repoDisplayPath = displayPath(repoDir);
   const style = cliStyler();
   const adoptFlags = options.adopt ? ["--adopt"] : [];
@@ -215,7 +220,7 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
       const isHypr = folder === "hypr";
 
       const plugins =
-        folder === "omarchy" ? omarchyPluginSubmodules(repoDir) : [];
+        folder === "omarchy" ? yield* omarchyPluginSubmodules(repoDir) : [];
 
       const pluginIgnores = plugins.map(
         (source) =>
@@ -243,7 +248,7 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
       // Some packages must stay real directories (not folded symlinks) so
       // runtime symlinks, host overrides, and tool-generated files can live
       // alongside the stowed config. See requiresNoFolding for the rationale.
-      if (requiresNoFolding(repoDir, folder)) flags.push("--no-folding");
+      if (yield* requiresNoFolding(repoDir, folder)) flags.push("--no-folding");
 
       if (folder === "agents") {
         if (scope === "public") {
@@ -311,9 +316,13 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
   const batched = folders.filter((folder) => !UNBATCHED_FOLDERS.has(folder));
 
   for (const noFolding of [false, true]) {
-    const group = batched.filter(
-      (folder) => requiresNoFolding(repoDir, folder) === noFolding,
-    );
+    const group: string[] = [];
+
+    for (const folder of batched) {
+      if ((yield* requiresNoFolding(repoDir, folder)) === noFolding) {
+        group.push(folder);
+      }
+    }
 
     if (group.length === 0) continue;
 
@@ -349,43 +358,42 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
 });
 
 /** Whether any home link still points into a retired package directory. */
-function hasStowLinksInto(
+const hasStowLinksInto = Effect.fn("stow.hasLinksInto")(function* (
   root: string,
   packageDir: string,
   targetDir: string,
-): boolean {
-  let entries: string[];
+): Effect.fn.Return<boolean, never, FileSystem.FileSystem> {
+  const entries = yield* readDirectoryOrNull(packageDir);
 
-  try {
-    entries = readdirSync(packageDir);
-  } catch {
-    return false;
-  }
+  if (entries === null) return false;
 
-  return entries.some((entry) => {
+  for (const entry of entries) {
     const target = join(targetDir, entry);
+    const link = yield* readLinkOrNull(target);
 
-    try {
-      const stat = lstatSync(target);
+    if (link !== null) {
+      const destination = resolve(dirname(target), link);
 
-      if (stat.isSymbolicLink()) {
-        const destination = resolve(dirname(target), readlinkSync(target));
-
-        return destination === root || destination.startsWith(`${root}/`);
+      if (destination === root || destination.startsWith(`${root}/`)) {
+        return true;
       }
 
-      const source = join(packageDir, entry);
-
-      return (
-        stat.isDirectory() &&
-        statSync(source).isDirectory() &&
-        hasStowLinksInto(root, source, target)
-      );
-    } catch {
-      return false;
+      continue;
     }
-  });
-}
+
+    const source = join(packageDir, entry);
+
+    if (
+      (yield* lstatOrNull(target))?.type === "Directory" &&
+      (yield* lstatOrNull(source))?.type === "Directory" &&
+      (yield* hasStowLinksInto(root, source, target))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+});
 
 /** Remove links left behind by packages that are no longer stowed. */
 const unstowLegacyInternalFolders = Effect.fn("stow.unstowLegacyInternal")(
@@ -396,7 +404,8 @@ const unstowLegacyInternalFolders = Effect.fn("stow.unstowLegacyInternal")(
     for (const folder of INTERNAL_STOW_FOLDERS) {
       const packageDir = join(repoDir, folder);
 
-      if (!hasStowLinksInto(packageDir, packageDir, HOME_DIR)) continue;
+      if (!(yield* hasStowLinksInto(packageDir, packageDir, HOME_DIR)))
+        continue;
 
       yield* log.info(
         `${style.warn("Unstowing")} legacy ${style.accent(folder)} ${style.dim(`(${displayPath(repoDir)})`)}`,

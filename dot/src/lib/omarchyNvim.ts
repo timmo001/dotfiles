@@ -1,12 +1,6 @@
-import { Effect } from "effect";
+import { Effect, FileSystem } from "effect";
 import { cliStyler } from "./ansi.js";
-import {
-  existsSync,
-  lstatSync,
-  readlinkSync,
-  symlinkSync,
-  unlinkSync,
-} from "fs";
+import { pathExists, readLinkOrNull } from "./fsProbe.js";
 import { dirname, join, relative } from "path";
 import type { OutputLogService } from "../services/OutputLog.js";
 import { resolveLinkTarget } from "./omarchyHost.js";
@@ -53,24 +47,22 @@ export interface NvimThemeLink {
 }
 
 /** Read the symlink target at `linkPath`, or classify why it could not be read. */
-function readLinkTarget(linkPath: string):
-  | { readonly kind: "target"; readonly target: string }
-  | {
-      readonly kind: "missing" | "not-symlink";
-    } {
-  try {
-    const stat = lstatSync(linkPath);
+const readLinkTarget = Effect.fn("OmarchyNvim.readLinkTarget")(function* (
+  linkPath: string,
+) {
+  const content = yield* readLinkOrNull(linkPath);
 
-    if (!stat.isSymbolicLink()) return { kind: "not-symlink" };
-
+  if (content !== null) {
     return {
       kind: "target",
-      target: resolveLinkTarget(linkPath, readlinkSync(linkPath)),
-    };
-  } catch {
-    return { kind: "missing" };
+      target: resolveLinkTarget(linkPath, content),
+    } as const;
   }
-}
+
+  return (yield* pathExists(linkPath))
+    ? ({ kind: "not-symlink" } as const)
+    : ({ kind: "missing" } as const);
+});
 
 /**
  * Probe the omarchy-nvim theme spec symlink and classify it for repair.
@@ -81,38 +73,55 @@ function readLinkTarget(linkPath: string):
  * when the link is broken and no omarchy current theme spec exists to repair to,
  * and `repairable` when the link is missing or broken but a valid target exists.
  */
-export function detectNvimThemeLink(): NvimThemeLink {
-  const linkPath = nvimThemeLinkPath();
-  const desiredTarget = themeSpecCandidates().find(existsSync) ?? null;
+export const detectNvimThemeLink = Effect.fn("OmarchyNvim.detect")(
+  function* () {
+    const linkPath = nvimThemeLinkPath();
+    let desiredTarget: string | null = null;
 
-  const desiredLinkContent = desiredTarget
-    ? relative(dirname(linkPath), desiredTarget)
-    : null;
+    for (const candidate of themeSpecCandidates()) {
+      if (yield* pathExists(candidate)) {
+        desiredTarget = candidate;
+        break;
+      }
+    }
 
-  const base = { linkPath, desiredTarget, desiredLinkContent };
+    const desiredLinkContent = desiredTarget
+      ? relative(dirname(linkPath), desiredTarget)
+      : null;
 
-  if (!existsSync(nvimPluginsDir())) {
-    return { ...base, status: "not-installed", currentTarget: null };
-  }
+    const base = { linkPath, desiredTarget, desiredLinkContent };
 
-  const link = readLinkTarget(linkPath);
+    if (!(yield* pathExists(nvimPluginsDir()))) {
+      return {
+        ...base,
+        status: "not-installed",
+        currentTarget: null,
+      } satisfies NvimThemeLink;
+    }
 
-  if (link.kind === "not-symlink") {
-    return { ...base, status: "not-symlink", currentTarget: null };
-  }
+    const link = yield* readLinkTarget(linkPath);
 
-  const currentTarget = link.kind === "target" ? link.target : null;
+    if (link.kind === "not-symlink") {
+      return {
+        ...base,
+        status: "not-symlink",
+        currentTarget: null,
+      } satisfies NvimThemeLink;
+    }
 
-  if (currentTarget && existsSync(currentTarget)) {
-    return { ...base, status: "ok", currentTarget };
-  }
+    const currentTarget = link.kind === "target" ? link.target : null;
 
-  return {
-    ...base,
-    status: desiredTarget ? "repairable" : "no-theme",
-    currentTarget,
-  };
-}
+    if (currentTarget && (yield* pathExists(currentTarget))) {
+      return { ...base, status: "ok", currentTarget } satisfies NvimThemeLink;
+    }
+
+    return {
+      ...base,
+      status: desiredTarget ? "repairable" : "no-theme",
+      currentTarget,
+    } satisfies NvimThemeLink;
+  },
+);
 
 /**
  * Create or repair `~/.config/nvim/lua/plugins/theme.lua` so it points at the
@@ -127,7 +136,8 @@ export const ensureNvimThemeLink = (
   log: Pick<OutputLogService, "info" | "success" | "warn">,
 ) =>
   Effect.gen(function* () {
-    const link = detectNvimThemeLink();
+    const fs = yield* FileSystem.FileSystem;
+    const link = yield* detectNvimThemeLink();
     const path = displayPath(link.linkPath);
 
     if (link.status === "not-installed") return;
@@ -153,16 +163,12 @@ export const ensureNvimThemeLink = (
     }
 
     if (link.currentTarget !== null) {
-      yield* Effect.sync(() => {
-        try {
-          unlinkSync(link.linkPath);
-        } catch {
-          // Nothing to remove — treat as already clear.
-        }
-      });
+      yield* fs.remove(link.linkPath).pipe(Effect.ignore);
     }
 
-    symlinkSync(link.desiredLinkContent, link.linkPath);
+    yield* fs
+      .symlink(link.desiredLinkContent, link.linkPath)
+      .pipe(Effect.orDie);
     yield* log.success(
       `Repaired Neovim theme link (${path} -> ${link.desiredLinkContent})`,
     );

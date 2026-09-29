@@ -1,6 +1,5 @@
-import { Effect, Option } from "effect";
+import { Effect, FileSystem, Option } from "effect";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
-import { realpathSync } from "fs";
 import { join, dirname } from "path";
 import { ENV, envString } from "./env.js";
 import {
@@ -21,21 +20,26 @@ const log = (msg: string) => {
 };
 
 /**
- * Resolve the dot source directory from the running binary's location.
+ * Resolve the running binary and the dot source directory from its location.
  *
  * Binary lives at `<dotfiles>/scripts/.local/bin/dot`; source is at
  * `<dotfiles>/dot`. Resolve any symlinks (e.g. ~/.local/bin/dot → repo path)
  * before walking up.
  */
-const BIN_PATH = (() => {
-  try {
-    return realpathSync(process.execPath);
-  } catch {
-    return process.execPath;
-  }
-})();
+const resolveDotLocation = Effect.fn("SelfUpdate.resolveDotLocation")(
+  function* () {
+    const fs = yield* FileSystem.FileSystem;
 
-const DOT_SRC = join(dirname(BIN_PATH), "..", "..", "..", "dot");
+    const binPath = yield* fs
+      .realPath(process.execPath)
+      .pipe(Effect.orElseSucceed(() => process.execPath));
+
+    return {
+      binPath,
+      dotSrc: join(dirname(binPath), "..", "..", "..", "dot"),
+    };
+  },
+);
 
 /**
  * Rebuild the dot binary from source.
@@ -47,12 +51,13 @@ const DOT_SRC = join(dirname(BIN_PATH), "..", "..", "..", "dot");
  */
 export const rebuild = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
+  const { binPath, dotSrc } = yield* resolveDotLocation();
 
-  log(`Rebuilding from: ${DOT_SRC}`);
+  log(`Rebuilding from: ${dotSrc}`);
 
-  const buildKey = yield* sourceBuildKey(DOT_SRC);
+  const buildKey = yield* sourceBuildKey(dotSrc);
 
-  if (isBuildCurrent(BIN_PATH, buildKey)) {
+  if (yield* isBuildCurrent(binPath, buildKey)) {
     log(`Binary already built from ${buildKey}`);
 
     return false;
@@ -61,7 +66,7 @@ export const rebuild = Effect.gen(function* () {
   const installed = yield* withSpinnerTimeout(
     "Installing dot dependencies",
     DEPENDENCY_INSTALL_TIMEOUT_SECONDS,
-    executor.run("bun", ["install"], { cwd: DOT_SRC }),
+    executor.run("bun", ["install"], { cwd: dotSrc }),
   );
 
   if (Option.isNone(installed)) {
@@ -74,7 +79,7 @@ export const rebuild = Effect.gen(function* () {
 
   log("Dependencies installed");
 
-  const tmpPath = `${BIN_PATH}.new`;
+  const tmpPath = `${binPath}.new`;
 
   const compiled = yield* withSpinnerTimeout(
     "Compiling dot binary",
@@ -82,7 +87,7 @@ export const rebuild = Effect.gen(function* () {
     executor.run(
       "bun",
       ["build", "src/index.ts", "--compile", "--outfile", tmpPath],
-      { cwd: DOT_SRC },
+      { cwd: dotSrc },
     ),
   );
 
@@ -97,7 +102,7 @@ export const rebuild = Effect.gen(function* () {
   log(`Built to: ${tmpPath}`);
 
   // Atomic rename over the real binary (not the symlink)
-  yield* Effect.sync(() => installCompiledBinary(tmpPath, BIN_PATH, buildKey));
+  yield* installCompiledBinary(tmpPath, binPath, buildKey).pipe(Effect.orDie);
   log("Binary replaced");
 
   return true;
@@ -106,12 +111,13 @@ export const rebuild = Effect.gen(function* () {
 /** Restart the rebuilt dot binary with inherited stdio and fail on non-zero exit. */
 export const restartDot = (
   args: readonly string[],
-): Effect.Effect<void, CommandError, CommandExecutor> =>
+): Effect.Effect<void, CommandError, CommandExecutor | FileSystem.FileSystem> =>
   Effect.gen(function* () {
     const executor = yield* CommandExecutor;
-    const command = `${BIN_PATH} ${args.join(" ")}`;
+    const { binPath } = yield* resolveDotLocation();
+    const command = `${binPath} ${args.join(" ")}`;
     log(`Restarting: ${command}`);
-    const exitCode = yield* executor.inherit(BIN_PATH, args);
+    const exitCode = yield* executor.inherit(binPath, args);
 
     if (exitCode !== 0) {
       return yield* new CommandError({ command, exitCode, stderr: "" });

@@ -6,6 +6,7 @@ import { Launcher, LauncherError } from "../services/Launcher.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
 import { ensureStowInstalled } from "../lib/packageSetup.js";
 import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
+import { listStowFolders } from "../lib/stowFolders.js";
 import {
   backupConflictingPublicTargets,
   backupFileIfUnmanaged,
@@ -72,8 +73,13 @@ export const install = Effect.gen(function* () {
   // Committed-wins pre-pass: move live files that differ from their committed
   // source out of the way so the public `--adopt` stow symlinks the committed
   // config instead of overwriting the repo with stock leftovers.
+  const publicFolders = (yield* listStowFolders(
+    config.publicDotfiles,
+    config,
+  )).sort();
+
   const protectedTargets = yield* Effect.sync(() =>
-    backupConflictingPublicTargets(config.publicDotfiles, config),
+    backupConflictingPublicTargets(config.publicDotfiles, publicFolders),
   );
 
   if (protectedTargets.length > 0) {

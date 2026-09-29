@@ -1,9 +1,9 @@
 import type { Gh } from "@timmo001/effect-gh";
-import { Cause, Effect, Option } from "effect";
+import { Cause, Effect, FileSystem, Option } from "effect";
+import { ChildProcessSpawner } from "effect/process";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { GitHub } from "../git/services/GitHub.js";
-import { RetryBackoff } from "../services/RetryBackoff.js";
 import { checkDependencies } from "./checks/dependencies.js";
 import { checkGhExtensions } from "./checks/ghExtensions.js";
 import { checkLocale } from "./checks/locale.js";
@@ -56,7 +56,12 @@ interface SectionDef {
   readonly check: Effect.Effect<
     CheckResult[],
     unknown,
-    Config | CommandExecutor | GitHub | Gh | RetryBackoff
+    | Config
+    | CommandExecutor
+    | GitHub
+    | Gh
+    | FileSystem.FileSystem
+    | ChildProcessSpawner.ChildProcessSpawner
   >;
   readonly requiresPrivate?: boolean;
   readonly host?: string;
@@ -131,14 +136,19 @@ export const runDoctor = (
 ): Effect.Effect<
   DoctorReport,
   never,
-  Config | CommandExecutor | GitHub | Gh | RetryBackoff
+  | Config
+  | CommandExecutor
+  | GitHub
+  | Gh
+  | FileSystem.FileSystem
+  | ChildProcessSpawner.ChildProcessSpawner
 > =>
   Effect.gen(function* () {
     const config = yield* Config;
 
     // Filter out private-only checks when private is unavailable
     // (individual checks also handle this gracefully, but this avoids unnecessary work)
-    const host = resolvedOmarchyHost(config);
+    const host = yield* resolvedOmarchyHost(config);
 
     const applicable = sections.filter(
       (s) =>

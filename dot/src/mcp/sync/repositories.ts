@@ -1,11 +1,4 @@
-import { Effect, Schema } from "effect";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { Effect, FileSystem, Schema } from "effect";
 import { dirname, join, resolve } from "node:path";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
@@ -46,6 +39,10 @@ export const syncRepoMcpConfigs = Effect.gen(function* () {
   const { gitConfig, mcpConfig, stateDir } = yield* Config;
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
+  const fs = yield* FileSystem.FileSystem;
+
+  const repoMcpError = (error: { readonly message: string }) =>
+    new RepoMcpError({ message: error.message });
 
   if (!gitConfig.present) return;
 
@@ -80,13 +77,15 @@ export const syncRepoMcpConfigs = Effect.gen(function* () {
     catch: (error) => new RepoMcpError({ message: String(error) }),
   });
 
-  const previous = yield* Effect.try({
-    try: () =>
-      existsSync(manifest) ? JSON.parse(readFileSync(manifest, "utf8")) : [],
-    catch: (error) => new RepoMcpError({ message: String(error) }),
+  const previous = yield* Effect.gen(function* () {
+    if (!(yield* fs.exists(manifest))) return [];
+
+    const text = yield* fs.readFileString(manifest);
+
+    return yield* Effect.try(() => JSON.parse(text));
   }).pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.String))),
-    Effect.mapError((error) => new RepoMcpError({ message: String(error) })),
+    Effect.mapError(repoMcpError),
   );
 
   const directories = [...new Set([...previous, ...configs.keys()])];
@@ -95,7 +94,7 @@ export const syncRepoMcpConfigs = Effect.gen(function* () {
   yield* rememberRepositories(manifest, directories);
 
   for (const directory of directories) {
-    if (!existsSync(directory)) {
+    if (!(yield* fs.exists(directory).pipe(Effect.mapError(repoMcpError)))) {
       yield* log.warn(
         `Skipped missing MCP repository: ${displayPath(directory)}`,
       );
@@ -105,11 +104,11 @@ export const syncRepoMcpConfigs = Effect.gen(function* () {
     const target = join(directory, CONFIG_PATH);
     const content = configs.get(directory);
 
-    const existing = yield* Effect.try({
-      try: () =>
-        existsSync(target) ? readFileSync(target, "utf8") : undefined,
-      catch: (error) => new RepoMcpError({ message: String(error) }),
-    });
+    const existing = yield* Effect.gen(function* () {
+      if (!(yield* fs.exists(target))) return undefined;
+
+      return yield* fs.readFileString(target);
+    }).pipe(Effect.mapError(repoMcpError));
 
     if (existing !== undefined && !existing.startsWith(HEADER))
       return yield* new RepoMcpError({
@@ -134,35 +133,34 @@ export const syncRepoMcpConfigs = Effect.gen(function* () {
       })).trim(),
     );
 
-    yield* Effect.try({
-      try: () => {
-        if (content === undefined) {
-          if (existing !== undefined) unlinkSync(target);
+    yield* Effect.gen(function* () {
+      if (content === undefined) {
+        if (existing !== undefined) yield* fs.remove(target);
 
-          return;
-        }
+        return;
+      }
 
-        const ignored = existsSync(exclude)
-          ? readFileSync(exclude, "utf8")
-          : "";
+      const ignored = (yield* fs.exists(exclude))
+        ? yield* fs.readFileString(exclude)
+        : "";
 
-        if (!ignored.split(/\r?\n/).includes(`/${CONFIG_PATH}`)) {
-          mkdirSync(dirname(exclude), { recursive: true });
-          writeFileSync(
-            exclude,
-            `${ignored}${ignored.endsWith("\n") || !ignored ? "" : "\n"}/${CONFIG_PATH}\n`,
-          );
-        }
+      if (!ignored.split(/\r?\n/).includes(`/${CONFIG_PATH}`)) {
+        yield* fs.makeDirectory(dirname(exclude), { recursive: true });
+        yield* fs.writeFileString(
+          exclude,
+          `${ignored}${ignored.endsWith("\n") || !ignored ? "" : "\n"}/${CONFIG_PATH}\n`,
+        );
+      }
 
-        if (existing === content) return;
+      if (existing === content) return;
 
+      yield* Effect.try(() =>
         writeFileAtomic(target, content, {
           mode: 0o600,
           createDirectory: true,
-        });
-      },
-      catch: (error) => new RepoMcpError({ message: String(error) }),
-    });
+        }),
+      );
+    }).pipe(Effect.mapError(repoMcpError));
     const style = cliStyler();
 
     yield* log.info(

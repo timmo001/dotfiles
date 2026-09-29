@@ -7,6 +7,8 @@ import {
   GhCommandError,
   PullRequest,
   Repository,
+  isRateLimited,
+  isTransient,
   type GhError,
 } from "@timmo001/effect-gh";
 import {
@@ -18,9 +20,9 @@ import {
   Predicate,
   Record,
   Ref as EffectRef,
+  Schedule,
   Semaphore,
 } from "effect";
-import { RetryBackoff } from "../services/RetryBackoff.js";
 import { mergeDependencyPolicy, type DependencyPolicy } from "./config.js";
 import { decodeDependencyConfig, dependencyPolicyPath } from "./policyFile.js";
 import { DependencyDiskCache } from "./cache.js";
@@ -138,7 +140,6 @@ export class DependencyGithub extends Context.Service<
     DependencyGithub,
     Effect.gen(function* () {
       const gh = yield* Gh;
-      const backoff = yield* RetryBackoff;
       const disk = yield* DependencyDiskCache;
       const permits = yield* Semaphore.make(4);
       const rateLimited = yield* EffectRef.make(false);
@@ -165,16 +166,15 @@ export class DependencyGithub extends Context.Service<
         },
         (effect, _request, operation) =>
           effect.pipe(
-            permits.withPermit,
-            (request) =>
-              backoff.retry(request, {
-                times: 2,
-                initial: "300 millis",
-                while: (error) =>
-                  error instanceof GhCommandError &&
-                  /HTTP 50[234]|connection reset/.test(error.stderr) &&
-                  !/rate limit|HTTP 429/i.test(error.stderr),
-              }),
+            (request) => permits.withPermit(request),
+            Effect.retry({
+              times: 2,
+              schedule: Schedule.exponential("300 millis"),
+              while: (error) =>
+                error instanceof DependencyDiscoveryError
+                  ? false
+                  : isTransient(error) && !isRateLimited(error),
+            }),
             Effect.mapError((error) =>
               error instanceof DependencyDiscoveryError
                 ? error

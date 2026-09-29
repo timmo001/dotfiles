@@ -17,7 +17,7 @@ export const runSkillsMaintenance = Effect.fn("Skills.run")(function* (
   const executable = join(HOME_DIR, ".local", "bin", "skill-maintenance");
 
   const exitCode = yield* executor.inherit(executable, args, {
-    cwd: skillsMaintenanceSource(config.publicDotfiles),
+    cwd: yield* skillsMaintenanceSource(config.publicDotfiles),
   });
 
   if (exitCode !== 0) {

@@ -1,6 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { dirname, join, relative, resolve } from "node:path";
-import { Array, Duration, Effect, FileSystem, Result, Semaphore } from "effect";
+import {
+  Array,
+  Duration,
+  Effect,
+  FileSystem,
+  Result,
+  Schedule,
+  Semaphore,
+} from "effect";
 import type { DependencyConfig, DependencyPolicy } from "./config.js";
 import { skipDependencyCommand } from "./config.js";
 import { prepareDependencyEdits, verifyDependencyEdits } from "./edits.js";
@@ -9,7 +17,6 @@ import type { Dependency, Snapshot } from "./model.js";
 import type { PlannedDependency } from "./plan.js";
 import type { DependencyLease } from "./lease.js";
 import { DependencyRunError, type dependencyRunPaths } from "./state.js";
-import { RetryBackoff } from "../services/RetryBackoff.js";
 
 const credentials = [
   "-c",
@@ -27,8 +34,6 @@ export function dependencyGit(
 ) {
   return (args: readonly string[]) =>
     Effect.gen(function* () {
-      const backoff = yield* RetryBackoff;
-
       const command = log.command(
         "GIT",
         ["git", ...credentials, ...args],
@@ -42,18 +47,24 @@ export function dependencyGit(
 
       const value =
         args[0] === "ls-remote" || args[0] === "fetch"
-          ? yield* backoff.retry(command, {
-              initial: "1 second",
-              maxDelay: "8 seconds",
-              times: retryTimes,
-              while: (error) =>
-                error instanceof DependencyRunError &&
-                error.transientNetwork === true,
-              onRetry: (_error, delay) =>
-                log.event(
-                  `[WAIT] Git network unavailable; retrying ${args[0]} in ${Math.round(Duration.toMillis(delay) / 1000)}s`,
+          ? yield* command.pipe(
+              Effect.retry({
+                times: retryTimes,
+                schedule: Schedule.exponential("1 second").pipe(
+                  Schedule.modifyDelay(({ duration }) =>
+                    Effect.succeed(Duration.min(duration, Duration.seconds(8))),
+                  ),
+                  Schedule.tap(({ duration }) =>
+                    log.event(
+                      `[WAIT] Git network unavailable; retrying ${args[0]} in ${Math.round(Duration.toMillis(duration) / 1000)}s`,
+                    ),
+                  ),
                 ),
-            })
+                while: (error) =>
+                  error instanceof DependencyRunError &&
+                  error.transientNetwork === true,
+              }),
+            )
           : yield* command;
 
       return value.trim();
@@ -404,7 +415,7 @@ export const publishDependencyGroup = Effect.fn("Dependencies.publishGroup")(
         "git-commit",
         "-m",
         `Update dependencies in ${group
-          .replace(/[\u0000-\u001f\u2013\u2014]/g, " ")
+          .replace(/[\p{Cc}\u2013\u2014]/gu, " ")
           .slice(0, 80)
           .replace(/\.+$/, "")}`,
         ...allowed.flatMap((file) => ["--path", file]),

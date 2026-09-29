@@ -20,12 +20,13 @@ export function agentOxlintOptInText(
 
   if (repository.agent_oxlint === true) return source;
 
-  const expected = {
-    ...original,
+  const expected = Object.assign({}, original, {
     repositories: original.repositories.map((entry, index) =>
-      index === repositoryIndex ? { ...repository, agent_oxlint: true } : entry,
+      index === repositoryIndex
+        ? Object.assign({}, repository, { agent_oxlint: true })
+        : entry,
     ),
-  };
+  });
 
   const candidates: string[] = [];
 

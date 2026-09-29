@@ -1,13 +1,13 @@
-import { Clock, Effect, Schema } from "effect";
+import { Clock, Effect, FileSystem, Schema } from "effect";
 import {
   FetchHttpClient,
   HttpClient,
   HttpClientRequest,
   HttpClientResponse,
 } from "effect/http";
-import { existsSync } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
+import { pathExists } from "./fsProbe.js";
 import { expandHomePath } from "./paths.js";
 
 class CalendarEventError extends Schema.TaggedError<CalendarEventError>()(
@@ -61,12 +61,14 @@ const calendarLeave = Effect.fn("workTime.calendarLeave")(function* (
 ) {
   if (config.calendars.length === 0) return false;
 
-  const credentials = yield* Effect.tryPromise(() =>
-    Bun.file(expandHomePath(config.credentials_file)).text(),
-  ).pipe(
-    Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
-    Effect.flatMap(Schema.decodeUnknownEffect(Credentials)),
-  );
+  const fs = yield* FileSystem.FileSystem;
+
+  const credentials = yield* fs
+    .readFileString(expandHomePath(config.credentials_file))
+    .pipe(
+      Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
+      Effect.flatMap(Schema.decodeUnknownEffect(Credentials)),
+    );
 
   const client = (yield* HttpClient.HttpClient).pipe(
     HttpClient.mapRequest(
@@ -150,11 +152,11 @@ export const isWorkTime = Effect.fn("isWorkTime")(function* (
   if (!config.privateDotfiles) return false;
   const configPath = join(config.privateDotfiles, "workspace-calendar.yml");
 
-  if (!existsSync(configPath)) return false;
+  if (!(yield* pathExists(configPath))) return false;
 
-  const schedule = yield* Effect.tryPromise(() =>
-    Bun.file(configPath).text(),
-  ).pipe(
+  const fs = yield* FileSystem.FileSystem;
+
+  const schedule = yield* fs.readFileString(configPath).pipe(
     Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
     Effect.flatMap(Schema.decodeUnknownEffect(CalendarConfig)),
     Effect.catch(() => log("Work schedule unavailable").pipe(Effect.as(null))),

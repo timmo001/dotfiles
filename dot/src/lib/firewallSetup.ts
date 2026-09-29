@@ -1,7 +1,7 @@
-import { Effect, Schema } from "effect";
+import { Effect, type FileSystem, Schema } from "effect";
 import { cliStyler } from "./ansi.js";
 import { plural } from "./runSummary.js";
-import { existsSync, readFileSync } from "fs";
+import { pathExists, readTextOrNull } from "./fsProbe.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { runElevated } from "./elevatedCommand.js";
@@ -248,29 +248,33 @@ export function parseUfwAllowTuples(
 }
 
 /** Read the currently allowed ufw tuples, or an empty map when unreadable. */
-export function presentUfwTuples(): ReadonlyMap<string, UfwTuple> {
-  const filePath = ufwRulesFilePath();
+export const presentUfwTuples = Effect.fn("FirewallSetup.presentUfwTuples")(
+  function* () {
+    const filePath = ufwRulesFilePath();
 
-  if (!existsSync(filePath)) return new Map();
+    if (!(yield* pathExists(filePath))) return new Map<string, UfwTuple>();
 
-  try {
-    return parseUfwAllowTuples(readFileSync(filePath, "utf-8"));
-  } catch {
-    return new Map();
-  }
-}
+    const text = yield* readTextOrNull(filePath);
 
-function unresolvedFirewallSpecs(
-  specs: readonly FirewallRuleSpec[],
-): readonly FirewallRuleSpec[] {
-  const present = presentUfwTuples();
+    if (text === null) return new Map<string, UfwTuple>();
 
-  return specs.filter((spec) => {
-    const tuple = present.get(spec.tupleKey);
+    return yield* Effect.try(() => parseUfwAllowTuples(text)).pipe(
+      Effect.orElseSucceed(() => new Map<string, UfwTuple>()),
+    );
+  },
+);
 
-    return !tuple || tuple.comment !== spec.comment;
-  });
-}
+const unresolvedFirewallSpecs = Effect.fn("FirewallSetup.unresolvedSpecs")(
+  function* (specs: readonly FirewallRuleSpec[]) {
+    const present = yield* presentUfwTuples();
+
+    return specs.filter((spec) => {
+      const tuple = present.get(spec.tupleKey);
+
+      return !tuple || tuple.comment !== spec.comment;
+    });
+  },
+);
 
 function fail(message: string): Effect.Effect<never, FirewallSetupError> {
   return Effect.fail(new FirewallSetupError({ message }));
@@ -323,7 +327,7 @@ function ufwAllowArgs(spec: FirewallRuleSpec): readonly string[] {
 export const configureFirewallRules: Effect.Effect<
   void,
   FirewallSetupError,
-  CommandExecutor | OutputLog
+  CommandExecutor | OutputLog | FileSystem.FileSystem
 > = Effect.gen(function* () {
   const log = yield* OutputLog;
 
@@ -335,7 +339,7 @@ export const configureFirewallRules: Effect.Effect<
     return;
   }
 
-  const present = presentUfwTuples();
+  const present = yield* presentUfwTuples();
   const specs = firewallRuleSpecs();
   const toAdd = specs.filter((spec) => !present.has(spec.tupleKey));
 
@@ -374,7 +378,7 @@ export const configureFirewallRules: Effect.Effect<
     return yield* fail(`ufw firewall setup exited ${exitCode}`);
   }
 
-  const unresolved = unresolvedFirewallSpecs(specs);
+  const unresolved = yield* unresolvedFirewallSpecs(specs);
 
   if (unresolved.length > 0) {
     return yield* fail(

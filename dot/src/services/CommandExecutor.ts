@@ -1,13 +1,6 @@
-import {
-  Cause,
-  Context,
-  Effect,
-  Layer,
-  Option,
-  Queue,
-  Schema,
-  Stream,
-} from "effect";
+import { Context, Effect, Layer, PlatformError, Schema, Stream } from "effect";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
+import { constants } from "node:os";
 import { writeMirroredLog } from "../lib/logMirror.js";
 import { expandHomePath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
@@ -19,40 +12,6 @@ const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:CommandExecutor] ${msg}`);
 };
 
-/** Minimal view of a spawned process needed to terminate it. */
-type KillableProcess = Pick<Bun.Subprocess, "exitCode" | "kill" | "pid">;
-
-/** Terminate a spawned process if it is still running; a no-op once it has exited. */
-function killProcess(proc: KillableProcess): void {
-  if (proc.exitCode !== null) return;
-
-  try {
-    process.kill(-proc.pid, "SIGTERM");
-  } catch {
-    try {
-      proc.kill();
-    } catch {
-      // Raced with the process exiting between the check and the kill.
-    }
-  }
-}
-
-/**
- * Terminate `proc` when `signal` aborts. Effect aborts this signal on fiber
- * interruption (including timeouts and scope close), so a spawned command that
- * stalls on the network no longer keeps the fiber alive: the process is killed
- * and the interruption proceeds.
- */
-function killOnAbort(proc: KillableProcess, signal: AbortSignal): void {
-  if (signal.aborted) {
-    killProcess(proc);
-
-    return;
-  }
-
-  signal.addEventListener("abort", () => killProcess(proc), { once: true });
-}
-
 /** Domain error for command execution failures */
 export class CommandError extends Schema.TaggedError<CommandError>()(
   "CommandError",
@@ -63,31 +22,44 @@ export class CommandError extends Schema.TaggedError<CommandError>()(
   },
 ) {}
 
-const CommandFailure = Schema.Struct({
-  command: Schema.String,
-  exitCode: Schema.Number,
-  stderr: Schema.String,
-});
+const toCommandError = (command: string) => (cause: unknown) =>
+  new CommandError({ command, exitCode: 1, stderr: formatCause(cause) });
 
-const decodeCommandFailure = Schema.decodeUnknownOption(CommandFailure);
+const signalPattern = /receipt of signal: '(SIG[A-Z0-9]+)'/;
 
-function toCommandError(cause: unknown, command: string): CommandError {
-  const failure = decodeCommandFailure(cause);
+const signalNumber = (error: PlatformError.PlatformError) => {
+  const name = signalPattern.exec(String(error.reason.cause))?.[1];
 
-  if (Option.isSome(failure)) {
-    return new CommandError({
-      command: failure.value.command,
-      exitCode: failure.value.exitCode,
-      stderr: failure.value.stderr,
-    });
-  }
+  return Object.entries(constants.signals).find(
+    ([signal]) => signal === name,
+  )?.[1];
+};
 
-  return new CommandError({
-    command,
-    exitCode: 1,
-    stderr: formatCause(cause),
-  });
-}
+/**
+ * Wait for a spawned process and return its exit status, reporting a process
+ * killed by a signal as `128 + signal` like a POSIX shell.
+ */
+export const exitStatus = (
+  handle: ChildProcessSpawner.ChildProcessHandle,
+): Effect.Effect<number, PlatformError.PlatformError> =>
+  handle.exitCode.pipe(
+    Effect.map(Number),
+    Effect.catch((error) => {
+      const signal = signalNumber(error);
+
+      return signal === undefined
+        ? Effect.fail(error)
+        : Effect.succeed(128 + signal);
+    }),
+  );
+
+/**
+ * Leave the process group alone once the command has exited. The spawner
+ * otherwise terminates the group on scope close, which would kill background
+ * processes a successful command deliberately left running.
+ */
+const release = (handle: ChildProcessSpawner.ChildProcessHandle) =>
+  handle.unref.pipe(Effect.ignore);
 
 function inheritedCommandLogFile(): string | null {
   if (envString(ENV.DOT_TEE_INHERIT_LOG) !== "1") return null;
@@ -96,29 +68,24 @@ function inheritedCommandLogFile(): string | null {
   return logFile ? expandHomePath(logFile) : null;
 }
 
-function appendRawLog(
-  logFile: string | null,
-  chunk: Uint8Array | string,
-): void {
-  if (!logFile) return;
-  writeMirroredLog(logFile, chunk);
-}
-
-async function pipeProcessOutput(
-  stream: ReadableStream<Uint8Array>,
+const pipeProcessOutput = (
+  stream: Stream.Stream<Uint8Array, PlatformError.PlatformError>,
   output: Pick<typeof process.stdout, "write">,
-  logFile: string | null,
-): Promise<void> {
-  const reader = stream.getReader();
+  logFile: string,
+) =>
+  Stream.runForEach(stream, (chunk) =>
+    Effect.sync(() => {
+      output.write(chunk);
+      writeMirroredLog(logFile, chunk);
+    }),
+  );
 
-  while (true) {
-    const { done, value } = await reader.read();
+const lines = (
+  stream: Stream.Stream<Uint8Array, PlatformError.PlatformError>,
+) => stream.pipe(Stream.decodeText(), Stream.splitLines);
 
-    if (done) return;
-    output.write(value);
-    appendRawLog(logFile, value);
-  }
-}
+const describe = (fullCmd: readonly string[], cwd: string | undefined) =>
+  `${fullCmd.join(" ")}${cwd ? ` (cwd: ${cwd})` : ""}`;
 
 /** Service interface for executing subprocess commands via Effect */
 export interface CommandExecutorService {
@@ -160,251 +127,183 @@ export interface CommandExecutorService {
   ) => Effect.Effect<number>;
 }
 
-async function pipeLines(
-  stream: ReadableStream<Uint8Array>,
-  onLine: (line: string) => void,
-): Promise<void> {
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-
-    for (const line of lines) {
-      onLine(line);
-    }
-  }
-
-  if (buffer.length > 0) {
-    onLine(buffer);
-  }
-}
-
-function processLineStream(
-  fullCmd: readonly string[],
-  opts?: { readonly cwd?: string },
-): Stream.Stream<string, CommandError> {
-  return Stream.unwrap(
-    Effect.acquireRelease(
-      Effect.gen(function* () {
-        const queue = yield* Queue.unbounded<
-          string,
-          CommandError | Cause.Done
-        >();
-
-        const spawnOptions: Bun.SpawnOptions.OptionsObject<
-          "ignore",
-          "pipe",
-          "pipe"
-        > = {
-          stdout: "pipe",
-          stderr: "pipe",
-          cwd: opts?.cwd,
-          detached: true,
-        };
-
-        const proc = Bun.spawn([...fullCmd], spawnOptions);
-
-        const stderrLines: string[] = [];
-
-        const stdout = pipeLines(proc.stdout, (line) => {
-          Queue.offerUnsafe(queue, line);
-        });
-
-        const stderr = pipeLines(proc.stderr, (line) => {
-          stderrLines.push(line);
-          Queue.offerUnsafe(queue, line);
-        });
-
-        void Promise.all([stdout, stderr, proc.exited])
-          .then(([, , exitCode]) => {
-            if (exitCode === 0) {
-              Queue.endUnsafe(queue);
-
-              return;
-            }
-
-            Queue.failCauseUnsafe(
-              queue,
-              Cause.fail(
-                new CommandError({
-                  command: fullCmd.join(" "),
-                  exitCode,
-                  stderr: stderrLines.join("\n").trim(),
-                }),
-              ),
-            );
-          })
-          .catch((cause) => {
-            Queue.failCauseUnsafe(
-              queue,
-              Cause.fail(toCommandError(cause, fullCmd.join(" "))),
-            );
-          });
-
-        return { proc, queue };
-      }),
-      ({ proc, queue }) =>
-        Effect.gen(function* () {
-          killProcess(proc);
-          yield* Queue.shutdown(queue);
-        }),
-    ).pipe(Effect.map(({ queue }) => Stream.fromQueue(queue))),
-  );
-}
-
 /** Effect service for {@link CommandExecutorService} */
 export class CommandExecutor extends Context.Service<
   CommandExecutor,
   CommandExecutorService
 >()("CommandExecutor") {
-  static readonly layer = Layer.succeed(CommandExecutor, {
-    run: (cmd, args, opts) =>
-      Effect.tryPromise({
-        try: async (signal) => {
+  /** Runs commands through the platform `ChildProcessSpawner`. */
+  static readonly layer = Layer.effect(
+    CommandExecutor,
+    Effect.gen(function* () {
+      const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+
+      const envOptions = (env: Readonly<Record<string, string>> | undefined) =>
+        env ? { env: { ...env }, extendEnv: true } : {};
+
+      return {
+        run: (cmd, args, opts) => {
           const fullCmd = [cmd, ...args];
-          log(
-            `run: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
+          const command = fullCmd.join(" ");
+          log(`run: ${describe(fullCmd, opts?.cwd)}`);
+
+          return Effect.gen(function* () {
+            const handle = yield* spawner.spawn(
+              ChildProcess.make(cmd, args, {
+                cwd: opts?.cwd,
+                stdin: "ignore",
+                ...envOptions(opts?.env),
+              }),
+            );
+
+            const [stdout, stderr, exitCode] = yield* Effect.all(
+              [
+                Stream.mkString(Stream.decodeText(handle.stdout)),
+                Stream.mkString(Stream.decodeText(handle.stderr)),
+                exitStatus(handle),
+              ],
+              { concurrency: "unbounded" },
+            );
+
+            yield* release(handle);
+
+            if (exitCode !== 0) {
+              return yield* new CommandError({
+                command,
+                exitCode,
+                stderr: stderr.trim(),
+              });
+            }
+
+            return stdout;
+          }).pipe(
+            Effect.scoped,
+            Effect.catchTag("PlatformError", (error) =>
+              Effect.fail(toCommandError(command)(error)),
+            ),
+            Effect.tapError((error) =>
+              Effect.sync(() =>
+                log(`Failed (exit ${error.exitCode}): ${error.command}`),
+              ),
+            ),
           );
-
-          const spawnOptions: Bun.SpawnOptions.OptionsObject<
-            "ignore",
-            "pipe",
-            "pipe"
-          > = {
-            stdout: "pipe",
-            stderr: "pipe",
-            cwd: opts?.cwd,
-            detached: true,
-          };
-
-          if (opts?.env) spawnOptions.env = { ...process.env, ...opts.env };
-          const proc = Bun.spawn(fullCmd, spawnOptions);
-          killOnAbort(proc, signal);
-
-          const stdout = await new Response(proc.stdout).text();
-          const exitCode = await proc.exited;
-
-          if (exitCode !== 0) {
-            const stderr = await new Response(proc.stderr).text();
-            throw {
-              exitCode,
-              stderr: stderr.trim(),
-              command: fullCmd.join(" "),
-            };
-          }
-
-          return stdout;
         },
-        catch: (error) => {
-          const command = `${cmd} ${args.join(" ")}`;
-          const commandError = toCommandError(error, command);
-          log(
-            `Failed (exit ${commandError.exitCode}): ${commandError.command}`,
-          );
 
-          return commandError;
+        stream: (cmd, args, opts) => {
+          const fullCmd = [cmd, ...args];
+          const command = fullCmd.join(" ");
+          log(`stream: ${describe(fullCmd, opts?.cwd)}`);
+
+          return Stream.unwrap(
+            Effect.gen(function* () {
+              const handle = yield* spawner.spawn(
+                ChildProcess.make(cmd, args, {
+                  cwd: opts?.cwd,
+                  stdin: "ignore",
+                }),
+              );
+
+              const stderrLines: string[] = [];
+
+              const output = Stream.merge(
+                lines(handle.stdout),
+                lines(handle.stderr).pipe(
+                  Stream.tap((line) =>
+                    Effect.sync(() => stderrLines.push(line)),
+                  ),
+                ),
+              );
+
+              const exit = Stream.fromEffect(
+                Effect.gen(function* () {
+                  const exitCode = yield* exitStatus(handle);
+                  yield* release(handle);
+
+                  if (exitCode !== 0) {
+                    return yield* new CommandError({
+                      command,
+                      exitCode,
+                      stderr: stderrLines.join("\n").trim(),
+                    });
+                  }
+                }),
+              ).pipe(Stream.drain);
+
+              return Stream.concat(output, exit);
+            }),
+          ).pipe(
+            Stream.catchTag("PlatformError", (error) =>
+              Stream.fail(toCommandError(command)(error)),
+            ),
+          );
         },
-      }),
 
-    stream: (cmd, args, opts) => {
-      const fullCmd = [cmd, ...args];
-      log(
-        `stream: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
-      );
+        exitCode: (cmd, args, opts) => {
+          log(`exitCode: ${describe([cmd, ...args], opts?.cwd)}`);
 
-      return processLineStream(fullCmd, opts);
-    },
+          return Effect.gen(function* () {
+            const handle = yield* spawner.spawn(
+              ChildProcess.make(cmd, args, {
+                cwd: opts?.cwd,
+                stdin: "ignore",
+                stdout: "ignore",
+                stderr: "ignore",
+                ...envOptions(opts?.env),
+              }),
+            );
 
-    exitCode: (cmd, args, opts) =>
-      Effect.promise((signal) => {
-        const fullCmd = [cmd, ...args];
-        log(
-          `exitCode: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
-        );
+            const exitCode = yield* exitStatus(handle);
+            yield* release(handle);
 
-        const spawnOptions: Bun.SpawnOptions.OptionsObject<
-          "ignore",
-          "ignore",
-          "ignore"
-        > = {
-          stdout: "ignore",
-          stderr: "ignore",
-          cwd: opts?.cwd,
-          detached: true,
-        };
+            return exitCode;
+          }).pipe(Effect.scoped, Effect.orDie);
+        },
 
-        if (opts?.env) spawnOptions.env = { ...process.env, ...opts.env };
-        const proc = Bun.spawn(fullCmd, spawnOptions);
-        killOnAbort(proc, signal);
+        inherit: (cmd, args, opts) => {
+          const fullCmd = [cmd, ...args];
+          log(`inherit: ${describe(fullCmd, opts?.cwd)}`);
+          const commandLogFile = inheritedCommandLogFile();
 
-        return proc.exited;
-      }),
+          return Effect.gen(function* () {
+            if (commandLogFile)
+              writeMirroredLog(commandLogFile, `\n$ ${fullCmd.join(" ")}\n`);
 
-    inherit: (cmd, args, opts) =>
-      Effect.promise(async (signal) => {
-        const fullCmd = [cmd, ...args];
-        log(
-          `inherit: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
-        );
-        const commandLogFile = inheritedCommandLogFile();
-        const env = opts?.env ? { ...process.env, ...opts.env } : undefined;
+            // Stay in dot's process group so the child keeps the terminal
+            // foreground for prompts and receives Ctrl-C directly.
+            const handle = yield* spawner.spawn(
+              ChildProcess.make(cmd, args, {
+                cwd: opts?.cwd,
+                detached: false,
+                stdin: "inherit",
+                stdout: commandLogFile ? "pipe" : "inherit",
+                stderr: commandLogFile ? "pipe" : "inherit",
+                ...envOptions(opts?.env),
+              }),
+            );
 
-        if (commandLogFile) {
-          appendRawLog(commandLogFile, `\n$ ${fullCmd.join(" ")}\n`);
+            if (!commandLogFile) return yield* exitStatus(handle);
 
-          const spawnOptions: Bun.SpawnOptions.OptionsObject<
-            "inherit",
-            "pipe",
-            "pipe"
-          > = {
-            stdin: "inherit",
-            stdout: "pipe",
-            stderr: "pipe",
-            cwd: opts?.cwd,
-            env,
-          };
+            const [, , exitCode] = yield* Effect.all(
+              [
+                pipeProcessOutput(
+                  handle.stdout,
+                  process.stdout,
+                  commandLogFile,
+                ),
+                pipeProcessOutput(
+                  handle.stderr,
+                  process.stderr,
+                  commandLogFile,
+                ),
+                exitStatus(handle),
+              ],
+              { concurrency: "unbounded" },
+            );
 
-          const proc = Bun.spawn(fullCmd, spawnOptions);
-
-          killOnAbort(proc, signal);
-
-          const stdout = pipeProcessOutput(
-            proc.stdout,
-            process.stdout,
-            commandLogFile,
-          );
-
-          const stderr = pipeProcessOutput(
-            proc.stderr,
-            process.stderr,
-            commandLogFile,
-          );
-
-          const exitCode = await proc.exited;
-          await Promise.all([stdout, stderr]);
-
-          return exitCode;
-        }
-
-        const proc = Bun.spawn(fullCmd, {
-          stdin: "inherit",
-          stdout: "inherit",
-          stderr: "inherit",
-          cwd: opts?.cwd,
-          env,
-        });
-
-        killOnAbort(proc, signal);
-
-        return proc.exited;
-      }),
-  });
+            return exitCode;
+          }).pipe(Effect.scoped, Effect.orDie);
+        },
+      };
+    }),
+  );
 }

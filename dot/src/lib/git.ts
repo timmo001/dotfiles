@@ -1,16 +1,13 @@
 import { Gh } from "@timmo001/effect-gh";
-import { Duration, Effect, Schema } from "effect";
-import { existsSync, mkdirSync } from "fs";
+import { Duration, Effect, FileSystem, Schedule, Schema } from "effect";
 import { dirname, join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Launcher } from "../services/Launcher.js";
 import { OutputLog } from "../services/OutputLog.js";
-import {
-  RetryBackoff,
-  type RetryBackoffOptions,
-} from "../services/RetryBackoff.js";
 import { displayPath } from "./paths.js";
 import { ghOutput } from "./gh.js";
+import { pathExists } from "./fsProbe.js";
+import { spawnCaptured } from "./spawnText.js";
 import type { CommandError } from "../services/CommandExecutor.js";
 
 /** Options for git commands that run inside a repository. */
@@ -47,36 +44,39 @@ function fail(message: string): Effect.Effect<never, GitCommandError> {
 }
 
 /** Check whether a path is a checked-out git repository. */
-export function isGitRepo(repoPath: string): boolean {
-  return existsSync(join(repoPath, ".git"));
-}
+export const isGitRepo = Effect.fn("Git.isGitRepo")(function* (
+  repoPath: string,
+) {
+  return yield* pathExists(join(repoPath, ".git"));
+});
 
 /** Run a git command and return trimmed stdout, or an empty string on any failure. */
-function gitSyncOrEmpty(repoPath: string, args: readonly string[]): string {
-  try {
-    const result = Bun.spawnSync(["git", ...args], {
-      cwd: repoPath,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+const gitOrEmpty = Effect.fn("Git.gitOrEmpty")(function* (
+  repoPath: string,
+  args: readonly string[],
+) {
+  const result = yield* spawnCaptured("git", args, { cwd: repoPath }).pipe(
+    Effect.orElseSucceed(() => null),
+  );
 
-    if (result.exitCode !== 0) return "";
+  if (result === null || result.exitCode !== 0) return "";
 
-    return new TextDecoder().decode(result.stdout).trim();
-  } catch {
-    return "";
-  }
-}
+  return result.stdout.trim();
+});
 
-/** Return the current branch name synchronously, or an empty string when unavailable. */
-export function gitCurrentBranchSync(repoPath: string): string {
-  return gitSyncOrEmpty(repoPath, ["rev-parse", "--abbrev-ref", "HEAD"]);
-}
+/** Return the current branch name, or an empty string when unavailable. */
+export const gitCurrentBranch = Effect.fn("Git.currentBranch")(function* (
+  repoPath: string,
+) {
+  return yield* gitOrEmpty(repoPath, ["rev-parse", "--abbrev-ref", "HEAD"]);
+});
 
-/** Return the `origin` remote URL synchronously, or an empty string when unavailable. */
-export function gitRemoteOriginSync(repoPath: string): string {
-  return gitSyncOrEmpty(repoPath, ["remote", "get-url", "origin"]);
-}
+/** Return the `origin` remote URL, or an empty string when unavailable. */
+export const gitRemoteOrigin = Effect.fn("Git.remoteOrigin")(function* (
+  repoPath: string,
+) {
+  return yield* gitOrEmpty(repoPath, ["remote", "get-url", "origin"]);
+});
 
 /** Run `git <args>` and return stdout. */
 export function gitOutput(
@@ -115,6 +115,13 @@ export function isTransientRemoteError(message: string): boolean {
   return TRANSIENT_REMOTE_ERROR.test(message);
 }
 
+/** Retry options accepted by `Effect.retry` for remote operations. */
+export interface TransientRemoteRetry<E> {
+  readonly schedule: Schedule.Schedule<Duration.Duration>;
+  readonly times: number;
+  readonly while: (error: E) => boolean;
+}
+
 /**
  * Shared retry policy for remote operations: two retries with exponential
  * backoff from 500ms, only after a transient connection failure or a failure
@@ -123,11 +130,11 @@ export function isTransientRemoteError(message: string): boolean {
 export function transientRemoteRetry<E>(
   message: (error: E) => string,
   extra?: RegExp,
-): RetryBackoffOptions<E> {
+): TransientRemoteRetry<E> {
   return {
-    initial: "500 millis",
+    schedule: Schedule.exponential("500 millis"),
     times: 2,
-    while: (error) =>
+    while: (error: E) =>
       isTransientRemoteError(message(error)) ||
       (extra?.test(message(error)) ?? false),
   };
@@ -151,10 +158,9 @@ export function gitRemoteOutput(
   args: readonly string[],
   opts?: GitCommandOptions,
   timeout: Duration.Duration = GIT_REMOTE_TIMEOUT,
-): Effect.Effect<string, GitCommandError, CommandExecutor | RetryBackoff> {
+): Effect.Effect<string, GitCommandError, CommandExecutor> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
-    const backoff = yield* RetryBackoff;
 
     const attempt = executor
       .run(
@@ -181,9 +187,12 @@ export function gitRemoteOutput(
         }),
       );
 
-    return yield* backoff.retry(
-      attempt,
-      transientRemoteRetry((error) => error.message),
+    return yield* attempt.pipe(
+      Effect.retry(
+        transientRemoteRetry<{ readonly message: string }>(
+          (error) => error.message,
+        ),
+      ),
     );
   });
 }
@@ -227,13 +236,28 @@ export function gitRequired(
   });
 }
 
+/** Create the parent directory of a clone target. */
+const ensureParentDirectory = Effect.fn("Git.ensureParentDirectory")(function* (
+  repoPath: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  yield* fs
+    .makeDirectory(dirname(repoPath), { recursive: true })
+    .pipe(Effect.catch((error) => fail(error.message)));
+});
+
 /** Clone a GitHub repository using `gh repo clone`, respecting gh's configured protocol. */
 export function ghRepoClone(
   remote: string,
   repoPath: string,
-): Effect.Effect<void, GitCommandError, CommandExecutor> {
+): Effect.Effect<
+  void,
+  GitCommandError,
+  CommandExecutor | FileSystem.FileSystem
+> {
   return Effect.gen(function* () {
-    mkdirSync(dirname(repoPath), { recursive: true });
+    yield* ensureParentDirectory(repoPath);
     const executor = yield* CommandExecutor;
 
     const exitCode = yield* executor.inherit("gh", [
@@ -264,9 +288,9 @@ export function ghRepoCloneCaptured(
   remote: string,
   repoPath: string,
   gitArgs: readonly string[] = [],
-): Effect.Effect<void, GitCommandError, Gh> {
+): Effect.Effect<void, GitCommandError, Gh | FileSystem.FileSystem> {
   return Effect.gen(function* () {
-    mkdirSync(dirname(repoPath), { recursive: true });
+    yield* ensureParentDirectory(repoPath);
     const gh = yield* Gh;
 
     const args = [
@@ -336,7 +360,7 @@ const REFRESH_REMOTE_HEAD_TIMEOUT = Duration.seconds(15);
 export function gitRefreshRemoteHead(
   repoPath: string,
   remote = "origin",
-): Effect.Effect<void, never, CommandExecutor | RetryBackoff> {
+): Effect.Effect<void, never, CommandExecutor> {
   return gitRemoteOutput(
     ["remote", "set-head", remote, "--auto"],
     { cwd: repoPath },
@@ -358,11 +382,7 @@ const PULL_FETCH_TIMEOUT = Duration.seconds(20);
  */
 export function gitPullFastForward(
   repoPath: string,
-): Effect.Effect<
-  boolean,
-  never,
-  CommandExecutor | Launcher | OutputLog | RetryBackoff
-> {
+): Effect.Effect<boolean, never, CommandExecutor | Launcher | OutputLog> {
   return Effect.gen(function* () {
     const launcher = yield* Launcher;
     const log = yield* OutputLog;

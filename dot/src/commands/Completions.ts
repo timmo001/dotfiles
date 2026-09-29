@@ -1,11 +1,10 @@
-import { Data, Effect, Match, Option } from "effect";
+import { Data, Effect, FileSystem, Match, Option } from "effect";
 import {
   Completions,
   type Command,
   type Param,
   type Primitive,
 } from "effect/cli";
-import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { commandConfig, commandHelp, dotCommand } from "../cli/spec.js";
 import { Config } from "../services/Config.js";
@@ -267,20 +266,20 @@ export function renderCompletions(shell: CompletionShell): string {
 /** Write generated completions into the public dotfiles stow package. */
 export function writeCompletions(shell: CompletionShell) {
   return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
     const config = yield* Config;
     const target = join(config.publicDotfiles, COMPLETION_TARGETS[shell]);
-    yield* Effect.sync(() => {
-      mkdirSync(dirname(target), { recursive: true });
-      writeFileSync(target, renderCompletions(shell));
-    });
+    yield* fs.makeDirectory(dirname(target), { recursive: true });
+    yield* fs.writeFileString(target, renderCompletions(shell));
 
     return target;
-  });
+  }).pipe(Effect.orDie);
 }
 
 /** Generate and write standalone skill-maintenance completions. */
 export function writeSkillsMaintenanceCompletions(shell: CompletionShell) {
   return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
     const config = yield* Config;
     const executor = yield* CommandExecutor;
 
@@ -297,16 +296,14 @@ export function writeSkillsMaintenanceCompletions(shell: CompletionShell) {
       SKILL_MAINTENANCE_COMPLETION_TARGETS[shell],
     );
 
-    if (!existsSync(executable)) yield* buildSkillsMaintenance;
+    if (!(yield* fs.exists(executable))) yield* buildSkillsMaintenance;
 
     const output = yield* executor.run(executable, ["--completions", shell]);
-    yield* Effect.sync(() => {
-      mkdirSync(dirname(target), { recursive: true });
-      writeFileSync(target, output);
-    });
+    yield* fs.makeDirectory(dirname(target), { recursive: true });
+    yield* fs.writeFileString(target, output);
 
     return target;
-  });
+  }).pipe(Effect.orDie);
 }
 
 /** Write generated completions for every supported shell. */

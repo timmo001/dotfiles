@@ -834,13 +834,14 @@ const gitDiffCommand = describe(
         "Full JSON snapshot for the native shell panel",
       ),
     },
-    ({ barJson, panelJson }) => {
-      if (barJson) return diffBarJson();
+    ({ barJson, panelJson }) =>
+      Effect.gen(function* () {
+        if (barJson) return yield* diffBarJson();
 
-      if (panelJson) return diffPanelJson();
+        if (panelJson) return yield* diffPanelJson();
 
-      return diffRaw();
-    },
+        return yield* diffRaw();
+      }),
   ),
   "Show repository change state across all tracked repositories.",
   ["dot git-diff", "dot git-diff --bar-json", "dot git-diff --panel-json"],

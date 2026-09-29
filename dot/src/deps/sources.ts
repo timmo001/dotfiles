@@ -4,6 +4,7 @@ import {
   Effect,
   Layer,
   Ref,
+  Schedule,
   Schema,
   Predicate,
   Record,
@@ -21,7 +22,6 @@ import {
   type Dependency,
 } from "./model.js";
 import { renderTemplate } from "./managers/regex.js";
-import { RetryBackoff } from "../services/RetryBackoff.js";
 
 const Lookup = Schema.Struct({
   datasource: Schema.String,
@@ -65,7 +65,6 @@ export class DependencySources extends Context.Service<
     DependencySources,
     Effect.gen(function* () {
       const github = yield* DependencyGithub;
-      const backoff = yield* RetryBackoff;
       const disk = yield* DependencyDiskCache;
 
       const limiter = yield* RateLimiter.make.pipe(
@@ -157,8 +156,10 @@ export class DependencySources extends Context.Service<
                 ? HttpClientResponse.filterStatusOk(response)
                 : Effect.succeed(response),
             ),
-            (request) =>
-              backoff.retry(request, { times: 2, initial: "300 millis" }),
+            Effect.retry({
+              times: 2,
+              schedule: Schedule.exponential("300 millis"),
+            }),
             Effect.timeout(timeout),
             Effect.mapError(
               () =>

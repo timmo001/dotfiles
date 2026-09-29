@@ -1,9 +1,7 @@
 import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
-import { existsSync, mkdirSync } from "node:fs";
-import { Effect, Result } from "effect";
+import { Effect, FileSystem, Result } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
-import { RetryBackoff } from "../../services/RetryBackoff.js";
 import { gitOutput, transientRemoteRetry } from "../../lib/git.js";
 import {
   decodeJsonObject,
@@ -1042,7 +1040,7 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
 ): Effect.fn.Return<
   ReleaseChanges,
   ReleaseError,
-  CommandExecutor | RetryBackoff
+  CommandExecutor | FileSystem.FileSystem
 > {
   const comparison = yield* range(cwd, before, after, null);
   const facts: ReleaseFact[] = [];
@@ -1103,28 +1101,34 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
           evidenceId(fact.path),
         );
 
-        yield* Effect.try({
-          try: () => mkdirSync(dirname(directory), { recursive: true }),
-          catch: (error) => new ReleaseError({ message: formatCause(error) }),
-        });
+        const fs = yield* FileSystem.FileSystem;
 
-        if (!existsSync(directory))
+        yield* fs
+          .makeDirectory(dirname(directory), { recursive: true })
+          .pipe(
+            Effect.mapError(
+              (error) => new ReleaseError({ message: formatCause(error) }),
+            ),
+          );
+
+        if (!(yield* fs.exists(directory).pipe(Effect.orDie)))
           yield* git(cwd, ["init", "--bare", directory]);
         const oldCommit = fact.before.split(":")[1];
         const nextCommit = fact.after.split(":")[1];
-        const backoff = yield* RetryBackoff;
-
-        yield* backoff.retry(
-          git(directory, [
-            "fetch",
-            "--no-write-fetch-head",
-            "--no-tags",
-            "--no-recurse-submodules",
-            url,
-            `+${oldCommit}:refs/dot-release/base`,
-            `+${nextCommit}:refs/dot-release/head`,
-          ]),
-          transientRemoteRetry((error) => error.message),
+        yield* git(directory, [
+          "fetch",
+          "--no-write-fetch-head",
+          "--no-tags",
+          "--no-recurse-submodules",
+          url,
+          `+${oldCommit}:refs/dot-release/base`,
+          `+${nextCommit}:refs/dot-release/head`,
+        ]).pipe(
+          Effect.retry(
+            transientRemoteRetry<{ readonly message: string }>(
+              (error) => error.message,
+            ),
+          ),
         );
 
         const upstream = yield* range(

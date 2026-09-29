@@ -1,11 +1,4 @@
-import { Clock, Context, Effect, Layer, Schedule } from "effect";
-import {
-  appendFileSync,
-  mkdirSync,
-  readdirSync,
-  unlinkSync,
-  writeFileSync,
-} from "fs";
+import { Clock, Context, Effect, FileSystem, Layer, Schedule } from "effect";
 import { dirname, join } from "path";
 import { stripVTControlCharacters } from "util";
 import { Config } from "./Config.js";
@@ -116,45 +109,50 @@ function formatAnsi(entry: LogEntry): string {
   }
 }
 
-function logFiles(defaultLogFile: string): readonly string[] {
-  const configuredLogFile = envString(ENV.DOT_LOG_FILE)
-    ? expandHomePath(envString(ENV.DOT_LOG_FILE)!)
-    : undefined;
+function configuredLogFile(): string | undefined {
+  const configured = envString(ENV.DOT_LOG_FILE);
 
-  const paths = configuredLogFile
-    ? [defaultLogFile, configuredLogFile]
-    : [defaultLogFile];
+  return configured ? expandHomePath(configured) : undefined;
+}
+
+function logFiles(defaultLogFile: string): readonly string[] {
+  const configured = configuredLogFile();
+  const paths = configured ? [defaultLogFile, configured] : [defaultLogFile];
 
   return [...new Set(paths)];
 }
 
-function initialiseLogFiles(paths: readonly string[]): void {
-  const configuredLogFile = envString(ENV.DOT_LOG_FILE)
-    ? expandHomePath(envString(ENV.DOT_LOG_FILE)!)
-    : null;
+const initialiseLogFiles = (
+  fs: FileSystem.FileSystem,
+  paths: readonly string[],
+) =>
+  Effect.gen(function* () {
+    const configured = configuredLogFile();
 
-  for (const path of paths) {
-    mkdirSync(dirname(path), { recursive: true });
+    for (const path of paths) {
+      yield* fs.makeDirectory(dirname(path), { recursive: true });
 
-    if (
-      configuredLogFile === path &&
-      envString(ENV.DOT_TEE_INHERIT_LOG) === "1"
-    ) {
-      continue;
+      if (configured === path && envString(ENV.DOT_TEE_INHERIT_LOG) === "1")
+        continue;
+
+      yield* fs.writeFileString(path, "");
     }
 
-    writeFileSync(path, "");
-  }
+    mirrorConfiguredLog();
+  }).pipe(Effect.orDie);
 
-  mirrorConfiguredLog();
-}
+const appendLogFiles = (
+  fs: FileSystem.FileSystem,
+  paths: readonly string[],
+  entry: LogEntry,
+) =>
+  Effect.gen(function* () {
+    const line = formatPlain(entry) + "\n";
 
-function appendLogFiles(paths: readonly string[], entry: LogEntry): void {
-  const line = formatPlain(entry) + "\n";
-
-  for (const path of paths) appendFileSync(path, line);
-  mirrorConfiguredLog();
-}
+    for (const path of paths)
+      yield* fs.writeFileString(path, line, { flag: "a" });
+    mirrorConfiguredLog();
+  }).pipe(Effect.orDie);
 
 /** Number of recent auto-generated per-run log files to retain in the log dir. */
 const LOG_RETENTION_COUNT = 100;
@@ -172,26 +170,21 @@ const RUN_LOG_RE = /^\d{4}-\d{2}-\d{2}T[\d-]+Z\.log$/;
  * Best-effort: a missing directory or a file removed by a concurrent run is
  * ignored.
  */
-function pruneRunLogs(logDir: string, keep: number): void {
-  let names: string[];
+const pruneRunLogs = (
+  fs: FileSystem.FileSystem,
+  logDir: string,
+  keep: number,
+) =>
+  Effect.gen(function* () {
+    const names = (yield* fs.readDirectory(logDir)).filter((name) =>
+      RUN_LOG_RE.test(name),
+    );
 
-  try {
-    names = readdirSync(logDir).filter((name) => RUN_LOG_RE.test(name));
-  } catch {
-    return;
-  }
+    if (names.length <= keep) return;
 
-  if (names.length <= keep) return;
-  names.sort();
-
-  for (const name of names.slice(0, names.length - keep)) {
-    try {
-      unlinkSync(join(logDir, name));
-    } catch {
-      // Already gone or removed by a concurrent run — fine.
-    }
-  }
-}
+    for (const name of names.toSorted().slice(0, names.length - keep))
+      yield* fs.remove(join(logDir, name)).pipe(Effect.ignore);
+  }).pipe(Effect.ignore);
 
 /** Effect service for {@link OutputLogService} */
 export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
@@ -202,6 +195,7 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
     OutputLog,
     Effect.gen(function* () {
       const config = yield* Config;
+      const fs = yield* FileSystem.FileSystem;
 
       const defaultLogFile = join(
         config.logDir,
@@ -214,12 +208,12 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
       // that never log (e.g. status-bar JSON polls) leave no files behind.
       let initialised = false;
 
-      const ensureInitialised = (): void => {
+      const ensureInitialised = Effect.gen(function* () {
         if (initialised) return;
         initialised = true;
-        pruneRunLogs(config.logDir, LOG_RETENTION_COUNT);
-        initialiseLogFiles(paths);
-      };
+        yield* pruneRunLogs(fs, config.logDir, LOG_RETENTION_COUNT);
+        yield* initialiseLogFiles(fs, paths);
+      });
 
       // Animate the spinner only on an interactive TTY so frames and cursor
       // escapes never leak into piped output, redirects, or the init log tee.
@@ -233,7 +227,11 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
 
       const renderSpinner = (now: number): void => {
         if (!spinner) return;
-        const frame = SPINNER_FRAMES[spinner.frame % SPINNER_FRAMES.length]!;
+
+        const frame =
+          SPINNER_FRAMES[spinner.frame % SPINNER_FRAMES.length] ??
+          SPINNER_FRAMES[0];
+
         const seconds = Math.floor((now - spinner.startedAt) / 1000);
         const elapsedText = seconds >= 1 ? ` (${seconds}s)` : "";
         // Keep the whole spinner on one physical row. A wrapped line breaks the
@@ -258,9 +256,9 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
       const emit = (level: LogLevel, message: string): Effect.Effect<void> =>
         Effect.gen(function* () {
           const now = yield* Clock.currentTimeMillis;
-          ensureInitialised();
+          yield* ensureInitialised;
           const entry: LogEntry = { level, message, timestamp: now };
-          appendLogFiles(paths, entry);
+          yield* appendLogFiles(fs, paths, entry);
 
           // Clear the spinner line before a real log line, then redraw it
           // beneath so the spinner stays pinned to the bottom.

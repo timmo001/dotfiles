@@ -2,12 +2,12 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { Effect } from "../../dot/node_modules/effect/dist/index.js";
+import { NodeServices } from "../../dot/node_modules/@effect/platform-node/dist/index.js";
+import { Effect, Layer } from "../../dot/node_modules/effect/dist/index.js";
 import { gitPullFastForward } from "../../dot/src/lib/git.js";
 import { CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
 import { Launcher } from "../../dot/src/services/Launcher.js";
 import { OutputLog } from "../../dot/src/services/OutputLog.js";
-import { RetryBackoff } from "../../dot/src/services/RetryBackoff.js";
 
 const roots: string[] = [];
 
@@ -79,11 +79,9 @@ function fixture() {
           suspendArgv: () => Effect.die("Unexpected suspendArgv"),
           silent: () => Effect.die("Unexpected silent"),
         })),
-        // SAFETY: gitPullFastForward only calls OutputLog methods, and every
-        // property of this stub is a no-op method returning Effect.void.
-        Effect.provideService(OutputLog, new Proxy({}, { get: () => () => Effect.void }) as never),
-        Effect.provide(RetryBackoff.layer),
+        Effect.provide(Layer.mock(OutputLog, { warn: () => Effect.void, info: () => Effect.void })),
         Effect.provide(CommandExecutor.layer),
+        Effect.provide(NodeServices.layer),
       ));
     } finally {
       process.env = saved;

@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { existsSync } from "fs";
+import { pathExists } from "../../lib/fsProbe.js";
 import { listStowFolders, requiresNoFolding } from "../../lib/stowFolders.js";
 import { displayPath } from "../../lib/paths.js";
 import { Config } from "../../services/Config.js";
@@ -28,12 +28,12 @@ export const checkStow = Effect.gen(function* () {
 
   const checkRepo = (repoDir: string, scope: string) =>
     Effect.gen(function* () {
-      const folders = listStowFolders(repoDir, config).sort();
+      const folders = [...(yield* listStowFolders(repoDir, config))].sort();
 
       for (const folder of folders) {
         const extraArgs: string[] = [];
 
-        if (requiresNoFolding(repoDir, folder)) {
+        if (yield* requiresNoFolding(repoDir, folder)) {
           extraArgs.push("--no-folding");
         }
 
@@ -74,7 +74,7 @@ export const checkStow = Effect.gen(function* () {
       }
     });
 
-  if (existsSync(config.publicDotfiles)) {
+  if (yield* pathExists(config.publicDotfiles)) {
     yield* checkRepo(config.publicDotfiles, "public");
   }
 

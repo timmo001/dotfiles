@@ -1,13 +1,14 @@
-import { Effect } from "effect";
+import { Effect, type FileSystem } from "effect";
 import { cliStyler } from "./ansi.js";
 import { plural } from "./runSummary.js";
-import { existsSync } from "fs";
+import { ChildProcessSpawner } from "effect/process";
 import { basename, dirname, join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { managedGitRepos } from "../services/GitConfig.js";
 import { gitOutput, isGitRepo } from "./git.js";
+import { pathExists } from "./fsProbe.js";
 import { HOME_DIR, displayPath } from "./paths.js";
 import type { ConfigService } from "../services/Config.js";
 
@@ -56,7 +57,9 @@ function isMiseConfigPath(relativePath: string): boolean {
  * existing git checkouts are returned; on a machine without private dotfiles
  * this degrades to the public dotfiles, notes, and Omarchy repos.
  */
-function trackedRepoRoots(config: ConfigService): readonly string[] {
+const trackedRepoRoots = Effect.fn("MiseTrust.trackedRepoRoots")(function* (
+  config: ConfigService,
+) {
   const roots: string[] = [];
 
   const add = (path: string | null): void => {
@@ -79,13 +82,19 @@ function trackedRepoRoots(config: ConfigService): readonly string[] {
 
   const seen = new Set<string>();
 
-  return roots.filter((path) => {
-    if (seen.has(path)) return false;
+  const tracked: string[] = [];
+
+  for (const path of roots) {
+    if (seen.has(path)) continue;
     seen.add(path);
 
-    return existsSync(path) && isGitRepo(path);
-  });
-}
+    if ((yield* pathExists(path)) && (yield* isGitRepo(path))) {
+      tracked.push(path);
+    }
+  }
+
+  return tracked;
+});
 
 /**
  * List committed mise config files in a repository as absolute paths.
@@ -96,20 +105,32 @@ function trackedRepoRoots(config: ConfigService): readonly string[] {
  */
 function discoverMiseConfigs(
   repoPath: string,
-): Effect.Effect<readonly string[], never, CommandExecutor> {
+): Effect.Effect<
+  readonly string[],
+  never,
+  | CommandExecutor
+  | FileSystem.FileSystem
+  | ChildProcessSpawner.ChildProcessSpawner
+> {
   return Effect.gen(function* () {
-    if (!isGitRepo(repoPath)) return [];
+    if (!(yield* isGitRepo(repoPath))) return [];
 
     const output = yield* gitOutput(
       ["ls-files", "-z", "--", ...MISE_CONFIG_PATHSPECS],
       { cwd: repoPath },
     ).pipe(Effect.catch(() => Effect.succeed("")));
 
-    return output
-      .split("\0")
-      .filter((line) => line.length > 0 && isMiseConfigPath(line))
-      .map((relativePath) => join(repoPath, relativePath))
-      .filter((absolutePath) => existsSync(absolutePath));
+    const found: string[] = [];
+
+    for (const line of output.split("\0")) {
+      if (line.length === 0 || !isMiseConfigPath(line)) continue;
+
+      const absolutePath = join(repoPath, line);
+
+      if (yield* pathExists(absolutePath)) found.push(absolutePath);
+    }
+
+    return found;
   });
 }
 
@@ -194,5 +215,5 @@ export const trustRepoMiseConfigs = Effect.fn("MiseTrust.repos")(function* (
  */
 export const trustTrackedMiseConfigs = Effect.gen(function* () {
   const config = yield* Config;
-  yield* trustRepoMiseConfigs(trackedRepoRoots(config));
+  yield* trustRepoMiseConfigs(yield* trackedRepoRoots(config));
 }).pipe(Effect.withSpan("MiseTrust.tracked"));

@@ -1,6 +1,5 @@
 import { Gh, PullRequest, type GhError } from "@timmo001/effect-gh";
-import { Clock, Duration, Effect, Option, Schema } from "effect";
-import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { Clock, Duration, Effect, FileSystem, Option, Schema } from "effect";
 import { dirname, join } from "node:path";
 import { STATE_DIR, displayPath, expandHomePath } from "../lib/paths.js";
 import {
@@ -406,13 +405,20 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
       ),
   );
 
-  mkdirSync(dirname(report), { recursive: true });
-  writeFileSync(
-    report,
-    `# PR watch\n\nStarted ${new Date(started).toISOString()}\n\n`,
-  );
+  const fs = yield* FileSystem.FileSystem;
 
-  const write = (text: string) => appendFileSync(report, `${text}\n`);
+  yield* fs
+    .makeDirectory(dirname(report), { recursive: true })
+    .pipe(Effect.orDie);
+  yield* fs
+    .writeFileString(
+      report,
+      `# PR watch\n\nStarted ${new Date(started).toISOString()}\n\n`,
+    )
+    .pipe(Effect.orDie);
+
+  const write = (text: string) =>
+    fs.writeFileString(report, `${text}\n`, { flag: "a" }).pipe(Effect.orDie);
 
   const say = Effect.fn("prWatch.say")(function* (
     target: Target | undefined,
@@ -421,7 +427,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
     const now = yield* Clock.currentTimeMillis;
     const line = `[${time(now)}]${target ? ` #${target.number}` : ""} ${message}`;
     process.stdout.write(`${line}\n`);
-    write(`- ${line}`);
+    yield* write(`- ${line}`);
   });
 
   yield* say(undefined, `Report: ${displayPath(report)}`);
@@ -513,7 +519,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
         ),
       );
 
-    write(
+    yield* write(
       `\n### Failed: #${target.number} ${runLabel(run)} / ${job.name}\n\n${job.url}\n\n\`\`\`text\n${log}\n\`\`\`\n`,
     );
 
@@ -635,7 +641,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
 
       if (check.bucket === "fail") {
         target.failures++;
-        write(
+        yield* write(
           `\n### Failed check: #${target.number} ${check.name}\n\n${check.link ?? ""}\n`,
         );
 
@@ -723,9 +729,11 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
   const timedOut = Option.isNone(completed);
   const failures = targets.reduce((sum, target) => sum + target.failures, 0);
 
-  write("");
+  yield* write("");
 
-  for (const target of targets) write(`${renderReviews(target)}\n`);
+  for (const target of targets) {
+    yield* write(`${renderReviews(target)}\n`);
+  }
 
   const summary = targets.map((target) => {
     const openThreads = target.reviews.threads.filter(isOpenThread).length;
@@ -748,7 +756,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
           ? "Finished with failures"
           : "Finished, all passed";
 
-  write(
+  yield* write(
     `## Summary\n\n${outcome}\n\n${summary.map((line) => `- ${line}`).join("\n")}\n`,
   );
   yield* say(undefined, outcome);

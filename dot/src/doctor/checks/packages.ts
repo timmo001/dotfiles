@@ -1,9 +1,8 @@
 import { Effect } from "effect";
-import { existsSync, readFileSync } from "fs";
 import { join } from "path";
+import { pathExists, readTextOrNull } from "../../lib/fsProbe.js";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
-import { RetryBackoff } from "../../services/RetryBackoff.js";
 import { transientRemoteRetry } from "../../lib/git.js";
 import { displayPath, expandHomePath } from "../../lib/paths.js";
 import { ENV, envString } from "../../lib/env.js";
@@ -131,12 +130,12 @@ export function privatePacmanMainConfigPath(): string {
 }
 
 /** Load private pacman repo settings from the private dotfiles config file. */
-export function loadPrivatePackageRepoConfig(
-  config: ConfigService,
-): PrivatePackageRepoConfig | null {
+export const loadPrivatePackageRepoConfig = Effect.fn(
+  "Packages.loadPrivatePackageRepoConfig",
+)(function* (config: ConfigService) {
   const repoConfigFile = privatePackageRepoConfigFile(config);
 
-  if (!repoConfigFile || !existsSync(repoConfigFile)) return null;
+  if (!repoConfigFile || !(yield* pathExists(repoConfigFile))) return null;
 
   const draft: PrivatePackageRepoConfigDraft = {
     name: "",
@@ -155,7 +154,7 @@ export function loadPrivatePackageRepoConfig(
   }
 
   return completePrivatePackageRepoConfig(draft);
-}
+});
 
 /** Expected contents for the private pacman repo snippet. */
 export function privatePackageRepoConfigContents(
@@ -170,38 +169,37 @@ export function privatePackageRepoIncludeLine(): string {
 }
 
 /** Whether the private repo snippet exists and declares the expected repo. */
-export function privatePackageRepoRegistered(
-  repo: PrivatePackageRepoConfig,
-): boolean {
-  const configPath = privatePacmanRepoConfigPath();
+export const privatePackageRepoRegistered = Effect.fn(
+  "Packages.privatePackageRepoRegistered",
+)(function* (repo: PrivatePackageRepoConfig) {
+  const content = yield* readTextOrNull(privatePacmanRepoConfigPath());
 
-  if (!existsSync(configPath)) return false;
-
-  return readFileSync(configPath, "utf-8").includes(`[${repo.name}]`);
-}
+  return content?.includes(`[${repo.name}]`) ?? false;
+});
 
 /** Whether the private repo snippet exactly matches the expected contents. */
-export function privatePackageRepoConfigMatches(
-  repo: PrivatePackageRepoConfig,
-): boolean {
-  const configPath = privatePacmanRepoConfigPath();
+export const privatePackageRepoConfigMatches = Effect.fn(
+  "Packages.privatePackageRepoConfigMatches",
+)(function* (repo: PrivatePackageRepoConfig) {
+  const content = yield* readTextOrNull(privatePacmanRepoConfigPath());
 
-  if (!existsSync(configPath)) return false;
-  const actual = readFileSync(configPath, "utf-8").trimEnd();
+  if (content === null) return false;
 
-  return actual === privatePackageRepoConfigContents(repo).trimEnd();
-}
+  return content.trimEnd() === privatePackageRepoConfigContents(repo).trimEnd();
+});
 
 /** Whether the main pacman config includes the private repo snippet. */
-export function privatePackageRepoIncludeRegistered(): boolean {
-  const mainConfigPath = privatePacmanMainConfigPath();
+export const privatePackageRepoIncludeRegistered = Effect.fn(
+  "Packages.privatePackageRepoIncludeRegistered",
+)(function* () {
+  const content = yield* readTextOrNull(privatePacmanMainConfigPath());
 
-  if (!existsSync(mainConfigPath)) return false;
+  if (content === null) return false;
 
-  return readFileSync(mainConfigPath, "utf-8")
+  return content
     .split("\n")
     .some((line) => line.trim() === privatePackageRepoIncludeLine());
-}
+});
 
 function missingPrivatePackageRepoConfigResult(
   config: ConfigService,
@@ -214,15 +212,15 @@ function missingPrivatePackageRepoConfigResult(
   };
 }
 
-function privatePackageRepoStatusResult(
-  repo: PrivatePackageRepoConfig,
-): CheckResult | null {
+const privatePackageRepoStatusResult = Effect.fn(
+  "Packages.privatePackageRepoStatusResult",
+)(function* (repo: PrivatePackageRepoConfig) {
   const checks: readonly {
     readonly when: boolean;
     readonly result: CheckResult;
   }[] = [
     {
-      when: !existsSync(repo.mirrorPath),
+      when: !(yield* pathExists(repo.mirrorPath)),
       result: {
         severity: "warn",
         message: `Missing private package repo mirror: ${displayPath(repo.mirrorPath)}`,
@@ -230,7 +228,7 @@ function privatePackageRepoStatusResult(
       },
     },
     {
-      when: !privatePackageRepoRegistered(repo),
+      when: !(yield* privatePackageRepoRegistered(repo)),
       result: {
         severity: "warn",
         message: `Private pacman repo is not configured in ${displayPath(
@@ -240,7 +238,7 @@ function privatePackageRepoStatusResult(
       },
     },
     {
-      when: !privatePackageRepoIncludeRegistered(),
+      when: !(yield* privatePackageRepoIncludeRegistered()),
       result: {
         severity: "warn",
         message: `Private pacman repo include is missing from ${displayPath(
@@ -250,7 +248,7 @@ function privatePackageRepoStatusResult(
       },
     },
     {
-      when: !privatePackageRepoConfigMatches(repo),
+      when: !(yield* privatePackageRepoConfigMatches(repo)),
       result: {
         severity: "warn",
         message: `Private pacman repo config differs from expected contents: ${displayPath(
@@ -262,32 +260,37 @@ function privatePackageRepoStatusResult(
   ];
 
   return checks.find(({ when }) => when)?.result ?? null;
-}
+});
 
-function privatePackageRepoResults(config: ConfigService): CheckResult[] {
+const privatePackageRepoResults = Effect.fn(
+  "Packages.privatePackageRepoResults",
+)(function* (config: ConfigService) {
   if (!config.canUsePrivate) {
     return [
       {
         severity: "warn",
         message: `Skipping private package repo checks (${config.privateReason})`,
       },
-    ];
+    ] satisfies CheckResult[];
   }
 
-  const repo = loadPrivatePackageRepoConfig(config);
+  const repo = yield* loadPrivatePackageRepoConfig(config);
 
-  if (!repo) return [missingPrivatePackageRepoConfigResult(config)];
+  if (!repo)
+    return [
+      missingPrivatePackageRepoConfigResult(config),
+    ] satisfies CheckResult[];
 
-  const cloneResult = !existsSync(repo.path)
+  const cloneResult: CheckResult[] = !(yield* pathExists(repo.path))
     ? [
         {
-          severity: "warn" as const,
+          severity: "warn",
           message: `Missing private package repo clone: ${displayPath(repo.path)}`,
         },
       ]
     : [];
 
-  const repoStatus = privatePackageRepoStatusResult(repo);
+  const repoStatus = yield* privatePackageRepoStatusResult(repo);
 
   if (repoStatus) return [...cloneResult, repoStatus];
 
@@ -299,8 +302,8 @@ function privatePackageRepoResults(config: ConfigService): CheckResult[] {
         privatePacmanRepoConfigPath(),
       )})`,
     },
-  ];
-}
+  ] satisfies CheckResult[];
+});
 
 /** Human-facing package label, annotating aliased AUR names. */
 function packageDisplayName(name: string): string {
@@ -376,14 +379,16 @@ const TRANSIENT_AUR_ERROR =
 function aurPackageVersion(packageName: string) {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
-    const backoff = yield* RetryBackoff;
 
-    const info = yield* backoff
-      .retry(
-        executor.run("yay", ["-Si", "--aur", packageName]),
-        transientRemoteRetry((error) => error.stderr, TRANSIENT_AUR_ERROR),
-      )
-      .pipe(Effect.orElseSucceed(() => ""));
+    const info = yield* executor.run("yay", ["-Si", "--aur", packageName]).pipe(
+      Effect.retry(
+        transientRemoteRetry<{ readonly stderr: string }>(
+          (error) => error.stderr,
+          TRANSIENT_AUR_ERROR,
+        ),
+      ),
+      Effect.orElseSucceed(() => ""),
+    );
 
     return packageVersionFromInfo(info);
   });
@@ -545,13 +550,13 @@ export const checkPublicPackageRepo = Effect.gen(function* () {
   const fingerprint = "F94469C08E3B717014E2815FA026A3671E9151DA";
   const results: CheckResult[] = [];
 
-  if (!publicPackageRepoConfigMatches()) {
+  if (!(yield* publicPackageRepoConfigMatches())) {
     results.push({
       severity: "warn",
       message: `Public pacman repo config is missing or differs from the signed configuration: ${displayPath(publicPacmanRepoConfigPath())}`,
       detail: "Run dot setup-public-repo to repair it",
     });
-  } else if (!publicPackageRepoIncludeRegistered()) {
+  } else if (!(yield* publicPackageRepoIncludeRegistered())) {
     results.push({
       severity: "warn",
       message:
@@ -594,7 +599,7 @@ export const checkPublicPackageRepo = Effect.gen(function* () {
 export const checkPrivatePackageRepo = Effect.gen(function* () {
   const config = yield* Config;
 
-  return privatePackageRepoResults(config);
+  return yield* privatePackageRepoResults(config);
 });
 
 /** Check private packages are installed */
@@ -619,7 +624,7 @@ export const checkPrivatePackages = Effect.gen(function* () {
       ? join(config.privateDotfiles, ".dot-private-packages")
       : null);
 
-  if (!packagesFile || !existsSync(packagesFile)) {
+  if (!packagesFile || !(yield* pathExists(packagesFile))) {
     results.push({
       severity: "warn",
       message: `Missing private package list: ${displayPath(packagesFile ?? "")}`,
@@ -628,7 +633,7 @@ export const checkPrivatePackages = Effect.gen(function* () {
     return results;
   }
 
-  const host = resolvedOmarchyHost(config);
+  const host = yield* resolvedOmarchyHost(config);
 
   const packages = loadPackageLists([
     packagesFile,
@@ -641,7 +646,7 @@ export const checkPrivatePackages = Effect.gen(function* () {
     return results;
   }
 
-  const repository = loadPrivatePackageRepoConfig(config)?.name;
+  const repository = (yield* loadPrivatePackageRepoConfig(config))?.name;
 
   return yield* packageListResults(
     packages,

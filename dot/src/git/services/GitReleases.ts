@@ -1,8 +1,17 @@
-import { Clock, Context, Cron, Effect, Layer, Result, Schema } from "effect";
+import { NodeServices } from "@effect/platform-node";
+import {
+  Clock,
+  Context,
+  Cron,
+  Effect,
+  FileSystem,
+  Layer,
+  Result,
+  Schema,
+} from "effect";
 import semver from "semver";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
-import { RetryBackoff } from "../../services/RetryBackoff.js";
 import { transientRemoteRetry } from "../../lib/git.js";
 import {
   managedGitRepos,
@@ -272,7 +281,7 @@ export class GitReleases extends Context.Service<
       const config = yield* Config;
       const github = yield* GitHub;
       const executor = yield* CommandExecutor;
-      const backoff = yield* RetryBackoff;
+      const fs = yield* FileSystem.FileSystem;
 
       const select = (selection?: string) =>
         Effect.try({
@@ -350,9 +359,12 @@ export class GitReleases extends Context.Service<
         const prefix = `refs/dot/git-releases/${evidenceId(repo.github)}`;
 
         const fetchGit = (args: readonly string[]) =>
-          backoff.retry(
-            runGit(args),
-            transientRemoteRetry((error) => error.message),
+          runGit(args).pipe(
+            Effect.retry(
+              transientRemoteRetry<{ readonly message: string }>(
+                (error) => error.message,
+              ),
+            ),
           );
 
         yield* fetchGit([
@@ -472,10 +484,7 @@ export class GitReleases extends Context.Service<
           head,
           settings,
           releasePaths(repo.github).cache,
-        ).pipe(
-          Effect.provideService(CommandExecutor, executor),
-          Effect.provideService(RetryBackoff, backoff),
-        );
+        ).pipe(Effect.provideService(CommandExecutor, executor));
 
         const findings = classifyReleaseFacts(changes.facts, settings);
         const now = yield* Clock.currentTimeMillis;
@@ -811,7 +820,15 @@ export class GitReleases extends Context.Service<
         );
       });
 
-      return { query, action, publish };
+      const withFileSystem = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+        Effect.provideService(effect, FileSystem.FileSystem, fs);
+
+      return {
+        query: (options) => withFileSystem(query(options)),
+        action: (options) => withFileSystem(action(options)),
+        publish: (action, progress) =>
+          withFileSystem(publish(action, progress)),
+      };
     }),
-  );
+  ).pipe(Layer.provide(NodeServices.layer));
 }

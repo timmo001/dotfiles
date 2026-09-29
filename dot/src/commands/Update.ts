@@ -1,5 +1,4 @@
 import { Effect, FileSystem, Option, Schema } from "effect";
-import { existsSync, unlinkSync } from "fs";
 import { basename, join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -198,12 +197,13 @@ const safePull = (
   Effect.gen(function* () {
     const log = yield* OutputLog;
     const executor = yield* CommandExecutor;
+    const fs = yield* FileSystem.FileSystem;
     const style = cliStyler();
 
     // Clear a stale index lock; skip if held by a running git process.
     const lockFile = join(path, ".git", "index.lock");
 
-    if (existsSync(lockFile)) {
+    if (yield* fs.exists(lockFile).pipe(Effect.orDie)) {
       const held = yield* executor.exitCode("fuser", [lockFile]);
 
       if (held === 0) {
@@ -221,13 +221,7 @@ const safePull = (
       yield* log.warn(
         `Removing stale lock for ${name}: ${displayPath(lockFile)}`,
       );
-      yield* Effect.sync(() => {
-        try {
-          unlinkSync(lockFile);
-        } catch {
-          // Already gone — fine
-        }
-      });
+      yield* fs.remove(lockFile).pipe(Effect.ignore);
     }
 
     const before = yield* gitHead(path).pipe(
@@ -419,7 +413,7 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
 
   if (updatedPaths.size > 0) {
     const gitConfig = config.canUsePrivate
-      ? loadDotGitConfig(config.gitConfig.filePath)
+      ? yield* loadDotGitConfig(config.gitConfig.filePath)
       : config.gitConfig;
 
     for (const repo of managedGitRepos(gitConfig)) {
@@ -647,6 +641,7 @@ const restoreHerdrPlugins = Effect.gen(function* () {
   const log = yield* OutputLog;
   const executor = yield* CommandExecutor;
   const config = yield* Config;
+  const fs = yield* FileSystem.FileSystem;
 
   yield* log.section("Herdr Plugins");
 
@@ -701,7 +696,7 @@ const restoreHerdrPlugins = Effect.gen(function* () {
 
   const binary = join(pluginRoot, "target", "release", "herdr-lazy");
 
-  if (!existsSync(binary)) {
+  if (!(yield* fs.exists(binary).pipe(Effect.orDie))) {
     yield* log.warn("Skipping Herdr plugins (Herdr Lazy binary is missing)");
 
     return;
@@ -763,11 +758,12 @@ const restoreHerdrPlugins = Effect.gen(function* () {
 const runUiReload = Effect.gen(function* () {
   const log = yield* OutputLog;
   const executor = yield* CommandExecutor;
+  const fs = yield* FileSystem.FileSystem;
   const helper = reloadUiHelperPath();
 
   yield* log.section("Reload UI");
 
-  if (!existsSync(helper)) {
+  if (!(yield* fs.exists(helper).pipe(Effect.orDie))) {
     yield* log.warn("Skipping reload-ui helper (not installed)");
 
     return;
@@ -972,7 +968,7 @@ export const MIGRATION_REQUIRED_EXIT = 11;
  */
 const haltOnLegacyHyprRepo = (config: ConfigService) =>
   Effect.gen(function* () {
-    const legacy = detectLegacyHyprRepo(config);
+    const legacy = yield* detectLegacyHyprRepo(config);
 
     if (!legacy.present) return false;
 
@@ -1036,7 +1032,7 @@ export const update = (opts?: UpdateOptions) =>
       );
 
     const privatePackageRepo = config.canUsePrivate
-      ? loadPrivatePackageRepoConfig(config)
+      ? yield* loadPrivatePackageRepoConfig(config)
       : null;
 
     // Every handoff that names public dotfiles rebuilt dot from that pull first.

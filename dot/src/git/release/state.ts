@@ -1,10 +1,10 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { NodeServices } from "@effect/platform-node";
 import { join } from "node:path";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { acquireFileLock } from "../../lib/fileLock.js";
-import { Effect, Schema } from "effect";
+import { Effect, FileSystem, Schema } from "effect";
 import { CACHE_DIR, STATE_DIR } from "../../lib/paths.js";
-import { formatCause } from "../../lib/schema.js";
+import { formatCause, type JsonValue } from "../../lib/schema.js";
 import { evidenceId } from "./changes.js";
 import { highestImpact } from "./policy.js";
 import {
@@ -144,26 +144,43 @@ function releaseReviewEvidence(snapshot: ReleaseSnapshot): string {
 export const readReleaseState = Effect.fn("releases.readState")(function* (
   paths: ReturnType<typeof releasePaths>,
 ) {
-  return yield* Effect.try({
-    try: () => ({
-      cache: existsSync(join(paths.cache, "snapshot.json"))
-        ? Schema.decodeUnknownSync(ReleaseCache)(
-            JSON.parse(
-              readFileSync(join(paths.cache, "snapshot.json"), "utf8"),
-            ),
-          )
-        : emptyReleaseCache(),
-      review: existsSync(join(paths.state, "review.json"))
-        ? Schema.decodeUnknownSync(ReleaseReviewState)(
-            JSON.parse(readFileSync(join(paths.state, "review.json"), "utf8")),
-          )
-        : emptyReleaseReview(),
-    }),
-    catch: (error) =>
-      new ReleaseError({
-        message: `Could not read release state: ${formatCause(error)}`,
-      }),
-  });
+  const fs = yield* FileSystem.FileSystem;
+
+  const load = <A>(
+    file: string,
+    decode: (input: JsonValue) => A,
+    empty: () => A,
+  ) =>
+    Effect.gen(function* () {
+      if (!(yield* fs.exists(file))) return empty();
+
+      const text = yield* fs.readFileString(file);
+
+      return yield* Effect.try(() => decode(JSON.parse(text)));
+    });
+
+  return yield* Effect.gen(function* () {
+    const cache = yield* load(
+      join(paths.cache, "snapshot.json"),
+      Schema.decodeUnknownSync(ReleaseCache),
+      emptyReleaseCache,
+    );
+
+    const review = yield* load(
+      join(paths.state, "review.json"),
+      Schema.decodeUnknownSync(ReleaseReviewState),
+      emptyReleaseReview,
+    );
+
+    return { cache, review };
+  }).pipe(
+    Effect.mapError(
+      (error) =>
+        new ReleaseError({
+          message: `Could not read release state: ${formatCause(error)}`,
+        }),
+    ),
+  );
 });
 
 /** Replace a JSON document atomically; callers serialise through the shared lock. */
@@ -173,18 +190,23 @@ export const saveReleaseDocument = Effect.fn("releases.saveDocument")(
     name: string,
     value: ReleaseCache | ReleaseReviewState,
   ) {
-    yield* Effect.try({
-      try: () => {
-        mkdirSync(directory, { recursive: true, mode: 0o700 });
+    const fs = yield* FileSystem.FileSystem;
+
+    yield* Effect.gen(function* () {
+      yield* fs.makeDirectory(directory, { recursive: true, mode: 0o700 });
+      yield* Effect.try(() =>
         writeFileAtomic(join(directory, name), JSON.stringify(value), {
           mode: 0o600,
-        });
-      },
-      catch: (error) =>
-        new ReleaseError({
-          message: `Could not save release state: ${formatCause(error)}`,
         }),
-    });
+      );
+    }).pipe(
+      Effect.mapError(
+        (error) =>
+          new ReleaseError({
+            message: `Could not save release state: ${formatCause(error)}`,
+          }),
+      ),
+    );
   },
 );
 
@@ -197,6 +219,7 @@ export function withReleaseLock<A, E, R>(
 
   return Effect.gen(function* () {
     yield* acquireFileLock(path, { wait: "1 minute" }).pipe(
+      Effect.provide(NodeServices.layer),
       Effect.mapError(
         (error) =>
           new ReleaseError({

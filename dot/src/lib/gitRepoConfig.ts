@@ -1,14 +1,4 @@
-import { Effect, Schema } from "effect";
-import {
-  accessSync,
-  constants,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  realpathSync,
-  rmSync,
-  writeFileSync,
-} from "fs";
+import { Effect, FileSystem, Schema } from "effect";
 import { isAbsolute, join, relative } from "path";
 import { isDeepStrictEqual } from "node:util";
 import { Config } from "../services/Config.js";
@@ -87,16 +77,19 @@ export const prepareGitRepoConfigEdit = Effect.fn("gitRepoConfig.prepare")(
       });
     }
 
-    const paths = yield* Effect.try({
-      try: () => ({
-        privateRoot: realpathSync(privateDotfiles),
-        file: realpathSync(config.gitConfig.filePath),
-      }),
-      catch: (error) =>
-        new GitRepoConfigError({
-          message: `Could not resolve private config: ${formatCause(error)}`,
-        }),
-    });
+    const fs = yield* FileSystem.FileSystem;
+
+    const paths = yield* Effect.all({
+      privateRoot: fs.realPath(privateDotfiles),
+      file: fs.realPath(config.gitConfig.filePath),
+    }).pipe(
+      Effect.mapError(
+        (error) =>
+          new GitRepoConfigError({
+            message: `Could not resolve private config: ${formatCause(error)}`,
+          }),
+      ),
+    );
 
     const configPath = relative(paths.privateRoot, paths.file);
 
@@ -108,13 +101,14 @@ export const prepareGitRepoConfigEdit = Effect.fn("gitRepoConfig.prepare")(
 
     yield* checkCleanConfig(paths.privateRoot, configPath);
 
-    const source = yield* Effect.try({
-      try: () => readFileSync(paths.file, "utf-8"),
-      catch: (error) =>
-        new GitRepoConfigError({
-          message: `Could not read private config: ${formatCause(error)}`,
-        }),
-    });
+    const source = yield* fs.readFileString(paths.file).pipe(
+      Effect.mapError(
+        (error) =>
+          new GitRepoConfigError({
+            message: `Could not read private config: ${formatCause(error)}`,
+          }),
+      ),
+    );
 
     const parsed = parseDotGitConfigText(source, paths.file);
 
@@ -143,6 +137,7 @@ export const commitGitRepoConfigEdit = Effect.fn("gitRepoConfig.commit")(
         message: parsed.diagnostics.join("\n"),
       });
     const executor = yield* CommandExecutor;
+    const fs = yield* FileSystem.FileSystem;
 
     for (const hook of [
       "pre-commit",
@@ -157,15 +152,10 @@ export const commitGitRepoConfigEdit = Effect.fn("gitRepoConfig.commit")(
         `hooks/${hook}`,
       ])).trim();
 
-      const executable = yield* Effect.sync(() => {
-        try {
-          accessSync(hookPath, constants.X_OK);
-
-          return true;
-        } catch {
-          return false;
-        }
-      });
+      const executable = yield* fs.stat(hookPath).pipe(
+        Effect.map((info) => (info.mode & 0o111) !== 0),
+        Effect.orElseSucceed(() => false),
+      );
 
       if (executable)
         return yield* new GitRepoConfigError({
@@ -184,16 +174,19 @@ export const commitGitRepoConfigEdit = Effect.fn("gitRepoConfig.commit")(
         ),
       );
     yield* checkCleanConfig(edit.privateRoot, edit.configPath);
-    yield* Effect.try({
-      try: () => {
-        if (readFileSync(edit.file, "utf-8") !== edit.source)
-          throw new Error(
+    yield* Effect.gen(function* () {
+      if ((yield* fs.readFileString(edit.file)) !== edit.source)
+        return yield* Effect.fail(
+          new Error(
             "Private config changed since it was read; run the command again",
-          );
-        writeFileSync(edit.file, updated);
-      },
-      catch: (error) => new GitRepoConfigError({ message: formatCause(error) }),
-    });
+          ),
+        );
+      yield* fs.writeFileString(edit.file, updated);
+    }).pipe(
+      Effect.mapError(
+        (error) => new GitRepoConfigError({ message: formatCause(error) }),
+      ),
+    );
 
     const exit = yield* executor.inherit(
       "dot",
@@ -213,30 +206,38 @@ export const previewGitRepoConfigEdit = Effect.fn("gitRepoConfig.preview")(
   function* (edit: GitRepoConfigEdit, updated: string) {
     const config = yield* Config;
     const executor = yield* CommandExecutor;
+    const fs = yield* FileSystem.FileSystem;
 
     const directory = yield* Effect.acquireRelease(
-      Effect.try({
-        try: () => {
-          const directory = mkdtempSync(join(config.cacheDir, "repo-induct-"));
-
-          return directory;
-        },
-        catch: (error) =>
-          new GitRepoConfigError({ message: formatCause(error) }),
-      }),
+      fs
+        .makeTempDirectory({
+          directory: config.cacheDir,
+          prefix: "repo-induct-",
+        })
+        .pipe(
+          Effect.mapError(
+            (error) => new GitRepoConfigError({ message: formatCause(error) }),
+          ),
+        ),
       (directory) =>
-        Effect.sync(() => rmSync(directory, { recursive: true, force: true })),
+        fs
+          .remove(directory, { recursive: true, force: true })
+          .pipe(Effect.ignore),
     );
 
-    yield* Effect.try({
-      try: () => {
-        mkdirSync(join(directory, "before"));
-        mkdirSync(join(directory, "after"));
-        writeFileSync(join(directory, "before/dot-git.yml"), edit.source);
-        writeFileSync(join(directory, "after/dot-git.yml"), updated);
-      },
-      catch: (error) => new GitRepoConfigError({ message: formatCause(error) }),
-    });
+    yield* Effect.gen(function* () {
+      yield* fs.makeDirectory(join(directory, "before"));
+      yield* fs.makeDirectory(join(directory, "after"));
+      yield* fs.writeFileString(
+        join(directory, "before/dot-git.yml"),
+        edit.source,
+      );
+      yield* fs.writeFileString(join(directory, "after/dot-git.yml"), updated);
+    }).pipe(
+      Effect.mapError(
+        (error) => new GitRepoConfigError({ message: formatCause(error) }),
+      ),
+    );
 
     const exit = yield* executor.inherit(
       "git",

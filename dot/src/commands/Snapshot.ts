@@ -1,5 +1,4 @@
-import { Clock, Effect, Schema } from "effect";
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { Clock, Effect, FileSystem, Schema } from "effect";
 import { cpus, hostname, loadavg, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { displayPath } from "../lib/paths.js";
@@ -59,15 +58,24 @@ function markdownText(value: string) {
   return value.replace(/[\\`*_[\]|<>]/g, "\\$&").replace(/\p{Cc}/gu, " ");
 }
 
-function readOptional(path: string) {
-  try {
-    return readFileSync(path, "utf8");
-  } catch (error) {
-    if (unavailable(error)) return undefined;
+const snapshotError = (error: { readonly message: string }) =>
+  new SnapshotError({ message: error.message });
 
-    throw error;
-  }
-}
+const readOptional = Effect.fn("Snapshot.readOptional")(function* (
+  path: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  return yield* fs
+    .readFileString(path)
+    .pipe(
+      Effect.catch((error) =>
+        unavailable(error.cause)
+          ? Effect.succeed(undefined)
+          : Effect.fail(snapshotError(error)),
+      ),
+    );
+});
 
 function readCounters(source: string) {
   return Object.fromEntries(
@@ -87,7 +95,9 @@ function readCounters(source: string) {
   );
 }
 
-function readProcesses() {
+const readProcesses = Effect.fn("Snapshot.readProcesses")(function* () {
+  const fs = yield* FileSystem.FileSystem;
+
   const processes = new Map<
     number,
     {
@@ -98,8 +108,12 @@ function readProcesses() {
     }
   >();
 
-  for (const pid of readdirSync("/proc").filter((name) => /^\d+$/.test(name))) {
-    const stat = readOptional(`/proc/${pid}/stat`);
+  const names = yield* fs
+    .readDirectory("/proc")
+    .pipe(Effect.mapError(snapshotError));
+
+  for (const pid of names.filter((name) => /^\d+$/.test(name))) {
+    const stat = yield* readOptional(`/proc/${pid}/stat`);
 
     if (!stat) continue;
 
@@ -110,11 +124,15 @@ function readProcesses() {
       .trim()
       .split(/\s+/);
 
-    const parsed = Schema.decodeUnknownSync(processFields)({
-      parent: fields[1],
-      user: fields[11],
-      system: fields[12],
-      start: fields[19],
+    const parsed = yield* Effect.try({
+      try: () =>
+        Schema.decodeUnknownSync(processFields)({
+          parent: fields[1],
+          user: fields[11],
+          system: fields[12],
+          start: fields[19],
+        }),
+      catch: (error) => new SnapshotError({ message: String(error) }),
     });
 
     processes.set(Number(pid), {
@@ -126,24 +144,28 @@ function readProcesses() {
   }
 
   return processes;
-}
+});
 
-function readCpu() {
-  const fields = readFileSync("/proc/stat", "utf8")
-    .split("\n")[0]
-    ?.trim()
-    .split(/\s+/)
-    .slice(1, 9);
+const readCpu = Effect.fn("Snapshot.readCpu")(function* () {
+  const fs = yield* FileSystem.FileSystem;
 
-  const ticks = Schema.decodeUnknownSync(Schema.Array(Schema.FiniteFromString))(
-    fields,
-  );
+  const source = yield* fs
+    .readFileString("/proc/stat")
+    .pipe(Effect.mapError(snapshotError));
+
+  const fields = source.split("\n")[0]?.trim().split(/\s+/).slice(1, 9);
+
+  const ticks = yield* Effect.try({
+    try: () =>
+      Schema.decodeUnknownSync(Schema.Array(Schema.FiniteFromString))(fields),
+    catch: (error) => new SnapshotError({ message: String(error) }),
+  });
 
   return {
     total: ticks.reduce((sum, value) => sum + value, 0),
     idle: (ticks[3] ?? 0) + (ticks[4] ?? 0),
   };
-}
+});
 
 /** Failure to collect or save a CPU and memory snapshot. */
 export class SnapshotError extends Schema.TaggedError<SnapshotError>()(
@@ -168,31 +190,49 @@ export const snapshot = Effect.fn("Snapshot.run")(function* ({
   const agent = isAgent();
   const timestamp = yield* Clock.currentTimeMillis;
 
-  const before = yield* Effect.try({
-    try: () => ({
-      processes: readProcesses(),
-      cpu: readCpu(),
-      time: performance.now(),
-    }),
-    catch: (error) => new SnapshotError({ message: String(error) }),
-  });
+  const fs = yield* FileSystem.FileSystem;
+
+  const before = {
+    processes: yield* readProcesses(),
+    cpu: yield* readCpu(),
+    time: performance.now(),
+  };
 
   yield* Effect.sleep("1 second");
 
+  const after = {
+    cpu: yield* readCpu(),
+    time: performance.now(),
+    processes: yield* readProcesses(),
+  };
+
+  const meminfo = yield* fs
+    .readFileString("/proc/meminfo")
+    .pipe(Effect.mapError(snapshotError));
+
+  const smapsByPid = new Map<number, string | undefined>();
+
+  for (const pid of after.processes.keys()) {
+    smapsByPid.set(pid, yield* readOptional(`/proc/${pid}/smaps_rollup`));
+  }
+
+  const pressureText = new Map<string, string | undefined>();
+
+  for (const resource of ["cpu", "memory", "io"]) {
+    pressureText.set(
+      resource,
+      yield* readOptional(`/proc/pressure/${resource}`),
+    );
+  }
+
   const report = yield* Effect.try({
     try: () => {
-      const after = {
-        cpu: readCpu(),
-        time: performance.now(),
-        processes: readProcesses(),
-      };
-
       const elapsed = after.cpu.total - before.cpu.total;
 
       if (elapsed <= 0) throw new Error("CPU counters did not advance");
 
       const memory = Schema.decodeUnknownSync(memoryFields)(
-        readCounters(readFileSync("/proc/meminfo", "utf8")),
+        readCounters(meminfo),
       );
 
       const used = memory.MemTotal - memory.MemAvailable;
@@ -219,7 +259,7 @@ export const snapshot = Effect.fn("Snapshot.run")(function* ({
               100
             : undefined;
 
-        const smaps = readOptional(`/proc/${pid}/smaps_rollup`);
+        const smaps = smapsByPid.get(pid);
 
         const pss = smaps
           ? readCounters(smaps.split("\n").slice(1).join("\n")).Pss
@@ -243,7 +283,7 @@ export const snapshot = Effect.fn("Snapshot.run")(function* ({
       }
 
       const pressure = ["cpu", "memory", "io"].map((resource) => {
-        const lines = readOptional(`/proc/pressure/${resource}`)?.split("\n");
+        const lines = pressureText.get(resource)?.split("\n");
 
         return {
           resource,
@@ -572,23 +612,23 @@ export const snapshot = Effect.fn("Snapshot.run")(function* ({
     `dot-snapshot-${new Date(timestamp).toISOString().replaceAll(":", "-")}.${agent ? "json" : "md"}`,
   );
 
-  yield* Effect.try({
-    try: () => {
-      mkdirSync(dirname(target), { recursive: true });
+  yield* fs
+    .makeDirectory(dirname(target), { recursive: true })
+    .pipe(Effect.mapError(snapshotError));
 
-      const content = agent
-        ? `${JSON.stringify({ ...report.data, reportPath: target }, null, 2)}\n`
-        : report.full;
+  const content = agent
+    ? `${JSON.stringify({ ...report.data, reportPath: target }, null, 2)}\n`
+    : report.full;
 
-      writeFileSync(target, content, { mode: 0o600, flag: "wx" });
-      console.log(
-        agent
-          ? content.trimEnd()
-          : `${report.summary}\nFull report: ${markdownText(displayPath(target))}\n`,
-      );
-    },
-    catch: (error) => new SnapshotError({ message: String(error) }),
-  });
+  yield* fs
+    .writeFileString(target, content, { mode: 0o600, flag: "wx" })
+    .pipe(Effect.mapError(snapshotError));
+
+  console.log(
+    agent
+      ? content.trimEnd()
+      : `${report.summary}\nFull report: ${markdownText(displayPath(target))}\n`,
+  );
 
   if (!agent && process.stdin.isTTY && process.stdout.isTTY) {
     const launcher = yield* Launcher;

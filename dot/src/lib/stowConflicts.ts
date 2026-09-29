@@ -13,8 +13,6 @@ import {
 } from "fs";
 import { basename, dirname, join, relative, resolve, sep } from "path";
 import { displayPath, HOME_DIR } from "./paths.js";
-import { listStowFolders } from "./stowFolders.js";
-import type { ConfigService } from "../services/Config.js";
 
 const EXTERNAL_SKILL_DIRS = [
   join(HOME_DIR, ".agents", "skills"),
@@ -188,13 +186,13 @@ export function removeRetiredPrivateCrashHook(
 /** Backup unmanaged targets that would block stow from owning active packages. */
 export function backupUnmanagedStowTargets(
   repoDir: string,
-  config: ConfigService,
+  folders: readonly string[],
   ignoredTargets: ReadonlySet<string> = new Set(),
 ): BackupMove[] {
   const backupRoot = join(repoDir, "backup");
   const moves: BackupMove[] = [];
 
-  for (const folder of listStowFolders(repoDir, config).sort()) {
+  for (const folder of folders) {
     const packageRoot = join(repoDir, folder);
 
     for (const { source, target } of listStowTargetPairs(packageRoot, folder)) {
@@ -276,12 +274,12 @@ export function removeLegacyUwsmRepo(
  */
 export function backupConflictingPublicTargets(
   publicDotfiles: string,
-  config: ConfigService,
+  folders: readonly string[],
 ): BackupMove[] {
   const backupRoot = join(publicDotfiles, "backup");
   const moves: BackupMove[] = [];
 
-  for (const folder of listStowFolders(publicDotfiles, config).sort()) {
+  for (const folder of folders) {
     const packageRoot = join(publicDotfiles, folder);
 
     for (const { source, target } of listStowTargetPairs(packageRoot, folder)) {

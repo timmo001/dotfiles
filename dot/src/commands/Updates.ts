@@ -311,30 +311,38 @@ export const updatesStatus = Effect.fn("Updates.status")(function* () {
         900 * 1000) &&
     !(yield* fs.exists(locations.lock))
   ) {
-    yield* Effect.try(() => {
-      const child = Bun.spawn(
-        [
+    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+
+    const spawnRefresh = spawner
+      .spawn(
+        ChildProcess.make(
           "dot",
-          "updates",
-          "refresh",
-          "--scheduled",
-          "--package-file",
-          locations.packageFile,
-          "--cache-dir",
-          locations.directory,
-          "--timeout",
-          "120",
-        ],
-        {
-          stdin: "ignore",
-          stdout: "ignore",
-          stderr: "ignore",
-          detached: true,
-        },
+          [
+            "updates",
+            "refresh",
+            "--scheduled",
+            "--package-file",
+            locations.packageFile,
+            "--cache-dir",
+            locations.directory,
+            "--timeout",
+            "120",
+          ],
+          {
+            stdin: "ignore",
+            stdout: "ignore",
+            stderr: "ignore",
+            detached: true,
+          },
+        ),
+      )
+      .pipe(
+        Effect.flatMap((child) => child.unref),
+        Effect.asVoid,
+        Effect.scoped,
       );
 
-      child.unref();
-    });
+    yield* spawnRefresh;
   }
 
   const {
