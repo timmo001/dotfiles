@@ -302,6 +302,9 @@ export const stow = (opts?: {
     return { shellConfigChanged, actions } satisfies StowResult;
   });
 
+/** Packages with per-package stow handling that cannot share a batch. */
+const UNBATCHED_FOLDERS = new Set(["agents", "hypr", "omarchy"]);
+
 interface StowCounts {
   public: number;
   private: number;
@@ -340,126 +343,171 @@ const stowRepo = (
       );
     }
 
-    for (const folder of folders) {
-      const isHypr = folder === "hypr";
+    const stowFolder = (folder: string) =>
+      Effect.gen(function* () {
+        const isHypr = folder === "hypr";
 
-      const plugins =
-        folder === "omarchy" ? omarchyPluginSubmodules(repoDir) : [];
+        const plugins =
+          folder === "omarchy" ? omarchyPluginSubmodules(repoDir) : [];
 
-      const pluginIgnores = plugins.map(
-        (source) =>
-          `--ignore='^\\.config/omarchy/plugins/${basename(source).replaceAll(".", "\\.")}($|/)'`,
-      );
-
-      if (isHypr) {
-        // Never unstow hypr: Hyprland watches its live config and auto-reloads
-        // on change. Removing the symlinks (even briefly) drops Hyprland into
-        // emergency mode, and it may regenerate a stub real config file
-        // that then blocks the restow. Repair the link atomically instead and
-        // let the idempotent stow below fill in any missing files with no gap.
-        yield* ensureHyprConfigLink(repoDir, log);
-      } else {
-        // Unstow first, then restow (equivalent to --restow per folder)
-        const unstowCmd = ["stow", "-D", folder, ...pluginIgnores].join(" ");
-        const unstowExit = yield* launcher.stream(unstowCmd, { cwd: repoDir });
-
-        if (unstowExit !== 0) {
-          yield* log.error(
-            `[${scope}] unstow ${folder} failed (exit ${unstowExit})`,
-          );
-
-          return yield* new LauncherError({
-            message: `${scope} unstow failed on ${folder}`,
-            exitCode: unstowExit,
-          });
-        }
-      }
-
-      // Build restow command with folder-specific flags
-      const flags: string[] = [...pluginIgnores];
-      let externalLinks: ExternalSymlink[] = [];
-
-      // Some packages must stay real directories (not folded symlinks) so
-      // runtime symlinks, host overrides, and tool-generated files can live
-      // alongside the stowed config. See requiresNoFolding for the rationale.
-      if (requiresNoFolding(repoDir, folder)) {
-        flags.push("--no-folding");
-      }
-
-      if (folder === "agents") {
-        if (scope === "public") {
-          flags.push("--ignore='\\.agents/skills/dotfiles-stow($|/)'");
-        }
-
-        const staleSkillLinks = removeStaleSkillSymlinks(repoDir);
-
-        for (const path of staleSkillLinks) {
-          yield* log.info(
-            `${style.warn("Removed")} stale skill link ${style.dim(displayPath(path))}`,
-          );
-          counts.removed++;
-        }
-
-        if (scope === "private") {
-          flags.push(...AGENTS_PRIVATE_IGNORES);
-        }
-
-        // Temporarily remove external symlinks that would conflict with stow
-        externalLinks = findExternalSkillSymlinks(repoDir);
-
-        if (externalLinks.length > 0) {
-          removeExternalSymlinks(externalLinks);
-        }
-      }
-
-      const stowCmd = ["stow", ...flags, folder].join(" ");
-      const exit = yield* launcher.stream(stowCmd, { cwd: repoDir });
-
-      // Restore external symlinks regardless of stow success
-      if (externalLinks.length > 0) {
-        restoreExternalSymlinks(externalLinks);
-      }
-
-      if (exit !== 0) {
-        yield* log.error(`[${scope}] stow ${folder} failed (exit ${exit})`);
-
-        return yield* new LauncherError({
-          message: `${scope} stow failed on ${folder}`,
-          exitCode: exit,
-        });
-      }
-
-      yield* log.success(style.accent(folder));
-      counts[scope]++;
-
-      for (const source of plugins) {
-        const deployed = yield* deployOmarchyPlugin(
-          source,
-          join(HOME_DIR, ".config/omarchy/plugins", basename(source)),
-          repoDir,
+        const pluginIgnores = plugins.map(
+          (source) =>
+            `--ignore='^\\.config/omarchy/plugins/${basename(source).replaceAll(".", "\\.")}($|/)'`,
         );
 
-        if (deployed) {
-          yield* log.success(
-            `Deployed Omarchy plugin ${style.dim(displayPath(deployed.target))}`,
-          );
-          counts.deployed++;
+        if (isHypr) {
+          // Never unstow hypr: Hyprland watches its live config and auto-reloads
+          // on change. Removing the symlinks (even briefly) drops Hyprland into
+          // emergency mode, and it may regenerate a stub real config file
+          // that then blocks the restow. Repair the link atomically instead and
+          // let the idempotent stow below fill in any missing files with no gap.
+          yield* ensureHyprConfigLink(repoDir, log);
+        } else {
+          // Unstow first, then restow (equivalent to --restow per folder)
+          const unstowCmd = ["stow", "-D", folder, ...pluginIgnores].join(" ");
 
-          if (deployed.backup)
-            yield* log.info(
-              `  ${style.dim(`Previous plugin saved: ${displayPath(deployed.backup)}`)}`,
+          const unstowExit = yield* launcher.stream(unstowCmd, {
+            cwd: repoDir,
+          });
+
+          if (unstowExit !== 0) {
+            yield* log.error(
+              `[${scope}] unstow ${folder} failed (exit ${unstowExit})`,
             );
+
+            return yield* new LauncherError({
+              message: `${scope} unstow failed on ${folder}`,
+              exitCode: unstowExit,
+            });
+          }
         }
+
+        // Build restow command with folder-specific flags
+        const flags: string[] = [...pluginIgnores];
+        let externalLinks: ExternalSymlink[] = [];
+
+        // Some packages must stay real directories (not folded symlinks) so
+        // runtime symlinks, host overrides, and tool-generated files can live
+        // alongside the stowed config. See requiresNoFolding for the rationale.
+        if (requiresNoFolding(repoDir, folder)) {
+          flags.push("--no-folding");
+        }
+
+        if (folder === "agents") {
+          if (scope === "public") {
+            flags.push("--ignore='\\.agents/skills/dotfiles-stow($|/)'");
+          }
+
+          const staleSkillLinks = removeStaleSkillSymlinks(repoDir);
+
+          for (const path of staleSkillLinks) {
+            yield* log.info(
+              `${style.warn("Removed")} stale skill link ${style.dim(displayPath(path))}`,
+            );
+            counts.removed++;
+          }
+
+          if (scope === "private") {
+            flags.push(...AGENTS_PRIVATE_IGNORES);
+          }
+
+          // Temporarily remove external symlinks that would conflict with stow
+          externalLinks = findExternalSkillSymlinks(repoDir);
+
+          if (externalLinks.length > 0) {
+            removeExternalSymlinks(externalLinks);
+          }
+        }
+
+        const stowCmd = ["stow", ...flags, folder].join(" ");
+        const exit = yield* launcher.stream(stowCmd, { cwd: repoDir });
+
+        // Restore external symlinks regardless of stow success
+        if (externalLinks.length > 0) {
+          restoreExternalSymlinks(externalLinks);
+        }
+
+        if (exit !== 0) {
+          yield* log.error(`[${scope}] stow ${folder} failed (exit ${exit})`);
+
+          return yield* new LauncherError({
+            message: `${scope} stow failed on ${folder}`,
+            exitCode: exit,
+          });
+        }
+
+        yield* log.success(style.accent(folder));
+        counts[scope]++;
+
+        for (const source of plugins) {
+          const deployed = yield* deployOmarchyPlugin(
+            source,
+            join(HOME_DIR, ".config/omarchy/plugins", basename(source)),
+            repoDir,
+          );
+
+          if (deployed) {
+            yield* log.success(
+              `Deployed Omarchy plugin ${style.dim(displayPath(deployed.target))}`,
+            );
+            counts.deployed++;
+
+            if (deployed.backup)
+              yield* log.info(
+                `  ${style.dim(`Previous plugin saved: ${displayPath(deployed.backup)}`)}`,
+              );
+          }
+        }
+
+        // Apply any added or changed config and clear any prior emergency state.
+        // Ignore failure: Hyprland may not be running (headless, SSH).
+        if (isHypr) {
+          yield* ensureHyprHostLink(config, log);
+          yield* launcher
+            .stream("hyprctl reload", { cwd: repoDir })
+            .pipe(Effect.catch(() => Effect.void));
+        }
+      });
+
+    // Plain packages restow together, one stow process per folding mode.
+    // Stow aborts before changing anything on a conflict, so a failed batch
+    // falls back to per-package runs that name the failing package.
+    const batched = folders.filter((folder) => !UNBATCHED_FOLDERS.has(folder));
+
+    for (const noFolding of [false, true]) {
+      const group = batched.filter(
+        (folder) => requiresNoFolding(repoDir, folder) === noFolding,
+      );
+
+      if (group.length === 0) continue;
+
+      const stowCmd = [
+        "stow",
+        "-R",
+        ...(noFolding ? ["--no-folding"] : []),
+        ...group,
+      ].join(" ");
+
+      const exit = yield* launcher.stream(stowCmd, { cwd: repoDir });
+
+      if (exit !== 0) {
+        yield* log.warn(
+          `[${scope}] batched stow failed (exit ${exit}); retrying one package at a time`,
+        );
+
+        for (const folder of group) yield* stowFolder(folder);
+
+        continue;
       }
 
-      // Apply any added or changed config and clear any prior emergency state.
-      // Ignore failure: Hyprland may not be running (headless, SSH).
-      if (isHypr) {
-        yield* ensureHyprHostLink(config, log);
-        yield* launcher
-          .stream("hyprctl reload", { cwd: repoDir })
-          .pipe(Effect.catch(() => Effect.void));
+      for (const folder of group) {
+        yield* log.success(style.accent(folder));
+        counts[scope]++;
       }
+    }
+
+    for (const folder of folders) {
+      if (UNBATCHED_FOLDERS.has(folder)) yield* stowFolder(folder);
     }
   });
 
