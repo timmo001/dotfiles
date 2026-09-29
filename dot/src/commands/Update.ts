@@ -7,6 +7,7 @@ import { DotDiff, recordUpstreamFetch } from "../git/services/DotDiff.js";
 import { stow as runStow } from "./Stow.js";
 import { agentsSync } from "./AgentsSync.js";
 import { mcpSync } from "../mcp/commands/McpSync.js";
+import { syncNotesRemotes } from "../git/notesRemote.js";
 import { rebuild, restartDot } from "../lib/selfUpdate.js";
 import { buildSkillsMaintenance } from "../lib/skillsMaintenance.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
@@ -1253,6 +1254,7 @@ export const update = (opts?: UpdateOptions) =>
         STEP_TIMEOUT_SECONDS.stow,
         Effect.gen(function* () {
           yield* mcpSync;
+          yield* syncNotesRemotes;
 
           const result = yield* runStow();
           shellConfigChanged = result.shellConfigChanged;

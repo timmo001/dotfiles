@@ -30,6 +30,7 @@ const REPO_KEYS = new Set([
   "aliases",
   "post_update",
   "agent_oxlint",
+  "notes_remote",
   "opencode_mcp",
   "browser",
   "review_search",
@@ -94,6 +95,8 @@ export interface GitManagedRepo {
   readonly postUpdate: string | null;
   /** Whether the dot-managed generic Oxlint pass may run without a local setup. */
   readonly agentOxlint: boolean;
+  /** Git remote notes resolves this checkout against, written to its local `notes.remote` config. */
+  readonly notesRemote?: string;
   /** MCP server names explicitly enabled for this repository by dot mcp-sync. */
   readonly opencodeMcp?: readonly string[];
   /** Named browser for repository web actions; omitted uses the desktop default. */
@@ -436,6 +439,15 @@ function parseRepo(
     diagnostics,
   );
 
+  const notesRemote = optionalString(
+    value.notes_remote,
+    `${location}.notes_remote`,
+    diagnostics,
+  );
+
+  if (notesRemote && !/^[A-Za-z0-9._-]+$/.test(notesRemote))
+    diagnostics.push(`${location}.notes_remote must be a Git remote name`);
+
   const opencodeMcp =
     value.opencode_mcp === undefined
       ? []
@@ -502,6 +514,7 @@ function parseRepo(
       aliases,
       postUpdate,
       agentOxlint,
+      ...(notesRemote && { notesRemote }),
       ...(opencodeMcp.length > 0 && { opencodeMcp }),
       ...(browser && { browser }),
       ...(reviewSearch && { reviewSearch }),

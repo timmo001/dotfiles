@@ -97,6 +97,10 @@ $defs:
       agent_oxlint:
         type: boolean
         description: Allow the dot-managed generic Oxlint pass when the repository has no local Oxlint setup.
+      notes_remote:
+        type: string
+        pattern: "^[A-Za-z0-9._-]+$"
+        description: Git remote notes resolves this checkout against; dot update writes it to the checkout's local notes.remote config.
       opencode_mcp:
         type: array
         uniqueItems: true
