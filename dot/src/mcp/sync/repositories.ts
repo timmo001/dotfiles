@@ -12,6 +12,7 @@ import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { OutputLog } from "../../services/OutputLog.js";
 import { displayPath } from "../../lib/paths.js";
+import { cliStyler } from "../../lib/ansi.js";
 import { buildRepoMcpEntries } from "./adapters.js";
 import { formatJson } from "./formatJson.js";
 
@@ -162,8 +163,12 @@ export const syncRepoMcpConfigs = Effect.gen(function* () {
       },
       catch: (error) => new RepoMcpError({ message: String(error) }),
     });
+    const style = cliStyler();
+
     yield* log.info(
-      `OpenCode MCP ${content === undefined ? "removed" : "synced"}: ${displayPath(directory)}`,
+      content === undefined
+        ? `${style.warn("Removed")} OpenCode MCP ${style.dim(displayPath(directory))}`
+        : style.dim(`OpenCode MCP synced: ${displayPath(directory)}`),
     );
   }
 

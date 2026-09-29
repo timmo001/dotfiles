@@ -12,6 +12,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
+import { cliStyler } from "../lib/ansi.js";
 
 /** Metadata attached to each sync operation */
 interface SyncMetadata {
@@ -127,6 +128,8 @@ export const agentsSync = Effect.gen(function* () {
     const output = target.transform(content, metadata);
 
     yield* Effect.sync(() => atomicWrite(dest, output));
-    yield* log.info(`${target.name}: ${displayPath(dest)}`);
+    yield* log.success(
+      `${cliStyler().accent(target.name)} ${cliStyler().dim(displayPath(dest))}`,
+    );
   }
 });

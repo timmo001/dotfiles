@@ -5,6 +5,7 @@ import { DotDiff, type DiffScanOptions } from "../services/DotDiff.js";
 import { OutputLog } from "../../services/OutputLog.js";
 import { managedGitRepoForPath } from "../../services/GitConfig.js";
 import { displayPath } from "../../lib/paths.js";
+import { cliStyler, colorEnabled } from "../../lib/ansi.js";
 import type { DiffRepo } from "../../types.js";
 import { textLooksLikeBotActivity } from "../services/botActivity.js";
 import { handleCommandError, writeJsonLine, writeText } from "./rows.js";
@@ -139,47 +140,53 @@ export const diffRaw = (opts?: DiffScanOptions) =>
     const executor = yield* CommandExecutor;
     const log = yield* OutputLog;
     const repos = yield* dotDiff.getAll(opts);
+    const style = cliStyler();
+    const color = `color.ui=${colorEnabled() ? "always" : "never"}`;
+
+    const git = (path: string, args: readonly string[]) =>
+      executor
+        .run("git", ["-c", color, ...args], { cwd: path })
+        .pipe(Effect.catch(() => Effect.succeed("")));
+
+    // Print a labelled block of indented git output, or a dimmed empty note.
+    const block = (label: string, output: string, empty: string) =>
+      Effect.gen(function* () {
+        if (!output.trim()) {
+          yield* log.info(`${style.label(label)} ${style.dim(empty)}`);
+
+          return;
+        }
+
+        yield* log.info(style.label(label));
+        yield* writeText(
+          output
+            .trimEnd()
+            .split("\n")
+            .map((line) => `    ${line}`)
+            .join("\n") + "\n",
+        );
+      });
 
     yield* log.section("Diff Workflow");
 
     for (const repo of repos) {
-      yield* log.section(`${repo.name} repo: ${displayPath(repo.path)}`);
+      yield* log.section(`${repo.name} ${style.dim(displayPath(repo.path))}`);
 
-      // Git status (short)
-      const statusOut = yield* executor
-        .run("git", ["status", "--short"], { cwd: repo.path })
-        .pipe(Effect.catch(() => Effect.succeed("")));
-
-      if (statusOut.trim()) {
-        yield* log.info("Git status:");
-        yield* writeText(statusOut);
-      } else {
-        yield* log.info("Git status: clean");
-      }
-
-      // Unstaged diff stat
-      const unstagedOut = yield* executor
-        .run("git", ["diff", "--stat"], { cwd: repo.path })
-        .pipe(Effect.catch(() => Effect.succeed("")));
-
-      if (unstagedOut.trim()) {
-        yield* log.info("Unstaged diff:");
-        yield* writeText(unstagedOut);
-      } else {
-        yield* log.info("Unstaged diff: none");
-      }
-
-      // Staged diff stat
-      const stagedOut = yield* executor
-        .run("git", ["diff", "--cached", "--stat"], { cwd: repo.path })
-        .pipe(Effect.catch(() => Effect.succeed("")));
-
-      if (stagedOut.trim()) {
-        yield* log.info("Staged diff:");
-        yield* writeText(stagedOut);
-      } else {
-        yield* log.info("Staged diff: none");
-      }
+      yield* block(
+        "Git status",
+        yield* git(repo.path, ["status", "--short"]),
+        "clean",
+      );
+      yield* block(
+        "Unstaged diff",
+        yield* git(repo.path, ["diff", "--stat"]),
+        "none",
+      );
+      yield* block(
+        "Staged diff",
+        yield* git(repo.path, ["diff", "--cached", "--stat"]),
+        "none",
+      );
 
       // Ahead/behind commits
       if (
@@ -195,36 +202,19 @@ export const diffRaw = (opts?: DiffScanOptions) =>
         );
 
         if (hasUpstream === 0) {
-          // Unpushed commits (up to 20)
-          const unpushedOut = yield* executor
-            .run("git", ["log", "@{u}..HEAD", "--oneline", "-20"], {
-              cwd: repo.path,
-            })
-            .pipe(Effect.catch(() => Effect.succeed("")));
-
-          if (unpushedOut.trim()) {
-            yield* log.info("Unpushed commits:");
-            yield* writeText(unpushedOut);
-          } else {
-            yield* log.info("Unpushed commits: none");
-          }
-
-          // Unpulled commits (up to 20)
-          const unpulledOut = yield* executor
-            .run("git", ["log", "HEAD..@{u}", "--oneline", "-20"], {
-              cwd: repo.path,
-            })
-            .pipe(Effect.catch(() => Effect.succeed("")));
-
-          if (unpulledOut.trim()) {
-            yield* log.info("Unpulled commits:");
-            yield* writeText(unpulledOut);
-          } else {
-            yield* log.info("Unpulled commits: none");
-          }
+          yield* block(
+            "Unpushed commits",
+            yield* git(repo.path, ["log", "@{u}..HEAD", "--oneline", "-20"]),
+            "none",
+          );
+          yield* block(
+            "Unpulled commits",
+            yield* git(repo.path, ["log", "HEAD..@{u}", "--oneline", "-20"]),
+            "none",
+          );
         } else {
           yield* log.info(
-            "Unpushed / unpulled commits: no upstream configured",
+            `${style.label("Unpushed / unpulled commits")} ${style.dim("no upstream configured")}`,
           );
         }
       }

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { Effect, FileSystem, Layer, Result, Schema } from "effect";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "../lib/paths.js";
+import { cliStyler } from "../lib/ansi.js";
 import { acquireDependencyLease } from "../deps/lease.js";
 import { dependencyRunLog } from "../deps/log.js";
 import {
@@ -235,28 +236,31 @@ export const previewDependencies = Effect.fn("Dependencies.preview")(
       );
     const planner = yield* DependencyPlanner;
     const log = yield* OutputLog;
+    const style = cliStyler();
     yield* log.section("Native Dependency Preview");
     const result = yield* planner.plan(options);
 
     if (result.snapshot.directory)
-      yield* log.info(`Isolated source checkout: ${result.snapshot.directory}`);
+      yield* log.info(
+        style.dim(`Isolated source checkout: ${result.snapshot.directory}`),
+      );
 
     const groups = dependencyGroupOrder(result.dependencies);
 
     for (const group of groups) {
-      yield* log.info(`[GROUP] ${group}`);
+      yield* log.info(`${style.dim("[GROUP]")} ${style.label(group)}`);
 
       for (const entry of result.dependencies.filter(
         (entry) => entry.group === group,
       )) {
         const next = entry.selection.release;
         yield* log.info(
-          `  ${entry.dependency.file}: ${entry.dependency.name} ${entry.dependency.current}${entry.dependency.digest ? `@${entry.dependency.digest.slice(0, 12)}` : ""}${next ? ` -> ${entry.selection.candidate ?? next.version}${next.digest ? `@${next.digest.slice(0, 12)}` : ""}` : ""}: ${entry.selection.reason}`,
+          `  ${style.dim(`${entry.dependency.file}:`)} ${style.accent(entry.dependency.name)} ${entry.dependency.current}${entry.dependency.digest ? `@${entry.dependency.digest.slice(0, 12)}` : ""}${next ? ` -> ${style.success(`${entry.selection.candidate ?? next.version}${next.digest ? `@${next.digest.slice(0, 12)}` : ""}`)}` : ""}${style.dim(`: ${entry.selection.reason}`)}`,
         );
 
         for (const pr of entry.skippedBy)
           yield* log.info(
-            `    [SKIP] PR #${pr.number} ${pr.url}, ${pr.checks}`,
+            style.dim(`    [SKIP] PR #${pr.number} ${pr.url}, ${pr.checks}`),
           );
       }
     }
@@ -274,7 +278,7 @@ export const previewDependencies = Effect.fn("Dependencies.preview")(
     ).pipe(
       Effect.matchEffect({
         onSuccess: (requirements) =>
-          log.info(
+          log.success(
             `[CHECKS] ${requirements.required.length} required hosted checks have local mappings`,
           ),
         onFailure: (error) =>
@@ -287,11 +291,13 @@ export const previewDependencies = Effect.fn("Dependencies.preview")(
       `Pinned ${result.snapshot.repository}@${result.snapshot.sha}; ${result.dependencies.filter((entry) => entry.selection.release && !entry.skippedBy.length).length} candidate occurrences, ${result.dependencies.filter((entry) => entry.skippedBy.length).length} PR-skipped, ${result.failures.length} discovery failures`,
     );
     yield* log.info(
-      `Timings: ${Object.entries(result.timings)
-        .map(([phase, millis]) => `${phase}=${millis}ms`)
-        .join(
-          ", ",
-        )}; ${result.cache.requests} provider lookups, ${result.cache.hits} cache hits`,
+      style.dim(
+        `Timings: ${Object.entries(result.timings)
+          .map(([phase, millis]) => `${phase}=${millis}ms`)
+          .join(
+            ", ",
+          )}; ${result.cache.requests} provider lookups, ${result.cache.hits} cache hits`,
+      ),
     );
 
     if (result.failures.length)

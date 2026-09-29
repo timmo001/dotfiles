@@ -20,6 +20,8 @@ import { dirname, join } from "path";
 import { Config } from "../../services/Config.js";
 import { OutputLog } from "../../services/OutputLog.js";
 import { displayPath } from "../../lib/paths.js";
+import { cliStyler } from "../../lib/ansi.js";
+import { plural } from "../../lib/runSummary.js";
 import {
   decodeJson,
   decodeJsonObject,
@@ -209,6 +211,8 @@ export const mcpSync = Effect.gen(function* () {
 
   const spec = mcpConfig.spec;
 
+  const style = cliStyler();
+
   yield* syncRepoMcpConfigs;
 
   for (const harness of MCP_HARNESSES) {
@@ -220,8 +224,8 @@ export const mcpSync = Effect.gen(function* () {
 
     yield* Effect.sync(() => atomicWriteJson(dest, built));
     const count = serversForHarness(spec, harness).length;
-    yield* log.info(
-      `${harness}: ${count} server${count === 1 ? "" : "s"} -> ${displayPath(dest)}`,
+    yield* log.success(
+      `${style.accent(harness)} ${plural(count, "server")} ${style.dim(displayPath(dest))}`,
     );
   }
 });

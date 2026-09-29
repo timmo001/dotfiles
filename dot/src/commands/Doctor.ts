@@ -7,6 +7,8 @@ import { runDoctor } from "../doctor/runner.js";
 import { withSpinnerTimeout } from "../lib/workflowStep.js";
 import { displayPath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
+import { cliStyler } from "../lib/ansi.js";
+import { plural } from "../lib/runSummary.js";
 import type { CheckSection, DoctorReport } from "../doctor/types.js";
 
 /** Whole-run backstop for the doctor command. Individual checks are shorter. */
@@ -66,21 +68,23 @@ export const doctor = () =>
   Effect.gen(function* () {
     const config = yield* Config;
     const log = yield* OutputLog;
+    const style = cliStyler();
+
+    const field = (name: string, value: string) =>
+      log.info(`${style.label(name.padEnd(13))} ${style.dim(value)}`);
 
     // Header summary (matches legacy), printed before checks start streaming
-    yield* log.info(`Public repo: ${displayPath(config.publicDotfiles)}`);
+    yield* field("Public repo", displayPath(config.publicDotfiles));
 
     if (config.privateDotfiles) {
-      yield* log.info(`Private repo: ${displayPath(config.privateDotfiles)}`);
+      yield* field("Private repo", displayPath(config.privateDotfiles));
     }
 
     if (config.notesDir) {
-      yield* log.info(`Notes repo: ${displayPath(config.notesDir)}`);
+      yield* field("Notes repo", displayPath(config.notesDir));
     }
 
-    yield* log.info(
-      `Private mode: ${envString(ENV.DOT_ALLOW_PRIVATE) ?? "auto"}`,
-    );
+    yield* field("Private mode", envString(ENV.DOT_ALLOW_PRIVATE) ?? "auto");
 
     // Track in-flight checks so the spinner shows what is still running. Checks
     // run in parallel, so this starts as every check and shrinks to the slow
@@ -115,7 +119,7 @@ export const doctor = () =>
         for (const result of section.results) {
           switch (result.severity) {
             case "ok":
-              yield* log.info(result.message);
+              yield* log.success(result.message);
               break;
             case "warn":
               yield* log.warn(result.message);
@@ -126,7 +130,7 @@ export const doctor = () =>
           }
 
           if (result.detail) {
-            yield* log.info(`  ${result.detail}`);
+            yield* log.info(`  ${style.dim(result.detail)}`);
           }
         }
       });
@@ -149,13 +153,13 @@ export const doctor = () =>
         const errors = section.results.filter((r) => r.severity === "error");
 
         if (errors.length === 0) continue;
-        yield* log.info(`  ${section.name}`);
+        yield* log.info(style.label(section.name));
 
         for (const r of errors) {
-          yield* log.error(`    ${r.message}`);
+          yield* log.error(`  ${r.message}`);
 
           if (r.detail) {
-            yield* log.info(`      ${r.detail}`);
+            yield* log.info(`    ${style.dim(r.detail)}`);
           }
         }
       }
@@ -168,30 +172,47 @@ export const doctor = () =>
         const warns = section.results.filter((r) => r.severity === "warn");
 
         if (warns.length === 0) continue;
-        yield* log.info(`  ${section.name}`);
+        yield* log.info(style.label(section.name));
 
         for (const r of warns) {
-          yield* log.warn(`    ${r.message}`);
+          yield* log.warn(`  ${r.message}`);
         }
       }
-    }
-
-    // Final summary line
-    if (report.errors === 0 && report.warnings === 0) {
-      yield* log.info("Doctor finished: no critical issues found");
-    } else if (report.errors === 0) {
-      yield* log.warn(
-        `Doctor finished: no critical issues, ${report.warnings} warning(s)`,
-      );
-    } else {
-      yield* log.error(
-        `Doctor finished: ${report.errors} critical issue(s), ${report.warnings} warning(s)`,
-      );
     }
 
     // Write report to file
     const reportPath = join(config.logDir, `doctor-${report.timestamp}.log`);
     writeFileSync(reportPath, formatReport(report));
+
+    // Final summary
+    const passed = report.sections.reduce(
+      (sum, section) =>
+        sum + section.results.filter((r) => r.severity === "ok").length,
+      0,
+    );
+
+    yield* log.section("Summary");
+    yield* log.info(
+      [
+        style.success(`${passed} passed`),
+        report.warnings > 0
+          ? style.warn(plural(report.warnings, "warning"))
+          : style.dim("0 warnings"),
+        report.errors > 0
+          ? style.error(plural(report.errors, "critical issue"))
+          : style.dim("0 critical issues"),
+      ].join(style.dim(" · ")),
+    );
+
+    if (report.errors === 0 && report.warnings === 0) {
+      yield* log.success("No issues found");
+    } else if (report.errors === 0) {
+      yield* log.warn("No critical issues");
+    } else {
+      yield* log.error("Critical issues found");
+    }
+
+    yield* log.info(style.dim(`Report: ${displayPath(reportPath)}`));
 
     // Exit with error status if critical issues found
     if (report.errors > 0) {

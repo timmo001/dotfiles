@@ -11,6 +11,7 @@ import { join } from "path";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog, type OutputLogService } from "../services/OutputLog.js";
+import { cliStyler } from "../lib/ansi.js";
 import { elevatedCommand } from "../lib/elevatedCommand.js";
 import { gitRequired } from "../lib/git.js";
 import { commitIn, hasStagedChanges, pushBranch } from "../git/committer.js";
@@ -310,7 +311,9 @@ function commitAndPushPackageRepo(
     }
 
     if (!(yield* hasStagedChanges(repoPath))) {
-      yield* log.info("No private package repo changes to commit");
+      yield* log.info(
+        cliStyler().dim("No private package repo changes to commit"),
+      );
 
       return true;
     }
@@ -329,7 +332,7 @@ function commitAndPushPackageRepo(
       return yield* markFailure(log, pushed.error ?? "git push failed");
     }
 
-    yield* log.info(pushed.message);
+    yield* log.success(pushed.message);
 
     return true;
   });
