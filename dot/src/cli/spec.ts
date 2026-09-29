@@ -375,14 +375,22 @@ const dependenciesCommand = describe(
               "dry-run",
               "Validate local service configuration and trust without running updates or writing to Git",
             ),
+            noCooldown: bool(
+              "no-cooldown",
+              "Run even if the shared interval is not due; an active claim still blocks the run",
+            ),
           },
           serviceDependencies,
         ),
         "Run one cross-machine dependency service interval",
-        ["dot deps service --dry-run", "dot deps service"],
+        [
+          "dot deps service --dry-run",
+          "dot deps service",
+          "dot deps service --no-cooldown",
+        ],
         {
           description:
-            "Run configured repositories sequentially under one Git-backed service claim. Configuration supplies coordinationRepository, repositories, intervalMinutes and concurrency. Every repository requires host trust. Shared state prevents overlapping machine runs and records the next eligible interval. Repository/target claims also cover manual dot deps runs. Claims renew every 30 seconds and expire after two minutes; a lost claim interrupts work, and dependency publication atomically checks its target claim. State is stored on dedicated dot-deps-state branches. The user timer runs hourly at ten past. Exit status 2 means completed with unsuccessful update groups (warning); 3 means the shared interval was skipped. Startup, policy and service failures exit 1. Local configuration validation with --dry-run performs no remote writes. Policy is read from published target commits, so repository policies must be pushed before enabling the service.",
+            "Run configured repositories sequentially under one Git-backed service claim. Configuration supplies coordinationRepository, repositories, intervalMinutes and concurrency. Every repository requires host trust. Shared state prevents overlapping machine runs and records the next eligible interval. Repository/target claims also cover manual dot deps runs. Claims renew every 30 seconds and expire after two minutes; a lost claim interrupts work, and dependency publication atomically checks its target claim. State is stored on dedicated dot-deps-state branches. The user timer runs hourly at ten past. Exit status 2 means completed with unsuccessful update groups (warning); 3 means the shared interval was skipped. --no-cooldown ignores the shared interval and each repository's interval but never an active claim; `dot services start dot-deps.timer` applies it to that one start automatically. Startup, policy and service failures exit 1. Local configuration validation with --dry-run performs no remote writes. Policy is read from published target commits, so repository policies must be pushed before enabling the service.",
         },
       ),
       describe(

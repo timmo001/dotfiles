@@ -31,6 +31,7 @@ import { runDependencyUpdates } from "../deps/run.js";
 import { dependencyCheckRequirements } from "../deps/checks.js";
 import { readDependencyConfig } from "../deps/policyFile.js";
 import { dependencyGit } from "../deps/publish.js";
+import { consumeManualStart } from "../lib/manualStart.js";
 
 const github = DependencyGithub.layer.pipe(
   Layer.provide(DependencyDiskCache.layer),
@@ -57,7 +58,11 @@ const ServiceConfig = Schema.Struct({
 
 /** Run one shared service interval across the explicitly configured repositories. */
 export const serviceDependencies = Effect.fn("Dependencies.service")(
-  function* (options: { readonly config: string; readonly dryRun: boolean }) {
+  function* (options: {
+    readonly config: string;
+    readonly dryRun: boolean;
+    readonly noCooldown: boolean;
+  }) {
     const fs = yield* FileSystem.FileSystem;
     const output = yield* OutputLog;
 
@@ -82,6 +87,10 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
 
       return;
     }
+
+    // A start from `dot services start` leaves a marker; timer runs never do.
+    const ignoreCooldown =
+      (yield* consumeManualStart("dot-deps.service")) || options.noCooldown;
 
     const root = join(STATE_DIR, "dot", "dependency-service");
     yield* lockDependencyTarget(root);
@@ -119,6 +128,7 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
       log,
       30_000,
       cooldown,
+      ignoreCooldown,
     ).pipe(Effect.result);
 
     if (Result.isFailure(claim)) {
@@ -162,6 +172,7 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
           },
           cooldown,
           { log, label: repository },
+          ignoreCooldown,
         ).pipe(Effect.result);
 
         if (Result.isFailure(result)) {

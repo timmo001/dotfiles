@@ -386,6 +386,7 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
   options: DependencyPlanOptions,
   cooldown = 0,
   parent?: DependencyRunLogParent,
+  ignoreCooldown = false,
 ) {
   const github = yield* DependencyGithub;
   const planner = yield* DependencyPlanner;
@@ -417,6 +418,7 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
     log,
     options.timeout,
     cooldown,
+    ignoreCooldown,
   );
 
   if (!lease) return;

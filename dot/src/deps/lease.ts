@@ -46,7 +46,7 @@ export interface DependencyLease {
   ) => Effect.Effect<void, DependencyRunError>;
 }
 
-/** Claim an expiring Git-backed run slot, returning null for an active owner or cooldown. */
+/** Claim an expiring Git-backed run slot, returning null for an active owner or, unless `ignoreCooldown` is set, cooldown. */
 export const acquireDependencyLease = Effect.fn("Dependencies.acquireLease")(
   function* (
     remote: string,
@@ -54,6 +54,7 @@ export const acquireDependencyLease = Effect.fn("Dependencies.acquireLease")(
     log: DependencyRunLog,
     timeout: number,
     cooldown = 0,
+    ignoreCooldown = false,
   ) {
     const fs = yield* FileSystem.FileSystem;
     const root = join(STATE_DIR, "dot", "dependency-leases");
@@ -147,7 +148,8 @@ export const acquireDependencyLease = Effect.fn("Dependencies.acquireLease")(
 
     if (
       previous &&
-      (previous.state.expiresAt > now || previous.state.nextRunAt > now)
+      (previous.state.expiresAt > now ||
+        (!ignoreCooldown && previous.state.nextRunAt > now))
     ) {
       yield* log.event(
         `[SKIP] ${resource}: another machine owns the run or its interval is not due`,

@@ -17,6 +17,7 @@ import {
 } from "../services/GitConfig.js";
 import { herdrRepoOpen } from "./HerdrRepoOpen.js";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "../lib/paths.js";
+import { writeManualStart } from "../lib/manualStart.js";
 
 /** Registered unit is unknown or its descriptor cannot be used. */
 export class ServiceMonitorError extends Schema.TaggedError<ServiceMonitorError>()(
@@ -50,6 +51,7 @@ const ServiceDescriptor = Schema.Struct({
   repository: Schema.optionalKey(
     Schema.String.check(Schema.isPattern(/^[\w.-]+\/[\w.-]+$/)),
   ),
+  manualStartMarker: Schema.optionalKey(Schema.Boolean),
 });
 
 type ServiceDescriptor = typeof ServiceDescriptor.Type;
@@ -973,13 +975,16 @@ export const servicesStart = Effect.fn("Services.start")(function* (
   const { descriptor } = yield* findRegistered(unit);
   const [status] = yield* collectServiceStatus([{ file: "", descriptor }]);
   const executor = yield* CommandExecutor;
+  const service = status?.service ?? descriptor.unit;
+
+  if (descriptor.manualStartMarker) yield* writeManualStart(service);
 
   yield* executor.run("systemctl", [
     "--user",
     status?.kind === "service" ? "restart" : "start",
     "--no-block",
     "--",
-    status?.service ?? descriptor.unit,
+    service,
   ]);
 });
 
