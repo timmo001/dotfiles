@@ -1,0 +1,263 @@
+import { Effect } from "effect";
+import { OutputLog } from "../services/OutputLog.js";
+import { cliStyler } from "./ansi.js";
+import { gitOutput } from "./git.js";
+import type { CommandExecutor } from "../services/CommandExecutor.js";
+import type { Styler } from "./ansi.js";
+
+/** Most commits listed per repository before the rest are counted. */
+const MAX_COMMITS = 15;
+
+/** Most changed files listed per repository before the rest are counted. */
+const MAX_FILES = 50;
+
+/** Widest file path column before paths stop being padded. */
+const MAX_PATH_COLUMN = 60;
+
+/** A repository moved by `dot update`, with the revisions to compare. */
+export interface UpdatedRepo {
+  /** Repository display name. */
+  readonly name: string;
+  /** Repository checkout path. */
+  readonly path: string;
+  /** Revision before the pull, or `ORIG_HEAD` when pulled before a restart. */
+  readonly from: string;
+  /** Revision after the pull, or `HEAD` when pulled before a restart. */
+  readonly to: string;
+}
+
+interface Commit {
+  readonly sha: string;
+  readonly subject: string;
+}
+
+interface FileChange {
+  readonly status: string;
+  readonly path: string;
+  /** Added lines, or null for binary files. */
+  readonly added: number | null;
+  /** Deleted lines, or null for binary files. */
+  readonly deleted: number | null;
+}
+
+interface RepoChanges {
+  readonly from: string;
+  readonly to: string;
+  readonly commits: readonly Commit[];
+  readonly files: readonly FileChange[];
+}
+
+const lines = (output: string): string[] =>
+  output.split("\n").filter((line) => line.trim() !== "");
+
+const parseCount = (value: string | undefined): number | null =>
+  value === undefined || value === "-" ? null : Number(value);
+
+const readChanges = (repo: UpdatedRepo) =>
+  Effect.gen(function* () {
+    const git = (args: readonly string[]) =>
+      gitOutput(args, { cwd: repo.path });
+
+    const short = (rev: string) =>
+      git(["rev-parse", "--short", rev]).pipe(Effect.map((sha) => sha.trim()));
+
+    const from = yield* short(repo.from);
+    const to = yield* short(repo.to);
+
+    const commits = lines(
+      yield* git([
+        "log",
+        "--no-decorate",
+        "--format=%h%x09%s",
+        `${repo.from}..${repo.to}`,
+      ]),
+    ).map((line): Commit => {
+      const [sha = "", ...subject] = line.split("\t");
+
+      return { sha, subject: subject.join("\t") };
+    });
+
+    const counts = new Map(
+      lines(
+        yield* git(["diff", "--numstat", "--no-renames", repo.from, repo.to]),
+      ).map((line) => {
+        const [added, deleted, ...path] = line.split("\t");
+
+        return [
+          path.join("\t"),
+          { added: parseCount(added), deleted: parseCount(deleted) },
+        ] as const;
+      }),
+    );
+
+    const files = lines(
+      yield* git(["diff", "--name-status", "--no-renames", repo.from, repo.to]),
+    ).map((line): FileChange => {
+      const [status = "?", ...rest] = line.split("\t");
+      const path = rest.join("\t");
+      const count = counts.get(path);
+
+      return {
+        status,
+        path,
+        added: count?.added ?? null,
+        deleted: count?.deleted ?? null,
+      };
+    });
+
+    return { from, to, commits, files } satisfies RepoChanges;
+  });
+
+const statusColour = (style: Styler, status: string): string => {
+  const label = status.padEnd(2);
+
+  switch (status) {
+    case "A":
+      return style.success(label);
+    case "D":
+      return style.error(label);
+    case "M":
+      return style.warn(label);
+    default:
+      return style.accent(label);
+  }
+};
+
+const lineCounts = (style: Styler, file: FileChange): string => {
+  if (file.added === null || file.deleted === null) return style.dim("binary");
+
+  return [
+    file.added > 0 ? style.success(`+${file.added}`) : "",
+    file.deleted > 0 ? style.error(`-${file.deleted}`) : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+};
+
+const plural = (count: number, word: string): string =>
+  `${count} ${word}${count === 1 ? "" : "s"}`;
+
+const repoHeading = (
+  style: Styler,
+  name: string,
+  changes: RepoChanges,
+): string => {
+  const added = changes.files.reduce((sum, file) => sum + (file.added ?? 0), 0);
+
+  const deleted = changes.files.reduce(
+    (sum, file) => sum + (file.deleted ?? 0),
+    0,
+  );
+
+  const stats = [
+    plural(changes.commits.length, "commit"),
+    plural(changes.files.length, "file"),
+    `${style.success(`+${added}`)} ${style.error(`-${deleted}`)}`,
+  ].join(style.dim(" · "));
+
+  return `${style.label(style.accent(name))}  ${style.dim(`${changes.from} -> ${changes.to}`)}  ${stats}`;
+};
+
+const logRepoChanges = (repo: UpdatedRepo, style: Styler) =>
+  Effect.gen(function* () {
+    const log = yield* OutputLog;
+
+    const changes = yield* readChanges(repo).pipe(
+      Effect.orElseSucceed(() => null),
+    );
+
+    if (!changes) {
+      yield* log.info(style.label(style.accent(repo.name)));
+      yield* log.warn(`Could not read changes for ${repo.name}`);
+
+      return;
+    }
+
+    yield* log.info(repoHeading(style, repo.name, changes));
+
+    if (changes.commits.length > 0) {
+      yield* log.info(`  ${style.label("Commits")}`);
+
+      for (const commit of changes.commits.slice(0, MAX_COMMITS)) {
+        yield* log.info(`    ${style.warn(commit.sha)} ${commit.subject}`);
+      }
+
+      if (changes.commits.length > MAX_COMMITS) {
+        yield* log.info(
+          `    ${style.dim(`...and ${changes.commits.length - MAX_COMMITS} more`)}`,
+        );
+      }
+    }
+
+    if (changes.files.length > 0) {
+      yield* log.info(`  ${style.label("Files changed")}`);
+
+      const shown = changes.files.slice(0, MAX_FILES);
+
+      const width = Math.min(
+        MAX_PATH_COLUMN,
+        Math.max(...shown.map((file) => file.path.length)),
+      );
+
+      for (const file of shown) {
+        yield* log.info(
+          `    ${statusColour(style, file.status)} ${file.path.padEnd(width)}  ${lineCounts(style, file)}`,
+        );
+      }
+
+      if (changes.files.length > MAX_FILES) {
+        yield* log.info(
+          `    ${style.dim(`...and ${changes.files.length - MAX_FILES} more`)}`,
+        );
+      }
+    }
+  });
+
+/** Merge repeated pulls of one repository into a single range. */
+const mergeUpdatedRepos = (
+  repos: readonly UpdatedRepo[],
+): readonly UpdatedRepo[] => {
+  const merged = new Map<string, UpdatedRepo>();
+
+  for (const repo of repos) {
+    const existing = merged.get(repo.path);
+    merged.set(repo.path, existing ? { ...existing, to: repo.to } : repo);
+  }
+
+  return [...merged.values()];
+};
+
+/**
+ * Log the repositories updated and workflow actions completed by `dot update`,
+ * with the commits and changed files pulled into each repository.
+ */
+export function logUpdateSummary(
+  updated: readonly UpdatedRepo[],
+  actions: readonly string[],
+): Effect.Effect<void, never, OutputLog | CommandExecutor> {
+  return Effect.gen(function* () {
+    const log = yield* OutputLog;
+    const style = cliStyler();
+    const repos = mergeUpdatedRepos(updated);
+
+    yield* log.section("Update Summary");
+
+    if (repos.length === 0) {
+      yield* log.info(style.dim("No repositories updated"));
+    } else {
+      yield* log.info(style.label(`Updated repositories (${repos.length})`));
+
+      for (const repo of repos) {
+        yield* log.info("");
+        yield* logRepoChanges(repo, style);
+      }
+    }
+
+    yield* log.info("");
+    yield* log.info(style.label("Actions taken"));
+
+    for (const action of actions) {
+      yield* log.info(`  ${style.success("✓")} ${action}`);
+    }
+  });
+}

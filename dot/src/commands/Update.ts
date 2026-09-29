@@ -13,6 +13,8 @@ import { buildSkillsMaintenance } from "../lib/skillsMaintenance.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { trustRepoMiseConfigs } from "../lib/miseTrust.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
+import { cliStyler } from "../lib/ansi.js";
+import { logUpdateSummary } from "../lib/updateSummary.js";
 import {
   withSpinnerTimeout,
   withStepTimeout,
@@ -40,6 +42,8 @@ import { setupPrivateRepo } from "./SetupPrivateRepo.js";
 import type { ConfigService } from "../services/Config.js";
 import type { GitManagedRepo } from "../services/GitConfig.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
+import type { Styler } from "../lib/ansi.js";
+import type { UpdatedRepo } from "../lib/updateSummary.js";
 import type { DiffRepo, RepoCategory } from "../types.js";
 
 const DISABLE_SELF_UPDATE_ARG = "--no-self-update";
@@ -137,16 +141,16 @@ function requiredUpdateStep<E, R>(
   });
 }
 
-const repoStatus = (repo: DiffRepo): string => {
+const repoStatus = (repo: DiffRepo, style: Styler): string => {
   const parts: string[] = [];
 
-  if (repo.isDirty) parts.push(`${repo.modified} modified`);
+  if (repo.isDirty) parts.push(style.warn(`${repo.modified} modified`));
 
-  if (repo.ahead > 0) parts.push(`${repo.ahead} ahead`);
+  if (repo.ahead > 0) parts.push(style.accent(`${repo.ahead} ahead`));
 
-  if (repo.behind > 0) parts.push(`${repo.behind} behind`);
+  if (repo.behind > 0) parts.push(style.success(`${repo.behind} behind`));
 
-  return parts.length > 0 ? parts.join(", ") : "up to date";
+  return parts.length > 0 ? parts.join(", ") : style.dim("up to date");
 };
 
 const reloadUiHelperPath = (): string => {
@@ -182,7 +186,7 @@ function logInitMarkerStatus(
  *
  * Clears a stale `.git/index.lock` (skips if held by an active process),
  * and lets Git fast-forward only when local work can be preserved.
- * Returns true only if the pull moved HEAD.
+ * Returns the revisions before and after only if the pull moved HEAD.
  */
 const safePull = (
   name: string,
@@ -193,6 +197,7 @@ const safePull = (
   Effect.gen(function* () {
     const log = yield* OutputLog;
     const executor = yield* CommandExecutor;
+    const style = cliStyler();
 
     // Clear a stale index lock; skip if held by a running git process.
     const lockFile = join(path, ".git", "index.lock");
@@ -209,7 +214,7 @@ const safePull = (
         if (required)
           return yield* new UpdateError({ message: `${name}: Git lock held` });
 
-        return false;
+        return null;
       }
 
       yield* log.warn(
@@ -228,7 +233,9 @@ const safePull = (
       Effect.catch(() => Effect.succeed("")),
     );
 
-    yield* log.info(`Pulling ${name} (${displayPath(path)})...`);
+    yield* log.info(
+      `Pulling ${style.accent(name)} ${style.dim(`(${displayPath(path)})`)}...`,
+    );
 
     let pulled = false;
 
@@ -272,14 +279,20 @@ const safePull = (
           message: `${name}: pull or submodule update failed`,
         });
 
-      return false;
+      return null;
     }
 
     const after = yield* gitHead(path).pipe(
       Effect.catch(() => Effect.succeed("")),
     );
 
-    return before.trim() !== "" && after.trim() !== "" && before !== after;
+    if (before === "" || after === "" || before === after) return null;
+
+    yield* log.info(
+      `${style.success("Updated")} ${style.accent(name)} ${style.dim(`${before.slice(0, 7)} -> ${after.slice(0, 7)}`)}`,
+    );
+
+    return { from: before, to: after };
   });
 
 /** Send a best-effort desktop notification for repos that pulled new changes */
@@ -338,7 +351,9 @@ const runRepoPostUpdate = (repo: GitManagedRepo) =>
       });
     }
 
-    yield* log.info(`${repo.name} post-update command complete`);
+    yield* log.info(
+      cliStyler().success(`${repo.name} post-update command complete`),
+    );
   });
 
 /**
@@ -442,26 +457,22 @@ function selectedUpdateFlags(opts?: UpdateOptions): readonly string[] {
   );
 }
 
-/** Log the repositories updated and workflow actions completed by `dot update`. */
-export function logUpdateSummary(
-  updatedNames: readonly string[],
-  actions: readonly string[],
-): Effect.Effect<void, never, OutputLog> {
-  return Effect.gen(function* () {
-    const log = yield* OutputLog;
-    const repositories = [...new Set(updatedNames)];
+/** Resolve repositories pulled before a restart, compared through `ORIG_HEAD`. */
+function restartedUpdatedRepos(
+  config: ConfigService,
+  names: readonly string[],
+): UpdatedRepo[] {
+  const managed = managedGitRepos(config.gitConfig);
 
-    yield* log.section("Update Summary");
-    yield* log.info(
-      repositories.length === 0
-        ? "Updated repositories: none"
-        : `Updated repositories (${repositories.length}): ${repositories.join(", ")}`,
-    );
-    yield* log.info("Actions taken:");
+  return names.flatMap((name) => {
+    const path =
+      name === basename(config.publicDotfiles)
+        ? config.publicDotfiles
+        : config.privateDotfiles && name === basename(config.privateDotfiles)
+          ? config.privateDotfiles
+          : managed.find((repo) => repo.name === name)?.path;
 
-    for (const action of actions) {
-      yield* log.info(`  - ${action}`);
-    }
+    return path ? [{ name, path, from: "ORIG_HEAD", to: "HEAD" }] : [];
   });
 }
 
@@ -504,7 +515,7 @@ function selfUpdateAndRestart(
       });
     }
 
-    yield* log.info("Self update successful");
+    yield* log.info(cliStyler().success("Self update successful"));
     yield* log.info("Restarting update with rebuilt dot binary");
     yield* restartDot(restartUpdateArgs(opts, moved ? repoName : undefined));
   });
@@ -668,7 +679,7 @@ const restoreHerdrPlugins = Effect.gen(function* () {
     });
   }
 
-  yield* log.info("Herdr plugins restored from lockfile");
+  yield* log.info(cliStyler().success("Herdr plugins restored from lockfile"));
 
   for (const plugin of LOCAL_HERDR_PLUGINS) {
     const pluginRoot = join(
@@ -709,7 +720,7 @@ const restoreHerdrPlugins = Effect.gen(function* () {
     });
   }
 
-  yield* log.info("Herdr local plugins linked");
+  yield* log.info(cliStyler().success("Herdr local plugins linked"));
 });
 
 /** Reload the UI so status-bar services pick up update changes. */
@@ -734,7 +745,7 @@ const runUiReload = Effect.gen(function* () {
     return;
   }
 
-  yield* log.info("On-resume helper started");
+  yield* log.info(cliStyler().success("On-resume helper started"));
 });
 
 /**
@@ -769,7 +780,9 @@ const reloadOmarchyShell = Effect.gen(function* () {
     return;
   }
 
-  yield* log.info("Reloaded Omarchy shell (shell.json changed)");
+  yield* log.info(
+    cliStyler().success("Reloaded Omarchy shell (shell.json changed)"),
+  );
 });
 
 /** Reload the Omarchy shell only when stow rewrote its generated config. */
@@ -1024,7 +1037,11 @@ export const update = (opts?: UpdateOptions) =>
       }
     }
 
-    const updatedNames = [...(opts?.postHookRepos ?? [])];
+    const updatedRepos = restartedUpdatedRepos(
+      config,
+      opts?.postHookRepos ?? [],
+    );
+
     const completedActions: string[] = [];
     let privatePackageRepoUpdated = false;
 
@@ -1053,9 +1070,11 @@ export const update = (opts?: UpdateOptions) =>
             onSome: (value) => Effect.succeed(value),
           });
 
+          const style = cliStyler();
+
           for (const repo of repos) {
             yield* log.info(
-              `${repo.name}: ${repoStatus(repo)} (${displayPath(repo.path)})`,
+              `${style.label(repo.name)}: ${repoStatus(repo, style)} ${style.dim(`(${displayPath(repo.path)})`)}`,
             );
           }
 
@@ -1077,7 +1096,9 @@ export const update = (opts?: UpdateOptions) =>
                 (repo) => gitRefreshRemoteHead(repo.path),
                 { discard: true, concurrency: REFRESH_REMOTE_HEAD_CONCURRENCY },
               ).pipe(
-                Effect.andThen(log.info("Refreshed remote branches")),
+                Effect.andThen(
+                  log.info(cliStyler().success("Refreshed remote branches")),
+                ),
                 Effect.forkScoped,
               );
 
@@ -1117,7 +1138,9 @@ export const update = (opts?: UpdateOptions) =>
                     );
                   }
                 } else {
-                  yield* log.info("All repositories are up to date");
+                  yield* log.info(
+                    cliStyler().success("All repositories are up to date"),
+                  );
                 }
               } else {
                 yield* log.info(`${changed.length} repo(s) need attention`);
@@ -1126,14 +1149,18 @@ export const update = (opts?: UpdateOptions) =>
                   behind,
                   (repo) =>
                     safePull(repo.name, repo.path, false, true).pipe(
-                      Effect.map((moved) => ({ repo, moved })),
+                      Effect.map((range) => ({ repo, range })),
                     ),
                   { concurrency: REPO_PULL_CONCURRENCY },
                 );
 
-                for (const { repo, moved } of pulled) {
-                  if (!moved) continue;
-                  updatedNames.push(repo.name);
+                for (const { repo, range } of pulled) {
+                  if (!range) continue;
+                  updatedRepos.push({
+                    name: repo.name,
+                    path: repo.path,
+                    ...range,
+                  });
 
                   if (repo.path === privatePackageRepo?.path)
                     privatePackageRepoUpdated = true;
@@ -1148,7 +1175,7 @@ export const update = (opts?: UpdateOptions) =>
             }),
           );
 
-          const updated = new Set(updatedNames);
+          const updated = new Set(updatedRepos.map((repo) => repo.name));
 
           for (const repo of managedGitRepos(config.gitConfig)) {
             if (updated.has(repo.name)) yield* runRepoPostUpdate(repo);
@@ -1222,7 +1249,7 @@ export const update = (opts?: UpdateOptions) =>
         Effect.gen(function* () {
           yield* log.section("Rebuild");
           yield* rebuild;
-          yield* log.info("Build successful");
+          yield* log.info(cliStyler().success("Build successful"));
         }),
       );
       completedActions.push("Rebuilt the dot binary");
@@ -1238,8 +1265,8 @@ export const update = (opts?: UpdateOptions) =>
     }
 
     // Notify only when a repo actually moved.
-    if (updatedNames.length > 0) {
-      yield* notifyUpdated(updatedNames);
+    if (updatedRepos.length > 0) {
+      yield* notifyUpdated(updatedRepos.map((repo) => repo.name));
     }
 
     // Full updates and the changed-dotfiles handoff sync agent instructions.
@@ -1270,7 +1297,7 @@ export const update = (opts?: UpdateOptions) =>
       }
     }
 
-    yield* logUpdateSummary(updatedNames, completedActions);
+    yield* logUpdateSummary(updatedRepos, completedActions);
 
     yield* log.section("Update Status");
     const executor = yield* CommandExecutor;
