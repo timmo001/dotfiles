@@ -98,6 +98,24 @@ function recordFetch(
   }
 }
 
+/** Record a repository's upstream as freshly fetched so scans skip fetching it again. */
+export const recordUpstreamFetch = Effect.fn("DotDiff.recordUpstreamFetch")(
+  function* (repoPath: string) {
+    const executor = yield* CommandExecutor;
+
+    const upstreamRef = yield* executor
+      .run("git", ["rev-parse", "--abbrev-ref", "@{u}"], { cwd: repoPath })
+      .pipe(Effect.catch(() => Effect.succeed("")));
+
+    const trimmedRef = upstreamRef.trim();
+
+    if (!trimmedRef) return;
+
+    const nowSeconds = Math.floor((yield* Clock.currentTimeMillis) / 1000);
+    recordFetch(repoPath, trimmedRef, nowSeconds);
+  },
+);
+
 /** Domain error for `dot git-diff` command failures */
 export class DotDiffError extends Schema.TaggedError<DotDiffError>()(
   "DotDiffError",

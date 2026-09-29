@@ -4,7 +4,7 @@ import { basename, join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
-import { DotDiff } from "../git/services/DotDiff.js";
+import { DotDiff, recordUpstreamFetch } from "../git/services/DotDiff.js";
 import { stow as runStow } from "./Stow.js";
 import { agentsSync } from "./AgentsSync.js";
 import { mcpSync } from "../mcp/commands/McpSync.js";
@@ -283,6 +283,8 @@ const safePull = (
       return null;
     }
 
+    yield* recordUpstreamFetch(path);
+
     const after = yield* gitHead(path).pipe(
       Effect.catch(() => Effect.succeed("")),
     );
@@ -492,6 +494,7 @@ function restartUpdateArgs(
   ];
 }
 
+/** Pull public dotfiles, then rebuild and restart only when the pull moved HEAD. */
 function selfUpdateAndRestart(
   config: ConfigService,
   opts: UpdateOptions | undefined,
@@ -501,6 +504,12 @@ function selfUpdateAndRestart(
     yield* log.section("Self Update");
     const repoName = basename(config.publicDotfiles);
     const moved = yield* safePull(repoName, config.publicDotfiles);
+
+    if (!moved) {
+      yield* log.info("No dotfiles changes; continuing without a rebuild");
+
+      return false;
+    }
 
     const rebuilt = yield* withStepTimeout(
       "Rebuild",
@@ -516,7 +525,9 @@ function selfUpdateAndRestart(
 
     yield* log.success("Self update successful");
     yield* log.info("Restarting update with rebuilt dot binary");
-    yield* restartDot(restartUpdateArgs(opts, moved ? repoName : undefined));
+    yield* restartDot(restartUpdateArgs(opts, repoName));
+
+    return true;
   });
 }
 
@@ -969,8 +980,10 @@ const haltOnLegacyHyprRepo = (config: ConfigService) =>
  * omarchy + worktrees, schedule-gated extras) via {@link DotDiff} and only
  * pulls repos that are behind upstream. It then marks any mise config files in
  * the tracked repos as trusted (best-effort) so `mise` never prompts for them
- * on this machine. Full updates pull public dotfiles,
- * rebuild, and restart without self-update before continuing the workflow.
+ * on this machine. Full updates pull public dotfiles first; when that pull
+ * moves HEAD they rebuild and restart without self-update, and the restarted
+ * run skips the final rebuild. Repositories pulled earlier in the run are not
+ * fetched again by the scan.
  * Pull notifications fire only when a repo actually moved, while post-hooks
  * (agents-sync) run on every full update and the changed-dotfiles handoff.
  * Ordinary flag-scoped runs skip them.
@@ -1000,12 +1013,14 @@ export const update = (opts?: UpdateOptions) =>
       ? loadPrivatePackageRepoConfig(config)
       : null;
 
+    // Every handoff that names public dotfiles rebuilt dot from that pull first.
+    let dotRebuilt =
+      opts?.postHookRepos?.includes(basename(config.publicDotfiles)) ?? false;
+
     yield* log.section("Update Workflow");
 
     if (isFullUpdate && opts?.selfUpdate !== false) {
-      yield* selfUpdateAndRestart(config, opts);
-
-      return;
+      if (yield* selfUpdateAndRestart(config, opts)) return;
     }
 
     // Migration halt: a machine still on the retired omarchy-hypr clone must
@@ -1159,6 +1174,8 @@ export const update = (opts?: UpdateOptions) =>
 
                   if (repo.path === privatePackageRepo?.path)
                     privatePackageRepoUpdated = true;
+
+                  if (repo.path === config.publicDotfiles) dotRebuilt = false;
                 }
               }
 
@@ -1236,7 +1253,7 @@ export const update = (opts?: UpdateOptions) =>
       }
     }
 
-    if (doApp) {
+    if (doApp && !dotRebuilt) {
       yield* requiredUpdateStep(
         "Rebuild",
         STEP_TIMEOUT_SECONDS.rebuild,
@@ -1247,6 +1264,8 @@ export const update = (opts?: UpdateOptions) =>
         }),
       );
       completedActions.push("Rebuilt the dot binary");
+    } else if (doApp) {
+      completedActions.push("Rebuilt the dot binary before restarting");
     }
 
     if (isFullUpdate || applyPulledDotfiles) {
