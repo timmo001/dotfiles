@@ -348,7 +348,7 @@ export class GitReleases extends Context.Service<
           "--no-write-fetch-head",
           "--no-tags",
           "--no-recurse-submodules",
-          `https://github.com/${repo.github}.git`,
+          `git@github.com:${repo.github}.git`,
           `+refs/tags/${release.tag_name}:${prefix}/release`,
           `+refs/heads/${settings.branch}:${prefix}/head`,
         ]);
@@ -416,7 +416,7 @@ export class GitReleases extends Context.Service<
                     "--no-write-fetch-head",
                     "--no-tags",
                     "--no-recurse-submodules",
-                    `https://github.com/${settings.fork.upstream}.git`,
+                    `git@github.com:${settings.fork.upstream}.git`,
                     `+refs/tags/${tag.name}:${prefix}/upstream`,
                   ]);
 
