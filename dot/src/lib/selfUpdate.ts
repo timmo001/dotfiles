@@ -3,6 +3,11 @@ import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
 import { renameSync, chmodSync, realpathSync } from "fs";
 import { join, dirname } from "path";
 import { ENV, envString } from "./env.js";
+import {
+  isBuildCurrent,
+  sourceBuildKey,
+  writeBuildStamp,
+} from "./buildStamp.js";
 import { withSpinnerTimeout } from "./workflowStep.js";
 
 const DEPENDENCY_INSTALL_TIMEOUT_SECONDS = 3 * 60;
@@ -36,13 +41,22 @@ const DOT_SRC = join(dirname(BIN_PATH), "..", "..", "..", "dot");
  * Rebuild the dot binary from source.
  *
  * Runs `bun install` then `bun build --compile` to a temporary path,
- * then atomically renames over the current binary. Callers may relaunch when
- * the rebuilt code must continue the current workflow.
+ * then atomically renames over the current binary. Skips both when the binary
+ * was last built from the same clean source tree, and returns whether it built.
+ * Callers may relaunch when the rebuilt code must continue the current workflow.
  */
 export const rebuild = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
 
   log(`Rebuilding from: ${DOT_SRC}`);
+
+  const buildKey = yield* sourceBuildKey(DOT_SRC);
+
+  if (isBuildCurrent(BIN_PATH, buildKey)) {
+    log(`Binary already built from ${buildKey}`);
+
+    return false;
+  }
 
   const installed = yield* withSpinnerTimeout(
     "Installing dot dependencies",
@@ -86,8 +100,11 @@ export const rebuild = Effect.gen(function* () {
   yield* Effect.sync(() => {
     renameSync(tmpPath, BIN_PATH);
     chmodSync(BIN_PATH, 0o755);
+    writeBuildStamp(BIN_PATH, buildKey);
   });
   log("Binary replaced");
+
+  return true;
 });
 
 /** Restart the rebuilt dot binary with inherited stdio and fail on non-zero exit. */

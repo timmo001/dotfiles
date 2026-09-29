@@ -2,6 +2,11 @@ import { Effect, Schema } from "effect";
 import { chmodSync, existsSync, mkdirSync, renameSync, rmSync } from "fs";
 import { dirname, join } from "path";
 import { HOME_DIR } from "./paths.js";
+import {
+  isBuildCurrent,
+  sourceBuildKey,
+  writeBuildStamp,
+} from "./buildStamp.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 
@@ -23,7 +28,10 @@ export function skillsMaintenanceSource(
     : join(publicDotfiles, "agents", ".agents", "skills");
 }
 
-/** Compile and atomically install the standalone skill-maintenance executable. */
+/**
+ * Compile and atomically install the standalone skill-maintenance executable,
+ * skipping the build when it already came from the same clean source tree.
+ */
 export const buildSkillsMaintenance = Effect.gen(function* () {
   const config = yield* Config;
   const executor = yield* CommandExecutor;
@@ -45,6 +53,10 @@ export const buildSkillsMaintenance = Effect.gen(function* () {
       message: `Skill maintenance source is unavailable: ${entrypoint}`,
     });
   }
+
+  const buildKey = yield* sourceBuildKey(source);
+
+  if (isBuildCurrent(target, buildKey)) return { target, built: false };
 
   yield* Effect.sync(() => {
     mkdirSync(dirname(target), { recursive: true });
@@ -80,7 +92,8 @@ export const buildSkillsMaintenance = Effect.gen(function* () {
   yield* Effect.sync(() => {
     chmodSync(temporary, 0o755);
     renameSync(temporary, target);
+    writeBuildStamp(target, buildKey);
   });
 
-  return target;
+  return { target, built: true };
 });

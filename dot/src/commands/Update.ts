@@ -1209,11 +1209,18 @@ export const update = (opts?: UpdateOptions) =>
         STEP_TIMEOUT_SECONDS.rebuild,
         Effect.gen(function* () {
           yield* log.section("Skill Maintenance");
-          const target = yield* buildSkillsMaintenance;
-          yield* log.info(`Built ${displayPath(target)}`);
+          const { target, built } = yield* buildSkillsMaintenance;
+
+          yield* built
+            ? log.info(`Built ${displayPath(target)}`)
+            : log.info(
+                `${displayPath(target)} is already built from this source`,
+              );
+
+          if (built)
+            completedActions.push("Rebuilt the skill-maintenance executable");
         }),
       );
-      completedActions.push("Rebuilt the skill-maintenance executable");
     }
 
     if (doStow) {
@@ -1254,16 +1261,22 @@ export const update = (opts?: UpdateOptions) =>
     }
 
     if (doApp && !dotRebuilt) {
+      let built = true;
+
       yield* requiredUpdateStep(
         "Rebuild",
         STEP_TIMEOUT_SECONDS.rebuild,
         Effect.gen(function* () {
           yield* log.section("Rebuild");
-          yield* rebuild;
-          yield* log.success("Build successful");
+          built = yield* rebuild;
+
+          yield* built
+            ? log.success("Build successful")
+            : log.info("dot binary is already built from this source");
         }),
       );
-      completedActions.push("Rebuilt the dot binary");
+
+      if (built) completedActions.push("Rebuilt the dot binary");
     } else if (doApp) {
       completedActions.push("Rebuilt the dot binary before restarting");
     }
