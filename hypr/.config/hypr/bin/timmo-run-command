@@ -14,17 +14,15 @@ shift
 if ! command -v "$COMMAND" &>/dev/null; then
     # Try to find a package to install
     PACKAGE=""
+    PACKAGES="$(yay -Ssq -- "$COMMAND" 2>/dev/null)"
 
-    # Check if exact package name exists
-    if yay -Ss "^$COMMAND$" &>/dev/null | grep -q "^"; then
-        PACKAGE="$COMMAND"
-    # Try with -bin suffix
-    elif yay -Ss "^${COMMAND}-bin$" &>/dev/null | grep -q "^"; then
-        PACKAGE="${COMMAND}-bin"
-    # Try with -git suffix
-    elif yay -Ss "^${COMMAND}-git$" &>/dev/null | grep -q "^"; then
-        PACKAGE="${COMMAND}-git"
-    fi
+    # Prefer the exact package name, then -bin, then -git
+    for CANDIDATE in "$COMMAND" "${COMMAND}-bin" "${COMMAND}-git"; do
+        if grep -qxF -- "$CANDIDATE" <<<"$PACKAGES"; then
+            PACKAGE="$CANDIDATE"
+            break
+        fi
+    done
 
     if [[ -n "$PACKAGE" ]]; then
         omarchy notification send -g "󰅖" -u normal "$COMMAND not found" "Install with: yay -S $PACKAGE" -i dialog-warning
