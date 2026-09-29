@@ -159,7 +159,7 @@ function buildHarnessConfig(
 
     if (existing.permissions !== undefined || permissions.length > 0)
       config.permissions = permissions;
-    delete config.tools;
+    Reflect.deleteProperty(config, "tools");
   } else {
     config[topKeyFor(harness)] = buildMcpEntries(spec, harness);
   }
