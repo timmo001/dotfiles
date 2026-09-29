@@ -62,11 +62,13 @@ export const gitWeb = Effect.fn("gitWeb")(function* (options: {
 
   const url =
     options.url ??
-    (yield* ghOutput(
-      yield* Gh,
-      ["repo", "view", "--json", "url", "--jq", ".url"],
-      { cwd },
-    )).trim();
+    (repo
+      ? `https://github.com/${repo.github}`
+      : (yield* ghOutput(
+          yield* Gh,
+          ["repo", "view", "--json", "url", "--jq", ".url"],
+          { cwd },
+        )).trim());
 
   const parsed = yield* Effect.try({
     try: () => new URL(url),
