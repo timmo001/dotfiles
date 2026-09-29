@@ -43,6 +43,8 @@ import {
   writeInitInProgressMarker,
 } from "../lib/initState.js";
 import { ENV, envFlag, envString, setEnv } from "../lib/env.js";
+import { cliStyler } from "../lib/ansi.js";
+import { logRunSummary } from "../lib/runSummary.js";
 import type { ConfigService } from "../services/Config.js";
 
 const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
@@ -284,13 +286,13 @@ function resolveInitOptions(
         Effect.mapError((error) => new InitError({ message: error.message })),
       );
       const host = yield* promptForHost();
-      yield* log.info(`Selected Hypr host: ${host}`);
+      yield* log.success(`Selected Hypr host ${cliStyler().accent(host)}`);
 
       return { ...options, host };
     }
 
     const host = initOmarchyHost(options);
-    yield* log.info(`Using Hypr host: ${host}`);
+    yield* log.info(`Using Hypr host ${cliStyler().accent(host)}`);
 
     return { ...options, host };
   });
@@ -332,7 +334,7 @@ function persistOmarchyHostEnv(
       );
 
     if (exitCode === 0) {
-      yield* log.info(`Persisted ${line} to ${file}`);
+      yield* log.success(`Persisted ${line} ${cliStyler().dim(file)}`);
     } else {
       yield* log.warn(
         `Could not persist OMARCHY_HOST to ${file} (exit ${exitCode}); set it manually`,
@@ -385,7 +387,9 @@ function ensureInitHyprHostLink(
 
     if (!existsSync(liveHostDir)) {
       yield* log.info(
-        `Hypr host '${host}' selected; host link will be created during stow`,
+        cliStyler().dim(
+          `Hypr host '${host}' selected; host link will be created during stow`,
+        ),
       );
 
       return;
@@ -419,7 +423,11 @@ function configureGitInclude(
     }
 
     if (gitConfigIncludesManagedPath()) {
-      yield* log.info("Git config already includes managed dotfiles settings");
+      yield* log.info(
+        cliStyler().dim(
+          "Git config already includes managed dotfiles settings",
+        ),
+      );
 
       return;
     }
@@ -431,7 +439,9 @@ function configureGitInclude(
       "include.path",
       GIT_INCLUDE_PATH,
     ]).pipe(Effect.catchTag("GitCommandError", (error) => fail(error.message)));
-    yield* log.info(`Added git config include: ${GIT_INCLUDE_PATH}`);
+    yield* log.success(
+      `Added Git config include ${cliStyler().dim(GIT_INCLUDE_PATH)}`,
+    );
   });
 }
 
@@ -455,7 +465,7 @@ function installPacmanHook(
       );
     }
 
-    yield* log.info(`Installed ${hookFile}`);
+    yield* log.success(`Installed ${cliStyler().accent(hookFile)}`);
   });
 }
 
@@ -472,7 +482,9 @@ function installPacmanHooks(): Effect.Effect<
 
     if (!existsSync(hooksSource)) {
       yield* log.info(
-        `No pacman hooks directory found: ${displayPath(hooksSource)}`,
+        cliStyler().dim(
+          `No pacman hooks directory found: ${displayPath(hooksSource)}`,
+        ),
       );
 
       return;
@@ -481,7 +493,7 @@ function installPacmanHooks(): Effect.Effect<
     const hookFiles = pacmanHookFiles(hooksSource);
 
     if (hookFiles.length === 0) {
-      yield* log.info("No pacman hooks configured");
+      yield* log.info(cliStyler().dim("No pacman hooks configured"));
 
       return;
     }
@@ -530,7 +542,7 @@ function enableUserUnit(
 
     yield* runUserSystemctl(["daemon-reload"]);
     yield* runUserSystemctl(["enable", "--now", unit]);
-    yield* log.info(`Enabled ${unit}`);
+    yield* log.success(`Enabled ${cliStyler().accent(unit)}`);
   });
 }
 
@@ -688,13 +700,13 @@ function ensureLoginShellZsh(): Effect.Effect<
         );
       }
 
-      yield* log.info(`Registered ${zshPath} in ${ETC_SHELLS}`);
+      yield* log.success(`Registered ${zshPath} in ${ETC_SHELLS}`);
     }
 
     const loginShell = yield* currentLoginShell();
 
     if (loginShell === zshPath) {
-      yield* log.info(`Login shell is already ${zshPath}`);
+      yield* log.info(cliStyler().dim(`Login shell is already ${zshPath}`));
 
       return;
     }
@@ -711,7 +723,9 @@ function ensureLoginShellZsh(): Effect.Effect<
       return yield* fail(`chsh -s ${zshPath} ${username} exited ${exitCode}`);
     }
 
-    yield* log.info(`Set login shell to ${zshPath} for ${username}`);
+    yield* log.success(
+      `Set login shell to ${cliStyler().accent(zshPath)} for ${username}`,
+    );
   });
 }
 
@@ -737,104 +751,142 @@ export function init(
     yield* log.section("Initialization Workflow");
 
     if (envString(ENV.DOT_LOG_FILE)) {
-      yield* log.info(`Init log: ${displayPath(envString(ENV.DOT_LOG_FILE)!)}`);
+      yield* log.info(
+        cliStyler().dim(
+          `Init log: ${displayPath(envString(ENV.DOT_LOG_FILE)!)}`,
+        ),
+      );
     }
 
     yield* assertFreshInitTarget(config, optionsInput.force);
     const options = yield* resolveInitOptions(optionsInput);
     yield* writeInitInProgressMarker(config, options);
 
-    yield* requiredInitStep(
+    const steps: string[] = [];
+    const installActions: string[] = [];
+
+    const step = <E, R>(
+      label: string,
+      seconds: number,
+      effect: Effect.Effect<void, E, R>,
+    ) =>
+      requiredInitStep(label, seconds, effect).pipe(
+        Effect.tap(() => Effect.sync(() => steps.push(label))),
+      );
+
+    yield* step(
       "Locale",
       INIT_STEP_TIMEOUT_SECONDS.locale,
       ensureLocalesGenerated,
     );
-    yield* requiredInitStep(
+    yield* step(
       "Omarchy Host Links",
       INIT_STEP_TIMEOUT_SECONDS.hostLinks,
       ensureInitHyprHostLink(config, options),
     );
-    yield* requiredInitStep(
+    yield* step(
       "Install Dotfiles",
       INIT_STEP_TIMEOUT_SECONDS.install,
-      install,
+      install.pipe(
+        Effect.map((actions) => {
+          installActions.push(...actions);
+        }),
+      ),
     );
-    yield* requiredInitStep(
+    yield* step(
       "Install Mise Tools",
       INIT_STEP_TIMEOUT_SECONDS.mise,
       installMiseTools,
     );
-    yield* requiredInitStep(
+    yield* step(
       "Setup Public Package Repository",
       INIT_STEP_TIMEOUT_SECONDS.publicRepo,
       setupPublicRepo,
     );
-    yield* requiredInitStep(
+    yield* step(
       "Install Public Packages",
       INIT_STEP_TIMEOUT_SECONDS.publicPackages,
       installMissingArchPackages({
         scope: "public",
       }),
     );
-    yield* requiredInitStep(
+    yield* step(
       "Configure Firewall",
       INIT_STEP_TIMEOUT_SECONDS.firewall,
       configureFirewallRules,
     );
-    yield* requiredInitStep(
+    yield* step(
       "Install GitHub CLI Extensions",
       INIT_STEP_TIMEOUT_SECONDS.ghExtensions,
       installGhExtensions,
     );
-    yield* requiredInitStep(
+    yield* step(
       "Login Shell",
       INIT_STEP_TIMEOUT_SECONDS.loginShell,
       ensureLoginShellZsh(),
     );
-    yield* requiredInitStep(
+    yield* step(
       "Setup Private Packages",
       INIT_STEP_TIMEOUT_SECONDS.privatePackages,
       setupPrivatePackages(config),
     );
-    yield* requiredInitStep(
+    yield* step(
       "Clone Private Git Repositories",
       INIT_STEP_TIMEOUT_SECONDS.privateRepos,
       cloneMissingGitConfigRepos({ strict: true, captured: true }),
     );
-    yield* requiredInitStep(
+    yield* step(
       "Trust Mise Configs",
       INIT_STEP_TIMEOUT_SECONDS.miseTrust,
       trustTrackedMiseConfigs,
     );
-    yield* requiredInitStep(
+    yield* step(
       "Configure Git",
       INIT_STEP_TIMEOUT_SECONDS.git,
       configureGitInclude(config),
     );
-    yield* requiredInitStep(
+    yield* step(
       "Install Pacman Hooks",
       INIT_STEP_TIMEOUT_SECONDS.hooks,
       installPacmanHooks(),
     );
-    yield* requiredInitStep(
+    yield* step(
       "Enable Doctor Timer",
       INIT_STEP_TIMEOUT_SECONDS.doctorTimer,
       enableUserUnit(DOCTOR_TIMER_UNIT, "Enable Doctor Timer"),
     );
-    yield* requiredInitStep(
+    yield* step(
       "Sync Agents",
       INIT_STEP_TIMEOUT_SECONDS.agents,
       syncAgentsStrict(),
     );
 
     yield* writeInitCompleteMarker(config, "init");
+
+    yield* logRunSummary(
+      "Summary",
+      steps.flatMap((label) =>
+        label === "Install Dotfiles" && installActions.length > 0
+          ? installActions
+          : [label],
+      ),
+    );
+
+    const style = cliStyler();
+
     yield* log.info(
-      `Init complete: ${displayPath(initCompleteMarker(config))}`,
+      `Init complete ${style.dim(displayPath(initCompleteMarker(config)))}`,
+    );
+    yield* log.info("");
+    yield* log.info(style.label("Next steps"));
+    yield* log.info(
+      `  Reboot so the Omarchy session picks up ${style.accent("OMARCHY_HOST")} and stowed user services`,
     );
     yield* log.info(
-      "Next: reboot so the Omarchy session picks up OMARCHY_HOST and stowed user services",
+      `  After reboot, run ${style.command("dot doctor")} to verify this setup`,
     );
-    yield* log.info("After reboot: run `dot doctor` to verify this setup");
-    yield* log.info("Ongoing maintenance: run `dot update`");
+    yield* log.info(
+      `  For ongoing maintenance, run ${style.command("dot update")}`,
+    );
   }).pipe(withSudoKeepAlive);
 }

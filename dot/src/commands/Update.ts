@@ -288,8 +288,8 @@ const safePull = (
 
     if (before === "" || after === "" || before === after) return null;
 
-    yield* log.info(
-      `${style.success("Updated")} ${style.accent(name)} ${style.dim(`${before.slice(0, 7)} -> ${after.slice(0, 7)}`)}`,
+    yield* log.success(
+      `Updated ${style.accent(name)} ${style.dim(`${before.slice(0, 7)} -> ${after.slice(0, 7)}`)}`,
     );
 
     return { from: before, to: after };
@@ -351,9 +351,7 @@ const runRepoPostUpdate = (repo: GitManagedRepo) =>
       });
     }
 
-    yield* log.info(
-      cliStyler().success(`${repo.name} post-update command complete`),
-    );
+    yield* log.success(`${repo.name} post-update command complete`);
   });
 
 /**
@@ -515,7 +513,7 @@ function selfUpdateAndRestart(
       });
     }
 
-    yield* log.info(cliStyler().success("Self update successful"));
+    yield* log.success("Self update successful");
     yield* log.info("Restarting update with rebuilt dot binary");
     yield* restartDot(restartUpdateArgs(opts, moved ? repoName : undefined));
   });
@@ -679,7 +677,7 @@ const restoreHerdrPlugins = Effect.gen(function* () {
     });
   }
 
-  yield* log.info(cliStyler().success("Herdr plugins restored from lockfile"));
+  yield* log.success("Herdr plugins restored from lockfile");
 
   for (const plugin of LOCAL_HERDR_PLUGINS) {
     const pluginRoot = join(
@@ -720,7 +718,7 @@ const restoreHerdrPlugins = Effect.gen(function* () {
     });
   }
 
-  yield* log.info(cliStyler().success("Herdr local plugins linked"));
+  yield* log.success("Herdr local plugins linked");
 });
 
 /** Reload the UI so status-bar services pick up update changes. */
@@ -745,7 +743,7 @@ const runUiReload = Effect.gen(function* () {
     return;
   }
 
-  yield* log.info(cliStyler().success("On-resume helper started"));
+  yield* log.success("On-resume helper started");
 });
 
 /**
@@ -780,9 +778,7 @@ const reloadOmarchyShell = Effect.gen(function* () {
     return;
   }
 
-  yield* log.info(
-    cliStyler().success("Reloaded Omarchy shell (shell.json changed)"),
-  );
+  yield* log.success("Reloaded Omarchy shell (shell.json changed)");
 });
 
 /** Reload the Omarchy shell only when stow rewrote its generated config. */
@@ -1096,9 +1092,7 @@ export const update = (opts?: UpdateOptions) =>
                 (repo) => gitRefreshRemoteHead(repo.path),
                 { discard: true, concurrency: REFRESH_REMOTE_HEAD_CONCURRENCY },
               ).pipe(
-                Effect.andThen(
-                  log.info(cliStyler().success("Refreshed remote branches")),
-                ),
+                Effect.andThen(log.success("Refreshed remote branches")),
                 Effect.forkScoped,
               );
 
@@ -1138,9 +1132,7 @@ export const update = (opts?: UpdateOptions) =>
                     );
                   }
                 } else {
-                  yield* log.info(
-                    cliStyler().success("All repositories are up to date"),
-                  );
+                  yield* log.success("All repositories are up to date");
                 }
               } else {
                 yield* log.info(`${changed.length} repo(s) need attention`);
@@ -1211,11 +1203,10 @@ export const update = (opts?: UpdateOptions) =>
         Effect.gen(function* () {
           yield* mcpSync;
 
-          shellConfigChanged = yield* runStow();
+          const result = yield* runStow();
+          shellConfigChanged = result.shellConfigChanged;
+          completedActions.push("Synced MCP config", ...result.actions);
         }),
-      );
-      completedActions.push(
-        "Generated completions, synced MCP, and stowed dotfiles",
       );
     }
 
@@ -1249,7 +1240,7 @@ export const update = (opts?: UpdateOptions) =>
         Effect.gen(function* () {
           yield* log.section("Rebuild");
           yield* rebuild;
-          yield* log.info(cliStyler().success("Build successful"));
+          yield* log.success("Build successful");
         }),
       );
       completedActions.push("Rebuilt the dot binary");

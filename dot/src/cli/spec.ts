@@ -50,6 +50,7 @@ import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
 import { runSkillsMaintenance } from "../commands/Skills.js";
 import { runCommand } from "../commands/Run.js";
 import { stow } from "../commands/Stow.js";
+import { logRunSummary } from "../lib/runSummary.js";
 import { snapshot } from "../commands/Snapshot.js";
 import { sessionStatus } from "../commands/SessionStatus.js";
 import { systemUpdate } from "../commands/SystemUpdate.js";
@@ -186,7 +187,11 @@ const initCommand = describe(
 );
 
 const installCommand = describe(
-  Command.make("install", {}, () => install),
+  Command.make("install", {}, () =>
+    install.pipe(
+      Effect.flatMap((actions) => logRunSummary("Summary", actions)),
+    ),
+  ),
   "Ensure prerequisites, then backup/adopt dotfiles",
 );
 
@@ -656,7 +661,9 @@ const stowCommand = describe(
       privateOnly: bool("private", "Stow private dotfiles only"),
     },
     ({ privateOnly, publicOnly }) =>
-      stow({ publicOnly, privateOnly }).pipe(Effect.asVoid),
+      stow({ publicOnly, privateOnly }).pipe(
+        Effect.flatMap((result) => logRunSummary("Summary", result.actions)),
+      ),
   ),
   "Re-stow public/private dotfiles",
 );

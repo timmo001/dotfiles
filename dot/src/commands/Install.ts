@@ -29,6 +29,9 @@ import {
 import type { ConfigService } from "../services/Config.js";
 import { writeAllCompletions } from "./Completions.js";
 import { installOpencodePluginDependencies } from "../lib/opencodePlugins.js";
+import { cliStyler } from "../lib/ansi.js";
+import { plural } from "../lib/runSummary.js";
+import type { OutputLogService } from "../services/OutputLog.js";
 
 /** Extra stow flags for the agents folder (matches legacy behaviour) */
 const AGENTS_PRIVATE_IGNORES = [
@@ -48,19 +51,27 @@ export const install = Effect.gen(function* () {
   const config = yield* Config;
   const log = yield* OutputLog;
   const launcher = yield* Launcher;
+  const style = cliStyler();
+  const actions: string[] = [];
+  const counts = { backedUp: 0, removed: 0 };
 
   yield* ensureStowInstalled;
 
   yield* log.section("Completions");
 
-  for (const target of yield* writeAllCompletions) {
-    yield* log.info(`Generated completions: ${displayPath(target)}`);
+  const completions = yield* writeAllCompletions;
+
+  for (const target of completions) {
+    yield* log.success(`Generated ${style.dim(displayPath(target))}`);
   }
 
+  actions.push(`Generated ${plural(completions.length, "completion file")}`);
+
   yield* log.section("OpenCode Plugins");
-  yield* log.info(
-    `Installed dependencies: ${displayPath(yield* installOpencodePluginDependencies)}`,
+  yield* log.success(
+    `Installed dependencies ${style.dim(displayPath(yield* installOpencodePluginDependencies))}`,
   );
+  actions.push("Installed OpenCode plugin dependencies");
 
   yield* log.section("Backup");
 
@@ -73,13 +84,16 @@ export const install = Effect.gen(function* () {
 
     if (removedPrivateCrashHook) {
       yield* log.info(
-        `Migrated crash hook to public stow: ${displayPath(removedPrivateCrashHook)}`,
+        `${style.warn("Migrated")} crash hook to public stow ${style.dim(displayPath(removedPrivateCrashHook))}`,
       );
     }
   }
 
   for (const path of removeRetiredPublicStowLinks(config.publicDotfiles)) {
-    yield* log.info(`Removed retired stow link: ${displayPath(path)}`);
+    yield* log.info(
+      `${style.warn("Removed")} retired stow link ${style.dim(displayPath(path))}`,
+    );
+    counts.removed++;
   }
 
   const legacyGhosttyMove = yield* Effect.sync(() =>
@@ -88,16 +102,18 @@ export const install = Effect.gen(function* () {
 
   if (legacyGhosttyMove) {
     yield* log.info(
-      `Backed up retired Ghostty repo: ${formatBackupMove(legacyGhosttyMove)}`,
+      `${style.warn("Backed up")} retired Ghostty repo ${style.dim(formatBackupMove(legacyGhosttyMove))}`,
     );
+    counts.backedUp++;
   }
 
   const removedLegacyUwsm = yield* Effect.sync(() => removeLegacyUwsmRepo());
 
   if (removedLegacyUwsm) {
     yield* log.info(
-      `Removed retired UWSM repo: ${displayPath(removedLegacyUwsm)}`,
+      `${style.warn("Removed")} retired UWSM repo ${style.dim(displayPath(removedLegacyUwsm))}`,
     );
+    counts.removed++;
   }
 
   const knownMoves = yield* Effect.sync(() =>
@@ -105,7 +121,10 @@ export const install = Effect.gen(function* () {
   );
 
   for (const move of knownMoves) {
-    yield* log.info(`Backed up existing file: ${formatBackupMove(move)}`);
+    yield* log.info(
+      `${style.warn("Backed up")} existing file ${style.dim(formatBackupMove(move))}`,
+    );
+    counts.backedUp++;
   }
 
   // Committed-wins pre-pass: move live files that differ from their committed
@@ -117,17 +136,24 @@ export const install = Effect.gen(function* () {
 
   if (protectedTargets.length > 0) {
     yield* log.info(
-      `Protected ${protectedTargets.length} public stow target(s) from --adopt (live copies moved to backup/):`,
+      `${style.warn("Protected")} ${plural(protectedTargets.length, "public stow target")} from --adopt ${style.dim("(live copies moved to backup/)")}`,
     );
 
     for (const move of protectedTargets) {
-      yield* log.info(`  ${formatBackupMove(move)}`);
+      yield* log.info(`  ${style.dim(formatBackupMove(move))}`);
     }
+
+    counts.backedUp += protectedTargets.length;
+  }
+
+  if (counts.backedUp === 0 && counts.removed === 0) {
+    yield* log.info(style.dim("Nothing to back up"));
   }
 
   yield* log.section("Install Public Dotfiles");
   const beforeStow = yield* publicRepoStatus(config.publicDotfiles, launcher);
-  yield* stowRepo(
+
+  const publicCount = yield* stowRepo(
     config.publicDotfiles,
     "public",
     "install",
@@ -135,6 +161,8 @@ export const install = Effect.gen(function* () {
     log,
     config,
   );
+
+  actions.push(`Stowed ${plural(publicCount, "public package")}`);
   yield* warnIfAdoptDirtiedRepo(
     config.publicDotfiles,
     beforeStow,
@@ -143,7 +171,9 @@ export const install = Effect.gen(function* () {
   );
 
   yield* log.section("Omarchy Shell Config");
-  yield* applyOmarchyShellConfig;
+
+  if (yield* applyOmarchyShellConfig)
+    actions.push("Regenerated Omarchy shell config");
 
   if (config.canUsePrivate && config.privateDotfiles) {
     const privateDotfiles = config.privateDotfiles;
@@ -155,11 +185,12 @@ export const install = Effect.gen(function* () {
 
     for (const move of privateMoves) {
       yield* log.info(
-        `[private] backed up unmanaged target: ${formatBackupMove(move)}`,
+        `${style.warn("Backed up")} unmanaged target ${style.dim(formatBackupMove(move))}`,
       );
+      counts.backedUp++;
     }
 
-    yield* stowRepo(
+    const privateCount = yield* stowRepo(
       privateDotfiles,
       "private",
       "install",
@@ -167,14 +198,23 @@ export const install = Effect.gen(function* () {
       log,
       config,
     );
+
+    actions.push(`Stowed ${plural(privateCount, "private package")}`);
   } else {
     yield* log.warn(
       "Skipping private install (private dotfiles not available)",
     );
   }
 
-  yield* log.section("Complete");
-  yield* log.info("Dotfiles installed successfully");
+  if (counts.backedUp > 0)
+    actions.push(`Backed up ${plural(counts.backedUp, "existing file")}`);
+
+  if (counts.removed > 0)
+    actions.push(`Removed ${plural(counts.removed, "retired link")}`);
+
+  const result: readonly string[] = actions;
+
+  return result;
 });
 
 /**
@@ -265,9 +305,11 @@ const warnIfAdoptDirtiedRepo = (
       yield* log.warn(`  ${path}`);
     }
 
-    yield* log.warn(`Review: git -C ${displayPath(repoDir)} diff`);
     yield* log.warn(
-      `Discard leftovers: git -C ${displayPath(repoDir)} restore <path>`,
+      `Review: ${cliStyler().command(`git -C ${displayPath(repoDir)} diff`)}`,
+    );
+    yield* log.warn(
+      `Discard leftovers: ${cliStyler().command(`git -C ${displayPath(repoDir)} restore <path>`)}`,
     );
   });
 
@@ -282,20 +324,16 @@ const stowRepo = (
       opts?: { readonly cwd?: string },
     ) => Effect.Effect<number, LauncherError>;
   },
-  log: {
-    readonly info: (msg: string) => Effect.Effect<void>;
-    readonly warn: (msg: string) => Effect.Effect<void>;
-    readonly error: (msg: string) => Effect.Effect<void>;
-  },
+  log: Pick<OutputLogService, "info" | "success" | "warn" | "error">,
   config: ConfigService,
 ) =>
   Effect.gen(function* () {
     const folders = listStowFolders(repoDir, config).sort();
-    const repoDisplayPath = displayPath(repoDir);
+    const style = cliStyler();
+
+    yield* log.info(style.dim(displayPath(repoDir)));
 
     for (const folder of folders) {
-      yield* log.info(`[${scope}] stow ${folder} (repo: ${repoDisplayPath})`);
-
       const isHypr = scope === "public" && folder === "hypr";
 
       if (isHypr) {
@@ -366,6 +404,8 @@ const stowRepo = (
         });
       }
 
+      yield* log.success(style.accent(folder));
+
       // Apply any added or changed config and clear any prior emergency state.
       // Ignore failure: Hyprland may not be running (fresh install, headless).
       if (isHypr) {
@@ -375,4 +415,6 @@ const stowRepo = (
           .pipe(Effect.catch(() => Effect.void));
       }
     }
+
+    return folders.length;
   });

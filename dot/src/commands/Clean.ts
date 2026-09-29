@@ -4,7 +4,10 @@ import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { listStowFolders } from "../lib/stowFolders.js";
 import { displayPath } from "../lib/paths.js";
+import { cliStyler } from "../lib/ansi.js";
+import { logRunSummary, plural } from "../lib/runSummary.js";
 import type { ConfigService } from "../services/Config.js";
+import type { OutputLogService } from "../services/OutputLog.js";
 
 /**
  * Unstow all packages from private (if available) and public dotfiles repos.
@@ -17,16 +20,35 @@ export const clean = Effect.gen(function* () {
   const log = yield* OutputLog;
   const launcher = yield* Launcher;
 
+  const actions: string[] = [];
+
   if (config.canUsePrivate && config.privateDotfiles) {
     yield* log.section("Unstow Private Dotfiles");
-    yield* unstowRepo(config.privateDotfiles, "private", launcher, log, config);
+
+    const count = yield* unstowRepo(
+      config.privateDotfiles,
+      "private",
+      launcher,
+      log,
+      config,
+    );
+
+    actions.push(`Unstowed ${plural(count, "private package")}`);
   }
 
   yield* log.section("Unstow Public Dotfiles");
-  yield* unstowRepo(config.publicDotfiles, "public", launcher, log, config);
 
-  yield* log.section("Complete");
-  yield* log.info("All packages unstowed");
+  const count = yield* unstowRepo(
+    config.publicDotfiles,
+    "public",
+    launcher,
+    log,
+    config,
+  );
+
+  actions.push(`Unstowed ${plural(count, "public package")}`);
+
+  yield* logRunSummary("Summary", actions);
 });
 
 /** Unstow all folders in a single repo */
@@ -39,19 +61,16 @@ const unstowRepo = (
       opts?: { readonly cwd?: string },
     ) => Effect.Effect<number, LauncherError>;
   },
-  log: {
-    readonly info: (msg: string) => Effect.Effect<void>;
-    readonly error: (msg: string) => Effect.Effect<void>;
-  },
+  log: Pick<OutputLogService, "success" | "info" | "error">,
   config: ConfigService,
 ) =>
   Effect.gen(function* () {
     const folders = listStowFolders(repoDir, config).sort();
-    const repoDisplayPath = displayPath(repoDir);
+    const style = cliStyler();
+
+    yield* log.info(style.dim(displayPath(repoDir)));
 
     for (const folder of folders) {
-      yield* log.info(`[${scope}] unstow ${folder} (repo: ${repoDisplayPath})`);
-
       const exit = yield* launcher.stream(`stow -D ${folder}`, {
         cwd: repoDir,
       });
@@ -64,5 +83,9 @@ const unstowRepo = (
           exitCode: exit,
         });
       }
+
+      yield* log.success(style.accent(folder));
     }
+
+    return folders.length;
   });

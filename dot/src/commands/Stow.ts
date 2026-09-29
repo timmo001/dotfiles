@@ -42,7 +42,18 @@ import {
   restoreExternalSymlinks,
   type ExternalSymlink,
 } from "../lib/stowConflicts.js";
+import { cliStyler } from "../lib/ansi.js";
+import { plural } from "../lib/runSummary.js";
 import type { ConfigService } from "../services/Config.js";
+import type { OutputLogService } from "../services/OutputLog.js";
+
+/** Result of a stow run. */
+export interface StowResult {
+  /** Whether the generated Omarchy `shell.json` changed. */
+  readonly shellConfigChanged: boolean;
+  /** Actions taken, for a closing summary. */
+  readonly actions: readonly string[];
+}
 
 /** Extra stow flags for the agents folder (matches legacy behaviour) */
 const AGENTS_PRIVATE_IGNORES = [
@@ -58,9 +69,8 @@ const AGENTS_PRIVATE_IGNORES = [
  * Matches legacy behaviour: enumerates stow package directories, logs each one,
  * and applies per-folder stow with appropriate flags.
  *
- * @returns `true` when the generated Omarchy `shell.json` changed during this
- *   run, so the caller can reload the running shell. Always `false` for
- *   private-only runs or when the shell config step is skipped.
+ * @returns Whether the generated Omarchy `shell.json` changed, so the caller
+ *   can reload the running shell, and the actions taken for a summary.
  */
 export const stow = (opts?: {
   readonly publicOnly?: boolean;
@@ -70,11 +80,21 @@ export const stow = (opts?: {
     const config = yield* Config;
     const log = yield* OutputLog;
     const launcher = yield* Launcher;
+    const style = cliStyler();
 
     const runPublic = !opts?.privateOnly;
     const runPrivate = !opts?.publicOnly;
 
     let shellConfigChanged = false;
+    const actions: string[] = [];
+
+    const counts: StowCounts = {
+      public: 0,
+      private: 0,
+      deployed: 0,
+      backedUp: 0,
+      removed: 0,
+    };
 
     if (runPrivate && config.canUsePrivate && config.gitConfig.valid) {
       const shortcutsPath = yield* Effect.sync(() =>
@@ -98,15 +118,16 @@ export const stow = (opts?: {
         ),
       );
 
-      yield* log.info(
-        `Generated repository shortcuts: ${displayPath(shortcutsPath)}`,
+      yield* log.success(
+        `Generated repository shortcuts ${style.dim(displayPath(shortcutsPath))}`,
       );
-      yield* log.info(
-        `Generated Herdr repository picker: ${displayPath(pickerPath)}`,
+      yield* log.success(
+        `Generated Herdr repository picker ${style.dim(displayPath(pickerPath))}`,
       );
-      yield* log.info(
-        `Generated Notes capture repositories: ${displayPath(captureRepositoriesPath)}`,
+      yield* log.success(
+        `Generated Notes capture repositories ${style.dim(displayPath(captureRepositoriesPath))}`,
       );
+      actions.push("Generated repository shortcuts and pickers");
     } else if (runPrivate && config.canUsePrivate) {
       yield* log.warn(
         "Keeping repository shortcuts because dot-git.yml is invalid",
@@ -116,14 +137,21 @@ export const stow = (opts?: {
     if (runPublic) {
       yield* log.section("Completions");
 
-      for (const target of yield* writeAllCompletions) {
-        yield* log.info(`Generated completions: ${displayPath(target)}`);
+      const completions = yield* writeAllCompletions;
+
+      for (const target of completions) {
+        yield* log.success(`Generated ${style.dim(displayPath(target))}`);
       }
 
-      yield* log.section("OpenCode Plugins");
-      yield* log.info(
-        `Installed dependencies: ${displayPath(yield* installOpencodePluginDependencies)}`,
+      actions.push(
+        `Generated ${plural(completions.length, "completion file")}`,
       );
+
+      yield* log.section("OpenCode Plugins");
+      yield* log.success(
+        `Installed dependencies ${style.dim(displayPath(yield* installOpencodePluginDependencies))}`,
+      );
+      actions.push("Installed OpenCode plugin dependencies");
 
       yield* log.section("Stow Public Dotfiles");
 
@@ -136,13 +164,16 @@ export const stow = (opts?: {
 
         if (removedPrivateCrashHook) {
           yield* log.info(
-            `Migrated crash hook to public stow: ${displayPath(removedPrivateCrashHook)}`,
+            `${style.warn("Migrated")} crash hook to public stow ${style.dim(displayPath(removedPrivateCrashHook))}`,
           );
         }
       }
 
       for (const path of removeRetiredPublicStowLinks(config.publicDotfiles)) {
-        yield* log.info(`Removed retired stow link: ${displayPath(path)}`);
+        yield* log.info(
+          `${style.warn("Removed")} retired stow link ${style.dim(displayPath(path))}`,
+        );
+        counts.removed++;
       }
 
       const legacyGhosttyMove = yield* Effect.sync(() =>
@@ -151,8 +182,9 @@ export const stow = (opts?: {
 
       if (legacyGhosttyMove) {
         yield* log.info(
-          `[public] backed up retired Ghostty repo: ${formatBackupMove(legacyGhosttyMove)}`,
+          `${style.warn("Backed up")} retired Ghostty repo ${style.dim(formatBackupMove(legacyGhosttyMove))}`,
         );
+        counts.backedUp++;
       }
 
       const removedLegacyUwsm = yield* Effect.sync(() =>
@@ -161,8 +193,9 @@ export const stow = (opts?: {
 
       if (removedLegacyUwsm) {
         yield* log.info(
-          `[public] removed retired UWSM repo: ${displayPath(removedLegacyUwsm)}`,
+          `${style.warn("Removed")} retired UWSM repo ${style.dim(displayPath(removedLegacyUwsm))}`,
         );
+        counts.removed++;
       }
 
       const ignoredTargets = new Set([
@@ -182,8 +215,9 @@ export const stow = (opts?: {
 
       for (const move of backedUp) {
         yield* log.info(
-          `[public] backed up unmanaged target: ${formatBackupMove(move)}`,
+          `${style.warn("Backed up")} unmanaged target ${style.dim(formatBackupMove(move))}`,
         );
+        counts.backedUp++;
       }
 
       if (
@@ -192,16 +226,28 @@ export const stow = (opts?: {
           join(config.publicDotfiles, "agents/.agents/skills/dotfiles-stow"),
         )
       ) {
-        yield* log.info("[public] migrated skill owner: dotfiles-stow");
+        yield* log.info(
+          `${style.warn("Migrated")} skill owner ${style.accent("dotfiles-stow")}`,
+        );
       }
 
-      yield* stowRepo(config.publicDotfiles, "public", launcher, log, config);
+      yield* stowRepo(
+        config.publicDotfiles,
+        "public",
+        launcher,
+        log,
+        config,
+        counts,
+      );
+      actions.push(`Stowed ${plural(counts.public, "public package")}`);
 
       yield* log.section("Omarchy Neovim Theme");
       yield* ensureNvimThemeLink(log);
 
       yield* log.section("Omarchy Shell Config");
       shellConfigChanged = yield* applyOmarchyShellConfig;
+
+      if (shellConfigChanged) actions.push("Regenerated Omarchy shell config");
     }
 
     if (runPrivate) {
@@ -223,11 +269,20 @@ export const stow = (opts?: {
 
         for (const move of backedUp) {
           yield* log.info(
-            `[private] backed up unmanaged target: ${formatBackupMove(move)}`,
+            `${style.warn("Backed up")} unmanaged target ${style.dim(formatBackupMove(move))}`,
           );
+          counts.backedUp++;
         }
 
-        yield* stowRepo(privateDotfiles, "private", launcher, log, config);
+        yield* stowRepo(
+          privateDotfiles,
+          "private",
+          launcher,
+          log,
+          config,
+          counts,
+        );
+        actions.push(`Stowed ${plural(counts.private, "private package")}`);
       } else {
         yield* log.warn(
           "Skipping private stow (private dotfiles not available)",
@@ -235,8 +290,25 @@ export const stow = (opts?: {
       }
     }
 
-    return shellConfigChanged;
+    if (counts.deployed > 0)
+      actions.push(`Deployed ${plural(counts.deployed, "Omarchy plugin")}`);
+
+    if (counts.backedUp > 0)
+      actions.push(`Backed up ${plural(counts.backedUp, "unmanaged target")}`);
+
+    if (counts.removed > 0)
+      actions.push(`Removed ${plural(counts.removed, "retired link")}`);
+
+    return { shellConfigChanged, actions } satisfies StowResult;
   });
+
+interface StowCounts {
+  public: number;
+  private: number;
+  deployed: number;
+  backedUp: number;
+  removed: number;
+}
 
 /** Stow all folders in a single repo */
 const stowRepo = (
@@ -248,16 +320,16 @@ const stowRepo = (
       opts?: { readonly cwd?: string },
     ) => Effect.Effect<number, LauncherError>;
   },
-  log: {
-    readonly info: (msg: string) => Effect.Effect<void>;
-    readonly warn: (msg: string) => Effect.Effect<void>;
-    readonly error: (msg: string) => Effect.Effect<void>;
-  },
+  log: Pick<OutputLogService, "info" | "success" | "warn" | "error">,
   config: ConfigService,
+  counts: StowCounts,
 ) =>
   Effect.gen(function* () {
     const folders = listStowFolders(repoDir, config).sort();
     const repoDisplayPath = displayPath(repoDir);
+    const style = cliStyler();
+
+    yield* log.info(style.dim(repoDisplayPath));
 
     if (scope === "public") {
       yield* unstowLegacyInternalFolders(
@@ -269,8 +341,6 @@ const stowRepo = (
     }
 
     for (const folder of folders) {
-      yield* log.info(`[${scope}] stow ${folder} (repo: ${repoDisplayPath})`);
-
       const isHypr = folder === "hypr";
 
       const plugins =
@@ -325,8 +395,9 @@ const stowRepo = (
 
         for (const path of staleSkillLinks) {
           yield* log.info(
-            `[${scope}] removed stale skill link: ${displayPath(path)}`,
+            `${style.warn("Removed")} stale skill link ${style.dim(displayPath(path))}`,
           );
+          counts.removed++;
         }
 
         if (scope === "private") {
@@ -358,6 +429,9 @@ const stowRepo = (
         });
       }
 
+      yield* log.success(style.accent(folder));
+      counts[scope]++;
+
       for (const source of plugins) {
         const deployed = yield* deployOmarchyPlugin(
           source,
@@ -366,13 +440,14 @@ const stowRepo = (
         );
 
         if (deployed) {
-          yield* log.info(
-            `Deployed Omarchy plugin: ${displayPath(deployed.target)}`,
+          yield* log.success(
+            `Deployed Omarchy plugin ${style.dim(displayPath(deployed.target))}`,
           );
+          counts.deployed++;
 
           if (deployed.backup)
             yield* log.info(
-              `Previous plugin saved: ${displayPath(deployed.backup)}`,
+              `  ${style.dim(`Previous plugin saved: ${displayPath(deployed.backup)}`)}`,
             );
         }
       }
@@ -407,8 +482,10 @@ const unstowLegacyInternalFolders = (
     for (const folder of INTERNAL_STOW_FOLDERS) {
       if (!existsSync(join(repoDir, folder))) continue;
 
+      const style = cliStyler();
+
       yield* log.info(
-        `[public] unstow legacy ${folder} (repo: ${displayPath})`,
+        `${style.warn("Unstowing")} legacy ${style.accent(folder)} ${style.dim(`(${displayPath})`)}`,
       );
 
       const exit = yield* launcher.stream(`stow -D ${folder}`, {
