@@ -9,13 +9,13 @@ import {
 import { dirname, join } from "path";
 import { stripVTControlCharacters } from "util";
 import { Config } from "./Config.js";
-import { ANSI } from "../lib/ansi.js";
+import { cliStyler } from "../lib/ansi.js";
 import { mirrorConfiguredLog } from "../lib/logMirror.js";
 import { expandHomePath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
 
 /** Severity levels for log entries */
-export type LogLevel = "info" | "warn" | "error" | "section";
+export type LogLevel = "info" | "success" | "warn" | "error" | "section";
 
 /** A single log entry emitted by the OutputLog service */
 export interface LogEntry {
@@ -28,6 +28,8 @@ export interface LogEntry {
 export interface OutputLogService {
   /** Log an informational message */
   readonly info: (msg: string) => Effect.Effect<void>;
+  /** Log a completed step with a success marker */
+  readonly success: (msg: string) => Effect.Effect<void>;
   /** Log a warning */
   readonly warn: (msg: string) => Effect.Effect<void>;
   /** Log an error */
@@ -96,17 +98,21 @@ function formatPlain(entry: LogEntry): string {
   return `${ts} [${label}] ${stripVTControlCharacters(entry.message)}`;
 }
 
-/** Format a log entry with ANSI colours (for CLI stdout) */
+/** Format a log entry for CLI stdout, coloured only when colour is enabled */
 function formatAnsi(entry: LogEntry): string {
+  const style = cliStyler();
+
   switch (entry.level) {
     case "section":
-      return `\n${ANSI.bold}${ANSI.cyan}${entry.message}${ANSI.reset}`;
+      return `\n${style.heading(entry.message)}`;
     case "info":
       return `  ${entry.message}`;
+    case "success":
+      return `  ${style.success("✓")} ${entry.message}`;
     case "warn":
-      return `  ${ANSI.yellow}[WARN]${ANSI.reset} ${entry.message}`;
+      return `  ${style.warn("[WARN]")} ${entry.message}`;
     case "error":
-      return `  ${ANSI.red}[ERROR]${ANSI.reset} ${entry.message}`;
+      return `  ${style.error("[ERROR]")} ${entry.message}`;
   }
 }
 
@@ -191,7 +197,7 @@ function pruneRunLogs(logDir: string, keep: number): void {
 export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
   "OutputLog",
 ) {
-  /** Writes directly to stdout with ANSI colours. */
+  /** Writes directly to stdout, coloured when colour is enabled. */
   static readonly layer = Layer.effect(
     OutputLog,
     Effect.gen(function* () {
@@ -242,12 +248,10 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
             ? spinner.label.slice(0, Math.max(0, maxLabel - 1)) + "\u2026"
             : spinner.label;
 
-        const elapsed = elapsedText
-          ? `${ANSI.dim}${elapsedText}${ANSI.reset}`
-          : "";
+        const elapsed = elapsedText ? cliStyler().dim(elapsedText) : "";
 
         process.stdout.write(
-          `${CLEAR_LINE}${ANSI.cyan}${frame}${ANSI.reset} ${label}${elapsed}`,
+          `${CLEAR_LINE}${cliStyler().accent(frame)} ${label}${elapsed}`,
         );
       };
 
@@ -317,7 +321,7 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
           const finishedAt = yield* Clock.currentTimeMillis;
           yield* emit(
             "info",
-            `${label} (${formatDuration(finishedAt - startedAt)})`,
+            `${label} ${cliStyler().dim(`(${formatDuration(finishedAt - startedAt)})`)}`,
           );
 
           return result;
@@ -325,6 +329,7 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
 
       return {
         info: (msg) => emit("info", msg),
+        success: (msg) => emit("success", msg),
         warn: (msg) => emit("warn", msg),
         error: (msg) => emit("error", msg),
         section: (title) => emit("section", title),

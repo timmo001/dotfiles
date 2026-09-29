@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { OutputLog } from "../services/OutputLog.js";
 import { cliStyler } from "./ansi.js";
 import { gitOutput } from "./git.js";
+import { plural } from "./runSummary.js";
 import type { CommandExecutor } from "../services/CommandExecutor.js";
 import type { Styler } from "./ansi.js";
 
@@ -134,9 +135,6 @@ const lineCounts = (style: Styler, file: FileChange): string => {
     .join(" ");
 };
 
-const plural = (count: number, word: string): string =>
-  `${count} ${word}${count === 1 ? "" : "s"}`;
-
 const repoHeading = (
   style: Styler,
   name: string,
@@ -257,7 +255,7 @@ export function logUpdateSummary(
     yield* log.info(style.label("Actions taken"));
 
     for (const action of actions) {
-      yield* log.info(`  ${style.success("✓")} ${action}`);
+      yield* log.success(action);
     }
   });
 }

@@ -82,7 +82,7 @@ servers:
       canUsePrivate: true, privateDotfiles: directory,
     })),
     Effect.provide(Layer.mock(OutputLog, {
-      section: () => Effect.void, info: () => Effect.void, warn: () => Effect.void,
+      section: () => Effect.void, info: () => Effect.void, success: () => Effect.void, warn: () => Effect.void,
     })),
   ));
 
