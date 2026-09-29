@@ -2,9 +2,33 @@ import { Effect } from "effect";
 import { OutputLog } from "../services/OutputLog.js";
 import { cliStyler } from "./ansi.js";
 
-/** Format a count with its noun, adding an `s` unless the count is one. */
-export const plural = (count: number, word: string): string =>
-  `${count} ${word}${count === 1 ? "" : "s"}`;
+/**
+ * Format a count with its noun. Adds an `s` unless the count is one, or uses
+ * `pluralWord` for irregular nouns such as `repository`.
+ */
+export const plural = (
+  count: number,
+  word: string,
+  pluralWord = `${word}s`,
+): string => `${count} ${count === 1 ? word : pluralWord}`;
+
+/**
+ * Log aligned `label value` lines, padding every label to the longest one.
+ * Values are passed through as-is so callers can style them.
+ */
+export function logFields(
+  fields: ReadonlyArray<readonly [label: string, value: string]>,
+): Effect.Effect<void, never, OutputLog> {
+  return Effect.gen(function* () {
+    const log = yield* OutputLog;
+    const style = cliStyler();
+    const width = Math.max(0, ...fields.map(([label]) => label.length));
+
+    for (const [label, value] of fields) {
+      yield* log.info(`${style.label(label.padEnd(width))}  ${value}`);
+    }
+  });
+}
 
 /**
  * Log the closing summary of a multi-step command: a section heading followed

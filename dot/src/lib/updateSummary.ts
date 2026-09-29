@@ -238,7 +238,7 @@ export function logUpdateSummary(
     const style = cliStyler();
     const repos = mergeUpdatedRepos(updated);
 
-    yield* log.section("Update Summary");
+    yield* log.section("Summary");
 
     if (repos.length === 0) {
       yield* log.info(style.dim("No repositories updated"));

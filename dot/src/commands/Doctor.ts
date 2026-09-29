@@ -8,7 +8,7 @@ import { withSpinnerTimeout } from "../lib/workflowStep.js";
 import { displayPath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
 import { cliStyler } from "../lib/ansi.js";
-import { plural } from "../lib/runSummary.js";
+import { logFields, plural } from "../lib/runSummary.js";
 import type { CheckSection, DoctorReport } from "../doctor/types.js";
 
 /** Whole-run backstop for the doctor command. Individual checks are shorter. */
@@ -70,21 +70,20 @@ export const doctor = () =>
     const log = yield* OutputLog;
     const style = cliStyler();
 
-    const field = (name: string, value: string) =>
-      log.info(`${style.label(name.padEnd(13))} ${style.dim(value)}`);
-
     // Header summary (matches legacy), printed before checks start streaming
-    yield* field("Public repo", displayPath(config.publicDotfiles));
+    const header: Array<readonly [string, string]> = [
+      ["Public repo", displayPath(config.publicDotfiles)],
+    ];
 
-    if (config.privateDotfiles) {
-      yield* field("Private repo", displayPath(config.privateDotfiles));
-    }
+    if (config.privateDotfiles)
+      header.push(["Private repo", displayPath(config.privateDotfiles)]);
 
-    if (config.notesDir) {
-      yield* field("Notes repo", displayPath(config.notesDir));
-    }
+    if (config.notesDir)
+      header.push(["Notes repo", displayPath(config.notesDir)]);
 
-    yield* field("Private mode", envString(ENV.DOT_ALLOW_PRIVATE) ?? "auto");
+    header.push(["Private mode", envString(ENV.DOT_ALLOW_PRIVATE) ?? "auto"]);
+
+    yield* logFields(header.map(([label, value]) => [label, style.dim(value)]));
 
     // Track in-flight checks so the spinner shows what is still running. Checks
     // run in parallel, so this starts as every check and shrinks to the slow
