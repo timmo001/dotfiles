@@ -4,7 +4,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import { Effect, Result } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { RetryBackoff } from "../../services/RetryBackoff.js";
-import { transientRemoteRetry } from "../../lib/git.js";
+import { gitOutput, transientRemoteRetry } from "../../lib/git.js";
 import {
   decodeJsonObject,
   formatCause,
@@ -451,23 +451,13 @@ export interface ReleaseChanges {
   readonly errors: readonly string[];
 }
 
-const git = Effect.fn("releases.git")(function* (
-  cwd: string,
-  args: readonly string[],
-) {
-  const executor = yield* CommandExecutor;
-
-  return yield* executor
-    .run("git", args, {
-      cwd,
-      env: { GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" },
-    })
-    .pipe(
-      Effect.mapError(
-        (error) => new ReleaseError({ message: error.stderr || error.command }),
-      ),
-    );
-});
+const git = (cwd: string, args: readonly string[]) =>
+  gitOutput(args, {
+    cwd,
+    env: { GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" },
+  }).pipe(
+    Effect.mapError((error) => new ReleaseError({ message: error.message })),
+  );
 
 function parseRawDiff(output: string, submodule: string | null): ReleaseFact[] {
   const parts = output.split("\0");

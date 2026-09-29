@@ -51,10 +51,10 @@ export function isGitRepo(repoPath: string): boolean {
   return existsSync(join(repoPath, ".git"));
 }
 
-/** Return the current branch name synchronously, or an empty string when unavailable. */
-export function gitCurrentBranchSync(repoPath: string): string {
+/** Run a git command and return trimmed stdout, or an empty string on any failure. */
+function gitSyncOrEmpty(repoPath: string, args: readonly string[]): string {
   try {
-    const result = Bun.spawnSync(["git", "rev-parse", "--abbrev-ref", "HEAD"], {
+    const result = Bun.spawnSync(["git", ...args], {
       cwd: repoPath,
       stdout: "pipe",
       stderr: "pipe",
@@ -68,27 +68,23 @@ export function gitCurrentBranchSync(repoPath: string): string {
   }
 }
 
+/** Return the current branch name synchronously, or an empty string when unavailable. */
+export function gitCurrentBranchSync(repoPath: string): string {
+  return gitSyncOrEmpty(repoPath, ["rev-parse", "--abbrev-ref", "HEAD"]);
+}
+
 /** Return the `origin` remote URL synchronously, or an empty string when unavailable. */
 export function gitRemoteOriginSync(repoPath: string): string {
-  try {
-    const result = Bun.spawnSync(["git", "remote", "get-url", "origin"], {
-      cwd: repoPath,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-
-    if (result.exitCode !== 0) return "";
-
-    return new TextDecoder().decode(result.stdout).trim();
-  } catch {
-    return "";
-  }
+  return gitSyncOrEmpty(repoPath, ["remote", "get-url", "origin"]);
 }
 
 /** Run `git <args>` and return stdout. */
 export function gitOutput(
   args: readonly string[],
-  opts?: GitCommandOptions,
+  opts?: GitCommandOptions & {
+    /** Extra environment variables for the command. */
+    readonly env?: Readonly<Record<string, string>>;
+  },
 ): Effect.Effect<string, GitCommandError, CommandExecutor> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;

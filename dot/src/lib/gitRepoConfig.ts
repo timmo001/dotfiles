@@ -20,6 +20,7 @@ import {
 } from "../services/GitConfig.js";
 import { decodeJson, formatCause, isJsonObject } from "./schema.js";
 import { displayPath } from "./paths.js";
+import { gitOutput } from "./git.js";
 
 /** Failure to prepare, validate or commit a bounded private repository config edit. */
 export class GitRepoConfigError extends Schema.TaggedError<GitRepoConfigError>()(
@@ -43,21 +44,15 @@ export interface GitRepoConfigEdit {
   readonly config: DotGitConfig;
 }
 
-const git = Effect.fn("gitRepoConfig.git")(function* (
-  privateRoot: string,
-  args: readonly string[],
-) {
-  const executor = yield* CommandExecutor;
-
-  return yield* executor.run("git", args, { cwd: privateRoot }).pipe(
+const git = (privateRoot: string, args: readonly string[]) =>
+  gitOutput(args, { cwd: privateRoot }).pipe(
     Effect.mapError(
       (error) =>
         new GitRepoConfigError({
-          message: `Private config Git check failed: ${error.stderr}`,
+          message: `Private config Git check failed: ${error.message}`,
         }),
     ),
   );
-});
 
 const checkCleanConfig = Effect.fn("gitRepoConfig.checkClean")(function* (
   privateRoot: string,
