@@ -4,8 +4,8 @@
 
 import { Plugin } from "@opencode/plugin/effect";
 import { Tool } from "@opencode/schema/tool";
-import { Effect } from "effect";
-import { access } from "node:fs/promises";
+import { NodeFileSystem } from "@effect/platform-node";
+import { Effect, FileSystem } from "effect";
 import { dirname, isAbsolute, resolve } from "node:path";
 import {
   generatedArtifactForPath,
@@ -14,25 +14,28 @@ import {
 } from "../lib/generated-artifacts";
 import { argRecord, stringArg } from "../lib/guard-paths";
 
-const findDotfilesRoot = async (directory: string): Promise<string | undefined> => {
-  let current = resolve(directory);
+const findDotfilesRoot = (directory: string) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    let current = resolve(directory);
 
-  for (;;) {
-    try {
-      await Promise.all([
-        access(resolve(current, "dot/src/cli/spec.ts")),
-        access(resolve(current, "docs/scripts/generate-opencode-reference.ts")),
-      ]);
+    for (;;) {
+      const found = yield* Effect.all([
+        fs.access(resolve(current, "dot/src/cli/spec.ts")),
+        fs.access(resolve(current, "docs/scripts/generate-opencode-reference.ts")),
+      ]).pipe(
+        Effect.as(true),
+        Effect.orElseSucceed(() => false),
+      );
 
-      return current;
-    } catch {}
+      if (found) return current;
 
-    const parent = dirname(current);
+      const parent = dirname(current);
 
-    if (parent === current) return;
-    current = parent;
-  }
-};
+      if (parent === current) return;
+      current = parent;
+    }
+  });
 
 export default Plugin.define({
   id: "generated-artifact-guard",
@@ -42,7 +45,7 @@ export default Plugin.define({
         Effect.gen(function* () {
           const session = yield* context.session.get({ sessionID: event.sessionID }).pipe(Effect.orDie);
           const baseDirectory = session.location.directory;
-          const root = yield* Effect.promise(() => findDotfilesRoot(baseDirectory));
+          const root = yield* findDotfilesRoot(baseDirectory);
 
           if (!root) return;
           const args = argRecord(event.input);
@@ -72,7 +75,7 @@ export default Plugin.define({
               }),
             );
           }
-        }),
+        }).pipe(Effect.provide(NodeFileSystem.layer)),
       );
     }),
 });

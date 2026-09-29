@@ -4,7 +4,7 @@
 
 import { Plugin } from "@opencode/plugin/effect";
 import { Effect, Stream } from "effect";
-import { $ } from "bun";
+import { runText } from "./lib/process";
 
 const SOUND_PATH = "/usr/share/sounds/freedesktop/stereo/message.oga";
 
@@ -28,9 +28,10 @@ const sanitizeNotificationText = (value: string, fallback: string) => {
 };
 
 const createDesktopNotifier = Effect.gen(function* () {
-  const originWindowAddress = yield* Effect.tryPromise(() =>
-    $`hyprctl activewindow -j | jq -r .address`.text(),
-  ).pipe(
+  const originWindowAddress = yield* runText("sh", [
+    "-c",
+    "hyprctl activewindow -j | jq -r .address",
+  ]).pipe(
     Effect.map((address) => address.trim()),
     Effect.catch(() => Effect.succeed("")),
   );
@@ -41,9 +42,10 @@ const createDesktopNotifier = Effect.gen(function* () {
   return (glyph: string, title: string, body: string) =>
     Effect.gen(function* () {
       if (canNotify === undefined) {
-        canNotify = yield* Effect.tryPromise(() =>
-          $`sh -lc "command -v omarchy >/dev/null 2>&1"`,
-        ).pipe(
+        canNotify = yield* runText("sh", [
+          "-lc",
+          "command -v omarchy >/dev/null 2>&1",
+        ]).pipe(
           Effect.as(true),
           Effect.catch(() => Effect.succeed(false)),
         );
@@ -59,9 +61,17 @@ const createDesktopNotifier = Effect.gen(function* () {
           }`
         : "";
 
-      yield* Effect.tryPromise(() =>
-        $`omarchy notification send -g ${glyph} --app-name OpenCode ${title} ${body} ${focusCommand ? "--exec" : []} ${focusCommand ? focusCommand : []}`,
-      ).pipe(Effect.ignore, Effect.forkScoped);
+      yield* runText("omarchy", [
+        "notification",
+        "send",
+        "-g",
+        glyph,
+        "--app-name",
+        "OpenCode",
+        title,
+        body,
+        ...(focusCommand ? ["--exec", focusCommand] : []),
+      ]).pipe(Effect.ignore, Effect.forkScoped);
     });
 });
 
@@ -76,9 +86,10 @@ export default Plugin.define({
       const playSound = () =>
         Effect.gen(function* () {
           if (canPlaySound === undefined) {
-            canPlaySound = yield* Effect.tryPromise(() =>
-              $`sh -lc "command -v paplay >/dev/null 2>&1"`,
-            ).pipe(
+            canPlaySound = yield* runText("sh", [
+              "-lc",
+              "command -v paplay >/dev/null 2>&1",
+            ]).pipe(
               Effect.as(true),
               Effect.catch(() => Effect.succeed(false)),
             );
@@ -86,9 +97,7 @@ export default Plugin.define({
 
           if (!canPlaySound) return;
 
-          yield* Effect.tryPromise(() => $`paplay ${SOUND_PATH}`).pipe(
-            Effect.ignore,
-          );
+          yield* runText("paplay", [SOUND_PATH]).pipe(Effect.ignore);
         });
 
       const notify = (glyph: string, title: string, body: string) =>

@@ -2,7 +2,6 @@
  * @file Injects session-attributed commit scope into commit command prompts.
  */
 
-import { $ } from "bun";
 import { OpenCode, type OpenCodeClient } from "@opencode/client/effect";
 import { Session } from "@opencode/schema/session";
 import { Service } from "@opencode/client/effect/service";
@@ -18,6 +17,7 @@ import {
   sessionTouchedFiles,
   type SessionMessages,
 } from "../lib/commit-context";
+import { runText } from "./lib/process";
 import { discoverService } from "./lib/service";
 
 const TARGET_COMMANDS = new Set([
@@ -298,11 +298,9 @@ export const makeCommitContextPlugin = (
             const filesByRoot = new Map<string, string[]>();
 
             const resolveRoot = (candidate: string) =>
-              Effect.tryPromise({
-                try: () =>
-                  $`git -C ${candidate} rev-parse --show-toplevel`.text(),
-                catch: (error) => new Error(String(error)),
-              }).pipe(Effect.result);
+              runText("git", ["-C", candidate, "rev-parse", "--show-toplevel"]).pipe(
+                Effect.result,
+              );
 
             const activeRoot = yield* resolveRoot(
               current.success.location.directory,
@@ -340,14 +338,11 @@ export const makeCommitContextPlugin = (
                 .map(([root, files]) =>
                   Effect.gen(function* () {
                     const [gitContext, diffStat] = yield* Effect.all([
-                      Effect.tryPromise({
-                        try: () => $`context git --json --no-pr`.cwd(root).text(),
-                        catch: (error) => new Error(String(error)),
+                      runText("context", ["git", "--json", "--no-pr"], {
+                        cwd: root,
                       }).pipe(Effect.result),
-                      Effect.tryPromise({
-                        try: () =>
-                          $`git diff HEAD --stat --no-ext-diff`.cwd(root).text(),
-                        catch: (error) => new Error(String(error)),
+                      runText("git", ["diff", "HEAD", "--stat", "--no-ext-diff"], {
+                        cwd: root,
                       }).pipe(Effect.result),
                     ]);
 

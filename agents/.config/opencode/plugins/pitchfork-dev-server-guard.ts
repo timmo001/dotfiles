@@ -4,8 +4,8 @@
 
 import { Plugin } from "@opencode/plugin/effect";
 import { Tool } from "@opencode/schema/tool";
-import { Effect, Schema } from "effect";
-import { access, readFile } from "node:fs/promises";
+import { NodeFileSystem } from "@effect/platform-node";
+import { Effect, FileSystem, Schema } from "effect";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { argRecord, stringArg } from "../lib/guard-paths";
@@ -87,18 +87,26 @@ function withoutLeadingCd(command: string, cwd: string): NormalizedCommand {
 }
 
 function fileExists(path: string) {
-  return Effect.tryPromise(() => access(path)).pipe(
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+
+    yield* fs.access(path);
+  }).pipe(
     Effect.as(true),
     Effect.catch(() => Effect.succeed(false)),
   );
 }
 
 function readText(path: string) {
-  return Effect.tryPromise({
-    try: () => readFile(path, "utf8"),
-    catch: (error) =>
-      new Tool.Error({ message: `Failed to read ${path}`, error }),
-  });
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+
+    return yield* fs.readFileString(path);
+  }).pipe(
+    Effect.mapError(
+      (error) => new Tool.Error({ message: `Failed to read ${path}`, error }),
+    ),
+  );
 }
 
 function findFirstExistingConfig(root: string) {
@@ -316,7 +324,7 @@ export default Plugin.define({
             variant: "info",
             duration: 5000,
           });
-        }),
+        }).pipe(Effect.provide(NodeFileSystem.layer)),
       );
 
       yield* context.tool.hook("execute.after", (event) =>

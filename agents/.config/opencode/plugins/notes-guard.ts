@@ -5,6 +5,7 @@
 import { Plugin } from "@opencode/plugin/effect";
 import { Tool } from "@opencode/schema/tool";
 import { Effect } from "effect";
+import { runText } from "./lib/process";
 import {
   argRecord,
   expandHome,
@@ -14,22 +15,13 @@ import {
 
 const PATH_ARG_TOOLS = new Set(["read", "write", "edit", "grep", "glob", "list"]);
 
-const resolveNotesVaultPath = Effect.promise(async () => {
-  try {
-    const proc = Bun.spawn(["notes", "root", "--repo-notes"], {
-      stdin: "ignore",
-      stdout: "pipe",
-      stderr: "pipe",
-      env: process.env,
-    });
+const resolveNotesVaultPath = Effect.gen(function* () {
+  const stdout = yield* runText("notes", ["root", "--repo-notes"]).pipe(
+    Effect.map((output) => output.trim()),
+    Effect.orElseSucceed(() => ""),
+  );
 
-    const [stdout, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      proc.exited,
-    ]);
-
-    if (exitCode === 0 && stdout.trim()) return stdout.trim();
-  } catch {}
+  if (stdout) return stdout;
 
   const root = process.env.NOTES || process.env.DOT_NOTES_DIR || `${process.env.HOME ?? "~"}/Documents/notes`;
 

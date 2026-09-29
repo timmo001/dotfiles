@@ -4,8 +4,8 @@
 
 import { Plugin } from "@opencode/plugin/effect";
 import { Tool } from "@opencode/schema/tool";
-import { Effect, Result } from "effect";
-import { existsSync, readdirSync, type Dirent } from "node:fs";
+import { NodeFileSystem } from "@effect/platform-node";
+import { Effect, FileSystem, Result } from "effect";
 import { dirname, join } from "node:path";
 
 export const GATED_SERVERS = [
@@ -46,59 +46,85 @@ const SKIP_DIRS = new Set([
 const MAX_DOWN_DEPTH = 2;
 
 const markerIn = (directory: string, markers: readonly string[]) =>
-  markers.some((marker) => existsSync(join(directory, marker)));
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
 
-const hasMarkerUpward = (startDirectory: string, markers: readonly string[]) => {
-  let directory = startDirectory;
+    for (const marker of markers) {
+      const present = yield* fs
+        .exists(join(directory, marker))
+        .pipe(Effect.orElseSucceed(() => false));
 
-  for (;;) {
-    if (markerIn(directory, markers)) return true;
-    const parent = dirname(directory);
+      if (present) return true;
+    }
 
-    if (parent === directory) return false;
-    directory = parent;
-  }
-};
+    return false;
+  });
+
+const hasMarkerUpward = (startDirectory: string, markers: readonly string[]) =>
+  Effect.gen(function* () {
+    let directory = startDirectory;
+
+    for (;;) {
+      if (yield* markerIn(directory, markers)) return true;
+      const parent = dirname(directory);
+
+      if (parent === directory) return false;
+      directory = parent;
+    }
+  });
+
+const isRealDirectory = (path: string) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+
+    if (yield* fs.readLink(path).pipe(Effect.as(true), Effect.orElseSucceed(() => false))) {
+      return false;
+    }
+
+    const info = yield* fs.stat(path);
+
+    return info.type === "Directory";
+  }).pipe(Effect.orElseSucceed(() => false));
 
 const hasMarkerDownward = (
   directory: string,
   markers: readonly string[],
   depth: number,
-): boolean => {
-  if (depth <= 0) return false;
-  let entries: Dirent[];
+): Effect.Effect<boolean, never, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    if (depth <= 0) return false;
+    const fs = yield* FileSystem.FileSystem;
 
-  try {
-    entries = readdirSync(directory, { withFileTypes: true });
-  } catch {
+    const entries = yield* fs
+      .readDirectory(directory)
+      .pipe(Effect.orElseSucceed((): string[] => []));
+
+    for (const name of entries) {
+      if (name.startsWith(".") || SKIP_DIRS.has(name)) continue;
+      const child = join(directory, name);
+
+      if (!(yield* isRealDirectory(child))) continue;
+
+      if (
+        (yield* markerIn(child, markers)) ||
+        (yield* hasMarkerDownward(child, markers, depth - 1))
+      )
+        return true;
+    }
+
     return false;
-  }
-
-  for (const entry of entries) {
-    if (
-      !entry.isDirectory() ||
-      entry.name.startsWith(".") ||
-      SKIP_DIRS.has(entry.name)
-    )
-      continue;
-    const child = join(directory, entry.name);
-
-    if (
-      markerIn(child, markers) ||
-      hasMarkerDownward(child, markers, depth - 1)
-    )
-      return true;
-  }
-
-  return false;
-};
+  });
 
 export const hasMarkerNearby = (
   directory: string,
   markers: readonly string[],
 ) =>
-  hasMarkerUpward(directory, markers) ||
-  hasMarkerDownward(directory, markers, MAX_DOWN_DEPTH);
+  Effect.gen(function* () {
+    return (
+      (yield* hasMarkerUpward(directory, markers)) ||
+      (yield* hasMarkerDownward(directory, markers, MAX_DOWN_DEPTH))
+    );
+  });
 
 export const serverForTool = (tool: string): GatedServer | undefined => {
   for (const server of GATED_SERVERS) {
@@ -116,23 +142,24 @@ export const serverForTool = (tool: string): GatedServer | undefined => {
 export const filterRepoTools = (
   tools: Record<string, RepoTool>,
   directory: string,
-) => {
-  const enabled = new Map<GatedServer, boolean>();
+) =>
+  Effect.gen(function* () {
+    const enabled = new Map<GatedServer, boolean>();
 
-  for (const tool of Object.keys(tools)) {
-    const server = serverForTool(tool);
+    for (const tool of Object.keys(tools)) {
+      const server = serverForTool(tool);
 
-    if (!server) continue;
+      if (!server) continue;
 
-    const available =
-      enabled.get(server) ??
-      hasMarkerNearby(directory, REPO_REQUIRED_MARKERS[server]);
+      const available =
+        enabled.get(server) ??
+        (yield* hasMarkerNearby(directory, REPO_REQUIRED_MARKERS[server]));
 
-    enabled.set(server, available);
+      enabled.set(server, available);
 
-    if (!available) delete tools[tool];
-  }
-};
+      if (!available) delete tools[tool];
+    }
+  });
 
 export const removeGatedTools = (tools: Record<string, RepoTool>) => {
   for (const tool of Object.keys(tools)) {
@@ -163,8 +190,8 @@ export default Plugin.define({
             return;
           }
 
-          filterRepoTools(event.tools, session.success.location.directory);
-        }),
+          yield* filterRepoTools(event.tools, session.success.location.directory);
+        }).pipe(Effect.provide(NodeFileSystem.layer)),
       );
 
       yield* context.tool.hook("execute.before", (event) =>
@@ -183,10 +210,10 @@ export default Plugin.define({
 
           const directory = session.success.location.directory;
 
-          if (!hasMarkerNearby(directory, REPO_REQUIRED_MARKERS[server])) {
+          if (!(yield* hasMarkerNearby(directory, REPO_REQUIRED_MARKERS[server]))) {
             return yield* Effect.fail(blockedToolError(event.tool, directory));
           }
-        }),
+        }).pipe(Effect.provide(NodeFileSystem.layer)),
       );
     }),
 });
