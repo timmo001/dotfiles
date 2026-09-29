@@ -1,4 +1,4 @@
-import { Data, Effect, Schema } from "effect";
+import { Data, Duration, Effect, Schema } from "effect";
 import {
   existsSync,
   lstatSync,
@@ -10,6 +10,7 @@ import {
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { deployOmarchyPlugin } from "../lib/omarchyPluginDeployment.js";
+import { gitRemoteOutput } from "../lib/git.js";
 import {
   CommandExecutor,
   type CommandError,
@@ -525,18 +526,29 @@ function addPlugin(paths: OmarchyPluginPaths, options: AddOptions) {
   });
 }
 
-function updatePlugin(
-  paths: OmarchyPluginPaths,
-  id: string,
-  assumeYes: boolean,
-) {
+/** Managed plugins fetched at once by a bulk update. */
+const PLUGIN_FETCH_CONCURRENCY = 4;
+
+/** Per-attempt bound on a plugin's network fetch. */
+const PLUGIN_FETCH_TIMEOUT = Duration.seconds(30);
+
+/** A managed plugin's checked-out and freshly fetched commits. */
+interface FetchedPlugin {
+  readonly id: string;
+  readonly pluginPath: string;
+  readonly oldSha: string;
+  readonly newSha: string;
+}
+
+/** Fetch a managed plugin's tracked branch. Returns `null` for unmanaged plugins. */
+function fetchPlugin(paths: OmarchyPluginPaths, id: string) {
   return Effect.gen(function* () {
     yield* requirePluginId(id);
 
     if (!(yield* isManaged(paths, id))) {
       process.exitCode = UNMANAGED_PLUGIN_EXIT_CODE;
 
-      return;
+      return null;
     }
 
     const executor = yield* CommandExecutor;
@@ -559,13 +571,31 @@ function updatePlugin(
       cwd: pluginPath,
     })).trim();
 
-    yield* executor.run("git", ["fetch", "-q", "origin", ref], {
-      cwd: pluginPath,
-    });
+    yield* gitRemoteOutput(
+      ["fetch", "-q", "origin", ref],
+      { cwd: pluginPath },
+      PLUGIN_FETCH_TIMEOUT,
+    ).pipe(
+      Effect.mapError(
+        (error) => new OmarchyPluginError({ message: error.message }),
+      ),
+    );
 
     const newSha = (yield* executor.run("git", ["rev-parse", "FETCH_HEAD"], {
       cwd: pluginPath,
     })).trim();
+
+    return { id, pluginPath, oldSha, newSha } satisfies FetchedPlugin;
+  });
+}
+
+function applyPluginUpdate(
+  paths: OmarchyPluginPaths,
+  { id, pluginPath, oldSha, newSha }: FetchedPlugin,
+  assumeYes: boolean,
+) {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
 
     if (oldSha === newSha) {
       process.stdout.write(`${id} is up to date.\n`);
@@ -815,10 +845,23 @@ export const omarchyPlugin = Effect.fn("omarchyPlugin")(function* (
   }
 
   if (OmarchyPluginInput.$is("update")(input)) {
-    if (input.id) return yield* updatePlugin(paths, input.id, input.yes);
+    if (input.id) {
+      const plugin = yield* fetchPlugin(paths, input.id);
 
-    for (const managedId of yield* managedPluginIds(paths)) {
-      yield* updatePlugin(paths, managedId, input.yes);
+      if (plugin) yield* applyPluginUpdate(paths, plugin, input.yes);
+
+      return;
+    }
+
+    // Fetch concurrently, then review and apply one at a time.
+    const fetched = yield* Effect.forEach(
+      yield* managedPluginIds(paths),
+      (managedId) => fetchPlugin(paths, managedId),
+      { concurrency: PLUGIN_FETCH_CONCURRENCY },
+    );
+
+    for (const plugin of fetched) {
+      if (plugin) yield* applyPluginUpdate(paths, plugin, input.yes);
     }
 
     process.exitCode = UNMANAGED_PLUGIN_EXIT_CODE;

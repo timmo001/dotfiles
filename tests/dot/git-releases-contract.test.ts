@@ -11,6 +11,7 @@ import { acceptReleaseSnapshot, applyReleaseReview, assertReleaseSelection, empt
 import { CommandError, CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
 import { deliverReleaseNotification } from "../../dot/src/git/services/GitReleases.js";
 import { GitHub } from "../../dot/src/git/services/GitHub.js";
+import { RetryBackoff } from "../../dot/src/services/RetryBackoff.js";
 import { nextReleaseTag, prepareReleaseVersion, publishRelease } from "../../dot/src/git/release/publish.js";
 import type { ReleaseFact, ReleaseReviewState, ReleaseSettings, ReleaseSnapshot } from "../../dot/src/git/release/types.js";
 
@@ -302,6 +303,7 @@ test("release query exposes the authoritative CalVer proposal and review can cle
       import { parseDotGitConfigText } from ${module("src/services/GitConfig.ts")};
       import { GitHub } from ${module("src/git/services/GitHub.ts")};
       import { GitReleases } from ${module("src/git/services/GitReleases.ts")};
+      import { RetryBackoff } from ${module("src/services/RetryBackoff.ts")};
       const github = GitHub.of({
         isAvailable: () => Effect.succeed(true),
         json: () => Effect.succeed({ tag_name: "v20260910.2", draft: false, prerelease: false, published_at: "2026-09-10T00:00:00Z" }),
@@ -321,7 +323,7 @@ test("release query exposes the authoritative CalVer proposal and review can cle
           const reviewed = yield* service.action({ repo: entry.repo, snapshot: entry.snapshot.id, target: "overall", impact: "none" });
           if (reviewed.nextVersion !== null) throw new Error("Quiet review still proposes a release");
           return entry.nextVersion;
-        }).pipe(Effect.provide(GitReleases.layer), Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github), Effect.provide(Layer.mock(Config, { gitConfig: parseDotGitConfigText(${JSON.stringify(source)}, "fixture.yml") })));
+        }).pipe(Effect.provide(GitReleases.layer), Effect.provide(RetryBackoff.layer), Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github), Effect.provide(Layer.mock(Config, { gitConfig: parseDotGitConfigText(${JSON.stringify(source)}, "fixture.yml") })));
       }).pipe(Effect.provide(CommandExecutor.layer));
       const now = Date.parse("2026-09-11T00:00:00Z");
       const tag = await Effect.runPromise(Clock.clockWith((clock) => program.pipe(Effect.provideService(Clock.Clock, {
@@ -833,7 +835,7 @@ function gitHistory() {
   return {
     root,
     commit: (files: Record<string, string>, subject: string, parent?: string) => git(["commit-tree", tree(files), ...(parent ? ["-p", parent] : []), "-m", subject]),
-    collect: (before: string, after: string, config: ReleaseSettings) => Effect.runPromise(collectReleaseChanges(root, before, after, config, join(root, "cache")).pipe(Effect.provide(CommandExecutor.layer))),
+    collect: (before: string, after: string, config: ReleaseSettings) => Effect.runPromise(collectReleaseChanges(root, before, after, config, join(root, "cache")).pipe(Effect.provide(RetryBackoff.layer), Effect.provide(CommandExecutor.layer))),
     close: () => rmSync(root, { recursive: true, force: true }),
   };
 }

@@ -3,6 +3,8 @@ import { dirname, join } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
 import { Effect, Result } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { RetryBackoff } from "../../services/RetryBackoff.js";
+import { transientRemoteRetry } from "../../lib/git.js";
 import {
   decodeJsonObject,
   formatCause,
@@ -1047,7 +1049,11 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
   after: string,
   settings: ReleaseSettings,
   cacheDirectory: string,
-): Effect.fn.Return<ReleaseChanges, ReleaseError, CommandExecutor> {
+): Effect.fn.Return<
+  ReleaseChanges,
+  ReleaseError,
+  CommandExecutor | RetryBackoff
+> {
   const comparison = yield* range(cwd, before, after, null);
   const facts: ReleaseFact[] = [];
   const commits = [...comparison.commits];
@@ -1116,15 +1122,20 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
           yield* git(cwd, ["init", "--bare", directory]);
         const oldCommit = fact.before.split(":")[1];
         const nextCommit = fact.after.split(":")[1];
-        yield* git(directory, [
-          "fetch",
-          "--no-write-fetch-head",
-          "--no-tags",
-          "--no-recurse-submodules",
-          url,
-          `+${oldCommit}:refs/dot-release/base`,
-          `+${nextCommit}:refs/dot-release/head`,
-        ]);
+        const backoff = yield* RetryBackoff;
+
+        yield* backoff.retry(
+          git(directory, [
+            "fetch",
+            "--no-write-fetch-head",
+            "--no-tags",
+            "--no-recurse-submodules",
+            url,
+            `+${oldCommit}:refs/dot-release/base`,
+            `+${nextCommit}:refs/dot-release/head`,
+          ]),
+          transientRemoteRetry((error) => error.message),
+        );
 
         const upstream = yield* range(
           directory,

@@ -2,6 +2,8 @@ import { Clock, Context, Cron, Effect, Layer, Result, Schema } from "effect";
 import semver from "semver";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { RetryBackoff } from "../../services/RetryBackoff.js";
+import { transientRemoteRetry } from "../../lib/git.js";
 import {
   managedGitRepos,
   type GitManagedRepo,
@@ -40,6 +42,9 @@ import {
   type ReleaseSettings,
   type ReleaseSnapshot,
 } from "../release/types.js";
+
+/** Release repositories scanned at once; each queries GitHub and fetches. */
+const RELEASE_SCAN_CONCURRENCY = 4;
 
 /** Selection and scheduling for release inspection. */
 export interface ReleaseQuery {
@@ -267,6 +272,7 @@ export class GitReleases extends Context.Service<
       const config = yield* Config;
       const github = yield* GitHub;
       const executor = yield* CommandExecutor;
+      const backoff = yield* RetryBackoff;
 
       const select = (selection?: string) =>
         Effect.try({
@@ -342,7 +348,14 @@ export class GitReleases extends Context.Service<
         yield* runGit(["check-ref-format", `refs/tags/${release.tag_name}`]);
         yield* runGit(["check-ref-format", `refs/heads/${settings.branch}`]);
         const prefix = `refs/dot/git-releases/${evidenceId(repo.github)}`;
-        yield* runGit([
+
+        const fetchGit = (args: readonly string[]) =>
+          backoff.retry(
+            runGit(args),
+            transientRemoteRetry((error) => error.message),
+          );
+
+        yield* fetchGit([
           "fetch",
           "--atomic",
           "--no-write-fetch-head",
@@ -410,7 +423,7 @@ export class GitReleases extends Context.Service<
                 });
 
                 for (const tag of tags) {
-                  yield* runGit([
+                  yield* fetchGit([
                     "fetch",
                     "--atomic",
                     "--no-write-fetch-head",
@@ -459,7 +472,10 @@ export class GitReleases extends Context.Service<
           head,
           settings,
           releasePaths(repo.github).cache,
-        ).pipe(Effect.provideService(CommandExecutor, executor));
+        ).pipe(
+          Effect.provideService(CommandExecutor, executor),
+          Effect.provideService(RetryBackoff, backoff),
+        );
 
         const findings = classifyReleaseFacts(changes.facts, settings);
         const now = yield* Clock.currentTimeMillis;
@@ -655,7 +671,7 @@ export class GitReleases extends Context.Service<
               ),
             );
           },
-          { concurrency: 2 },
+          { concurrency: RELEASE_SCAN_CONCURRENCY },
         );
       });
 

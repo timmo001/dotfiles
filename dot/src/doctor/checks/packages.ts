@@ -3,6 +3,8 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { RetryBackoff } from "../../services/RetryBackoff.js";
+import { transientRemoteRetry } from "../../lib/git.js";
 import { displayPath, expandHomePath } from "../../lib/paths.js";
 import { ENV, envString } from "../../lib/env.js";
 import {
@@ -373,12 +375,24 @@ function syncPackageVersion(packageName: string) {
   });
 }
 
+/**
+ * AUR RPC failures from yay worth another attempt, beside the shared
+ * connection errors. Rate limiting (429) is left alone: the AUR limit is
+ * daily, so retrying would only spend more of it.
+ */
+const TRANSIENT_AUR_ERROR =
+  /no such host|i\/o timeout|tls handshake timeout|context deadline exceeded|unexpected eof|\b50[234]\b/i;
+
 function aurPackageVersion(packageName: string) {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+    const backoff = yield* RetryBackoff;
 
-    const info = yield* executor
-      .run("yay", ["-Si", "--aur", packageName])
+    const info = yield* backoff
+      .retry(
+        executor.run("yay", ["-Si", "--aur", packageName]),
+        transientRemoteRetry((error) => error.stderr, TRANSIENT_AUR_ERROR),
+      )
       .pipe(Effect.orElseSucceed(() => ""));
 
     return packageVersionFromInfo(info);
