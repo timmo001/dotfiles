@@ -26,6 +26,8 @@ const DEFAULT_PRIVATE_PACMAN_MAIN_CONFIG = "/etc/pacman.conf";
 
 const PUBLIC_PACKAGE_REPOSITORY = "timmo";
 
+const PACKAGE_CHECK_CONCURRENCY = 8;
+
 /** Private Arch package repository settings loaded from private dotfiles. */
 export interface PrivatePackageRepoConfig {
   /** Pacman repository name, e.g. timmo-private. */
@@ -473,10 +475,28 @@ export const checkPublicPackages = Effect.gen(function* () {
 
   const hasYay = (yield* executor.exitCode("which", ["yay"])) === 0;
 
-  for (const pkg of packages) {
+  const checked = yield* Effect.forEach(
+    packages,
+    (pkg) =>
+      Effect.gen(function* () {
+        if (!(yield* isPackageInstalled(pkg)))
+          return { pkg, installed: false, update: null };
+
+        const update = yield* packageUpdateResult(
+          pkg,
+          PUBLIC_PACKAGE_REPOSITORY,
+          hasYay,
+        );
+
+        return { pkg, installed: true, update };
+      }),
+    { concurrency: PACKAGE_CHECK_CONCURRENCY },
+  );
+
+  for (const { pkg, installed, update } of checked) {
     const display = packageDisplayName(pkg);
 
-    if (!(yield* isPackageInstalled(pkg))) {
+    if (!installed) {
       results.push({ severity: "warn", message: `${display} is missing` });
       missingPackages.push(pkg);
       continue;
@@ -484,14 +504,8 @@ export const checkPublicPackages = Effect.gen(function* () {
 
     results.push({ severity: "ok", message: `${display} is installed` });
 
-    const updateResult = yield* packageUpdateResult(
-      pkg,
-      PUBLIC_PACKAGE_REPOSITORY,
-      hasYay,
-    );
-
-    if (updateResult) {
-      results.push(updateResult);
+    if (update) {
+      results.push(update);
       updatePackages.push(pkg);
     }
   }
@@ -613,17 +627,29 @@ export const checkPrivatePackages = Effect.gen(function* () {
   const updatePackages: string[] = [];
   const repository = loadPrivatePackageRepoConfig(config)?.name;
 
-  for (const pkg of packages) {
-    if (yield* isPackageInstalled(pkg)) {
+  const checked = yield* Effect.forEach(
+    packages,
+    (pkg) =>
+      Effect.gen(function* () {
+        if (!(yield* isPackageInstalled(pkg)))
+          return { pkg, installed: false, update: null };
+
+        const update = repository
+          ? yield* packageUpdateResult(pkg, repository, false)
+          : null;
+
+        return { pkg, installed: true, update };
+      }),
+    { concurrency: PACKAGE_CHECK_CONCURRENCY },
+  );
+
+  for (const { pkg, installed, update } of checked) {
+    if (installed) {
       results.push({ severity: "ok", message: `${pkg} is installed` });
 
-      if (repository) {
-        const updateResult = yield* packageUpdateResult(pkg, repository, false);
-
-        if (updateResult) {
-          results.push(updateResult);
-          updatePackages.push(pkg);
-        }
+      if (update) {
+        results.push(update);
+        updatePackages.push(pkg);
       }
     } else {
       results.push({ severity: "warn", message: `${pkg} is missing` });
