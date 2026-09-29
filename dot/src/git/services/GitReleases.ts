@@ -675,76 +675,107 @@ export class GitReleases extends Context.Service<
         );
       });
 
+      /** Load one repository's release state under its lock and run `body`. */
+      const withCurrentRelease = <A, E, R>(
+        selection: string | undefined,
+        body: (
+          state: {
+            readonly repo: Effect.Success<ReturnType<typeof select>>[number];
+            readonly settings: ReleaseSettings;
+            readonly paths: ReturnType<typeof releasePaths>;
+            readonly now: number;
+            readonly current: ReturnType<typeof entry>;
+          } & Effect.Success<ReturnType<typeof readReleaseState>>,
+        ) => Effect.Effect<A, E, R>,
+      ) =>
+        Effect.gen(function* () {
+          const repositories = yield* select(selection);
+          const repo = repositories[0];
+          const settings = repo.releases;
+
+          if (!settings)
+            return yield* new ReleaseError({
+              message: "Release settings missing",
+            });
+          const paths = releasePaths(repo.github);
+
+          return yield* withReleaseLock(
+            paths,
+            Effect.gen(function* () {
+              const { cache, review } = yield* readReleaseState(paths);
+              const now = yield* Clock.currentTimeMillis;
+
+              const current = entry(
+                repo,
+                settings,
+                cache,
+                review,
+                config.gitConfig.filePath,
+                now,
+              );
+
+              return yield* body({
+                repo,
+                settings,
+                paths,
+                cache,
+                review,
+                now,
+                current,
+              });
+            }),
+          );
+        });
+
       const action = Effect.fn("GitReleases.action")(function* (
         action: ReleaseAction,
       ) {
-        const repositories = yield* select(action.repo);
-        const repo = repositories[0];
-        const settings = repo.releases;
-
-        if (!settings)
-          return yield* new ReleaseError({
-            message: "Release settings missing",
-          });
-        const paths = releasePaths(repo.github);
-
-        return yield* withReleaseLock(
-          paths,
-          Effect.gen(function* () {
-            const { cache, review } = yield* readReleaseState(paths);
-            const now = yield* Clock.currentTimeMillis;
-
-            const current = entry(
-              repo,
-              settings,
-              cache,
-              review,
-              config.gitConfig.filePath,
-              now,
-            );
-
-            if (current.stale || !current.snapshot?.complete)
-              return yield* new ReleaseError({
-                message:
-                  "Release evidence is stale or incomplete; refresh before reviewing",
+        return yield* withCurrentRelease(
+          action.repo,
+          ({ repo, settings, paths, cache, review, now, current }) =>
+            Effect.gen(function* () {
+              if (current.stale || !current.snapshot?.complete)
+                return yield* new ReleaseError({
+                  message:
+                    "Release evidence is stale or incomplete; refresh before reviewing",
+                });
+              const snapshot = current.snapshot;
+              yield* Effect.try({
+                try: () => assertReleaseSelection(snapshot, action.snapshot),
+                catch: (error) =>
+                  error instanceof ReleaseError
+                    ? error
+                    : new ReleaseError({ message: formatCause(error) }),
               });
-            const snapshot = current.snapshot;
-            yield* Effect.try({
-              try: () => assertReleaseSelection(snapshot, action.snapshot),
-              catch: (error) =>
-                error instanceof ReleaseError
-                  ? error
-                  : new ReleaseError({ message: formatCause(error) }),
-            });
 
-            let updated = yield* Effect.try({
-              try: () =>
-                reviewRelease(snapshot, review, action.target, action.impact),
-              catch: (error) =>
-                error instanceof ReleaseError
-                  ? error
-                  : new ReleaseError({ message: formatCause(error) }),
-            });
+              let updated = yield* Effect.try({
+                try: () =>
+                  reviewRelease(snapshot, review, action.target, action.impact),
+                catch: (error) =>
+                  error instanceof ReleaseError
+                    ? error
+                    : new ReleaseError({ message: formatCause(error) }),
+              });
 
-            const reviewed = applyReleaseReview(snapshot, updated);
-            updated = releaseNotificationState(
-              reviewed,
-              updated,
-              settings,
-              false,
-            );
-            // Reviews are authoritative; a scan cache never overwrites them.
-            yield* saveReleaseDocument(paths.state, "review.json", updated);
+              const reviewed = applyReleaseReview(snapshot, updated);
+              updated = releaseNotificationState(
+                reviewed,
+                updated,
+                settings,
+                false,
+              );
+              // Reviews are authoritative; a scan cache never overwrites them.
+              yield* saveReleaseDocument(paths.state, "review.json", updated);
 
-            return entry(
-              repo,
-              settings,
-              cache,
-              updated,
-              config.gitConfig.filePath,
-              now,
-            );
-          }),
+              return entry(
+                repo,
+                settings,
+                cache,
+                updated,
+                config.gitConfig.filePath,
+                now,
+              );
+            }),
         );
       });
 
@@ -752,52 +783,31 @@ export class GitReleases extends Context.Service<
         action: ReleasePublishAction,
         progress: ReleaseProgress,
       ) {
-        const repositories = yield* select(action.repo);
-        const repo = repositories[0];
-        const settings = repo.releases;
+        return yield* withCurrentRelease(
+          action.repo,
+          ({ repo, settings, current }) =>
+            Effect.gen(function* () {
+              if (
+                current.stale ||
+                !current.snapshot?.complete ||
+                current.snapshot.id !== action.snapshot
+              )
+                return yield* new ReleaseError({
+                  message:
+                    "Release evidence changed or is incomplete; refresh before creating a release",
+                });
 
-        if (!settings)
-          return yield* new ReleaseError({
-            message: "Release settings missing",
-          });
-        const paths = releasePaths(repo.github);
-
-        return yield* withReleaseLock(
-          paths,
-          Effect.gen(function* () {
-            const { cache, review } = yield* readReleaseState(paths);
-            const now = yield* Clock.currentTimeMillis;
-
-            const current = entry(
-              repo,
-              settings,
-              cache,
-              review,
-              config.gitConfig.filePath,
-              now,
-            );
-
-            if (
-              current.stale ||
-              !current.snapshot?.complete ||
-              current.snapshot.id !== action.snapshot
-            )
-              return yield* new ReleaseError({
-                message:
-                  "Release evidence changed or is incomplete; refresh before creating a release",
-              });
-
-            return yield* publishRelease(
-              repo,
-              settings,
-              current.snapshot,
-              action.confirm,
-              progress,
-            ).pipe(
-              Effect.provideService(CommandExecutor, executor),
-              Effect.provideService(GitHub, github),
-            );
-          }),
+              return yield* publishRelease(
+                repo,
+                settings,
+                current.snapshot,
+                action.confirm,
+                progress,
+              ).pipe(
+                Effect.provideService(CommandExecutor, executor),
+                Effect.provideService(GitHub, github),
+              );
+            }),
         );
       });
 
