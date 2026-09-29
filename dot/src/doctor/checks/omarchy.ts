@@ -193,7 +193,7 @@ const checkOmarchyRepo = (config: ConfigService, repoName: string) =>
 
     const remote = (yield* gitOutput(["remote", "get-url", "origin"], {
       cwd: repoPath,
-    }).pipe(Effect.catch(() => Effect.succeed("")))).trim();
+    }).pipe(Effect.orElseSucceed(() => ""))).trim();
 
     const branch = yield* readGitBranch(repoPath);
     const upstream = yield* readGitUpstream(repoPath);

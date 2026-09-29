@@ -36,7 +36,7 @@ function tryGit(
 ): Effect.Effect<string, never, CommandExecutor> {
   return gitOutput(args, { cwd }).pipe(
     Effect.map((output) => output.trim()),
-    Effect.catch(() => Effect.succeed("")),
+    Effect.orElseSucceed(() => ""),
   );
 }
 
@@ -173,8 +173,9 @@ export const checkOriginHead = Effect.gen(function* () {
 
   // Compare each repo's origin/HEAD concurrently. `Effect.all` preserves input
   // order, so results stay in declaration order for the report.
-  const checked = yield* Effect.all(
-    targets.map((target) => checkRepoHead(target)),
+  const checked = yield* Effect.forEach(
+    targets,
+    (target) => checkRepoHead(target),
     { concurrency: HEAD_CHECK_CONCURRENCY },
   );
 

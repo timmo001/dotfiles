@@ -180,7 +180,7 @@ export const checkGitNotifications = Effect.gen(function* () {
   const github = yield* GitHub;
   const results: CheckResult[] = [];
 
-  const hasGh = yield* github.isAvailable();
+  const hasGh = yield* github.isAvailable;
 
   if (!hasGh) {
     results.push({
@@ -192,7 +192,7 @@ export const checkGitNotifications = Effect.gen(function* () {
       .api("notifications?per_page=1")
       .pipe(
         Effect.map(() => true),
-        Effect.catch(() => Effect.succeed(false)),
+        Effect.orElseSucceed(() => false),
       );
 
     if (notificationsAccess) {
@@ -488,7 +488,7 @@ export const checkLocalBinPath = Effect.gen(function* () {
 
   const showEnvironment = yield* executor
     .run("systemctl", ["--user", "show-environment"])
-    .pipe(Effect.catch(() => Effect.succeed("")));
+    .pipe(Effect.orElseSucceed(() => ""));
 
   const onPath = userEnvironmentPathEntries(showEnvironment).some(
     (entry) => resolve(entry) === LOCAL_BIN_DIR,

@@ -420,7 +420,7 @@ export function gitPullFastForward(
         "git merge --ff-only --no-autostash --no-edit '@{u}' && git submodule sync --recursive && GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive --checkout --jobs=8",
         { cwd: repoPath },
       )
-      .pipe(Effect.catch(() => Effect.succeed(1)));
+      .pipe(Effect.orElseSucceed(() => 1));
 
     return exitCode === 0;
   });

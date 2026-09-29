@@ -176,11 +176,10 @@ export const commitGitRepoConfigEdit = Effect.fn("gitRepoConfig.commit")(
     yield* checkCleanConfig(edit.privateRoot, edit.configPath);
     yield* Effect.gen(function* () {
       if ((yield* fs.readFileString(edit.file)) !== edit.source)
-        return yield* Effect.fail(
-          new Error(
+        return yield* new GitRepoConfigError({
+          message:
             "Private config changed since it was read; run the command again",
-          ),
-        );
+        });
       yield* fs.writeFileString(edit.file, updated);
     }).pipe(
       Effect.mapError(

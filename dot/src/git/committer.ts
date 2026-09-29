@@ -44,7 +44,7 @@ function readGitIn(
 ): Effect.Effect<string, never, CommandExecutor> {
   return gitOutput(args, cwd ? { cwd } : undefined).pipe(
     Effect.map((output) => output.trim()),
-    Effect.catch(() => Effect.succeed("")),
+    Effect.orElseSucceed(() => ""),
   );
 }
 

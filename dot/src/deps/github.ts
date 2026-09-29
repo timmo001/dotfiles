@@ -189,16 +189,15 @@ export class DependencyGithub extends Context.Service<
         capacity: 4096,
         timeToLive: "1 hour",
         lookup: Effect.fn("DependencyGithub.blob")(function* (key: string) {
-          const { repository, sha, timeout } =
-            yield* Schema.decodeUnknownEffect(
-              Schema.fromJsonString(
-                Schema.Struct({
-                  repository: Schema.String,
-                  sha: Schema.String,
-                  timeout: Schema.Finite,
-                }),
-              ),
-            )(key);
+          const { repository, sha, timeout } = yield* Schema.decodeEffect(
+            Schema.fromJsonString(
+              Schema.Struct({
+                repository: Schema.String,
+                sha: Schema.String,
+                timeout: Schema.Finite,
+              }),
+            ),
+          )(key);
 
           const cacheKey = `blob:${repository}:${sha}`;
           const saved = yield* disk.read(cacheKey);
@@ -518,7 +517,7 @@ export class DependencyGithub extends Context.Service<
                 const saved = yield* disk.read(cacheKey);
 
                 if (saved !== undefined) {
-                  const decoded = yield* Schema.decodeUnknownEffect(
+                  const decoded = yield* Schema.decodeEffect(
                     Schema.fromJsonString(PullRequestCoverage),
                   )(saved).pipe(
                     Effect.mapError(

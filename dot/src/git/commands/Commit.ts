@@ -276,7 +276,7 @@ function readGit(
 ): Effect.Effect<string, never, CommandExecutor> {
   return gitOutput(args).pipe(
     Effect.map((output) => output.trim()),
-    Effect.catch(() => Effect.succeed("")),
+    Effect.orElseSucceed(() => ""),
   );
 }
 
@@ -291,7 +291,7 @@ function readGitConfigAll(
         .map((line) => line.trim())
         .filter(Boolean),
     ),
-    Effect.catch(() => Effect.succeed<readonly string[]>([])),
+    Effect.orElseSucceed((): readonly string[] => []),
   );
 }
 
@@ -318,7 +318,7 @@ function checkBranchProtection(): Effect.Effect<
       "dot.maintainedForkBranch",
     ]).pipe(
       Effect.map((value) => value.trim() || null),
-      Effect.catch(() => Effect.succeed(null)),
+      Effect.orElseSucceed(() => null),
     );
 
     return branchProtectionError({

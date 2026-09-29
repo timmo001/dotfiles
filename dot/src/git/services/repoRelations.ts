@@ -35,7 +35,7 @@ export function repoUpstreamGitHubSlug(
     })
     .pipe(
       Effect.map((output) => normalizeGitHubSlug(output.trim())),
-      Effect.catch(() => Effect.succeed(null)),
+      Effect.orElseSucceed(() => null),
     );
 }
 

@@ -24,7 +24,7 @@ export const decodeJsonObject = Schema.decodeUnknownSync(
 export const isString = Schema.is(Schema.String);
 
 /** Whether a value is a number. */
-export const isNumber = Schema.is(Schema.Number);
+export const isNumber = Schema.is(Schema.Finite);
 
 /** Whether a value is a boolean. */
 export const isBoolean = Schema.is(Schema.Boolean);

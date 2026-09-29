@@ -367,7 +367,7 @@ function persistOmarchyHostEnv(
       .exitCode(persistCommand[0], persistCommand[1])
       .pipe(
         Effect.timeout(Duration.seconds(OMARCHY_HOST_PERSIST_TIMEOUT_SECONDS)),
-        Effect.catch(() => Effect.succeed(1)),
+        Effect.orElseSucceed(() => 1),
       );
 
     if (exitCode === 0) {
@@ -663,7 +663,7 @@ function resolveZshPath(): Effect.Effect<
 
     const output = yield* executor
       .run("which", ["zsh"])
-      .pipe(Effect.catch(() => Effect.succeed("")));
+      .pipe(Effect.orElseSucceed(() => ""));
 
     const path = output.trim();
 
@@ -685,7 +685,7 @@ function currentLoginShell(): Effect.Effect<
 
     const output = yield* executor
       .run("getent", ["passwd", String(uid)])
-      .pipe(Effect.catch(() => Effect.succeed("")));
+      .pipe(Effect.orElseSucceed(() => ""));
 
     const fields = output.trim().split(":");
 
@@ -704,7 +704,7 @@ function currentUsername(): Effect.Effect<
 
     const output = yield* executor
       .run("id", ["-un"])
-      .pipe(Effect.catch(() => Effect.succeed("")));
+      .pipe(Effect.orElseSucceed(() => ""));
 
     const name = output.trim();
 

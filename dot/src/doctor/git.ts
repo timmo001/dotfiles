@@ -9,7 +9,7 @@ export function readGitBranch(
   return gitOutput(["rev-parse", "--abbrev-ref", "HEAD"], {
     cwd: repoPath,
   }).pipe(
-    Effect.catch(() => Effect.succeed("")),
+    Effect.orElseSucceed(() => ""),
     Effect.map((result) => result.trim()),
   );
 }
@@ -20,7 +20,7 @@ export function readGitUpstream(
   ref = "@{u}",
 ): Effect.Effect<string, never, CommandExecutor> {
   return gitOutput(["rev-parse", "--abbrev-ref", ref], { cwd: repoPath }).pipe(
-    Effect.catch(() => Effect.succeed("")),
+    Effect.orElseSucceed(() => ""),
     Effect.map((result) => result.trim()),
   );
 }

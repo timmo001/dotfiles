@@ -120,7 +120,7 @@ export const recordUpstreamFetch = Effect.fn("DotDiff.recordUpstreamFetch")(
 
     const upstreamRef = yield* executor
       .run("git", ["rev-parse", "--abbrev-ref", "@{u}"], { cwd: repoPath })
-      .pipe(Effect.catch(() => Effect.succeed("")));
+      .pipe(Effect.orElseSucceed(() => ""));
 
     const trimmedRef = upstreamRef.trim();
 
@@ -342,7 +342,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           .run("git", ["--no-optional-locks", "status", "--porcelain"], {
             cwd: repoPath,
           })
-          .pipe(Effect.catch(() => Effect.succeed("")));
+          .pipe(Effect.orElseSucceed(() => ""));
 
         const statusLines = statusResult
           .trim()
@@ -369,7 +369,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
             .run("git", ["rev-parse", "--abbrev-ref", "@{u}"], {
               cwd: repoPath,
             })
-            .pipe(Effect.catch(() => Effect.succeed("")));
+            .pipe(Effect.orElseSucceed(() => ""));
 
           const trimmedRef = upstreamRef.trim();
 
@@ -420,7 +420,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
             .run("git", ["rev-list", "--count", "@{u}..HEAD"], {
               cwd: repoPath,
             })
-            .pipe(Effect.catch(() => Effect.succeed("0")));
+            .pipe(Effect.orElseSucceed(() => "0"));
 
           ahead = parseInt(aheadStr.trim(), 10) || 0;
 
@@ -428,7 +428,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
             .run("git", ["rev-list", "--count", "HEAD..@{u}"], {
               cwd: repoPath,
             })
-            .pipe(Effect.catch(() => Effect.succeed("0")));
+            .pipe(Effect.orElseSucceed(() => "0"));
 
           behind = parseInt(behindStr.trim(), 10) || 0;
         }
@@ -473,8 +473,9 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
 
         log(`Scanning ${repoList.length} repositories...`);
 
-        const results = yield* Effect.all(
-          repoList.map((r) => scanRepo(r.name, r.path, r.category)),
+        const results = yield* Effect.forEach(
+          repoList,
+          (r) => scanRepo(r.name, r.path, r.category),
           { concurrency: SCAN_CONCURRENCY },
         );
 

@@ -89,7 +89,7 @@ export const extractPackages = Effect.fn("Dependencies.extractPackages")(
     text: string,
     files: Readonly<Record<string, string>>,
   ): Effect.fn.Return<Extraction, DependencyDiscoveryError> {
-    const manifest = yield* Schema.decodeUnknownEffect(
+    const manifest = yield* Schema.decodeEffect(
       Schema.fromJsonString(Manifest),
     )(text).pipe(
       Effect.mapError(

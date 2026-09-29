@@ -84,12 +84,8 @@ export const acquireFileLock = Effect.fn("fileLock.acquire")(function* (
       Stream.mkString,
     );
 
-    return yield* Effect.fail(new Error(stderr.trim() || "flock failed"));
-  }).pipe(
-    Effect.mapError((error) =>
-      failed(error instanceof Error ? error : { message: String(error) }),
-    ),
-  );
+    return yield* failed({ message: stderr.trim() || "flock failed" });
+  }).pipe(Effect.mapError(failed));
 
   const acquired = yield* attempt.pipe(
     Effect.repeat({

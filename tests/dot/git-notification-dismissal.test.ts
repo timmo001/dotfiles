@@ -41,7 +41,7 @@ function fixture(pages: ReturnType<typeof thread>[][]) {
   }
 
   const github = GitHub.of({
-    isAvailable: () => Effect.succeed(true),
+    isAvailable: Effect.succeed(true),
     api: () => Effect.die("Unexpected API call"),
     json: (args) => Effect.sync(() => {
       reads.push([...args]);

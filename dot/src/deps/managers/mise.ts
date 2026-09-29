@@ -58,7 +58,7 @@ export const extractMise = Effect.fn("Dependencies.extractMise")(function* (
       new DependencyDiscoveryError({ message: `Invalid mise TOML: ${file}` }),
   });
 
-  const config = yield* Schema.decodeUnknownEffect(Tools)(parsed).pipe(
+  const config = yield* Schema.decodeEffect(Tools)(parsed).pipe(
     Effect.mapError(
       () =>
         new DependencyDiscoveryError({

@@ -85,7 +85,7 @@ export const ReleaseSettings = Schema.Struct({
     }),
   ),
   /** Changed source lines above this cutoff suggest minor; omission disables the heuristic. */
-  source_minor_threshold: Schema.optional(Schema.Number),
+  source_minor_threshold: Schema.optional(Schema.Finite),
   /** Paths excluded from the source-size heuristic; new paths count by default. */
   source_excludes: Schema.optional(Schema.Array(Schema.String)),
   /** First-match rules applied before the preset. */
@@ -106,7 +106,7 @@ export const ReleaseSettings = Schema.Struct({
     /** Lowest impact eligible for delivery. */
     minimum_impact: Impact,
     /** Minimum delay between successful deliveries. */
-    cooldown_minutes: Schema.Number,
+    cooldown_minutes: Schema.Finite,
   }),
 }).check(
   Schema.makeFilter((settings) =>
@@ -155,7 +155,7 @@ export const ReleaseFact = Schema.Struct({
   /** Short evidence description. */
   detail: Schema.String,
   /** Net added plus deleted lines; null for binary files, absent in older caches. */
-  changedLines: Schema.optional(Schema.NullOr(Schema.Number)),
+  changedLines: Schema.optional(Schema.NullOr(Schema.Finite)),
   /** Whether all evidence needed to classify this fact was obtained. */
   complete: Schema.Boolean,
   /** Immutable upstream comparison link; absent in older cached evidence. */
@@ -273,7 +273,7 @@ export const ReleaseCache = Schema.Struct({
   /** Last available comparison, including incomplete evidence. */
   snapshot: Schema.NullOr(ReleaseSnapshot),
   /** Last attempted schedule minute, claimed under the repository lock. */
-  attemptedMinute: Schema.NullOr(Schema.Number),
+  attemptedMinute: Schema.NullOr(Schema.Finite),
   /** Last attempted check time. */
   attemptedAt: Schema.NullOr(Schema.String),
   /** Latest scan failure, without discarding previous evidence. */

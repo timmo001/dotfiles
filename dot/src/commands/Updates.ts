@@ -24,7 +24,7 @@ type BarStatus = typeof BarStatus.Type;
 const CachedStatus = Schema.Struct({
   ...BarStatus.fields,
   packageStatus: Schema.optional(BarStatus),
-  packagesCheckedAt: Schema.optional(Schema.Number),
+  packagesCheckedAt: Schema.optional(Schema.Finite),
 });
 
 const decodeStatus = Schema.decodeUnknownOption(

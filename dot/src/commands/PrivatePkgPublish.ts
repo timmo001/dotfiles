@@ -233,7 +233,7 @@ function supportsDenoPackageArch(
 
     const output = yield* executor
       .run("deno", ["task", "--cwd", sourceRepo])
-      .pipe(Effect.catch(() => Effect.succeed("")));
+      .pipe(Effect.orElseSucceed(() => ""));
 
     return /(^|\s)package:arch($|\s)/.test(output);
   });

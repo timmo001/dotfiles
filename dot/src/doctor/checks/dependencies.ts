@@ -85,12 +85,12 @@ export const checkDependencies = Effect.gen(function* () {
   });
 
   // gh authentication check
-  const ghAvailable = yield* github.isAvailable();
+  const ghAvailable = yield* github.isAvailable;
 
   if (ghAvailable) {
     const ghUser = yield* github
       .api("user", { jq: ".login" })
-      .pipe(Effect.catch(() => Effect.succeed("")));
+      .pipe(Effect.orElseSucceed(() => ""));
 
     const username = ghUser.trim();
 
@@ -101,7 +101,7 @@ export const checkDependencies = Effect.gen(function* () {
       });
 
       const scope = yield* githubWorkflowScope().pipe(
-        Effect.catch(() => Effect.succeed("unavailable" as const)),
+        Effect.orElseSucceed(() => "unavailable" as const),
       );
 
       results.push(

@@ -49,7 +49,7 @@ export interface DependencySourcesService {
     timeout: number,
   ) => Effect.Effect<Releases, DependencyDiscoveryError>;
   /** Completed provider requests and cache reuse for progress reporting. */
-  readonly stats: () => Effect.Effect<{
+  readonly stats: Effect.Effect<{
     readonly requests: number;
     readonly hits: number;
   }>;
@@ -151,10 +151,9 @@ export class DependencySources extends Context.Service<
             ),
           })
           .pipe(
-            Effect.flatMap((response) =>
-              response.status >= 500 || response.status === 408
-                ? HttpClientResponse.filterStatusOk(response)
-                : Effect.succeed(response),
+            Effect.filterOrElse(
+              (response) => response.status < 500 && response.status !== 408,
+              HttpClientResponse.filterStatusOk,
             ),
             Effect.retry({
               times: 2,
@@ -532,11 +531,11 @@ export class DependencySources extends Context.Service<
             );
           },
         ),
-        stats: Effect.fn("DependencySources.stats")(function* () {
+        stats: Effect.gen(function* () {
           const count = yield* Ref.get(requests);
 
           return { requests: count, hits: (yield* Ref.get(calls)) - count };
-        }),
+        }).pipe(Effect.withSpan("DependencySources.stats")),
       });
     }),
   );

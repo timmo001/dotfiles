@@ -27,7 +27,7 @@ const generatedLocales: Effect.Effect<
 
   const output = yield* executor
     .run("locale", ["-a"])
-    .pipe(Effect.catch(() => Effect.succeed("")));
+    .pipe(Effect.orElseSucceed(() => ""));
 
   const generated = new Set<string>();
 

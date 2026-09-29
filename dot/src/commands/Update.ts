@@ -224,9 +224,7 @@ const safePull = (
       yield* fs.remove(lockFile).pipe(Effect.ignore);
     }
 
-    const before = yield* gitHead(path).pipe(
-      Effect.catch(() => Effect.succeed("")),
-    );
+    const before = yield* gitHead(path).pipe(Effect.orElseSucceed(() => ""));
 
     yield* log.info(
       `Pulling ${style.accent(name)} ${style.dim(`(${displayPath(path)})`)}...`,
@@ -279,9 +277,7 @@ const safePull = (
 
     yield* recordUpstreamFetch(path);
 
-    const after = yield* gitHead(path).pipe(
-      Effect.catch(() => Effect.succeed("")),
-    );
+    const after = yield* gitHead(path).pipe(Effect.orElseSucceed(() => ""));
 
     if (before === "" || after === "" || before === after) return null;
 

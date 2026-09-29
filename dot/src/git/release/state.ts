@@ -4,7 +4,7 @@ import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { acquireFileLock } from "../../lib/fileLock.js";
 import { Effect, FileSystem, Schema } from "effect";
 import { CACHE_DIR, STATE_DIR } from "../../lib/paths.js";
-import { formatCause, type JsonValue } from "../../lib/schema.js";
+import { formatCause } from "../../lib/schema.js";
 import { evidenceId } from "./changes.js";
 import { highestImpact } from "./policy.js";
 import {
@@ -146,9 +146,9 @@ export const readReleaseState = Effect.fn("releases.readState")(function* (
 ) {
   const fs = yield* FileSystem.FileSystem;
 
-  const load = <A>(
+  const load = <A, I>(
     file: string,
-    decode: (input: JsonValue) => A,
+    schema: Schema.Codec<A, I>,
     empty: () => A,
   ) =>
     Effect.gen(function* () {
@@ -156,19 +156,19 @@ export const readReleaseState = Effect.fn("releases.readState")(function* (
 
       const text = yield* fs.readFileString(file);
 
-      return yield* Effect.try(() => decode(JSON.parse(text)));
+      return yield* Schema.decodeEffect(Schema.fromJsonString(schema))(text);
     });
 
   return yield* Effect.gen(function* () {
     const cache = yield* load(
       join(paths.cache, "snapshot.json"),
-      Schema.decodeUnknownSync(ReleaseCache),
+      ReleaseCache,
       emptyReleaseCache,
     );
 
     const review = yield* load(
       join(paths.state, "review.json"),
-      Schema.decodeUnknownSync(ReleaseReviewState),
+      ReleaseReviewState,
       emptyReleaseReview,
     );
 

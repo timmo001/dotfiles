@@ -84,7 +84,7 @@ const JsonManifest = Schema.fromJsonString(
 );
 
 function withManifestVersion(content: string, version: string): string {
-  const original = Schema.decodeUnknownSync(JsonManifest)(content);
+  const original = Schema.decodeSync(JsonManifest)(content);
   const expected = JSON.stringify({ ...original, version });
 
   for (const match of content.matchAll(
@@ -96,7 +96,7 @@ function withManifestVersion(content: string, version: string): string {
       JSON.stringify(version) +
       content.slice(match.index + match[0].length);
 
-    const decoded = Schema.decodeUnknownOption(JsonManifest)(candidate);
+    const decoded = Schema.decodeOption(JsonManifest)(candidate);
 
     if (Option.isSome(decoded) && JSON.stringify(decoded.value) === expected)
       return candidate;
@@ -651,9 +651,9 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
           const path = yield* fs.realPath(join(directory, file.path));
 
           if (relative(yield* fs.realPath(directory), path).startsWith(".."))
-            return yield* Effect.fail(
-              new Error(`${file.path} leaves the prepared worktree`),
-            );
+            return yield* new ReleaseError({
+              message: `${file.path} leaves the prepared worktree`,
+            });
           const content = yield* fs.readFileString(path);
           yield* fs.writeFileString(
             path,
@@ -709,11 +709,9 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
           if (
             (yield* fs.readFileString(join(directory, file.path))) !== expected
           )
-            return yield* Effect.fail(
-              new Error(
-                `Validation changed ${file.path} beyond its agreed version bump`,
-              ),
-            );
+            return yield* new ReleaseError({
+              message: `Validation changed ${file.path} beyond its agreed version bump`,
+            });
         }).pipe(
           Effect.mapError(
             (error) => new ReleaseError({ message: formatCause(error) }),

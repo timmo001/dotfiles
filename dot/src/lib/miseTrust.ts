@@ -118,7 +118,7 @@ function discoverMiseConfigs(
     const output = yield* gitOutput(
       ["ls-files", "-z", "--", ...MISE_CONFIG_PATHSPECS],
       { cwd: repoPath },
-    ).pipe(Effect.catch(() => Effect.succeed("")));
+    ).pipe(Effect.orElseSucceed(() => ""));
 
     const found: string[] = [];
 

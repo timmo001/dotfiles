@@ -83,7 +83,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
   // Identify render nodes and their drivers
   const renderNodesOutput = yield* executor
     .run("bash", ["-c", "ls -d /sys/class/drm/renderD* 2>/dev/null || true"])
-    .pipe(Effect.catch(() => Effect.succeed("")));
+    .pipe(Effect.orElseSucceed(() => ""));
 
   let hasNvidiaNode = false;
 
@@ -94,7 +94,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
 
     const driverResult = yield* executor
       .run("readlink", ["-f", driverLink])
-      .pipe(Effect.catch(() => Effect.succeed("")));
+      .pipe(Effect.orElseSucceed(() => ""));
 
     const driverName = basename(driverResult.trim());
     const nodeName = basename(nodePath);
@@ -115,7 +115,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
   if (hasVainfo) {
     const devNodesOutput = yield* executor
       .run("bash", ["-c", "ls /dev/dri/renderD* 2>/dev/null || true"])
-      .pipe(Effect.catch(() => Effect.succeed("")));
+      .pipe(Effect.orElseSucceed(() => ""));
 
     let vaapiWorking = false;
 
@@ -133,7 +133,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
       if (yield* pathExists(driverLink)) {
         const driverResult = yield* executor
           .run("readlink", ["-f", driverLink])
-          .pipe(Effect.catch(() => Effect.succeed("")));
+          .pipe(Effect.orElseSucceed(() => ""));
 
         renderDriverName = basename(driverResult.trim());
       }
@@ -164,7 +164,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
           "-c",
           `${envPrefix}vainfo --display drm --device ${renderNode} 2>&1`,
         ])
-        .pipe(Effect.catch(() => Effect.succeed("")));
+        .pipe(Effect.orElseSucceed(() => ""));
 
       if (!vainfoResult.trim()) {
         results.push({

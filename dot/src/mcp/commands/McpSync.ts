@@ -62,7 +62,10 @@ const readJsonObject = Effect.fn("McpSync.readJsonObject")(function* (
 
   return yield* Effect.try({
     try: () => decodeJsonObject(JSON.parse(text)),
-    catch: () => new Error(`${displayPath(path)} is not a JSON object`),
+    catch: () =>
+      new McpSyncError({
+        message: `${displayPath(path)} is not a JSON object`,
+      }),
   }).pipe(Effect.orDie);
 });
 

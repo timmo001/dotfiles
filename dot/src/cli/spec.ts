@@ -1320,7 +1320,7 @@ const simpleCommands = [
     },
   ),
   describe(
-    Command.make("doctor", {}, () => doctor()),
+    Command.make("doctor", {}, () => doctor),
     "Run parallel health checks for dependencies, repositories, stow integrity, services, packages, browser configuration, hardware video, firewall rules, and OpenCode/Herdr integration. A timestamped report is always written under ~/.local/state/dot/logs/.",
     [],
     {

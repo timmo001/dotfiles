@@ -19,7 +19,7 @@ function pad(depth: number): string {
 }
 
 const isJsonPrimitive = Schema.is(
-  Schema.Union([Schema.Null, Schema.String, Schema.Number, Schema.Boolean]),
+  Schema.Union([Schema.Null, Schema.String, Schema.Finite, Schema.Boolean]),
 );
 
 function formatInline(value: JsonValue): string {

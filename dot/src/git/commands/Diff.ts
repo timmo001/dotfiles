@@ -35,7 +35,7 @@ export const diffBarJson = (opts?: DiffScanOptions) =>
         .run("git", ["log", "HEAD..@{u}", "--pretty=%an <%ae>"], {
           cwd: repo.path,
         })
-        .pipe(Effect.catch(() => Effect.succeed(null)));
+        .pipe(Effect.orElseSucceed(() => null));
 
       if (output === null) return repo;
 
@@ -49,8 +49,9 @@ export const diffBarJson = (opts?: DiffScanOptions) =>
       return authors.every(textLooksLikeBotActivity) ? null : repo;
     });
 
-    const changed = (yield* Effect.all(
-      changedRepos(repos).map(includeBarRepo),
+    const changed = (yield* Effect.forEach(
+      changedRepos(repos),
+      includeBarRepo,
       {
         concurrency: 4,
       },
@@ -154,7 +155,7 @@ export const diffRaw = (opts?: DiffScanOptions) =>
     const git = (path: string, args: readonly string[]) =>
       executor
         .run("git", ["-c", color, ...args], { cwd: path })
-        .pipe(Effect.catch(() => Effect.succeed("")));
+        .pipe(Effect.orElseSucceed(() => ""));
 
     // Print a labelled block of indented git output, or a dimmed empty note.
     const block = (label: string, output: string, empty: string) =>

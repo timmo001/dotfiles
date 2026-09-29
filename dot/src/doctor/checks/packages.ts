@@ -579,7 +579,7 @@ export const checkPublicPackageRepo = Effect.gen(function* () {
       "--list-sigs",
       fingerprint,
     ])
-    .pipe(Effect.catch(() => Effect.succeed("")));
+    .pipe(Effect.orElseSucceed(() => ""));
 
   const keyTrusted = publicPackageKeyTrusted(keyDetails, fingerprint);
   results.push(

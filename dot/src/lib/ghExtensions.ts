@@ -55,7 +55,7 @@ export const installedGhExtensions: Effect.Effect<
   const gh = yield* Gh;
 
   const listed = yield* ghOutput(gh, ["extension", "list"]).pipe(
-    Effect.catch(() => Effect.succeed("")),
+    Effect.orElseSucceed(() => ""),
   );
 
   return parseInstalledGhExtensions(listed);

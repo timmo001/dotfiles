@@ -7,15 +7,13 @@ const stderrOption = Schema.decodeUnknownOption(
 );
 
 /** Return a string value from an unknown API field, or an empty string. */
-export function stringValue(
-  value: typeof Schema.Json.Type | undefined,
-): string {
+export function stringValue(value: Schema.Json | undefined): string {
   return stringOption(value).pipe(Option.getOrElse(() => ""));
 }
 
 /** Return a non-empty string value from an unknown API field, or null. */
 export function nullableStringValue(
-  value: typeof Schema.Json.Type | undefined,
+  value: Schema.Json | undefined,
 ): string | null {
   const option = stringOption(value);
 

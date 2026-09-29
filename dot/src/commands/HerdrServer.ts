@@ -162,9 +162,9 @@ export const herdrServerPid = Effect.fn("HerdrServer.pid")(function* (
       Option.getOrUndefined(info.uid) !== process.getuid?.() ||
       !exe.replace(/ \(deleted\)$/, "").endsWith("/herdr")
     ) {
-      return yield* Effect.fail(
-        new Error("Cannot identify the Herdr server executable for this user."),
-      );
+      return yield* new HerdrServerError({
+        message: "Cannot identify the Herdr server executable for this user.",
+      });
     }
   }).pipe(
     Effect.mapError(

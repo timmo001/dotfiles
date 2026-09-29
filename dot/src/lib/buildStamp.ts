@@ -34,7 +34,7 @@ export const sourceBuildKey = Effect.fn("BuildStamp.sourceBuildKey")(function* (
   sourceDir: string,
 ) {
   const executor = yield* CommandExecutor;
-  const orEmpty = Effect.catch(() => Effect.succeed(""));
+  const orEmpty = Effect.orElseSucceed(() => "");
 
   const [tree, status, bunVersion] = yield* Effect.all(
     [
@@ -43,7 +43,7 @@ export const sourceBuildKey = Effect.fn("BuildStamp.sourceBuildKey")(function* (
         .pipe(orEmpty),
       executor
         .run("git", ["status", "--porcelain", "--", "."], { cwd: sourceDir })
-        .pipe(Effect.catch(() => Effect.succeed("unknown"))),
+        .pipe(Effect.orElseSucceed(() => "unknown")),
       executor.run("bun", ["--version"]).pipe(orEmpty),
     ],
     { concurrency: "unbounded" },

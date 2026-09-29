@@ -47,7 +47,7 @@ const RATE_LIMIT_MAX_WAIT_SECONDS = envNonNegativeInt(
 /** Domain error for GitHub CLI/API operations. */
 class GitHubError extends Schema.TaggedError<GitHubError>()("GitHubError", {
   command: Schema.String,
-  exitCode: Schema.Number,
+  exitCode: Schema.Finite,
   stderr: Schema.String,
   retryable: Schema.Boolean,
   rateLimited: Schema.Boolean,
@@ -70,7 +70,7 @@ interface GitHubApiOptions extends GitHubCommandOptions {
 /** Service interface for all GitHub CLI/API communication. */
 export interface GitHubService {
   /** Return whether the GitHub CLI is available on PATH. */
-  readonly isAvailable: () => Effect.Effect<boolean>;
+  readonly isAvailable: Effect.Effect<boolean>;
   /** Run a raw `gh` command with rate-limit checks and retries. */
   readonly run: (
     args: readonly string[],
@@ -100,10 +100,9 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
         Duration.millis(RATE_LIMIT_TTL_MS),
       ).pipe(Effect.provideService(Gh, gh));
 
-      const isAvailable = () =>
-        executor
-          .exitCode("which", ["gh"])
-          .pipe(Effect.map((code) => code === 0));
+      const isAvailable = executor
+        .exitCode("which", ["gh"])
+        .pipe(Effect.map((code) => code === 0));
 
       const ensureRateLimit = Effect.fn("GitHub.ensureRateLimit")(function* (
         args: readonly string[],

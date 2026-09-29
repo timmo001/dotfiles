@@ -163,8 +163,9 @@ export const runDoctor = (
     // Run all checks in parallel, each bounded by a backstop timeout, catching
     // crashes per-section, and stream each section to `onSection` as it resolves
     // (completion order).
-    const completedSections = yield* Effect.all(
-      applicable.map((s) =>
+    const completedSections = yield* Effect.forEach(
+      applicable,
+      (s) =>
         s.check.pipe(
           Effect.map((results): CheckSection => ({ name: s.name, results })),
           (check) => withTimeoutOption(check, DOCTOR_CHECK_TIMEOUT_SECONDS),
@@ -194,7 +195,6 @@ export const runDoctor = (
           ),
           Effect.tap((section) => onSection(section)),
         ),
-      ),
       { concurrency: "unbounded" },
     );
 

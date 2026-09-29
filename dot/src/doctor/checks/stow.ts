@@ -50,7 +50,7 @@ export const checkStow = Effect.gen(function* () {
 
         const output = yield* executor
           .run("bash", ["-c", `cd ${JSON.stringify(repoDir)} && ${cmd} 2>&1`])
-          .pipe(Effect.catch(() => Effect.succeed("")));
+          .pipe(Effect.orElseSucceed(() => ""));
 
         // Filter out no-op revert lines, check for actual drift
         const hasDrift = output

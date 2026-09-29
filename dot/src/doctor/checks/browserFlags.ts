@@ -93,7 +93,7 @@ export const checkBrowserFlags = Effect.gen(function* () {
         "-c",
         `diff -u ${JSON.stringify(omarchyDefaultFlags)} ~/.config/chromium-flags.conf --label 'omarchy defaults' --label 'chromium-flags.conf' 2>/dev/null | grep -v '^[+-].*--oauth2-client-'`,
       ])
-      .pipe(Effect.catch(() => Effect.succeed("")));
+      .pipe(Effect.orElseSucceed(() => ""));
 
     if (!diffResult.trim()) {
       results.push({

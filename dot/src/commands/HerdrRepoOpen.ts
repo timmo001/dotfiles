@@ -274,7 +274,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   const agentName =
     options.agentName === undefined
       ? undefined
-      : yield* Schema.decodeUnknownEffect(
+      : yield* Schema.decodeEffect(
           AgentName.check(Schema.isPattern(/^[a-z][a-z0-9_-]{0,31}$/)),
         )(options.agentName).pipe(
           Effect.mapError(

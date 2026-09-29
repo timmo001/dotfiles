@@ -299,7 +299,7 @@ export class DependencyPlanner extends Context.Service<
           ),
         );
 
-        const targetSource = yield* Schema.decodeUnknownEffect(
+        const targetSource = yield* Schema.decodeEffect(
           Schema.fromJsonString(RenovateObject),
         )(snapshot.files[config.import.source]).pipe(
           Effect.mapError(
@@ -667,7 +667,7 @@ export class DependencyPlanner extends Context.Service<
             lookup: finished - inventoried,
             total: finished - started,
           },
-          cache: yield* sources.stats(),
+          cache: yield* sources.stats,
         };
       });
 

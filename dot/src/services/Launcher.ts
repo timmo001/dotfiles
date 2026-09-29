@@ -14,7 +14,7 @@ export class LauncherError extends Schema.TaggedError<LauncherError>()(
   "LauncherError",
   {
     message: Schema.String,
-    exitCode: Schema.optional(Schema.Number),
+    exitCode: Schema.optional(Schema.Finite),
   },
 ) {}
 

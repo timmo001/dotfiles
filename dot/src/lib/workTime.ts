@@ -124,18 +124,16 @@ const calendarLeave = Effect.fn("workTime.calendarLeave")(function* (
         const end = Date.parse(event.end.dateTime);
 
         if (!Number.isFinite(start) || !Number.isFinite(end)) {
-          return yield* Effect.fail(
-            new CalendarEventError({ message: "Invalid calendar event time" }),
-          );
+          return yield* new CalendarEventError({
+            message: "Invalid calendar event time",
+          });
         }
 
         if (start <= now && now < end) return true;
       } else {
-        return yield* Effect.fail(
-          new CalendarEventError({
-            message: "Inconsistent calendar event times",
-          }),
-        );
+        return yield* new CalendarEventError({
+          message: "Inconsistent calendar event times",
+        });
       }
     }
   }

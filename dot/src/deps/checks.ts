@@ -70,7 +70,7 @@ export const dependencyCheckRequirements = Effect.fn(
       (error) =>
         error instanceof GhCommandError &&
         /Branch not protected.*\(HTTP 404\)/i.test(error.stderr),
-      () => Effect.succeed(undefined),
+      () => Effect.void,
     ),
   );
 

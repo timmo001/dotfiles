@@ -215,9 +215,11 @@ test("captured clone keeps literal args, noninteractive git settings and domain 
         "--depth",
         "1",
       ]).pipe(
-        Effect.provide(fake.sdk),
         Effect.provide(
-          FileSystem.layerNoop({ makeDirectory: () => Effect.void }),
+          Layer.merge(
+            fake.sdk,
+            FileSystem.layerNoop({ makeDirectory: () => Effect.void }),
+          ),
         ),
         Effect.flip,
       );

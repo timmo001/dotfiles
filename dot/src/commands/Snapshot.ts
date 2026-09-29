@@ -71,7 +71,7 @@ const readOptional = Effect.fn("Snapshot.readOptional")(function* (
     .pipe(
       Effect.catch((error) =>
         unavailable(error.cause)
-          ? Effect.succeed(undefined)
+          ? Effect.undefined
           : Effect.fail(snapshotError(error)),
       ),
     );
@@ -87,9 +87,7 @@ function readCounters(source: string) {
 
         return [
           key,
-          Schema.decodeUnknownSync(Schema.FiniteFromString)(
-            value?.split(/\s+/)[0],
-          ),
+          Schema.decodeSync(Schema.FiniteFromString)(value?.split(/\s+/)[0]),
         ];
       }),
   );
@@ -124,16 +122,12 @@ const readProcesses = Effect.fn("Snapshot.readProcesses")(function* () {
       .trim()
       .split(/\s+/);
 
-    const parsed = yield* Effect.try({
-      try: () =>
-        Schema.decodeUnknownSync(processFields)({
-          parent: fields[1],
-          user: fields[11],
-          system: fields[12],
-          start: fields[19],
-        }),
-      catch: (error) => new SnapshotError({ message: String(error) }),
-    });
+    const parsed = yield* Schema.decodeEffect(processFields)({
+      parent: fields[1],
+      user: fields[11],
+      system: fields[12],
+      start: fields[19],
+    }).pipe(Effect.mapError(snapshotError));
 
     processes.set(Number(pid), {
       name: stat.slice(stat.indexOf("(") + 1, end).replace(/\p{Cc}/gu, "?"),
@@ -155,11 +149,9 @@ const readCpu = Effect.fn("Snapshot.readCpu")(function* () {
 
   const fields = source.split("\n")[0]?.trim().split(/\s+/).slice(1, 9);
 
-  const ticks = yield* Effect.try({
-    try: () =>
-      Schema.decodeUnknownSync(Schema.Array(Schema.FiniteFromString))(fields),
-    catch: (error) => new SnapshotError({ message: String(error) }),
-  });
+  const ticks = yield* Schema.decodeEffect(
+    Schema.Array(Schema.FiniteFromString),
+  )(fields).pipe(Effect.mapError(snapshotError));
 
   return {
     total: ticks.reduce((sum, value) => sum + value, 0),
@@ -225,15 +217,19 @@ export const snapshot = Effect.fn("Snapshot.run")(function* ({
     );
   }
 
+  const memory = yield* Effect.try({
+    try: () => readCounters(meminfo),
+    catch: (error) => new SnapshotError({ message: String(error) }),
+  }).pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(memoryFields)),
+    Effect.mapError(snapshotError),
+  );
+
   const report = yield* Effect.try({
     try: () => {
       const elapsed = after.cpu.total - before.cpu.total;
 
       if (elapsed <= 0) throw new Error("CPU counters did not advance");
-
-      const memory = Schema.decodeUnknownSync(memoryFields)(
-        readCounters(meminfo),
-      );
 
       const used = memory.MemTotal - memory.MemAvailable;
       const cores = cpus().length;

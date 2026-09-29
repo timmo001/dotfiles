@@ -175,7 +175,7 @@ const publicRepoStatus = (
 ) =>
   launcher
     .silent(`git -C '${repoDir}' status --porcelain`)
-    .pipe(Effect.catch(() => Effect.succeed("")));
+    .pipe(Effect.orElseSucceed(() => ""));
 
 /** Collect the home-relative paths that already have a working-tree status. */
 function dirtyPaths(porcelain: string): Set<string> {

@@ -27,7 +27,7 @@ const WranglerConfig = Schema.Struct({ vars: Schema.optional(JsonObject) });
 
 const DeploymentStatus = Schema.Struct({
   versions: Schema.Array(
-    Schema.Struct({ percentage: Schema.Number, version_id: Schema.String }),
+    Schema.Struct({ percentage: Schema.Finite, version_id: Schema.String }),
   ),
 });
 
@@ -92,7 +92,7 @@ export function mergeCaptureRepositories(
   let existing: typeof WranglerConfig.Type;
 
   try {
-    existing = Schema.decodeUnknownSync(WranglerConfig)(config);
+    existing = Schema.decodeSync(WranglerConfig)(config);
   } catch {
     throw new Error("Wrangler vars configuration is not an object");
   }

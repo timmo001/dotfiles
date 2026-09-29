@@ -17,7 +17,7 @@ export class CommandError extends Schema.TaggedError<CommandError>()(
   "CommandError",
   {
     command: Schema.String,
-    exitCode: Schema.Number,
+    exitCode: Schema.Finite,
     stderr: Schema.String,
   },
 ) {}

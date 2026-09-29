@@ -1,6 +1,6 @@
 import { basename, dirname, join } from "node:path";
 import { NodeRuntime, NodeServices } from "@effect/platform-node";
-import { Console, Effect, FileSystem, Match, Schema } from "effect";
+import { Console, Effect, FileSystem, Layer, Match, Schema } from "effect";
 import { CommandError, CommandExecutor } from "./services/CommandExecutor.js";
 
 // These jobs mirror the clean-checkout lint jobs in .github/workflows/lint.yml.
@@ -159,7 +159,8 @@ const checkRepositoryFiles = Effect.gen(function* () {
 
 checkRepositoryFiles.pipe(
   Effect.scoped,
-  Effect.provide(CommandExecutor.layer),
-  Effect.provide(NodeServices.layer),
+  Effect.provide(
+    CommandExecutor.layer.pipe(Layer.provideMerge(NodeServices.layer)),
+  ),
   NodeRuntime.runMain,
 );

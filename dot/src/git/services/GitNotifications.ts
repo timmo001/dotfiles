@@ -133,7 +133,7 @@ export class GitNotifications extends Context.Service<
         Effect.gen(function* () {
           const normalizedQuery = normalizeQuery(opts);
 
-          const hasGh = yield* github.isAvailable();
+          const hasGh = yield* github.isAvailable;
 
           if (!hasGh) {
             return buildState(
@@ -206,10 +206,9 @@ export class GitNotifications extends Context.Service<
 
           const now = new Date(yield* Clock.currentTimeMillis);
 
-          const filtered = yield* Effect.all(
-            threads.map((thread) =>
-              includeBarThread(thread, now, workTimeActive),
-            ),
+          const filtered = yield* Effect.forEach(
+            threads,
+            (thread) => includeBarThread(thread, now, workTimeActive),
             { concurrency: 4 },
           );
 
@@ -516,7 +515,7 @@ function pullRequestThreadLooksBot(
         ])
       );
     }),
-    Effect.catch(() => Effect.succeed(threadLooksBot)),
+    Effect.orElseSucceed(() => threadLooksBot),
   );
 }
 
@@ -546,7 +545,7 @@ function workflowNotificationThreadLooksBot(
         stringValue(author.email),
       ]);
     }),
-    Effect.catch(() => Effect.succeed(false)),
+    Effect.orElseSucceed(() => false),
   );
 }
 

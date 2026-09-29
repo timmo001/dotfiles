@@ -64,7 +64,7 @@ test("release confirmation binds the reviewed head and recipe before any write",
   });
 
   const github = GitHub.of({
-    isAvailable: () => Effect.succeed(true),
+    isAvailable: Effect.succeed(true),
     json: () => Effect.succeed({ tag_name: "1.0.0", draft: false, prerelease: false }),
     api: () => Effect.die("Unexpected API call"),
     run: () => {
@@ -163,7 +163,7 @@ test("UTC midnight invalidates the CalVer preview confirmation without writing",
   });
 
   const github = GitHub.of({
-    isAvailable: () => Effect.succeed(true),
+    isAvailable: Effect.succeed(true),
     json: () => Effect.succeed({ tag_name: current.releaseTag, draft: false, prerelease: false }),
     api: () => Effect.die("Unexpected API call"), run: () => Effect.die("Unexpected release"),
   });
@@ -271,7 +271,7 @@ test("prepared Python and JSON writes are exact and validation cannot widen the 
         exitCode: () => Effect.die("Unexpected process"), inherit: () => Effect.die("Unexpected process"),
       });
       const github = GitHub.of({
-        isAvailable: () => Effect.succeed(true),
+        isAvailable: Effect.succeed(true),
         json: () => Effect.succeed({ tag_name: "1.0.0", draft: false, prerelease: false }),
         api: () => Effect.die("Unexpected API"), run: () => Effect.die("Unexpected release"),
       });
@@ -308,7 +308,7 @@ test("release query exposes the authoritative CalVer proposal and review can cle
       import { GitHub } from ${module("src/git/services/GitHub.ts")};
       import { GitReleases } from ${module("src/git/services/GitReleases.ts")};
       const github = GitHub.of({
-        isAvailable: () => Effect.succeed(true),
+        isAvailable: Effect.succeed(true),
         json: () => Effect.succeed({ tag_name: "v20260910.2", draft: false, prerelease: false, published_at: "2026-09-10T00:00:00Z" }),
         api: () => Effect.die("Unexpected API"), run: () => Effect.die("Unexpected release"),
       });
