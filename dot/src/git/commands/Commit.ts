@@ -1,5 +1,6 @@
 import { Effect, Schema } from "effect";
 import { gitOutput } from "../../lib/git.js";
+import { plural } from "../../lib/runSummary.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { normalizeGitHubSlug } from "../../services/GitConfig.js";
 import { GitStaging } from "../services/GitStaging.js";
@@ -499,7 +500,7 @@ function reportDryRun(
           : "  nothing staged (would fail without --path)",
       );
     } else {
-      lines.push(`  ${files.length} file(s): ${files.join(", ")}`);
+      lines.push(`  ${plural(files.length, "file")}: ${files.join(", ")}`);
     }
 
     if (input.push) {
@@ -528,7 +529,9 @@ function formatCommitReport(
   amend: boolean,
 ): string {
   const list =
-    files.length > 0 ? `\n  ${files.length} file(s): ${files.join(", ")}` : "";
+    files.length > 0
+      ? `\n  ${plural(files.length, "file")}: ${files.join(", ")}`
+      : "";
 
   const hash = shortHash ? `${shortHash} ` : "";
   const verb = amend ? "Amended" : "Committed";

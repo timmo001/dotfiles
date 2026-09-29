@@ -80,7 +80,9 @@ export const ensureLocalesGenerated: Effect.Effect<
     return;
   }
 
-  yield* log.info(`Generating missing locale(s): ${missing.join(", ")}`);
+  yield* log.info(
+    `Generating missing ${missing.length === 1 ? "locale" : "locales"}: ${missing.join(", ")}`,
+  );
   const script = `${missing.map(uncommentLocaleExpr).join(" && ")} && locale-gen`;
   const exit = yield* runElevated("bash", ["-c", script]);
 

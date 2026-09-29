@@ -10,6 +10,7 @@ import {
 import { join } from "path";
 import { ENV, envFlag } from "../lib/env.js";
 import { STATE_DIR } from "../lib/paths.js";
+import { plural } from "../lib/runSummary.js";
 import { formatCause } from "../lib/schema.js";
 import {
   acquireWorkspaceMutationLock,
@@ -417,7 +418,7 @@ export const herdrServerAction = Effect.fn("herdrServerAction")(
 
     if (options.check) {
       yield* output.info(
-        `Herdr is ready to ${action}: ${panes.length} idle shell pane(s).`,
+        `Herdr is ready to ${action}: ${plural(panes.length, "idle shell pane")}.`,
       );
 
       return;

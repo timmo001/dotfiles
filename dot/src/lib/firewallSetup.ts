@@ -1,5 +1,6 @@
 import { Effect, Schema } from "effect";
 import { cliStyler } from "./ansi.js";
+import { plural } from "./runSummary.js";
 import { existsSync, readFileSync } from "fs";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -384,7 +385,5 @@ export const configureFirewallRules: Effect.Effect<
   }
 
   const changed = toAdd.length + toRecomment.length;
-  yield* log.success(
-    `Configured ${changed} firewall rule${changed === 1 ? "" : "s"}`,
-  );
+  yield* log.success(`Configured ${plural(changed, "firewall rule")}`);
 });

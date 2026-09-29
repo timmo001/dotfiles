@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { cliStyler } from "./ansi.js";
+import { plural } from "./runSummary.js";
 import { existsSync } from "fs";
 import { basename, dirname, join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -182,7 +183,7 @@ export const trustRepoMiseConfigs = Effect.fn("MiseTrust.repos")(function* (
   }
 
   yield* log.success(
-    `Trusted ${trusted} mise config${trusted === 1 ? "" : "s"} across ${reposWithConfigs} repositor${reposWithConfigs === 1 ? "y" : "ies"}`,
+    `Trusted ${plural(trusted, "mise config")} across ${plural(reposWithConfigs, "repository", "repositories")}`,
   );
 });
 

@@ -9,6 +9,7 @@ import {
 } from "../../lib/ghExtensions.js";
 import type { CheckResult } from "../types.js";
 import { ghOutput } from "../../lib/gh.js";
+import { plural } from "../../lib/runSummary.js";
 
 /** Check that configured gh CLI extensions are installed */
 export const checkGhExtensions = Effect.gen(function* () {
@@ -54,7 +55,7 @@ export const checkGhExtensions = Effect.gen(function* () {
   if (missing.length > 0) {
     results.push({
       severity: "warn",
-      message: `${missing.length} gh extension(s) missing`,
+      message: `${plural(missing.length, "gh extension")} missing`,
       detail: `Run dot init, or: ${missing
         .map((repo) => `gh extension install ${repo}`)
         .join("; ")}`,

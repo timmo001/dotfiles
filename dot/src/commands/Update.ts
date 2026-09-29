@@ -14,6 +14,7 @@ import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { trustRepoMiseConfigs } from "../lib/miseTrust.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import { cliStyler } from "../lib/ansi.js";
+import { plural } from "../lib/runSummary.js";
 import { logUpdateSummary } from "../lib/updateSummary.js";
 import {
   withSpinnerTimeout,
@@ -1123,7 +1124,7 @@ export const update = (opts?: UpdateOptions) =>
                   if (changed.some((r) => r.ahead > 0))
                     notes.push("ahead of upstream");
                   yield* log.warn(
-                    `${changed.length} repo(s) need attention: ${notes.join(", ")}`,
+                    `${plural(changed.length, "repository", "repositories")} need attention: ${notes.join(", ")}`,
                   );
 
                   for (const repo of changed) {
@@ -1135,7 +1136,9 @@ export const update = (opts?: UpdateOptions) =>
                   yield* log.success("All repositories are up to date");
                 }
               } else {
-                yield* log.info(`${changed.length} repo(s) need attention`);
+                yield* log.info(
+                  `${plural(changed.length, "repository", "repositories")} need attention`,
+                );
 
                 const pulled = yield* Effect.forEach(
                   behind,
