@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { isAgent } from "../lib/agent.js";
+import { cliStyler } from "../lib/ansi.js";
 import { HOME_DIR, STATE_DIR } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
@@ -40,7 +41,7 @@ const UPDATE_CHOICES: ReadonlyArray<{
 ];
 
 function section(title: string): void {
-  process.stdout.write(`\n\u001b[1;36m${title}\u001b[0m\n`);
+  process.stdout.write(`\n${cliStyler().heading(title)}\n`);
 }
 
 function temporarySudoEnvironment(): Effect.Effect<
