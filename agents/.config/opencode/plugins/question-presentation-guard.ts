@@ -7,7 +7,7 @@ import { Tool } from "@opencode/schema/tool";
 import type { SessionMessage } from "@opencode/schema/session-message";
 import { Effect } from "effect";
 
-const MIN_WORDS = 80;
+const MIN_WORDS = 20;
 
 const turnText = (messages: ReadonlyArray<SessionMessage.Info>) => {
   const lastUser = messages.findLastIndex((message) => message.type === "user");
@@ -43,9 +43,10 @@ export default Plugin.define({
             new Tool.Error({
               message:
                 `Question rejected: only ${words} words of chat precede it this turn. ` +
-                "The question tool shows the user labels only. First answer any question the user asked, " +
-                "then present in chat the findings each option depends on, what each option means, " +
-                "its trade-offs and your recommendation. Then call the question tool again.",
+                "Reasoning is not shown as chat, and the question tool shows the user labels only. " +
+                "First answer any question the user asked, then write a short chat explainer of the findings " +
+                "the choice depends on, what each option means and your recommendation. " +
+                "Then call the question tool again.",
             }),
           );
         }),
