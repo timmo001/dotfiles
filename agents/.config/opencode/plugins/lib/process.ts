@@ -5,14 +5,18 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 export const runText = (
   command: string,
   args: readonly string[],
-  options: { readonly cwd?: string } = {},
+  options: {
+    readonly cwd?: string;
+    /** Exit codes that still return the output. Defaults to 0 only. */
+    readonly okExitCodes?: readonly number[];
+  } = {},
 ) =>
   Effect.gen(function* () {
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
 
     const proc = yield* spawner.spawn(
       ChildProcess.make(command, args, {
-        ...options,
+        cwd: options.cwd,
         stdin: "ignore",
         stdout: "pipe",
         stderr: "ignore",
@@ -22,7 +26,7 @@ export const runText = (
     const output = yield* proc.stdout.pipe(Stream.decodeText(), Stream.mkString);
     const exitCode = yield* proc.exitCode;
 
-    if (exitCode !== 0) {
+    if (!(options.okExitCodes ?? [0]).includes(exitCode)) {
       return yield* Effect.fail(new Error(`${command} exited ${exitCode}`));
     }
 
