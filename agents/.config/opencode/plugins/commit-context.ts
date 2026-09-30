@@ -2,14 +2,12 @@
  * @file Injects session-attributed commit scope into commit command prompts.
  */
 
-import { OpenCode, type OpenCodeClient } from "@opencode/client/effect";
+import type { OpenCodeClient } from "@opencode/client/effect";
 import { Session } from "@opencode/schema/session";
-import { Service } from "@opencode/client/effect/service";
 import type { Endpoint } from "@opencode/client/service";
 import { Plugin } from "@opencode/plugin/effect";
 import type { SessionMessage } from "@opencode/schema/session-message";
 import { Effect, Result, Schema } from "effect";
-import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 import { dirname } from "node:path";
 import {
   MAX_COMMIT_CONTEXT_SESSIONS,
@@ -18,7 +16,7 @@ import {
   type SessionMessages,
 } from "../lib/commit-context";
 import { runText } from "./lib/process";
-import { discoverService } from "./lib/service";
+import { connectClient, discoverService } from "./lib/service";
 
 const TARGET_COMMANDS = new Set([
   "commit",
@@ -200,25 +198,7 @@ export const makeCommitContextPlugin = (
   
         const dependencies: ClientDependencies = injectedDependencies ?? {
           discover: discoverService,
-          connect: (endpoint) => {
-            return Effect.gen(function* () {
-              const httpClient = yield* HttpClient.HttpClient;
-
-              const authenticated = Service.headers(endpoint)
-                ? HttpClient.mapRequest(
-                    httpClient,
-                    HttpClientRequest.setHeaders(Service.headers(endpoint) ?? {}),
-                  )
-                : httpClient;
-
-              return yield* OpenCode.make({ baseUrl: endpoint.url }).pipe(
-                Effect.provideService(HttpClient.HttpClient, authenticated),
-              );
-            }).pipe(
-              Effect.provide(FetchHttpClient.layer),
-              Effect.mapError((error) => new Error(String(error))),
-            );
-          },
+          connect: connectClient,
         };
   
         yield* context.session.hook("context", (event) =>
