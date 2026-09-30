@@ -622,7 +622,7 @@ export const snapshot = Effect.fn("Snapshot.run")(function* ({
 
   console.log(
     agent
-      ? content.trimEnd()
+      ? JSON.stringify({ ...report.data, reportPath: target })
       : `${report.summary}\nFull report: ${markdownText(displayPath(target))}\n`,
   );
 
