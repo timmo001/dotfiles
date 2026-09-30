@@ -55,7 +55,7 @@ import { stow } from "../commands/Stow.js";
 import { logRunSummary } from "../lib/runSummary.js";
 import { snapshot } from "../commands/Snapshot.js";
 import { sessionStatus } from "../commands/SessionStatus.js";
-import { repos } from "../commands/Repos.js";
+import { repos, searchRepos } from "../commands/Repos.js";
 import { systemUpdate } from "../commands/SystemUpdate.js";
 import { update, updateCheck, updateRepositories } from "../commands/Update.js";
 import { workspaceRelayout } from "../commands/WorkspaceRelayout.js";
@@ -1787,9 +1787,48 @@ const repoListCommand = describe(
   },
 );
 
+const repoSearchCommand = describe(
+  Command.make(
+    "search",
+    {
+      query: Argument.String("query").pipe(
+        Argument.withDescription(
+          "Fuzzy terms matched against name, aliases, GitHub repository name and slug, directory and path",
+        ),
+        Argument.variadic({ min: 1 }),
+      ),
+      limit: Flag.Int("limit").pipe(
+        Flag.filter(
+          (value) => value > 0,
+          () => "Limit must be positive",
+        ),
+        Flag.optional,
+        Flag.withDescription("Maximum results"),
+      ),
+      json: bool("json", "Print JSON (the default under an AI agent)"),
+    },
+    ({ query, limit, json }) =>
+      searchRepos({ query: query.join(" "), limit: optional(limit), json }),
+  ),
+  "Fuzzy-search tracked repositories and shortcuts",
+  [
+    "dot repo search pacman",
+    "dot repo search omarchy clock",
+    "dot repo search notse --limit 3 --json",
+  ],
+  {
+    description:
+      "Ranks tracked repositories from private dot-git.yml by fuzzy match on name, aliases, GitHub repository name, GitHub slug, directory name and path (path matches count for less). Each whitespace-separated term must match some field, via exact, prefix, word, substring, separator-insensitive, typo-tolerant or in-order character matches. Results carry the same fields as dot repo list, including herdr, plus score (1 to 100) and matched (the fields that matched), highest score first. Prints JSON with --json or when run under an AI agent, otherwise an aligned table. Exits 1 when nothing matches.",
+  },
+);
+
 const repoCommand = describe(
   Command.make("repo").pipe(
-    Command.withSubcommands([repoListCommand, repoInductCommand]),
+    Command.withSubcommands([
+      repoListCommand,
+      repoSearchCommand,
+      repoInductCommand,
+    ]),
   ),
   "List and induct tracked repositories in private dot-git.yml",
 );

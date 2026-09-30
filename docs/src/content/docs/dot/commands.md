@@ -1523,6 +1523,38 @@ dot repo list notes
 dot repo list arch-repo --json
 ```
 
+### `dot repo search`
+
+Fuzzy-search tracked repositories and shortcuts
+
+```text
+dot repo search [flags] <query...>
+```
+
+Ranks tracked repositories from private dot-git.yml by fuzzy match on name, aliases, GitHub repository name, GitHub slug, directory name and path (path matches count for less). Each whitespace-separated term must match some field, via exact, prefix, word, substring, separator-insensitive, typo-tolerant or in-order character matches. Results carry the same fields as dot repo list, including herdr, plus score (1 to 100) and matched (the fields that matched), highest score first. Prints JSON with --json or when run under an AI agent, otherwise an aligned table. Exits 1 when nothing matches.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--limit` `<integer>` | Maximum results |
+| `--json` | Print JSON (the default under an AI agent) |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<query>` | Fuzzy terms matched against name, aliases, GitHub repository name and slug, directory and path |
+
+**Examples**
+
+```bash
+dot repo search pacman
+dot repo search omarchy clock
+dot repo search notse --limit 3 --json
+```
+
 ### `dot repo induct`
 
 Induct a local repository into private dot git config with a preview before committing

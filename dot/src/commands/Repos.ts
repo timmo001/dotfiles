@@ -181,6 +181,167 @@ function repoHerdr(
   return { open: workspaces.length > 0, workspaces, agents };
 }
 
+/** Searchable fields with their weight in fuzzy search ranking. */
+const SEARCH_FIELDS = [
+  ["name", 1, (repo: TrackedRepo) => [repo.name]],
+  ["alias", 1, (repo: TrackedRepo) => repo.aliases],
+  [
+    "repo",
+    1,
+    (repo: TrackedRepo) =>
+      repo.github ? [repo.github.split("/")[1] ?? ""] : [],
+  ],
+  ["github", 0.9, (repo: TrackedRepo) => (repo.github ? [repo.github] : [])],
+  ["directory", 0.9, (repo: TrackedRepo) => [basename(repo.path)]],
+  ["path", 0.5, (repo: TrackedRepo) => [repo.path]],
+] as const;
+
+/** Name of a field that matched a fuzzy search term. */
+export type SearchField = (typeof SEARCH_FIELDS)[number][0];
+
+/** A tracked repository ranked by fuzzy search. */
+export interface TrackedRepoMatch extends TrackedRepo {
+  /** Relevance from 1 to 100; higher is closer. */
+  readonly score: number;
+  /** Fields that produced the best match for each query term. */
+  readonly matched: readonly SearchField[];
+}
+
+const compact = (value: string) => value.replace(/[^a-z0-9]/g, "");
+
+/** Optimal string alignment distance, allowing one adjacent transposition. */
+function editDistance(a: string, b: string): number {
+  const rows = Array.from({ length: a.length + 1 }, (_, i) =>
+    Array.from({ length: b.length + 1 }, (_, j) =>
+      i === 0 ? j : j === 0 ? i : 0,
+    ),
+  );
+
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      const row = rows[i];
+      const previous = rows[i - 1];
+
+      if (!row || !previous) continue;
+
+      let best = Math.min(
+        (previous[j] ?? 0) + 1,
+        (row[j - 1] ?? 0) + 1,
+        (previous[j - 1] ?? 0) + cost,
+      );
+
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
+        best = Math.min(best, (rows[i - 2]?.[j - 2] ?? 0) + 1);
+
+      row[j] = best;
+    }
+
+  return rows[a.length]?.[b.length] ?? Math.max(a.length, b.length);
+}
+
+/** Span of the shortest in-order occurrence of `term` in `key`, if any. */
+function subsequenceSpan(term: string, key: string): number | undefined {
+  let best: number | undefined;
+
+  for (
+    let start = key.indexOf(term[0] ?? "");
+    start !== -1;
+    start = key.indexOf(term[0] ?? "", start + 1)
+  ) {
+    let position = start;
+
+    for (const char of term.slice(1)) {
+      position = key.indexOf(char, position + 1);
+
+      if (position === -1) return best;
+    }
+
+    const span = position - start + 1;
+
+    if (best === undefined || span < best) best = span;
+  }
+
+  return best;
+}
+
+/** Score one lower-case query term against one field value, 0 for no match. */
+function termScore(term: string, value: string): number {
+  const key = value.toLowerCase();
+  const words = key.split(/[^a-z0-9]+/).filter(Boolean);
+  const termCompact = compact(term);
+  const keyCompact = compact(key);
+
+  const direct = (
+    [
+      [key === term, 100],
+      [termCompact !== "" && keyCompact === termCompact, 95],
+      [key.startsWith(term), 85],
+      [words.some((word) => word.startsWith(term)), 75],
+      [key.includes(term), 65],
+      [termCompact !== "" && keyCompact.includes(termCompact), 60],
+    ] as const
+  ).find(([hit]) => hit);
+
+  if (direct) return direct[1];
+
+  if (termCompact.length >= 4) {
+    const allowed = termCompact.length >= 8 ? 2 : 1;
+
+    if (
+      [...words, keyCompact].some(
+        (word) =>
+          Math.abs(word.length - termCompact.length) <= allowed &&
+          editDistance(termCompact, word) <= allowed,
+      )
+    )
+      return 45;
+  }
+
+  if (termCompact.length >= 3) {
+    const span = subsequenceSpan(termCompact, keyCompact);
+
+    if (span !== undefined && span <= termCompact.length * 3)
+      return Math.round(20 + 25 * (termCompact.length / span));
+  }
+
+  return 0;
+}
+
+/** Fuzzy-rank a repository: every query term must match some field. */
+function searchMatch(
+  repo: TrackedRepo,
+  terms: readonly string[],
+): TrackedRepoMatch | undefined {
+  let total = 0;
+  const matched = new Set<SearchField>();
+
+  for (const term of terms) {
+    let best = 0;
+    let field: SearchField | undefined;
+
+    for (const [name, weight, values] of SEARCH_FIELDS)
+      for (const value of values(repo)) {
+        const score = termScore(term, value) * weight;
+
+        if (score > best) {
+          best = score;
+          field = name;
+        }
+      }
+
+    if (!field || best < 15) return undefined;
+    total += best;
+    matched.add(field);
+  }
+
+  return {
+    ...repo,
+    score: Math.max(1, Math.round(total / terms.length)),
+    matched: [...matched],
+  };
+}
+
 function renderTable(repos: readonly TrackedRepo[]): string {
   const width = Math.max(...repos.map((repo) => repo.name.length));
 
@@ -201,16 +362,8 @@ function renderTable(repos: readonly TrackedRepo[]): string {
     .join("\n");
 }
 
-/**
- * List tracked repositories and shortcuts from private `dot-git.yml` with
- * their live Herdr workspaces and agents, optionally filtered by a name,
- * alias, GitHub slug or path query. Prints JSON with `--json` or under an AI
- * agent, and exits 1 when a query matches nothing.
- */
-export const repos = Effect.fn("repos")(function* (options: {
-  readonly query?: string;
-  readonly json: boolean;
-}) {
+/** Load tracked repositories and shortcuts from private `dot-git.yml`. */
+const loadTracked = Effect.gen(function* () {
   const config = yield* Config;
   const fs = yield* FileSystem.FileSystem;
 
@@ -245,7 +398,7 @@ export const repos = Effect.fn("repos")(function* (options: {
     ...config.gitConfig.shortcuts.map((shortcut) => [shortcut, null] as const),
   ];
 
-  const tracked = yield* Effect.forEach(entries, ([entry, github]) =>
+  return yield* Effect.forEach(entries, ([entry, github]) =>
     fs.exists(entry.path).pipe(
       Effect.orElseSucceed(() => false),
       Effect.map((exists): TrackedRepo => ({
@@ -260,8 +413,41 @@ export const repos = Effect.fn("repos")(function* (options: {
       })),
     ),
   );
+}).pipe(Effect.withSpan("repos.loadTracked"));
 
-  const query = options.query?.trim();
+/** Attach live Herdr state and print JSON or a table; exit 1 when empty. */
+const printRepos = Effect.fn("repos.print")(function* (
+  selected: readonly TrackedRepo[],
+  options: { readonly query?: string; readonly json: boolean },
+) {
+  const snapshot = selected.length > 0 ? yield* herdrSnapshot : undefined;
+
+  const result = snapshot
+    ? selected.map((repo) => ({ ...repo, herdr: repoHerdr(repo, snapshot) }))
+    : selected;
+
+  if (options.json || isAgent())
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  else if (result.length > 0) process.stdout.write(`${renderTable(result)}\n`);
+
+  if (options.query !== undefined && selected.length === 0) {
+    process.stderr.write(`No tracked repository matches "${options.query}"\n`);
+    process.exitCode = 1;
+  }
+});
+
+/**
+ * List tracked repositories and shortcuts from private `dot-git.yml` with
+ * their live Herdr workspaces and agents, optionally filtered by a name,
+ * alias, GitHub slug or path query. Prints JSON with `--json` or under an AI
+ * agent, and exits 1 when a query matches nothing.
+ */
+export const repos = Effect.fn("repos")(function* (options: {
+  readonly query?: string;
+  readonly json: boolean;
+}) {
+  const tracked = yield* loadTracked;
+  const query = options.query?.trim() || undefined;
 
   const selected = query
     ? tracked
@@ -274,18 +460,33 @@ export const repos = Effect.fn("repos")(function* (options: {
         .map(({ repo }) => repo)
     : tracked;
 
-  const snapshot = selected.length > 0 ? yield* herdrSnapshot : undefined;
+  yield* printRepos(selected, { query, json: options.json });
+});
 
-  const result = snapshot
-    ? selected.map((repo) => ({ ...repo, herdr: repoHerdr(repo, snapshot) }))
-    : selected;
+/**
+ * Fuzzy-search tracked repositories by name, alias, GitHub repository name
+ * and slug, directory and path. Every whitespace-separated term must match;
+ * results are ranked by score with the fields that matched.
+ */
+export const searchRepos = Effect.fn("repos.search")(function* (options: {
+  readonly query: string;
+  readonly limit?: number;
+  readonly json: boolean;
+}) {
+  const tracked = yield* loadTracked;
+  const terms = options.query.toLowerCase().split(/\s+/).filter(Boolean);
 
-  if (options.json || isAgent())
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-  else if (result.length > 0) process.stdout.write(`${renderTable(result)}\n`);
+  if (terms.length === 0)
+    return yield* new ReposError({ message: "Search query is empty" });
 
-  if (query && selected.length === 0) {
-    process.stderr.write(`No tracked repository matches "${query}"\n`);
-    process.exitCode = 1;
-  }
+  const ranked = tracked
+    .flatMap((repo) => {
+      const match = searchMatch(repo, terms);
+
+      return match ? [match] : [];
+    })
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+    .slice(0, options.limit);
+
+  yield* printRepos(ranked, { query: options.query, json: options.json });
 });
