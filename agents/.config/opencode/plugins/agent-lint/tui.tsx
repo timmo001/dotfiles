@@ -41,7 +41,8 @@ export default Plugin.define({
   setup(context) {
     const rpc = context.client.rpc(AgentLintRpc);
 
-    const [state, setState] = context.storage.memory("status", {
+    // Memory entries survive hot reloads; bump the key when LintStatus changes shape.
+    const [state, setState] = context.storage.memory("status-v2", {
       initial: initialState,
     });
 
