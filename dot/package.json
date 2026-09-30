@@ -17,6 +17,7 @@
     "@timmo001/effect-herdr": "0.8.2-timmo001.3",
     "effect": "4.0.0-rc.118",
     "fast-xml-parser": "^5.11.1",
+    "fuse.js": "7.5.0",
     "handlebars": "^4.7.9",
     "jsonata": "^2.2.2",
     "jsonc-parser": "^3.3.1",

@@ -26,6 +26,7 @@ import { Config } from "./services/Config.js";
 import { Launcher } from "./services/Launcher.js";
 import { OutputLog } from "./services/OutputLog.js";
 import { ProcessRunner } from "./services/ProcessRunner.js";
+import { Search } from "./services/Search.js";
 
 const DEFAULT_INIT_LOG_FILE = join(STATE_DIR, "dot", "init.log");
 
@@ -156,6 +157,7 @@ const CliLayers = Launcher.layer.pipe(
   Layer.provideMerge(CommandExecutor.layer),
   Layer.provideMerge(Config.layer),
   Layer.provideMerge(ProcessRunner.layer),
+  Layer.provideMerge(Search.layer),
   Layer.provideMerge(NodeServices.layer),
 );
 
