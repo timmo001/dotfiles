@@ -107,6 +107,10 @@ export interface CommandExecutorService {
     opts?: {
       readonly cwd?: string;
       readonly env?: Readonly<Record<string, string>>;
+      /** Keep the child in dot's process group so signals sent to the group reach it. */
+      readonly sameProcessGroup?: boolean;
+      /** Capture stdout and stderr interleaved, in arrival order, as stdout. */
+      readonly mergeStderr?: boolean;
     },
   ) => Effect.Effect<string, CommandError>;
 
@@ -162,17 +166,24 @@ export class CommandExecutor extends Context.Service<
             const handle = yield* spawner.spawn(
               ChildProcess.make(cmd, args, {
                 cwd: opts?.cwd,
+                detached: opts?.sameProcessGroup ? false : undefined,
                 stdin: "ignore",
                 ...envOptions(opts?.env),
               }),
             );
 
             const [stdout, stderr, exitCode] = yield* Effect.all(
-              [
-                Stream.mkString(Stream.decodeText(handle.stdout)),
-                Stream.mkString(Stream.decodeText(handle.stderr)),
-                exitStatus(handle),
-              ],
+              opts?.mergeStderr
+                ? [
+                    Stream.mkString(Stream.decodeText(handle.all)),
+                    Effect.succeed(""),
+                    exitStatus(handle),
+                  ]
+                : [
+                    Stream.mkString(Stream.decodeText(handle.stdout)),
+                    Stream.mkString(Stream.decodeText(handle.stderr)),
+                    exitStatus(handle),
+                  ],
               { concurrency: "unbounded" },
             );
 

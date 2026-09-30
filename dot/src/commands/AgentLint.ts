@@ -45,6 +45,8 @@ export interface AgentLintResult {
   readonly durationMs?: number;
   /** Last lines of combined stdout and stderr for failed or timed-out commands. */
   readonly output?: string;
+  /** Expanded argv, run from the repository root, for failed or timed-out commands. */
+  readonly command?: readonly string[];
 }
 
 /** Report printed by `dot agent-lint --json`. */
@@ -145,6 +147,10 @@ const runLintCommand = Effect.fn("agentLint.runCommand")(function* (
   const outcome = yield* executor
     .run("dot", ["run", "--timeout", `${timeout} millis`, "--", ...argv], {
       cwd: root,
+      // A caller that terminates agent-lint's process group also stops the
+      // runner, which then stops the lint command's own group.
+      sameProcessGroup: true,
+      mergeStderr: true,
     })
     .pipe(
       Effect.as({ exitCode: 0, output: "" }),
@@ -172,6 +178,7 @@ const runLintCommand = Effect.fn("agentLint.runCommand")(function* (
     exitCode: outcome.exitCode,
     durationMs,
     output: outputTail(outcome.output),
+    command: argv,
   } satisfies AgentLintResult;
 });
 
