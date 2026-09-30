@@ -1,6 +1,6 @@
 ---
 name: dotfiles-repositories
-description: Find related local repositories and open them in agents through the shared dot Herdr launcher. Use for tracked-repository discovery, cross-repository work involving dotfiles or skills, open-in-agent requests, and approved workers in another project workspace. Shares the prefix+s picker and Omarchy Git panel launch path.
+description: Find tracked local repositories with `dot repo list`, induct new ones with `dot repo induct`, and open them in agents through the shared dot Herdr launcher. Use whenever the user names a repository or refers to one by its purpose, asks which repositories are tracked or wants one tracked, and for cross-repository work involving dotfiles or skills, open-in-agent requests, and approved workers in another project workspace. Shares the prefix+s picker and Omarchy Git panel launch path.
 compatibility: Repository discovery requires dotfiles repository configuration; launching requires dot, Herdr, and the herdr skill.
 metadata:
   author: timmo001
@@ -10,14 +10,22 @@ metadata:
 
 ## Find The Repository
 
-- Start with advertised local project references. For other tracked repositories,
-  read the host's `${XDG_CACHE_HOME:-$HOME/.cache}/dot/repo-picker.json` and select
-  the relevant `name` and `path`. This is the same list used by `prefix+s`.
-  It contains configured repositories and shortcuts, not live workspace state.
-- `dot stow` generates that cache from the optional private `dot-git.yml`.
-  If it is missing or stale, consult the private source and verify the checkout;
-  refresh through `dot stow` when needed. Do not invent paths or maintain a second
-  repository list. Keep private entries out of public files and shared reports.
+- When the user names a repository, refers to one by what it is for (for
+  example "the pacman repo" or "the notes CLI"), or asks which repositories are
+  tracked, run `dot repo list [query]` before guessing a path. Under an agent it
+  prints JSON with `name`, `path`, `github`, `aliases`, `kind`, `exists` and
+  `current`; a query matches name, alias, GitHub slug and path, exact matches
+  first, and exits 1 when nothing matches. List without a query and choose by
+  name or slug when the user describes a purpose rather than a name. Advertised
+  project references add descriptions for selected sources.
+- `dot repo list` reads the optional private `dot-git.yml` directly: the same
+  configured repositories and shortcuts as `prefix+s`, not live workspace state.
+  `exists: false` means the checkout is missing. Do not invent paths or maintain
+  a second repository list. Keep private entries out of public files and shared
+  reports.
+- To track a new repository, use `dot repo induct <path> --noninteractive` with
+  the chosen flags to preview, then repeat with `--commit` only after the user
+  approves the preview. In a terminal without flags it runs a wizard.
 - For related changes, follow the actual dependency or consumer to its writable
   checkout. Read that repository's instructions and check its remote, visibility,
   and working tree before editing. A reference or tracked entry is context, not
