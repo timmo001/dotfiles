@@ -1529,12 +1529,12 @@ Run the advisory generic Oxlint pass on JavaScript and TypeScript changes in an 
 dot agent-oxlint [flags] [<path...>]
 ```
 
-Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cache without changing the target repository. The current repository must set agent_oxlint: true in private dot-git.yml. Repositories with their own Oxlint config, dependency, script, or local binary are skipped because their local setup takes precedence. Pass --force to run anyway. Diagnostics are advisory and do not make these personal rules authoritative for the host repository. --changed compares the working tree and untracked files with HEAD, prints only findings on added or modified lines, and exits non-zero when any remain. dot git-commit runs the same check on the files it commits.
+Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cache without changing the target repository. The current repository must set agent_oxlint: true in private dot-git.yml. Repositories with their own Oxlint config, dependency, script, or local binary are skipped because their local setup takes precedence. Pass --force to run anyway. Diagnostics are advisory and do not make these personal rules authoritative for the host repository. --changed compares the working tree and untracked files with HEAD, prints only findings on added or modified lines, and exits non-zero when any remain. Paths with --changed limit that comparison to those files or directories. dot git-commit runs the same check on the files it commits.
 
 **Modes**
 
 ```text
---changed  Lint uncommitted changes, reporting only changed lines
+--changed  Lint uncommitted changes, reporting only changed lines; add paths to narrow
 <path>...  Lint explicit files or directories in full
 --all      Lint the complete repository tree
 --force    Run even if opt-in or repository Oxlint would skip
@@ -1546,7 +1546,7 @@ Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cac
 | Option | Description |
 | --- | --- |
 | `--all` | Lint the complete repository tree |
-| `--changed` | Lint uncommitted changes and report only findings on changed lines |
+| `--changed` | Lint uncommitted changes and report only findings on changed lines; paths narrow the scope |
 | `--opt-in` | Enable the existing private config entry and commit the single-line change |
 | `--force` | Run even if the repository is not opted in or already has Oxlint |
 | `--help` `-h` | Show help information |
@@ -1567,11 +1567,43 @@ Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cac
 
 ```bash
 dot agent-oxlint --changed
+dot agent-oxlint --changed src/example.ts
 dot agent-oxlint src/example.ts
 dot agent-oxlint src/one.ts src/two.ts
 dot agent-oxlint --all
 dot agent-oxlint --force src/example.ts
 dot agent-oxlint --opt-in
+```
+
+## `dot agent-lint`
+
+Run the repository's agent_lint commands from private dot-git.yml on changed files
+
+```text
+dot agent-lint [flags] [<path...>]
+```
+
+Collect files changed in the working tree against HEAD, plus untracked files that are not ignored, and run each configured agent_lint command from the repository root under dot run --timeout. Deleted files and submodule changes are left out. Paths narrow the changed files. A run argument of exactly {files} expands to the changed files matching the command's include globs; commands without it run as they are, but only when a changed file matches. Each result is passed, failed, timed-out or skipped, with the last lines of output for failures. Exits non-zero when any command fails or times out. Repositories without agent_lint print a notice and exit zero.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print one JSON report instead of log lines |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<path>` | path |
+
+**Examples**
+
+```bash
+dot agent-lint
+dot agent-lint --json
+dot agent-lint src/one.ts src/two.ts --json
 ```
 
 ## `dot pr-queue`

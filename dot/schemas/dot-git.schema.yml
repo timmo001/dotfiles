@@ -97,6 +97,8 @@ $defs:
       agent_oxlint:
         type: boolean
         description: Allow the dot-managed generic Oxlint pass when the repository has no local Oxlint setup.
+      agent_lint:
+        $ref: "#/$defs/agent_lint"
       notes_remote:
         type: string
         pattern: "^[A-Za-z0-9._-]+$"
@@ -142,6 +144,47 @@ $defs:
         $ref: "#/$defs/notifications"
       releases:
         $ref: "#/$defs/releases"
+
+  agent_lint:
+    type: object
+    additionalProperties: false
+    required:
+      - commands
+    description: Fallback lint commands dot agent-lint runs on files changed in the working tree.
+    properties:
+      commands:
+        type: array
+        minItems: 1
+        description: Commands run in order from the repository root.
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            - name
+            - run
+          properties:
+            name:
+              type: string
+              pattern: "^[a-z][a-z0-9_-]*$"
+              description: Unique label shown in results.
+            run:
+              type: array
+              minItems: 1
+              description: Argv array. An argument of exactly {files} expands to the matching changed files; commands without it run as they are.
+              items:
+                type: string
+                minLength: 1
+            include:
+              type: array
+              minItems: 1
+              description: Repository-relative globs. The command only runs when a changed file matches, and {files} only receives matching files.
+              items:
+                type: string
+                minLength: 1
+            timeout:
+              type: string
+              minLength: 1
+              description: Deadline such as "60 seconds". Defaults to 60 seconds.
 
   release_impact:
     type: string

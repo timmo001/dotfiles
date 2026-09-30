@@ -1,5 +1,5 @@
 import { join } from "path";
-import { Cron, Effect, FileSystem, Schema } from "effect";
+import { Cron, Duration, Effect, FileSystem, Schema } from "effect";
 import { ReleaseSettings } from "../git/release/types.js";
 import { displayPath, expandHomePath } from "../lib/paths.js";
 import {
@@ -30,6 +30,7 @@ const REPO_KEYS = new Set([
   "aliases",
   "post_update",
   "agent_oxlint",
+  "agent_lint",
   "notes_remote",
   "opencode_mcp",
   "omarchy_components",
@@ -97,6 +98,30 @@ const OmarchyComponentsSettings = Schema.Struct({
   ),
 });
 
+/** One fallback lint command run by `dot agent-lint`. */
+export const AgentLintCommand = Schema.Struct({
+  /** Short label shown in results. */
+  name: Schema.String.check(Schema.isPattern(/^[a-z][a-z0-9_-]*$/)),
+  /** Argv run from the repository root; a `{files}` argument expands to the matching changed files. */
+  run: Schema.NonEmptyArray(Schema.NonEmptyString),
+  /** Repository-relative globs; the command only runs when a changed file matches. */
+  include: Schema.optionalKey(Schema.NonEmptyArray(Schema.NonEmptyString)),
+  /** Deadline for the command, such as `60 seconds`. */
+  timeout: Schema.optionalKey(Schema.DurationFromString),
+});
+
+/** Decoded {@link AgentLintCommand}. */
+export type AgentLintCommand = typeof AgentLintCommand.Type;
+
+/** Per-repository fallback lint commands for agent sessions. */
+export const AgentLintSettings = Schema.Struct({
+  /** Commands run in order. */
+  commands: Schema.NonEmptyArray(AgentLintCommand),
+});
+
+/** Decoded {@link AgentLintSettings}. */
+export type AgentLintSettings = typeof AgentLintSettings.Type;
+
 /** A repository managed by the private dot git config. */
 export interface GitManagedRepo {
   /** Short display name. */
@@ -111,6 +136,8 @@ export interface GitManagedRepo {
   readonly postUpdate: string | null;
   /** Whether the dot-managed generic Oxlint pass may run without a local setup. */
   readonly agentOxlint: boolean;
+  /** Fallback lint commands `dot agent-lint` runs on changed files; omitted means disabled. */
+  readonly agentLint?: AgentLintSettings;
   /** Git remote notes resolves this checkout against, written to its local `notes.remote` config. */
   readonly notesRemote?: string;
   /** MCP server names explicitly enabled for this repository by dot mcp-sync. */
@@ -457,6 +484,12 @@ function parseRepo(
     diagnostics,
   );
 
+  const agentLint = parseAgentLint(
+    value.agent_lint,
+    `${location}.agent_lint`,
+    diagnostics,
+  );
+
   const notesRemote = optionalString(
     value.notes_remote,
     `${location}.notes_remote`,
@@ -538,6 +571,7 @@ function parseRepo(
       aliases,
       postUpdate,
       agentOxlint,
+      ...(agentLint && { agentLint }),
       ...(notesRemote && { notesRemote }),
       ...(opencodeMcp.length > 0 && { opencodeMcp }),
       ...(omarchyComponents && { omarchyComponents }),
@@ -572,6 +606,45 @@ function parseOmarchyComponents(
 
     if (new Set(settings.components).size !== settings.components.length)
       throw new Error("components must be unique");
+
+    return settings;
+  } catch (error) {
+    diagnostics.push(`${location}: ${formatError(error)}`);
+
+    return undefined;
+  }
+}
+
+function parseAgentLint(
+  value: JsonValue,
+  location: string,
+  diagnostics: string[],
+): AgentLintSettings | undefined {
+  if (value === undefined) return undefined;
+
+  try {
+    const settings = Schema.decodeUnknownSync(AgentLintSettings)(value, {
+      onExcessProperty: "error",
+    });
+
+    const names = settings.commands.map((command) => command.name);
+
+    if (new Set(names).size !== names.length)
+      throw new Error("command names must be unique");
+
+    for (const command of settings.commands) {
+      if (command.run.some((arg) => !arg.trim()))
+        throw new Error(`${command.name}: run arguments must not be blank`);
+
+      if (
+        command.timeout !== undefined &&
+        !(
+          Duration.isFinite(command.timeout) &&
+          Duration.isPositive(command.timeout)
+        )
+      )
+        throw new Error(`${command.name}: timeout must be finite and positive`);
+    }
 
     return settings;
   } catch (error) {
