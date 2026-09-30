@@ -24,11 +24,12 @@ Panel {
   readonly property real now: service ? service.currentTime : Date.now()
   property real runtimeNow: Date.now()
   readonly property var panelRows: buildPanelRows()
+  readonly property var agentRows: view === "agent" ? filterController.filteredModel.filter(function(entry) { return entry.navigation !== true }) : []
 
   function buildPanelRows() {
     if (!service) return []
     if (view === "agent") {
-      return [actionRow("back", "Back to services", "")].concat(service.installedAgents.map(function(agent) {
+      return [{ key: "action:back", action: "back", navigation: true, primaryText: "Back to services", secondaryText: "" }].concat(service.installedAgents.map(function(agent) {
         return actionRow("agent:" + agent.command, agent.label, "󱚣")
       }))
     }
@@ -183,7 +184,8 @@ Panel {
 
   function scrollCursorIntoView() {
     var entry = filterController.selectedEntry()
-    var item = entry ? (view === "agent" ? agentRepeater : rowRepeater).itemAt(filterController.filteredModel.indexOf(entry)) : null
+    var item = !entry ? null : (entry.navigation === true ? panelHeader
+      : (view === "agent" ? agentRepeater.itemAt(agentRows.indexOf(entry)) : rowRepeater.itemAt(filterController.filteredModel.indexOf(entry))))
     if (!item) return
     var point = item.mapToItem(contentColumn, 0, 0)
     if (point.y < panelFlick.contentY) panelFlick.contentY = point.y
@@ -215,11 +217,13 @@ Panel {
     contentWidth: panel.fittedContentWidth(Style.space(520))
     contentHeight: panel.fittedContentHeight(contentColumn.implicitHeight, Style.space(670))
 
-    FilterablePanel {
+    PanelComponents.FilterablePanel {
       id: filterController
       anchors.fill: parent
       model: root.panelRows
+      backOnEmptyFilter: root.view === "agent"
       onActivateRequested: function(entry) { root.activateEntry(entry) }
+      onBackRequested: root.showView("services")
       onRevealRequested: Qt.callLater(root.scrollCursorIntoView)
       onCloseRequested: if (root.view === "agent") root.showView("services"); else root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
@@ -241,8 +245,12 @@ Panel {
           width: panelFlick.width
           spacing: Style.space(12)
 
-          PanelHero {
-            width: parent.width
+          PanelComponents.PanelHeader {
+            id: panelHeader
+            backText: root.view === "agent" ? "Back to services" : ""
+            backHasCursor: filterController.cursorIndex === filterController.indexForKey("action:back")
+            onBackHovered: filterController.cursorIndex = filterController.indexForKey("action:back")
+            onBackActivated: root.showView("services")
             title: root.view === "agent" ? "Open in agent" : "Services"
             meta: root.view === "agent" && root.agentStatus
               ? root.agentStatus.label + " · " + root.agentStatus.repository.name : root.heroMeta()
@@ -275,7 +283,7 @@ Panel {
 
             Repeater {
               id: agentRepeater
-              model: root.view === "agent" ? filterController.filteredModel : []
+              model: root.agentRows
 
               CursorSurface {
                 required property var modelData

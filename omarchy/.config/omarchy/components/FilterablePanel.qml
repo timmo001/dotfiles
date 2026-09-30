@@ -8,11 +8,14 @@ Item {
   property var navigationModel: null
   property string filterText: ""
   property int cursorIndex: 0
+  property string cursorKey: ""
   property bool cursorStartsActive: true
   property bool cursorActive: cursorStartsActive
   property bool backOnEmptyFilter: false
+  property bool keyboardEnabled: true
+  property bool bypassFilter: false
 
-  readonly property var filteredModel: filterModel(model, filterText)
+  readonly property var filteredModel: bypassFilter ? (model || []) : filterModel(model, filterText)
   readonly property var navigationEntries: navigationModel === null ? filteredModel : navigationModel
   readonly property int count: filteredModel.length
 
@@ -25,13 +28,18 @@ Item {
 
   focus: true
   Keys.priority: Keys.BeforeItem
+  Keys.enabled: keyboardEnabled
 
+  onCursorIndexChanged: cursorKey = navigationEntries[cursorIndex]?.key || ""
   onFilteredModelChanged: {
     clampCursor()
     revealRequested()
   }
   onNavigationEntriesChanged: {
-    clampCursor()
+    var index = indexForKey(cursorKey)
+    if (index >= 0) cursorIndex = index
+    else clampCursor()
+    cursorKey = navigationEntries[cursorIndex]?.key || ""
     revealRequested()
   }
 
@@ -40,7 +48,8 @@ Item {
     if (!term) return entries || []
     var source = entries || []
     var matches = source.filter(function(entry) {
-      return [entry.primaryText, entry.secondaryText].join(" ").toLowerCase().indexOf(term) >= 0
+      return entry.navigation === true
+        || [entry.primaryText, entry.secondaryText, entry.tertiaryText].join(" ").toLowerCase().indexOf(term) >= 0
     })
     return matches.sort(function(a, b) {
       var aSection = String(a.section || "")
@@ -57,15 +66,20 @@ Item {
     })
   }
 
+  function firstCursorIndex() {
+    var index = navigationEntries.findIndex(function(entry) { return entry.navigation !== true })
+    return index < 0 ? 0 : index
+  }
+
   function reset() {
     filterText = ""
-    cursorIndex = 0
+    cursorIndex = firstCursorIndex()
     cursorActive = cursorStartsActive
   }
 
   function setFilter(nextFilter) {
     filterText = nextFilter
-    cursorIndex = 0
+    cursorIndex = firstCursorIndex()
     cursorActive = cursorStartsActive
   }
 

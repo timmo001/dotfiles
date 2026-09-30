@@ -29,6 +29,7 @@ import { install } from "../commands/Install.js";
 import { isAgentCommand } from "../commands/IsAgent.js";
 import { launchFloatingWebapp } from "../commands/LaunchFloatingWebapp.js";
 import { notesCaptureSync } from "../commands/NotesCaptureSync.js";
+import { syncOmarchyComponents } from "../commands/OmarchyComponents.js";
 import {
   omarchyPlugin,
   OmarchyPluginInput,
@@ -775,18 +776,43 @@ const pluginRemove = describe(
   "Remove a managed plugin",
 );
 
+const pluginSyncComponents = describe(
+  Command.make(
+    "sync-components",
+    {
+      check: bool("check", "Report out-of-date copies without writing"),
+      config: text(
+        "config",
+        "Targets JSON config (default: $XDG_CONFIG_HOME/dot/omarchy-components.json)",
+      ),
+    },
+    ({ check, config }) =>
+      syncOmarchyComponents({
+        check,
+        config: Option.getOrElse(config, () => ""),
+      }),
+  ),
+  "Copy shared panel components into standalone plugin checkouts",
+);
+
 const omarchyPluginCommand = describe(
   Command.make("omarchy-plugin").pipe(
-    Command.withSubcommands([pluginAdd, pluginUpdate, pluginRemove]),
+    Command.withSubcommands([
+      pluginAdd,
+      pluginUpdate,
+      pluginRemove,
+      pluginSyncComponents,
+    ]),
   ),
   "Manage Omarchy plugin submodules. The manage-omarchy-plugin compatibility wrapper may pass trailing 0/1 confirmation and commit-offer values to update and remove.",
   [
     "dot omarchy-plugin update timmo.clock --yes",
     "dot omarchy-plugin remove timmo.clock",
+    "dot omarchy-plugin sync-components --check",
   ],
   {
     description:
-      "Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.",
+      "Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.\n\nsync-components copies the shared panel components in omarchy/.config/omarchy/components into the standalone plugin checkouts listed in the private omarchy-components.json, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.",
     sections: [
       {
         title: "Exit codes",

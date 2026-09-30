@@ -63,12 +63,12 @@ Panel {
   function buildPanelRows() {
     var rows = []
     if (pullRequestView) {
-      rows.push(actionRow("back", view === "pulls" || selectedPullRequestView === "overview" ? "Back to Git overview" : "Back to all tracked repositories", ""))
+      rows.push(navigationRow(view === "pulls" || selectedPullRequestView === "overview" ? "Back to Git overview" : "Back to all tracked repositories"))
       if (view === "pull-repo" && selectedPullRequests) rows.push(actionRow("pulls-web", "Open pull requests on GitHub", ""))
       return rows.concat(pullRequestRows())
     }
     if (view === "agent") {
-      rows.push(actionRow("back", releaseAgentView ? "Back to release preparation" : (selectedAgentView === "overview" ? "Back to Git overview" : "Back to repository"), ""))
+      rows.push(navigationRow(releaseAgentView ? "Back to release preparation" : (selectedAgentView === "overview" ? "Back to Git overview" : "Back to repository")))
       var agents = service ? service.installedAgents : []
       for (var i = 0; i < agents.length; i++) {
         var agent = agents[i]
@@ -77,8 +77,8 @@ Panel {
       return rows
     }
     if (releaseView) {
+      rows.push(navigationRow(view === "releases" || (view === "release" && selectedReleaseView === "overview") ? "Back to Git overview" : (view === "release" ? "Back to all tracked repositories" : (view === "finding" && selectedFindingGroup ? "Back to " + selectedFindingGroup.title.toLowerCase() : (view === "release-choice" && selectedImpactView === "release-prepare" ? "Back to release preparation" : "Back to release review")))))
       if (view !== "releases") rows.push(headerActionRow("release-refresh", "Refresh release comparison", "release-summary"))
-      rows.push(actionRow("back", view === "releases" || (view === "release" && selectedReleaseView === "overview") ? "Back to Git overview" : (view === "release" ? "Back to all tracked repositories" : (view === "finding" && selectedFindingGroup ? "Back to " + selectedFindingGroup.title.toLowerCase() : (view === "release-choice" && selectedImpactView === "release-prepare" ? "Back to release preparation" : "Back to release review"))), ""))
       if (view === "releases") {
         rows.push(headerActionRow("release-refresh", "Refresh unreleased changes", "release"))
         var releases = service ? service.releases : []
@@ -139,11 +139,11 @@ Panel {
         })
       }
     } else if (view === "repo") {
-      rows.push(actionRow("back", "Back to repositories", ""))
+      rows.push(navigationRow("Back to repositories"))
       rows = rows.concat(repoActions(selectedRepo))
       return rows
     } else {
-      rows.push(actionRow("back", "Back to Git overview", ""))
+      rows.push(navigationRow("Back to Git overview"))
     }
     var repos = []
     if (view === "overview" || view === "changed")
@@ -293,6 +293,18 @@ Panel {
       primaryText: label,
       secondaryText: "",
       icon: icon
+    }
+  }
+
+  function navigationRow(label) {
+    return {
+      key: "action:back",
+      kind: "navigation",
+      section: "navigation",
+      navigation: true,
+      action: "back",
+      primaryText: label,
+      secondaryText: ""
     }
   }
 
@@ -449,6 +461,7 @@ Panel {
   function cursorItem() {
     var entry = filterController.selectedEntry()
     if (!entry) return null
+    if (entry.kind === "navigation") return panelHeader
     if (entry.section === "pulls" || entry.section === "pulls-empty") return pullRequestsSection.itemForKey(entry.key)
     if (entry.kind === "release-action") return allReleasesAction
     if (entry.kind === "context-action") return contextRepeater.itemAt(contextRows.indexOf(entry))
@@ -571,7 +584,7 @@ Panel {
   }
 
   function activateEntry(entry, modifiers) {
-    if (entry.kind === "action" || entry.kind === "footer-action" || entry.kind === "header-action" || entry.kind === "release-action" || entry.kind === "pull-action") activateAction(entry.action, modifiers)
+    if (entry.kind === "action" || entry.kind === "navigation" || entry.kind === "footer-action" || entry.kind === "header-action" || entry.kind === "release-action" || entry.kind === "pull-action") activateAction(entry.action, modifiers)
     else if (entry.kind === "pull-repo") {
       if (entry.value.pulls.length === 0 && entry.value.checkedAt !== null && !entry.value.error) { close(); service.openPulls(entry.value, modifiers) }
       else { selectedPullRequestRepo = entry.value.repo; selectedPullRequestView = view; showView("pull-repo") }
@@ -673,8 +686,13 @@ Panel {
           width: panelFlick.width
           spacing: Style.space(12)
 
-          PanelHero {
-            width: parent.width
+          PanelHeader {
+            id: panelHeader
+            readonly property var backEntry: root.panelRows.find(function(row) { return row.navigation === true }) || null
+            backText: backEntry ? backEntry.primaryText : ""
+            backHasCursor: root.cursorKey === "action:back"
+            onBackHovered: filterController.cursorIndex = filterController.indexForKey("action:back")
+            onBackActivated: root.activateAction("back")
             title: root.pullRequestView ? (root.view === "pulls" ? "All tracked repositories" : (root.selectedPullRequests ? root.selectedPullRequests.name : "Pull requests")) : root.releaseView ? (root.view === "releases" ? "All tracked repositories" : (root.selectedRelease ? root.selectedRelease.name : "Release review")) : (root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other")))))
             meta: root.pullRequestView ? (root.view === "pull-repo" ? "Open pull requests · recently updated first" : "Pull request tracking") : root.releaseView ? (root.view === "finding-group" && root.selectedFindingGroup ? root.selectedFindingGroup.title : (root.view === "finding" ? "Finding evidence" : (root.view === "release-commits" ? "All commits" : "Local release review"))) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories")))))
             foreground: root.contentForeground
