@@ -576,7 +576,9 @@ const postHooks = Effect.gen(function* () {
 });
 
 const done = (message: string): RecapEntry => ({ status: "done", message });
+
 const skip = (message: string): RecapEntry => ({ status: "skip", message });
+
 const warn = (message: string): RecapEntry => ({ status: "warn", message });
 
 const MiseToolVersions = Schema.fromJsonString(
@@ -699,6 +701,7 @@ const pruneRemovedMiseTools = Effect.gen(function* () {
   const snapshotPath = join(config.stateDir, "mise-tools.json");
 
   const current = yield* readMiseConfigTools;
+
   if (Option.isNone(current)) return [];
 
   const previous = yield* fs.readFileString(snapshotPath).pipe(
