@@ -2,7 +2,7 @@
 name: pr-watch
 description: >
   Watch a pull request's CI runs, external checks and Copilot or other reviews
-  with `dot pr-watch` in an OpenCode 2 background shell, then triage failures
+  with `dot pr watch` in an OpenCode 2 background shell, then triage failures
   and validate review threads from its report. Use after pushing to a pull
   request, when asked to watch CI or checks, wait for a Copilot review, or
   follow up on pull request feedback. Read-only on GitHub: drafts replies and
@@ -15,11 +15,11 @@ metadata:
 
 # PR Watch
 
-`dot pr-watch` polls every workflow run on each pull request's head commit, including the Copilot code review run, plus non-Actions status checks. It prints one line per event and writes failed job logs and the full review dump to a Markdown report. The first and last lines of output give the report path. It never changes the pull request.
+`dot pr watch` polls every workflow run on each pull request's head commit, including the Copilot code review run, plus non-Actions status checks. It prints one line per event and writes failed job logs and the full review dump to a Markdown report. The first and last lines of output give the report path. It never changes the pull request.
 
 ## Run
 
-1. Start it with the shell tool's `background: true`, from the pull request's checkout or with `--repo owner/name`. Pass several numbers for a stack, e.g. `dot pr-watch 101 102 103`.
+1. Start it with the shell tool's `background: true`, from the pull request's checkout or with `--repo owner/name`. Pass several numbers for a stack, e.g. `dot pr watch 101 102 103`.
 2. Choose when the watch should end:
    - `--stop-on failure` when a quick fix is likely, such as lint, format, types or a unit test in changed code. It exits as soon as a job or check fails, even if other runs are still going.
    - Prefer `--stop-on review` when review feedback is the next thing to act on, before slow suites like end-to-end tests finish. It stops on a newly observed review with open threads; it does not stop for reviews already present at startup or reviews with no open threads.
@@ -38,7 +38,7 @@ On completion, read the report, including the full `Open threads` section. A pas
 - `Open threads`: unresolved threads, with every comment in full and the thread ID.
 - `Dismissed threads`: threads that were resolved or minimized, with only the replies shown.
 
-The full review dump is appended when the watch exits. While it is running, use a one-off read-only GitHub thread fetch if feedback needs attention now, including threads already present at startup. Fetch all pages and replies. Refresh thread state if later replies or pushes make the report stale; do not turn this into a polling loop.
+The full review dump is appended when the watch exits. While it is running, run `dot pr reviews` (same PR numbers and `--repo`) if feedback needs attention now, including threads already present at startup; it prints the same review dump once, with every page and reply. Run it again if later replies or pushes make the report stale; do not turn this into a polling loop.
 
 ## Triage
 

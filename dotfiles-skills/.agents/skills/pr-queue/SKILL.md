@@ -2,7 +2,7 @@
 name: pr-queue
 description: >
   Find reviewable pull requests and catch up on what was merged, closed or
-  opened in a repository with `dot pr-queue`, then rank or summarise them the
+  opened in a repository with `dot pr queue`, then rank or summarise them the
   way the user wants. Use when asked which pull requests are reviewable, why the
   open pull request count changed, what to review next, or what happened or was
   missed over a period such as today, yesterday or the weekend. Read-only.
@@ -14,7 +14,7 @@ metadata:
 
 # PR Queue
 
-`dot pr-queue` runs the repository's saved review search (`review_search` in private `dot-git.yml`, or `--search`) and lists the matching pull requests, along with every pull request merged, closed without merging or opened since `--since`. For "reviewable PRs", `--reviewable` searches all open non-draft PRs except those labelled `wait for backend`, `Do Not Review`, or `has-parent`, regardless of assignment, author or prior review. It includes PR descriptions, recent comments and review-thread text in the same paginated query. The command provides evidence for judgement, not a verdict that each result is ready. It never changes anything on GitHub.
+`dot pr queue` runs the repository's saved review search (`review_search` in private `dot-git.yml`, or `--search`) and lists the matching pull requests, along with every pull request merged, closed without merging or opened since `--since`. For "reviewable PRs", `--reviewable` searches all open non-draft PRs except those labelled `wait for backend`, `Do Not Review`, or `has-parent`, regardless of assignment, author or prior review. It includes PR descriptions, recent comments and review-thread text in the same paginated query. The command provides evidence for judgement, not a verdict that each result is ready. It never changes anything on GitHub.
 
 ## Ask how to present it
 

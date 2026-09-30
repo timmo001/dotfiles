@@ -1685,46 +1685,26 @@ dot agent-lint --json
 dot agent-lint src/one.ts src/two.ts --json
 ```
 
-## `dot pr-queue`
+## `dot pr`
 
-List reviewable pull requests and what was opened, merged or closed recently
+Watch, read reviews on and queue pull requests
 
 ```text
-dot pr-queue [flags]
+dot pr <subcommand> [flags]
 ```
-
-Run the repository's review_search from private dot-git.yml (or --search) and classify each pull request deterministically: size from changed lines, failing and pending checks, latest reviews, review decision, unresolved review threads by author, labels, comment count and first-time contributors. --reviewable searches beyond the saved filter, includes PR descriptions, recent comments and thread text, and leaves judgement of those comments to the reviewer. --threads adds each unresolved thread's comments for the saved search. Effort groups are small (up to 150 changed lines), medium (up to 400) and large; a failing check or requested changes makes a pull request not ready. The activity window lists every pull request merged, closed without merging or opened since --since, newest first, with size and labels, plus the net change in open pull requests. Read-only.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-| `--repo` `<string>` | Repository slug (default: the current checkout) |
-| `--search` `<string>` | Pull request search overriding review_search from private dot-git.yml |
-| `--reviewable` | Search open non-draft PRs beyond the saved review search and include descriptions, review and PR comment text |
-| `--since` `<string>` | Activity window start: today, yesterday, YYYY-MM-DD (local midnight), an ISO timestamp, or an age such as 12h, 3d or 1w |
-| `--sort` `<choice>` | Queue order: effort groups (small, medium, large, not ready), or one table by updated, created or size (choices: effort, updated, created, size) |
-| `--only` `<choice>` | Print only the review queue or only the activity window (choices: queue, activity) |
-| `--limit` `<integer>` | Maximum queue pull requests |
-| `--json` | Print JSON instead of Markdown |
-| `--threads` | Include the comments of unresolved review threads for queue pull requests |
 | `--help` `-h` | Show help information |
 
-**Examples**
-
-```bash
-dot pr-queue
-dot pr-queue --only queue --reviewable --json
-dot pr-queue --only activity --since 2026-09-19
-dot pr-queue --sort updated --since 3d --json
-```
-
-## `dot pr-watch`
+### `dot pr watch`
 
 Watch pull request runs, checks and reviews, streaming progress and a full report
 
 ```text
-dot pr-watch [flags] [<pr...>]
+dot pr watch [flags] [<pr...>]
 ```
 
 Follow every GitHub Actions run on each pull request's head commit, including Copilot code review runs, plus external status checks. Superseded runs of the same workflow on the same commit are ignored, and a new push moves the watch to the new head. Progress streams to stdout one line per event; failed job logs and the final review dump go to a Markdown report whose path is printed first and last. Failed jobs are reported as soon as they finish, even while the rest of the run continues. The watch ends after two settled polls, waiting up to five more minutes for requested bot reviews. The review dump lists reviews newest first, unresolved threads with every comment in full, and resolved or minimized threads with only their replies. The command never changes the pull request. Designed for OpenCode 2 background shells: the completion notification carries the short summary and the report holds the detail.
@@ -1759,9 +1739,75 @@ Follow every GitHub Actions run on each pull request's head commit, including Co
 **Examples**
 
 ```bash
-dot pr-watch
-dot pr-watch --stop-on failure
-dot pr-watch 54322 54325 54328 --repo home-assistant/frontend
+dot pr watch
+dot pr watch --stop-on failure
+dot pr watch 54322 54325 54328 --repo home-assistant/frontend
+```
+
+### `dot pr reviews`
+
+Print a pull request's reviews and review threads once
+
+```text
+dot pr reviews [flags] [<pr...>]
+```
+
+Fetch each pull request's latest reviews, every review thread with its comments, and bot reviews still requested, then exit. Markdown matches the review dump in dot pr watch reports: reviews newest first, unresolved threads with every comment in full, and resolved or minimized threads with only their replies. --json prints { pullRequests } with number, title, url, owner, name, repo, head, openThreads, botRequests, reviews and threads for each pull request. Read-only; exits 1 when a pull request cannot be resolved or fetched.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--repo` `<string>` | Repository slug when the PRs are elsewhere |
+| `--json` | Print the review state as JSON instead of Markdown |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<pr>` | Pull request numbers (default: the current branch's pull request) |
+
+**Examples**
+
+```bash
+dot pr reviews
+dot pr reviews --json
+dot pr reviews 54322 54325 --repo home-assistant/frontend
+```
+
+### `dot pr queue`
+
+List reviewable pull requests and what was opened, merged or closed recently
+
+```text
+dot pr queue [flags]
+```
+
+Run the repository's review_search from private dot-git.yml (or --search) and classify each pull request deterministically: size from changed lines, failing and pending checks, latest reviews, review decision, unresolved review threads by author, labels, comment count and first-time contributors. --reviewable searches beyond the saved filter, includes PR descriptions, recent comments and thread text, and leaves judgement of those comments to the reviewer. --threads adds each unresolved thread's comments for the saved search. Effort groups are small (up to 150 changed lines), medium (up to 400) and large; a failing check or requested changes makes a pull request not ready. The activity window lists every pull request merged, closed without merging or opened since --since, newest first, with size and labels, plus the net change in open pull requests. Read-only.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--repo` `<string>` | Repository slug (default: the current checkout) |
+| `--search` `<string>` | Pull request search overriding review_search from private dot-git.yml |
+| `--reviewable` | Search open non-draft PRs beyond the saved review search and include descriptions, review and PR comment text |
+| `--since` `<string>` | Activity window start: today, yesterday, YYYY-MM-DD (local midnight), an ISO timestamp, or an age such as 12h, 3d or 1w |
+| `--sort` `<choice>` | Queue order: effort groups (small, medium, large, not ready), or one table by updated, created or size (choices: effort, updated, created, size) |
+| `--only` `<choice>` | Print only the review queue or only the activity window (choices: queue, activity) |
+| `--limit` `<integer>` | Maximum queue pull requests |
+| `--json` | Print JSON instead of Markdown |
+| `--threads` | Include the comments of unresolved review threads for queue pull requests |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot pr queue
+dot pr queue --only queue --reviewable --json
+dot pr queue --only activity --since 2026-09-19
+dot pr queue --sort updated --since 3d --json
 ```
 
 ## `dot launch-floating-webapp`

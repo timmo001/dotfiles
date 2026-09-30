@@ -4,19 +4,17 @@ import { dirname, join } from "node:path";
 import { STATE_DIR, displayPath, expandHomePath } from "../lib/paths.js";
 import {
   GH_OPTIONS as GH,
-  Login,
-  Minimized,
-  ReviewThread,
   authorLogin as author,
+  fetchReviews,
   ghErrorMessage,
-  graphql,
   isOpenThread,
-  quote,
-  reviewThreadFields,
-  threadLocation,
-  threadStatus,
-  type ReviewComment as Comment,
-  type ReviewThread as Thread,
+  pullRequestLookupMessage,
+  renderReviews,
+  resolvePullRequest,
+  shortSha as short,
+  viewPullRequest,
+  type PullRequestRef,
+  type ReviewState,
 } from "../lib/pullRequestReviews.js";
 
 /** Early-stop triggers for {@link prWatch}. */
@@ -48,14 +46,6 @@ const FAILED = new Set(["failure", "timed_out", "startup_failure"]);
 
 const EXIT = { passed: 0, failed: 1, stopped: 3, timedOut: 124 } as const;
 
-const PullRequestInfo = Schema.Struct({
-  number: Schema.Int,
-  title: Schema.String,
-  url: Schema.String,
-  state: Schema.String,
-  headRefOid: Schema.String,
-});
-
 const Run = Schema.Struct({
   databaseId: Schema.Int,
   attempt: Schema.Int,
@@ -85,82 +75,7 @@ const Job = Schema.Struct({
 
 type Job = typeof Job.Type;
 
-const Review = Schema.Struct({
-  id: Schema.String,
-  state: Schema.String,
-  submittedAt: Schema.NullOr(Schema.String),
-  body: Schema.String,
-  url: Schema.String,
-  author: Login,
-  commit: Schema.NullOr(Schema.Struct({ oid: Schema.String })),
-  ...Minimized,
-});
-
-type Review = typeof Review.Type;
-
-const ReviewResponse = Schema.Struct({
-  data: Schema.Struct({
-    repository: Schema.Struct({
-      pullRequest: Schema.Struct({
-        reviewRequests: Schema.Struct({
-          nodes: Schema.Array(
-            Schema.Struct({
-              requestedReviewer: Schema.NullOr(
-                Schema.Struct({
-                  __typename: Schema.String,
-                  login: Schema.optionalKey(Schema.String),
-                }),
-              ),
-            }),
-          ),
-        }),
-        reviews: Schema.Struct({ nodes: Schema.Array(Review) }),
-        reviewThreads: Schema.Struct({
-          pageInfo: Schema.Struct({
-            hasNextPage: Schema.Boolean,
-            endCursor: Schema.NullOr(Schema.String),
-          }),
-          nodes: Schema.Array(ReviewThread),
-        }),
-      }),
-    }),
-  }),
-});
-
-const REVIEW_QUERY = `query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
-  repository(owner: $owner, name: $name) {
-    pullRequest(number: $number) {
-      reviewRequests(first: 50) {
-        nodes { requestedReviewer { __typename ... on Bot { login } ... on User { login } } }
-      }
-      reviews(last: 100) {
-        nodes {
-          id state submittedAt body url isMinimized minimizedReason
-          author { login }
-          commit { oid }
-        }
-      }
-      reviewThreads(first: 100, after: $cursor) {
-        pageInfo { hasNextPage endCursor }
-        nodes { ${reviewThreadFields({ comments: 100 })} }
-      }
-    }
-  }
-}`;
-
-interface ReviewState {
-  readonly reviews: readonly Review[];
-  readonly threads: readonly Thread[];
-  readonly botRequests: readonly string[];
-}
-
-interface Target {
-  readonly number: number;
-  readonly title: string;
-  readonly url: string;
-  readonly repo: string;
-  readonly owner: string;
-  readonly name: string;
+interface Target extends PullRequestRef {
   head: string;
   readonly runs: Map<number, string>;
   readonly jobs: Set<number>;
@@ -175,8 +90,6 @@ interface Target {
 class PrWatchError extends Schema.TaggedError<PrWatchError>()("PrWatchError", {
   message: Schema.String,
 }) {}
-
-const short = (sha: string) => sha.slice(0, 9);
 
 const time = (millis: number) => new Date(millis).toISOString().slice(11, 19);
 
@@ -221,176 +134,31 @@ function formatFailedLog(raw: string, limit: number): string {
   return `${dropped > 0 ? `[${dropped} earlier lines omitted; rerun with --log-lines 0 for the full log]\n` : ""}${kept.join("\n").trimEnd()}`;
 }
 
-function renderComment(comment: Comment): string {
-  const hidden = comment.isMinimized
-    ? ` (minimized as ${comment.minimizedReason ?? "unknown"})`
-    : "";
-
-  return `**${author(comment.author)}** at ${comment.createdAt}${hidden} (${comment.url}):\n\n${quote(comment.body ?? "")}\n`;
-}
-
-function renderReviews(target: Target): string {
-  const { reviews, threads, botRequests } = target.reviews;
-
-  const submitted = new Map(
-    reviews.map((review) => [review.id, review.submittedAt ?? ""]),
-  );
-
-  const threadTime = (thread: Thread) => {
-    const [first] = thread.comments.nodes;
-
-    return (
-      (first?.pullRequestReview && submitted.get(first.pullRequestReview.id)) ||
-      first?.createdAt ||
-      ""
-    );
-  };
-
-  const ordered = [...threads].sort((a, b) =>
-    threadTime(b).localeCompare(threadTime(a)),
-  );
-
-  const open = ordered.filter(isOpenThread);
-  const dismissed = ordered.filter((thread) => !isOpenThread(thread));
-
-  const out: string[] = [
-    `## Reviews for #${target.number}: ${target.title}`,
-    "",
-    `Head ${short(target.head)}. ${target.url}`,
-  ];
-
-  if (botRequests.length > 0)
-    out.push(`Review still requested from: ${botRequests.join(", ")}`);
-
-  out.push("", "### Reviews (newest first)", "");
-
-  const sortedReviews = [...reviews]
-    .filter((review) => review.state !== "PENDING")
-    .sort((a, b) => (b.submittedAt ?? "").localeCompare(a.submittedAt ?? ""));
-
-  if (sortedReviews.length === 0) out.push("None.", "");
-
-  const latestByAuthor = new Set<string>();
-
-  for (const review of sortedReviews) {
-    const commit = review.commit?.oid;
-    const reviewer = author(review.author);
-    const superseded = latestByAuthor.has(reviewer);
-
-    latestByAuthor.add(reviewer);
-    const older = commit && commit !== target.head ? " (older commit)" : "";
-
-    out.push(
-      `#### ${author(review.author)} ${review.state} at ${review.submittedAt ?? "?"} on ${commit ? short(commit) : "?"}${older}`,
-      review.url,
-      "",
-    );
-
-    if (review.isMinimized || review.state === "DISMISSED")
-      out.push(
-        `Dismissed${review.isMinimized ? ` (minimized as ${review.minimizedReason ?? "unknown"})` : ""}; body omitted.`,
-        "",
-      );
-    else if (superseded)
-      out.push(
-        "Superseded by a later review from the same author; body omitted.",
-        "",
-      );
-    else if (review.body.trim()) out.push(quote(review.body), "");
-  }
-
-  out.push(`### Open threads (${open.length})`, "");
-
-  for (const thread of open) {
-    out.push(`#### ${threadLocation(thread)} [${thread.id}]`, "");
-    out.push(...thread.comments.nodes.map(renderComment));
-  }
-
-  out.push(
-    `### Dismissed threads (${dismissed.length})`,
-    "",
-    "Resolved or minimized by a maintainer. Treat as guidance: a resolution with no reply usually means it was addressed; replies explain won't-fix or incorrect feedback.",
-    "",
-  );
-
-  for (const thread of dismissed) {
-    const replies = thread.comments.nodes.slice(1);
-    const [first] = thread.comments.nodes;
-
-    out.push(
-      `#### ${threadLocation(thread)} [${thread.id}] ${threadStatus(thread)}`,
-      "",
-      `Started by ${author(first?.author ?? null)}: ${first?.url ?? ""}`,
-      "",
-    );
-
-    if (replies.length === 0) out.push("No reply.", "");
-    else out.push(...replies.map(renderComment));
-  }
-
-  return out.join("\n");
-}
-
 const watchPullRequests = Effect.fn("prWatch")(function* (
   options: PrWatchOptions,
 ) {
   const gh = yield* Gh;
-  const repoArgs = options.repo ? ["--repo", options.repo] : [];
-
-  const viewPr = (selector: number | undefined) =>
-    gh.json(
-      [
-        "pr",
-        "view",
-        ...repoArgs,
-        "--json",
-        "number,title,url,state,headRefOid",
-        ...(selector === undefined ? [] : ["--", String(selector)]),
-      ],
-      PullRequestInfo,
-      GH,
-    );
 
   const resolved = yield* Effect.forEach(
     options.prs.length > 0 ? options.prs : [undefined],
-    viewPr,
+    (selector) => resolvePullRequest(selector, options.repo),
   ).pipe(
     Effect.mapError(
-      (error) =>
-        new PrWatchError({
-          message: `Could not resolve the pull request: ${ghErrorMessage(error)}`,
-        }),
+      (error) => new PrWatchError({ message: pullRequestLookupMessage(error) }),
     ),
   );
 
-  const targets: Target[] = [];
-
-  for (const pr of resolved) {
-    const match = /^https?:\/\/[^/]+\/([^/]+)\/([^/]+)\/pull\/\d+/.exec(pr.url);
-
-    if (!match?.[1] || !match[2])
-      return yield* new PrWatchError({
-        message: `Unrecognised pull request URL: ${pr.url}`,
-      });
-
-    targets.push({
-      number: pr.number,
-      title: pr.title,
-      url: pr.url,
-      owner: match[1],
-      name: match[2],
-      repo: `${match[1]}/${match[2]}`,
-      head: pr.headRefOid,
-      runs: new Map(),
-      jobs: new Set(),
-      checks: new Map(),
-      seenReviews: new Set(),
-      baseline: true,
-      pending: [],
-      failures: 0,
-      reviews: { reviews: [], threads: [], botRequests: [] },
-    });
-  }
+  const targets: Target[] = resolved.map((pr) => ({
+    ...pr,
+    runs: new Map(),
+    jobs: new Set(),
+    checks: new Map(),
+    seenReviews: new Set(),
+    baseline: true,
+    pending: [],
+    failures: 0,
+    reviews: { reviews: [], threads: [], botRequests: [] },
+  }));
 
   const started = yield* Clock.currentTimeMillis;
   const [firstTarget] = targets;
@@ -440,47 +208,6 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
 
   let stopReason: PrWatchStopOn | undefined;
 
-  const fetchReviews = Effect.fn("prWatch.fetchReviews")(function* (
-    target: Target,
-  ) {
-    const threads: Thread[] = [];
-    let cursor: string | null = null;
-    let reviews: readonly Review[] = [];
-    let botRequests: string[] = [];
-
-    do {
-      const response: typeof ReviewResponse.Type = yield* graphql(
-        REVIEW_QUERY,
-        {
-          owner: target.owner,
-          name: target.name,
-          number: target.number,
-          cursor,
-        },
-        ReviewResponse,
-      );
-
-      const pr = response.data.repository.pullRequest;
-      threads.push(...pr.reviewThreads.nodes);
-
-      if (cursor === null) {
-        reviews = pr.reviews.nodes;
-        botRequests = pr.reviewRequests.nodes.flatMap((node) =>
-          node.requestedReviewer?.__typename === "Bot" &&
-          node.requestedReviewer.login
-            ? [node.requestedReviewer.login]
-            : [],
-        );
-      }
-
-      cursor = pr.reviewThreads.pageInfo.hasNextPage
-        ? pr.reviewThreads.pageInfo.endCursor
-        : null;
-    } while (cursor !== null);
-
-    return { reviews, threads, botRequests } satisfies ReviewState;
-  });
-
   const reportFailedJob = Effect.fn("prWatch.reportFailedJob")(function* (
     target: Target,
     run: Run,
@@ -529,7 +256,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
   const pollTarget = Effect.fn("prWatch.pollTarget")(function* (
     target: Target,
   ) {
-    const pr = yield* viewPr(target.number);
+    const pr = yield* viewPullRequest(target.number, options.repo);
 
     if (pr.headRefOid !== target.head) {
       yield* say(
@@ -732,7 +459,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
   yield* write("");
 
   for (const target of targets) {
-    yield* write(`${renderReviews(target)}\n`);
+    yield* write(`${renderReviews(target, target.reviews)}\n`);
   }
 
   const summary = targets.map((target) => {
@@ -786,7 +513,7 @@ export const prWatch = (options: PrWatchOptions) =>
   watchPullRequests(options).pipe(
     Effect.catchTag("PrWatchError", (error) =>
       Effect.sync(() => {
-        console.error(`pr-watch: ${error.message}`);
+        console.error(`pr watch: ${error.message}`);
         process.exitCode = EXIT.failed;
       }),
     ),

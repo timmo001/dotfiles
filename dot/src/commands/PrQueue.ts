@@ -830,7 +830,7 @@ export const prQueue = (options: PrQueueOptions) =>
   run(options).pipe(
     Effect.catchTag("PrQueueError", (error) =>
       Effect.sync(() => {
-        console.error(`pr-queue: ${error.message}`);
+        console.error(`pr queue: ${error.message}`);
         process.exitCode = 1;
       }),
     ),

@@ -148,7 +148,7 @@ export interface GitManagedRepo {
   readonly omarchyComponents?: GitRepoOmarchyComponents;
   /** Named browser for repository web actions; omitted uses the desktop default. */
   readonly browser?: string;
-  /** GitHub pull request search used by dot pr-queue; the repository qualifier is added when missing. */
+  /** GitHub pull request search used by dot pr queue; the repository qualifier is added when missing. */
   readonly reviewSearch?: string;
   /** Local activity check used by git diff and repository updates. */
   readonly activity: GitRepoCheckConfig;

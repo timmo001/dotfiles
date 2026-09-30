@@ -46,6 +46,7 @@ import {
 } from "../commands/Services.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { prQueue } from "../commands/PrQueue.js";
+import { prReviews } from "../commands/PrReviews.js";
 import { prWatch } from "../commands/PrWatch.js";
 import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
 import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
@@ -1842,7 +1843,7 @@ const repoCommand = describe(
 
 const prWatchCommand = describe(
   Command.make(
-    "pr-watch",
+    "watch",
     {
       prs: Argument.Int("pr").pipe(
         Argument.atLeast(0),
@@ -1892,9 +1893,9 @@ const prWatchCommand = describe(
   ),
   "Watch pull request runs, checks and reviews, streaming progress and a full report",
   [
-    "dot pr-watch",
-    "dot pr-watch --stop-on failure",
-    "dot pr-watch 54322 54325 54328 --repo home-assistant/frontend",
+    "dot pr watch",
+    "dot pr watch --stop-on failure",
+    "dot pr watch 54322 54325 54328 --repo home-assistant/frontend",
   ],
   {
     description:
@@ -1915,7 +1916,7 @@ const prWatchCommand = describe(
 
 const prQueueCommand = describe(
   Command.make(
-    "pr-queue",
+    "queue",
     {
       repo: text("repo", "Repository slug (default: the current checkout)"),
       search: text(
@@ -1971,15 +1972,49 @@ const prQueueCommand = describe(
   ),
   "List reviewable pull requests and what was opened, merged or closed recently",
   [
-    "dot pr-queue",
-    "dot pr-queue --only queue --reviewable --json",
-    "dot pr-queue --only activity --since 2026-09-19",
-    "dot pr-queue --sort updated --since 3d --json",
+    "dot pr queue",
+    "dot pr queue --only queue --reviewable --json",
+    "dot pr queue --only activity --since 2026-09-19",
+    "dot pr queue --sort updated --since 3d --json",
   ],
   {
     description:
       "Run the repository's review_search from private dot-git.yml (or --search) and classify each pull request deterministically: size from changed lines, failing and pending checks, latest reviews, review decision, unresolved review threads by author, labels, comment count and first-time contributors. --reviewable searches beyond the saved filter, includes PR descriptions, recent comments and thread text, and leaves judgement of those comments to the reviewer. --threads adds each unresolved thread's comments for the saved search. Effort groups are small (up to 150 changed lines), medium (up to 400) and large; a failing check or requested changes makes a pull request not ready. The activity window lists every pull request merged, closed without merging or opened since --since, newest first, with size and labels, plus the net change in open pull requests. Read-only.",
   },
+);
+
+const prReviewsCommand = describe(
+  Command.make(
+    "reviews",
+    {
+      prs: Argument.Int("pr").pipe(
+        Argument.atLeast(0),
+        Argument.withDescription(
+          "Pull request numbers (default: the current branch's pull request)",
+        ),
+      ),
+      repo: text("repo", "Repository slug when the PRs are elsewhere"),
+      json: bool("json", "Print the review state as JSON instead of Markdown"),
+    },
+    (input) => prReviews({ ...input, repo: optional(input.repo) }),
+  ),
+  "Print a pull request's reviews and review threads once",
+  [
+    "dot pr reviews",
+    "dot pr reviews --json",
+    "dot pr reviews 54322 54325 --repo home-assistant/frontend",
+  ],
+  {
+    description:
+      "Fetch each pull request's latest reviews, every review thread with its comments, and bot reviews still requested, then exit. Markdown matches the review dump in dot pr watch reports: reviews newest first, unresolved threads with every comment in full, and resolved or minimized threads with only their replies. --json prints { pullRequests } with number, title, url, owner, name, repo, head, openThreads, botRequests, reviews and threads for each pull request. Read-only; exits 1 when a pull request cannot be resolved or fetched.",
+  },
+);
+
+const prCommand = describe(
+  Command.make("pr").pipe(
+    Command.withSubcommands([prWatchCommand, prReviewsCommand, prQueueCommand]),
+  ),
+  "Watch, read reviews on and queue pull requests",
 );
 
 const agentOxlintCommand = describe(
@@ -2439,8 +2474,7 @@ export const dotCommand = describe(
       repoCommand,
       agentOxlintCommand,
       agentLintCommand,
-      prQueueCommand,
-      prWatchCommand,
+      prCommand,
       floating,
       herdr,
       setupWorkspace,
