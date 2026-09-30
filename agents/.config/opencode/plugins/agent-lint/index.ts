@@ -22,6 +22,7 @@ const Report = Schema.fromJsonString(
         command: Schema.optionalKey(Schema.Array(Schema.String)),
       }),
     ),
+    message: Schema.optionalKey(Schema.String),
   }),
 );
 
@@ -140,7 +141,8 @@ export default Plugin.define({
             sessionID,
             text: [
               ...checks.map((check) => `$ ${check.command}\n${check.output}`),
-              "Please fix these, then run all relevant checks and keep going until they pass.",
+              report.message ??
+                "Please fix these, then run all relevant checks and keep going until they pass.",
             ].join("\n\n"),
             delivery: "steer",
             resume: false,

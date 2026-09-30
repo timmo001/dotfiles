@@ -59,6 +59,8 @@ export interface AgentLintReport {
   readonly files: readonly string[];
   /** One result per configured command, in order. */
   readonly results: readonly AgentLintResult[];
+  /** Configured closing line for the lint message. */
+  readonly message?: string;
 }
 
 const outputTail = (text: string) =>
@@ -261,7 +263,13 @@ export const agentLint = Effect.fn("agentLint")(function* (
             )
           : [];
 
-        return { configured: true, root, files, results };
+        return {
+          configured: true,
+          root,
+          files,
+          results,
+          ...(settings.message && { message: settings.message }),
+        };
       })
     : { configured: false, root, files: [], results: [] };
 

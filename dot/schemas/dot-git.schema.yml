@@ -185,6 +185,10 @@ $defs:
               type: string
               minLength: 1
               description: Deadline such as "60 seconds". Defaults to 60 seconds.
+      message:
+        type: string
+        minLength: 1
+        description: Closing line of the lint message sent to the agent, naming the repository's own checks. Defaults to a generic request to fix and rerun relevant checks.
 
   release_impact:
     type: string

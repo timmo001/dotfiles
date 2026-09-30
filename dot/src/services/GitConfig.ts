@@ -117,6 +117,8 @@ export type AgentLintCommand = typeof AgentLintCommand.Type;
 export const AgentLintSettings = Schema.Struct({
   /** Commands run in order. */
   commands: Schema.NonEmptyArray(AgentLintCommand),
+  /** Closing line of the lint message, naming the repository's own checks. */
+  message: Schema.optionalKey(Schema.NonEmptyString),
 });
 
 /** Decoded {@link AgentLintSettings}. */
