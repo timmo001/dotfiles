@@ -1,4 +1,4 @@
-import { Effect, FileSystem, Option, Schema } from "effect";
+import { Clock, Effect, FileSystem, Option, Schema } from "effect";
 import { basename, join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -50,6 +50,8 @@ import type { DiffRepo, RepoCategory } from "../types.js";
 const DISABLE_SELF_UPDATE_ARG = "--no-self-update";
 
 const POST_HOOK_REPO_ARG = "--post-hook-repo";
+
+const STARTED_AT_ARG = "--started-at";
 
 const SELECTABLE_UPDATE_FLAGS = [
   ["--pull", "pull"],
@@ -124,6 +126,8 @@ export interface UpdateOptions {
   readonly postHookRepos?: readonly string[];
   /** Write the final summary to this file instead of printing it. */
   readonly summaryFile?: string;
+  /** Epoch ms the run started, carried across restart handoffs. */
+  readonly startedAt?: number;
 }
 
 class UpdateError extends Schema.TaggedError<UpdateError>()("UpdateError", {
@@ -362,6 +366,7 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
   const config = yield* Config;
   const fs = yield* FileSystem.FileSystem;
   const log = yield* OutputLog;
+  const startedAt = yield* Clock.currentTimeMillis;
   const updatedNames: string[] = [];
   const updatedPaths = new Set<string>();
   const failures: string[] = [];
@@ -436,6 +441,8 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
       "--app",
       ...(reload ? [] : ["--no-reload"]),
       ...pulledDotfiles.flatMap((name) => [POST_HOOK_REPO_ARG, name]),
+      STARTED_AT_ARG,
+      String(startedAt),
     ]);
   } else {
     yield* notifyUpdated(updatedNames);
@@ -485,6 +492,9 @@ function restartUpdateArgs(
     ]),
     ...pulledRepoNames.flatMap((name) => [POST_HOOK_REPO_ARG, name]),
     ...(opts?.summaryFile ? ["--summary-file", opts.summaryFile] : []),
+    ...(opts?.startedAt === undefined
+      ? []
+      : [STARTED_AT_ARG, String(opts.startedAt)]),
   ];
 }
 
@@ -1010,9 +1020,13 @@ const haltOnLegacyHyprRepo = (config: ConfigService) =>
  * (agents-sync) run on every full update and the changed-dotfiles handoff.
  * Ordinary flag-scoped runs skip them.
  */
-export const update = (opts?: UpdateOptions) =>
+export const update = (updateOpts?: UpdateOptions) =>
   Effect.gen(function* () {
-    const anyFlag = !!(opts?.pull || opts?.stow || opts?.app);
+    const startedAt = updateOpts?.startedAt ?? (yield* Clock.currentTimeMillis);
+
+    const opts: UpdateOptions = { ...updateOpts, startedAt };
+
+    const anyFlag = !!(opts.pull || opts.stow || opts.app);
     const doPull = anyFlag ? !!opts?.pull : true;
     const doStow = anyFlag ? !!opts?.stow : true;
     const doApp = anyFlag ? !!opts?.app : true;
@@ -1352,9 +1366,14 @@ export const update = (opts?: UpdateOptions) =>
       }
     }
 
-    yield* opts?.summaryFile
-      ? writeUpdateSummary(opts.summaryFile, updatedRepos, completedActions)
-      : logUpdateSummary(updatedRepos, completedActions);
+    yield* opts.summaryFile
+      ? writeUpdateSummary(
+          opts.summaryFile,
+          updatedRepos,
+          completedActions,
+          startedAt,
+        )
+      : logUpdateSummary(updatedRepos, completedActions, startedAt);
 
     yield* log.section("Update Status");
     const executor = yield* CommandExecutor;

@@ -1,5 +1,5 @@
-import { Effect } from "effect";
-import { OutputLog } from "../services/OutputLog.js";
+import { Clock, Effect } from "effect";
+import { OutputLog, formatDuration } from "../services/OutputLog.js";
 import { cliStyler } from "./ansi.js";
 
 /**
@@ -30,14 +30,23 @@ export function logFields(
   });
 }
 
+/** Dimmed `Completed in` line for the time elapsed since `startedAt` (epoch ms). */
+export const completedIn = (startedAt: number): Effect.Effect<string> =>
+  Clock.currentTimeMillis.pipe(
+    Effect.map((now) =>
+      cliStyler().dim(`Completed in ${formatDuration(now - startedAt)}`),
+    ),
+  );
+
 /**
  * Log the closing summary of a multi-step command: a section heading followed
  * by one success line per completed action, or a dimmed note when nothing ran.
+ * Ends with the elapsed time when `startedAt` (epoch ms) is given.
  */
 export function logRunSummary(
   title: string,
   actions: readonly string[],
-  empty = "Nothing to do",
+  options: { readonly empty?: string; readonly startedAt?: number } = {},
 ): Effect.Effect<void, never, OutputLog> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
@@ -45,13 +54,15 @@ export function logRunSummary(
     yield* log.section(title);
 
     if (actions.length === 0) {
-      yield* log.info(cliStyler().dim(empty));
-
-      return;
+      yield* log.info(cliStyler().dim(options.empty ?? "Nothing to do"));
     }
 
     for (const action of actions) {
       yield* log.success(action);
+    }
+
+    if (options.startedAt !== undefined) {
+      yield* log.info(yield* completedIn(options.startedAt));
     }
   });
 }

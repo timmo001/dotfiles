@@ -1,4 +1,4 @@
-import { Context, Duration, Effect, Option, Schema } from "effect";
+import { Clock, Context, Duration, Effect, Option, Schema } from "effect";
 import {
   Argument,
   CliError,
@@ -235,6 +235,12 @@ const updateCommand = describe(
         "summary-file",
         "Internal: write the final summary to this file instead of printing it",
       ),
+      startedAt: Flag.Int("started-at").pipe(
+        Flag.optional,
+        Flag.withDescription(
+          "Internal: epoch ms the run started, for the summary timing",
+        ),
+      ),
     },
     ({
       app,
@@ -245,6 +251,7 @@ const updateCommand = describe(
       postHookRepo,
       pull,
       repo,
+      startedAt,
       stow: onlyStow,
       summaryFile,
     }) =>
@@ -257,7 +264,8 @@ const updateCommand = describe(
             app ||
             noSelfUpdate ||
             postHookRepo.length > 0 ||
-            Option.isSome(summaryFile)
+            Option.isSome(summaryFile) ||
+            Option.isSome(startedAt)
           )
             return yield* new CliError.InvalidValue({
               option: "repo",
@@ -280,10 +288,11 @@ const updateCommand = describe(
           reload: !noReload,
           postHookRepos: postHookRepo,
           summaryFile: optional(summaryFile),
+          startedAt: optional(startedAt),
         });
       }),
   ),
-  "Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update and --post-hook-repo flags support the active self-update handoff; internal --summary-file lets system-update print the summary last.",
+  "Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update, --post-hook-repo and --started-at flags support the active self-update handoff; internal --summary-file lets system-update print the summary last.",
   [],
   {
     description:
@@ -668,9 +677,12 @@ const stowCommand = describe(
       privateOnly: bool("private", "Stow private dotfiles only"),
     },
     ({ privateOnly, publicOnly }) =>
-      stow({ publicOnly, privateOnly }).pipe(
-        Effect.flatMap((result) => logRunSummary("Summary", result.actions)),
-      ),
+      Effect.gen(function* () {
+        const startedAt = yield* Clock.currentTimeMillis;
+        const result = yield* stow({ publicOnly, privateOnly });
+
+        yield* logRunSummary("Summary", result.actions, { startedAt });
+      }),
   ),
   "Re-stow public/private dotfiles",
 );

@@ -1,4 +1,4 @@
-import { Effect, FileSystem, Option } from "effect";
+import { Clock, Effect, FileSystem, Option } from "effect";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -7,7 +7,7 @@ import { withSpinnerTimeout } from "../lib/workflowStep.js";
 import { displayPath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
 import { cliStyler } from "../lib/ansi.js";
-import { logFields, plural } from "../lib/runSummary.js";
+import { completedIn, logFields, plural } from "../lib/runSummary.js";
 import type { CheckSection, DoctorReport } from "../doctor/types.js";
 
 /** Whole-run backstop for the doctor command. Individual checks are shorter. */
@@ -64,6 +64,7 @@ function formatReport(report: DoctorReport): string {
  * per-item status lines, grouped summary at end.
  */
 export const doctor = Effect.gen(function* () {
+  const startedAt = yield* Clock.currentTimeMillis;
   const config = yield* Config;
   const fs = yield* FileSystem.FileSystem;
   const log = yield* OutputLog;
@@ -213,6 +214,7 @@ export const doctor = Effect.gen(function* () {
   }
 
   yield* log.info(style.dim(`Report: ${displayPath(reportPath)}`));
+  yield* log.info(yield* completedIn(startedAt));
 
   // Exit with error status if critical issues found
   if (report.errors > 0) {

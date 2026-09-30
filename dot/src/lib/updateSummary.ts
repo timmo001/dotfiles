@@ -2,7 +2,7 @@ import { Effect, FileSystem } from "effect";
 import { OutputLog, formatCliLine } from "../services/OutputLog.js";
 import { cliStyler } from "./ansi.js";
 import { gitOutput } from "./git.js";
-import { plural } from "./runSummary.js";
+import { completedIn, plural } from "./runSummary.js";
 import type { CommandExecutor } from "../services/CommandExecutor.js";
 import type { LogLevel } from "../services/OutputLog.js";
 import type { Styler } from "./ansi.js";
@@ -240,6 +240,7 @@ const mergeUpdatedRepos = (
 const renderUpdateSummary = (
   updated: readonly UpdatedRepo[],
   actions: readonly string[],
+  startedAt: number,
   line: SummaryLine,
 ) =>
   Effect.gen(function* () {
@@ -268,20 +269,25 @@ const renderUpdateSummary = (
     for (const action of actions) {
       yield* line("success", action);
     }
+
+    yield* line("info", "");
+    yield* line("info", yield* completedIn(startedAt));
   });
 
 /**
  * Log the repositories updated and workflow actions completed by `dot update`,
- * with the commits and changed files pulled into each repository.
+ * with the commits and changed files pulled into each repository, and the time
+ * elapsed since `startedAt` (epoch ms).
  */
 export function logUpdateSummary(
   updated: readonly UpdatedRepo[],
   actions: readonly string[],
+  startedAt: number,
 ): Effect.Effect<void, never, OutputLog | CommandExecutor> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
 
-    yield* renderUpdateSummary(updated, actions, (level, message) =>
+    yield* renderUpdateSummary(updated, actions, startedAt, (level, message) =>
       log[level](message),
     );
   });
@@ -295,12 +301,13 @@ export function writeUpdateSummary(
   path: string,
   updated: readonly UpdatedRepo[],
   actions: readonly string[],
+  startedAt: number,
 ): Effect.Effect<void, never, CommandExecutor | FileSystem.FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const output: string[] = [];
 
-    yield* renderUpdateSummary(updated, actions, (level, message) =>
+    yield* renderUpdateSummary(updated, actions, startedAt, (level, message) =>
       Effect.sync(() => output.push(formatCliLine(level, message))),
     );
 

@@ -87,9 +87,18 @@ const HIDE_CURSOR = "\x1b[?25l";
 /** ANSI escape: show the terminal cursor. */
 const SHOW_CURSOR = "\x1b[?25h";
 
-/** Format an elapsed duration with adaptive precision (ms under 1s, else one-decimal seconds). */
-function formatDuration(ms: number): string {
-  return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
+/**
+ * Format an elapsed duration with adaptive precision: milliseconds under a
+ * second, one-decimal seconds under a minute, then whole minutes and seconds.
+ */
+export function formatDuration(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+
+  const seconds = Math.round(ms / 1000);
+
+  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 
 /** Format a log entry as a plain text line (for log file) */

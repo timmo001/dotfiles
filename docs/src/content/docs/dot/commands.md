@@ -56,7 +56,7 @@ dot install [flags]
 
 Aliases: `dot up`
 
-Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update and --post-hook-repo flags support the active self-update handoff; internal --summary-file lets system-update print the summary last.
+Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update, --post-hook-repo and --started-at flags support the active self-update handoff; internal --summary-file lets system-update print the summary last.
 
 ```text
 dot update [flags]
@@ -82,6 +82,7 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--no-reload` | Skip shell reload and UI resume refresh |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
 | `--summary-file` `<string>` | Internal: write the final summary to this file instead of printing it |
+| `--started-at` `<integer>` | Internal: epoch ms the run started, for the summary timing |
 | `--help` `-h` | Show help information |
 
 **Exit codes**
