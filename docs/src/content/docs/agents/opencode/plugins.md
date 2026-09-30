@@ -12,6 +12,7 @@ Plugins provide context, evidence, or enforcement hooks for OpenCode. Server plu
 | Plugin | Description |
 | --- | --- |
 | [`agent-lint`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/agent-lint/index.ts) | Runs the repository's fallback lint commands after a successful agent run and leaves any problems waiting for the next message |
+| [`ci-watch`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/ci-watch/index.ts) | Follows the Herdr Workflow Watch state for the session's checkout. Failures only reach the model when the user sends them |
 | [`commit-context`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/commit-context.ts) | Injects session-attributed commit scope into commit command prompts |
 | [`context-capture`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/context-capture.ts) | Opt-in capture of the assembled starter context for token profiling |
 | [`env-protection`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/env-protection.ts) | Blocks direct access to .env files to prevent leaking secrets |
