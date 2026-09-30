@@ -23,9 +23,11 @@ export interface SearchOverrides {
   readonly threshold?: number;
   /** Drop results scoring below this, from 1 to 100; default 40. */
   readonly minScore?: number;
+  /** Drop results more than this many points below the best; default 20. */
+  readonly maxGap?: number;
   /** Shortest matched run of characters that counts; default 2. */
   readonly minMatchCharLength?: number;
-  /** Maximum results, applied after ranking; default 10. */
+  /** Maximum results, applied after ranking; default 5. */
   readonly limit?: number;
 }
 
@@ -55,9 +57,10 @@ export interface SearchResult<T, Name extends string = string> {
 export interface SearchService {
   /**
    * Typo-tolerant search, loose enough for ambiguous queries from agents and
-   * people. Every query word must match some field. Results are ranked by
-   * score in bands of 5, then by the shorter first field so short exact names
-   * win near-ties, then limited (10 by default; `Infinity` for all).
+   * people. Every query word must match some field. Results far below the
+   * best are dropped, the rest ranked by score in bands of 5, then by the
+   * shorter first field so short exact names win near-ties, then limited
+   * (5 by default; `Infinity` for all).
    */
   readonly fuzzy: <T, Name extends string>(
     input: SearchInput<T, Name>,
@@ -96,12 +99,11 @@ export class Search extends Context.Service<Search, SearchService>()(
       });
 
       const names = new Set<string>(keys.map(({ name }) => name));
-      const minScore = overrides.minScore ?? 40;
 
       const primaryLength = (item: T) =>
         ([keys[0]?.getFn(item) ?? []].flat()[0] ?? "").length;
 
-      return fuse
+      const scored = fuse
         .search(trimmed)
         .map(({ item, score, matches }): SearchResult<T, Name> => ({
           item,
@@ -109,15 +111,23 @@ export class Search extends Context.Service<Search, SearchService>()(
           matched: [...new Set((matches ?? []).map(({ key }) => key))].filter(
             (key): key is Name => key !== undefined && names.has(key),
           ),
-        }))
-        .filter(({ score }) => score >= minScore)
+        }));
+
+      const floor = Math.max(
+        overrides.minScore ?? 40,
+        Math.max(0, ...scored.map(({ score }) => score)) -
+          (overrides.maxGap ?? 20),
+      );
+
+      return scored
+        .filter(({ score }) => score >= floor)
         .sort(
           (a, b) =>
             Math.round(b.score / 5) - Math.round(a.score / 5) ||
             primaryLength(a.item) - primaryLength(b.item) ||
             b.score - a.score,
         )
-        .slice(0, overrides.limit ?? 10);
+        .slice(0, overrides.limit ?? 5);
     }),
   });
 }

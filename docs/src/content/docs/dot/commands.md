@@ -1531,14 +1531,14 @@ Fuzzy-search tracked repositories and shortcuts
 dot repo search [flags] <query...>
 ```
 
-Ranks tracked repositories from private dot-git.yml by fuzzy match on name, aliases, GitHub repository name, GitHub slug, directory name and path (path matches count for less). Each whitespace-separated term must match some field, with typo and partial-word tolerance loose enough for ambiguous queries; distant matches are dropped. Returns the top 10 by default; use --limit to change that or --all for every match, such as a whole group of repositories. Results carry the same fields as dot repo list, including herdr, plus score (1 to 100) and matched (the fields that matched), highest score first. Prints JSON with --json or when run under an AI agent, otherwise an aligned table. Exits 1 when nothing matches.
+Ranks tracked repositories from private dot-git.yml by fuzzy match on name, aliases, GitHub repository name, GitHub slug, directory name and path (path matches count for less). Each whitespace-separated term must match some field, with typo and partial-word tolerance loose enough for ambiguous queries; matches under 40 or more than 20 points below the best are dropped. Returns the top 5 by default; use --limit to change that or --all for every close match, such as a whole group of repositories. Results carry the same fields as dot repo list, including herdr, plus score (1 to 100) and matched (the fields that matched), highest score first. Prints JSON with --json or when run under an AI agent, otherwise an aligned table. Exits 1 when nothing matches.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-| `--limit` `<integer>` | Maximum results (default: 10) |
-| `--all` | Return every match instead of the top 10 |
+| `--limit` `<integer>` | Maximum results (default: 5) |
+| `--all` | Return every close match instead of the top 5 |
 | `--json` | Print JSON (the default under an AI agent) |
 | `--help` `-h` | Show help information |
 
