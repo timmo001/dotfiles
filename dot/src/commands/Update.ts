@@ -44,7 +44,7 @@ import type { ConfigService } from "../services/Config.js";
 import type { GitManagedRepo } from "../services/GitConfig.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
 import type { Styler } from "../lib/ansi.js";
-import type { UpdatedRepo } from "../lib/updateSummary.js";
+import type { InstalledMiseTool, UpdatedRepo } from "../lib/updateSummary.js";
 import type { DiffRepo, RepoCategory } from "../types.js";
 
 const DISABLE_SELF_UPDATE_ARG = "--no-self-update";
@@ -570,7 +570,46 @@ const postHooks = Effect.gen(function* () {
   yield* agentsSync;
 });
 
-/** Install missing home-level mise tools after checking with mise. */
+const MiseToolVersions = Schema.fromJsonString(
+  Schema.Record(
+    Schema.String,
+    Schema.Array(Schema.Struct({ version: Schema.String })),
+  ),
+);
+
+/** Read `mise ls <flag> --json` from the home directory. */
+const miseToolVersions = Effect.fn("miseToolVersions")(function* (
+  flag: "--missing" | "--installed",
+) {
+  const executor = yield* CommandExecutor;
+
+  return yield* executor
+    .run("mise", ["ls", flag, "--json"], { cwd: HOME_DIR })
+    .pipe(Effect.flatMap(Schema.decodeUnknownEffect(MiseToolVersions)));
+});
+
+/**
+ * List missing home-level mise tools with the newest version already installed
+ * for each, or none if they cannot be read.
+ */
+const listMissingMiseTools = Effect.gen(function* () {
+  const missing = yield* miseToolVersions("--missing");
+  const installed = yield* miseToolVersions("--installed");
+
+  return Object.entries(missing).flatMap(([tool, versions]) => {
+    // mise lists installed versions oldest first.
+    const previous = installed[tool]?.at(-1)?.version;
+
+    return versions.map(({ version }): InstalledMiseTool =>
+      previous ? { tool, version, previous } : { tool, version },
+    );
+  });
+}).pipe(Effect.orElseSucceed((): readonly InstalledMiseTool[] => []));
+
+/**
+ * Install missing home-level mise tools after checking with mise. Returns the
+ * installed tools when an install ran (empty if they could not be listed).
+ */
 const installMissingMiseTools = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
@@ -580,7 +619,7 @@ const installMissingMiseTools = Effect.gen(function* () {
   if ((yield* executor.exitCode("which", ["mise"])) !== 0) {
     yield* log.warn("Skipping mise install (mise not installed)");
 
-    return false;
+    return Option.none();
   }
 
   const checkExitCode = yield* executor.exitCode(
@@ -594,7 +633,7 @@ const installMissingMiseTools = Effect.gen(function* () {
       "All global mise tools are installed; skipping mise install",
     );
 
-    return false;
+    return Option.none();
   }
 
   if (checkExitCode !== 1) {
@@ -602,6 +641,8 @@ const installMissingMiseTools = Effect.gen(function* () {
       message: `mise install check exited ${checkExitCode}`,
     });
   }
+
+  const tools = yield* listMissingMiseTools;
 
   const exitCode = yield* executor.inherit("mise", ["install"], {
     cwd: HOME_DIR,
@@ -613,7 +654,7 @@ const installMissingMiseTools = Effect.gen(function* () {
     });
   }
 
-  return true;
+  return Option.some(tools);
 });
 
 /** Read the Herdr Lazy plugin root from `herdr plugin list --json`. */
@@ -1097,6 +1138,7 @@ export const update = (updateOpts?: UpdateOptions) =>
     );
 
     const completedActions: string[] = [];
+    let installedMiseTools: readonly InstalledMiseTool[] = [];
     let privatePackageRepoUpdated = false;
 
     if (doPull) {
@@ -1286,10 +1328,14 @@ export const update = (updateOpts?: UpdateOptions) =>
         STEP_TIMEOUT_SECONDS.miseInstall,
         installMissingMiseTools.pipe(
           Effect.map((installed) => {
-            if (installed)
-              completedActions.push(
-                "Installed tools from the global mise config",
-              );
+            if (Option.isNone(installed)) return;
+
+            installedMiseTools = installed.value;
+            completedActions.push(
+              installed.value.length > 0
+                ? `Installed ${plural(installed.value.length, "mise tool")}`
+                : "Installed tools from the global mise config",
+            );
           }),
         ),
       );
@@ -1370,10 +1416,16 @@ export const update = (updateOpts?: UpdateOptions) =>
       ? writeUpdateSummary(
           opts.summaryFile,
           updatedRepos,
+          installedMiseTools,
           completedActions,
           startedAt,
         )
-      : logUpdateSummary(updatedRepos, completedActions, startedAt);
+      : logUpdateSummary(
+          updatedRepos,
+          installedMiseTools,
+          completedActions,
+          startedAt,
+        );
 
     yield* log.section("Update Status");
     const executor = yield* CommandExecutor;

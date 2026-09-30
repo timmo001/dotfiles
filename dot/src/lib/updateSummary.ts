@@ -28,6 +28,16 @@ export interface UpdatedRepo {
   readonly to: string;
 }
 
+/** A tool version installed by `dot update` from the global mise config. */
+export interface InstalledMiseTool {
+  /** mise tool name, including any backend prefix such as `npm:`. */
+  readonly tool: string;
+  /** Installed version. */
+  readonly version: string;
+  /** Newest version installed before, when this updated an existing tool. */
+  readonly previous?: string;
+}
+
 interface Commit {
   readonly sha: string;
   readonly subject: string;
@@ -237,8 +247,31 @@ const mergeUpdatedRepos = (
   return [...merged.values()];
 };
 
+const renderMiseTools = (
+  tools: readonly InstalledMiseTool[],
+  style: Styler,
+  line: SummaryLine,
+) =>
+  Effect.gen(function* () {
+    if (tools.length === 0) return;
+
+    yield* line("info", "");
+    yield* line("info", style.label(`Installed mise tools (${tools.length})`));
+
+    const width = Math.max(...tools.map(({ tool }) => tool.length));
+
+    for (const { tool, version, previous } of tools) {
+      const change = previous
+        ? `${style.warn("U")}  ${style.accent(tool.padEnd(width))}  ${style.warn(previous)} ${style.dim("->")} ${style.success(version)}`
+        : `${style.success("I")}  ${style.accent(tool.padEnd(width))}  ${style.success(version)}`;
+
+      yield* line("info", `  ${change}`);
+    }
+  });
+
 const renderUpdateSummary = (
   updated: readonly UpdatedRepo[],
+  miseTools: readonly InstalledMiseTool[],
   actions: readonly string[],
   startedAt: number,
   line: SummaryLine,
@@ -263,6 +296,8 @@ const renderUpdateSummary = (
       }
     }
 
+    yield* renderMiseTools(miseTools, style, line);
+
     yield* line("info", "");
     yield* line("info", style.label("Actions taken"));
 
@@ -275,20 +310,25 @@ const renderUpdateSummary = (
   });
 
 /**
- * Log the repositories updated and workflow actions completed by `dot update`,
- * with the commits and changed files pulled into each repository, and the time
- * elapsed since `startedAt` (epoch ms).
+ * Log the repositories updated, mise tools installed, and workflow actions
+ * completed by `dot update`, with the commits and changed files pulled into
+ * each repository, and the time elapsed since `startedAt` (epoch ms).
  */
 export function logUpdateSummary(
   updated: readonly UpdatedRepo[],
+  miseTools: readonly InstalledMiseTool[],
   actions: readonly string[],
   startedAt: number,
 ): Effect.Effect<void, never, OutputLog | CommandExecutor> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
 
-    yield* renderUpdateSummary(updated, actions, startedAt, (level, message) =>
-      log[level](message),
+    yield* renderUpdateSummary(
+      updated,
+      miseTools,
+      actions,
+      startedAt,
+      (level, message) => log[level](message),
     );
   });
 }
@@ -300,6 +340,7 @@ export function logUpdateSummary(
 export function writeUpdateSummary(
   path: string,
   updated: readonly UpdatedRepo[],
+  miseTools: readonly InstalledMiseTool[],
   actions: readonly string[],
   startedAt: number,
 ): Effect.Effect<void, never, CommandExecutor | FileSystem.FileSystem> {
@@ -307,8 +348,13 @@ export function writeUpdateSummary(
     const fs = yield* FileSystem.FileSystem;
     const output: string[] = [];
 
-    yield* renderUpdateSummary(updated, actions, startedAt, (level, message) =>
-      Effect.sync(() => output.push(formatCliLine(level, message))),
+    yield* renderUpdateSummary(
+      updated,
+      miseTools,
+      actions,
+      startedAt,
+      (level, message) =>
+        Effect.sync(() => output.push(formatCliLine(level, message))),
     );
 
     yield* fs
