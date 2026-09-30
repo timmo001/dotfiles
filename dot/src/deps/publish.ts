@@ -418,6 +418,7 @@ export const publishDependencyGroup = Effect.fn("Dependencies.publishGroup")(
           .replace(/[\p{Cc}\u2013\u2014]/gu, " ")
           .slice(0, 80)
           .replace(/\.+$/, "")}`,
+        "--skip-agent-oxlint",
         ...allowed.flatMap((file) => ["--path", file]),
       ],
       directory,

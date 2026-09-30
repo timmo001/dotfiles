@@ -1,12 +1,18 @@
-import { Effect, Schema } from "effect";
+import { Effect, FileSystem, Schema } from "effect";
 import { gitOutput } from "../../lib/git.js";
 import { plural } from "../../lib/runSummary.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { Config } from "../../services/Config.js";
 import { normalizeGitHubSlug } from "../../services/GitConfig.js";
 import { GitStaging } from "../services/GitStaging.js";
 import { parseDefaultBranch } from "../remotes.js";
 import { describePushTarget, pushBranch } from "../committer.js";
-import { handleCommandError, writeText } from "./rows.js";
+import { handleCommandError, formatCommandError, writeText } from "./rows.js";
+import {
+  agentOxlintChangedFindings,
+  type AgentOxlintChangeScope,
+  formatAgentOxlintFinding,
+} from "../../commands/AgentOxlint.js";
 
 /**
  * Soft length threshold for a commit subject. Subjects longer than this warn on
@@ -254,6 +260,8 @@ export interface GitCommitOptions {
   readonly dryRun: boolean;
   /** Amend HEAD instead of creating a new commit. Keeps HEAD's message when no `--message` is given. */
   readonly amend: boolean;
+  /** Commit even when agent Oxlint reports errors on changed lines. */
+  readonly skipAgentOxlint: boolean;
 }
 
 const handleCommitError = handleCommandError("dot git-commit");
@@ -358,6 +366,51 @@ function writeStderr(text: string): Effect.Effect<void> {
 }
 
 /**
+ * Run the agent Oxlint pass on the lines being committed. Warnings print and
+ * the commit continues; errors return a refusal unless this is a dry run. A
+ * failing check warns and never blocks the commit.
+ */
+const checkAgentOxlint = Effect.fn("gitCommit.checkAgentOxlint")(
+  function* (input: {
+    readonly scope: AgentOxlintChangeScope;
+    readonly dryRun: boolean;
+  }) {
+    const findings = yield* agentOxlintChangedFindings(input.scope).pipe(
+      Effect.catch((error) =>
+        writeStderr(
+          `[dot git-commit] warning: agent Oxlint check failed: ${formatCommandError(error)}\n`,
+        ).pipe(Effect.as(null)),
+      ),
+    );
+
+    if (!findings?.length) return null;
+
+    const errors = findings.filter((finding) => finding.severity === "error");
+
+    const list = findings.map(
+      (finding) => `  ${formatAgentOxlintFinding(finding)}`,
+    );
+
+    if (errors.length > 0 && !input.dryRun) {
+      return [
+        `Agent Oxlint found ${plural(errors.length, "error")} on changed lines:`,
+        ...list,
+        "Fix them, or pass --skip-agent-oxlint to commit anyway.",
+      ].join("\n");
+    }
+
+    const outcome =
+      errors.length > 0 ? "would refuse the commit" : "the commit continues";
+
+    yield* writeStderr(
+      `[dot git-commit] warning: agent Oxlint found ${plural(findings.length, "finding")} on changed lines (${outcome}):\n${list.join("\n")}\n`,
+    );
+
+    return null;
+  },
+);
+
+/**
  * CLI entry point: the safe commit gateway agents use instead of raw
  * `git commit`. Validates the subject against the style guards, commits either
  * the staged set or an explicit `--path` scope (never `git add -A`), and
@@ -365,7 +418,11 @@ function writeStderr(text: string): Effect.Effect<void> {
  */
 export function gitCommitRaw(
   options: GitCommitOptions,
-): Effect.Effect<void, never, CommandExecutor | GitStaging> {
+): Effect.Effect<
+  void,
+  never,
+  CommandExecutor | Config | FileSystem.FileSystem | GitStaging
+> {
   return Effect.gen(function* () {
     const insideWorkTree = yield* readGit([
       "rev-parse",
@@ -413,6 +470,17 @@ export function gitCommitRaw(
     ];
 
     const scoped = options.paths.length > 0;
+
+    if (!options.skipAgentOxlint) {
+      const refusal = yield* checkAgentOxlint({
+        scope: scoped
+          ? { kind: "paths", paths: options.paths, amend: options.amend }
+          : { kind: "staged", amend: options.amend },
+        dryRun: options.dryRun,
+      });
+
+      if (refusal) return yield* failCommit(refusal);
+    }
 
     if (options.dryRun) {
       return yield* reportDryRun({

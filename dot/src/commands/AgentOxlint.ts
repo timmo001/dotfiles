@@ -1,6 +1,7 @@
 import { Effect, FileSystem, Schema } from "effect";
-import { basename, isAbsolute, join, relative, resolve } from "path";
+import { basename, extname, isAbsolute, join, relative, resolve } from "path";
 import packageJson from "../../../package.json" with { type: "json" };
+import { plural } from "../lib/runSummary.js";
 import { decodeJson, isJsonObject, isString } from "../lib/schema.js";
 import {
   CommandExecutor,
@@ -8,6 +9,7 @@ import {
 } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import {
+  type DotGitConfig,
   loadDotGitConfig,
   managedGitRepoForPath,
 } from "../services/GitConfig.js";
@@ -74,6 +76,8 @@ export interface AgentOxlintOptions {
   readonly paths: readonly string[];
   /** Lint the complete repository tree instead of explicit paths. */
   readonly all: boolean;
+  /** Lint uncommitted changes and report only findings on added or modified lines. */
+  readonly changed: boolean;
   /** Run even if the repository is not opted in or already has Oxlint. */
   readonly force: boolean;
   /** Enable and commit the current repository's existing private config entry. */
@@ -288,61 +292,50 @@ const optInRepository = Effect.fn("agentOxlint.optIn")(
   Effect.catchTag("QuitError", () => Effect.succeed(false)),
 );
 
-/** Run the generic personal Oxlint pass when the current repository opts in or --force is set. */
-export const agentOxlint = Effect.fn("agentOxlint")(function* (
-  options: AgentOxlintOptions,
-) {
-  if (options.all && options.paths.length > 0) {
-    return yield* fail("agent-oxlint: --all cannot be combined with paths");
-  }
+type AgentOxlintGate =
+  | { readonly ready: true; readonly cache: AgentOxlintCache }
+  | {
+      readonly ready: false;
+      readonly reason: string;
+      readonly exitCode?: number;
+    };
 
-  if (!options.optIn && !options.all && options.paths.length === 0) {
-    return yield* fail("agent-oxlint: pass changed paths or use --all");
-  }
-
-  const config = yield* Config;
+const repositoryRoot = Effect.fn("agentOxlint.repositoryRoot")(function* () {
   const executor = yield* CommandExecutor;
-  const log = yield* OutputLog;
-  let gitConfig = config.gitConfig;
 
-  const root = (yield* executor
-    .run("git", ["rev-parse", "--show-toplevel"], {
-      cwd: process.cwd(),
-    })
+  return (yield* executor
+    .run("git", ["rev-parse", "--show-toplevel"], { cwd: process.cwd() })
     .pipe(
       Effect.mapError((error) =>
         commandError(error, "agent-oxlint: not inside a Git repository"),
       ),
     )).trim();
+});
 
-  const targets = options.all ? ["."] : options.paths;
-  const escaped = targets.find((path) => !pathInsideRoot(root, path));
+const prepareAgentOxlint = Effect.fn("agentOxlint.prepare")(function* (
+  root: string,
+  gitConfig: DotGitConfig,
+  force: boolean,
+) {
+  const config = yield* Config;
+  const executor = yield* CommandExecutor;
 
-  if (escaped) {
-    return yield* fail(
-      `agent-oxlint: path is outside the repository: ${escaped}`,
-    );
-  }
+  const skipped = (reason: string, exitCode?: number): AgentOxlintGate => ({
+    ready: false,
+    reason,
+    exitCode,
+  });
 
-  if (options.optIn) {
-    if (!(yield* optInRepository(root))) return;
+  if (!force) {
+    if (!gitConfig.valid) {
+      return skipped(
+        "Private git config is unavailable; skipping agent Oxlint",
+      );
+    }
 
-    if (!options.all && options.paths.length === 0) return;
-    gitConfig = yield* loadDotGitConfig(config.gitConfig.filePath);
-  }
-
-  if (options.force) {
-    yield* log.warn(
-      "Forcing agent Oxlint: skipping opt-in and repository Oxlint gates (--force)",
-    );
-  } else if (!gitConfig.valid) {
-    yield* log.info("Private git config is unavailable; skipping agent Oxlint");
-
-    return;
-  } else if (!managedGitRepoForPath(gitConfig, root)?.agentOxlint) {
-    yield* log.info("Repository is not opted into agent Oxlint; skipping");
-
-    return;
+    if (!managedGitRepoForPath(gitConfig, root)?.agentOxlint) {
+      return skipped("Repository is not opted into agent Oxlint; skipping");
+    }
   }
 
   const files = (yield* executor
@@ -355,10 +348,8 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
       ),
     )).split("\n");
 
-  if ((yield* hasLocalOxlint(root, files)) && !options.force) {
-    yield* log.info("Repository Oxlint takes precedence; skipping agent pass");
-
-    return;
+  if (!force && (yield* hasLocalOxlint(root, files))) {
+    return skipped("Repository Oxlint takes precedence; skipping agent pass");
   }
 
   const cache = cachePaths(config.cacheDir);
@@ -378,9 +369,7 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
     ]);
 
     if (installExit !== 0) {
-      process.exitCode = installExit;
-
-      return;
+      return skipped("Could not install the managed Oxlint cache", installExit);
     }
 
     if (!(yield* cacheReady(cache))) {
@@ -390,9 +379,357 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
     }
   }
 
+  return { ready: true, cache } satisfies AgentOxlintGate;
+});
+
+const LINTABLE_EXTENSIONS = new Set([
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".ts",
+  ".tsx",
+  ".mts",
+  ".cts",
+]);
+
+const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+
+/** Which changes the changed-lines pass inspects. */
+export type AgentOxlintChangeScope =
+  | { readonly kind: "worktree" }
+  | { readonly kind: "staged"; readonly amend: boolean }
+  | {
+      readonly kind: "paths";
+      readonly paths: readonly string[];
+      readonly amend: boolean;
+    };
+
+type LineRange = readonly [start: number, end: number];
+
+/** Added or modified line ranges per repository-relative file; `all` marks an untracked file. */
+type ChangedLines = ReadonlyMap<string, readonly LineRange[] | "all">;
+
+/** An Oxlint diagnostic reported on an added or modified line. */
+export interface AgentOxlintFinding {
+  /** Repository-relative file path. */
+  readonly file: string;
+  /** 1-based line of the diagnostic. */
+  readonly line: number;
+  /** 1-based column of the diagnostic. */
+  readonly column: number;
+  /** Oxlint severity, such as `error` or `warning`. */
+  readonly severity: string;
+  /** Rule code, such as `typescript(no-non-null-assertion)`. */
+  readonly code: string;
+  /** Diagnostic message. */
+  readonly message: string;
+}
+
+const OxlintReport = Schema.Struct({
+  diagnostics: Schema.Array(
+    Schema.Struct({
+      message: Schema.String,
+      code: Schema.optionalKey(Schema.String),
+      severity: Schema.String,
+      filename: Schema.String,
+      labels: Schema.Array(
+        Schema.Struct({
+          span: Schema.Struct({ line: Schema.Finite, column: Schema.Finite }),
+        }),
+      ),
+    }),
+  ),
+});
+
+/** Parse `git diff --unified=0 --no-prefix` output into added line ranges per file. */
+function parseChangedLines(diff: string): Map<string, readonly LineRange[]> {
+  const changed = new Map<string, LineRange[]>();
+  let current: LineRange[] | null = null;
+  let inHeader = false;
+
+  for (const line of diff.split("\n")) {
+    if (line.startsWith("diff --git ")) {
+      inHeader = true;
+      current = null;
+      continue;
+    }
+
+    if (inHeader && line.startsWith("+++ ")) {
+      const path = line.slice(4);
+
+      current = path === "/dev/null" ? null : [];
+
+      if (current) changed.set(path, current);
+      continue;
+    }
+
+    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(line);
+
+    if (!hunk) continue;
+    inHeader = false;
+
+    const start = Number(hunk[1]);
+    const count = hunk[2] === undefined ? 1 : Number(hunk[2]);
+
+    if (current && count > 0) current.push([start, start + count - 1]);
+  }
+
+  return changed;
+}
+
+const collectChangedLines = Effect.fn("agentOxlint.collectChangedLines")(
+  function* (scope: AgentOxlintChangeScope) {
+    const executor = yield* CommandExecutor;
+
+    const git = (args: readonly string[]) =>
+      executor
+        .run("git", ["-c", "core.quotePath=false", ...args], {
+          cwd: process.cwd(),
+        })
+        .pipe(
+          Effect.mapError((error) =>
+            commandError(error, "agent-oxlint: could not read changes"),
+          ),
+        );
+
+    const amend = scope.kind !== "worktree" && scope.amend;
+
+    const base = yield* git([
+      "rev-parse",
+      "--verify",
+      "--quiet",
+      amend ? "HEAD^" : "HEAD",
+    ]).pipe(
+      Effect.map((output) => output.trim()),
+      Effect.orElseSucceed(() => EMPTY_TREE),
+    );
+
+    const pathspec = scope.kind === "paths" ? ["--", ...scope.paths] : [];
+
+    const diff = yield* git([
+      "diff",
+      ...(scope.kind === "staged" ? ["--cached"] : []),
+      "--unified=0",
+      "--no-color",
+      "--no-ext-diff",
+      "--no-prefix",
+      base,
+      ...pathspec,
+    ]);
+
+    const changed = new Map<string, readonly LineRange[] | "all">(
+      parseChangedLines(diff),
+    );
+
+    if (scope.kind !== "staged") {
+      const untracked = yield* git([
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+        "--full-name",
+        ...pathspec,
+      ]);
+
+      for (const file of untracked.split("\n")) {
+        if (file) changed.set(file, "all");
+      }
+    }
+
+    return new Map(
+      [...changed].filter(
+        ([file, ranges]) =>
+          LINTABLE_EXTENSIONS.has(extname(file)) &&
+          (ranges === "all" || ranges.length > 0),
+      ),
+    ) satisfies ChangedLines;
+  },
+);
+
+const lintChangedLines = Effect.fn("agentOxlint.lintChangedLines")(function* (
+  root: string,
+  cache: AgentOxlintCache,
+  scope: AgentOxlintChangeScope,
+) {
+  const executor = yield* CommandExecutor;
+  const changed = yield* collectChangedLines(scope);
+
+  if (changed.size === 0) return [];
+
+  const stdout = yield* executor
+    .run(
+      cache.binary,
+      [
+        "--config",
+        cache.config,
+        "--format",
+        "json",
+        "--no-error-on-unmatched-pattern",
+        ...changed.keys(),
+      ],
+      { cwd: root },
+    )
+    .pipe(
+      Effect.catchTag("CommandError", (error) =>
+        error.exitCode === 1 && error.stdout
+          ? Effect.succeed(error.stdout)
+          : Effect.fail(commandError(error, "agent-oxlint: Oxlint failed")),
+      ),
+    );
+
+  const report = yield* Schema.decodeEffect(
+    Schema.fromJsonString(OxlintReport),
+  )(stdout).pipe(
+    Effect.mapError((error) =>
+      fail(`agent-oxlint: could not read Oxlint output: ${String(error)}`),
+    ),
+  );
+
+  return report.diagnostics
+    .flatMap((diagnostic): AgentOxlintFinding[] => {
+      const ranges = changed.get(diagnostic.filename);
+
+      const label = diagnostic.labels.find(
+        ({ span }) =>
+          ranges === "all" ||
+          ranges?.some(
+            ([start, end]) => span.line >= start && span.line <= end,
+          ),
+      );
+
+      return label
+        ? [
+            {
+              file: diagnostic.filename,
+              line: label.span.line,
+              column: label.span.column,
+              severity: diagnostic.severity,
+              code: diagnostic.code ?? "",
+              message: diagnostic.message,
+            },
+          ]
+        : [];
+    })
+    .toSorted(
+      (a, b) =>
+        a.file.localeCompare(b.file) || a.line - b.line || a.column - b.column,
+    );
+});
+
+/** Format a finding as a single `file:line:column severity code message` line. */
+export function formatAgentOxlintFinding(finding: AgentOxlintFinding): string {
+  return `${finding.file}:${finding.line}:${finding.column} ${finding.severity} ${finding.code} ${finding.message}`;
+}
+
+/**
+ * Lint only the added or modified lines in scope, applying the same opt-in and
+ * repository Oxlint gates as the command. Returns null when the pass is skipped.
+ */
+export const agentOxlintChangedFindings = Effect.fn(
+  "agentOxlint.changedFindings",
+)(function* (scope: AgentOxlintChangeScope) {
+  const config = yield* Config;
+  const root = yield* repositoryRoot();
+  const gate = yield* prepareAgentOxlint(root, config.gitConfig, false);
+
+  if (!gate.ready) return null;
+
+  return yield* lintChangedLines(root, gate.cache, scope);
+});
+
+/** Run the generic personal Oxlint pass when the current repository opts in or --force is set. */
+export const agentOxlint = Effect.fn("agentOxlint")(function* (
+  options: AgentOxlintOptions,
+) {
+  const explicit = options.all || options.paths.length > 0;
+
+  if (options.all && options.paths.length > 0) {
+    return yield* fail("agent-oxlint: --all cannot be combined with paths");
+  }
+
+  if (options.changed && explicit) {
+    return yield* fail(
+      "agent-oxlint: --changed cannot be combined with paths or --all",
+    );
+  }
+
+  if (!options.optIn && !options.changed && !explicit) {
+    return yield* fail(
+      "agent-oxlint: pass --changed, changed paths, or use --all",
+    );
+  }
+
+  const config = yield* Config;
+  const executor = yield* CommandExecutor;
+  const log = yield* OutputLog;
+  let gitConfig = config.gitConfig;
+  const root = yield* repositoryRoot();
+  const targets = options.all ? ["."] : options.paths;
+  const escaped = targets.find((path) => !pathInsideRoot(root, path));
+
+  if (escaped) {
+    return yield* fail(
+      `agent-oxlint: path is outside the repository: ${escaped}`,
+    );
+  }
+
+  if (options.optIn) {
+    if (!(yield* optInRepository(root))) return;
+
+    if (!options.changed && !explicit) return;
+    gitConfig = yield* loadDotGitConfig(config.gitConfig.filePath);
+  }
+
+  if (options.force) {
+    yield* log.warn(
+      "Forcing agent Oxlint: skipping opt-in and repository Oxlint gates (--force)",
+    );
+  }
+
+  const gate = yield* prepareAgentOxlint(root, gitConfig, options.force);
+
+  if (!gate.ready) {
+    if (gate.exitCode === undefined) {
+      yield* log.info(gate.reason);
+    } else {
+      process.exitCode = gate.exitCode;
+    }
+
+    return;
+  }
+
+  if (options.changed) {
+    const findings = yield* lintChangedLines(root, gate.cache, {
+      kind: "worktree",
+    });
+
+    if (findings.length === 0) {
+      yield* log.success("No agent Oxlint findings on changed lines");
+
+      return;
+    }
+
+    yield* Effect.sync(() =>
+      process.stdout.write(
+        `${findings.map(formatAgentOxlintFinding).join("\n")}\n`,
+      ),
+    );
+
+    const errors = findings.filter(
+      (finding) => finding.severity === "error",
+    ).length;
+
+    yield* log.warn(
+      `${plural(findings.length, "finding")} on changed lines (${plural(errors, "error")})`,
+    );
+    process.exitCode = 1;
+
+    return;
+  }
+
   const lintExit = yield* executor.inherit(
-    cache.binary,
-    ["--config", cache.config, ...targets],
+    gate.cache.binary,
+    ["--config", gate.cache.config, ...targets],
     { cwd: root },
   );
 

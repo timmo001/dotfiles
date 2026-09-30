@@ -1125,9 +1125,20 @@ const gitCommitCommand = describe(
       amend: bool("amend", "Amend the previous commit"),
       push: bool("push", "Push after committing"),
       dryRun: bool("dry-run", "Preview without changing anything"),
+      skipAgentOxlint: bool(
+        "skip-agent-oxlint",
+        "Commit despite agent Oxlint errors on changed lines",
+      ),
     },
-    ({ amend, dryRun, message, paths, push }) =>
-      gitCommitRaw({ message: optional(message), paths, amend, push, dryRun }),
+    ({ amend, dryRun, message, paths, push, skipAgentOxlint }) =>
+      gitCommitRaw({
+        message: optional(message),
+        paths,
+        amend,
+        push,
+        dryRun,
+        skipAgentOxlint,
+      }),
   ),
   "Commit staged changes through the guarded gateway. Subjects must be one line, have no trailing full stop, and stay within the hard length limit. Explicit --path scopes never imply git add -A; --amend keeps the existing message unless --message is supplied.",
   [
@@ -1140,7 +1151,7 @@ const gitCommitCommand = describe(
   ],
   {
     description:
-      "Create a commit through dot's guarded gateway instead of raw git commit. The subject is validated as a single line with no trailing full stop and a length limit, then the staged set (or an explicit --path scope) is committed. It never runs git add -A.\n\nPass --amend to rewrite the previous commit instead of creating a new one; it keeps the existing message unless you pass --message. With --push, an amend force-pushes with --force-with-lease, never a plain force. Agents are routed here by the git-commit skill and blocked from raw git commit in the OpenCode permission config.",
+      "Create a commit through dot's guarded gateway instead of raw git commit. The subject is validated as a single line with no trailing full stop and a length limit, then the staged set (or an explicit --path scope) is committed. It never runs git add -A.\n\nPass --amend to rewrite the previous commit instead of creating a new one; it keeps the existing message unless you pass --message. With --push, an amend force-pushes with --force-with-lease, never a plain force.\n\nIn repositories opted into agent Oxlint, the files being committed are linted and only findings on added or modified lines are reported. Warnings print and the commit continues; errors refuse the commit until they are fixed or --skip-agent-oxlint is passed. Agents are routed here by the git-commit skill and blocked from raw git commit in the OpenCode permission config.",
     modes: [
       "(default)  Commit the staged set",
       "--path     Commit only named files",
@@ -1910,6 +1921,10 @@ const agentOxlintCommand = describe(
         Argument.atLeast(0),
       ),
       all: bool("all", "Lint the complete repository tree"),
+      changed: bool(
+        "changed",
+        "Lint uncommitted changes and report only findings on changed lines",
+      ),
       optIn: bool(
         "opt-in",
         "Enable the existing private config entry and commit the single-line change",
@@ -1921,8 +1936,9 @@ const agentOxlintCommand = describe(
     },
     agentOxlint,
   ),
-  "Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested. Pass --force to run despite those skips.",
+  "Run the advisory generic Oxlint pass on JavaScript and TypeScript changes in an opted-in repository. Repository-owned Oxlint takes precedence. Use --changed normally, explicit paths to lint whole files, or --all when explicitly requested. Pass --force to run despite those skips.",
   [
+    "dot agent-oxlint --changed",
     "dot agent-oxlint src/example.ts",
     "dot agent-oxlint src/one.ts src/two.ts",
     "dot agent-oxlint --all",
@@ -1931,9 +1947,10 @@ const agentOxlintCommand = describe(
   ],
   {
     description:
-      "Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cache without changing the target repository. The current repository must set agent_oxlint: true in private dot-git.yml. Repositories with their own Oxlint config, dependency, script, or local binary are skipped because their local setup takes precedence. Pass --force to run anyway. Diagnostics are advisory for cleanup work and do not make these personal rules authoritative for the host repository.",
+      "Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cache without changing the target repository. The current repository must set agent_oxlint: true in private dot-git.yml. Repositories with their own Oxlint config, dependency, script, or local binary are skipped because their local setup takes precedence. Pass --force to run anyway. Diagnostics are advisory and do not make these personal rules authoritative for the host repository. --changed compares the working tree and untracked files with HEAD, prints only findings on added or modified lines, and exits non-zero when any remain. dot git-commit runs the same check on the files it commits.",
     modes: [
-      "<path>...  Lint explicit changed files or directories",
+      "--changed  Lint uncommitted changes, reporting only changed lines",
+      "<path>...  Lint explicit files or directories in full",
       "--all      Lint the complete repository tree",
       "--force    Run even if opt-in or repository Oxlint would skip",
       "--opt-in   Enable and commit the existing config entry; add paths or --all to also lint",

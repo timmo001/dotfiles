@@ -805,6 +805,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
             "git-commit",
             "-m",
             `Release ${tag}`,
+            "--skip-agent-oxlint",
             ...changed.flatMap((file) => ["--path", file.path]),
           ],
           directory,

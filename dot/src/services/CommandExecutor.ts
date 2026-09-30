@@ -28,6 +28,8 @@ export class CommandError extends Schema.TaggedError<CommandError>()(
     command: Schema.String,
     exitCode: Schema.Finite,
     stderr: Schema.String,
+    /** Captured stdout of a completed `run` that exited non-zero. */
+    stdout: Schema.optionalKey(Schema.String),
   },
 ) {}
 
@@ -181,6 +183,7 @@ export class CommandExecutor extends Context.Service<
                 command,
                 exitCode,
                 stderr: stderr.trim(),
+                stdout,
               });
             }
 

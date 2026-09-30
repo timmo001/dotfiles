@@ -527,6 +527,8 @@ dot omarchy-plugin <subcommand> [flags]
 
 Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.
 
+sync-components copies the shared panel components in omarchy/.config/omarchy/components into the standalone plugin checkouts listed in the private omarchy-components.json, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.
+
 **Options**
 
 | Option | Description |
@@ -546,6 +548,7 @@ Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Om
 ```bash
 dot omarchy-plugin update timmo.clock --yes
 dot omarchy-plugin remove timmo.clock
+dot omarchy-plugin sync-components --check
 ```
 
 ### `dot omarchy-plugin add`
@@ -618,6 +621,22 @@ dot omarchy-plugin remove [flags] <id> [<confirm>] [<save>]
 | `<id>` | Managed plugin ID |
 | `<confirm>` | Compatibility confirmation value |
 | `<save>` | Compatibility commit-offer value |
+
+### `dot omarchy-plugin sync-components`
+
+Copy shared panel components into standalone plugin checkouts
+
+```text
+dot omarchy-plugin sync-components [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--check` | Report out-of-date copies without writing |
+| `--config` `<string>` | Targets JSON config (default: $XDG_CONFIG_HOME/dot/omarchy-components.json) |
+| `--help` `-h` | Show help information |
 
 ## `dot session-status`
 
@@ -923,7 +942,9 @@ dot git-commit [flags]
 
 Create a commit through dot's guarded gateway instead of raw git commit. The subject is validated as a single line with no trailing full stop and a length limit, then the staged set (or an explicit --path scope) is committed. It never runs git add -A.
 
-Pass --amend to rewrite the previous commit instead of creating a new one; it keeps the existing message unless you pass --message. With --push, an amend force-pushes with --force-with-lease, never a plain force. Agents are routed here by the git-commit skill and blocked from raw git commit in the OpenCode permission config.
+Pass --amend to rewrite the previous commit instead of creating a new one; it keeps the existing message unless you pass --message. With --push, an amend force-pushes with --force-with-lease, never a plain force.
+
+In repositories opted into agent Oxlint, the files being committed are linted and only findings on added or modified lines are reported. Warnings print and the commit continues; errors refuse the commit until they are fixed or --skip-agent-oxlint is passed. Agents are routed here by the git-commit skill and blocked from raw git commit in the OpenCode permission config.
 
 **Modes**
 
@@ -943,6 +964,7 @@ Pass --amend to rewrite the previous commit instead of creating a new one; it ke
 | `--amend` | Amend the previous commit |
 | `--push` | Push after committing |
 | `--dry-run` | Preview without changing anything |
+| `--skip-agent-oxlint` | Commit despite agent Oxlint errors on changed lines |
 | `--help` `-h` | Show help information |
 
 **Message guards**
@@ -1502,18 +1524,19 @@ dot repo-induct ~/repos/example --noninteractive --preset normal --name Example 
 
 ## `dot agent-oxlint`
 
-Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested. Pass --force to run despite those skips.
+Run the advisory generic Oxlint pass on JavaScript and TypeScript changes in an opted-in repository. Repository-owned Oxlint takes precedence. Use --changed normally, explicit paths to lint whole files, or --all when explicitly requested. Pass --force to run despite those skips.
 
 ```text
 dot agent-oxlint [flags] [<path...>]
 ```
 
-Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cache without changing the target repository. The current repository must set agent_oxlint: true in private dot-git.yml. Repositories with their own Oxlint config, dependency, script, or local binary are skipped because their local setup takes precedence. Pass --force to run anyway. Diagnostics are advisory for cleanup work and do not make these personal rules authoritative for the host repository.
+Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cache without changing the target repository. The current repository must set agent_oxlint: true in private dot-git.yml. Repositories with their own Oxlint config, dependency, script, or local binary are skipped because their local setup takes precedence. Pass --force to run anyway. Diagnostics are advisory and do not make these personal rules authoritative for the host repository. --changed compares the working tree and untracked files with HEAD, prints only findings on added or modified lines, and exits non-zero when any remain. dot git-commit runs the same check on the files it commits.
 
 **Modes**
 
 ```text
-<path>...  Lint explicit changed files or directories
+--changed  Lint uncommitted changes, reporting only changed lines
+<path>...  Lint explicit files or directories in full
 --all      Lint the complete repository tree
 --force    Run even if opt-in or repository Oxlint would skip
 --opt-in   Enable and commit the existing config entry; add paths or --all to also lint
@@ -1524,6 +1547,7 @@ Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cac
 | Option | Description |
 | --- | --- |
 | `--all` | Lint the complete repository tree |
+| `--changed` | Lint uncommitted changes and report only findings on changed lines |
 | `--opt-in` | Enable the existing private config entry and commit the single-line change |
 | `--force` | Run even if the repository is not opted in or already has Oxlint |
 | `--help` `-h` | Show help information |
@@ -1543,6 +1567,7 @@ Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cac
 **Examples**
 
 ```bash
+dot agent-oxlint --changed
 dot agent-oxlint src/example.ts
 dot agent-oxlint src/one.ts src/two.ts
 dot agent-oxlint --all
