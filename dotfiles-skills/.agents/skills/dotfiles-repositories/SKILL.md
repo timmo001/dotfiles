@@ -13,18 +13,18 @@ metadata:
 Whenever the user says "my ... repo(s)", "my dotfiles", "my skills" or names
 any repository, resolve it with `dot repo` before guessing a path:
 
-| The user says                                       | Run                                                                                        |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| "look at my dotfiles", "my skills", "the notes CLI" | `dot repo search <words>`; use the top result when it clearly leads                        |
-| "look at my ha repos for x" (a group)               | `dot repo search <group>`; keep every result sharing the group's name prefix or alias stem |
-| "check my tracked repos for y"                      | `dot repo list`; work through every entry                                                  |
-| an exact name, alias or `owner/repo`                | `dot repo list <query>`                                                                    |
-| a purpose not in any name ("the pacman repo")       | `dot repo list`; choose by name, slug and project reference descriptions                   |
+| The user says                                       | Run                                                                                              |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| "look at my dotfiles", "my skills", "the notes CLI" | `dot repo search <words>`; use the top result when it clearly leads                              |
+| "look at my ha repos for x" (a group)               | `dot repo search <group> --all`; keep every result sharing the group's name prefix or alias stem |
+| "check my tracked repos for y"                      | `dot repo list`; work through every entry                                                        |
+| an exact name, alias or `owner/repo`                | `dot repo list <query>`                                                                          |
+| a purpose not in any name ("the pacman repo")       | `dot repo list`; choose by name, slug and project reference descriptions                         |
 
 - `search` is fuzzy and typo-tolerant over name, aliases, GitHub repository name
   and slug, directory and path. Every term must match; results are ranked with
-  `score` (1 to 100) and `matched`. When the top scores are close and the user
-  meant one repository, ask which.
+  `score` (1 to 100) and `matched`, top 10 unless `--all`. When the top scores
+  are close and the user meant one repository, ask which.
 - Both print JSON under an agent with `name`, `path`, `github`, `aliases`,
   `kind`, `exists`, `current` and `herdr`, and exit 1 when nothing matches. A
   miss means the words are not in any name; fall back to the full list.
