@@ -5,9 +5,19 @@
 import { Plugin } from "@opencode/plugin/effect";
 import { Tool } from "@opencode/schema/tool";
 import type { SessionMessage } from "@opencode/schema/session-message";
-import { Effect } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 const MIN_WORDS = 20;
+
+const decodeSignature = Schema.decodeUnknownOption(Schema.String);
+
+// Claude can send pre-tool chat as a reasoning block whose signature is tagged "narration". The format is
+// undocumented, so a change here falls back to rejecting.
+const isNarration = (part: SessionMessage.AssistantContent): part is SessionMessage.AssistantReasoning =>
+  part.type === "reasoning" &&
+  Option.exists(decodeSignature(part.state?.["signature"]), (signature) =>
+    Buffer.from(signature, "base64").toString("latin1").includes("narration"),
+  );
 
 // Only text from the same step counts, so progress notes written between earlier tool calls do not.
 const stepText = (messages: ReadonlyArray<SessionMessage.Info>, callID: string) => {
@@ -26,7 +36,7 @@ const stepText = (messages: ReadonlyArray<SessionMessage.Info>, callID: string) 
 
   return step.content
     .slice(0, callIndex === -1 ? undefined : callIndex)
-    .flatMap((part) => (part.type === "text" ? [part.text] : []))
+    .flatMap((part) => (part.type === "text" || isNarration(part) ? [part.text] : []))
     .join(" ");
 };
 
@@ -55,7 +65,7 @@ export default Plugin.define({
               message:
                 `Question rejected: found ${words} words of chat text in this response before the question call; ${MIN_WORDS} are needed. ` +
                 "Only chat text written in the same response as the question call counts. " +
-                "Reasoning, tool input and progress notes from earlier steps do not, and the question tool shows the user labels only. " +
+                "Thinking, tool input and progress notes from earlier steps do not, and the question tool shows the user labels only. " +
                 "Do not end your turn instead. In one response, first answer any question the user asked, then write a short chat explainer " +
                 "of the findings the choice depends on, what each option means and your recommendation, then call the question tool.",
             }),
