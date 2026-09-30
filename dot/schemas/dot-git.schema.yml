@@ -108,6 +108,26 @@ $defs:
           type: string
           minLength: 1
         description: MCP server names from mcp.yml enabled for this repository by dot mcp-sync.
+      omarchy_components:
+        type: object
+        additionalProperties: false
+        required:
+          - directory
+          - components
+        description: Shared Omarchy panel components that dot omarchy-plugin sync-components copies into this repository.
+        properties:
+          directory:
+            type: string
+            pattern: "^(?!/)(?!.*(^|/)\\.\\.(/|$)).*$"
+            description: Plugin directory relative to the repository root, such as omarchy-plugin or .
+          components:
+            type: array
+            minItems: 1
+            uniqueItems: true
+            items:
+              type: string
+              pattern: "^[A-Z][A-Za-z0-9]*$"
+            description: Component names from omarchy/.config/omarchy/components, without the .qml extension.
       browser:
         type: string
         pattern: "^[a-z][a-z0-9_-]*$"
