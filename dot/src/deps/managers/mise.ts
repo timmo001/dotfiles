@@ -34,6 +34,7 @@ const upstreams = {
   jq: "jqlang/jq",
   lazygit: "jesseduffield/lazygit",
   pitchfork: "jdx/pitchfork",
+  pnpm: "pnpm/pnpm",
   ripgrep: "BurntSushi/ripgrep",
   shellcheck: "koalaman/shellcheck",
   shfmt: "mvdan/sh",
