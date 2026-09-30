@@ -45,7 +45,11 @@ import type { ConfigService } from "../services/Config.js";
 import type { GitManagedRepo } from "../services/GitConfig.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
 import type { Styler } from "../lib/ansi.js";
-import type { MiseToolChange, UpdatedRepo } from "../lib/updateSummary.js";
+import type {
+  MiseToolChange,
+  RecapEntry,
+  UpdatedRepo,
+} from "../lib/updateSummary.js";
 import type { DiffRepo, RepoCategory } from "../types.js";
 
 const DISABLE_SELF_UPDATE_ARG = "--no-self-update";
@@ -570,6 +574,10 @@ const postHooks = Effect.gen(function* () {
 
   yield* agentsSync;
 });
+
+const done = (message: string): RecapEntry => ({ status: "done", message });
+const skip = (message: string): RecapEntry => ({ status: "skip", message });
+const warn = (message: string): RecapEntry => ({ status: "warn", message });
 
 const MiseToolVersions = Schema.fromJsonString(
   Schema.Record(
@@ -1230,9 +1238,10 @@ export const update = (updateOpts?: UpdateOptions) =>
       opts?.postHookRepos ?? [],
     );
 
-    const completedActions: string[] = [];
+    const completedActions: RecapEntry[] = [];
     const miseToolChanges: MiseToolChange[] = [];
     let privatePackageRepoUpdated = false;
+    const pullRecap: RecapEntry[] = [];
 
     if (doPull) {
       yield* requiredUpdateStep(
@@ -1293,6 +1302,9 @@ export const update = (updateOpts?: UpdateOptions) =>
                 yield* log.warn(
                   `Skipping private pull (${config.privateReason})`,
                 );
+                pullRecap.push(
+                  skip(`Private pull skipped (${config.privateReason})`),
+                );
               }
 
               const changed = repos.filter(
@@ -1324,6 +1336,19 @@ export const update = (updateOpts?: UpdateOptions) =>
                       `  - ${repo.name}: ${displayPath(repo.path)}`,
                     );
                   }
+
+                  for (const repo of changed) {
+                    const reasons = [
+                      repo.isDirty ? "dirty working tree" : "",
+                      repo.ahead > 0 ? "ahead of upstream" : "",
+                    ].filter(Boolean);
+
+                    pullRecap.push(
+                      warn(
+                        `${repo.name} needs attention: ${reasons.join(", ")}`,
+                      ),
+                    );
+                  }
                 } else {
                   yield* log.success("All repositories are up to date");
                 }
@@ -1342,7 +1367,15 @@ export const update = (updateOpts?: UpdateOptions) =>
                 );
 
                 for (const { repo, range } of pulled) {
-                  if (!range) continue;
+                  if (!range) {
+                    pullRecap.push(
+                      warn(
+                        `${repo.name} is behind upstream but was not pulled${repo.isDirty ? " (dirty working tree)" : ""}`,
+                      ),
+                    );
+                    continue;
+                  }
+
                   updatedRepos.push({
                     name: repo.name,
                     path: repo.path,
@@ -1375,7 +1408,17 @@ export const update = (updateOpts?: UpdateOptions) =>
           }
         }),
       );
-      completedActions.push("Pulled repositories");
+
+      const pulledNames = [...new Set(updatedRepos.map((repo) => repo.name))];
+
+      completedActions.push(
+        pulledNames.length > 0
+          ? done(
+              `Pulled ${plural(pulledNames.length, "repository", "repositories")}: ${pulledNames.join(", ")}`,
+            )
+          : skip("No repositories pulled (nothing new upstream)"),
+        ...pullRecap,
+      );
     }
 
     let shellConfigChanged = false;
@@ -1394,8 +1437,11 @@ export const update = (updateOpts?: UpdateOptions) =>
                 `${displayPath(target)} is already built from this source`,
               );
 
-          if (built)
-            completedActions.push("Rebuilt the skill-maintenance executable");
+          completedActions.push(
+            built
+              ? done("Rebuilt the skill-maintenance executable")
+              : skip("Skill-maintenance executable already built"),
+          );
         }),
       );
     }
@@ -1410,7 +1456,10 @@ export const update = (updateOpts?: UpdateOptions) =>
 
           const result = yield* runStow();
           shellConfigChanged = result.shellConfigChanged;
-          completedActions.push("Synced MCP config", ...result.actions);
+          completedActions.push(
+            done("Synced MCP config"),
+            ...result.actions.map(done),
+          );
         }),
       );
     }
@@ -1421,13 +1470,19 @@ export const update = (updateOpts?: UpdateOptions) =>
         STEP_TIMEOUT_SECONDS.miseInstall,
         installMissingMiseTools.pipe(
           Effect.map((installed) => {
-            if (Option.isNone(installed)) return;
+            if (Option.isNone(installed)) {
+              completedActions.push(skip("No mise tools to install"));
+
+              return;
+            }
 
             miseToolChanges.push(...installed.value);
             completedActions.push(
               installed.value.length > 0
-                ? `Installed ${plural(installed.value.length, "mise tool")}`
-                : "Installed tools from the global mise config",
+                ? done(
+                    `Installed ${plural(installed.value.length, "mise tool")}`,
+                  )
+                : skip("No mise tools to install"),
             );
           }),
         ),
@@ -1438,11 +1493,15 @@ export const update = (updateOpts?: UpdateOptions) =>
         STEP_TIMEOUT_SECONDS.miseInstall,
         pruneRemovedMiseTools.pipe(
           Effect.map((pruned) => {
-            if (pruned.length === 0) return;
+            if (pruned.length === 0) {
+              completedActions.push(skip("No mise tools to prune"));
+
+              return;
+            }
 
             miseToolChanges.push(...pruned);
             completedActions.push(
-              `Pruned ${plural(pruned.length, "mise tool version")}`,
+              done(`Pruned ${plural(pruned.length, "mise tool version")}`),
             );
           }),
         ),
@@ -1453,7 +1512,7 @@ export const update = (updateOpts?: UpdateOptions) =>
       yield* reloadOmarchyShellIfChanged(shellConfigChanged);
 
       if (shellConfigChanged) {
-        completedActions.push("Attempted an Omarchy shell reload");
+        completedActions.push(done("Attempted an Omarchy shell reload"));
       }
     }
 
@@ -1473,9 +1532,13 @@ export const update = (updateOpts?: UpdateOptions) =>
         }),
       );
 
-      if (built) completedActions.push("Rebuilt the dot binary");
+      completedActions.push(
+        built
+          ? done("Rebuilt the dot binary")
+          : skip("dot binary already built from this source"),
+      );
     } else if (doApp) {
-      completedActions.push("Rebuilt the dot binary before restarting");
+      completedActions.push(done("Rebuilt the dot binary before restarting"));
     }
 
     if (isFullUpdate || applyPulledDotfiles) {
@@ -1484,7 +1547,7 @@ export const update = (updateOpts?: UpdateOptions) =>
         STEP_TIMEOUT_SECONDS.herdrPlugins,
         restoreHerdrPlugins,
       );
-      completedActions.push("Ran the Herdr plugin refresh phase");
+      completedActions.push(done("Ran the Herdr plugin refresh phase"));
     }
 
     // Notify only when a repo actually moved.
@@ -1499,13 +1562,13 @@ export const update = (updateOpts?: UpdateOptions) =>
         STEP_TIMEOUT_SECONDS.postHooks,
         postHooks,
       );
-      completedActions.push("Synced agent instructions");
+      completedActions.push(done("Synced agent instructions"));
     }
 
     if (isFullUpdate) {
       const markerStatus = yield* ensureInitCompleteMarker(config, "update");
       yield* logInitMarkerStatus(markerStatus, config);
-      completedActions.push("Checked the init state marker");
+      completedActions.push(done("Checked the init state marker"));
     }
 
     if (opts?.reload !== false) {
@@ -1516,7 +1579,7 @@ export const update = (updateOpts?: UpdateOptions) =>
       );
 
       if (uiRefreshCompleted) {
-        completedActions.push("Completed the UI resume refresh step");
+        completedActions.push(done("Completed the UI resume refresh step"));
       }
     }
 

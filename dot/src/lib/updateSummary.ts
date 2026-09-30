@@ -45,6 +45,29 @@ export type MiseToolChange =
       readonly previous: string;
     });
 
+/** One stage outcome in the `dot update` recap. */
+export interface RecapEntry {
+  /** Whether the stage did work, was skipped, or needs attention. */
+  readonly status: "done" | "skip" | "warn";
+  /** Sentence-case description of the outcome. */
+  readonly message: string;
+}
+
+const renderRecapEntry = (
+  entry: RecapEntry,
+  style: Styler,
+  line: SummaryLine,
+) => {
+  switch (entry.status) {
+    case "done":
+      return line("success", entry.message);
+    case "skip":
+      return line("info", `${style.dim("○")} ${style.dim(entry.message)}`);
+    case "warn":
+      return line("warn", entry.message);
+  }
+};
+
 interface Commit {
   readonly sha: string;
   readonly subject: string;
@@ -292,7 +315,7 @@ const renderMiseTools = (
 const renderUpdateSummary = (
   updated: readonly UpdatedRepo[],
   miseTools: readonly MiseToolChange[],
-  actions: readonly string[],
+  actions: readonly RecapEntry[],
   startedAt: number,
   line: SummaryLine,
 ) =>
@@ -302,9 +325,7 @@ const renderUpdateSummary = (
 
     yield* line("section", "Summary");
 
-    if (repos.length === 0) {
-      yield* line("info", style.dim("No repositories updated"));
-    } else {
+    if (repos.length > 0) {
       yield* line(
         "info",
         style.label(`Updated repositories (${repos.length})`),
@@ -319,10 +340,10 @@ const renderUpdateSummary = (
     yield* renderMiseTools(miseTools, style, line);
 
     yield* line("info", "");
-    yield* line("info", style.label("Actions taken"));
+    yield* line("info", style.label("Recap"));
 
-    for (const action of actions) {
-      yield* line("success", action);
+    for (const entry of actions) {
+      yield* renderRecapEntry(entry, style, line);
     }
 
     yield* line("info", "");
@@ -337,7 +358,7 @@ const renderUpdateSummary = (
 export function logUpdateSummary(
   updated: readonly UpdatedRepo[],
   miseTools: readonly MiseToolChange[],
-  actions: readonly string[],
+  actions: readonly RecapEntry[],
   startedAt: number,
 ): Effect.Effect<void, never, OutputLog | CommandExecutor> {
   return Effect.gen(function* () {
@@ -361,7 +382,7 @@ export function writeUpdateSummary(
   path: string,
   updated: readonly UpdatedRepo[],
   miseTools: readonly MiseToolChange[],
-  actions: readonly string[],
+  actions: readonly RecapEntry[],
   startedAt: number,
 ): Effect.Effect<void, never, CommandExecutor | FileSystem.FileSystem> {
   return Effect.gen(function* () {
