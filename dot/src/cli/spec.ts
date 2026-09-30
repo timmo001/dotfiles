@@ -996,19 +996,43 @@ const gitReleasesCommand = describe(
               "confirm",
               "Execute the exact plan ID returned by the preview",
             ),
+            notesFile: text(
+              "notes-file",
+              "Markdown file with hand-written release notes, read at preview and again at confirmation",
+            ),
+            notesMode: Flag.Literals("notes-mode", ["prepend", "replace"]).pipe(
+              Flag.optional,
+              Flag.withDescription(
+                "Put --notes-file before the generated notes (prepend, default) or use it alone (replace)",
+              ),
+            ),
           },
-          ({ repo, snapshot, confirm, panelJson, interactive }) =>
+          ({
+            repo,
+            snapshot,
+            confirm,
+            panelJson,
+            interactive,
+            notesFile,
+            notesMode,
+          }) =>
             releasesPublish(
-              { repo, snapshot, confirm: optional(confirm) },
+              {
+                repo,
+                snapshot,
+                confirm: optional(confirm),
+                notesFile: optional(notesFile),
+                notesMode: optional(notesMode),
+              },
               panelJson,
               interactive,
             ),
         ),
-        "Preview version changes, validation, pushes and generated release notes. --interactive explains and confirms in the terminal; --confirm PLAN executes a reviewed plan with live progress.",
+        "Preview version changes, validation, pushes and release notes. --interactive explains and confirms in the terminal; --confirm PLAN executes a reviewed plan with live progress. --notes-file supplies hand-written notes.",
         [],
         {
           description:
-            "Requires an explicit private releases.publish recipe. The preview is read-only. Confirmation binds the reviewed snapshot, version files, commands and target. Preparation runs in an isolated worktree. Only agreed version changes are committed through dot git-commit, then the version commit and tag are pushed atomically. GitHub release notes are generated from the previous stable release. Progress includes command output and a saved log. Release creation does not wait for GitHub publication jobs; follow the returned Actions URL. Failed preparation is retained for inspection. Refresh and preview again after resolving a failure.",
+            "Requires an explicit private releases.publish recipe. The preview is read-only. Confirmation binds the reviewed snapshot, version files, commands and target. Preparation runs in an isolated worktree. Only agreed version changes are committed through dot git-commit, then the version commit and tag are pushed atomically. GitHub release notes are generated from the previous stable release, unless --notes-file supplies hand-written notes. The file must exist and not be empty; its text is shown in the preview and bound to the plan, so pass the same --notes-file on confirmation and an edited file needs a new preview. --notes-mode prepend (default) puts the file before the generated notes, editing the release straight after creation; replace uses only the file. Progress includes command output and a saved log. Release creation does not wait for GitHub publication jobs; follow the returned Actions URL. Failed preparation is retained for inspection. Refresh and preview again after resolving a failure.",
         },
       ),
     ]),
@@ -1021,6 +1045,8 @@ const gitReleasesCommand = describe(
     "dot git-releases --open --repo example/project",
     "dot git-releases review --repo example/project --snapshot ID --finding FINDING --impact patch",
     "dot git-releases review --repo example/project --snapshot ID --impact auto",
+    "dot git-releases publish --repo example/project --snapshot ID --notes-file notes.md",
+    "dot git-releases publish --repo example/project --snapshot ID --notes-file notes.md --notes-mode replace --confirm PLAN",
   ],
   {
     description:

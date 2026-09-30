@@ -20,6 +20,19 @@ import {
   type ReleaseVersionFile,
 } from "./types.js";
 
+/** How supplied release notes combine with GitHub-generated notes. */
+export type ReleaseNotesMode = "prepend" | "replace";
+
+/** Release notes read from a file when the plan is built. */
+export interface ReleaseNotes {
+  /** File the notes were read from. */
+  readonly file: string;
+  /** Whether the notes precede or replace the generated notes. */
+  readonly mode: ReleaseNotesMode;
+  /** Trimmed notes text bound to the plan identity. */
+  readonly text: string;
+}
+
 /** Preview selection, or explicit confirmation of the returned plan identity. */
 export interface ReleasePublishAction {
   /** Configured name or GitHub slug. */
@@ -28,6 +41,10 @@ export interface ReleasePublishAction {
   readonly snapshot: string;
   /** Plan identity returned by an unconfirmed preview. */
   readonly confirm?: string;
+  /** Markdown file with hand-written release notes. */
+  readonly notesFile?: string;
+  /** How the notes file combines with generated notes; defaults to prepend. */
+  readonly notesMode?: ReleaseNotesMode;
 }
 
 /** Visible operation/output events delivered while creating a release. */
@@ -49,6 +66,8 @@ export interface ReleasePlan {
   readonly tag: string;
   /** Baseline for GitHub-generated release notes. */
   readonly previousTag: string;
+  /** Hand-written release notes bound to this plan, when supplied. */
+  readonly notes?: ReleaseNotes;
   /** Ordered steps shown before confirmation. */
   readonly steps: readonly string[];
   /** Manifest changes, including already-prepared versions. */
@@ -359,6 +378,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
   snapshot: ReleaseSnapshot,
   confirmation: string | undefined,
   report: ReleaseProgress,
+  notesRequest?: Pick<ReleaseNotes, "file" | "mode">,
 ) {
   const fs = yield* FileSystem.FileSystem;
   const recipe = settings.publish;
@@ -382,6 +402,26 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
         );
     yield* report(message);
   });
+
+  const notes = notesRequest
+    ? yield* fs.readFileString(notesRequest.file).pipe(
+        Effect.mapError(
+          (error) =>
+            new ReleaseError({
+              message: `Could not read release notes file ${notesRequest.file}: ${formatCause(error)}`,
+            }),
+        ),
+        Effect.flatMap((content) =>
+          content.trim()
+            ? Effect.succeed({ ...notesRequest, text: content.trim() })
+            : Effect.fail(
+                new ReleaseError({
+                  message: `Release notes file ${notesRequest.file} is empty`,
+                }),
+              ),
+        ),
+      )
+    : undefined;
 
   const timestamp = yield* Clock.currentTimeMillis;
 
@@ -504,7 +544,16 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
 
   const changed = prepared.filter((file) => file.before !== file.after);
   const needsPreparation = changed.length > 0 || recipe.commands.length > 0;
-  const id = evidenceId([snapshot.id, remote, tag, recipe, versions]);
+
+  const id = evidenceId([
+    snapshot.id,
+    remote,
+    tag,
+    recipe,
+    versions,
+    ...(notes ? [{ mode: notes.mode, text: notes.text }] : []),
+  ]);
+
   const logPath = join(releasePaths(repo.github).state, `publish-${id}.log`);
 
   const steps = [
@@ -537,7 +586,16 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
       : [
           `Create tag ${tag} at the reviewed commit; no version commit or branch push is needed.`,
         ]),
-    `Create and publish GitHub release ${tag} at the resulting commit, with GitHub-generated notes starting at ${snapshot.releaseTag}.`,
+    ...(notes
+      ? [
+          `Release notes from ${notes.file}:\n${notes.text.replace(/^/gm, "   ")}`,
+        ]
+      : []),
+    notes?.mode === "replace"
+      ? `Create and publish GitHub release ${tag} at the resulting commit, using only the release notes from ${notes.file}.`
+      : notes
+        ? `Create and publish GitHub release ${tag} at the resulting commit with the release notes from ${notes.file} followed by GitHub-generated notes starting at ${snapshot.releaseTag}, applied straight after creation.`
+        : `Create and publish GitHub release ${tag} at the resulting commit, with GitHub-generated notes starting at ${snapshot.releaseTag}.`,
     "Publishing the release triggers the repository's release workflows. Their build/package results are available on GitHub Actions.",
     ...(needsPreparation
       ? [
@@ -555,6 +613,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
     branch: settings.branch,
     tag,
     previousTag: snapshot.releaseTag,
+    ...(notes && { notes }),
     steps,
     versions,
     commands: recipe.commands,
@@ -783,8 +842,23 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
     );
     yield* verifyRemote(target, true);
     yield* progress(
-      `Creating GitHub release ${tag} at ${target} with generated notes since ${snapshot.releaseTag}`,
+      notes?.mode === "replace"
+        ? `Creating GitHub release ${tag} at ${target} with the notes from ${notes.file}`
+        : `Creating GitHub release ${tag} at ${target} with generated notes since ${snapshot.releaseTag}`,
     );
+
+    const notesPath = join(releasePaths(repo.github).state, `notes-${id}.md`);
+
+    const writeNotes = (content: string) =>
+      fs
+        .writeFileString(notesPath, content + "\n", { mode: 0o600 })
+        .pipe(
+          Effect.mapError(
+            (error) => new ReleaseError({ message: formatCause(error) }),
+          ),
+        );
+
+    if (notes?.mode === "replace") yield* writeNotes(notes.text);
 
     const url = (yield* github
       .run(
@@ -795,15 +869,62 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
           "--repo",
           repo.github,
           "--verify-tag",
-          "--generate-notes",
-          "--notes-start-tag",
-          snapshot.releaseTag,
+          ...(notes?.mode === "replace"
+            ? ["--notes-file", notesPath]
+            : ["--generate-notes", "--notes-start-tag", snapshot.releaseTag]),
         ],
         { retries: 0 },
       )
       .pipe(
         Effect.mapError((error) => new ReleaseError({ message: error.stderr })),
       )).trim();
+
+    if (notes?.mode === "prepend") {
+      yield* progress(
+        `Applying the notes from ${notes.file} before the generated notes`,
+      );
+
+      yield* Effect.gen(function* () {
+        const { body } = yield* github
+          .json([
+            "release",
+            "view",
+            tag,
+            "--repo",
+            repo.github,
+            "--json",
+            "body",
+          ])
+          .pipe(
+            Effect.flatMap(
+              Schema.decodeUnknownEffect(
+                Schema.Struct({ body: Schema.String }),
+              ),
+            ),
+          );
+
+        yield* writeNotes(
+          [notes.text, body.trim()].filter(Boolean).join("\n\n"),
+        );
+
+        yield* github.run([
+          "release",
+          "edit",
+          tag,
+          "--repo",
+          repo.github,
+          "--notes-file",
+          notesPath,
+        ]);
+      }).pipe(
+        Effect.mapError(
+          (error) =>
+            new ReleaseError({
+              message: `Release ${url} was created, but its notes could not be applied: ${"stderr" in error ? error.stderr : formatCause(error)}. Run gh release edit ${tag} --repo ${repo.github} --notes-file ${notes.file} to apply them.`,
+            }),
+        ),
+      );
+    }
 
     yield* progress(`GitHub release created: ${url}`);
     const actionsUrl = `https://github.com/${repo.github}/actions`;

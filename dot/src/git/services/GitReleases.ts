@@ -813,6 +813,12 @@ export class GitReleases extends Context.Service<
                 current.snapshot,
                 action.confirm,
                 progress,
+                action.notesFile
+                  ? {
+                      file: action.notesFile,
+                      mode: action.notesMode ?? "prepend",
+                    }
+                  : undefined,
               ).pipe(
                 Effect.provideService(CommandExecutor, executor),
                 Effect.provideService(GitHub, github),

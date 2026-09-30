@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Clock, Effect, type Layer, Stream } from "../../dot/node_modules/effect/dist/index.js";
@@ -95,6 +95,89 @@ test("release confirmation binds the reviewed head and recipe before any write",
   newTag = "another-commit\trefs/tags/1.0.1\n";
   await expect(run(config, preview.plan.id)).rejects.toThrow("already exists");
   expect(writes).toEqual([]);
+});
+
+test("release notes files are bound to the plan and applied straight after creation", async () => {
+  const root = mkdtempSync(join(tmpdir(), "release-notes-"));
+  const notes = join(root, "notes.md");
+  const config: ReleaseSettings = { ...settings(), publish: { version_files: [], commands: [] } };
+  const current = snapshot([file("src/rule.ts")], "head", config);
+  let pushed = false;
+  const releaseCalls: string[][] = [];
+  let notesAtCreate = "";
+
+  const executor = CommandExecutor.of({
+    run: (_command, args) => Effect.sync(() => {
+      if (args[0] === "remote") return "git@github.com:example/project.git\n";
+
+      if (args[0] === "ls-remote") return `head\trefs/heads/main\npublished\trefs/tags/1.0.0\n${pushed ? "head\trefs/tags/1.0.1\n" : ""}`;
+      throw new Error("Unexpected command " + args.join(" "));
+    }),
+    stream: (command, args) => {
+      if (command === "git" && args[0] === "push") pushed = true;
+
+      return Stream.empty;
+    },
+    exitCode: () => Effect.die("Unexpected process"), inherit: () => Effect.die("Unexpected process"),
+  });
+
+  const github = GitHub.of({
+    isAvailable: Effect.succeed(true),
+    json: (args) => Effect.succeed(args[0] === "release" ? { body: "## What's Changed\n\n* Generated" } : { tag_name: "1.0.0", draft: false, prerelease: false }),
+    api: () => Effect.die("Unexpected API call"),
+    run: (args) => {
+      releaseCalls.push([...args]);
+
+      if (args[1] === "create" && args.includes("--notes-file")) notesAtCreate = readFileSync(args[args.indexOf("--notes-file") + 1], "utf8");
+
+      if (args[1] === "edit") notesAtCreate = readFileSync(args[args.indexOf("--notes-file") + 1], "utf8");
+
+      return Effect.succeed("https://github.com/example/project/releases/tag/1.0.1\n");
+    },
+  });
+
+  const run = (mode: "prepend" | "replace", confirmation?: string, file = notes) => runP(publishRelease(repository, config, current, confirmation, () => Effect.void, { file, mode }).pipe(
+    Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github),
+  ));
+
+  try {
+    writeFileSync(notes, "  Hand-written\n\nNotes\n\n");
+    const preview = await run("prepend");
+
+    if (preview.type !== "plan") throw new Error("Expected preview");
+    expect(preview.plan.notes?.text).toBe("Hand-written\n\nNotes");
+    expect(preview.plan.steps.join("\n")).toContain("   Hand-written");
+    const other = await run("replace");
+
+    if (other.type !== "plan") throw new Error("Expected preview");
+    expect(other.plan.id).not.toBe(preview.plan.id);
+    writeFileSync(notes, "Edited after preview\n");
+    await expect(run("prepend", preview.plan.id)).rejects.toThrow("plan changed");
+    expect(releaseCalls).toEqual([]);
+    writeFileSync(notes, "Hand-written\n\nNotes\n");
+    await run("prepend", preview.plan.id);
+    expect(releaseCalls.map((call) => call.slice(0, 2))).toEqual([["release", "create"], ["release", "edit"]]);
+    expect(releaseCalls[0]).toContain("--generate-notes");
+    expect(releaseCalls[0]).not.toContain("--notes-file");
+    expect(notesAtCreate).toBe("Hand-written\n\nNotes\n\n## What's Changed\n\n* Generated\n");
+
+    releaseCalls.length = 0;
+    pushed = false;
+    const replace = await run("replace");
+
+    if (replace.type !== "plan") throw new Error("Expected preview");
+    await run("replace", replace.plan.id);
+    expect(releaseCalls).toHaveLength(1);
+    expect(releaseCalls[0]).toContain("--notes-file");
+    expect(releaseCalls[0]).not.toContain("--generate-notes");
+    expect(notesAtCreate).toBe("Hand-written\n\nNotes\n");
+    writeFileSync(notes, " \n");
+    await expect(run("prepend")).rejects.toThrow("is empty");
+    await expect(run("prepend", undefined, join(root, "missing.md"))).rejects.toThrow("Could not read release notes file");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(releasePaths("example/project").state, { recursive: true, force: true });
+  }
 });
 
 test("CalVer uses UTC dates, validates baselines and safely increments same-day counts", () => {
