@@ -16,7 +16,11 @@ import { trustRepoMiseConfigs } from "../lib/miseTrust.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import { cliStyler } from "../lib/ansi.js";
 import { plural } from "../lib/runSummary.js";
-import { logUpdateSummary, writeUpdateSummary } from "../lib/updateSummary.js";
+import {
+  logRepoChanges,
+  logUpdateSummary,
+  writeUpdateSummary,
+} from "../lib/updateSummary.js";
 import {
   withSpinnerTimeout,
   withStepTimeout,
@@ -393,10 +397,16 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
         const repo = managed.find((entry) => entry.path === repoPath);
         const name = repo?.name ?? basename(repoPath);
 
-        if (!(yield* safePull(name, repoPath, true, uniquePaths.length > 1)))
-          return null;
+        const range = yield* safePull(
+          name,
+          repoPath,
+          true,
+          uniquePaths.length > 1,
+        );
 
-        return { name, repoPath };
+        if (!range) return null;
+
+        return { name, repoPath, range };
       }).pipe(
         Effect.catch((error) =>
           Effect.gen(function* () {
@@ -420,6 +430,21 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
       pulledDotfiles.push(basename(result.repoPath));
   }
 
+  const restartsForDotfiles = !pullOnly && pulledDotfiles.length > 0;
+
+  // The restarted update summarises pulled dotfiles itself.
+  yield* logRepoChanges(
+    results.flatMap((result) =>
+      result &&
+      !(
+        restartsForDotfiles &&
+        (result.repoPath === publicPath || result.repoPath === privatePath)
+      )
+        ? [{ name: result.name, path: result.repoPath, ...result.range }]
+        : [],
+    ),
+  );
+
   if (updatedPaths.size > 0) {
     const gitConfig = config.canUsePrivate
       ? yield* loadDotGitConfig(config.gitConfig.filePath)
@@ -438,7 +463,7 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
     }
   }
 
-  if (!pullOnly && pulledDotfiles.length > 0) {
+  if (restartsForDotfiles) {
     yield* requiredUpdateStep("Rebuild", STEP_TIMEOUT_SECONDS.rebuild, rebuild);
     yield* restartDot([
       "update",

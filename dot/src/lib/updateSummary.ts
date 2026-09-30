@@ -176,6 +176,19 @@ const lineCounts = (style: Styler, file: FileChange): string => {
     .join(" ");
 };
 
+/** Matches a Conventional Commits prefix such as `fix(dot)!: `. */
+const CONVENTIONAL_PREFIX = /^(\w+)(\([^)]*\))?(!)?: /;
+
+/** Colour a commit subject's Conventional Commits type, scope, and break marker. */
+const commitSubject = (style: Styler, subject: string): string => {
+  const match = CONVENTIONAL_PREFIX.exec(subject);
+
+  if (!match) return subject;
+  const [prefix, type = "", scope = "", breaking = ""] = match;
+
+  return `${style.accent(type)}${style.dim(scope)}${style.error(breaking)}${style.dim(":")} ${subject.slice(prefix.length)}`;
+};
+
 const repoHeading = (
   style: Styler,
   name: string,
@@ -226,7 +239,10 @@ const renderRepoChanges = (
       yield* line("info", `  ${style.label("Commits")}`);
 
       for (const commit of changes.commits.slice(0, MAX_COMMITS)) {
-        yield* line("info", `    ${style.warn(commit.sha)} ${commit.subject}`);
+        yield* line(
+          "info",
+          `    ${style.warn(commit.sha)} ${commitSubject(style, commit.subject)}`,
+        );
       }
 
       if (changes.commits.length > MAX_COMMITS) {
@@ -349,6 +365,23 @@ const renderUpdateSummary = (
     yield* line("info", "");
     yield* line("info", yield* completedIn(startedAt));
   });
+
+/** Log the commits and changed files pulled into each updated repository. */
+export function logRepoChanges(
+  updated: readonly UpdatedRepo[],
+): Effect.Effect<void, never, OutputLog | CommandExecutor> {
+  return Effect.gen(function* () {
+    const log = yield* OutputLog;
+    const style = cliStyler();
+
+    for (const repo of mergeUpdatedRepos(updated)) {
+      yield* log.info("");
+      yield* renderRepoChanges(repo, style, (level, message) =>
+        log[level](message),
+      );
+    }
+  });
+}
 
 /**
  * Log the repositories updated, mise tool changes, and workflow actions

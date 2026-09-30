@@ -393,7 +393,7 @@ export function gitPullFastForward(
     // commits no remote has; otherwise it is a stale pin that update restores.
     const submodulesClean = yield* launcher
       .stream(
-        `git submodule foreach --recursive 'if test -n "$(git status --porcelain --untracked-files=normal --ignore-submodules=none)" || { test "$(git rev-parse HEAD)" != "$sha1" && test -n "$(git rev-list -n 1 HEAD --not --remotes)"; }; then echo "Local work in submodule $displaypath; skipping pull" >&2; exit 1; fi'`,
+        `git submodule --quiet foreach --recursive 'if test -n "$(git status --porcelain --untracked-files=normal --ignore-submodules=none)" || { test "$(git rev-parse HEAD)" != "$sha1" && test -n "$(git rev-list -n 1 HEAD --not --remotes)"; }; then echo "Local work in submodule $displaypath; skipping pull" >&2; exit 1; fi'`,
         { cwd: repoPath },
       )
       .pipe(Effect.orElseSucceed(() => 1));
@@ -417,7 +417,7 @@ export function gitPullFastForward(
 
     const exitCode = yield* launcher
       .stream(
-        "git merge --ff-only --no-autostash --no-edit '@{u}' && git submodule sync --recursive && GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive --checkout --jobs=8",
+        "git merge --quiet --ff-only --no-autostash --no-edit '@{u}' && git submodule --quiet sync --recursive && GIT_TERMINAL_PROMPT=0 git submodule --quiet update --init --recursive --checkout --jobs=8",
         { cwd: repoPath },
       )
       .pipe(Effect.orElseSucceed(() => 1));
