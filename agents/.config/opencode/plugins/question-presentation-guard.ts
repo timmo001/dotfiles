@@ -9,13 +9,21 @@ import { Effect } from "effect";
 
 const MIN_WORDS = 20;
 
-const turnText = (messages: ReadonlyArray<SessionMessage.Info>) => {
+// Each question needs its own explainer, so text before an earlier question in the turn does not count.
+const turnText = (messages: ReadonlyArray<SessionMessage.Info>, callID: string) => {
   const lastUser = messages.findLastIndex((message) => message.type === "user");
 
-  return messages
+  const content = messages
     .slice(lastUser + 1)
-    .flatMap((message) => (message.type === "assistant" ? message.content : []))
-    .flatMap((content) => (content.type === "text" ? [content.text] : []))
+    .flatMap((message) => (message.type === "assistant" ? message.content : []));
+
+  const lastQuestion = content.findLastIndex(
+    (part) => part.type === "tool" && part.name === "question" && part.id !== callID,
+  );
+
+  return content
+    .slice(lastQuestion + 1)
+    .flatMap((part) => (part.type === "text" ? [part.text] : []))
     .join(" ");
 };
 
@@ -35,14 +43,14 @@ export default Plugin.define({
 
           if (!messages) return;
 
-          const words = wordCount(turnText(messages));
+          const words = wordCount(turnText(messages, event.id));
 
           if (words >= MIN_WORDS) return;
 
           return yield* Effect.fail(
             new Tool.Error({
               message:
-                `Question rejected: only ${words} words of chat precede it this turn. ` +
+                `Question rejected: only ${words} words of chat precede it since the last user message or question. ` +
                 "Reasoning is not shown as chat, and the question tool shows the user labels only. " +
                 "First answer any question the user asked, then write a short chat explainer of the findings " +
                 "the choice depends on, what each option means and your recommendation. " +
