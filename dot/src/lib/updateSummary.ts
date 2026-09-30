@@ -28,15 +28,22 @@ export interface UpdatedRepo {
   readonly to: string;
 }
 
-/** A tool version installed by `dot update` from the global mise config. */
-export interface InstalledMiseTool {
-  /** mise tool name, including any backend prefix such as `npm:`. */
+/** A mise tool version, including any backend prefix such as `npm:`. */
+interface MiseToolVersion {
+  /** mise tool name. */
   readonly tool: string;
-  /** Installed version. */
+  /** Installed or pruned version. */
   readonly version: string;
-  /** Newest version installed before, when this updated an existing tool. */
-  readonly previous?: string;
 }
+
+/** A mise tool version changed by `dot update` for the global mise config. */
+export type MiseToolChange =
+  | (MiseToolVersion & { readonly change: "installed" | "removed" })
+  | (MiseToolVersion & {
+      readonly change: "updated";
+      /** Newest version installed before the update. */
+      readonly previous: string;
+    });
 
 interface Commit {
   readonly sha: string;
@@ -247,8 +254,25 @@ const mergeUpdatedRepos = (
   return [...merged.values()];
 };
 
+const miseToolLine = (
+  style: Styler,
+  tool: MiseToolChange,
+  width: number,
+): string => {
+  const name = style.accent(tool.tool.padEnd(width));
+
+  switch (tool.change) {
+    case "installed":
+      return `${style.success("I")}  ${name}  ${style.success(tool.version)}`;
+    case "updated":
+      return `${style.warn("U")}  ${name}  ${style.warn(tool.previous)} ${style.dim("->")} ${style.success(tool.version)}`;
+    case "removed":
+      return `${style.error("R")}  ${name}  ${tool.version}`;
+  }
+};
+
 const renderMiseTools = (
-  tools: readonly InstalledMiseTool[],
+  tools: readonly MiseToolChange[],
   style: Styler,
   line: SummaryLine,
 ) =>
@@ -256,22 +280,18 @@ const renderMiseTools = (
     if (tools.length === 0) return;
 
     yield* line("info", "");
-    yield* line("info", style.label(`Installed mise tools (${tools.length})`));
+    yield* line("info", style.label(`Mise tools (${tools.length})`));
 
     const width = Math.max(...tools.map(({ tool }) => tool.length));
 
-    for (const { tool, version, previous } of tools) {
-      const change = previous
-        ? `${style.warn("U")}  ${style.accent(tool.padEnd(width))}  ${style.warn(previous)} ${style.dim("->")} ${style.success(version)}`
-        : `${style.success("I")}  ${style.accent(tool.padEnd(width))}  ${style.success(version)}`;
-
-      yield* line("info", `  ${change}`);
+    for (const tool of tools) {
+      yield* line("info", `  ${miseToolLine(style, tool, width)}`);
     }
   });
 
 const renderUpdateSummary = (
   updated: readonly UpdatedRepo[],
-  miseTools: readonly InstalledMiseTool[],
+  miseTools: readonly MiseToolChange[],
   actions: readonly string[],
   startedAt: number,
   line: SummaryLine,
@@ -310,13 +330,13 @@ const renderUpdateSummary = (
   });
 
 /**
- * Log the repositories updated, mise tools installed, and workflow actions
+ * Log the repositories updated, mise tool changes, and workflow actions
  * completed by `dot update`, with the commits and changed files pulled into
  * each repository, and the time elapsed since `startedAt` (epoch ms).
  */
 export function logUpdateSummary(
   updated: readonly UpdatedRepo[],
-  miseTools: readonly InstalledMiseTool[],
+  miseTools: readonly MiseToolChange[],
   actions: readonly string[],
   startedAt: number,
 ): Effect.Effect<void, never, OutputLog | CommandExecutor> {
@@ -340,7 +360,7 @@ export function logUpdateSummary(
 export function writeUpdateSummary(
   path: string,
   updated: readonly UpdatedRepo[],
-  miseTools: readonly InstalledMiseTool[],
+  miseTools: readonly MiseToolChange[],
   actions: readonly string[],
   startedAt: number,
 ): Effect.Effect<void, never, CommandExecutor | FileSystem.FileSystem> {

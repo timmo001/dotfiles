@@ -1,5 +1,6 @@
 import { Clock, Effect, FileSystem, Option, Schema } from "effect";
 import { basename, join } from "path";
+import { parse as parseToml } from "smol-toml";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -44,7 +45,7 @@ import type { ConfigService } from "../services/Config.js";
 import type { GitManagedRepo } from "../services/GitConfig.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
 import type { Styler } from "../lib/ansi.js";
-import type { InstalledMiseTool, UpdatedRepo } from "../lib/updateSummary.js";
+import type { MiseToolChange, UpdatedRepo } from "../lib/updateSummary.js";
 import type { DiffRepo, RepoCategory } from "../types.js";
 
 const DISABLE_SELF_UPDATE_ARG = "--no-self-update";
@@ -600,11 +601,13 @@ const listMissingMiseTools = Effect.gen(function* () {
     // mise lists installed versions oldest first.
     const previous = installed[tool]?.at(-1)?.version;
 
-    return versions.map(({ version }): InstalledMiseTool =>
-      previous ? { tool, version, previous } : { tool, version },
+    return versions.map(({ version }): MiseToolChange =>
+      previous
+        ? { change: "updated", tool, version, previous }
+        : { change: "installed", tool, version },
     );
   });
-}).pipe(Effect.orElseSucceed((): readonly InstalledMiseTool[] => []));
+}).pipe(Effect.orElseSucceed((): readonly MiseToolChange[] => []));
 
 /**
  * Install missing home-level mise tools after checking with mise. Returns the
@@ -655,6 +658,96 @@ const installMissingMiseTools = Effect.gen(function* () {
   }
 
   return Option.some(tools);
+});
+
+const MiseConfigTools = Schema.Struct({
+  tools: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
+});
+
+const MiseToolNames = Schema.fromJsonString(Schema.Array(Schema.String));
+
+/** Tool names in the global mise config, or none if it cannot be read. */
+const readMiseConfigTools = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+
+  return yield* fs
+    .readFileString(join(HOME_DIR, ".config", "mise", "config.toml"))
+    .pipe(
+      Effect.flatMap((text) => Effect.try(() => parseToml(text))),
+      Effect.flatMap(Schema.decodeUnknownEffect(MiseConfigTools)),
+      Effect.map((config) => Object.keys(config.tools ?? {})),
+      Effect.option,
+    );
+});
+
+/**
+ * Prune every installed version of tools removed from the global mise config
+ * since the last run, tracked in a snapshot of its tool names. mise keeps
+ * versions still used by other tracked configs. Returns the pruned versions.
+ */
+const pruneRemovedMiseTools = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const config = yield* Config;
+  const snapshotPath = join(config.stateDir, "mise-tools.json");
+
+  const current = yield* readMiseConfigTools;
+  if (Option.isNone(current)) return [];
+
+  const previous = yield* fs.readFileString(snapshotPath).pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(MiseToolNames)),
+    Effect.orElseSucceed((): readonly string[] => current.value),
+  );
+
+  const saveSnapshot = fs
+    .writeFileString(snapshotPath, JSON.stringify(current.value))
+    .pipe(Effect.ignore);
+
+  const removed = previous.filter((tool) => !current.value.includes(tool));
+
+  if (removed.length === 0) {
+    yield* saveSnapshot;
+
+    return [];
+  }
+
+  const executor = yield* CommandExecutor;
+  const log = yield* OutputLog;
+
+  yield* log.section("Prune Mise Tools");
+  yield* log.info(`Removed from the global mise config: ${removed.join(", ")}`);
+
+  const installedVersions = miseToolVersions("--installed").pipe(
+    Effect.orElseSucceed((): typeof MiseToolVersions.Type => ({})),
+  );
+
+  const before = yield* installedVersions;
+
+  const exitCode = yield* executor.inherit(
+    "mise",
+    ["prune", "--tools", "--yes", ...removed],
+    { cwd: HOME_DIR },
+  );
+
+  if (exitCode !== 0) {
+    return yield* new UpdateError({
+      message: `mise prune exited ${exitCode}`,
+    });
+  }
+
+  const after = yield* installedVersions;
+  yield* saveSnapshot;
+
+  return removed.flatMap((tool) =>
+    (before[tool] ?? [])
+      .filter(
+        ({ version }) => !after[tool]?.some((kept) => kept.version === version),
+      )
+      .map(({ version }): MiseToolChange => ({
+        change: "removed",
+        tool,
+        version,
+      })),
+  );
 });
 
 /** Read the Herdr Lazy plugin root from `herdr plugin list --json`. */
@@ -1138,7 +1231,7 @@ export const update = (updateOpts?: UpdateOptions) =>
     );
 
     const completedActions: string[] = [];
-    let installedMiseTools: readonly InstalledMiseTool[] = [];
+    const miseToolChanges: MiseToolChange[] = [];
     let privatePackageRepoUpdated = false;
 
     if (doPull) {
@@ -1330,11 +1423,26 @@ export const update = (updateOpts?: UpdateOptions) =>
           Effect.map((installed) => {
             if (Option.isNone(installed)) return;
 
-            installedMiseTools = installed.value;
+            miseToolChanges.push(...installed.value);
             completedActions.push(
               installed.value.length > 0
                 ? `Installed ${plural(installed.value.length, "mise tool")}`
                 : "Installed tools from the global mise config",
+            );
+          }),
+        ),
+      );
+
+      yield* requiredUpdateStep(
+        "Prune Mise Tools",
+        STEP_TIMEOUT_SECONDS.miseInstall,
+        pruneRemovedMiseTools.pipe(
+          Effect.map((pruned) => {
+            if (pruned.length === 0) return;
+
+            miseToolChanges.push(...pruned);
+            completedActions.push(
+              `Pruned ${plural(pruned.length, "mise tool version")}`,
             );
           }),
         ),
@@ -1416,13 +1524,13 @@ export const update = (updateOpts?: UpdateOptions) =>
       ? writeUpdateSummary(
           opts.summaryFile,
           updatedRepos,
-          installedMiseTools,
+          miseToolChanges,
           completedActions,
           startedAt,
         )
       : logUpdateSummary(
           updatedRepos,
-          installedMiseTools,
+          miseToolChanges,
           completedActions,
           startedAt,
         );
