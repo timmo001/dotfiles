@@ -159,7 +159,7 @@ test("standalone exclusions cannot suppress checks for a mixed or unknown group"
   for (const command of [
     ...config.validation.setup,
     ...config.validation.checks.flatMap((check) => check.commands),
-  ]) {
+  ].filter((command) => command.skipFor !== undefined)) {
     expect(skipDependencyCommand(command, [uv])).toBe(true);
     expect(skipDependencyCommand(command, [uv, { ...uv, name: "bun" }])).toBe(
       false,

@@ -14107,6 +14107,15 @@ validation:
             - "aqua:earendil-works/pi"
             - "aqua:cloudflare/cloudflared"
     - argv:
+        - "mise"
+        - "install"
+        - "--shared"
+        - ".dot-deps/mise"
+      cwd: "."
+      timeout: 600000
+      pathEnv:
+        MISE_GLOBAL_CONFIG_FILE: "mise/.config/mise/config.toml"
+    - argv:
         - "bun"
         - "install"
         - "--frozen-lockfile"
