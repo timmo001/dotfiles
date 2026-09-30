@@ -116,7 +116,7 @@ export const inductRepository = Effect.fn("repoInduct.run")(
     if (!options.noninteractive && !canPromptForInduction()) {
       return yield* new GitRepoConfigError({
         message:
-          "Run dot repo-induct in a terminal, or use --noninteractive to preview with flags and --commit after approval",
+          "Run dot repo induct in a terminal, or use --noninteractive to preview with flags and --commit after approval",
       });
     }
 

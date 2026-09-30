@@ -55,6 +55,7 @@ import { stow } from "../commands/Stow.js";
 import { logRunSummary } from "../lib/runSummary.js";
 import { snapshot } from "../commands/Snapshot.js";
 import { sessionStatus } from "../commands/SessionStatus.js";
+import { repos } from "../commands/Repos.js";
 import { systemUpdate } from "../commands/SystemUpdate.js";
 import { update, updateCheck, updateRepositories } from "../commands/Update.js";
 import { workspaceRelayout } from "../commands/WorkspaceRelayout.js";
@@ -1682,7 +1683,7 @@ const isAgent = describe(
 
 const repoInductCommand = describe(
   Command.make(
-    "repo-induct",
+    "induct",
     {
       path: Argument.Path("path", { pathType: "directory" }).pipe(
         Argument.optional,
@@ -1754,14 +1755,43 @@ const repoInductCommand = describe(
   ),
   "Induct a local repository into private dot git config with a preview before committing",
   [
-    "dot repo-induct",
-    "dot repo-induct ~/repos/example --noninteractive --preset normal --name Example --aliases example",
-    "dot repo-induct ~/repos/example --noninteractive --preset normal --name Example --aliases example --commit",
+    "dot repo induct",
+    "dot repo induct ~/repos/example --noninteractive --preset normal --name Example --aliases example",
+    "dot repo induct ~/repos/example --noninteractive --preset normal --name Example --aliases example --commit",
   ],
   {
     description:
       "The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git-commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use agent-oxlint --opt-in to enable their agent pass.",
   },
+);
+
+const repoListCommand = describe(
+  Command.make(
+    "list",
+    {
+      query: Argument.String("query").pipe(
+        Argument.withDescription(
+          "Filter by name, alias, GitHub slug or path (exact matches first)",
+        ),
+        Argument.optional,
+      ),
+      json: bool("json", "Print JSON (the default under an AI agent)"),
+    },
+    ({ query, json }) => repos({ query: optional(query), json }),
+  ),
+  "List tracked repositories and shortcuts from private dot-git.yml",
+  ["dot repo list", "dot repo list notes", "dot repo list arch-repo --json"],
+  {
+    description:
+      "Read-only lookup of the repositories and path shortcuts configured in private dot-git.yml, the same list behind the prefix+s picker and repository shortcuts. Reads the config directly, so it does not depend on the generated picker cache. Each entry reports name, path, github (null for shortcuts), aliases, kind, whether the checkout exists and whether it is the deepest tracked path containing the working directory. A query matches name, aliases, GitHub slug or repository name, and path, case-insensitively, with exact matches first. Prints JSON with --json or when run under an AI agent, otherwise an aligned table. Exits 1 when a query matches nothing, and fails when private config is unavailable or invalid.",
+  },
+);
+
+const repoCommand = describe(
+  Command.make("repo").pipe(
+    Command.withSubcommands([repoListCommand, repoInductCommand]),
+  ),
+  "List and induct tracked repositories in private dot-git.yml",
 );
 
 const prWatchCommand = describe(
@@ -1953,7 +1983,7 @@ const agentOxlintCommand = describe(
       {
         title: "Opt-in",
         lines: [
-          "--opt-in adds or sets only agent_oxlint: true in an existing private repository entry, preserving all other bytes. If the entry is missing, it offers the repo-induct wizard with agent Oxlint prefilled as enabled. Without a terminal it prints induction instructions. The config must be tracked and clean. Active commit hooks are refused rather than bypassed so formatters cannot expand the change. Commits through dot git-commit without pushing; unrelated staged files are excluded. An existing opt-in creates no commit.",
+          "--opt-in adds or sets only agent_oxlint: true in an existing private repository entry, preserving all other bytes. If the entry is missing, it offers the repo induct wizard with agent Oxlint prefilled as enabled. Without a terminal it prints induction instructions. The config must be tracked and clean. Active commit hooks are refused rather than bypassed so formatters cannot expand the change. Commits through dot git-commit without pushing; unrelated staged files are excluded. An existing opt-in creates no commit.",
         ],
       },
     ],
@@ -2360,7 +2390,7 @@ export const dotCommand = describe(
       skillsCommand,
       completionsCommand,
       isAgent,
-      repoInductCommand,
+      repoCommand,
       agentOxlintCommand,
       agentLintCommand,
       prQueueCommand,

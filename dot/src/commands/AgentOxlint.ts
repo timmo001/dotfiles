@@ -248,7 +248,7 @@ const optInRepository = Effect.fn("agentOxlint.optIn")(
     if (repositoryIndex < 0) {
       if (!canPromptForInduction()) {
         return yield* fail(
-          `agent-oxlint: repository is not inducted. Run dot repo-induct ${JSON.stringify(root)} in a terminal, or add --noninteractive --agent-oxlint to preview with flags, then --commit after approval`,
+          `agent-oxlint: repository is not inducted. Run dot repo induct ${JSON.stringify(root)} in a terminal, or add --noninteractive --agent-oxlint to preview with flags, then --commit after approval`,
         );
       }
 
