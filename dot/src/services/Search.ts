@@ -25,6 +25,11 @@ export interface SearchOverrides {
   readonly minScore?: number;
   /** Drop results more than this many points below the best; default 20. */
   readonly maxGap?: number;
+  /**
+   * Points taken off when a query word appears only inside other words, such
+   * as "her" in "weather"; typo matches are not affected. Default 25.
+   */
+  readonly midWordPenalty?: number;
   /** Shortest matched run of characters that counts; default 2. */
   readonly minMatchCharLength?: number;
   /** Maximum results, applied after ranking; default 5. */
@@ -53,6 +58,14 @@ export interface SearchResult<T, Name extends string = string> {
   readonly matched: readonly Name[];
 }
 
+/** Ranked results from one {@link SearchService.fuzzy} call. */
+export interface SearchResults<T, Name extends string = string> {
+  /** Results within the limit, best first. */
+  readonly results: readonly SearchResult<T, Name>[];
+  /** Close matches before the limit was applied. */
+  readonly total: number;
+}
+
 /** Shared search over in-memory items. */
 export interface SearchService {
   /**
@@ -60,11 +73,12 @@ export interface SearchService {
    * people. Every query word must match some field. Results far below the
    * best are dropped, the rest ranked by score in bands of 5, then by the
    * shorter first field so short exact names win near-ties, then limited
-   * (5 by default; `Infinity` for all).
+   * (5 by default; `Infinity` for all). `total` counts every close match so
+   * callers can say when more are available.
    */
   readonly fuzzy: <T, Name extends string>(
     input: SearchInput<T, Name>,
-  ) => Effect.Effect<readonly SearchResult<T, Name>[], SearchQueryEmpty>;
+  ) => Effect.Effect<SearchResults<T, Name>, SearchQueryEmpty>;
 }
 
 /** Effect service for {@link SearchService}. */
@@ -103,11 +117,39 @@ export class Search extends Context.Service<Search, SearchService>()(
       const primaryLength = (item: T) =>
         ([keys[0]?.getFn(item) ?? []].flat()[0] ?? "").length;
 
+      const normalise = (value: string) =>
+        value
+          .normalize("NFD")
+          .replace(/\p{Diacritic}/gu, "")
+          .toLowerCase();
+
+      const terms = normalise(trimmed).split(/\s+/);
+
+      const onlyMidWord = (item: T) => {
+        const values = keys
+          .flatMap(({ getFn }) => [getFn(item) ?? []].flat())
+          .map(normalise);
+
+        const words = values.flatMap((value) => value.split(/[^\p{L}\p{N}]+/u));
+
+        return terms.some(
+          (term) =>
+            values.some((value) => value.includes(term)) &&
+            !words.some((word) => word.startsWith(term)),
+        );
+      };
+
+      const penalty = overrides.midWordPenalty ?? 25;
+
       const scored = fuse
         .search(trimmed)
         .map(({ item, score, matches }): SearchResult<T, Name> => ({
           item,
-          score: Math.max(1, Math.round((1 - (score ?? 1)) * 100)),
+          score: Math.max(
+            1,
+            Math.round((1 - (score ?? 1)) * 100) -
+              (onlyMidWord(item) ? penalty : 0),
+          ),
           matched: [...new Set((matches ?? []).map(({ key }) => key))].filter(
             (key): key is Name => key !== undefined && names.has(key),
           ),
@@ -119,15 +161,19 @@ export class Search extends Context.Service<Search, SearchService>()(
           (overrides.maxGap ?? 20),
       );
 
-      return scored
+      const close = scored
         .filter(({ score }) => score >= floor)
         .sort(
           (a, b) =>
             Math.round(b.score / 5) - Math.round(a.score / 5) ||
             primaryLength(a.item) - primaryLength(b.item) ||
             b.score - a.score,
-        )
-        .slice(0, overrides.limit ?? 5);
+        );
+
+      return {
+        results: close.slice(0, overrides.limit ?? 5),
+        total: close.length,
+      } satisfies SearchResults<T, Name>;
     }),
   });
 }

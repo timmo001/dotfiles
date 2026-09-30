@@ -291,7 +291,12 @@ const loadTracked = Effect.gen(function* () {
 /** Attach live Herdr state and print JSON or a table; exit 1 when empty. */
 const printRepos = Effect.fn("repos.print")(function* (
   selected: readonly TrackedRepo[],
-  options: { readonly query?: string; readonly json: boolean },
+  options: {
+    readonly query?: string;
+    readonly json: boolean;
+    /** Search output: JSON becomes `{ results, hint }`, with the hint also after the table. */
+    readonly search?: { readonly hint: string | undefined };
+  },
 ) {
   const snapshot = selected.length > 0 ? yield* herdrSnapshot : undefined;
 
@@ -299,9 +304,16 @@ const printRepos = Effect.fn("repos.print")(function* (
     ? selected.map((repo) => ({ ...repo, herdr: repoHerdr(repo, snapshot) }))
     : selected;
 
+  const hint = options.search?.hint;
+
   if (options.json || isAgent())
-    process.stdout.write(`${JSON.stringify(result)}\n`);
-  else if (result.length > 0) process.stdout.write(`${renderTable(result)}\n`);
+    process.stdout.write(
+      `${JSON.stringify(options.search ? { results: result, hint } : result)}\n`,
+    );
+  else if (result.length > 0)
+    process.stdout.write(
+      `${renderTable(result)}\n${hint ? `\n${hint}\n` : ""}`,
+    );
 
   if (options.query !== undefined && selected.length === 0) {
     process.stderr.write(`No tracked repository matches "${options.query}"\n`);
@@ -350,7 +362,7 @@ export const searchRepos = Effect.fn("repos.search")(function* (options: {
   const tracked = yield* loadTracked;
   const search = yield* Search;
 
-  const results = yield* search
+  const { results, total } = yield* search
     .fuzzy({
       items: tracked,
       query: options.query,
@@ -369,5 +381,14 @@ export const searchRepos = Effect.fn("repos.search")(function* (options: {
     matched,
   }));
 
-  yield* printRepos(ranked, { query: options.query, json: options.json });
+  yield* printRepos(ranked, {
+    query: options.query,
+    json: options.json,
+    search: {
+      hint:
+        total > ranked.length
+          ? `Showing ${ranked.length} of ${total} matches; use --limit ${total} or --all to see them all`
+          : undefined,
+    },
+  });
 });
