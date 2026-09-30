@@ -9,20 +9,23 @@ import { Effect } from "effect";
 
 const MIN_WORDS = 20;
 
-// Each question needs its own explainer, so text before an earlier question in the turn does not count.
-const turnText = (messages: ReadonlyArray<SessionMessage.Info>, callID: string) => {
-  const lastUser = messages.findLastIndex((message) => message.type === "user");
+// Only text from the same step counts, so progress notes written between earlier tool calls do not.
+const stepText = (messages: ReadonlyArray<SessionMessage.Info>, callID: string) => {
+  const last = messages.at(-1);
 
-  const content = messages
-    .slice(lastUser + 1)
-    .flatMap((message) => (message.type === "assistant" ? message.content : []));
+  const step =
+    messages.find(
+      (message) =>
+        message.type === "assistant" &&
+        message.content.some((part) => part.type === "tool" && part.id === callID),
+    ) ?? last;
 
-  const lastQuestion = content.findLastIndex(
-    (part) => part.type === "tool" && part.name === "question" && part.id !== callID,
-  );
+  if (step?.type !== "assistant") return "";
 
-  return content
-    .slice(lastQuestion + 1)
+  const callIndex = step.content.findIndex((part) => part.type === "tool" && part.id === callID);
+
+  return step.content
+    .slice(0, callIndex === -1 ? undefined : callIndex)
     .flatMap((part) => (part.type === "text" ? [part.text] : []))
     .join(" ");
 };
@@ -43,18 +46,18 @@ export default Plugin.define({
 
           if (!messages) return;
 
-          const words = wordCount(turnText(messages, event.id));
+          const words = wordCount(stepText(messages, event.id));
 
           if (words >= MIN_WORDS) return;
 
           return yield* Effect.fail(
             new Tool.Error({
               message:
-                `Question rejected: only ${words} words of chat precede it since the last user message or question. ` +
-                "Reasoning is not shown as chat, and the question tool shows the user labels only. " +
-                "First answer any question the user asked, then write a short chat explainer of the findings " +
-                "the choice depends on, what each option means and your recommendation. " +
-                "Then call the question tool again.",
+                `Question rejected: found ${words} words of chat text in this response before the question call; ${MIN_WORDS} are needed. ` +
+                "Only chat text written in the same response as the question call counts. " +
+                "Reasoning, tool input and progress notes from earlier steps do not, and the question tool shows the user labels only. " +
+                "Do not end your turn instead. In one response, first answer any question the user asked, then write a short chat explainer " +
+                "of the findings the choice depends on, what each option means and your recommendation, then call the question tool.",
             }),
           );
         }),
