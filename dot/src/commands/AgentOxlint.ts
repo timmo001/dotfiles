@@ -647,10 +647,8 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
     return yield* fail("agent-oxlint: --all cannot be combined with paths");
   }
 
-  if (options.changed && explicit) {
-    return yield* fail(
-      "agent-oxlint: --changed cannot be combined with paths or --all",
-    );
+  if (options.changed && options.all) {
+    return yield* fail("agent-oxlint: --changed cannot be combined with --all");
   }
 
   if (!options.optIn && !options.changed && !explicit) {
@@ -699,9 +697,13 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
   }
 
   if (options.changed) {
-    const findings = yield* lintChangedLines(root, gate.cache, {
-      kind: "worktree",
-    });
+    const findings = yield* lintChangedLines(
+      root,
+      gate.cache,
+      options.paths.length > 0
+        ? { kind: "paths", paths: options.paths, amend: false }
+        : { kind: "worktree" },
+    );
 
     if (findings.length === 0) {
       yield* log.success("No agent Oxlint findings on changed lines");
