@@ -527,7 +527,7 @@ dot omarchy-plugin <subcommand> [flags]
 
 Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.
 
-sync-components copies the shared panel components in omarchy/.config/omarchy/components into the standalone plugin checkouts listed in the private omarchy-components.json, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.
+sync-components copies the shared panel components in omarchy/.config/omarchy/components into the plugin directories set by omarchy_components entries in the private dot-git.yml, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.
 
 **Options**
 
@@ -635,7 +635,6 @@ dot omarchy-plugin sync-components [flags]
 | Option | Description |
 | --- | --- |
 | `--check` | Report out-of-date copies without writing |
-| `--config` `<string>` | Targets JSON config (default: $XDG_CONFIG_HOME/dot/omarchy-components.json) |
 | `--help` `-h` | Show help information |
 
 ## `dot session-status`

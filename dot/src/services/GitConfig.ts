@@ -32,6 +32,7 @@ const REPO_KEYS = new Set([
   "agent_oxlint",
   "notes_remote",
   "opencode_mcp",
+  "omarchy_components",
   "browser",
   "review_search",
   "activity",
@@ -81,6 +82,21 @@ export interface GitRepoNotificationConfig extends GitRepoCheckConfig {
   readonly bar: GitRepoNotificationBarConfig;
 }
 
+/** Shared Omarchy panel components copied into a standalone plugin checkout. */
+export interface GitRepoOmarchyComponents {
+  /** Plugin directory relative to the repository root. */
+  readonly directory: string;
+  /** Component names copied from the dotfiles components directory. */
+  readonly components: readonly string[];
+}
+
+const OmarchyComponentsSettings = Schema.Struct({
+  directory: Schema.String,
+  components: Schema.NonEmptyArray(
+    Schema.String.check(Schema.isPattern(/^[A-Z][A-Za-z0-9]*$/)),
+  ),
+});
+
 /** A repository managed by the private dot git config. */
 export interface GitManagedRepo {
   /** Short display name. */
@@ -99,6 +115,8 @@ export interface GitManagedRepo {
   readonly notesRemote?: string;
   /** MCP server names explicitly enabled for this repository by dot mcp-sync. */
   readonly opencodeMcp?: readonly string[];
+  /** Shared Omarchy components synced by dot omarchy-plugin sync-components. */
+  readonly omarchyComponents?: GitRepoOmarchyComponents;
   /** Named browser for repository web actions; omitted uses the desktop default. */
   readonly browser?: string;
   /** GitHub pull request search used by dot pr-queue; the repository qualifier is added when missing. */
@@ -460,6 +478,12 @@ function parseRepo(
       `${location}.opencode_mcp must contain unique server names`,
     );
 
+  const omarchyComponents = parseOmarchyComponents(
+    value.omarchy_components,
+    `${location}.omarchy_components`,
+    diagnostics,
+  );
+
   const browser = optionalString(
     value.browser,
     `${location}.browser`,
@@ -516,6 +540,7 @@ function parseRepo(
       agentOxlint,
       ...(notesRemote && { notesRemote }),
       ...(opencodeMcp.length > 0 && { opencodeMcp }),
+      ...(omarchyComponents && { omarchyComponents }),
       ...(browser && { browser }),
       ...(reviewSearch && { reviewSearch }),
       activity,
@@ -524,6 +549,36 @@ function parseRepo(
       ...(releases && { releases }),
     },
   ];
+}
+
+function parseOmarchyComponents(
+  value: JsonValue,
+  location: string,
+  diagnostics: string[],
+): GitRepoOmarchyComponents | undefined {
+  if (value === undefined) return undefined;
+
+  try {
+    const settings = Schema.decodeUnknownSync(OmarchyComponentsSettings)(
+      value,
+      { onExcessProperty: "error" },
+    );
+
+    if (
+      settings.directory.startsWith("/") ||
+      settings.directory.split("/").includes("..")
+    )
+      throw new Error("directory must be repository-relative");
+
+    if (new Set(settings.components).size !== settings.components.length)
+      throw new Error("components must be unique");
+
+    return settings;
+  } catch (error) {
+    diagnostics.push(`${location}: ${formatError(error)}`);
+
+    return undefined;
+  }
 }
 
 function parseReleases(

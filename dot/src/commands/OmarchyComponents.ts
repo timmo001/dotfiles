@@ -1,21 +1,9 @@
 import { join } from "node:path";
 import { Effect, FileSystem, Schema } from "effect";
-import { CONFIG_DIR, displayPath, expandHomePath } from "../lib/paths.js";
+import { displayPath } from "../lib/paths.js";
 import { Config } from "../services/Config.js";
+import { managedGitRepos } from "../services/GitConfig.js";
 import { OutputLog } from "../services/OutputLog.js";
-
-const ComponentName = Schema.String.check(
-  Schema.isPattern(/^[A-Z][A-Za-z0-9]*$/),
-);
-
-const ComponentsConfig = Schema.Struct({
-  targets: Schema.Array(
-    Schema.Struct({
-      path: Schema.String,
-      components: Schema.NonEmptyArray(ComponentName),
-    }),
-  ),
-});
 
 /** Domain error raised when shared Omarchy components cannot be synced. */
 export class OmarchyComponentsError extends Schema.TaggedError<OmarchyComponentsError>()(
@@ -25,14 +13,21 @@ export class OmarchyComponentsError extends Schema.TaggedError<OmarchyComponents
 
 /**
  * Copy the shared Omarchy panel components from the public dotfiles source
- * into each standalone plugin checkout listed in the private config.
- * With `check`, report drift without writing and fail when any is found.
+ * into each repository whose private dot-git.yml entry sets
+ * `omarchy_components`. With `check`, report drift without writing and fail
+ * when any is found.
  */
 export const syncOmarchyComponents = Effect.fn("syncOmarchyComponents")(
-  function* (options: { readonly check: boolean; readonly config: string }) {
+  function* (options: { readonly check: boolean }) {
     const fs = yield* FileSystem.FileSystem;
     const output = yield* OutputLog;
-    const { publicDotfiles } = yield* Config;
+    const { gitConfig, publicDotfiles } = yield* Config;
+
+    if (!gitConfig.valid) {
+      return yield* new OmarchyComponentsError({
+        message: `Invalid private git config ${displayPath(gitConfig.filePath)}: ${gitConfig.diagnostics.join("; ")}`,
+      });
+    }
 
     const source = join(
       process.env.DOTFILES_REPO ?? publicDotfiles,
@@ -42,29 +37,32 @@ export const syncOmarchyComponents = Effect.fn("syncOmarchyComponents")(
       "components",
     );
 
-    const file = expandHomePath(
-      options.config || join(CONFIG_DIR, "dot", "omarchy-components.json"),
+    const targets = managedGitRepos(gitConfig).flatMap((repo) =>
+      repo.omarchyComponents
+        ? [
+            {
+              directory: join(repo.path, repo.omarchyComponents.directory),
+              components: repo.omarchyComponents.components,
+            },
+          ]
+        : [],
     );
 
-    if (!(yield* fs.exists(file))) {
+    if (targets.length === 0) {
       yield* output.info(
-        `No component targets configured: ${displayPath(file)}`,
+        `No repositories set omarchy_components in ${displayPath(gitConfig.filePath)}`,
       );
 
       return;
     }
 
-    const config = yield* Schema.decodeEffect(
-      Schema.fromJsonString(ComponentsConfig),
-    )(yield* fs.readFileString(file), { onExcessProperty: "error" });
-
     const drifted: string[] = [];
 
-    for (const target of config.targets) {
-      const directory = expandHomePath(target.path);
-
-      if (!(yield* fs.exists(directory))) {
-        yield* output.warn(`Target not found: ${displayPath(directory)}`);
+    for (const target of targets) {
+      if (!(yield* fs.exists(target.directory))) {
+        yield* output.warn(
+          `Target not found: ${displayPath(target.directory)}`,
+        );
         continue;
       }
 
@@ -77,7 +75,7 @@ export const syncOmarchyComponents = Effect.fn("syncOmarchyComponents")(
           });
         }
 
-        const targetFile = join(directory, `${component}.qml`);
+        const targetFile = join(target.directory, `${component}.qml`);
         const contents = yield* fs.readFileString(sourceFile);
 
         const current = (yield* fs.exists(targetFile))

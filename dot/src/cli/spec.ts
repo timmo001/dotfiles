@@ -781,16 +781,8 @@ const pluginSyncComponents = describe(
     "sync-components",
     {
       check: bool("check", "Report out-of-date copies without writing"),
-      config: text(
-        "config",
-        "Targets JSON config (default: $XDG_CONFIG_HOME/dot/omarchy-components.json)",
-      ),
     },
-    ({ check, config }) =>
-      syncOmarchyComponents({
-        check,
-        config: Option.getOrElse(config, () => ""),
-      }),
+    ({ check }) => syncOmarchyComponents({ check }),
   ),
   "Copy shared panel components into standalone plugin checkouts",
 );
@@ -812,7 +804,7 @@ const omarchyPluginCommand = describe(
   ],
   {
     description:
-      "Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.\n\nsync-components copies the shared panel components in omarchy/.config/omarchy/components into the standalone plugin checkouts listed in the private omarchy-components.json, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.",
+      "Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.\n\nsync-components copies the shared panel components in omarchy/.config/omarchy/components into the plugin directories set by omarchy_components entries in the private dot-git.yml, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.",
     sections: [
       {
         title: "Exit codes",
