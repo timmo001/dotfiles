@@ -13,16 +13,22 @@ metadata:
 - When the user names a repository, refers to one by what it is for (for
   example "the pacman repo" or "the notes CLI"), or asks which repositories are
   tracked, run `dot repo list [query]` before guessing a path. Under an agent it
-  prints JSON with `name`, `path`, `github`, `aliases`, `kind`, `exists` and
-  `current`; a query matches name, alias, GitHub slug and path, exact matches
-  first, and exits 1 when nothing matches. List without a query and choose by
-  name or slug when the user describes a purpose rather than a name. Advertised
-  project references add descriptions for selected sources.
+  prints JSON with `name`, `path`, `github`, `aliases`, `kind`, `exists`,
+  `current` and `herdr`; a query matches name, alias, GitHub slug and path,
+  exact matches first, and exits 1 when nothing matches. List without a query
+  and choose by name or slug when the user describes a purpose rather than a
+  name. Advertised project references add descriptions for selected sources.
+- `herdr` is live state from the shared Herdr server: `open`, the matching
+  `workspaces` (IDs, focus, counts, aggregate agent status, linked worktrees)
+  and the `agents` running in them (name, kind, status, pane and cwd). Use it
+  to tell whether a repository is already open or has a busy agent before
+  opening or delegating. It is `null` when Herdr is unreachable; agent status is
+  a snapshot, not proof that work has finished.
 - `dot repo list` reads the optional private `dot-git.yml` directly: the same
-  configured repositories and shortcuts as `prefix+s`, not live workspace state.
-  `exists: false` means the checkout is missing. Do not invent paths or maintain
-  a second repository list. Keep private entries out of public files and shared
-  reports.
+  configured repositories and shortcuts as `prefix+s`, with live state only in
+  `herdr`. `exists: false` means the checkout is missing. Do not invent paths
+  or maintain a second repository list. Keep private entries out of public
+  files and shared reports.
 - To track a new repository, use `dot repo induct <path> --noninteractive` with
   the chosen flags to preview, then repeat with `--commit` only after the user
   approves the preview. In a terminal without flags it runs a wizard.
