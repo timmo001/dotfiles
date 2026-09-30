@@ -10,6 +10,7 @@ import {
   requiresNoFolding,
 } from "./stowFolders.js";
 import { displayPath, HOME_DIR } from "./paths.js";
+import { foldOpencodePluginFolders } from "./opencodePluginFolders.js";
 import { ensureHyprConfigLink, ensureHyprHostLink } from "./omarchyHost.js";
 import {
   deployOmarchyPlugin,
@@ -282,6 +283,8 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
 
       yield* log.success(style.accent(folder));
       counts[scope]++;
+
+      if (folder === "agents") yield* foldOpencodePluginFolders(repoDir);
 
       for (const source of plugins) {
         const deployed = yield* deployOmarchyPlugin(
