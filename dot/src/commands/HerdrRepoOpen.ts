@@ -33,7 +33,8 @@ const READINESS_SCHEDULE = Schedule.recurs(49).pipe(
   Schedule.addDelay(() => Effect.succeed("100 millis")),
 );
 
-const DEFAULT_SOCKET_PATH = join(CONFIG_DIR, "herdr", "herdr.sock");
+/** Shared Herdr server socket used by repository workspaces. */
+export const DEFAULT_SOCKET_PATH = join(CONFIG_DIR, "herdr", "herdr.sock");
 
 // Qt::KeyboardModifier values passed unchanged by desktop click/key events.
 const SHIFT_MODIFIER = 0x02000000;
