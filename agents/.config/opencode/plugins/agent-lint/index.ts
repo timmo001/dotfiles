@@ -1,5 +1,5 @@
 /**
- * @file Runs the repository's fallback lint commands after a successful agent run and leaves any problems waiting for the next message.
+ * @file Runs the repository's fallback lint commands after a successful agent run and holds any problems until the user sends or dismisses them.
  */
 
 import type { OpenCodeClient } from "@opencode/client/effect";
@@ -9,7 +9,7 @@ import { Effect, Fiber, Schema, Stream } from "effect";
 import { isAbsolute, join } from "node:path";
 import { runText } from "../lib/process";
 import { connectClient, discoverService } from "../lib/service";
-import { AgentLintRpc, idleStatus, type LintCheck, type LintStatus, SOURCE } from "./rpc";
+import { AgentLintRpc, idleStatus, type LintCheck, type LintStatus } from "./rpc";
 
 const Report = Schema.fromJsonString(
   Schema.Struct({
@@ -38,17 +38,26 @@ export default Plugin.define({
       // Only repositories seen with agent_lint config show a running state.
       const configuredRoots = new Map<string, boolean>();
       let client: OpenCodeClient | undefined;
+      let emit: ((status: LintStatus) => Effect.Effect<void, unknown>) | undefined;
 
-      const registration = yield* context.rpc.register(AgentLintRpc, {
-        status: (input) =>
-          Effect.succeed(statuses.get(input.sessionID) ?? idleStatus(input.sessionID)),
-      }).pipe(Effect.orDie);
+      const current = (sessionID: string) => statuses.get(sessionID) ?? idleStatus(sessionID);
 
       const publish = (status: LintStatus) =>
         Effect.gen(function* () {
           statuses.set(status.sessionID, status);
-          yield* registration.events.emit("status", status);
+
+          if (emit) yield* emit(status);
         }).pipe(Effect.catch((error) => Effect.logWarning(`agent-lint: ${String(error)}`)));
+
+      const registration = yield* context.rpc.register(AgentLintRpc, {
+        status: (input) => Effect.succeed(current(input.sessionID)),
+        dismiss: (input) =>
+          publish({ ...current(input.sessionID), timedOut: [], checks: [], message: "" }).pipe(
+            Effect.as(null),
+          ),
+      }).pipe(Effect.orDie);
+
+      emit = (status) => registration.events.emit("status", status);
 
       const getClient = Effect.gen(function* () {
         if (client) return client;
@@ -106,28 +115,11 @@ export default Plugin.define({
             return;
           }
 
-          const waiting = yield* api.session.inbox.list({ sessionID });
-
-          yield* Effect.forEach(
-            waiting.filter(
-              (item) => item.type === "synthetic" && item.payload.metadata?.source === SOURCE,
-            ),
-            (item) => api.session.inbox.cancel({ sessionID, inboxID: item.id }),
-            { discard: true },
-          );
-
           const failed = report.results.filter((result) => result.status === "failed");
 
           const timedOut = report.results
             .filter((result) => result.status === "timed-out")
             .map((result) => result.name);
-
-          yield* publish({
-            sessionID,
-            running: false,
-            clean: !failed.length && !timedOut.length,
-            timedOut,
-          });
 
           const checks: Array<LintCheck> = failed.flatMap((result) =>
             result.output
@@ -135,18 +127,15 @@ export default Plugin.define({
               : [],
           );
 
-          if (!checks.length) return;
-
-          yield* context.session.synthetic({
+          yield* publish({
             sessionID,
-            text: [
-              ...checks.map((check) => `$ ${check.command}\n${check.output}`),
+            running: false,
+            clean: !failed.length && !timedOut.length,
+            timedOut,
+            checks,
+            message:
               report.message ??
-                "Please fix these, then run all relevant checks and keep going until they pass.",
-            ].join("\n\n"),
-            delivery: "steer",
-            resume: false,
-            metadata: { source: SOURCE, problems: checks.length, checks },
+              "Please fix these, then run all relevant checks and keep going until they pass.",
           });
         }).pipe(
           Effect.catch((error) => Effect.logWarning(`agent-lint: ${String(error)}`)),

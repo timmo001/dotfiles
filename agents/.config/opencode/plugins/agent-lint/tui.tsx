@@ -2,13 +2,11 @@
  * @file Shows fallback lint progress and waiting lint problems, with user actions to view, send now or dismiss them.
  */
 
-import type { SessionInboxInfo, SessionInboxSynthetic } from "@opencode/client";
 import { Plugin, usePlugin } from "@opencode/plugin/tui";
 import { type ScrollBoxRenderable, TextAttributes } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid";
-import { Option, Schema } from "effect";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
-import { AgentLintRpc, idleStatus, LintCheck, type LintStatus, SOURCE } from "./rpc";
+import { AgentLintRpc, idleStatus, type LintCheck, type LintStatus } from "./rpc";
 
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
@@ -24,10 +22,6 @@ type State = { sessions: Record<string, LintStatus> };
 
 const initialState: State = { sessions: {} };
 
-const decodeCount = Schema.decodeUnknownOption(Schema.Int.check(Schema.isGreaterThan(0)));
-
-const decodeChecks = Schema.decodeUnknownOption(Schema.Array(LintCheck));
-
 // Package-manager noise around a script's own output.
 const RUNNER_LINE = /^(\$ .*|error: script ".*" exited with code \d+|\s*ELIFECYCLE .*)$/;
 
@@ -41,9 +35,6 @@ const ERROR = /\berror\b/i;
 const WARNING = /\bwarning\b/i;
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
-
-const isLintItem = (item: SessionInboxInfo): item is SessionInboxSynthetic =>
-  item.type === "synthetic" && item.payload.metadata?.source === SOURCE;
 
 export default Plugin.define({
   id: "agent-lint",
@@ -72,20 +63,7 @@ export default Plugin.define({
         .catch(() => undefined);
     };
 
-    const waitingAll = (sessionID: string) =>
-      context.data.session.pending.list(sessionID).filter(isLintItem);
-
-    const waiting = (sessionID: string) => waitingAll(sessionID)[0];
-
-    const problemCount = (item: SessionInboxSynthetic) =>
-      Option.getOrElse(decodeCount(item.payload.metadata?.problems), () => 1);
-
-    const cancelAll = (sessionID: string) =>
-      Promise.all(
-        waitingAll(sessionID).map((item) =>
-          context.client.session.inbox.cancel({ sessionID, inboxID: item.id }),
-        ),
-      );
+    const checks = (sessionID: string) => status(sessionID).checks;
 
     const [viewing, setViewing] = createSignal(false);
 
@@ -94,16 +72,15 @@ export default Plugin.define({
     };
 
     const dismiss = async (sessionID: string) => {
-      update({ ...status(sessionID), timedOut: [] });
       closeView();
 
-      await cancelAll(sessionID);
+      await rpc.dismiss({ sessionID });
     };
 
     const fixNow = async (sessionID: string, instruction = "") => {
-      const item = waiting(sessionID);
+      const current = status(sessionID);
 
-      if (!item) {
+      if (!current.checks.length) {
         context.ui.toast.show({ message: "No lint problems waiting", variant: "info" });
 
         return;
@@ -111,15 +88,21 @@ export default Plugin.define({
 
       closeView();
 
-      await cancelAll(sessionID);
+      await rpc.dismiss({ sessionID });
       await context.client.session.prompt({
         sessionID,
-        text: [item.payload.text, instruction.trim()].filter(Boolean).join("\n\n"),
+        text: [
+          ...current.checks.map((check) => `$ ${check.command}\n${check.output}`),
+          current.message,
+          instruction.trim(),
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
       });
     };
 
     const view = (sessionID: string) => {
-      if (!waiting(sessionID) && !status(sessionID).timedOut.length) {
+      if (!checks(sessionID).length && !status(sessionID).timedOut.length) {
         context.ui.toast.show({ message: "No lint problems waiting", variant: "info" });
 
         return;
@@ -175,22 +158,20 @@ export default Plugin.define({
       });
 
       const current = () => status(props.sessionID);
-      const item = () => waiting(props.sessionID);
+      const count = () => checks(props.sessionID).length;
 
       return (
         <box flexShrink={0}>
           <Show when={current().running}>
             <text fg={plugin.theme.text.muted}>{`${SPINNER[frame()]} lint`}</text>
           </Show>
-          <Show when={!current().running && item()}>
-            {(found) => (
-              <text fg={plugin.theme.text.feedback.warning.base}>{`lint ${problemCount(found())}`}</text>
-            )}
+          <Show when={!current().running && count()}>
+            <text fg={plugin.theme.text.feedback.warning.base}>{`lint ${count()}`}</text>
           </Show>
-          <Show when={!current().running && !item() && current().timedOut.length}>
+          <Show when={!current().running && !count() && current().timedOut.length}>
             <text fg={plugin.theme.text.feedback.warning.base}>lint timeout</text>
           </Show>
-          <Show when={!current().running && !item() && !current().timedOut.length && current().clean}>
+          <Show when={!current().running && !count() && !current().timedOut.length && current().clean}>
             <text fg={plugin.theme.text.muted}>lint ✓</text>
           </Show>
         </box>
@@ -199,14 +180,12 @@ export default Plugin.define({
 
     function Strip(props: { sessionID: string }) {
       const plugin = usePlugin();
-      const item = () => waiting(props.sessionID);
+      const count = () => checks(props.sessionID).length;
       const timedOut = () => status(props.sessionID).timedOut;
 
       const summary = () => {
-        const found = item();
-
         const parts = [
-          found ? `${problemCount(found)} failing` : "",
+          count() ? `${count()} failing` : "",
           timedOut().length ? `${timedOut().join(", ")} timed out` : "",
         ].filter(Boolean);
 
@@ -214,7 +193,7 @@ export default Plugin.define({
       };
 
       return (
-        <Show when={item() || timedOut().length}>
+        <Show when={count() || timedOut().length}>
           <box
             flexDirection="row"
             gap={2}
@@ -226,7 +205,7 @@ export default Plugin.define({
               {summary()}
             </text>
             <Link label="view" onPress={() => run("view", props.sessionID)} />
-            <Show when={item()}>
+            <Show when={count()}>
               <Link label="fix now" onPress={() => run("fix-now", props.sessionID)} />
             </Show>
             <Link label="dismiss" onPress={() => run("dismiss", props.sessionID)} />
@@ -292,18 +271,12 @@ export default Plugin.define({
       const theme = context.theme.surface("dialog");
       const dimensions = useTerminalDimensions();
       const maxHeight = createMemo(() => Math.max(8, Math.floor(dimensions().height * 0.6)));
-      const item = () => waiting(props.sessionID);
+      const failing = () => checks(props.sessionID);
       const timedOut = () => status(props.sessionID).timedOut;
-
-      const checks = () => {
-        const found = item();
-
-        return found ? Option.getOrElse(decodeChecks(found.payload.metadata?.checks), () => []) : [];
-      };
 
       const summary = () =>
         [
-          checks().length ? `${plural(checks().length, "check")} failing` : "",
+          failing().length ? `${plural(failing().length, "check")} failing` : "",
           timedOut().length ? `${timedOut().join(", ")} timed out` : "",
         ]
           .filter(Boolean)
@@ -349,7 +322,7 @@ export default Plugin.define({
             scrollbarOptions={{ visible: false }}
           >
             <box gap={1} paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1}>
-              <For each={checks()}>{(check) => <Check check={check} />}</For>
+              <For each={failing()}>{(check) => <Check check={check} />}</For>
               <For each={timedOut()}>
                 {(name) => (
                   <box flexDirection="row" gap={2}>
@@ -364,7 +337,7 @@ export default Plugin.define({
             </box>
           </scrollbox>
           <box flexDirection="row" gap={3} paddingLeft={2} paddingRight={2}>
-            <Show when={item()}>
+            <Show when={failing().length}>
               <Hint bind="f" label="fix now" onPress={() => run("fix-now", props.sessionID)} />
             </Show>
             <Hint bind="d" label="dismiss" onPress={() => run("dismiss", props.sessionID)} />

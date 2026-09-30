@@ -5,10 +5,7 @@
 import type { Rpc } from "@opencode/schema/rpc";
 import { Schema } from "effect";
 
-/** Source tag on agent-lint inbox items. */
-export const SOURCE = "agent-lint";
-
-/** One failed command, stored on the waiting inbox item for the lint view. */
+/** One failed command, kept for the lint view and fix now. */
 export const LintCheck = Schema.Struct({
   /** Shell-quoted command as the user would type it. */
   command: Schema.String,
@@ -27,6 +24,10 @@ const Status = Schema.Struct({
   clean: Schema.Boolean,
   /** Commands that timed out in the latest run; never sent to the agent. */
   timedOut: Schema.Array(Schema.String),
+  /** Failed commands waiting for the user; only fix now sends them to the agent. */
+  checks: Schema.Array(LintCheck),
+  /** Instruction sent after the checks on fix now. */
+  message: Schema.String,
 });
 
 /** Lint state of one session, as shown to the user. */
@@ -38,15 +39,23 @@ export const idleStatus = (sessionID: string): LintStatus => ({
   running: false,
   clean: false,
   timedOut: [],
+  checks: [],
+  message: "",
 });
 
-/** Lets the TUI read and follow per-session lint state. */
+const SessionInput = Schema.toStandardSchemaV1(Schema.Struct({ sessionID: Schema.String }));
+
+/** Lets the TUI read and follow per-session lint state, and drop waiting problems. */
 export const AgentLintRpc = {
   id: "agent-lint",
   methods: {
     status: {
-      input: Schema.toStandardSchemaV1(Schema.Struct({ sessionID: Schema.String })),
+      input: SessionInput,
       output: Schema.toStandardSchemaV1(Status),
+    },
+    dismiss: {
+      input: SessionInput,
+      output: Schema.toStandardSchemaV1(Schema.Null),
     },
   },
   events: {
