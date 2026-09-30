@@ -149,16 +149,37 @@ async function generateCommands(): Promise<void> {
 
 async function generatePlugins(): Promise<void> {
   const directories = ['plugins'];
+  // Single-file plugins are `<name>.ts`; directory plugins have an `index.ts` entrypoint.
   const files = (
     await Promise.all(
-      directories.map(async (directory) =>
-        (await readdir(path.join(repoRoot, OPENCODE_PREFIX, directory)))
-          .filter((file) => file.endsWith('.ts'))
-          .map((file) => ({ directory, file })),
+      directories.map(async (directory) => {
+        const entries = await readdir(path.join(repoRoot, OPENCODE_PREFIX, directory), {
+          withFileTypes: true,
+        });
+        return entries.flatMap((entry) => {
+          if (entry.isFile() && entry.name.endsWith('.ts')) {
+            return [{ directory, name: entry.name.replace(/\.ts$/, ''), file: entry.name }];
+          }
+          if (entry.isDirectory() && entry.name !== 'node_modules') {
+            return [{ directory, name: entry.name, file: `${entry.name}/index.ts` }];
+          }
+          return [];
+        });
+      }),
+    )
+  ).flat();
+  const existing = (
+    await Promise.all(
+      files.map(async (entry) =>
+        (await stat(path.join(repoRoot, OPENCODE_PREFIX, entry.directory, entry.file)).catch(
+          () => undefined,
+        ))?.isFile()
+          ? [entry]
+          : [],
       ),
     )
   ).flat();
-  files.sort((a, b) => a.file.localeCompare(b.file));
+  existing.sort((a, b) => a.name.localeCompare(b.name));
   const lines = pageHeader(
     'Plugins',
     'OpenCode lifecycle plugins defined in this repo.',
@@ -170,8 +191,7 @@ async function generatePlugins(): Promise<void> {
     '| Plugin | Description |',
     '| --- | --- |',
   );
-  for (const { directory, file } of files) {
-    const name = file.replace(/\.ts$/, '');
+  for (const { directory, name, file } of existing) {
     const desc = await pluginDescription(path.join(repoRoot, OPENCODE_PREFIX, directory, file));
     const link = `${BLOB}/${OPENCODE_PREFIX}/${directory}/${file}`;
     lines.push(`| [\`${name}\`](${link}) | ${escapeCell(desc)} |`);

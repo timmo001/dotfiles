@@ -247,10 +247,11 @@ EOF
     printf '\n## Plugins\n\n'
     printf '| Plugin | Description |\n|---|---|\n'
 
-    for plugin_file in "${CONFIG_DIR}/plugins"/*.ts; do
+    for plugin_file in "${CONFIG_DIR}/plugins"/*.ts "${CONFIG_DIR}/plugins"/*/index.ts; do
       [[ -f "$plugin_file" ]] || continue
       local name desc
       name="$(basename "$plugin_file" .ts)"
+      [[ "$name" == "index" ]] && name="$(basename "$(dirname "$plugin_file")")"
       desc="$(plugin_desc "$plugin_file")"
       printf '| `%s` | %s |\n' "$name" "$desc"
     done | sort
@@ -337,7 +338,7 @@ validate_plugin_imports() {
         -e "s/.*import[[:space:]]*\([[:space:]]*['\"](\.\.?\/[^'\"]+)['\"].*/\1/p" \
         "$plugin_file"
     )
-  done < <(find "${config_dir}/plugins" -path '*/node_modules' -prune -o -type f \( -name '*.ts' -o -name '*.js' \) -print)
+  done < <(find "${config_dir}/plugins" -path '*/node_modules' -prune -o -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' \) -print)
 }
 
 sync_to_publish() {

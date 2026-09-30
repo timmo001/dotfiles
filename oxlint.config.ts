@@ -21,6 +21,7 @@ export default defineConfig({
     "!agents/.config/opencode/",
     "!agents/.config/opencode/plugins/",
     "!agents/.config/opencode/plugins/**/*.ts",
+    "!agents/.config/opencode/plugins/**/*.tsx",
     "docs/**",
     "node_modules/**",
     "omarchy/.config/omarchy/plugins/**",
