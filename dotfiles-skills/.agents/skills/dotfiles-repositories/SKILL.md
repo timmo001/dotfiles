@@ -23,8 +23,10 @@ any repository, resolve it with `dot repo` before guessing a path:
 
 - `search` is fuzzy and typo-tolerant over name, aliases, GitHub repository name
   and slug, directory and path. Every term must match; results are ranked with
-  `score` (1 to 100) and `matched`, top 5 unless `--all`. When the top scores
-  are close and the user meant one repository, ask which.
+  `score` (1 to 100) and `matched`, top 5 unless `--all`. Its JSON is
+  `{ results, hint }`; a `hint` means more matches exist behind `--limit` or
+  `--all`. When the top scores are close and the user meant one repository,
+  ask which.
 - Both print JSON under an agent with `name`, `path`, `github`, `aliases`,
   `kind`, `exists`, `current` and `herdr`, and exit 1 when nothing matches. A
   miss means the words are not in any name; fall back to the full list.
