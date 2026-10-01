@@ -1,4 +1,4 @@
-import { basename, join, sep } from "node:path";
+import { basename, dirname, join, sep } from "node:path";
 import {
   Clock,
   Console,
@@ -52,9 +52,35 @@ const ServiceDescriptor = Schema.Struct({
     Schema.String.check(Schema.isPattern(/^[\w.-]+\/[\w.-]+$/)),
   ),
   manualStartMarker: Schema.optionalKey(Schema.Boolean),
+  status: Schema.optionalKey(Schema.Struct({ file: Schema.String })),
 });
 
 type ServiceDescriptor = typeof ServiceDescriptor.Type;
+
+const ReportedStatus = Schema.Struct({
+  health: Schema.Literals(["ok", "warning", "degraded", "failed"]),
+  summary: Schema.String,
+  updated: Schema.Finite,
+});
+
+/** Health a long-running service reports about its own work. */
+export type ReportedStatus = typeof ReportedStatus.Type;
+
+const decodeReportedStatus = Schema.decodeOption(
+  Schema.fromJsonString(ReportedStatus),
+);
+
+/** Atomically replace a service's self-reported status file. */
+export const writeReportedStatus = Effect.fn("Services.writeReportedStatus")(
+  function* (file: string, status: ReportedStatus) {
+    const fs = yield* FileSystem.FileSystem;
+    const temporary = `${file}.tmp`;
+
+    yield* fs.makeDirectory(dirname(file), { recursive: true });
+    yield* fs.writeFileString(temporary, JSON.stringify(status));
+    yield* fs.rename(temporary, file);
+  },
+);
 
 const decodeDescriptor = Schema.decodeEffect(
   Schema.fromJsonString(ServiceDescriptor),
@@ -545,17 +571,19 @@ function buildRuns(
   return { runs: ordered, restarts };
 }
 
-const latestLog = Effect.fn("Services.latestLog")(function* (
-  logs: NonNullable<ServiceDescriptor["logs"]>,
-) {
-  const fs = yield* FileSystem.FileSystem;
-
-  const dir = expandHomePath(
-    logs.dir
+const expandDescriptorPath = (path: string) =>
+  expandHomePath(
+    path
       .replace(/^\$XDG_STATE_HOME(?=\/|$)/, STATE_DIR)
       .replace(/^\$XDG_CONFIG_HOME(?=\/|$)/, CONFIG_DIR)
       .replace(/^\$HOME(?=\/|$)/, "~"),
   );
+
+const latestLog = Effect.fn("Services.latestLog")(function* (
+  logs: NonNullable<ServiceDescriptor["logs"]>,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const dir = expandDescriptorPath(logs.dir);
 
   const names = yield* fs
     .readDirectory(dir)
@@ -576,6 +604,25 @@ const latestLog = Effect.fn("Services.latestLog")(function* (
   }
 
   return newest;
+});
+
+/** Read a running service's own status, ignoring reports from earlier runs. */
+const readReportedStatus = Effect.fn("Services.readReportedStatus")(function* (
+  status: NonNullable<ServiceDescriptor["status"]>,
+  startedAt: number | undefined,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  const text = yield* fs
+    .readFileString(expandDescriptorPath(status.file))
+    .pipe(Effect.orElseSucceed(() => ""));
+
+  return decodeReportedStatus(text).pipe(
+    Option.filter(
+      ({ updated }) => startedAt === undefined || updated >= startedAt,
+    ),
+    Option.getOrUndefined,
+  );
 });
 
 function summarise(status: Omit<ServiceStatus, "summary">): string {
@@ -831,7 +878,7 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
               : []),
           ];
 
-      const health: ServiceHealth = !loaded
+      const systemdHealth: ServiceHealth = !loaded
         ? "missing"
         : consecutiveFailures >= failAfter
           ? "failed"
@@ -860,6 +907,17 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
                     recentRestarts >= restartLimit.count)
                 ? "degraded"
                 : "ok";
+
+      // A healthy long-running service can still report trouble in its own work.
+      const reported =
+        descriptor.status && !timer && !oneshot && systemdHealth === "ok"
+          ? yield* readReportedStatus(
+              descriptor.status,
+              unixMillis(properties.ActiveEnterTimestamp),
+            )
+          : undefined;
+
+      const health = reported?.health ?? systemdHealth;
 
       const partial = {
         unit: descriptor.unit,
@@ -892,7 +950,7 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
 
       return {
         ...partial,
-        summary: summarise(partial),
+        summary: reported?.summary ?? summarise(partial),
       } satisfies ServiceStatus;
     }),
   );
