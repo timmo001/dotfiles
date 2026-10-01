@@ -7,12 +7,12 @@ Reusable agent workflows live in <a href="https://github.com/timmo001/skills" ta
 
 | Piece | Why |
 | --- | --- |
-| `agents/.agents/skills/` | Pinned skills submodule (stowed to `~/.agents/skills/`) |
+| `~/.local/share/dot/skills` | dot-managed checkout of the skills repo, detached at the latest `main` and linked into `~/.agents/skills/` |
 | `.agents/skills/` | Repo-local skills for this checkout only |
 | `dotfiles-skills/` | Global skills tied to dotfiles paths or private overlays |
 | `dot skills` | Validate, import, and update skills from the standalone repo |
 
-Edit reusable skills in `~/repos/skills`, then update the submodule pin here. Do not edit the submodule checkout or live `~/.agents/skills` directly.
+Edit reusable skills in `~/repos/skills` and push to `main`; the next `dot update` picks them up. Do not edit the managed checkout or live `~/.agents/skills` directly.
 
 ## Local skills
 

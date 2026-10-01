@@ -49,6 +49,6 @@ Detail lives in code and `--help`. The site stays a short what-and-why reference
 
 - `dot/` — `dot` CLI source
 - `docs/` — docs site
-- `agents/` — OpenCode config and pinned skills submodule
+- `agents/` — OpenCode config
 - `hypr/`, `uwsm/`, `ghostty/` — desktop packages
 - Stow packages for shell, editor, and related tools

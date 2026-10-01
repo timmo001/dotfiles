@@ -55,8 +55,9 @@ any repository, resolve it with `dot repo` before guessing a path:
   permission to expand the task or create a session.
 - Use each owning source: shared dotfiles behaviour, private host configuration,
   and authored skills may live in different repositories. Follow the host's source
-  paths and skill-authoring rules; do not edit installed skills, pinned submodules,
-  generated mirrors, or OpenCode's cached reference clones as writable sources.
+  paths and skill-authoring rules; do not edit installed skills, the dot-managed
+  skills checkout, pinned submodules, generated mirrors, or OpenCode's cached
+  reference clones as writable sources.
 
 ## Open In An Agent
 

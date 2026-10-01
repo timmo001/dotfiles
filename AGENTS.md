@@ -32,7 +32,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Stow config: `.stowrc`
 - Readme: `README.md` (slim pointer; links to the docs site, which is the canonical human documentation)
 - OpenCode config source: `agents/.config/opencode/`
-- Skills source: [`timmo001/skills`](https://github.com/timmo001/skills), pinned at `agents/.agents/skills/` and stowed to `~/.agents/skills/`
+- Skills source: [`timmo001/skills`](https://github.com/timmo001/skills), cloned by `dot` to `~/.local/share/dot/skills` (detached at the latest `main`) and linked into `~/.agents/skills/`
 - Published OpenCode config: [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config)
 
 ## Tooling
@@ -48,10 +48,10 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - For human-written command names and command/docs prose in this repo, prefer UK spelling. Keep upstream tool, API, or MCP names unchanged when they use US spelling.
 - `agents/.config/opencode/` contains the shared OpenCode config source published from this repo.
 - `agents/.config/opencode/lib/` contains shared plugin support modules. Relative plugin imports must resolve before publication.
-- `agents/.agents/skills/` is the `timmo001/skills` submodule and exposes its skills via `~/.agents/skills/`. Author shared skills and manage imports in the standalone checkout under `~/repos/skills`. Tool-owned skills live in `.agents/skills/` in their owning repository and are imported through `skills`. Never edit the submodule checkout or `~/.agents/skills` directly. Renovate owns the pinned skills revision here; only advance it manually when the user explicitly requests that update.
+- Shared skills come from `timmo001/skills` `main`, not a submodule. `dot update` fetches the dot-owned checkout at `~/.local/share/dot/skills`, detaches it at `origin/main`, builds `skill-maintenance` from it, installs external imports and links each authored skill file into `~/.agents/skills/`. `dot stow` and `dot install` clone it when missing but do not fetch. Author shared skills and manage imports in the standalone checkout under `~/repos/skills`; `dot skills` runs there. Tool-owned skills live in `.agents/skills/` in their owning repository and are imported through `skills`. Never edit the managed checkout or `~/.agents/skills` directly.
 - `herdr/.config/herdr/` stows the main config and selected plugin configuration; runtime logs, sockets, generated files, and session state stay untracked in `~/.config/herdr/`.
 - `.agents/skills/` contains repo-local skills for this repo only and is registered through `skills.paths` in `opencode.json`. Use `dotfiles-skills/.agents/skills/` only for global skills whose workflow is specifically coupled to dotfiles paths, commands, or private overlays. Shared cross-repository workflows belong in `~/repos/skills`; tool-owned skills belong in the tool repository and are tracked there as imports.
-- Public `SKILL.md` files must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules. The standalone skills repo validates `agents/.agents/skills/`; this repo validates its local `.agents/skills/` root.
+- Public `SKILL.md` files must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules. The standalone skills repo validates its own skills; this repo validates its local `.agents/skills/` and `dotfiles-skills/` roots.
 - `dot agents-sync` mirrors the global private AGENTS source into agent harness instruction files; full `dot update` and `dot init` run that sync automatically.
 - Pinned private OpenCode packages, including plugins in `dotfiles-private/agents/.config/opencode/{opencode,tui}.json`, should be managed by an npm regex custom manager in `dotfiles-private/renovate.json`.
 - Only add a command when it must force an agent profile or carry explicit authorisation (`/commit`, `/commit-push`). Everything else is a skill the model selects from its description.
