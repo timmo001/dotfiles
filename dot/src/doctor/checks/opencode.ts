@@ -32,9 +32,7 @@ export const checkOpencode = Effect.gen(function* () {
       message: `OpenCode external skills path exists: ${displayPath(externalSkillsPath)}`,
     });
 
-    const missing = yield* Effect.sync(() =>
-      missingExternalSkills(externalSkillsPath),
-    );
+    const missing = yield* missingExternalSkills(externalSkillsPath);
 
     if (missing.length > 0)
       results.push({

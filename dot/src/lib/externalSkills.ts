@@ -1,16 +1,14 @@
-import { Effect, Option, Schema } from "effect";
-import {
-  existsSync,
-  lstatSync,
-  readFileSync,
-  readdirSync,
-  readlinkSync,
-  rmdirSync,
-  unlinkSync,
-} from "fs";
+import { Effect, FileSystem, Option, Schema } from "effect";
 import { dirname, join, resolve } from "path";
 import { HOME_DIR } from "./paths.js";
 import { skillsMaintenanceSource } from "./skillsMaintenance.js";
+import {
+  lstatOrNull,
+  pathExists,
+  readDirectoryOrNull,
+  readLinkOrNull,
+  readTextOrNull,
+} from "./fsProbe.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -20,54 +18,68 @@ import { plural } from "./runSummary.js";
 export const AGENT_SKILLS_DIR = join(HOME_DIR, ".agents", "skills");
 
 const decodeManifest = Schema.decodeUnknownOption(
-  Schema.Record(Schema.String, Schema.String),
+  Schema.fromJsonString(Schema.Record(Schema.String, Schema.String)),
 );
 
 /** External skills recorded by skill-maintenance whose `SKILL.md` is missing. */
-export const missingExternalSkills = (skillsDir = AGENT_SKILLS_DIR) => {
-  const manifest = join(skillsDir, ".external-skills.json");
-
-  if (!existsSync(manifest)) return [];
-
-  try {
-    return Option.match(
-      decodeManifest(JSON.parse(readFileSync(manifest, "utf8"))),
-      {
-        onNone: () => [],
-        onSome: (installed) =>
-          Object.keys(installed).filter(
-            (name) => !existsSync(join(skillsDir, name, "SKILL.md")),
-          ),
-      },
+export const missingExternalSkills = Effect.fn("ExternalSkills.missing")(
+  function* (skillsDir: string = AGENT_SKILLS_DIR) {
+    const text = yield* readTextOrNull(
+      join(skillsDir, ".external-skills.json"),
     );
-  } catch {
-    return [];
-  }
-};
 
-const pruneDirectory = (directory: string, sources: readonly string[]) => {
+    const installed = text === null ? Option.none() : decodeManifest(text);
+
+    if (Option.isNone(installed)) return [];
+    const missing: string[] = [];
+
+    for (const name of Object.keys(installed.value))
+      if (!(yield* pathExists(join(skillsDir, name, "SKILL.md"))))
+        missing.push(name);
+
+    return missing;
+  },
+);
+
+const pruneDirectory: (
+  directory: string,
+  sources: readonly string[],
+) => Effect.Effect<number, never, FileSystem.FileSystem> = Effect.fn(
+  "ExternalSkills.pruneDirectory",
+)(function* (directory: string, sources: readonly string[]) {
+  const fs = yield* FileSystem.FileSystem;
   let removed = 0;
 
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name);
+  for (const entry of (yield* readDirectoryOrNull(directory)) ?? []) {
+    const path = join(directory, entry);
+    const info = yield* lstatOrNull(path);
 
-    if (entry.isDirectory()) {
-      removed += pruneDirectory(path, sources);
+    if (info?.type === "Directory") {
+      removed += yield* pruneDirectory(path, sources);
       continue;
     }
 
-    if (!entry.isSymbolicLink() || existsSync(path)) continue;
-    const target = resolve(dirname(path), readlinkSync(path));
+    const link = yield* readLinkOrNull(path);
+
+    if (link === null || (yield* pathExists(path))) continue;
+    const target = resolve(dirname(path), link);
 
     if (!sources.some((source) => target.startsWith(`${source}/`))) continue;
-    unlinkSync(path);
-    removed++;
+
+    if (
+      yield* fs.remove(path).pipe(
+        Effect.as(true),
+        Effect.orElseSucceed(() => false),
+      )
+    )
+      removed++;
   }
 
-  if (readdirSync(directory).length === 0) rmdirSync(directory);
+  if ((yield* readDirectoryOrNull(directory))?.length === 0)
+    yield* fs.remove(directory).pipe(Effect.ignore);
 
   return removed;
-};
+});
 
 /**
  * Remove dangling links into the dotfiles sources, and the directories they
@@ -75,21 +87,20 @@ const pruneDirectory = (directory: string, sources: readonly string[]) => {
  *
  * @returns The number of dangling links removed.
  */
-export const pruneStaleSkillLinks = (
-  sources: readonly string[],
-  skillsDir = AGENT_SKILLS_DIR,
-) => {
-  if (!existsSync(skillsDir)) return 0;
-  let removed = 0;
+export const pruneStaleSkillLinks = Effect.fn("ExternalSkills.prune")(
+  function* (sources: readonly string[], skillsDir: string = AGENT_SKILLS_DIR) {
+    let removed = 0;
 
-  for (const entry of readdirSync(skillsDir)) {
-    const path = join(skillsDir, entry);
+    for (const entry of (yield* readDirectoryOrNull(skillsDir)) ?? []) {
+      const path = join(skillsDir, entry);
 
-    if (lstatSync(path).isDirectory()) removed += pruneDirectory(path, sources);
-  }
+      if ((yield* lstatOrNull(path))?.type === "Directory")
+        removed += yield* pruneDirectory(path, sources);
+    }
 
-  return removed;
-};
+    return removed;
+  },
+);
 
 /**
  * Prune stale skill links, then install external skill imports into the
@@ -106,11 +117,9 @@ export const syncExternalSkills = Effect.gen(function* () {
 
   yield* log.section("External Skills");
 
-  const pruned = yield* Effect.sync(() =>
-    pruneStaleSkillLinks(
-      [config.publicDotfiles, config.privateDotfiles].filter(
-        (source): source is string => source !== null,
-      ),
+  const pruned = yield* pruneStaleSkillLinks(
+    [config.publicDotfiles, config.privateDotfiles].filter(
+      (source) => source !== null,
     ),
   );
 
@@ -124,7 +133,7 @@ export const syncExternalSkills = Effect.gen(function* () {
     "skill-maintenance",
   );
 
-  if (!existsSync(executable)) {
+  if (!(yield* pathExists(executable))) {
     yield* log.warn(
       "Skipping external skills (skill-maintenance is not built)",
     );
