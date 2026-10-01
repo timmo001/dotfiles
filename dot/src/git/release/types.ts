@@ -95,6 +95,8 @@ export const ReleaseSettings = Schema.Struct({
     Schema.Struct({
       /** Version sources which must match the new tag. */
       version_files: Schema.Array(ReleaseVersionFile),
+      /** Tracked files the commands may regenerate, such as lockfiles, committed with the version bump. */
+      generated_files: Schema.optional(Schema.Array(Schema.String)),
       /** Ordered preparation and validation commands, each an argv array. */
       commands: Schema.Array(Schema.Array(Schema.String)),
     }),

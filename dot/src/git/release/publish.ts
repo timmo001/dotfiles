@@ -615,6 +615,8 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
 
   const changed = prepared.filter((file) => file.before !== file.after);
   const needsPreparation = changed.length > 0 || recipe.commands.length > 0;
+  // Regenerated files only ride along with a version commit.
+  const generated = changed.length ? (recipe.generated_files ?? []) : [];
 
   const id = evidenceId([
     snapshot.id,
@@ -656,7 +658,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
         ]),
     ...(changed.length
       ? [
-          `Commit only ${changed.map((file) => file.path).join(", ")} as "Release ${tag}" through dot git-commit.`,
+          `Commit only ${changed.map((file) => file.path).join(", ")}${generated.length ? `, plus ${generated.join(", ")} where the commands regenerate them,` : ""} as "Release ${tag}" through dot git-commit.`,
           `Atomically push that version commit to ${repo.github}:${settings.branch} and create tag ${tag}.`,
         ]
       : [
@@ -823,12 +825,18 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
 
       if (
         untracked ||
-        paths.some((path) => !changed.some((file) => file.path === path))
+        paths.some(
+          (path) =>
+            !changed.some((file) => file.path === path) &&
+            !generated.includes(path),
+        )
       )
         return yield* new ReleaseError({
           message:
             "Validation changed files outside the confirmed version bump; inspect the retained worktree",
         });
+
+      const regenerated = generated.filter((path) => paths.includes(path));
 
       for (const file of prepared) {
         const original = yield* git(["show", `${snapshot.head}:${file.path}`]);
@@ -883,6 +891,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
             `Release ${tag}`,
             "--skip-agent-oxlint",
             ...changed.flatMap((file) => ["--path", file.path]),
+            ...regenerated.flatMap((path) => ["--path", path]),
           ],
           directory,
         );

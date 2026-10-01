@@ -695,6 +695,23 @@ function parseReleases(
       if (new Set(paths).size !== paths.length)
         throw new Error("publish version_files must be unique");
 
+      const generated = settings.publish.generated_files ?? [];
+
+      if (
+        generated.some(
+          (path) =>
+            !/^[A-Za-z0-9_][A-Za-z0-9_./-]*$/.test(path) ||
+            path
+              .split("/")
+              .some((part) => part === ".." || part === "." || !part) ||
+            paths.includes(path),
+        ) ||
+        new Set(generated).size !== generated.length
+      )
+        throw new Error(
+          "publish generated_files must be unique repository-relative paths that are not version_files",
+        );
+
       for (const command of settings.publish.commands) {
         if (!command.length || command.some((arg) => !arg.trim()))
           throw new Error("publish commands must be non-empty argv arrays");
