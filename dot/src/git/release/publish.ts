@@ -618,6 +618,10 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
   // Regenerated files only ride along with a version commit.
   const generated = changed.length ? (recipe.generated_files ?? []) : [];
 
+  const extraGenerated = generated.filter(
+    (path) => !changed.some((file) => file.path === path),
+  );
+
   const id = evidenceId([
     snapshot.id,
     remote,
@@ -658,7 +662,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
         ]),
     ...(changed.length
       ? [
-          `Commit only ${changed.map((file) => file.path).join(", ")}${generated.length ? `, plus ${generated.join(", ")} where the commands regenerate them,` : ""} as "Release ${tag}" through dot git-commit.`,
+          `Commit only ${changed.map((file) => file.path).join(", ")}${extraGenerated.length ? `, plus ${extraGenerated.join(", ")} where the commands regenerate them,` : ""} as "Release ${tag}" through dot git-commit.`,
           `Atomically push that version commit to ${repo.github}:${settings.branch} and create tag ${tag}.`,
         ]
       : [
@@ -836,11 +840,27 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
             "Validation changed files outside the confirmed version bump; inspect the retained worktree",
         });
 
-      const regenerated = generated.filter((path) => paths.includes(path));
+      const regenerated = extraGenerated.filter((path) => paths.includes(path));
 
       for (const file of prepared) {
         const original = yield* git(["show", `${snapshot.head}:${file.path}`]);
         yield* Effect.gen(function* () {
+          const actual = yield* fs.readFileString(join(directory, file.path));
+
+          // A regenerated version file may change elsewhere, but its version must still be exact.
+          if (generated.includes(file.path)) {
+            if (
+              (yield* Effect.try(() =>
+                prepareReleaseVersion(actual, file.file, version),
+              )).before !== version
+            )
+              return yield* new ReleaseError({
+                message: `Validation left ${file.path} without version ${version}`,
+              });
+
+            return;
+          }
+
           const expected =
             file.before === file.after
               ? original
@@ -849,9 +869,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
                     prepareReleaseVersion(original, file.file, version).content,
                 );
 
-          if (
-            (yield* fs.readFileString(join(directory, file.path))) !== expected
-          )
+          if (actual !== expected)
             return yield* new ReleaseError({
               message: `Validation changed ${file.path} beyond its agreed version bump`,
             });

@@ -703,13 +703,12 @@ function parseReleases(
             !/^[A-Za-z0-9_][A-Za-z0-9_./-]*$/.test(path) ||
             path
               .split("/")
-              .some((part) => part === ".." || part === "." || !part) ||
-            paths.includes(path),
+              .some((part) => part === ".." || part === "." || !part),
         ) ||
         new Set(generated).size !== generated.length
       )
         throw new Error(
-          "publish generated_files must be unique repository-relative paths that are not version_files",
+          "publish generated_files must be unique repository-relative paths",
         );
 
       for (const command of settings.publish.commands) {
