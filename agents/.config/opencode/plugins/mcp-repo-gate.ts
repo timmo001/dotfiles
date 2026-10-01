@@ -11,7 +11,7 @@ import { dirname, join } from "node:path";
 export const GATED_SERVERS = [
   "pitchfork",
   "convex",
-  "astro-docs",
+  "docs-astro",
 ] as const;
 
 export type GatedServer = (typeof GATED_SERVERS)[number];
@@ -19,7 +19,7 @@ export type GatedServer = (typeof GATED_SERVERS)[number];
 export const REPO_REQUIRED_MARKERS = {
   pitchfork: ["pitchfork.toml"],
   convex: ["convex.json", "convex"],
-  "astro-docs": [
+  "docs-astro": [
     "astro.config.mjs",
     "astro.config.ts",
     "astro.config.mts",
