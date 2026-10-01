@@ -258,6 +258,27 @@ function editText(
     return text;
   }
 
+  if (dependency.manager === "custom.jsonata") {
+    if (dependency.digest)
+      throw new DependencyRunError({
+        message: `JSONata ${dependency.name} digest updates need native support`,
+      });
+
+    const pattern = new RegExp(
+      `(?<![\\w.+-])${dependency.current.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w.+-])`,
+      "g",
+    );
+
+    const matches = [...text.matchAll(pattern)];
+
+    if (matches.length !== 1)
+      throw new DependencyRunError({
+        message: `JSONata ${dependency.name} value is missing or ambiguous in ${dependency.file}`,
+      });
+
+    return text.replace(pattern, () => next);
+  }
+
   throw new DependencyRunError({
     message: `Unsupported native edit manager: ${dependency.manager}`,
   });

@@ -55,19 +55,30 @@ const Manager = Schema.Struct({
   settings: Settings,
 });
 
+const Templates = Schema.Struct({
+  datasource: Schema.optionalKey(Schema.String),
+  dependency: Schema.optionalKey(Schema.String),
+  package: Schema.optionalKey(Schema.String),
+  value: Schema.optionalKey(Schema.String),
+  versioning: Schema.optionalKey(Schema.String),
+  extractVersion: Schema.optionalKey(Schema.String),
+});
+
 const RegexManager = Schema.Struct({
   files: Strings,
   patterns: Strings,
   strategy: Schema.optionalKey(Schema.String),
   templates: Schema.Struct({
-    datasource: Schema.optionalKey(Schema.String),
-    dependency: Schema.optionalKey(Schema.String),
-    package: Schema.optionalKey(Schema.String),
-    value: Schema.optionalKey(Schema.String),
-    versioning: Schema.optionalKey(Schema.String),
-    extractVersion: Schema.optionalKey(Schema.String),
+    ...Templates.fields,
     replacement: Schema.optionalKey(Schema.String),
   }),
+});
+
+const JsonataManager = Schema.Struct({
+  files: Strings,
+  format: Schema.Literals(["json", "yaml", "toml"]),
+  patterns: Strings,
+  templates: Templates,
 });
 
 const Datasource = Schema.Struct({
@@ -85,6 +96,7 @@ export const DependencyPolicy = Schema.Struct({
   managers: Schema.Record(Schema.String, Manager),
   rules: Schema.Array(Rule),
   regexManagers: Schema.Array(RegexManager),
+  jsonataManagers: Schema.optionalKey(Schema.Array(JsonataManager)),
   datasources: Schema.Record(Schema.String, Datasource),
 }).annotate({ identifier: "DependencyPolicy" });
 
@@ -109,6 +121,13 @@ export function mergeDependencyPolicy(
             ? [
                 ...(base.ignoreDependencies ?? []),
                 ...(overrides.ignoreDependencies ?? []),
+              ]
+            : undefined,
+        jsonataManagers:
+          base.jsonataManagers || overrides.jsonataManagers
+            ? [
+                ...(base.jsonataManagers ?? []),
+                ...(overrides.jsonataManagers ?? []),
               ]
             : undefined,
       },
@@ -415,6 +434,7 @@ export function blockingDependencyDiagnostics(
         "github-actions",
         "git-submodules",
         "custom.regex",
+        "custom.jsonata",
       ].includes(manager),
     );
 

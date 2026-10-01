@@ -63,6 +63,11 @@ const settingNames = new Set(
 
 const Strings = Schema.Array(Schema.String);
 
+const excludedRenovateFields: Readonly<Record<string, string>> = {
+  lockFileMaintenance:
+    "Scheduled lockfile refresh is not part of on-demand updates; updated dependencies still regenerate their lockfiles",
+};
+
 function settingsFrom(source: RenovateObject) {
   return Object.fromEntries(
     Object.entries(source).filter(([key]) => settingNames.has(key)),
@@ -83,10 +88,14 @@ function diagnosticsFor(
     )
     .map(([key, value]) => ({
       path: `${path}.${key}`,
-      disposition: ignoredRenovateFields.has(key) ? "ignored" : "blocked",
+      disposition:
+        ignoredRenovateFields.has(key) || key in excludedRenovateFields
+          ? "ignored"
+          : "blocked",
       message: ignoredRenovateFields.has(key)
         ? "Not used by the on-demand, no-PR workflow"
-        : "No native translation; implement or explicitly exclude this policy before publishing",
+        : (excludedRenovateFields[key] ??
+          "No native translation; implement or explicitly exclude this policy before publishing"),
       ...Record.filter(
         {
           scope:
@@ -256,49 +265,80 @@ export const translateDependencyPolicy = Effect.fn(
     }),
   );
 
-  const regexManagers = (sections.customManagers ?? []).map(
+  const customManagers = (sections.customManagers ?? []).map(
     (manager, index) => {
       const managerPath = `${path}.customManagers[${index}]`;
+      const jsonataManager = manager.customType === "jsonata";
 
       const findings = diagnosticsFor(
         manager,
         new Set([
-          ...Object.keys(templates),
+          ...Object.keys(templates).filter(
+            (key) => !jsonataManager || key !== "autoReplaceStringTemplate",
+          ),
           "customType",
           "description",
           "managerFilePatterns",
           "matchStrings",
-          "matchStringsStrategy",
+          ...(jsonataManager ? ["fileFormat"] : ["matchStringsStrategy"]),
         ]),
         managerPath,
       );
 
-      if (manager.customType !== "regex")
+      if (manager.customType !== "regex" && !jsonataManager)
         findings.push({
           path: `${managerPath}.customType`,
           disposition: "blocked",
-          message: "Only regex extraction has a native translation",
+          message: "Only regex and JSONata extraction have native translations",
         });
+
+      if (
+        jsonataManager &&
+        !["json", "yaml", "toml"].some(
+          (format) => manager.fileFormat === format,
+        )
+      )
+        findings.push({
+          path: `${managerPath}.fileFormat`,
+          disposition: "blocked",
+          message: "Only JSON, YAML and TOML JSONata files have native parsers",
+        });
+
+      const blocked = findings.some((entry) => entry.disposition === "blocked");
+
+      const translatedTemplates = Object.fromEntries(
+        Object.entries(templates)
+          .filter(([key]) => manager[key] !== undefined)
+          .map(([key, name]) => [name, manager[key]]),
+      );
 
       return {
         findings,
-        managers: findings.some((entry) => entry.disposition === "blocked")
-          ? []
-          : [
-              {
-                files: manager.managerFilePatterns,
-                patterns: manager.matchStrings,
-                ...Record.filter(
-                  { strategy: manager.matchStringsStrategy },
-                  Predicate.isNotUndefined,
-                ),
-                templates: Object.fromEntries(
-                  Object.entries(templates)
-                    .filter(([key]) => manager[key] !== undefined)
-                    .map(([key, name]) => [name, manager[key]]),
-                ),
-              },
-            ],
+        managers:
+          blocked || jsonataManager
+            ? []
+            : [
+                {
+                  files: manager.managerFilePatterns,
+                  patterns: manager.matchStrings,
+                  ...Record.filter(
+                    { strategy: manager.matchStringsStrategy },
+                    Predicate.isNotUndefined,
+                  ),
+                  templates: translatedTemplates,
+                },
+              ],
+        jsonataManagers:
+          blocked || !jsonataManager
+            ? []
+            : [
+                {
+                  files: manager.managerFilePatterns,
+                  format: manager.fileFormat,
+                  patterns: manager.matchStrings,
+                  templates: translatedTemplates,
+                },
+              ],
       };
     },
   );
@@ -343,7 +383,17 @@ export const translateDependencyPolicy = Effect.fn(
       nativeManagers.map((manager) => [manager.name, manager.value]),
     ),
     rules: rules.flatMap((entry) => entry.rule),
-    regexManagers: regexManagers.flatMap((entry) => entry.managers),
+    regexManagers: customManagers.flatMap((entry) => entry.managers),
+    ...Record.filter(
+      {
+        jsonataManagers: customManagers.some(
+          (entry) => entry.jsonataManagers.length,
+        )
+          ? customManagers.flatMap((entry) => entry.jsonataManagers)
+          : undefined,
+      },
+      Predicate.isNotUndefined,
+    ),
     datasources: Object.fromEntries(
       datasources.flatMap((entry) => entry.entries),
     ),
@@ -355,7 +405,7 @@ export const translateDependencyPolicy = Effect.fn(
       ...diagnostics,
       ...rules.flatMap((entry) => entry.findings),
       ...nativeManagers.flatMap((entry) => entry.findings),
-      ...regexManagers.flatMap((entry) => entry.findings),
+      ...customManagers.flatMap((entry) => entry.findings),
       ...datasources.flatMap((entry) => entry.findings),
     ],
   };

@@ -12,6 +12,7 @@ import { extractMise } from "./managers/mise.js";
 import { extractGithubActions } from "./managers/githubActions.js";
 import { extractSubmodules } from "./managers/submodules.js";
 import { extractRegex } from "./managers/regex.js";
+import { extractJsonata } from "./managers/jsonata.js";
 
 const defaults = {
   npm: ["**/package.json"],
@@ -59,6 +60,13 @@ export function dependencyFile(
       (!policy.ignorePaths?.length ||
         !matchesPatterns(file, policy.ignorePaths)) &&
       policy.regexManagers.some((manager) =>
+        matchesPatterns(file, manager.files),
+      )) ||
+    ((!policy.enabledManagers?.length ||
+      policy.enabledManagers.includes("custom.jsonata")) &&
+      (!policy.ignorePaths?.length ||
+        !matchesPatterns(file, policy.ignorePaths)) &&
+      (policy.jsonataManagers ?? []).some((manager) =>
         matchesPatterns(file, manager.files),
       ))
   );
@@ -111,6 +119,14 @@ export const extractDependencies = Effect.fn("Dependencies.extract")(function* (
         }),
       );
 
+    if (
+      (!policy.enabledManagers?.length ||
+        policy.enabledManagers.includes("custom.jsonata")) &&
+      (!policy.ignorePaths?.length ||
+        !matchesPatterns(file, policy.ignorePaths))
+    )
+      results.push(yield* extractJsonata(file, text, policy.jsonataManagers));
+
     for (const result of results) {
       dependencies.push(...result.dependencies);
       blockers.push(...result.blockers);
@@ -118,7 +134,11 @@ export const extractDependencies = Effect.fn("Dependencies.extract")(function* (
   }
 
   for (const manager of policy.enabledManagers ?? [])
-    if (!(manager in defaults) && manager !== "custom.regex")
+    if (
+      !(manager in defaults) &&
+      manager !== "custom.regex" &&
+      manager !== "custom.jsonata"
+    )
       blockers.push(`Unsupported enabled manager: ${manager}`);
 
   return { dependencies, blockers };

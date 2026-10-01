@@ -66,6 +66,7 @@ export function regexDependency(
   file: string,
   groups: Readonly<Record<string, string>>,
   templates: DependencyPolicy["regexManagers"][number]["templates"],
+  manager: "custom.regex" | "custom.jsonata" = "custom.regex",
 ): Dependency | undefined {
   const field = (name: keyof typeof templates, capture: string) =>
     templates[name] ? renderTemplate(templates[name], groups) : groups[capture];
@@ -77,13 +78,13 @@ export function regexDependency(
   if (!name || !current || !datasource) return undefined;
 
   return {
-    manager: "custom.regex",
+    manager,
     file,
     name,
     package: field("package", "packageName") ?? name,
     current,
     datasource,
-    dependencyType: "regex",
+    dependencyType: manager === "custom.regex" ? "regex" : "jsonata",
     ...Record.filter(
       {
         digest: groups.currentDigest,

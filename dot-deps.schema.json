@@ -987,6 +987,65 @@
             "additionalProperties": false
           }
         },
+        "jsonataManagers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "json",
+                  "yaml",
+                  "toml"
+                ]
+              },
+              "patterns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "templates": {
+                "type": "object",
+                "properties": {
+                  "datasource": {
+                    "type": "string"
+                  },
+                  "dependency": {
+                    "type": "string"
+                  },
+                  "package": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  },
+                  "versioning": {
+                    "type": "string"
+                  },
+                  "extractVersion": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "files",
+              "format",
+              "patterns",
+              "templates"
+            ],
+            "additionalProperties": false
+          }
+        },
         "datasources": {
           "type": "object",
           "additionalProperties": {
@@ -1207,6 +1266,65 @@
             },
             "required": [
               "files",
+              "patterns",
+              "templates"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "jsonataManagers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "json",
+                  "yaml",
+                  "toml"
+                ]
+              },
+              "patterns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "templates": {
+                "type": "object",
+                "properties": {
+                  "datasource": {
+                    "type": "string"
+                  },
+                  "dependency": {
+                    "type": "string"
+                  },
+                  "package": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  },
+                  "versioning": {
+                    "type": "string"
+                  },
+                  "extractVersion": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "files",
+              "format",
               "patterns",
               "templates"
             ],

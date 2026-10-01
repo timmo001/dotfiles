@@ -1,3 +1,4 @@
+import jsonata from "jsonata";
 import { minimatch } from "minimatch";
 import semver from "semver";
 import { Predicate, Record } from "effect";
@@ -16,11 +17,15 @@ export function validateDependencyPatterns(policy: DependencyPolicy): void {
       Object.values(rule.match).flatMap((patterns) => patterns ?? []),
     ),
     ...policy.regexManagers.flatMap((manager) => manager.files),
+    ...(policy.jsonataManagers ?? []).flatMap((manager) => manager.files),
   ])
     matchesPatterns("", [pattern]);
 
   for (const manager of policy.regexManagers)
     for (const pattern of manager.patterns) new RegExp(pattern, "g");
+
+  for (const manager of policy.jsonataManagers ?? [])
+    for (const pattern of manager.patterns) jsonata(pattern);
 }
 
 /** Match Renovate-style regex/glob patterns, preserving negative exclusions. */
