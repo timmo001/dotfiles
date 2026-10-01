@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { join } from "path";
 import { lstatOrNull, pathExists, readLinkOrNull } from "../../lib/fsProbe.js";
+import { missingExternalSkills } from "../../lib/externalSkills.js";
 import { Config } from "../../services/Config.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
 import type { CheckResult } from "../types.js";
@@ -30,6 +31,16 @@ export const checkOpencode = Effect.gen(function* () {
       severity: "ok",
       message: `OpenCode external skills path exists: ${displayPath(externalSkillsPath)}`,
     });
+
+    const missing = yield* Effect.sync(() =>
+      missingExternalSkills(externalSkillsPath),
+    );
+
+    if (missing.length > 0)
+      results.push({
+        severity: "warn",
+        message: `External skills missing SKILL.md: ${missing.join(", ")} (run dot stow)`,
+      });
   } else {
     results.push({
       severity: "warn",

@@ -14,6 +14,7 @@ import { captureRepositoryOptions } from "./NotesCaptureSync.js";
 import { writeAllCompletions } from "./Completions.js";
 import { installOpencodePluginDependencies } from "../lib/opencodePlugins.js";
 import { removeStowedSkillOwner } from "../lib/stowConflicts.js";
+import { syncExternalSkills } from "../lib/externalSkills.js";
 import {
   backupUnmanagedTargets,
   emptyStowCounts,
@@ -154,6 +155,8 @@ export const stow = (opts?: {
         );
       }
     }
+
+    if (runPublic) actions.push(...(yield* syncExternalSkills));
 
     if (counts.deployed > 0)
       actions.push(`Deployed ${plural(counts.deployed, "Omarchy plugin")}`);
