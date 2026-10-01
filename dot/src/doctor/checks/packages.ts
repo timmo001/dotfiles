@@ -7,7 +7,6 @@ import { transientRemoteRetry } from "../../lib/git.js";
 import { displayPath, expandHomePath } from "../../lib/paths.js";
 import { ENV, envString } from "../../lib/env.js";
 import {
-  installedPackageCandidates,
   isPackageInstalled,
   loadPackageList,
   loadPackageLists,
@@ -305,11 +304,6 @@ const privatePackageRepoResults = Effect.fn(
   ] satisfies CheckResult[];
 });
 
-/** Human-facing package label, annotating aliased AUR names. */
-function packageDisplayName(name: string): string {
-  return name === "go-automate-git" ? "go-automate (go-automate-git)" : name;
-}
-
 /** Whether `vercmp` reports the installed version as older than the candidate. */
 export function isInstalledVersionOlder(vercmpOutput: string): boolean {
   return Number.parseInt(vercmpOutput.trim(), 10) < 0;
@@ -327,17 +321,11 @@ function installedPackageVersion(packageName: string) {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
 
-    for (const candidate of installedPackageCandidates(packageName)) {
-      const info = yield* executor
-        .run("pacman", ["-Q", candidate])
-        .pipe(Effect.orElseSucceed(() => ""));
+    const info = yield* executor
+      .run("pacman", ["-Q", packageName])
+      .pipe(Effect.orElseSucceed(() => ""));
 
-      const version = info.trim().split(/\s+/)[1];
-
-      if (version) return version;
-    }
-
-    return null;
+    return info.trim().split(/\s+/)[1] ?? null;
   });
 }
 
@@ -465,7 +453,6 @@ export function publicPackageKeyTrusted(
  */
 function packageListResults<R>(
   packages: readonly string[],
-  display: (pkg: string) => string,
   updateFor: (pkg: string) => Effect.Effect<CheckResult | null, never, R>,
 ) {
   return Effect.gen(function* () {
@@ -490,13 +477,13 @@ function packageListResults<R>(
       if (!installed) {
         results.push({
           severity: "warn",
-          message: `${display(pkg)} is missing`,
+          message: `${pkg} is missing`,
         });
         pending.push(pkg);
         continue;
       }
 
-      results.push({ severity: "ok", message: `${display(pkg)} is installed` });
+      results.push({ severity: "ok", message: `${pkg} is installed` });
 
       if (update) {
         results.push(update);
@@ -539,7 +526,7 @@ export const checkPublicPackages = Effect.gen(function* () {
 
   const hasYay = (yield* executor.exitCode("which", ["yay"])) === 0;
 
-  return yield* packageListResults(packages, packageDisplayName, (pkg) =>
+  return yield* packageListResults(packages, (pkg) =>
     packageUpdateResult(pkg, PUBLIC_PACKAGE_REPOSITORY, hasYay),
   );
 });
@@ -648,12 +635,9 @@ export const checkPrivatePackages = Effect.gen(function* () {
 
   const repository = (yield* loadPrivatePackageRepoConfig(config))?.name;
 
-  return yield* packageListResults(
-    packages,
-    (pkg) => pkg,
-    (pkg) =>
-      repository
-        ? packageUpdateResult(pkg, repository, false)
-        : Effect.succeed(null),
+  return yield* packageListResults(packages, (pkg) =>
+    repository
+      ? packageUpdateResult(pkg, repository, false)
+      : Effect.succeed(null),
   );
 });

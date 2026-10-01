@@ -9,7 +9,6 @@ context-git
 float-app-git
 gcc
 git
-go-automate-git
 ha-bridge-git
 home-assistant-tui-git
 music-assistant-tui-git
