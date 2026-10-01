@@ -68,17 +68,14 @@ export const dependencyRunLog = Effect.fn("Dependencies.runLog")(function* (
     cwd: string,
     timeout: number,
     capture = false,
-    env?: Readonly<Record<string, string>>,
   ) {
     const started = yield* Clock.currentTimeMillis;
-    yield* event(
-      `[${label}] ${JSON.stringify(argv)} (${cwd})${env ? ` env ${JSON.stringify(env)}` : ""}`,
-    );
+    yield* event(`[${label}] ${JSON.stringify(argv)} (${cwd})`);
     const args = ["run", "--timeout", `${timeout} millis`, "--", ...argv];
 
     const execution = capture
-      ? executor.run("dot", args, { cwd, env })
-      : executor.stream("dot", args, { cwd, env }).pipe(
+      ? executor.run("dot", args, { cwd })
+      : executor.stream("dot", args, { cwd }).pipe(
           Stream.runForEach((line) =>
             fs.writeFileString(path, `${redact(line)}\n`, {
               flag: "a",

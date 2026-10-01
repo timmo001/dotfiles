@@ -155,15 +155,6 @@ const Command = Schema.Struct({
   argv: Schema.NonEmptyArray(Schema.NonEmptyString),
   cwd: RepositoryPath,
   timeout: Schema.Finite.check(Schema.isGreaterThan(0)),
-  pathEnv: Schema.optionalKey(
-    Schema.Record(
-      Schema.String.check(Schema.isPattern(/^[A-Z_][A-Z0-9_]*$/)),
-      RepositoryPath,
-    ),
-  ).annotate({
-    description:
-      "Environment variables set to absolute paths inside the candidate checkout, for tools that would otherwise read live host config.",
-  }),
   skipFor: Schema.optionalKey(
     Schema.NonEmptyArray(
       Schema.Struct({

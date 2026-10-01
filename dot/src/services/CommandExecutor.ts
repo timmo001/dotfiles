@@ -118,10 +118,7 @@ export interface CommandExecutorService {
   readonly stream: (
     cmd: string,
     args: readonly string[],
-    opts?: {
-      readonly cwd?: string;
-      readonly env?: Readonly<Record<string, string>>;
-    },
+    opts?: { readonly cwd?: string },
   ) => Stream.Stream<string, CommandError>;
 
   /** Run a command and return its exit code (does not fail on non-zero) */
@@ -226,7 +223,6 @@ export class CommandExecutor extends Context.Service<
                 ChildProcess.make(cmd, args, {
                   cwd: opts?.cwd,
                   stdin: "ignore",
-                  ...envOptions(opts?.env),
                 }),
               );
 

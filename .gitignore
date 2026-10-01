@@ -8,7 +8,6 @@ __pycache__/
 /agents/.config/opencode/plugins/node_modules/
 /mise.lock
 /mise/.config/mise/mise.lock
-/.dot-deps/
 /plannotator/.plannotator/*
 !/plannotator/.plannotator/config.json
 /herdr/.config/herdr/*

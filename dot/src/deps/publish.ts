@@ -280,19 +280,6 @@ export const validateDependencyGroup = Effect.fn("Dependencies.validateGroup")(
       readonly checks: Semaphore.Semaphore;
     },
   ) {
-    const commandEnv = Effect.fn("Dependencies.commandEnv")(function* (
-      command: DependencyConfig["validation"]["setup"][number],
-    ) {
-      if (!command.pathEnv) return undefined;
-
-      const env: Record<string, string> = {};
-
-      for (const [name, path] of Object.entries(command.pathEnv))
-        env[name] = yield* dependencyWorkPath(directory, path);
-
-      return env;
-    });
-
     const setup = Effect.forEach(
       config.validation.setup,
       Effect.fn("Dependencies.setupCommand")(function* (command) {
@@ -305,14 +292,7 @@ export const validateDependencyGroup = Effect.fn("Dependencies.validateGroup")(
         }
 
         const cwd = yield* dependencyWorkPath(directory, command.cwd, true);
-        yield* log.command(
-          "SETUP",
-          command.argv,
-          cwd,
-          command.timeout,
-          false,
-          yield* commandEnv(command),
-        );
+        yield* log.command("SETUP", command.argv, cwd, command.timeout);
       }),
       { discard: true },
     );
@@ -340,15 +320,12 @@ export const validateDependencyGroup = Effect.fn("Dependencies.validateGroup")(
             }
 
             const cwd = yield* dependencyWorkPath(directory, command.cwd, true);
-            const env = yield* commandEnv(command);
             yield* log
               .command(
                 `CHECK ${check.context}`,
                 command.argv,
                 cwd,
                 command.timeout,
-                false,
-                env,
               )
               .pipe(Semaphore.withPermit(checks));
           }

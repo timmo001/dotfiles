@@ -56,17 +56,6 @@
                 "type": "number",
                 "exclusiveMinimum": 0
               },
-              "pathEnv": {
-                "type": "object",
-                "propertyNames": {
-                  "type": "string"
-                },
-                "additionalProperties": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "description": "Environment variables set to absolute paths inside the candidate checkout, for tools that would otherwise read live host config."
-              },
               "skipFor": {
                 "type": "array",
                 "minItems": 1,
@@ -224,17 +213,6 @@
                         "type": "number",
                         "exclusiveMinimum": 0
                       },
-                      "pathEnv": {
-                        "type": "object",
-                        "propertyNames": {
-                          "type": "string"
-                        },
-                        "additionalProperties": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "description": "Environment variables set to absolute paths inside the candidate checkout, for tools that would otherwise read live host config."
-                      },
                       "skipFor": {
                         "type": "array",
                         "minItems": 1,
@@ -371,17 +349,6 @@
                     "timeout": {
                       "type": "number",
                       "exclusiveMinimum": 0
-                    },
-                    "pathEnv": {
-                      "type": "object",
-                      "propertyNames": {
-                        "type": "string"
-                      },
-                      "additionalProperties": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "description": "Environment variables set to absolute paths inside the candidate checkout, for tools that would otherwise read live host config."
                     },
                     "skipFor": {
                       "type": "array",
