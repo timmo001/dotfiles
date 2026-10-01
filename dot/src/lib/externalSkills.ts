@@ -1,7 +1,7 @@
 import { Effect, FileSystem, Option, Schema } from "effect";
 import { dirname, join, resolve } from "path";
-import { HOME_DIR } from "./paths.js";
-import { skillsMaintenanceSource } from "./skillsMaintenance.js";
+import { displayPath, HOME_DIR } from "./paths.js";
+import { ensureSkillsCheckout, SKILLS_CHECKOUT } from "./skillsMaintenance.js";
 import {
   lstatOrNull,
   pathExists,
@@ -80,7 +80,7 @@ const pruneDirectory: (
   }
 
   if ((yield* readDirectoryOrNull(directory))?.length === 0)
-    yield* fs.remove(directory).pipe(Effect.ignore);
+    yield* fs.remove(directory, { recursive: true }).pipe(Effect.ignore);
 
   return removed;
 });
@@ -107,30 +107,105 @@ export const pruneStaleSkillLinks = Effect.fn("ExternalSkills.prune")(
 );
 
 /**
- * Prune stale skill links, then install external skill imports into the
- * shared skills directory with the built skill-maintenance executable.
- * Failures are warnings so stowing still completes offline.
+ * Link one authored skill's files into the shared skills directory, file by
+ * file so stowed private additions can share its directories. Links into the
+ * retired dotfiles submodule are replaced; anything else is left alone.
  *
- * @returns Actions taken, for a closing summary.
+ * @returns Whether any link was created or replaced, and paths left alone.
  */
-export const syncExternalSkills = Effect.gen(function* () {
-  const config = yield* Config;
+const linkSkill = Effect.fn("Skills.linkSkill")(function* (
+  name: string,
+  retiredSource: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const source = join(SKILLS_CHECKOUT, name);
+  const conflicts: string[] = [];
+  let linked = false;
+
+  const files = yield* fs
+    .readDirectory(source, { recursive: true })
+    .pipe(Effect.orElseSucceed((): string[] => []));
+
+  for (const file of files) {
+    if ((yield* lstatOrNull(join(source, file)))?.type !== "File") continue;
+
+    const from = join(source, file);
+    const target = join(AGENT_SKILLS_DIR, name, file);
+    const existing = yield* lstatOrNull(target);
+
+    if (existing !== null) {
+      const link = yield* readLinkOrNull(target);
+
+      if (link === null) {
+        conflicts.push(target);
+        continue;
+      }
+
+      const resolved = resolve(dirname(target), link);
+
+      if (resolved === from) continue;
+
+      if (
+        !resolved.startsWith(`${retiredSource}/`) &&
+        (yield* pathExists(target))
+      ) {
+        conflicts.push(target);
+        continue;
+      }
+
+      yield* fs.remove(target);
+    }
+
+    yield* fs.makeDirectory(dirname(target), { recursive: true });
+    yield* fs.symlink(from, target);
+    linked = true;
+  }
+
+  return { linked, conflicts };
+});
+
+/**
+ * Link every authored skill from the managed skills checkout.
+ *
+ * @returns The number of skills whose links changed.
+ */
+const linkAuthoredSkills = Effect.fn("Skills.linkAuthored")(function* (
+  publicDotfiles: string,
+) {
+  const log = yield* OutputLog;
+  const retiredSource = join(publicDotfiles, "agents", ".agents", "skills");
+  let changed = 0;
+
+  for (const name of (yield* readDirectoryOrNull(SKILLS_CHECKOUT)) ?? []) {
+    if (!(yield* pathExists(join(SKILLS_CHECKOUT, name, "SKILL.md")))) continue;
+
+    const { linked, conflicts } = yield* linkSkill(name, retiredSource).pipe(
+      Effect.catch((error) =>
+        log
+          .warn(`Could not link skill ${name}: ${error.message}`)
+          .pipe(Effect.as({ linked: false, conflicts: [] })),
+      ),
+    );
+
+    for (const conflict of conflicts)
+      yield* log.warn(
+        `Left ${displayPath(conflict)} in place (not a skill link)`,
+      );
+
+    if (linked) changed++;
+  }
+
+  return changed;
+});
+
+const installExternalSkills = Effect.fn("ExternalSkills.install")(function* (
+  publicDotfiles: string,
+) {
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
-  const actions: string[] = [];
-
-  yield* log.section("External Skills");
-
-  const pruned = yield* pruneStaleSkillLinks(
-    [config.publicDotfiles, config.privateDotfiles].filter(
-      (source) => source !== null,
-    ),
-  );
-
-  if (pruned > 0) actions.push(`Removed ${plural(pruned, "stale skill link")}`);
 
   const executable = join(
-    config.publicDotfiles,
+    publicDotfiles,
     "scripts",
     ".local",
     "bin",
@@ -142,7 +217,7 @@ export const syncExternalSkills = Effect.gen(function* () {
       "Skipping external skills (skill-maintenance is not built)",
     );
 
-    return actions;
+    return [];
   }
 
   const before = yield* readManifest(AGENT_SKILLS_DIR);
@@ -150,7 +225,7 @@ export const syncExternalSkills = Effect.gen(function* () {
   const exitCode = yield* executor.inherit(
     executable,
     ["install", "--target", AGENT_SKILLS_DIR],
-    { cwd: yield* skillsMaintenanceSource(config.publicDotfiles) },
+    { cwd: SKILLS_CHECKOUT },
   );
 
   if (exitCode !== 0) {
@@ -158,7 +233,7 @@ export const syncExternalSkills = Effect.gen(function* () {
       `External skill install exited ${exitCode}; installed skills were kept`,
     );
 
-    return actions;
+    return [];
   }
 
   const previous: Record<string, string> = Option.getOrElse(before, () => ({}));
@@ -174,8 +249,53 @@ export const syncExternalSkills = Effect.gen(function* () {
     ),
   ).size;
 
-  if (changed > 0) actions.push(`Updated ${plural(changed, "external skill")}`);
-  else yield* log.info("External skills are up to date");
+  if (changed > 0) return [`Updated ${plural(changed, "external skill")}`];
+
+  yield* log.info("External skills are up to date");
+
+  return [];
+});
+
+/**
+ * Prune stale skill links, install external skill imports with the built
+ * skill-maintenance executable, then link authored skills from the managed
+ * skills checkout. Failures are warnings so stowing still completes offline.
+ *
+ * @returns Actions taken, for a closing summary.
+ */
+export const syncSkills = Effect.gen(function* () {
+  const config = yield* Config;
+  const log = yield* OutputLog;
+  const actions: string[] = [];
+
+  yield* log.section("Skills");
+
+  const pruned = yield* pruneStaleSkillLinks(
+    [config.publicDotfiles, config.privateDotfiles, SKILLS_CHECKOUT].filter(
+      (source) => source !== null,
+    ),
+  );
+
+  if (pruned > 0) actions.push(`Removed ${plural(pruned, "stale skill link")}`);
+
+  const cloned = yield* ensureSkillsCheckout.pipe(
+    Effect.catch((error) =>
+      log
+        .warn(`Could not clone the skills checkout: ${error.message}`)
+        .pipe(Effect.as(null)),
+    ),
+  );
+
+  if (cloned === null) return actions;
+
+  if (cloned) actions.push(`Cloned skills to ${displayPath(SKILLS_CHECKOUT)}`);
+
+  actions.push(...(yield* installExternalSkills(config.publicDotfiles)));
+
+  const linked = yield* linkAuthoredSkills(config.publicDotfiles);
+
+  if (linked > 0) actions.push(`Linked ${plural(linked, "authored skill")}`);
+  else yield* log.info("Authored skills are up to date");
 
   return actions;
-}).pipe(Effect.withSpan("ExternalSkills.sync"));
+}).pipe(Effect.withSpan("Skills.sync"));

@@ -1,9 +1,8 @@
 import { Effect } from "effect";
 import { join } from "path";
 import { HOME_DIR } from "../lib/paths.js";
-import { skillsMaintenanceSource } from "../lib/skillsMaintenance.js";
+import { skillsAuthoringSource } from "../lib/skillsMaintenance.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
-import { Config } from "../services/Config.js";
 
 /** Forward parsed facade arguments to the installed skill-maintenance executable. */
 export const runSkillsMaintenance = Effect.fn("Skills.run")(function* (
@@ -13,11 +12,10 @@ export const runSkillsMaintenance = Effect.fn("Skills.run")(function* (
   },
 ) {
   const executor = yield* CommandExecutor;
-  const config = yield* Config;
   const executable = join(HOME_DIR, ".local", "bin", "skill-maintenance");
 
   const exitCode = yield* executor.inherit(executable, args, {
-    cwd: yield* skillsMaintenanceSource(config.publicDotfiles),
+    cwd: yield* skillsAuthoringSource(),
   });
 
   if (exitCode !== 0) {

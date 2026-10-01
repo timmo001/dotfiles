@@ -23,7 +23,7 @@ import { writeAllCompletions } from "./Completions.js";
 import { installOpencodePluginDependencies } from "../lib/opencodePlugins.js";
 import { cliStyler } from "../lib/ansi.js";
 import { plural } from "../lib/runSummary.js";
-import { syncExternalSkills } from "../lib/externalSkills.js";
+import { syncSkills } from "../lib/externalSkills.js";
 
 /**
  * Install dotfiles: backup existing files, then stow with `--adopt`.
@@ -127,7 +127,7 @@ export const install = Effect.gen(function* () {
     );
   }
 
-  actions.push(...(yield* syncExternalSkills));
+  actions.push(...(yield* syncSkills));
 
   if (counts.deployed > 0)
     actions.push(`Deployed ${plural(counts.deployed, "Omarchy plugin")}`);

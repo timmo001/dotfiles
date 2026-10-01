@@ -216,25 +216,6 @@ export function backupUnmanagedStowTargets(
   return moves;
 }
 
-/** Remove an old stowed skill link before another package takes ownership. */
-export function removeStowedSkillOwner(
-  skillName: string,
-  oldSource: string,
-): boolean {
-  const target = join(HOME_DIR, ".agents", "skills", skillName);
-
-  try {
-    if (!lstatSync(target).isSymbolicLink()) return false;
-
-    if (realpathSync(target) !== realpathSync(oldSource)) return false;
-    unlinkSync(target);
-
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** Back up the retired cloned Ghostty Omarchy repo before stow owns it. */
 export function backupLegacyGhosttyRepo(
   publicDotfiles: string,

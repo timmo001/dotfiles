@@ -62,7 +62,7 @@ Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: pass
 dot update [flags]
 ```
 
-A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, installs missing public Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs agents sync, backfills the init marker, and starts the resume refresh. It finishes with a summary of updated repositories and completed actions.
+A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, installs missing public Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs agents sync, backfills the init marker, and starts the resume refresh. It finishes with a summary of updated repositories and completed actions.
 
 Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip full-update package reconciliation, agents sync, and init-marker backfill.
 

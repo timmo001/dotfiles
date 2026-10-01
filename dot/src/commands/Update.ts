@@ -10,7 +10,10 @@ import { agentsSync } from "./AgentsSync.js";
 import { mcpSync } from "../mcp/commands/McpSync.js";
 import { syncNotesRemotes } from "../git/notesRemote.js";
 import { rebuild, restartDot } from "../lib/selfUpdate.js";
-import { buildSkillsMaintenance } from "../lib/skillsMaintenance.js";
+import {
+  buildSkillsMaintenance,
+  updateSkillsCheckout,
+} from "../lib/skillsMaintenance.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { trustRepoMiseConfigs } from "../lib/miseTrust.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
@@ -1457,6 +1460,30 @@ export const update = (updateOpts?: UpdateOptions) =>
         STEP_TIMEOUT_SECONDS.rebuild,
         Effect.gen(function* () {
           yield* log.section("Skill Maintenance");
+
+          if (doPull) {
+            const checkout = yield* updateSkillsCheckout.pipe(
+              Effect.catch((error) =>
+                log
+                  .warn(
+                    `Could not update the skills checkout: ${error.message}`,
+                  )
+                  .pipe(Effect.as(null)),
+              ),
+            );
+
+            if (checkout && checkout.from !== checkout.to) {
+              yield* log.info(
+                `Skills checkout moved to ${checkout.to}${checkout.from ? ` (was ${checkout.from})` : ""}`,
+              );
+              completedActions.push(
+                done(`Updated the skills checkout to ${checkout.to}`),
+              );
+            } else if (checkout) {
+              yield* log.info(`Skills checkout is up to date (${checkout.to})`);
+            }
+          }
+
           const { target, built } = yield* buildSkillsMaintenance;
 
           yield* built

@@ -1,6 +1,6 @@
 import { Effect, FileSystem, Schema } from "effect";
 import { dirname, join } from "path";
-import { HOME_DIR } from "./paths.js";
+import { DATA_DIR, HOME_DIR } from "./paths.js";
 import {
   isBuildCurrent,
   sourceBuildKey,
@@ -16,29 +16,113 @@ export class SkillsMaintenanceBuildError extends Schema.TaggedError<SkillsMainte
   { message: Schema.String },
 ) {}
 
+/** Failure while cloning or updating the managed skills checkout. */
+export class SkillsCheckoutError extends Schema.TaggedError<SkillsCheckoutError>()(
+  "SkillsCheckoutError",
+  { message: Schema.String },
+) {}
+
 const buildError = (error: { readonly message: string }) =>
   new SkillsMaintenanceBuildError({ message: error.message });
 
-/** Resolve the preferred standalone skills source. */
-export const skillsMaintenanceSource = Effect.fn("SkillsMaintenance.source")(
-  function* (publicDotfiles: string, home = HOME_DIR) {
+const checkoutError = (error: { readonly message: string }) =>
+  new SkillsCheckoutError({ message: error.message });
+
+const SKILLS_REPOSITORY_URL = "https://github.com/timmo001/skills.git";
+
+/**
+ * dot-owned skills checkout, detached at the latest fetched `origin/main`.
+ * Stowed skills, the skill-maintenance build and external installs all come
+ * from it, so branch switches in the writable checkout never leak in.
+ */
+export const SKILLS_CHECKOUT = join(DATA_DIR, "dot", "skills");
+
+/** Clone the managed skills checkout when it does not exist yet. */
+export const ensureSkillsCheckout = Effect.gen(function* () {
+  if (yield* pathExists(join(SKILLS_CHECKOUT, ".git"))) return false;
+
+  const executor = yield* CommandExecutor;
+  const fs = yield* FileSystem.FileSystem;
+
+  yield* fs
+    .makeDirectory(dirname(SKILLS_CHECKOUT), { recursive: true })
+    .pipe(Effect.mapError(checkoutError));
+
+  yield* executor
+    .run("git", ["clone", "--quiet", SKILLS_REPOSITORY_URL, SKILLS_CHECKOUT])
+    .pipe(Effect.mapError((error) => checkoutError({ message: error.stderr })));
+
+  return true;
+}).pipe(Effect.withSpan("SkillsCheckout.ensure"));
+
+/**
+ * Fetch `main` and detach the managed skills checkout at `origin/main`,
+ * discarding any local edits.
+ *
+ * @returns The revisions before and after, equal when nothing changed.
+ */
+export const updateSkillsCheckout = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+
+  const git = (args: readonly string[]) =>
+    executor
+      .run("git", args, { cwd: SKILLS_CHECKOUT })
+      .pipe(
+        Effect.mapError((error) => checkoutError({ message: error.stderr })),
+      );
+
+  const cloned = yield* ensureSkillsCheckout;
+
+  const head = git(["rev-parse", "--short", "HEAD"]).pipe(
+    Effect.map((sha) => sha.trim()),
+  );
+
+  const from = cloned ? null : yield* head;
+
+  yield* git(["fetch", "--quiet", "origin", "main"]);
+
+  yield* git([
+    "-c",
+    "advice.detachedHead=false",
+    "checkout",
+    "--quiet",
+    "--force",
+    "--detach",
+    "origin/main",
+  ]);
+
+  yield* git(["clean", "-fdq"]);
+
+  return { from, to: yield* head };
+}).pipe(Effect.withSpan("SkillsCheckout.update"));
+
+/**
+ * Resolve the source for authoring commands: the writable checkout when it
+ * exists, otherwise the managed checkout.
+ */
+export const skillsAuthoringSource = Effect.fn("SkillsMaintenance.source")(
+  function* (home = HOME_DIR) {
     const writable = join(home, "repos", "skills");
 
     return (yield* pathExists(join(writable, "src", "index.ts")))
       ? writable
-      : join(publicDotfiles, "agents", ".agents", "skills");
+      : SKILLS_CHECKOUT;
   },
 );
 
 /**
- * Compile and atomically install the standalone skill-maintenance executable,
- * skipping the build when it already came from the same clean source tree.
+ * Compile and atomically install the standalone skill-maintenance executable
+ * from the managed skills checkout, skipping the build when it already came
+ * from the same clean source tree.
  */
 export const buildSkillsMaintenance = Effect.gen(function* () {
   const config = yield* Config;
   const executor = yield* CommandExecutor;
   const fs = yield* FileSystem.FileSystem;
-  const source = yield* skillsMaintenanceSource(config.publicDotfiles);
+
+  yield* ensureSkillsCheckout.pipe(Effect.mapError(buildError));
+
+  const source = SKILLS_CHECKOUT;
   const entrypoint = join(source, "src", "index.ts");
 
   const target = join(

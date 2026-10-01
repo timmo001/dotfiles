@@ -77,7 +77,7 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
       if (folder === "agents") {
         flags.push(
           ...(repo.path === config.publicDotfiles
-            ? ["--ignore=\\.agents/skills/dotfiles-stow($|/)"]
+            ? ["--ignore=^/\\.agents/skills($|/)"]
             : [
                 "--ignore=node_modules",
                 "--ignore=package\\.json",

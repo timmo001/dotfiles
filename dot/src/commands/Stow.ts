@@ -1,5 +1,4 @@
 import { Effect } from "effect";
-import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { displayPath } from "../lib/paths.js";
@@ -13,8 +12,7 @@ import {
 import { captureRepositoryOptions } from "./NotesCaptureSync.js";
 import { writeAllCompletions } from "./Completions.js";
 import { installOpencodePluginDependencies } from "../lib/opencodePlugins.js";
-import { removeStowedSkillOwner } from "../lib/stowConflicts.js";
-import { syncExternalSkills } from "../lib/externalSkills.js";
+import { syncSkills } from "../lib/externalSkills.js";
 import {
   backupUnmanagedTargets,
   emptyStowCounts,
@@ -116,21 +114,7 @@ export const stow = (opts?: {
 
       yield* log.section("Stow Public Dotfiles");
       yield* removeRetiredStowState(counts);
-      yield* backupUnmanagedTargets(config.publicDotfiles, counts, [
-        join(".agents", "skills", "dotfiles-stow", "SKILL.md"),
-      ]);
-
-      if (
-        removeStowedSkillOwner(
-          "dotfiles-stow",
-          join(config.publicDotfiles, "agents/.agents/skills/dotfiles-stow"),
-        )
-      ) {
-        yield* log.info(
-          `${style.warn("Migrated")} skill owner ${style.accent("dotfiles-stow")}`,
-        );
-      }
-
+      yield* backupUnmanagedTargets(config.publicDotfiles, counts);
       yield* stowRepo(config.publicDotfiles, "public", counts);
       actions.push(`Stowed ${plural(counts.public, "public package")}`);
 
@@ -156,7 +140,7 @@ export const stow = (opts?: {
       }
     }
 
-    if (runPublic) actions.push(...(yield* syncExternalSkills));
+    if (runPublic) actions.push(...(yield* syncSkills));
 
     if (counts.deployed > 0)
       actions.push(`Deployed ${plural(counts.deployed, "Omarchy plugin")}`);

@@ -252,8 +252,9 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
       if (yield* requiresNoFolding(repoDir, folder)) flags.push("--no-folding");
 
       if (folder === "agents") {
+        // A retired skills submodule checkout can linger after a pull.
         if (scope === "public") {
-          flags.push("--ignore='\\.agents/skills/dotfiles-stow($|/)'");
+          flags.push("--ignore='^/\\.agents/skills($|/)'");
         }
 
         for (const path of removeStaleSkillSymlinks(repoDir)) {

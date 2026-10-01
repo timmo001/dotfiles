@@ -13,6 +13,10 @@ export const CONFIG_DIR =
 export const CACHE_DIR =
   envString(ENV.XDG_CACHE_HOME) ?? join(HOME_DIR, ".cache");
 
+/** XDG data directory path used by dot. */
+export const DATA_DIR =
+  envString(ENV.XDG_DATA_HOME) ?? join(HOME_DIR, ".local", "share");
+
 /** XDG state directory path used by dot. */
 export const STATE_DIR =
   envString(ENV.XDG_STATE_HOME) ?? join(HOME_DIR, ".local", "state");
