@@ -336,7 +336,7 @@ validate_args() {
 
 require_commands() {
   local cmd
-  for cmd in go-automate jq; do
+  for cmd in ha-bridge jq; do
     command -v "$cmd" >/dev/null 2>&1 || {
       printf 'ha-module-bar: missing command: %s\n' "$cmd" >&2
       exit 1
@@ -357,7 +357,7 @@ read_entity_line() {
   local watch_pid=""
 
   coproc ENTITY_WATCH {
-    exec go-automate ha bridge watch entity --bar-json --icon '' "$watch_entity_id" 2>/dev/null
+    exec ha-bridge watch entity --bar-json --icon '' "$watch_entity_id" 2>/dev/null
   }
 
   watch_pid="${ENTITY_WATCH_PID:-}"
@@ -822,7 +822,7 @@ run_doorbell_stream() {
       --key "$STREAM_KEY" \
       --parent-pid "$BAR_PARENT_PID" \
       --parent-starttime "$BAR_PARENT_STARTTIME" \
-      -- go-automate ha bridge watch entity --bar-json --icon '' "$ENTITY_ID"
+      -- ha-bridge watch entity --bar-json --icon '' "$ENTITY_ID"
   }
   stream_pid="${DOORBELL_STREAM_PID:-}"
 

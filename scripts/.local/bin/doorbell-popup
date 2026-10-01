@@ -95,7 +95,7 @@ validate_numeric_settings() {
 
 require_commands() {
   local cmd
-  for cmd in go-automate hyprctl jq launch-floating-webapp; do
+  for cmd in ha-bridge hyprctl jq launch-floating-webapp; do
     command -v "$cmd" >/dev/null 2>&1 || {
       printf 'doorbell-popup: missing command: %s\n' "$cmd" >&2
       exit 1
@@ -200,7 +200,7 @@ watch_motion() {
 
   while true; do
     coproc MOTION_WATCH {
-      exec go-automate ha bridge watch entity --bar-json --icon '' "$MOTION_ENTITY" 2>/dev/null
+      exec ha-bridge watch entity --bar-json --icon '' "$MOTION_ENTITY" 2>/dev/null
     }
 
     watch_pid="${MOTION_WATCH_PID:-}"

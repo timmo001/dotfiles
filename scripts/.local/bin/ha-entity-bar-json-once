@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ $# -eq 0 ]]; then
-  printf 'Usage: ha-entity-bar-json-once [go-automate bar-json flags] <entity_id>\n' >&2
+  printf 'Usage: ha-entity-bar-json-once [ha-bridge bar-json flags] <entity_id>\n' >&2
   exit 1
 fi
 
@@ -10,7 +10,7 @@ line=""
 watch_pid=""
 
 coproc ENTITY_WATCH {
-  exec go-automate ha bridge watch entity --bar-json "$@" 2>/dev/null
+  exec ha-bridge watch entity --bar-json "$@" 2>/dev/null
 }
 
 watch_pid="${ENTITY_WATCH_PID:-}"

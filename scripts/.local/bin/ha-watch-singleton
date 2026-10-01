@@ -115,7 +115,7 @@ find_bar_ancestor_pid() {
 }
 
 build_watch_command() {
-  WATCH_CMD=(go-automate ha bridge watch entity --bar-json)
+  WATCH_CMD=(ha-bridge watch entity --bar-json)
 
   if [[ -n "$ICON" ]]; then
     WATCH_CMD+=(--icon "$ICON")
@@ -146,8 +146,8 @@ main() {
 
   parse_args "$@"
 
-  if ! command -v go-automate >/dev/null 2>&1 || ! command -v singleton-stream >/dev/null 2>&1; then
-    printf 'ha-watch-singleton: missing required command (go-automate or singleton-stream)\n' >&2
+  if ! command -v ha-bridge >/dev/null 2>&1 || ! command -v singleton-stream >/dev/null 2>&1; then
+    printf 'ha-watch-singleton: missing required command (ha-bridge or singleton-stream)\n' >&2
     exit 1
   fi
 

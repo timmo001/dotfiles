@@ -131,7 +131,7 @@ o.bind("CTRL + ALT + C", "Capture note", "omarchy-shell timmo.notes capture")
 o.bind("CTRL + ALT + M", "MOMENTUM 4 controls", "omarchy-shell shell toggle timmo.momentumctl")
 
 -- Local automations
-o.bind("SUPER + CTRL + SHIFT + C", nil, "timmo-run-command go-automate ha ib t in_a_call")
+o.bind("SUPER + CTRL + SHIFT + C", nil, "timmo-run-command ha-bridge ib t in_a_call")
 o.bind("SUPER + CTRL + SHIFT + M", nil, "pactl set-source-mute @DEFAULT_SOURCE@ toggle")
 o.bind("CTRL + ALT + T", nil, "omarchy-shell shell toggle timmo.twitch")
 -- Opens the clock panel with local and US time zones.
