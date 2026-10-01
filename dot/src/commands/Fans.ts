@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { BridgeClient, resolveSocketPath } from "@timmo001/effect-ha-bridge";
 import {
   Clock,
   Console,
@@ -46,10 +47,6 @@ const FansConfig = Schema.Struct({
 type FansConfig = typeof FansConfig.Type;
 
 const decodeConfig = Schema.decodeUnknownEffect(FansConfig);
-
-const decodeEntityState = Schema.decodeOption(
-  Schema.fromJsonString(Schema.Struct({ class: Schema.String })),
-);
 
 const loadConfig = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
@@ -236,45 +233,35 @@ export const fansRun = Effect.gen(function* () {
       Effect.forkScoped,
     );
 
-    const result = yield* executor
-      .stream("go-automate", [
-        "ha",
-        "bridge",
-        "watch",
-        "entity",
-        "--bar-json",
-        config.entity,
-      ])
-      .pipe(
-        // go-automate logs to stderr; only JSON lines carry entity state.
-        Stream.runForEach((line) =>
-          Option.match(decodeEntityState(line), {
-            onNone: () => Effect.void,
-            onSome: ({ class: state }) => {
-              const temperature = Number(state);
+    const result = yield* Effect.gen(function* () {
+      const socketPath = yield* resolveSocketPath(Option.none());
 
-              return Ref.set(received, true).pipe(
-                Effect.andThen(
-                  state.trim() !== "" && Number.isFinite(temperature)
-                    ? control(temperature)
-                    : fallback(`${config.entity} is ${state || "empty"}`),
-                ),
-              );
-            },
+      yield* Effect.gen(function* () {
+        const client = yield* BridgeClient;
+
+        yield* client.WatchEntity({ entityId: config.entity }).pipe(
+          Stream.runForEach(({ state: { state } }) => {
+            const temperature = Number(state);
+
+            return Ref.set(received, true).pipe(
+              Effect.andThen(
+                state.trim() !== "" && Number.isFinite(temperature)
+                  ? control(temperature)
+                  : fallback(`${config.entity} is ${state || "empty"}`),
+              ),
+            );
           }),
-        ),
-        Effect.result,
-      );
+        );
+      }).pipe(Effect.provide(BridgeClient.layer(socketPath)));
+    }).pipe(Effect.result);
 
-    if (Result.isFailure(result) && result.failure.stderr)
-      yield* Console.error(
-        `[ERROR] ${result.failure.stderr.split("\n").at(-1)}`,
-      );
+    if (Result.isFailure(result))
+      yield* Console.error(`[ERROR] ${result.failure.message}`);
 
     yield* fallback(
       Result.isFailure(result)
-        ? `Home Assistant watcher failed (exit ${result.failure.exitCode})`
-        : "Home Assistant watcher stopped",
+        ? "Home Assistant bridge watch failed"
+        : "Home Assistant bridge watch stopped",
     );
   }).pipe(Effect.scoped);
 

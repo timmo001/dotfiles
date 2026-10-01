@@ -509,7 +509,7 @@ Control chassis fans from a Home Assistant temperature
 dot fans <subcommand> [flags]
 ```
 
-Reads ~/.config/dot/fans.yml: entity (a Home Assistant temperature sensor), device (a liquidctl --match string), channels (a list such as fan1 and fan2), ramp ({ from, to } in °C) and speed ({ min, max } in percent). Watches the entity through the go-automate Home Assistant bridge and ramps the channels linearly from speed.min at ramp.from to speed.max at ramp.to, in 5% steps. An unavailable or non-numeric reading, no reading within 30 seconds, or a stopped watcher sets speed.max until readings resume; the watcher restarts after 15 seconds. Health is written to $XDG_STATE_HOME/dot/fans/status.json for the status field of a dot services descriptor. Stopping hands the device back to motherboard control with liquidctl initialize.
+Reads ~/.config/dot/fans.yml: entity (a Home Assistant temperature sensor), device (a liquidctl --match string), channels (a list such as fan1 and fan2), ramp ({ from, to } in °C) and speed ({ min, max } in percent). Watches the entity through ha-bridge and ramps the channels linearly from speed.min at ramp.from to speed.max at ramp.to, in 5% steps. An unavailable or non-numeric reading, no reading within 30 seconds, or a stopped watcher sets speed.max until readings resume; the watcher restarts after 15 seconds. Health is written to $XDG_STATE_HOME/dot/fans/status.json for the status field of a dot services descriptor. Stopping hands the device back to motherboard control with liquidctl initialize.
 
 **Options**
 

@@ -1,14 +1,12 @@
-import { Clock, Effect, FileSystem, Schema } from "effect";
 import {
-  FetchHttpClient,
-  HttpClient,
-  HttpClientRequest,
-  HttpClientResponse,
-} from "effect/http";
+  BridgeClient,
+  getCalendarEvents,
+  resolveSocketPath,
+} from "@timmo001/effect-ha-bridge";
+import { Clock, Effect, FileSystem, Option, Schema } from "effect";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { pathExists } from "./fsProbe.js";
-import { expandHomePath } from "./paths.js";
 
 class CalendarEventError extends Schema.TaggedError<CalendarEventError>()(
   "CalendarEventError",
@@ -23,10 +21,9 @@ const CalendarConfig = Schema.Struct({
     start: Schema.String.check(Schema.isPattern(/^([01]\d|2[0-3]):[0-5]\d$/)),
     end: Schema.String.check(Schema.isPattern(/^([01]\d|2[0-3]):[0-5]\d$/)),
   }),
-  credentials_file: Schema.NonEmptyString,
   calendars: Schema.Array(
     Schema.Struct({
-      entity_id: Schema.String.check(
+      entity_id: Schema.TemplateLiteral(["calendar.", Schema.String]).check(
         Schema.isPattern(/^calendar\.[a-z0-9_]+$/),
       ),
       summaries: Schema.optionalKey(Schema.Array(Schema.NonEmptyString)),
@@ -34,61 +31,16 @@ const CalendarConfig = Schema.Struct({
   ),
 });
 
-const Credentials = Schema.Struct({
-  homeassistant: Schema.Struct({
-    url: Schema.NonEmptyString,
-    token: Schema.NonEmptyString,
-  }),
-});
-
-const EventTime = Schema.Union([
-  Schema.Struct({
-    date: Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)),
-  }),
-  Schema.Struct({ dateTime: Schema.String }),
-]);
-
-const CalendarEvents = Schema.Array(
-  Schema.Struct({
-    summary: Schema.String,
-    start: EventTime,
-    end: EventTime,
-  }),
-);
+// All-day events use ISO dates; timed events use date-times.
+const isDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
 
 const calendarLeave = Effect.fn("workTime.calendarLeave")(function* (
   config: typeof CalendarConfig.Type,
 ) {
   if (config.calendars.length === 0) return false;
 
-  const fs = yield* FileSystem.FileSystem;
-
-  const credentials = yield* fs
-    .readFileString(expandHomePath(config.credentials_file))
-    .pipe(
-      Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
-      Effect.flatMap(Schema.decodeUnknownEffect(Credentials)),
-    );
-
-  const client = (yield* HttpClient.HttpClient).pipe(
-    HttpClient.mapRequest(
-      HttpClientRequest.bearerToken(credentials.homeassistant.token),
-    ),
-    HttpClient.filterStatusOk,
-  );
-
-  const baseUrl = `${credentials.homeassistant.url.replace(/\/$/, "")}/api`;
-
-  const haConfig = yield* client
-    .get(`${baseUrl}/config`)
-    .pipe(
-      Effect.flatMap(
-        HttpClientResponse.schemaBodyJson(
-          Schema.Struct({ time_zone: Schema.String }),
-        ),
-      ),
-    );
-
+  const client = yield* BridgeClient;
+  const haConfig = yield* client.GetConfig();
   const now = yield* Clock.currentTimeMillis;
 
   const today = yield* Effect.try(() =>
@@ -98,14 +50,10 @@ const calendarLeave = Effect.fn("workTime.calendarLeave")(function* (
   );
 
   for (const calendar of config.calendars) {
-    const events = yield* client
-      .get(`${baseUrl}/calendars/${calendar.entity_id}`, {
-        urlParams: {
-          start: new Date(now).toISOString(),
-          end: new Date(now + 1000).toISOString(),
-        },
-      })
-      .pipe(Effect.flatMap(HttpClientResponse.schemaBodyJson(CalendarEvents)));
+    const events = yield* getCalendarEvents(calendar.entity_id, {
+      start: new Date(now),
+      end: new Date(now + 1000),
+    });
 
     for (const event of events) {
       if (
@@ -117,11 +65,11 @@ const calendarLeave = Effect.fn("workTime.calendarLeave")(function* (
       )
         continue;
 
-      if ("date" in event.start && "date" in event.end) {
-        if (event.start.date <= today && today < event.end.date) return true;
-      } else if ("dateTime" in event.start && "dateTime" in event.end) {
-        const start = Date.parse(event.start.dateTime);
-        const end = Date.parse(event.end.dateTime);
+      if (isDate(event.start) && isDate(event.end)) {
+        if (event.start <= today && today < event.end) return true;
+      } else if (!isDate(event.start) && !isDate(event.end)) {
+        const start = Date.parse(event.start);
+        const end = Date.parse(event.end);
 
         if (!Number.isFinite(start) || !Number.isFinite(end)) {
           return yield* new CalendarEventError({
@@ -176,8 +124,12 @@ export const isWorkTime = Effect.fn("isWorkTime")(function* (
   )
     return false;
 
-  const leave = yield* calendarLeave(schedule).pipe(
-    Effect.provide(FetchHttpClient.layer),
+  const leave = yield* resolveSocketPath(Option.none()).pipe(
+    Effect.flatMap((socketPath) =>
+      calendarLeave(schedule).pipe(
+        Effect.provide(BridgeClient.layer(socketPath)),
+      ),
+    ),
     Effect.timeout("5 seconds"),
     Effect.catch(() =>
       log("Calendar check unavailable; using work hours").pipe(
