@@ -67,6 +67,7 @@ import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
 import { diffBarJson, diffPanelJson, diffRaw } from "../git/commands/Diff.js";
 import { gitCommitRaw } from "../git/commands/Commit.js";
 import { gitWeb } from "../git/commands/Web.js";
+import { gitLog } from "../git/commands/Log.js";
 import {
   pullRequestsOpenShell,
   pullRequestsQuery,
@@ -912,6 +913,26 @@ const gitDiffCommand = describe(
     ],
   },
 ).pipe(Command.withAlias("diff"));
+
+const gitLogCommand = describe(
+  Command.make(
+    "git-log",
+    {
+      refresh: bool("refresh", "Re-read every repository, ignoring the cache"),
+      panelJson: bool(
+        "panel-json",
+        "Return managed repositories and their recent commits as JSON",
+      ),
+    },
+    ({ refresh, panelJson }) => gitLog(refresh, panelJson),
+  ),
+  "Show recent commits across managed repositories",
+  ["dot git-log", "dot git-log --panel-json"],
+  {
+    description:
+      "Lists the latest commits on each managed checkout's branch, including fetched upstream commits that are not pulled yet. Results are cached per repository and only re-read when HEAD or the upstream ref moves; --refresh re-reads everything.",
+  },
+);
 
 const gitPullRequestsCommand = describe(
   Command.make(
@@ -2469,6 +2490,7 @@ export const dotCommand = describe(
       omarchyPluginCommand,
       ...simpleCommands,
       gitDiffCommand,
+      gitLogCommand,
       gitWebCommand,
       gitCommitCommand,
       gitNotificationsCommand,

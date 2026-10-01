@@ -944,6 +944,31 @@ dot git-diff --bar-json
 dot git-diff --panel-json
 ```
 
+## `dot git-log`
+
+Show recent commits across managed repositories
+
+```text
+dot git-log [flags]
+```
+
+Lists the latest commits on each managed checkout's branch, including fetched upstream commits that are not pulled yet. Results are cached per repository and only re-read when HEAD or the upstream ref moves; --refresh re-reads everything.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--refresh` | Re-read every repository, ignoring the cache |
+| `--panel-json` | Return managed repositories and their recent commits as JSON |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot git-log
+dot git-log --panel-json
+```
+
 ## `dot git-web`
 
 Open a Git web action using the repository's configured browser
