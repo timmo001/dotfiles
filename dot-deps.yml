@@ -5,7 +5,7 @@ policy:
   base:
     settings:
       enabled: true
-      minimumReleaseAge: null
+      minimumReleaseAge: "1 day"
       versioning: null
       extractVersion: null
       rangeStrategy: "auto"
@@ -24,6 +24,7 @@ policy:
       - "github-actions"
       - "git-submodules"
       - "custom.regex"
+      - "custom.jsonata"
     ignorePaths:
       - "**/node_modules/**"
       - "**/bower_components/**"
@@ -65,7 +66,7 @@ policy:
         files:
           - "/(^|/)\\.gitmodules$/"
         settings:
-          enabled: false
+          enabled: true
           versioning: "git"
     rules:
       - match:
@@ -7158,6 +7159,19 @@ policy:
             - "patch"
         set: {}
       - match:
+          datasources:
+            - "docker"
+        set:
+          pinDigests: true
+      - match:
+          managers:
+            - "argocd"
+            - "devcontainer"
+            - "helmv3"
+            - "pyenv"
+        set:
+          pinDigests: false
+      - match:
           dependencyTypes:
             - "action"
             - "workflow"
@@ -13837,34 +13851,16 @@ policy:
           groupName: "symfony packages"
           groupSlug: "symfony"
       - description:
-          - "Prioritise OpenCode updates."
+          - "Update exact mise Python pins through the precompiled build list instead of CPython tags."
         match:
-          packages:
-            - "@opencode/**"
-            - "@opencode-ai/**"
-            - "anomalyco/opencode"
+          managers:
+            - "mise"
+          dependencies:
+            - "python"
+          currentValues:
+            - "/^\\d+\\.\\d+\\.\\d+$/"
         set:
-          priority: 200
-      - description:
-          - "Prioritise Herdr and its plugins."
-        match:
-          packages:
-            - "@herdr/**"
-            - "herdrdev/**"
-            - "*/herdr*"
-            - "https://github.com/herdrdev/**"
-            - "https://github.com/*/herdr*"
-        set:
-          priority: 100
-      - description:
-          - "Prioritise first-party updates."
-        match:
-          packages:
-            - "@timmo001/**"
-            - "timmo001/**"
-            - "https://github.com/timmo001/**"
-        set:
-          priority: 300
+          enabled: false
       - description:
           - "Update the Effect runtime and integrations together."
         match:
@@ -13914,6 +13910,92 @@ policy:
         set:
           groupName: "oxlint"
           groupSlug: "oxlint"
+      - description:
+          - "Group GitHub Actions."
+        match:
+          managers:
+            - "github-actions"
+        set:
+          groupName: "github actions"
+      - description:
+          - "Group container images"
+        match:
+          managers:
+            - "dockerfile"
+            - "docker-compose"
+        set:
+          groupName: "container images"
+      - description:
+          - "Use the shorter release delay for fast-moving development dependencies."
+        match:
+          dependencies:
+            - "effect"
+            - "@effect/**"
+            - "@opencode/**"
+            - "npm:@opencode/**"
+            - "@opencode-ai/browser-control"
+            - "npm:@opencode-ai/browser-control"
+            - "anomalyco/opencode"
+            - "github:anomalyco/opencode"
+            - "aqua:earendil-works/pi"
+            - "aqua:herdrdev/herdr"
+            - "github:backnotprop/plannotator"
+        set:
+          minimumReleaseAge: "2 hours"
+      - description:
+          - "Update first-party dependencies without a release delay."
+        match:
+          packages:
+            - "@timmo001/**"
+            - "timmo001/**"
+            - "https://github.com/timmo001/**"
+        set:
+          minimumReleaseAge: null
+      - description:
+          - "Treat every timmo001/workflows CalVer release as a standard update."
+        match:
+          managers:
+            - "github-actions"
+          dependencies:
+            - "timmo001/workflows"
+        set:
+          versioning: "regex:^(?<patch>\\d{8})\\.(?<build>\\d+)$"
+      - description:
+          - "Update Git submodules without a release delay."
+        match:
+          managers:
+            - "git-submodules"
+        set:
+          minimumReleaseAge: null
+      - description:
+          - "Prioritise OpenCode updates."
+        match:
+          packages:
+            - "@opencode/**"
+            - "@opencode-ai/**"
+            - "anomalyco/opencode"
+        set:
+          priority: 200
+      - description:
+          - "Prioritise Herdr and its plugins."
+        match:
+          packages:
+            - "@herdr/**"
+            - "herdrdev/**"
+            - "*/herdr*"
+            - "https://github.com/herdrdev/**"
+            - "https://github.com/*/herdr*"
+        set:
+          priority: 100
+      - description:
+          - "Prioritise first-party updates."
+        match:
+          packages:
+            - "@timmo001/**"
+            - "timmo001/**"
+            - "https://github.com/timmo001/**"
+        set:
+          priority: 300
     regexManagers:
       - files:
           - "**/{j,t}sconfig.json"
@@ -13933,22 +14015,58 @@ policy:
           datasource: "npm"
           value: "{{{major}}}"
           replacement: "\"@tsconfig/node{{{major}}}\""
-    datasources: {}
+      - files:
+          - "**/[Dd]ockerfile*"
+          - "**/[Cc]ontainerfile*"
+          - "**/*.[Dd]ockerfile*"
+          - "**/*.[Cc]ontainerfile*"
+        patterns:
+          - "# renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)(?: (lookupName|packageName)=(?<packageName>[^\\s]+?))?(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?(?: registryUrl=(?<registryUrl>[^\\s]+?))?\\s(?:ENV|ARG)\\s+[A-Za-z0-9_]+?_VERSION[ =][\"']?(?<currentValue>.+?)[\"']?\\s"
+        templates: {}
+      - files:
+          - "/(^|/)(workflow-templates|\\.(?:github|gitea|forgejo)/(?:workflows|actions))/.+\\.ya?ml$/"
+          - "/(^|/)action\\.ya?ml$/"
+        patterns:
+          - "# renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)(?: (?:lookupName|packageName)=(?<packageName>[^\\s]+?))?(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?(?: registryUrl=(?<registryUrl>[^\\s]+?))?\\s+[A-Za-z0-9_]+?_VERSION\\s*:\\s*[\"']?(?<currentValue>.+?)[\"']?\\s"
+        templates: {}
+      - files:
+          - "/(^|/)\\.?mise(\\.[^/]+)?\\.toml$/"
+          - "/(^|/)\\.?mise/config(\\.[^/]+)?\\.toml$/"
+          - "/(^|/)\\.config/mise/config\\.toml$/"
+        patterns:
+          - "(?:^|\\n)python\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+        templates:
+          datasource: "custom.python-precompiled"
+          dependency: "python"
+          versioning: "semver"
+      - files:
+          - "/(^|/)\\.github/workflows/[^/]+\\.ya?ml$/"
+        patterns:
+          - "(?:^|\\r?\\n)[ \\t]*#[ \\t]*renovate-container:[ \\t]*datasource=(?<datasource>docker)[ \\t]+(?:depName|packageName)=(?<depName>[^\\s]+)(?:[ \\t]+packageName=(?<packageName>[^\\s]+))?[ \\t]*\\r?\\n[ \\t]*default:[ \\t]*[\"']?[^\\s\"'@]+:(?<currentValue>[a-zA-Z0-9_][a-zA-Z0-9_.-]*)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?"
+        templates:
+          replacement: "{{{replace \":[a-zA-Z0-9_.-]+(@sha256:[a-f0-9]{64})?$\" \"\" replaceString}}}:{{#if newValue}}{{{newValue}}}{{else}}{{{currentValue}}}{{/if}}{{#if newDigest}}@{{{newDigest}}}{{else}}{{#if currentDigest}}@{{{currentDigest}}}{{/if}}{{/if}}"
+    jsonataManagers:
+      - files:
+          - "/(^|/)\\.github/workflows/[^/]+\\.ya?ml$/"
+        format: "yaml"
+        patterns:
+          - "$.'on'.*.inputs.'node-version'.default[$type($) = 'string' and $ != ''].{'depName': 'node', 'datasource': 'node-version', 'versioning': 'node', 'currentValue': $}"
+          - "$.'on'.*.inputs.'bun-version'.default[$type($) = 'string' and $ != ''].{'depName': 'bun', 'datasource': 'npm', 'currentValue': $}"
+          - "$.'on'.*.inputs.'python-version'.default[$type($) = 'string' and $ != ''].{'depName': 'python', 'datasource': 'python-version', 'versioning': 'python', 'currentValue': $}"
+          - "$.'on'.*.inputs.'jsr-cli-version'.default[$type($) = 'string' and $ != ''].{'depName': 'jsr', 'datasource': 'npm', 'currentValue': $}"
+          - "$.'on'.*.inputs.'npm-version'.default[$type($) = 'string' and $ != ''].{'depName': 'npm', 'datasource': 'npm', 'currentValue': $}"
+          - "$.'on'.*.inputs.'actionlint-version'.default[$type($) = 'string' and $ != ''].{'depName': 'rhysd/actionlint', 'datasource': 'github-releases', 'currentValue': $}"
+        templates: {}
+    datasources:
+      python-precompiled:
+        registry: "https://raw.githubusercontent.com/astral-sh/uv/main/crates/uv-python/download-metadata.json"
+        format: "json"
+        transforms:
+          - "($builds := $.*[name = \"cpython\" and os = \"linux\" and arch.family = \"x86_64\" and arch.variant = null and libc = \"gnu\" and variant = null and prerelease = \"\"]; $first := $builds{$string(major) & \".\" & $string(minor) & \".\" & $string(patch): $min($number(build))}; {\"releases\": [$each($first, function($b, $v) {($d := $string($b); $t := $substring($d, 0, 4) & \"-\" & $substring($d, 4, 2) & \"-\" & $substring($d, 6, 2) & \"T00:00:00Z\"; {\"version\": $v, \"date\": $t, \"releaseTimestamp\": $t})})], \"sourceUrl\": \"https://github.com/astral-sh/python-build-standalone\"})"
   overrides:
     settings: {}
     managers: {}
     rules:
-      - description:
-          - "Update Python through the precompiled build list instead of CPython tags."
-        match:
-          managers:
-            - "mise"
-          dependencies:
-            - "python"
-          files:
-            - "mise/.config/mise/config.toml"
-        set:
-          enabled: false
       - description:
           - "Keep the OpenCode plugin Effect version aligned with its pinned packages."
         match:
@@ -13990,14 +14108,6 @@ policy:
         set:
           allowedVersions: "<25"
     regexManagers:
-      - files:
-          - "/^mise\\/\\.config\\/mise\\/config\\.toml$/"
-        patterns:
-          - "\\npython\\s*=\\s*\"(?<currentValue>[^\"]+)\""
-        templates:
-          datasource: "custom.python-precompiled"
-          dependency: "python"
-          versioning: "semver"
       - files:
           - "/^mise\\.toml$/"
         patterns:
@@ -14042,11 +14152,6 @@ policy:
         format: "json"
         transforms:
           - "{\"releases\":[{\"version\":pkgver}],\"sourceUrl\":url}"
-      python-precompiled:
-        registry: "https://raw.githubusercontent.com/astral-sh/uv/main/crates/uv-python/download-metadata.json"
-        format: "json"
-        transforms:
-          - "($builds := $.*[name = \"cpython\" and os = \"linux\" and arch.family = \"x86_64\" and arch.variant = null and libc = \"gnu\" and variant = null and prerelease = \"\"]; $first := $builds{$string(major) & \".\" & $string(minor) & \".\" & $string(patch): $min($number(build))}; {\"releases\": [$each($first, function($b, $v) {($d := $string($b); $t := $substring($d, 0, 4) & \"-\" & $substring($d, 4, 2) & \"-\" & $substring($d, 6, 2) & \"T00:00:00Z\"; {\"version\": $v, \"date\": $t, \"releaseTimestamp\": $t})})], \"sourceUrl\": \"https://github.com/astral-sh/python-build-standalone\"})"
 validation:
   setup:
     - argv:
@@ -14603,13 +14708,19 @@ validation:
                 - "aqua:cloudflare/cloudflared"
 import:
   source: "renovate.json"
-  resolverVersion: "44.103.0"
-  overrideHash: "3b8c76d7593dd79d87fd340a348fc2aec0307ba7f9c0197df9974458f01532ed"
+  resolverVersion: "44.126.1"
+  overrideHash: "a8786eb306f2e659f33d6d29782eaec0e30fdd2ef235c89911e42d759362cba1"
   baseDiagnostics:
     - path: "presets.description"
       disposition: "ignored"
       message: "Not used by the on-demand, no-PR workflow"
     - path: "presets.dependencyDashboard"
+      disposition: "ignored"
+      message: "Not used by the on-demand, no-PR workflow"
+    - path: "presets.lockFileMaintenance"
+      disposition: "ignored"
+      message: "Scheduled lockfile refresh is not part of on-demand updates; updated dependencies still regenerate their lockfiles"
+    - path: "presets.labels"
       disposition: "ignored"
       message: "Not used by the on-demand, no-PR workflow"
     - path: "presets.nuget"
@@ -14621,6 +14732,9 @@ import:
           - "/\\.(?:props|targets)$/"
           - "/(^|/)dotnet-tools\\.json$/"
           - "/(^|/)global\\.json$/"
+    - path: "presets.$schema"
+      disposition: "ignored"
+      message: "Not used by the on-demand, no-PR workflow"
     - path: "presets.packageRules[0].semanticCommitType"
       disposition: "ignored"
       message: "Not used by the on-demand, no-PR workflow"
@@ -17423,10 +17537,10 @@ import:
     - path: "presets.packageRules[725].prBodyDefinitions"
       disposition: "ignored"
       message: "Not used by the on-demand, no-PR workflow"
-    - path: "presets.packageRules[1194].commitMessageTopic"
+    - path: "presets.packageRules[1196].commitMessageTopic"
       disposition: "ignored"
       message: "Not used by the on-demand, no-PR workflow"
-    - path: "presets.packageRules[1204].commitMessageTopic"
+    - path: "presets.packageRules[1206].commitMessageTopic"
       disposition: "ignored"
       message: "Not used by the on-demand, no-PR workflow"
   overrideDiagnostics:
