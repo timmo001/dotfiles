@@ -21,14 +21,18 @@ const decodeManifest = Schema.decodeUnknownOption(
   Schema.fromJsonString(Schema.Record(Schema.String, Schema.String)),
 );
 
+const readManifest = Effect.fn("ExternalSkills.readManifest")(function* (
+  skillsDir: string,
+) {
+  const text = yield* readTextOrNull(join(skillsDir, ".external-skills.json"));
+
+  return text === null ? Option.none() : decodeManifest(text);
+});
+
 /** External skills recorded by skill-maintenance whose `SKILL.md` is missing. */
 export const missingExternalSkills = Effect.fn("ExternalSkills.missing")(
   function* (skillsDir: string = AGENT_SKILLS_DIR) {
-    const text = yield* readTextOrNull(
-      join(skillsDir, ".external-skills.json"),
-    );
-
-    const installed = text === null ? Option.none() : decodeManifest(text);
+    const installed = yield* readManifest(skillsDir);
 
     if (Option.isNone(installed)) return [];
     const missing: string[] = [];
@@ -141,17 +145,37 @@ export const syncExternalSkills = Effect.gen(function* () {
     return actions;
   }
 
+  const before = yield* readManifest(AGENT_SKILLS_DIR);
+
   const exitCode = yield* executor.inherit(
     executable,
     ["install", "--target", AGENT_SKILLS_DIR],
     { cwd: yield* skillsMaintenanceSource(config.publicDotfiles) },
   );
 
-  if (exitCode === 0) actions.push("Installed external skills");
-  else
+  if (exitCode !== 0) {
     yield* log.warn(
       `External skill install exited ${exitCode}; installed skills were kept`,
     );
+
+    return actions;
+  }
+
+  const previous: Record<string, string> = Option.getOrElse(before, () => ({}));
+
+  const current: Record<string, string> = Option.getOrElse(
+    yield* readManifest(AGENT_SKILLS_DIR),
+    () => ({}),
+  );
+
+  const changed = new Set(
+    [...Object.keys(previous), ...Object.keys(current)].filter(
+      (name) => previous[name] !== current[name],
+    ),
+  ).size;
+
+  if (changed > 0) actions.push(`Updated ${plural(changed, "external skill")}`);
+  else yield* log.info("External skills are up to date");
 
   return actions;
 }).pipe(Effect.withSpan("ExternalSkills.sync"));
