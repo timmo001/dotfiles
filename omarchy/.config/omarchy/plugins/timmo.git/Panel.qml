@@ -60,6 +60,7 @@ Panel {
   readonly property var contextRows: filterRows("context-action")
   property string contextCursorKey: ""
   property var selectedCommit: null
+  property string selectedCommitAgentTask: "guide"
   readonly property int overviewCommitLimit: 8
   readonly property int repoCommitLimit: 15
   readonly property var selectedLogRepo: service && selectedRepo ? service.logRepository(String(selectedRepo.path || "")) : null
@@ -72,11 +73,13 @@ Panel {
       if (!selectedCommit) return rows
       var diff = actionRow("commit-diff", "Open in diff viewer", "")
       diff.secondaryText = "git show in a terminal"
-      var plannotator = actionRow("commit-plannotator", "Review in Plannotator", "󰈈")
-      plannotator.secondaryText = "Open the commit diff in a Plannotator review"
+      var plannotator = actionRow("commit-review-patch", "Review in Plannotator…", "󰈈")
+      plannotator.secondaryText = "Quick review of the commit patch, feedback goes to an agent"
+      var plannotatorFull = actionRow("commit-review-worktree", "Review in Plannotator with full context…", plannotator.icon)
+      plannotatorFull.secondaryText = "Review a temporary checkout of the commit, feedback goes to an agent"
       var guide = actionRow("commit-guide", "Generate Plannotator guide…", "󱚣")
       guide.secondaryText = "Ask an agent to write a Guided Review of this commit"
-      rows.push(actionRow("commit-web", "Open on GitHub", ""), diff, plannotator, guide)
+      rows.push(actionRow("commit-web", "Open on GitHub", ""), diff, plannotator, plannotatorFull, guide)
       return rows
     }
     if (pullRequestView) {
@@ -641,7 +644,7 @@ Panel {
     else if (action === "log-refresh") service.refreshLog("refresh")
     else if (action === "log-web") { close(); service.openCommitsWeb(selectedLogRepo, modifiers) }
     else if (action === "back" && view === "commit") showView("repo", selectedCommit ? commitKey(selectedCommit.repo, selectedCommit.commit) : "")
-    else if (action === "commit-guide" && selectedCommit) showAgentPicker(selectedRepo)
+    else if (["commit-guide", "commit-review-patch", "commit-review-worktree"].indexOf(action) >= 0 && selectedCommit) { selectedCommitAgentTask = action.slice(7); showAgentPicker(selectedRepo) }
     else if (action.indexOf("commit-") === 0 && selectedCommit) { close(); service.openCommit(selectedCommit.repo, selectedCommit.commit, action.slice(7), modifiers) }
     else if (action === "back" && releaseView) showView(view === "releases" ? "overview" : (view === "release" ? selectedReleaseView : (view === "finding" && selectedFindingGroup ? "finding-group" : (view === "release-choice" ? selectedImpactView : "release"))))
     else if (action === "refresh") service.refresh()
@@ -652,7 +655,7 @@ Panel {
     else if (action === "notifications") { close(); service.openNotifications(modifiers) }
     else if (action.indexOf("agent:") === 0 && selectedRepo) {
       if (releaseAgentView) service.prepareRelease(selectedRelease, findingGroups.map(function(group) { return { title: group.title, count: group.findings.length, summary: group.summary } }), action.slice(6), modifiers)
-      else if (selectedAgentView === "commit" && selectedCommit) service.openCommitGuide(selectedCommit.repo, selectedCommit.commit, action.slice(6), modifiers)
+      else if (selectedAgentView === "commit" && selectedCommit) service.openCommitAgent(selectedCommit.repo, selectedCommit.commit, selectedCommitAgentTask, action.slice(6), modifiers)
       else service.openAgent(selectedRepo, action.slice(6), "", modifiers)
     }
     else if (selectedRepo) {
