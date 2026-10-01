@@ -10,7 +10,6 @@ TOOLTIP_ON=""
 TOOLTIP_OFF=""
 CLASS_ON=""
 CLASS_OFF=""
-HIDE_OFF=0
 
 usage() {
   cat <<'EOF'
@@ -25,7 +24,6 @@ Options:
   --tooltip-off <text>    Status bar tooltip when state is not on
   --class-on <class>      Status bar class when state is on
   --class-off <class>     Status bar class when state is not on
-  --hide-off              Hide module when state is not on
   --help                  Show this help
 EOF
 }
@@ -64,10 +62,6 @@ parse_args() {
       --class-off)
         CLASS_OFF="$2"
         shift 2
-        ;;
-      --hide-off)
-        HIDE_OFF=1
-        shift
         ;;
       --help|-h)
         usage
@@ -140,9 +134,6 @@ build_watch_command() {
   fi
   if [[ -n "$CLASS_OFF" ]]; then
     WATCH_CMD+=(--class-off "$CLASS_OFF")
-  fi
-  if (( HIDE_OFF )); then
-    WATCH_CMD+=(--hide-off)
   fi
 
   WATCH_CMD+=("$ENTITY_ID")
