@@ -12,7 +12,7 @@
     "prepare": "effect-tsgo patch --typescript --force=false"
   },
   "dependencies": {
-    "@effect/platform-node": "4.0.0-rc.118",
+    "@effect/platform-node": "4.0.0",
     "@timmo001/effect-gh": "0.3.0",
     "@timmo001/effect-herdr": "0.8.2-timmo001.3",
     "effect": "4.0.0-rc.118",
