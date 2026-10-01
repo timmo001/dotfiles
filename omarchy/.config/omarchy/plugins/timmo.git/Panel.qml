@@ -59,16 +59,33 @@ Panel {
   readonly property var workspaceContext: service ? service.herdrContext : null
   readonly property var contextRows: filterRows("context-action")
   property string contextCursorKey: ""
+  property var selectedCommit: null
+  readonly property int overviewCommitLimit: 8
+  readonly property int repoCommitLimit: 15
+  readonly property var selectedLogRepo: service && selectedRepo ? service.logRepository(String(selectedRepo.path || "")) : null
+  readonly property var filteredLogRows: filterController.filteredModel.filter(function(row) { return row.section === "log" && row.kind !== "header-action" })
 
   function buildPanelRows() {
     var rows = []
+    if (view === "commit") {
+      rows.push(navigationRow("Back to " + (selectedRepo ? selectedRepo.name : "repository")))
+      if (!selectedCommit) return rows
+      var diff = actionRow("commit-diff", "Open in diff viewer", "")
+      diff.secondaryText = "git show in a terminal"
+      var plannotator = actionRow("commit-plannotator", "Review in Plannotator", "󰈈")
+      plannotator.secondaryText = "Open the commit diff in a Plannotator review"
+      var guide = actionRow("commit-guide", "Generate Plannotator guide…", "󱚣")
+      guide.secondaryText = "Ask an agent to write a Guided Review of this commit"
+      rows.push(actionRow("commit-web", "Open on GitHub", ""), diff, plannotator, guide)
+      return rows
+    }
     if (pullRequestView) {
       rows.push(navigationRow(view === "pulls" || selectedPullRequestView === "overview" ? "Back to Git overview" : "Back to all tracked repositories"))
       if (view === "pull-repo" && selectedPullRequests) rows.push(actionRow("pulls-web", "Open pull requests on GitHub", ""))
       return rows.concat(pullRequestRows())
     }
     if (view === "agent") {
-      rows.push(navigationRow(releaseAgentView ? "Back to release preparation" : (selectedAgentView === "overview" ? "Back to Git overview" : "Back to repository")))
+      rows.push(navigationRow(releaseAgentView ? "Back to release preparation" : (selectedAgentView === "overview" ? "Back to Git overview" : (selectedAgentView === "commit" ? "Back to commit" : "Back to repository"))))
       var agents = service ? service.installedAgents : []
       for (var i = 0; i < agents.length; i++) {
         var agent = agents[i]
@@ -141,7 +158,7 @@ Panel {
     } else if (view === "repo") {
       rows.push(navigationRow("Back to repositories"))
       rows = rows.concat(repoActions(selectedRepo))
-      return rows
+      return rows.concat(logRows())
     } else {
       rows.push(navigationRow("Back to Git overview"))
     }
@@ -205,8 +222,65 @@ Panel {
       allReleases.kind = "release-action"
       allReleases.section = "release"
       rows.push(allReleases)
+      rows = rows.concat(logRows())
     }
     return rows
+  }
+
+  function commitKey(repo, commit) {
+    return "log:" + repo.path + ":" + commit.sha
+  }
+
+  function relativeTime(value) {
+    var seconds = Math.max(0, Math.floor((Date.now() - Date.parse(value)) / 1000))
+    if (!isFinite(seconds)) return "unknown"
+    if (seconds < 60) return "just now"
+    if (seconds < 3600) return Math.floor(seconds / 60) + "m ago"
+    if (seconds < 86400) return Math.floor(seconds / 3600) + "h ago"
+    return Math.floor(seconds / 86400) + "d ago"
+  }
+
+  function logRows() {
+    var rows = [headerActionRow("log-refresh", "Refresh commit log", "log")]
+    var repoView = view === "repo"
+    var entries = repoView
+      ? (selectedLogRepo ? selectedLogRepo.commits.slice(0, repoCommitLimit).map(function(commit) { return { repo: selectedLogRepo, commit: commit } }) : [])
+      : (service ? service.recentCommits.slice(0, overviewCommitLimit) : [])
+    entries.forEach(function(entry) {
+      var commit = entry.commit
+      rows.push({ key: commitKey(entry.repo, commit), kind: "log", section: "log", value: entry, icon: commit.incoming ? "󰇚" : "",
+        primaryText: commit.subject,
+        secondaryText: (repoView ? "" : entry.repo.name + " · ") + commit.sha.slice(0, 7) + " · " + commit.author + " · " + relativeTime(commit.date) + (commit.incoming ? " · not pulled" : "") })
+    })
+    if (repoView && selectedLogRepo) {
+      var all = actionRow("log-web", "All commits on GitHub", "")
+      all.kind = "log-action"
+      all.section = "log"
+      rows.push(all)
+    }
+    return rows
+  }
+
+  function logStatus() {
+    if (!service || !service.logLoaded) return "Loading commits"
+    if (service.logError) return service.logError
+    if (view !== "repo") return service.recentCommits.length ? "" : "No commits found"
+    if (!selectedLogRepo) return "Repository is not in the commit log"
+    if (selectedLogRepo.error) return "Stale: " + selectedLogRepo.error
+    return selectedLogRepo.commits.length ? "" : "No commits found"
+  }
+
+  function activateLog(entry) {
+    if (view === "repo") {
+      selectedCommit = entry
+      showView("commit")
+      return
+    }
+    var path = entry.repo.path
+    selectedRepoView = view
+    selectedRepo = service.changedRepos.concat(service.otherRepos).find(function(repo) { return String(repo.path || "") === path })
+      || { name: entry.repo.name, path: path, statusKnown: false }
+    showView("repo", commitKey(entry.repo, entry.commit))
   }
 
   function pullRequestRows() {
@@ -434,6 +508,7 @@ Panel {
     if (service) { service.notificationLaunchError = ""; service.refreshNotifications() }
     if ((releaseView || view === "overview") && service) service.refreshReleases("read")
     if ((pullRequestView || view === "overview") && service) service.refreshPullRequests("read")
+    if (service) service.refreshLog("read")
     filterController.reset()
     controller.show()
     Qt.callLater(function() {
@@ -465,6 +540,7 @@ Panel {
     if (entry.section === "pulls" || entry.section === "pulls-empty") return pullRequestsSection.itemForKey(entry.key)
     if (entry.kind === "release-action") return allReleasesAction
     if (entry.kind === "context-action") return contextRepeater.itemAt(contextRows.indexOf(entry))
+    if (entry.section === "log") return entry.kind === "header-action" ? logHeading : logRepeater.itemAt(filteredLogRows.indexOf(entry))
     if (entry.kind === "header-action") {
       if (entry.action === "context-refresh") return contextHeading
       if (entry.action === "pull-changed") return repositoriesHeading
@@ -499,7 +575,7 @@ Panel {
     onTriggered: if (requestedKey === root.cursorKey) root.scrollCursorIntoView()
   }
 
-  function showView(nextView) {
+  function showView(nextView, focusKey) {
     revealTimer.stop()
     view = nextView
     filterController.reset()
@@ -509,6 +585,12 @@ Panel {
       filterController.reset()
       panelFlick.contentY = 0
       selectFirstPullRequest()
+      var index = focusKey ? filterController.indexForKey(focusKey) : -1
+      if (index >= 0) {
+        filterController.selectIndex(index)
+        revealTimer.requestedKey = focusKey
+        revealTimer.restart()
+      }
     })
   }
 
@@ -556,6 +638,11 @@ Panel {
     else if (action === "release-evidence") service.openEvidence(view === "finding" ? findingUrl(selectedFinding) : (releaseSnapshot ? "https://github.com/" + releaseSnapshot.repo + (releaseSnapshot.releaseCommit ? "/compare/" + releaseSnapshot.releaseCommit + "...HEAD" : "/commits/" + releaseSnapshot.branch) : ""), selectedRelease, modifiers)
     else if (action.indexOf("impact:") === 0) service.releaseAction(selectedRelease, view === "finding" ? selectedFindingId : "overall", action.slice(7))
     else if (action === "back" && view === "agent") showView(selectedAgentView)
+    else if (action === "log-refresh") service.refreshLog("refresh")
+    else if (action === "log-web") { close(); service.openCommitsWeb(selectedLogRepo, modifiers) }
+    else if (action === "back" && view === "commit") showView("repo", selectedCommit ? commitKey(selectedCommit.repo, selectedCommit.commit) : "")
+    else if (action === "commit-guide" && selectedCommit) showAgentPicker(selectedRepo)
+    else if (action.indexOf("commit-") === 0 && selectedCommit) { close(); service.openCommit(selectedCommit.repo, selectedCommit.commit, action.slice(7), modifiers) }
     else if (action === "back" && releaseView) showView(view === "releases" ? "overview" : (view === "release" ? selectedReleaseView : (view === "finding" && selectedFindingGroup ? "finding-group" : (view === "release-choice" ? selectedImpactView : "release"))))
     else if (action === "refresh") service.refresh()
     else if (action === "pull-changed") service.pullRepositories(service.changedRepos)
@@ -565,6 +652,7 @@ Panel {
     else if (action === "notifications") { close(); service.openNotifications(modifiers) }
     else if (action.indexOf("agent:") === 0 && selectedRepo) {
       if (releaseAgentView) service.prepareRelease(selectedRelease, findingGroups.map(function(group) { return { title: group.title, count: group.findings.length, summary: group.summary } }), action.slice(6), modifiers)
+      else if (selectedAgentView === "commit" && selectedCommit) service.openCommitGuide(selectedCommit.repo, selectedCommit.commit, action.slice(6), modifiers)
       else service.openAgent(selectedRepo, action.slice(6), "", modifiers)
     }
     else if (selectedRepo) {
@@ -584,7 +672,8 @@ Panel {
   }
 
   function activateEntry(entry, modifiers) {
-    if (entry.kind === "action" || entry.kind === "navigation" || entry.kind === "footer-action" || entry.kind === "header-action" || entry.kind === "release-action" || entry.kind === "pull-action") activateAction(entry.action, modifiers)
+    if (entry.kind === "action" || entry.kind === "navigation" || entry.kind === "footer-action" || entry.kind === "header-action" || entry.kind === "release-action" || entry.kind === "pull-action" || entry.kind === "log-action") activateAction(entry.action, modifiers)
+    else if (entry.kind === "log") activateLog(entry.value)
     else if (entry.kind === "pull-repo") {
       if (entry.value.pulls.length === 0 && entry.value.checkedAt !== null && !entry.value.error) { close(); service.openPulls(entry.value, modifiers) }
       else { selectedPullRequestRepo = entry.value.repo; selectedPullRequestView = view; showView("pull-repo") }
@@ -693,8 +782,8 @@ Panel {
             backHasCursor: root.cursorKey === "action:back"
             onBackHovered: filterController.cursorIndex = filterController.indexForKey("action:back")
             onBackActivated: root.activateAction("back")
-            title: root.pullRequestView ? (root.view === "pulls" ? "All tracked repositories" : (root.selectedPullRequests ? root.selectedPullRequests.name : "Pull requests")) : root.releaseView ? (root.view === "releases" ? "All tracked repositories" : (root.selectedRelease ? root.selectedRelease.name : "Release review")) : (root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other")))))
-            meta: root.pullRequestView ? (root.view === "pull-repo" ? "Open pull requests · recently updated first" : "Pull request tracking") : root.releaseView ? (root.view === "finding-group" && root.selectedFindingGroup ? root.selectedFindingGroup.title : (root.view === "finding" ? "Finding evidence" : (root.view === "release-commits" ? "All commits" : "Local release review"))) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories")))))
+            title: root.view === "commit" ? (root.selectedCommit ? root.selectedCommit.commit.subject : "Commit") : root.pullRequestView ? (root.view === "pulls" ? "All tracked repositories" : (root.selectedPullRequests ? root.selectedPullRequests.name : "Pull requests")) : root.releaseView ? (root.view === "releases" ? "All tracked repositories" : (root.selectedRelease ? root.selectedRelease.name : "Release review")) : (root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other")))))
+            meta: root.view === "commit" ? (root.selectedCommit ? root.selectedCommit.repo.name + " · " + root.selectedCommit.commit.sha.slice(0, 7) : "") : root.pullRequestView ? (root.view === "pull-repo" ? "Open pull requests · recently updated first" : "Pull request tracking") : root.releaseView ? (root.view === "finding-group" && root.selectedFindingGroup ? root.selectedFindingGroup.title : (root.view === "finding" ? "Finding evidence" : (root.view === "release-commits" ? "All commits" : "Local release review"))) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories")))))
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             iconComponent: Component {
@@ -778,6 +867,17 @@ Panel {
             visible: root.releaseView
             width: parent.width
             text: root.releaseSummary() + (root.service && root.service.releasesError ? "\n" + root.service.releasesError : "") + (root.service && root.service.releaseActionError ? "\n" + root.service.releaseActionError : "")
+            textFormat: Text.PlainText
+            wrapMode: Text.WrapAnywhere
+            color: root.contentForeground
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.caption
+          }
+
+          Text {
+            visible: root.view === "commit" && root.selectedCommit !== null
+            width: parent.width
+            text: root.selectedCommit ? [root.selectedCommit.commit.subject, root.selectedCommit.commit.sha, root.selectedCommit.commit.author + " · " + root.relativeTime(root.selectedCommit.commit.date) + (root.selectedCommit.commit.incoming ? " · not pulled yet" : "")].join("\n") : ""
             textFormat: Text.PlainText
             wrapMode: Text.WrapAnywhere
             color: root.contentForeground
@@ -1174,6 +1274,72 @@ Panel {
               cursorShape: Qt.PointingHandCursor
               onEntered: filterController.cursorIndex = filterController.indexForKey(allReleasesAction.entry.key)
               onClicked: function(mouse) { root.activateEntry(allReleasesAction.entry, mouse.modifiers) }
+            }
+          }
+
+          SectionHeading {
+            id: logHeading
+            visible: (root.view === "overview" || root.view === "repo") && (!filterController.filterText || root.filteredLogRows.length > 0 || filterController.indexForKey("action:log-refresh") >= 0)
+            title: (root.view === "repo" ? "Commits" : "Recent commits") + " · " + root.filteredLogRows.filter(function(row) { return row.kind === "log" }).length
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+            refreshable: true
+            refreshing: root.service ? root.service.logBusy : false
+            hasCursor: root.cursorKey === "action:log-refresh"
+            onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:log-refresh")
+            onRefreshRequested: root.activateAction("log-refresh")
+          }
+
+          Text {
+            readonly property string status: root.logStatus()
+            visible: logHeading.visible && !filterController.filterText && status !== ""
+            width: parent.width
+            text: status
+            textFormat: Text.PlainText
+            wrapMode: Text.WrapAnywhere
+            color: Qt.darker(root.contentForeground, 1.4)
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.caption
+          }
+
+          Column {
+            visible: root.view === "overview" || root.view === "repo"
+            width: parent.width
+            spacing: Style.space(2)
+            Repeater {
+              id: logRepeater
+              model: root.filteredLogRows
+              CursorSurface {
+                required property var modelData
+                x: Style.space(8)
+                width: Math.max(0, contentColumn.width - Style.space(16))
+                implicitHeight: logRow.implicitHeight + Style.space(12)
+                hasCursor: root.cursorKey === modelData.key
+                foreground: root.contentForeground
+                accent: root.contentForeground
+                Row {
+                  id: logRow
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.margins: Style.space(8)
+                  spacing: Style.space(10)
+                  Text { width: Style.space(22); text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
+                  Column {
+                    width: Math.max(0, logRow.width - Style.space(32))
+                    spacing: Style.space(2)
+                    Text { width: parent.width; text: modelData.primaryText; textFormat: Text.PlainText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
+                    Text { visible: text !== ""; width: parent.width; text: modelData.secondaryText; textFormat: Text.PlainText; color: Qt.darker(root.contentForeground, 1.4); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
+                  }
+                }
+                MouseArea {
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key)
+                  onClicked: function(mouse) { root.activateEntry(modelData, mouse.modifiers) }
+                }
+              }
             }
           }
 
