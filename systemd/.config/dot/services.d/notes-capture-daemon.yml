@@ -1,3 +1,4 @@
+---
 unit: notes-capture-daemon.service
 label: Notes capture
 restartLimit:
