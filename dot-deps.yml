@@ -13939,6 +13939,17 @@ policy:
     managers: {}
     rules:
       - description:
+          - "Update Python through the precompiled build list instead of CPython tags."
+        match:
+          managers:
+            - "mise"
+          dependencies:
+            - "python"
+          files:
+            - "mise/.config/mise/config.toml"
+        set:
+          enabled: false
+      - description:
           - "Keep the OpenCode plugin Effect version aligned with its pinned packages."
         match:
           packages:
@@ -13979,6 +13990,14 @@ policy:
         set:
           allowedVersions: "<25"
     regexManagers:
+      - files:
+          - "/^mise\\/\\.config\\/mise\\/config\\.toml$/"
+        patterns:
+          - "\\npython\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+        templates:
+          datasource: "custom.python-precompiled"
+          dependency: "python"
+          versioning: "semver"
       - files:
           - "/^mise\\.toml$/"
         patterns:
@@ -14023,6 +14042,11 @@ policy:
         format: "json"
         transforms:
           - "{\"releases\":[{\"version\":pkgver}],\"sourceUrl\":url}"
+      python-precompiled:
+        registry: "https://raw.githubusercontent.com/astral-sh/uv/main/crates/uv-python/download-metadata.json"
+        format: "json"
+        transforms:
+          - "($builds := $.*[name = \"cpython\" and os = \"linux\" and arch.family = \"x86_64\" and arch.variant = null and libc = \"gnu\" and variant = null and prerelease = \"\"]; $first := $builds{$string(major) & \".\" & $string(minor) & \".\" & $string(patch): $min($number(build))}; {\"releases\": [$each($first, function($b, $v) {($d := $string($b); $t := $substring($d, 0, 4) & \"-\" & $substring($d, 4, 2) & \"-\" & $substring($d, 6, 2) & \"T00:00:00Z\"; {\"version\": $v, \"date\": $t, \"releaseTimestamp\": $t})})], \"sourceUrl\": \"https://github.com/astral-sh/python-build-standalone\"})"
 validation:
   setup:
     - argv:
@@ -14580,7 +14604,7 @@ validation:
 import:
   source: "renovate.json"
   resolverVersion: "44.103.0"
-  overrideHash: "a8786eb306f2e659f33d6d29782eaec0e30fdd2ef235c89911e42d759362cba1"
+  overrideHash: "3b8c76d7593dd79d87fd340a348fc2aec0307ba7f9c0197df9974458f01532ed"
   baseDiagnostics:
     - path: "presets.description"
       disposition: "ignored"

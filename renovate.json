@@ -14,9 +14,24 @@
       "transformTemplates": [
         "{\"releases\":[{\"version\":pkgver}],\"sourceUrl\":url}"
       ]
+    },
+    "python-precompiled": {
+      "defaultRegistryUrlTemplate": "https://raw.githubusercontent.com/astral-sh/uv/main/crates/uv-python/download-metadata.json",
+      "transformTemplates": [
+        "($builds := $.*[name = \"cpython\" and os = \"linux\" and arch.family = \"x86_64\" and arch.variant = null and libc = \"gnu\" and variant = null and prerelease = \"\"]; $first := $builds{$string(major) & \".\" & $string(minor) & \".\" & $string(patch): $min($number(build))}; {\"releases\": [$each($first, function($b, $v) {($d := $string($b); $t := $substring($d, 0, 4) & \"-\" & $substring($d, 4, 2) & \"-\" & $substring($d, 6, 2) & \"T00:00:00Z\"; {\"version\": $v, \"date\": $t, \"releaseTimestamp\": $t})})], \"sourceUrl\": \"https://github.com/astral-sh/python-build-standalone\"})"
+      ]
     }
   },
   "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update Python only to versions with a precompiled Linux build.",
+      "managerFilePatterns": ["/^mise\\/\\.config\\/mise\\/config\\.toml$/"],
+      "matchStrings": ["\\npython\\s*=\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "python",
+      "datasourceTemplate": "custom.python-precompiled",
+      "versioningTemplate": "semver"
+    },
     {
       "customType": "regex",
       "description": "Follow Omarchy's mise-bin version for CI.",
@@ -62,6 +77,13 @@
     }
   ],
   "packageRules": [
+    {
+      "description": "Update Python through the precompiled build list instead of CPython tags.",
+      "matchManagers": ["mise"],
+      "matchFileNames": ["mise/.config/mise/config.toml"],
+      "matchDepNames": ["python"],
+      "enabled": false
+    },
     {
       "description": "Keep the OpenCode plugin Effect version aligned with its pinned packages.",
       "matchFileNames": ["agents/.config/opencode/plugins/package.json"],
