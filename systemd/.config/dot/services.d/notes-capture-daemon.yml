@@ -1,0 +1,5 @@
+unit: notes-capture-daemon.service
+label: Notes capture
+restartLimit:
+  count: 3
+  within: 1 hour

@@ -29,16 +29,21 @@ export const DependencyTrust = Schema.Struct({
 export const readDependencyTrust = Effect.fn("Dependencies.readTrust")(
   function* (repository: string) {
     const fs = yield* FileSystem.FileSystem;
-    const file = join(CONFIG_DIR, "dot", "dependencies.json");
+    const file = join(CONFIG_DIR, "dot", "dependencies.yml");
 
     if (!(yield* fs.exists(file)))
       return yield* new DependencyRunError({
         message: `Configure ${repository} host trust in ${file} before running dependency updates`,
       });
 
-    const entries = yield* Schema.decodeEffect(
-      Schema.fromJsonString(Schema.Record(Schema.String, DependencyTrust)),
-    )(yield* fs.readFileString(file));
+    const entries = yield* fs.readFileString(file).pipe(
+      Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
+      Effect.flatMap(
+        Schema.decodeUnknownEffect(
+          Schema.Record(Schema.String, DependencyTrust),
+        ),
+      ),
+    );
 
     const trust = entries[repository];
 

@@ -82,9 +82,7 @@ export const writeReportedStatus = Effect.fn("Services.writeReportedStatus")(
   },
 );
 
-const decodeDescriptor = Schema.decodeEffect(
-  Schema.fromJsonString(ServiceDescriptor),
-);
+const decodeDescriptor = Schema.decodeUnknownEffect(ServiceDescriptor);
 
 /** Overall monitoring state of one registered job, ordered from worst to best. */
 export type ServiceHealth =
@@ -220,13 +218,14 @@ export const readRegisteredServices = Effect.gen(function* () {
   const errors: { file: string; message: string }[] = [];
 
   for (const name of (yield* fs.readDirectory(SERVICES_DIR)).sort()) {
-    if (!name.endsWith(".json")) continue;
+    if (!name.endsWith(".yml")) continue;
 
     const file = join(SERVICES_DIR, name);
 
     const decoded = yield* fs.readFileString(file).pipe(
-      Effect.flatMap((text) =>
-        decodeDescriptor(text, { onExcessProperty: "error" }),
+      Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
+      Effect.flatMap((parsed) =>
+        decodeDescriptor(parsed, { onExcessProperty: "error" }),
       ),
       Effect.result,
     );

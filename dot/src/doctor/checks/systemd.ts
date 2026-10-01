@@ -228,7 +228,7 @@ export const checkDoctorNotify = checkRequiredUserUnitSetup({
 
 /** Check the optional dependency timer's installation and enablement. */
 export const checkDependencyService = Effect.gen(function* () {
-  if (!(yield* pathExists(join(CONFIG_DIR, "dot", "dependency-service.json"))))
+  if (!(yield* pathExists(join(CONFIG_DIR, "dot", "dependency-service.yml"))))
     return [];
 
   const executor = yield* CommandExecutor;

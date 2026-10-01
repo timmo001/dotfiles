@@ -2,7 +2,7 @@
 Description=Run coordinated dependency updates
 After=network-online.target
 Wants=network-online.target
-ConditionPathExists=%h/.config/dot/dependency-service.json
+ConditionPathExists=%h/.config/dot/dependency-service.yml
 OnFailure=dot-service-failed@%n.service
 
 [Service]

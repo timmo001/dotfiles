@@ -68,12 +68,17 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
     const output = yield* OutputLog;
 
     const file = expandHomePath(
-      options.config || join(CONFIG_DIR, "dot", "dependency-service.json"),
+      options.config || join(CONFIG_DIR, "dot", "dependency-service.yml"),
     );
 
-    const config = yield* Schema.decodeEffect(
-      Schema.fromJsonString(ServiceConfig),
-    )(yield* fs.readFileString(file), { onExcessProperty: "error" });
+    const config = yield* fs.readFileString(file).pipe(
+      Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
+      Effect.flatMap((parsed) =>
+        Schema.decodeUnknownEffect(ServiceConfig)(parsed, {
+          onExcessProperty: "error",
+        }),
+      ),
+    );
 
     for (const repository of new Set([
       config.coordinationRepository,
