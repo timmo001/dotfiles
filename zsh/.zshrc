@@ -677,10 +677,6 @@ alias copilot="gh copilot"
 alias cpe="gh copilot explain"
 alias cps="gh copilot suggest"
 
-# Go Automate
-alias auto="go-automate"
-alias ga="go-automate"
-
 # Create a new release PR (Custom script in internal repo)
 alias ghrpr="./.github/create-release-pr-draft.sh"
 
@@ -815,12 +811,7 @@ setopt HIST_REDUCE_BLANKS   # tidy surplus whitespace
 # ------------------------------
 # source ~/.local/share/omarchy/default/bash/shell
 source ~/.local/share/omarchy/default/bash/aliases
-# Omarchy's worktree helpers define ga()/gd(); our `ga` alias (go-automate)
-# would make zsh fail to parse those functions, so drop it first.
-unalias ga 2>/dev/null
 source ~/.local/share/omarchy/default/bash/functions
-# Re-assert our preferred ga: go-automate wins over the worktree helper.
-alias ga="go-automate"
 # source ~/.local/share/omarchy/default/bash/prompt
 
 # ------------------------------
