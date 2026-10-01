@@ -20,6 +20,7 @@ import {
 import { formatCause } from "../../lib/schema.js";
 import { GitHub } from "./GitHub.js";
 import {
+  latestStableRelease,
   nextReleaseTag,
   publishRelease,
   type ReleasePublishAction,
@@ -129,13 +130,6 @@ export interface GitReleasesService {
     progress: ReleaseProgress,
   ) => Effect.Effect<ReleasePublishResult, ReleaseError>;
 }
-
-const StableRelease = Schema.Struct({
-  tag_name: Schema.String,
-  draft: Schema.Boolean,
-  prerelease: Schema.Boolean,
-  published_at: Schema.NullOr(Schema.String),
-});
 
 const UpstreamTags = Schema.Array(
   Schema.Array(Schema.Struct({ name: Schema.String })),
@@ -317,26 +311,14 @@ export class GitReleases extends Context.Service<
         repo: GitManagedRepo,
         settings: ReleaseSettings,
       ) {
-        const metadata = yield* github
-          .json(["api", `repos/${repo.github}/releases/latest`])
-          .pipe(
-            Effect.mapError(
-              (error) => new ReleaseError({ message: error.stderr }),
-            ),
-          );
-
-        const release = yield* Schema.decodeUnknownEffect(StableRelease)(
-          metadata,
-        ).pipe(
-          Effect.mapError(
-            (error) =>
-              new ReleaseError({
-                message: `Invalid stable release metadata: ${formatCause(error)}`,
-              }),
-          ),
+        const release = yield* latestStableRelease(repo.github).pipe(
+          Effect.provideService(GitHub, github),
         );
 
-        if (release.draft || release.prerelease || !release.published_at)
+        if (
+          release &&
+          (release.draft || release.prerelease || !release.published_at)
+        )
           return yield* new ReleaseError({
             message: "No published stable release is available",
           });
@@ -354,7 +336,8 @@ export class GitReleases extends Context.Service<
               ),
             );
 
-        yield* runGit(["check-ref-format", `refs/tags/${release.tag_name}`]);
+        if (release)
+          yield* runGit(["check-ref-format", `refs/tags/${release.tag_name}`]);
         yield* runGit(["check-ref-format", `refs/heads/${settings.branch}`]);
         const prefix = `refs/dot/git-releases/${evidenceId(repo.github)}`;
 
@@ -374,15 +357,19 @@ export class GitReleases extends Context.Service<
           "--no-tags",
           "--no-recurse-submodules",
           `git@github.com:${repo.github}.git`,
-          `+refs/tags/${release.tag_name}:${prefix}/release`,
+          ...(release
+            ? [`+refs/tags/${release.tag_name}:${prefix}/release`]
+            : []),
           `+refs/heads/${settings.branch}:${prefix}/head`,
         ]);
 
-        const releaseCommit = (yield* runGit([
-          "rev-parse",
-          "--verify",
-          `${prefix}/release^{commit}`,
-        ])).trim();
+        const releaseCommit = release
+          ? (yield* runGit([
+              "rev-parse",
+              "--verify",
+              `${prefix}/release^{commit}`,
+            ])).trim()
+          : null;
 
         const head = (yield* runGit([
           "rev-parse",
@@ -390,13 +377,15 @@ export class GitReleases extends Context.Service<
           `${prefix}/head^{commit}`,
         ])).trim();
 
-        const ancestor = yield* executor.exitCode(
-          "git",
-          ["merge-base", "--is-ancestor", releaseCommit, head],
-          { cwd: repo.path },
-        );
-
-        if (ancestor !== 0)
+        if (
+          release &&
+          releaseCommit !== null &&
+          (yield* executor.exitCode(
+            "git",
+            ["merge-base", "--is-ancestor", releaseCommit, head],
+            { cwd: repo.path },
+          )) !== 0
+        )
           return yield* new ReleaseError({
             message: `Published release ${release.tag_name} is not an ancestor of ${settings.branch}, or history is unavailable`,
           });
@@ -501,14 +490,17 @@ export class GitReleases extends Context.Service<
           repo: repo.github,
           name: repo.name,
           branch: settings.branch,
-          releaseTag: release.tag_name,
+          releaseTag: release?.tag_name ?? null,
           releaseCommit,
           head,
           checkedAt: new Date(now).toISOString(),
           policyId: policyIdentity(settings),
           comparisonId: "",
           notificationId: "",
-          url: `https://github.com/${repo.github}/compare/${releaseCommit}...${head}`,
+          url:
+            releaseCommit === null
+              ? `https://github.com/${repo.github}/commits/${head}`
+              : `https://github.com/${repo.github}/compare/${releaseCommit}...${head}`,
           commits: changes.commits,
           findings,
           files: changes.files,

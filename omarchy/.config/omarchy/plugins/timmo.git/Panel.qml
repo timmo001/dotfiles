@@ -320,7 +320,7 @@ Panel {
   }
 
   function releaseDetail(entry) {
-    return (entry.snapshot ? entry.snapshot.releaseTag + " → " + entry.branch + " · " + entry.snapshot.suggestion : entry.branch + " · not checked")
+    return (entry.snapshot ? (entry.snapshot.releaseTag || "unreleased") + " → " + entry.branch + " · " + entry.snapshot.suggestion : entry.branch + " · not checked")
       + (entry.stale ? " · stale" : "") + (entry.needsAttention ? " · release candidate" : "")
   }
 
@@ -553,7 +553,7 @@ Panel {
     else if (action === "release-publish") service.openRelease(selectedRelease, modifiers)
     else if (action === "release-choice") { selectedImpactView = view; showView(action) }
     else if (["release-prepare", "release-commits"].indexOf(action) >= 0) showView(action)
-    else if (action === "release-evidence") service.openEvidence(view === "finding" ? findingUrl(selectedFinding) : (releaseSnapshot ? "https://github.com/" + releaseSnapshot.repo + "/compare/" + releaseSnapshot.releaseCommit + "...HEAD" : ""), selectedRelease, modifiers)
+    else if (action === "release-evidence") service.openEvidence(view === "finding" ? findingUrl(selectedFinding) : (releaseSnapshot ? "https://github.com/" + releaseSnapshot.repo + (releaseSnapshot.releaseCommit ? "/compare/" + releaseSnapshot.releaseCommit + "...HEAD" : "/commits/" + releaseSnapshot.branch) : ""), selectedRelease, modifiers)
     else if (action.indexOf("impact:") === 0) service.releaseAction(selectedRelease, view === "finding" ? selectedFindingId : "overall", action.slice(7))
     else if (action === "back" && view === "agent") showView(selectedAgentView)
     else if (action === "back" && releaseView) showView(view === "releases" ? "overview" : (view === "release" ? selectedReleaseView : (view === "finding" && selectedFindingGroup ? "finding-group" : (view === "release-choice" ? selectedImpactView : "release"))))

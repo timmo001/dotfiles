@@ -550,12 +550,28 @@ function parseNumstat(output: string): Map<string, number | null> {
   return counts;
 }
 
+/** Diff base and log range; a first release compares the empty tree with the full history. */
+const baseline = Effect.fn("releases.baseline")(function* (
+  cwd: string,
+  before: string | null,
+  after: string,
+) {
+  return {
+    tree:
+      before ??
+      (yield* git(cwd, ["hash-object", "-t", "tree", "/dev/null"])).trim(),
+    revisions: before === null ? after : `${before}..${after}`,
+  };
+});
+
 const range = Effect.fn("releases.range")(function* (
   cwd: string,
-  before: string,
+  before: string | null,
   after: string,
   submodule: string | null,
 ) {
+  const base = yield* baseline(cwd, before, after);
+
   const diff = yield* git(cwd, [
     "diff",
     "--raw",
@@ -565,7 +581,7 @@ const range = Effect.fn("releases.range")(function* (
     "--no-textconv",
     "--ignore-submodules=none",
     "-M",
-    before,
+    base.tree,
     after,
     "--",
   ]);
@@ -574,7 +590,7 @@ const range = Effect.fn("releases.range")(function* (
     "log",
     "-z",
     "--format=%H%x00%s%x00%cI",
-    `${before}..${after}`,
+    base.revisions,
     "--",
   ]);
 
@@ -588,7 +604,7 @@ const range = Effect.fn("releases.range")(function* (
     "--no-indent-heuristic",
     "--ignore-submodules=none",
     "-M",
-    before,
+    base.tree,
     after,
     "--",
   ]);
@@ -712,7 +728,7 @@ function blameLines(output: string): BlamedLine[] {
 export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
   function* (
     cwd: string,
-    before: string,
+    before: string | null,
     after: string,
     facts: readonly ReleaseFact[],
     commits: readonly ReleaseCommit[],
@@ -732,9 +748,10 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
       )
     )
       return facts;
+    const base = yield* baseline(cwd, before, after);
 
     const graph = new Map(
-      (yield* git(cwd, ["rev-list", "--parents", `${before}..${after}`]))
+      (yield* git(cwd, ["rev-list", "--parents", base.revisions]))
         .trim()
         .split("\n")
         .filter(Boolean)
@@ -932,7 +949,7 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
         for (const parent of graph.get(commit) ?? [])
           if (
             (yield* lineDiff(
-              before,
+              base.tree,
               parent,
               fact.path,
               fact.previousPath,
@@ -967,7 +984,7 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
           owners = yield* valueOwners(fact);
         else {
           const net = yield* lineDiff(
-            before,
+            base.tree,
             after,
             fact.path,
             fact.previousPath,
@@ -1033,7 +1050,7 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
 /** Collect complete local and configured upstream comparisons without checking out files. */
 export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
   cwd: string,
-  before: string,
+  before: string | null,
   after: string,
   settings: ReleaseSettings,
   cacheDirectory: string,
@@ -1077,7 +1094,7 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
             message: `No upstream shipped-content policy for ${fact.path}`,
           });
 
-        if (!fact.before || !fact.after)
+        if (!fact.before || !fact.after || before === null)
           return yield* new ReleaseError({
             message: `Submodule added or removed: ${fact.path}; upstream comparison needs review`,
           });

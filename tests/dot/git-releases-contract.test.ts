@@ -65,7 +65,7 @@ test("release confirmation binds the reviewed head and recipe before any write",
 
   const github = GitHub.of({
     isAvailable: Effect.succeed(true),
-    json: () => Effect.succeed({ tag_name: "1.0.0", draft: false, prerelease: false }),
+    json: () => Effect.succeed({ tag_name: "1.0.0", draft: false, prerelease: false, published_at: "2026-09-01T00:00:00Z" }),
     api: () => Effect.die("Unexpected API call"),
     run: () => {
       writes.push("release");
@@ -123,7 +123,7 @@ test("release notes files are bound to the plan and applied straight after creat
 
   const github = GitHub.of({
     isAvailable: Effect.succeed(true),
-    json: (args) => Effect.succeed(args[0] === "release" ? { body: "## What's Changed\n\n* Generated" } : { tag_name: "1.0.0", draft: false, prerelease: false }),
+    json: (args) => Effect.succeed(args[0] === "release" ? { body: "## What's Changed\n\n* Generated" } : { tag_name: "1.0.0", draft: false, prerelease: false, published_at: "2026-09-01T00:00:00Z" }),
     api: () => Effect.die("Unexpected API call"),
     run: (args) => {
       releaseCalls.push([...args]);
@@ -247,7 +247,7 @@ test("UTC midnight invalidates the CalVer preview confirmation without writing",
 
   const github = GitHub.of({
     isAvailable: Effect.succeed(true),
-    json: () => Effect.succeed({ tag_name: current.releaseTag, draft: false, prerelease: false }),
+    json: () => Effect.succeed({ tag_name: current.releaseTag, draft: false, prerelease: false, published_at: "2026-09-01T00:00:00Z" }),
     api: () => Effect.die("Unexpected API call"), run: () => Effect.die("Unexpected release"),
   });
 
@@ -355,7 +355,7 @@ test("prepared Python and JSON writes are exact and validation cannot widen the 
       });
       const github = GitHub.of({
         isAvailable: Effect.succeed(true),
-        json: () => Effect.succeed({ tag_name: "1.0.0", draft: false, prerelease: false }),
+        json: () => Effect.succeed({ tag_name: "1.0.0", draft: false, prerelease: false, published_at: "2026-09-01T00:00:00Z" }),
         api: () => Effect.die("Unexpected API"), run: () => Effect.die("Unexpected release"),
       });
       const run = (confirmation) => Effect.runPromise(publishRelease(repo, config, snapshot, confirmation, () => Effect.void).pipe(Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github), Effect.provide(NodeServices.layer)));

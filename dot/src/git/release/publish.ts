@@ -64,8 +64,8 @@ export interface ReleasePlan {
   readonly branch: string;
   /** New stable release tag. */
   readonly tag: string;
-  /** Baseline for GitHub-generated release notes. */
-  readonly previousTag: string;
+  /** Baseline for GitHub-generated release notes, or null for the first release. */
+  readonly previousTag: string | null;
   /** Hand-written release notes bound to this plan, when supplied. */
   readonly notes?: ReleaseNotes;
   /** Ordered steps shown before confirmation. */
@@ -217,7 +217,65 @@ const StableRelease = Schema.Struct({
   tag_name: Schema.String,
   draft: Schema.Boolean,
   prerelease: Schema.Boolean,
+  published_at: Schema.NullOr(Schema.String),
 });
+
+const ReleasePages = Schema.Array(
+  Schema.Array(
+    Schema.Struct({ draft: Schema.Boolean, prerelease: Schema.Boolean }),
+  ),
+);
+
+/** Read the latest stable release, or null when the repository has never published one. */
+export const latestStableRelease = Effect.fn("releases.latestStable")(
+  function* (repo: string) {
+    const github = yield* GitHub;
+
+    const latest = yield* github
+      .json(["api", `repos/${repo}/releases/latest`])
+      .pipe(
+        Effect.mapError((error) => new ReleaseError({ message: error.stderr })),
+        Effect.flatMap(Schema.decodeUnknownEffect(StableRelease)),
+        Effect.catchIf(
+          (error) =>
+            error instanceof ReleaseError && /\(HTTP 404\)/.test(error.message),
+          () => Effect.succeed(null),
+        ),
+        Effect.mapError((error) =>
+          error instanceof ReleaseError
+            ? error
+            : new ReleaseError({ message: formatCause(error) }),
+        ),
+      );
+
+    if (latest) return latest;
+
+    // GitHub also returns 404 when stable releases exist but none is marked latest.
+    const pages = yield* github
+      .json([
+        "api",
+        `repos/${repo}/releases?per_page=100`,
+        "--paginate",
+        "--slurp",
+      ])
+      .pipe(
+        Effect.mapError((error) => new ReleaseError({ message: error.stderr })),
+        Effect.flatMap(Schema.decodeUnknownEffect(ReleasePages)),
+        Effect.mapError((error) =>
+          error instanceof ReleaseError
+            ? error
+            : new ReleaseError({ message: formatCause(error) }),
+        ),
+      );
+
+    if (pages.flat().some((release) => !release.draft && !release.prerelease))
+      return yield* new ReleaseError({
+        message: "GitHub has stable releases, but none is marked as the latest",
+      });
+
+    return null;
+  },
+);
 
 /** Increment a stable SemVer tag using the reviewed consumer impact. */
 export function nextReleaseTag(snapshot: ReleaseSnapshot): string;
@@ -253,6 +311,20 @@ export function nextReleaseTag(
           "Choose a release impact and refresh the upstream base with fork settings before creating a release",
       });
 
+    if (
+      !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(
+        snapshot.upstreamBase,
+      ) ||
+      !semver.valid(snapshot.upstreamBase)
+    )
+      throw new ReleaseError({
+        message:
+          "The recorded upstream base must be a bare plain SemVer version; refresh the comparison",
+      });
+
+    if (snapshot.releaseTag === null)
+      return `${snapshot.upstreamBase}-${fork.suffix}.0`;
+
     const match =
       /^((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))(?:-([0-9A-Za-z-]+)\.(0|[1-9]\d*))?$/.exec(
         snapshot.releaseTag,
@@ -267,16 +339,6 @@ export function nextReleaseTag(
         message: `The fork baseline must be bare X.Y.Z or X.Y.Z-${fork.suffix}.N, without a v prefix`,
       });
 
-    if (
-      !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(
-        snapshot.upstreamBase,
-      ) ||
-      !semver.valid(snapshot.upstreamBase)
-    )
-      throw new ReleaseError({
-        message:
-          "The recorded upstream base must be a bare plain SemVer version; refresh the comparison",
-      });
     const order = semver.compare(snapshot.upstreamBase, match[1]);
 
     if (order < 0)
@@ -299,11 +361,18 @@ export function nextReleaseTag(
   }
 
   if (versioning === "calver") {
-    const match = /^(v?)(\d{4})(\d{2})(\d{2})\.(0|[1-9]\d*)$/.exec(
-      snapshot.releaseTag,
-    );
-
     const now = new Date(timestamp ?? NaN);
+
+    if (
+      snapshot.releaseTag === null &&
+      snapshot.suggestion !== "none" &&
+      Number.isFinite(now.getTime())
+    )
+      return `${now.toISOString().slice(0, 10).replaceAll("-", "")}.0`;
+
+    const match = /^(v?)(\d{4})(\d{2})(\d{2})\.(0|[1-9]\d*)$/.exec(
+      snapshot.releaseTag ?? "",
+    );
 
     if (
       !match ||
@@ -345,8 +414,11 @@ export function nextReleaseTag(
     return `${match[1]}${today.replaceAll("-", "")}.${next}`;
   }
 
+  if (snapshot.releaseTag === null && snapshot.suggestion !== "none")
+    return snapshot.suggestion === "major" ? "1.0.0" : "0.1.0";
+
   const match = /^(v?)(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(
-    snapshot.releaseTag,
+    snapshot.releaseTag ?? "",
   );
 
   if (!match || snapshot.suggestion === "none")
@@ -455,21 +527,17 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
       "Checking the latest stable release, watched branch and new tag",
     );
 
-    const release = yield* github
-      .json(["api", `repos/${repo.github}/releases/latest`])
-      .pipe(
-        Effect.flatMap(Schema.decodeUnknownEffect(StableRelease)),
-        Effect.mapError(
-          (error) => new ReleaseError({ message: formatCause(error) }),
-        ),
-      );
+    const release = yield* latestStableRelease(repo.github);
+
+    const baseline = snapshot.releaseTag;
 
     const refs = (yield* git([
       "ls-remote",
       remote,
       `refs/heads/${settings.branch}`,
-      `refs/tags/${snapshot.releaseTag}`,
-      `refs/tags/${snapshot.releaseTag}^{}`,
+      ...(baseline === null
+        ? []
+        : [`refs/tags/${baseline}`, `refs/tags/${baseline}^{}`]),
       `refs/tags/${tag}`,
     ]))
       .trim()
@@ -479,12 +547,13 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
     const ref = (name: string) => refs.find(([, key]) => key === name)?.[0];
 
     if (
-      release.draft ||
-      release.prerelease ||
-      release.tag_name !== snapshot.releaseTag ||
+      (release?.tag_name ?? null) !== baseline ||
+      release?.draft ||
+      release?.prerelease ||
       ref(`refs/heads/${settings.branch}`) !== head ||
-      (ref(`refs/tags/${snapshot.releaseTag}^{}`) ??
-        ref(`refs/tags/${snapshot.releaseTag}`)) !== snapshot.releaseCommit
+      (baseline !== null &&
+        (ref(`refs/tags/${baseline}^{}`) ?? ref(`refs/tags/${baseline}`)) !==
+          snapshot.releaseCommit)
     )
       return yield* new ReleaseError({
         message:
@@ -523,7 +592,9 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
         catch: (error) => new ReleaseError({ message: formatCause(error) }),
       });
 
+      // A first release adopts whatever version the files already carry.
       if (
+        snapshot.releaseTag !== null &&
         ![snapshot.releaseTag.replace(/^v/, ""), version].includes(
           manifest.before,
         )
@@ -555,6 +626,11 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
   ]);
 
   const logPath = join(releasePaths(repo.github).state, `publish-${id}.log`);
+
+  const generatedSince =
+    snapshot.releaseTag === null
+      ? "covering the full history"
+      : `starting at ${snapshot.releaseTag}`;
 
   const steps = [
     ...(needsPreparation
@@ -594,8 +670,8 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
     notes?.mode === "replace"
       ? `Create and publish GitHub release ${tag} at the resulting commit, using only the release notes from ${notes.file}.`
       : notes
-        ? `Create and publish GitHub release ${tag} at the resulting commit with the release notes from ${notes.file} followed by GitHub-generated notes starting at ${snapshot.releaseTag}, applied straight after creation.`
-        : `Create and publish GitHub release ${tag} at the resulting commit, with GitHub-generated notes starting at ${snapshot.releaseTag}.`,
+        ? `Create and publish GitHub release ${tag} at the resulting commit with the release notes from ${notes.file} followed by GitHub-generated notes ${generatedSince}, applied straight after creation.`
+        : `Create and publish GitHub release ${tag} at the resulting commit, with GitHub-generated notes ${generatedSince}.`,
     "Publishing the release triggers the repository's release workflows. Their build/package results are available on GitHub Actions.",
     ...(needsPreparation
       ? [
@@ -845,7 +921,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
     yield* progress(
       notes?.mode === "replace"
         ? `Creating GitHub release ${tag} at ${target} with the notes from ${notes.file}`
-        : `Creating GitHub release ${tag} at ${target} with generated notes since ${snapshot.releaseTag}`,
+        : `Creating GitHub release ${tag} at ${target} with generated notes ${generatedSince}`,
     );
 
     const notesPath = join(releasePaths(repo.github).state, `notes-${id}.md`);
@@ -872,7 +948,12 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
           "--verify-tag",
           ...(notes?.mode === "replace"
             ? ["--notes-file", notesPath]
-            : ["--generate-notes", "--notes-start-tag", snapshot.releaseTag]),
+            : [
+                "--generate-notes",
+                ...(snapshot.releaseTag === null
+                  ? []
+                  : ["--notes-start-tag", snapshot.releaseTag]),
+              ]),
         ],
         { retries: 0 },
       )

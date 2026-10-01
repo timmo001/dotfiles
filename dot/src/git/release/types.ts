@@ -208,10 +208,10 @@ export const ReleaseSnapshot = Schema.Struct({
   name: Schema.String,
   /** Watched branch. */
   branch: Schema.String,
-  /** Published stable release tag. */
-  releaseTag: Schema.String,
-  /** Peeled immutable release commit. */
-  releaseCommit: Schema.String,
+  /** Published stable release tag, or null before the first release. */
+  releaseTag: Schema.NullOr(Schema.String),
+  /** Peeled immutable release commit, or null before the first release. */
+  releaseCommit: Schema.NullOr(Schema.String),
   /** Immutable compared branch commit. */
   head: Schema.String,
   /** Newest plain upstream SemVer tag reachable from head, without a v prefix. */
