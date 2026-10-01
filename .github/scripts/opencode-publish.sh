@@ -7,13 +7,13 @@
 #   PUBLISH_REPO           - owner/repo of the target publish repo (e.g. timmo001/opencode-config)
 #   SKILLS_REPO            - owner/repo of the shared skills source (e.g. timmo001/skills)
 #   OPENCODE_SOURCE_PREFIX - OpenCode config path within dotfiles (e.g. agents/.config/opencode)
-#   SKILLS_SOURCE_PREFIX   - shared skills path within dotfiles (e.g. agents/.agents/skills)
+#   SKILLS_SOURCE_PREFIX   - local checkout of the skills repository's main branch (e.g. _skills)
 #   SOURCE_BRANCH          - branch name in dotfiles repo (e.g. distro/arch-omarchy)
 #   PUBLISH_DIR            - local checkout of the publish repo
 set -euo pipefail
 
 OPENCODE_SOURCE_PREFIX="${OPENCODE_SOURCE_PREFIX:-${SOURCE_PREFIX:-agents/.config/opencode}}"
-SKILLS_SOURCE_PREFIX="${SKILLS_SOURCE_PREFIX:-agents/.agents/skills}"
+SKILLS_SOURCE_PREFIX="${SKILLS_SOURCE_PREFIX:-_skills}"
 SKILLS_REPO="${SKILLS_REPO:-${DOTFILES_REPO%/*}/skills}"
 CONFIG_DIR="${OPENCODE_SOURCE_PREFIX}"
 SKILLS_DIR="${SKILLS_SOURCE_PREFIX}"
@@ -261,8 +261,8 @@ EOF
 ## Publishing
 
 This repo is published automatically via GitHub Actions when the OpenCode config
-[\`${OPENCODE_SOURCE_PREFIX}/\`](${OPENCODE_SOURCE_URL}) or the pinned
-[\`${SKILLS_REPO}\`](${SKILLS_URL}) revision changes.
+[\`${OPENCODE_SOURCE_PREFIX}/\`](${OPENCODE_SOURCE_URL}) changes, and daily to
+follow the latest [\`${SKILLS_REPO}\`](${SKILLS_URL}) \`main\`.
 EOF
   } >"${OUTPUT_DIR}/README.md"
 }
@@ -373,7 +373,7 @@ sync_to_publish() {
     rsync -a --exclude node_modules "${CONFIG_DIR}/${dir}" "${PUBLISH_DIR}/"
   done
 
-  # Keep skills as a pinned reference to their independent source repository.
+  # Pin skills to the main revision checked out for this run.
   if [[ ! -d "${PUBLISH_DIR}/skills/.git" && ! -f "${PUBLISH_DIR}/skills/.git" ]]; then
     git -C "${PUBLISH_DIR}" submodule add --force "${SKILLS_URL}.git" skills
   fi

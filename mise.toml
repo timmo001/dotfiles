@@ -6,7 +6,7 @@ bun = "1.4.2"
 
 [tasks.lint]
 description = "Lint owned TypeScript and JavaScript with Oxlint"
-run = "bunx oxlint --type-aware --ignore-pattern agents/.agents/skills"
+run = "bunx oxlint --type-aware"
 
 [tasks."lint:actions"]
 description = "Run the required ActionLint check on tracked source"

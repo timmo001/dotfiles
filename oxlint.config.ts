@@ -25,6 +25,5 @@ export default defineConfig({
     "docs/**",
     "node_modules/**",
     "omarchy/.config/omarchy/plugins/**",
-    "agents/.agents/skills/**",
   ],
 });
