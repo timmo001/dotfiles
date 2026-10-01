@@ -76,7 +76,7 @@ Panel {
       var plannotator = actionRow("commit-review-patch", "Review in Plannotator…", "󰈈")
       plannotator.secondaryText = "Quick review of the commit patch, feedback goes to an agent"
       var plannotatorFull = actionRow("commit-review-worktree", "Review in Plannotator with full context…", plannotator.icon)
-      plannotatorFull.secondaryText = "Review a temporary checkout of the commit, feedback goes to an agent"
+      plannotatorFull.secondaryText = "Review a temporary checkout, feedback goes to an agent"
       var guide = actionRow("commit-guide", "Generate Plannotator guide…", "󱚣")
       guide.secondaryText = "Ask an agent to write a Guided Review of this commit"
       rows.push(actionRow("commit-web", "Open on GitHub", ""), diff, plannotator, plannotatorFull, guide)
