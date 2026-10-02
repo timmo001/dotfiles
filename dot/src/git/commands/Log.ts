@@ -6,7 +6,7 @@ import { Config } from "../../services/Config.js";
 import { managedGitRepos } from "../../services/GitConfig.js";
 import { formatCommandError, handleCommandError } from "./rows.js";
 
-const COMMIT_LIMIT = 20;
+const COMMIT_LIMIT = 40;
 
 const LogCommit = Schema.Struct({
   sha: Schema.String,

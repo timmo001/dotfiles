@@ -61,8 +61,8 @@ Panel {
   property string contextCursorKey: ""
   property var selectedCommit: null
   property string selectedCommitAgentTask: "guide"
-  readonly property int overviewCommitLimit: 8
-  readonly property int repoCommitLimit: 15
+  readonly property int overviewCommitLimit: 20
+  readonly property int repoCommitLimit: 40
   readonly property var selectedLogRepo: service && selectedRepo ? service.logRepository(String(selectedRepo.path || "")) : null
   readonly property var filteredLogRows: filterController.filteredModel.filter(function(row) { return row.section === "log" && row.kind !== "header-action" })
 
