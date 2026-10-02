@@ -239,19 +239,21 @@ export const fansRun = Effect.gen(function* () {
       yield* Effect.gen(function* () {
         const client = yield* BridgeClient;
 
-        yield* client.WatchEntity({ entityId: config.entity }).pipe(
-          Stream.runForEach(({ state: { state } }) => {
-            const temperature = Number(state);
+        yield* client
+          .WatchEntities({ target: { entity_id: config.entity } })
+          .pipe(
+            Stream.runForEach(({ state: { state } }) => {
+              const temperature = Number(state);
 
-            return Ref.set(received, true).pipe(
-              Effect.andThen(
-                state.trim() !== "" && Number.isFinite(temperature)
-                  ? control(temperature)
-                  : fallback(`${config.entity} is ${state || "empty"}`),
-              ),
-            );
-          }),
-        );
+              return Ref.set(received, true).pipe(
+                Effect.andThen(
+                  state.trim() !== "" && Number.isFinite(temperature)
+                    ? control(temperature)
+                    : fallback(`${config.entity} is ${state || "empty"}`),
+                ),
+              );
+            }),
+          );
       }).pipe(Effect.provide(BridgeClient.layer(socketPath)));
     }).pipe(Effect.result);
 

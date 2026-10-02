@@ -121,7 +121,7 @@ find_bar_ancestor_pid() {
 }
 
 build_watch_command() {
-  WATCH_CMD=(ha-bridge watch entity --bar-json)
+  WATCH_CMD=(ha-bridge watch --bar-json)
 
   if [[ -n "$ICON" ]]; then
     WATCH_CMD+=(--icon "$ICON")

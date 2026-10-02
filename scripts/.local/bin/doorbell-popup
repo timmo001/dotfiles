@@ -200,7 +200,7 @@ watch_motion() {
 
   while true; do
     coproc MOTION_WATCH {
-      exec ha-bridge watch entity --bar-json --icon '' "$MOTION_ENTITY" 2>/dev/null
+      exec ha-bridge watch --bar-json --icon '' "$MOTION_ENTITY" 2>/dev/null
     }
 
     watch_pid="${MOTION_WATCH_PID:-}"

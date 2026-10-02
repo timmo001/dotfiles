@@ -7,7 +7,7 @@
       "dependencies": {
         "@effect/platform-node": "4.0.0",
         "@timmo001/effect-gh": "0.3.0",
-        "@timmo001/effect-ha-bridge": "0.3.0",
+        "@timmo001/effect-ha-bridge": "1.0.0",
         "@timmo001/effect-herdr": "0.8.2-timmo001.3",
         "effect": "4.0.0",
         "fast-xml-parser": "^5.11.1",
@@ -68,9 +68,9 @@
 
     "@timmo001/effect-gh": ["@timmo001/effect-gh@0.3.0", "", { "peerDependencies": { "effect": "4.0.0-rc.118" } }, "sha512-wGkfnPZqJyN73p4DzW58ejAfHp3FPauyEAAIYb91rRvwVLTYEay9hLjE2ozE4MoSeNfNPQiQd9DGRHcjhMafsg=="],
 
-    "@timmo001/effect-ha": ["@timmo001/effect-ha@0.3.0", "", { "peerDependencies": { "effect": "4.0.0" } }, "sha512-Cf8WhqGgvpPBGqbSELr1uWzR2Le0N+FJNjy4CVRiIPdj1tOev+DXYe0Sz13lMDZb3YtD8pdktra4whSqtYKAHA=="],
+    "@timmo001/effect-ha": ["@timmo001/effect-ha@1.0.0", "", { "peerDependencies": { "effect": "4.0.0" } }, "sha512-dV9/JtWyBV9rGZlXwMbPpjBGMJ0v7S0hEXpgQLGGYnU8t5rBvTZiR+GUamUG/3hqBK+WVvdOkRomr1WFZ9LJcA=="],
 
-    "@timmo001/effect-ha-bridge": ["@timmo001/effect-ha-bridge@0.3.0", "", { "dependencies": { "@effect/platform-node-shared": "4.0.0", "@timmo001/effect-ha": "0.3.0" }, "peerDependencies": { "effect": "4.0.0" } }, "sha512-kLb5DPTO63dwNg2JzjcIRiJYZavhoLIDFQL4Wjxjg1HEWXFtNJ1Hb2Fx9LVMu5En5qU+uCat1AvtCB8MM854lA=="],
+    "@timmo001/effect-ha-bridge": ["@timmo001/effect-ha-bridge@1.0.0", "", { "dependencies": { "@effect/platform-node-shared": "4.0.0", "@timmo001/effect-ha": "1.0.0" }, "peerDependencies": { "effect": "4.0.0" } }, "sha512-ytka0KkYK1Z8jvlTmiEv3Tj6IiWsrQzAwtQ9KlYgXyGFSTlz6wyrTPa6K7dCGyuTKlkgVuwDe7ryDUDZG4CQcA=="],
 
     "@timmo001/effect-herdr": ["@timmo001/effect-herdr@0.8.2-timmo001.3", "", { "dependencies": { "@effect/platform-node-shared": "4.0.0-rc.118", "ajv": "^8.20.0", "effect": "4.0.0-rc.118" } }, "sha512-/N8AwNOZtKuXOZ3ZfeJTJEoS9roMmwS7t1lhPuP4YOEdZP25dTBngd2dT2oGfZMDzzprO1cU6vCzTY9VwK9RUQ=="],
 

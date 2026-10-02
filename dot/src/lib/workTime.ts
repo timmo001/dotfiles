@@ -52,11 +52,13 @@ const calendarLeave = Effect.fn("workTime.calendarLeave")(function* (
     ),
   );
 
+  const eventsByCalendar = yield* getCalendarEvents(
+    { entity_id: config.calendars.map((calendar) => calendar.entity_id) },
+    { start: new Date(now), end: new Date(now + 1000) },
+  );
+
   for (const calendar of config.calendars) {
-    const events = yield* getCalendarEvents(calendar.entity_id, {
-      start: new Date(now),
-      end: new Date(now + 1000),
-    });
+    const events = eventsByCalendar[calendar.entity_id] ?? [];
 
     for (const event of events) {
       const title = event.summary.trim().toLowerCase();
