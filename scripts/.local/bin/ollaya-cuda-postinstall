@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# mise postinstall for github:ollaya-dev/ollaya: add the CUDA libraries on
+# machines with an NVIDIA driver, mirroring Ollaya's install.sh.
+set -euo pipefail
+
+command -v nvidia-smi >/dev/null 2>&1 || exit 0
+driver=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -n1) || exit 0
+[[ -n $driver ]] || exit 0
+
+prefix=${MISE_TOOL_INSTALL_PATH:?MISE_TOOL_INSTALL_PATH is not set}
+tag=v$(basename "$prefix")
+
+# CUDA 13 needs driver R580 or newer.
+if ((${driver%%.*} >= 580)); then
+  pack=cuda_v13 archive=ollaya-linux-amd64-cuda.tar.zst
+else
+  pack=cuda_v12 archive=ollaya-linux-amd64-cuda12.tar.zst
+fi
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+echo "Downloading Ollaya $tag CUDA libraries ($pack)"
+base=https://github.com/ollaya-dev/ollaya/releases/download/$tag
+curl -fsSL -o "$tmp/sha256sum.txt" "$base/sha256sum.txt"
+curl -fL --progress-bar -o "$tmp/$archive" "$base/$archive"
+(cd "$tmp" && grep " $archive\$" sha256sum.txt | sha256sum -c --quiet -)
+
+zstd -dc "$tmp/$archive" | tar -xf - -C "$prefix"
+[[ -f $prefix/lib/ollaya/$pack/libonnxruntime_providers_cuda.so ]] || {
+  echo "$archive did not contain lib/ollaya/$pack" >&2
+  exit 1
+}

@@ -53,6 +53,12 @@ minimum_release_age = "2h"
 version = "0.27.25"
 minimum_release_age = "2h"
 
+# Base build; the postinstall adds the CUDA libraries when an NVIDIA driver is present.
+[tools."github:ollaya-dev/ollaya"]
+version = "0.8.0"
+asset_pattern = "ollaya-linux-amd64.tar.zst"
+postinstall = "ollaya-cuda-postinstall"
+
 # Read this machine's current gh token without invoking mise or its shims.
 # Search inside release archives too; gh's binary can sit below a platform directory.
 [settings.github]
