@@ -108,7 +108,7 @@ o.bind("SUPER + Y", "YouTube", [[omarchy-launch-webapp "https://www.youtube.com/
 o.bind("SUPER + ALT + X", "X Notifications", [[omarchy-launch-webapp "https://twitter.com/notifications"]])
 o.bind("SUPER + ALT + T", "Twitch", [[omarchy-launch-webapp "https://twitch.tv/directory/following/live"]])
 hl.unbind("SUPER + ALT + G")
-o.bind("SUPER + CTRL + G", "Move active window out of group", hl.dsp.window.move({ out_of_group = true }))
+o.bind("SUPER + CTRL + SHIFT + G", "Move active window out of group", hl.dsp.window.move({ out_of_group = true }))
 o.bind("SUPER + ALT + G", "GitHub Notifications", [[omarchy-launch-webapp "https://github.com/notifications"]])
 o.bind("SUPER + D", "Discord", discord)
 
@@ -141,6 +141,8 @@ o.bind("SUPER + CTRL + T", "Clock", "omarchy-shell shell toggle timmo.clock")
 -- No scratchpad
 hl.unbind("SUPER + S")
 hl.unbind("SUPER + ALT + S")
+hl.unbind("SUPER + CTRL + S")
+o.bind("SUPER + S", "Share", "omarchy-menu toggle share")
 
 -- Precise window resizing (fractional, like 1% volume with ALT)
 hl.unbind("SUPER + ALT + code:20")
