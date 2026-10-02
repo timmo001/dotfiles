@@ -27,6 +27,9 @@ const CalendarConfig = Schema.Struct({
         Schema.isPattern(/^calendar\.[a-z0-9_]+$/),
       ),
       summaries: Schema.optionalKey(Schema.Array(Schema.NonEmptyString)),
+      summaries_contain: Schema.optionalKey(
+        Schema.Array(Schema.NonEmptyString),
+      ),
     }),
   ),
 });
@@ -56,11 +59,16 @@ const calendarLeave = Effect.fn("workTime.calendarLeave")(function* (
     });
 
     for (const event of events) {
+      const title = event.summary.trim().toLowerCase();
+
       if (
-        calendar.summaries !== undefined &&
-        !calendar.summaries.some(
-          (summary) =>
-            summary.trim().toLowerCase() === event.summary.trim().toLowerCase(),
+        (calendar.summaries !== undefined ||
+          calendar.summaries_contain !== undefined) &&
+        !calendar.summaries?.some(
+          (summary) => summary.trim().toLowerCase() === title,
+        ) &&
+        !calendar.summaries_contain?.some((part) =>
+          title.includes(part.trim().toLowerCase()),
         )
       )
         continue;
