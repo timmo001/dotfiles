@@ -63,7 +63,7 @@ Panel {
   property string selectedCommitAgentTask: "guide"
   readonly property int overviewCommitLimit: 20
   readonly property int repoCommitLimit: 40
-  readonly property int logWindowHours: 24
+  readonly property int logWindowHours: 12
   property string logAllView: "overview"
   property string commitReturnView: "repo"
   readonly property bool logRepoMode: view === "repo" || (view === "commits" && logAllView === "repo")
@@ -261,15 +261,15 @@ Panel {
     return logRepoMode ? repoCommitLimit : overviewCommitLimit
   }
 
-  function logWindowCount() {
+  function logWindowEntries() {
     var since = Date.now() - logWindowHours * 3600000
-    return logEntries().filter(function(entry) { return Date.parse(entry.commit.date) >= since }).length
+    return logEntries().filter(function(entry) { return Date.parse(entry.commit.date) >= since })
   }
 
   function logHeadingCount() {
     var shown = filteredLogRows.filter(function(row) { return row.kind === "log" }).length
-    var recent = logWindowCount()
-    return shown + (recent >= shown ? " of " : " · ") + recent + " in the last " + logWindowHours + " hours"
+    var recent = logWindowEntries().length
+    return (shown === recent ? "" : shown + (recent > shown ? " of " : " · ")) + recent + " in the last " + logWindowHours + " hours"
   }
 
   function showAllCommits() {
@@ -280,7 +280,8 @@ Panel {
 
   function logRows() {
     var rows = [headerActionRow("log-refresh", "Refresh commit log", "log")]
-    var entries = logEntries()
+    var recent = logWindowEntries()
+    var entries = view === "commits" ? recent : logEntries()
     var limit = logLimit()
     entries.slice(0, limit).forEach(function(entry) {
       var commit = entry.commit
@@ -294,8 +295,8 @@ Panel {
       all.section = "log"
       rows.push(all)
     }
-    if (entries.length > limit) {
-      var remaining = entries.length - limit
+    if (recent.length > limit) {
+      var remaining = recent.length - limit
       var more = actionRow("log-more", "Show more", "󰇘")
       more.kind = "log-action"
       more.section = "log"
@@ -828,7 +829,7 @@ Panel {
             onBackHovered: filterController.cursorIndex = filterController.indexForKey("action:back")
             onBackActivated: root.activateAction("back")
             title: root.view === "commit" ? (root.selectedCommit ? root.selectedCommit.commit.subject : "Commit") : root.pullRequestView ? (root.view === "pulls" ? "All tracked repositories" : (root.selectedPullRequests ? root.selectedPullRequests.name : "Pull requests")) : root.releaseView ? (root.view === "releases" ? "All tracked repositories" : (root.selectedRelease ? root.selectedRelease.name : "Release review")) : (root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "commits" ? (root.logRepoMode && root.selectedRepo ? String(root.selectedRepo.name) : "Recent commits") : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other"))))))
-            meta: root.view === "commit" ? (root.selectedCommit ? root.selectedCommit.repo.name + " · " + root.selectedCommit.commit.sha.slice(0, 7) : "") : root.pullRequestView ? (root.view === "pull-repo" ? "Open pull requests · recently updated first" : "Pull request tracking") : root.releaseView ? (root.view === "finding-group" && root.selectedFindingGroup ? root.selectedFindingGroup.title : (root.view === "finding" ? "Finding evidence" : (root.view === "release-commits" ? "All commits" : "Local release review"))) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "commits" ? "All loaded commits" + (root.logRepoMode ? "" : " · all repositories") : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories"))))))
+            meta: root.view === "commit" ? (root.selectedCommit ? root.selectedCommit.repo.name + " · " + root.selectedCommit.commit.sha.slice(0, 7) : "") : root.pullRequestView ? (root.view === "pull-repo" ? "Open pull requests · recently updated first" : "Pull request tracking") : root.releaseView ? (root.view === "finding-group" && root.selectedFindingGroup ? root.selectedFindingGroup.title : (root.view === "finding" ? "Finding evidence" : (root.view === "release-commits" ? "All commits" : "Local release review"))) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "commits" ? "Last " + root.logWindowHours + " hours" + (root.logRepoMode ? "" : " · all repositories") : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories"))))))
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             iconComponent: Component {
