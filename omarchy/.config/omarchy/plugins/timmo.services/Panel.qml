@@ -267,7 +267,7 @@ Panel {
             }
           }
 
-          SectionHeading {
+          PanelComponents.SectionHeading {
             title: root.view === "agent" ? "Actions" : (filterController.filterText || "Registered")
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
