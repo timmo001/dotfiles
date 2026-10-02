@@ -8,7 +8,6 @@ import { HOME_DIR, STATE_DIR } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
 const TOPGRADE_UPDATES = [
-  ["Topgrade: GitHub CLI extensions", "github_cli_extensions", false],
   ["Topgrade: Yazi", "yazi", false],
   ["Topgrade: Mise", "mise", false],
   ["Topgrade: ProtonPlus", "protonplus", false],
@@ -23,7 +22,7 @@ const TOPGRADE_UPDATES = [
 ] as const;
 
 type UpdateChoice =
-  "dotfiles" | "omarchy" | (typeof TOPGRADE_UPDATES)[number][1];
+  "dotfiles" | "omarchy" | "github-cli" | (typeof TOPGRADE_UPDATES)[number][1];
 
 const UPDATE_CHOICES: ReadonlyArray<{
   readonly title: string;
@@ -32,6 +31,7 @@ const UPDATE_CHOICES: ReadonlyArray<{
 }> = [
   { title: "Dotfiles", value: "dotfiles", selected: true },
   { title: "Omarchy", value: "omarchy", selected: true },
+  { title: "GitHub CLI extensions", value: "github-cli", selected: true },
   ...TOPGRADE_UPDATES.map(([title, value, selected]) => ({
     title,
     value,
@@ -124,6 +124,22 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
         MISE_GLOBAL_CONFIG_FILE: join(STATE_DIR, "mise", "omarchy-config.toml"),
       });
     }
+
+    if (exitCode !== 0) {
+      process.exitCode = exitCode;
+
+      return;
+    }
+  }
+
+  if (selectedSet.has("github-cli")) {
+    section("GitHub CLI Extensions");
+
+    const exitCode = yield* runChild(
+      "gh",
+      ["extension", "upgrade", "--all"],
+      baseEnv,
+    );
 
     if (exitCode !== 0) {
       process.exitCode = exitCode;

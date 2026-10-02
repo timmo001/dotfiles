@@ -16,7 +16,9 @@ no_self_update = true
 # - system: skip OS package manager updates
 # - hyprpm: no plugins installed; it caches then drops sudo (sudo -k), which
 #   wipes the shared credential and forces omarchy update to re-auth
+# - github_cli_extensions: run natively by dot system-update
 disable = [
+  "github_cli_extensions",
   "cursor",
   "cursor_agent",
   "node",
