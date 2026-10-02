@@ -1,14 +1,16 @@
 import { join } from "node:path";
 import { BridgeClient, resolveSocketPath } from "@timmo001/effect-ha-bridge";
 import {
+  Cause,
   Clock,
   Console,
   Deferred,
+  Duration,
   Effect,
+  Exit,
   FileSystem,
   Option,
   Ref,
-  Result,
   Schema,
   Stream,
 } from "effect";
@@ -28,7 +30,9 @@ const STATUS_FILE = join(STATE_DIR, "dot", "fans", "status.json");
 
 const FIRST_READING_TIMEOUT = "30 seconds";
 
-const WATCH_RETRY = "15 seconds";
+const RETRY_MIN = 1_000;
+
+const RETRY_MAX = 60_000;
 
 const Percent = Schema.Int.check(
   Schema.isBetween({ minimum: 0, maximum: 100 }),
@@ -105,6 +109,7 @@ export const fansRun = Effect.gen(function* () {
   const config = yield* loadConfig;
   const stop = yield* Deferred.make<void>();
   const appliedSpeed = yield* Ref.make<Option.Option<number>>(Option.none());
+  const heldSpeed = yield* Ref.make<Option.Option<number>>(Option.none());
 
   const lastReport = yield* Ref.make<Option.Option<ReportedStatus>>(
     Option.none(),
@@ -199,6 +204,8 @@ export const fansRun = Effect.gen(function* () {
       failed.length === 0 ? Option.some(speed) : Option.none(),
     );
 
+    if (failed.length === 0) yield* Ref.set(heldSpeed, Option.some(speed));
+
     return failed;
   });
 
@@ -222,18 +229,27 @@ export const fansRun = Effect.gen(function* () {
     );
   });
 
+  /** Keep the last good speed while the bridge is away, else go to max. */
+  const hold = Effect.fn("Fans.hold")(function* (reason: string) {
+    const held = yield* Ref.get(heldSpeed);
+
+    if (Option.isNone(held)) return yield* fallback(reason);
+
+    yield* report("degraded", `Holding ${held.value}%: ${reason}`);
+  });
+
   const watch = Effect.gen(function* () {
     const received = yield* Ref.make(false);
 
     yield* Effect.sleep(FIRST_READING_TIMEOUT).pipe(
       Effect.andThen(Ref.get(received)),
       Effect.flatMap((seen) =>
-        seen ? Effect.void : fallback("no reading from Home Assistant"),
+        seen ? Effect.void : hold("no reading from Home Assistant"),
       ),
       Effect.forkScoped,
     );
 
-    const result = yield* Effect.gen(function* () {
+    const exit = yield* Effect.gen(function* () {
       const socketPath = yield* resolveSocketPath(Option.none());
 
       yield* Effect.gen(function* () {
@@ -255,24 +271,49 @@ export const fansRun = Effect.gen(function* () {
             }),
           );
       }).pipe(Effect.provide(BridgeClient.layer(socketPath)));
-    }).pipe(Effect.result);
+    }).pipe(Effect.exit);
 
-    if (Result.isFailure(result))
-      yield* Console.error(`[ERROR] ${result.failure.message}`);
+    if (Exit.isFailure(exit))
+      yield* Console.error(`[ERROR] ${Cause.pretty(exit.cause)}`);
 
-    yield* fallback(
-      Result.isFailure(result)
-        ? "Home Assistant bridge watch failed"
+    yield* hold(
+      Exit.isFailure(exit)
+        ? "Home Assistant bridge unavailable"
         : "Home Assistant bridge watch stopped",
     );
+
+    return yield* Ref.get(received);
   }).pipe(Effect.scoped);
+
+  // Reconnect with exponential backoff, resetting once readings flow again.
+  const reconnect = Effect.gen(function* () {
+    const delay = yield* Ref.make(RETRY_MIN);
+
+    while (true) {
+      const connected = yield* watch.pipe(
+        Effect.catchCause((cause) =>
+          Console.error(`[ERROR] ${Cause.pretty(cause)}`).pipe(
+            Effect.as(false),
+          ),
+        ),
+      );
+
+      if (connected) yield* Ref.set(delay, RETRY_MIN);
+
+      const wait = yield* Ref.getAndUpdate(delay, (ms) =>
+        Math.min(ms * 2, RETRY_MAX),
+      );
+
+      yield* Console.log(
+        `Reconnecting to Home Assistant bridge in ${wait / 1000}s`,
+      );
+      yield* Effect.sleep(Duration.millis(wait));
+    }
+  });
 
   yield* Console.log(
     `Controlling ${config.device} ${config.channels.join(", ")} from ${config.entity}`,
   );
 
-  yield* Effect.raceFirst(
-    watch.pipe(Effect.andThen(Effect.sleep(WATCH_RETRY)), Effect.forever),
-    Deferred.await(stop),
-  );
+  yield* Effect.raceFirst(reconnect, Deferred.await(stop));
 }).pipe(Effect.scoped, Effect.withSpan("Fans.run"));
