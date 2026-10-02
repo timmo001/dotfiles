@@ -20,8 +20,11 @@ import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import { cliStyler } from "../lib/ansi.js";
 import { plural } from "../lib/runSummary.js";
 import {
+  done,
   logRepoChanges,
   logUpdateSummary,
+  skip,
+  warn,
   writeUpdateSummary,
 } from "../lib/updateSummary.js";
 import {
@@ -132,7 +135,7 @@ export interface UpdateOptions {
   readonly app?: boolean;
   /** Run the initial self-update/restart phase before the selected phases. */
   readonly selfUpdate?: boolean;
-  /** Reload the shell and run the UI resume refresh after applying changes. */
+  /** Restart a changed shell and refresh shell modules after applying changes. */
   readonly reload?: boolean;
   /** Repository names already pulled before restart, for post-hook handling. */
   readonly postHookRepos?: readonly string[];
@@ -172,8 +175,10 @@ const repoStatus = (repo: DiffRepo, style: Styler): string => {
   return parts.length > 0 ? parts.join(", ") : style.dim("up to date");
 };
 
-const reloadUiHelperPath = (): string => {
-  return join(HOME_DIR, ".local", "bin", "reload-ui");
+const INIT_MARKER_RECAP: Record<InitCompleteMarkerStatus, RecapEntry> = {
+  created: done("Marked init state complete"),
+  exists: skip("Init state already complete"),
+  "in-progress": skip("Init state backfill skipped (init is in progress)"),
 };
 
 function logInitMarkerStatus(
@@ -603,12 +608,6 @@ const postHooks = Effect.gen(function* () {
   yield* agentsSync;
 });
 
-const done = (message: string): RecapEntry => ({ status: "done", message });
-
-const skip = (message: string): RecapEntry => ({ status: "skip", message });
-
-const warn = (message: string): RecapEntry => ({ status: "warn", message });
-
 const MiseToolVersions = Schema.fromJsonString(
   Schema.Record(
     Schema.String,
@@ -647,6 +646,12 @@ const listMissingMiseTools = Effect.gen(function* () {
   });
 }).pipe(Effect.orElseSucceed((): readonly MiseToolChange[] => []));
 
+/** Mise tool versions changed by a mise step, with its recap entry. */
+interface MiseStepResult {
+  readonly tools: readonly MiseToolChange[];
+  readonly recap: RecapEntry;
+}
+
 /**
  * Install missing home-level mise tools after checking with mise. Returns the
  * installed tools when an install ran (empty if they could not be listed).
@@ -660,7 +665,10 @@ const installMissingMiseTools = Effect.gen(function* () {
   if ((yield* executor.exitCode("which", ["mise"])) !== 0) {
     yield* log.warn("Skipping mise install (mise not installed)");
 
-    return Option.none();
+    return {
+      tools: [],
+      recap: warn("Mise install skipped (mise not installed)"),
+    } satisfies MiseStepResult;
   }
 
   const checkExitCode = yield* executor.exitCode(
@@ -674,7 +682,10 @@ const installMissingMiseTools = Effect.gen(function* () {
       "All global mise tools are installed; skipping mise install",
     );
 
-    return Option.none();
+    return {
+      tools: [],
+      recap: skip("No mise tools to install"),
+    } satisfies MiseStepResult;
   }
 
   if (checkExitCode !== 1) {
@@ -695,7 +706,13 @@ const installMissingMiseTools = Effect.gen(function* () {
     });
   }
 
-  return Option.some(tools);
+  return {
+    tools,
+    recap:
+      tools.length > 0
+        ? done(`Installed ${plural(tools.length, "mise tool")}`)
+        : done("Ran mise install"),
+  } satisfies MiseStepResult;
 });
 
 const MiseConfigTools = Schema.Struct({
@@ -730,7 +747,12 @@ const pruneRemovedMiseTools = Effect.gen(function* () {
 
   const current = yield* readMiseConfigTools;
 
-  if (Option.isNone(current)) return [];
+  if (Option.isNone(current)) {
+    return {
+      tools: [],
+      recap: skip("Mise prune skipped (global mise config unreadable)"),
+    } satisfies MiseStepResult;
+  }
 
   const previous = yield* fs.readFileString(snapshotPath).pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(MiseToolNames)),
@@ -746,7 +768,10 @@ const pruneRemovedMiseTools = Effect.gen(function* () {
   if (removed.length === 0) {
     yield* saveSnapshot;
 
-    return [];
+    return {
+      tools: [],
+      recap: skip("No mise tools to prune"),
+    } satisfies MiseStepResult;
   }
 
   const executor = yield* CommandExecutor;
@@ -776,7 +801,7 @@ const pruneRemovedMiseTools = Effect.gen(function* () {
   const after = yield* installedVersions;
   yield* saveSnapshot;
 
-  return removed.flatMap((tool) =>
+  const pruned = removed.flatMap((tool) =>
     (before[tool] ?? [])
       .filter(
         ({ version }) => !after[tool]?.some((kept) => kept.version === version),
@@ -787,6 +812,14 @@ const pruneRemovedMiseTools = Effect.gen(function* () {
         version,
       })),
   );
+
+  return {
+    tools: pruned,
+    recap:
+      pruned.length > 0
+        ? done(`Pruned ${plural(pruned.length, "mise tool version")}`)
+        : skip("No mise tool versions pruned (still in use)"),
+  } satisfies MiseStepResult;
 });
 
 /** Read the Herdr Lazy plugin root from `herdr plugin list --json`. */
@@ -831,7 +864,7 @@ const restoreHerdrPlugins = Effect.gen(function* () {
   if (!canRunHerdrSessionActions()) {
     yield* log.info("Skipping Herdr plugins (outside Herdr)");
 
-    return;
+    return skip("Herdr plugins skipped (outside Herdr)");
   }
 
   const pluginList = yield* executor
@@ -841,7 +874,7 @@ const restoreHerdrPlugins = Effect.gen(function* () {
   if (pluginList === null) {
     yield* log.warn("Skipping Herdr plugins (Herdr is unavailable)");
 
-    return;
+    return warn("Herdr plugins skipped (Herdr is unavailable)");
   }
 
   let pluginRoot = herdrLazyPluginRoot(pluginList);
@@ -882,7 +915,7 @@ const restoreHerdrPlugins = Effect.gen(function* () {
   if (!(yield* fs.exists(binary).pipe(Effect.orDie))) {
     yield* log.warn("Skipping Herdr plugins (Herdr Lazy binary is missing)");
 
-    return;
+    return warn("Herdr plugins skipped (Herdr Lazy binary is missing)");
   }
 
   const exitCode = yield* executor.inherit(binary, ["restore"]);
@@ -935,36 +968,63 @@ const restoreHerdrPlugins = Effect.gen(function* () {
   }
 
   yield* log.success("Herdr local plugins linked");
+
+  return done("Restored and linked Herdr plugins");
 });
 
-/** Reload the UI so status-bar services pick up update changes. */
-const runUiReload = Effect.gen(function* () {
+/** Shell IPC targets refreshed after an update. */
+const REFRESHED_SHELL_MODULES = [
+  "omarchy.indicators",
+  "omarchy.clock",
+  "timmo.git",
+] as const;
+
+/**
+ * Refresh shell modules and start the doctor check after an update, without
+ * restarting the shell or its daemons.
+ */
+const refreshShellModules = Effect.gen(function* () {
+  const config = yield* Config;
   const log = yield* OutputLog;
   const executor = yield* CommandExecutor;
-  const fs = yield* FileSystem.FileSystem;
-  const helper = reloadUiHelperPath();
 
-  yield* log.section("Reload UI");
+  yield* log.section("Refresh Shell Modules");
 
-  if (!(yield* fs.exists(helper).pipe(Effect.orDie))) {
-    yield* log.warn("Skipping reload-ui helper (not installed)");
+  if (config.omarchy.enabled) {
+    for (const target of REFRESHED_SHELL_MODULES) {
+      yield* executor.exitCode("omarchy-shell", ["-q", target, "refresh"]);
+    }
 
-    return;
+    yield* log.success("Requested shell module refresh");
   }
 
-  const exitCode = yield* executor.exitCode(helper, ["--no-auto-open"]);
+  const doctorExitCode = yield* executor.exitCode("systemctl", [
+    "--user",
+    "start",
+    "--no-block",
+    "dot-doctor.service",
+  ]);
 
-  if (exitCode !== 0) {
-    yield* log.warn(`Reload UI helper failed (exit ${exitCode})`);
+  if (doctorExitCode !== 0) {
+    yield* log.warn(
+      `dot doctor check failed to start (exit ${doctorExitCode})`,
+    );
 
-    return;
+    return warn(`dot doctor check failed to start (exit ${doctorExitCode})`);
   }
 
-  yield* log.success("On-resume helper started");
+  yield* log.success("Started dot doctor check");
+
+  return done(
+    config.omarchy.enabled
+      ? "Refreshed shell modules and started the doctor check"
+      : "Started the doctor check",
+  );
 });
 
 /**
- * Reload the running Omarchy shell after its generated `shell.json` changed.
+ * Restart the running Omarchy shell after its generated `shell.json` or a
+ * deployed plugin changed.
  *
  * Restarts the shell so it reloads the generated layout and discovers any new
  * plugins. Runs `omarchy` via the dispatcher and forces `QT_QPA_PLATFORM=wayland` on the
@@ -979,7 +1039,8 @@ const reloadOmarchyShell = Effect.gen(function* () {
   const log = yield* OutputLog;
   const executor = yield* CommandExecutor;
 
-  if (!config.omarchy.enabled) return;
+  if (!config.omarchy.enabled)
+    return skip("Shell reload skipped (Omarchy disabled)");
 
   yield* log.section("Reload Shell");
 
@@ -992,17 +1053,23 @@ const reloadOmarchyShell = Effect.gen(function* () {
       `Shell reload skipped or failed (exit ${exitCode}; session may be locked)`,
     );
 
-    return;
+    return warn(
+      `Shell reload skipped or failed (exit ${exitCode}; session may be locked)`,
+    );
   }
 
-  yield* log.success("Reloaded Omarchy shell (shell.json changed)");
+  yield* log.success("Reloaded Omarchy shell (shell components changed)");
+
+  return done("Reloaded the Omarchy shell");
 });
 
-/** Reload the Omarchy shell only when stow rewrote its generated config. */
+/** Restart the Omarchy shell only when stow changed its config or plugins. */
 export function reloadOmarchyShellIfChanged(
-  shellConfigChanged: boolean,
-): Effect.Effect<void, never, Config | OutputLog | CommandExecutor> {
-  return shellConfigChanged ? reloadOmarchyShell : Effect.void;
+  shellChanged: boolean,
+): Effect.Effect<RecapEntry, never, Config | OutputLog | CommandExecutor> {
+  return shellChanged
+    ? reloadOmarchyShell
+    : Effect.succeed(skip("Shell reload skipped (no shell changes)"));
 }
 
 /** Exit code from `dot update --check` when in-scope updates are available. */
@@ -1228,13 +1295,23 @@ export const update = (updateOpts?: UpdateOptions) =>
 
     yield* log.section("Update Workflow");
 
+    const completedActions: RecapEntry[] = [];
     let privatePulled = false;
 
-    if (isFullUpdate && opts?.selfUpdate !== false) {
+    if (!isFullUpdate) {
+      completedActions.push(skip("Self-update skipped (scoped update)"));
+    } else if (opts?.selfUpdate === false) {
+      completedActions.push(
+        opts.postHookRepos?.length
+          ? done(`Pulled ${opts.postHookRepos.join(", ")} and restarted`)
+          : skip("Self-update skipped (--no-self-update)"),
+      );
+    } else {
       const selfUpdate = yield* selfUpdateAndRestart(config, opts, doPull);
 
       if (selfUpdate.restarted) return;
       privatePulled = selfUpdate.privatePulled;
+      completedActions.push(skip("Self-update found no dotfiles changes"));
     }
 
     // Migration halt: a machine still on the retired omarchy-hypr clone must
@@ -1269,12 +1346,13 @@ export const update = (updateOpts?: UpdateOptions) =>
       opts?.postHookRepos ?? [],
     );
 
-    const completedActions: RecapEntry[] = [];
     const miseToolChanges: MiseToolChange[] = [];
     let privatePackageRepoUpdated = false;
     const pullRecap: RecapEntry[] = [];
 
-    if (doPull) {
+    if (!doPull) {
+      completedActions.push(skip("Pull skipped (pull phase not selected)"));
+    } else {
       yield* requiredUpdateStep(
         "Pull Repositories",
         STEP_TIMEOUT_SECONDS.pull,
@@ -1333,7 +1411,7 @@ export const update = (updateOpts?: UpdateOptions) =>
                 yield* log.warn(
                   `Skipping private pull (${config.privateReason})`,
                 );
-                pullRecap.push(
+                completedActions.push(
                   skip(`Private pull skipped (${config.privateReason})`),
                 );
               }
@@ -1452,16 +1530,24 @@ export const update = (updateOpts?: UpdateOptions) =>
       );
     }
 
-    let shellConfigChanged = false;
+    let shellChanged = false;
 
-    if (doStow || doApp) {
+    if (!doStow && !doApp) {
+      completedActions.push(
+        skip("Skill maintenance skipped (stow and app phases not selected)"),
+      );
+    } else {
       yield* requiredUpdateStep(
         "Build Skill Maintenance",
         STEP_TIMEOUT_SECONDS.rebuild,
         Effect.gen(function* () {
           yield* log.section("Skill Maintenance");
 
-          if (doPull) {
+          if (!doPull) {
+            completedActions.push(
+              skip("Skills checkout update skipped (pull phase not selected)"),
+            );
+          } else {
             const checkout = yield* updateSkillsCheckout.pipe(
               Effect.catch((error) =>
                 log
@@ -1472,15 +1558,20 @@ export const update = (updateOpts?: UpdateOptions) =>
               ),
             );
 
-            if (checkout && checkout.from !== checkout.to) {
+            if (!checkout) {
+              completedActions.push(
+                warn("Could not update the skills checkout"),
+              );
+            } else if (checkout.from !== checkout.to) {
               yield* log.info(
                 `Skills checkout moved to ${checkout.to}${checkout.from ? ` (was ${checkout.from})` : ""}`,
               );
               completedActions.push(
                 done(`Updated the skills checkout to ${checkout.to}`),
               );
-            } else if (checkout) {
+            } else {
               yield* log.info(`Skills checkout is up to date (${checkout.to})`);
+              completedActions.push(skip("Skills checkout already up to date"));
             }
           }
 
@@ -1501,74 +1592,55 @@ export const update = (updateOpts?: UpdateOptions) =>
       );
     }
 
-    if (doStow) {
+    if (!doStow) {
+      completedActions.push(skip("Stow skipped (stow phase not selected)"));
+    } else {
       yield* requiredUpdateStep(
         "Stow",
         STEP_TIMEOUT_SECONDS.stow,
         Effect.gen(function* () {
           yield* mcpSync;
           yield* syncNotesRemotes;
+          completedActions.push(done("Synced MCP config"));
 
           const result = yield* runStow();
-          shellConfigChanged = result.shellConfigChanged;
-          completedActions.push(
-            done("Synced MCP config"),
-            ...result.actions.map(done),
-          );
+          shellChanged = result.shellChanged;
+          completedActions.push(...result.actions);
         }),
       );
     }
 
-    if (doPull || doStow) {
+    if (!doPull && !doStow) {
+      completedActions.push(
+        skip("Mise tools skipped (pull and stow phases not selected)"),
+      );
+    } else {
+      const recordMiseStep = ({ tools, recap }: MiseStepResult) => {
+        miseToolChanges.push(...tools);
+        completedActions.push(recap);
+      };
+
       yield* requiredUpdateStep(
         "Install Mise Tools",
         STEP_TIMEOUT_SECONDS.miseInstall,
-        installMissingMiseTools.pipe(
-          Effect.map((installed) => {
-            if (Option.isNone(installed)) {
-              completedActions.push(skip("No mise tools to install"));
-
-              return;
-            }
-
-            miseToolChanges.push(...installed.value);
-            completedActions.push(
-              installed.value.length > 0
-                ? done(
-                    `Installed ${plural(installed.value.length, "mise tool")}`,
-                  )
-                : skip("No mise tools to install"),
-            );
-          }),
-        ),
+        installMissingMiseTools.pipe(Effect.map(recordMiseStep)),
       );
 
       yield* requiredUpdateStep(
         "Prune Mise Tools",
         STEP_TIMEOUT_SECONDS.miseInstall,
-        pruneRemovedMiseTools.pipe(
-          Effect.map((pruned) => {
-            if (pruned.length === 0) {
-              completedActions.push(skip("No mise tools to prune"));
-
-              return;
-            }
-
-            miseToolChanges.push(...pruned);
-            completedActions.push(
-              done(`Pruned ${plural(pruned.length, "mise tool version")}`),
-            );
-          }),
-        ),
+        pruneRemovedMiseTools.pipe(Effect.map(recordMiseStep)),
       );
     }
 
-    if (opts?.reload !== false) {
-      yield* reloadOmarchyShellIfChanged(shellConfigChanged);
-
-      if (shellConfigChanged) {
-        completedActions.push(done("Attempted an Omarchy shell reload"));
-      }
+    if (opts?.reload === false) {
+      completedActions.push(skip("Shell reload skipped (--no-reload)"));
+    } else if (!doStow) {
+      completedActions.push(
+        skip("Shell reload skipped (stow phase not selected)"),
+      );
+    } else {
+      completedActions.push(yield* reloadOmarchyShellIfChanged(shellChanged));
     }
 
     if (doApp && !dotRebuilt) {
@@ -1594,15 +1666,26 @@ export const update = (updateOpts?: UpdateOptions) =>
       );
     } else if (doApp) {
       completedActions.push(done("Rebuilt the dot binary before restarting"));
+    } else {
+      completedActions.push(
+        skip("dot rebuild skipped (app phase not selected)"),
+      );
     }
 
-    if (isFullUpdate || applyPulledDotfiles) {
+    const runsFullPhases = isFullUpdate || applyPulledDotfiles;
+
+    if (runsFullPhases) {
       yield* requiredUpdateStep(
         "Herdr Plugins",
         STEP_TIMEOUT_SECONDS.herdrPlugins,
-        restoreHerdrPlugins,
+        restoreHerdrPlugins.pipe(
+          Effect.map((recap) => {
+            completedActions.push(recap);
+          }),
+        ),
       );
-      completedActions.push(done("Ran the Herdr plugin refresh phase"));
+    } else {
+      completedActions.push(skip("Herdr plugins skipped (scoped update)"));
     }
 
     // Notify only when a repo actually moved.
@@ -1611,32 +1694,58 @@ export const update = (updateOpts?: UpdateOptions) =>
     }
 
     // Full updates and the changed-dotfiles handoff sync agent instructions.
-    if (isFullUpdate || applyPulledDotfiles) {
+    if (runsFullPhases) {
       yield* requiredUpdateStep(
         "Post-Hooks",
         STEP_TIMEOUT_SECONDS.postHooks,
         postHooks,
       );
       completedActions.push(done("Synced agent instructions"));
+    } else {
+      completedActions.push(
+        skip("Agent instructions sync skipped (scoped update)"),
+      );
     }
 
     if (isFullUpdate) {
       const markerStatus = yield* ensureInitCompleteMarker(config, "update");
       yield* logInitMarkerStatus(markerStatus, config);
-      completedActions.push(done("Checked the init state marker"));
+      completedActions.push(INIT_MARKER_RECAP[markerStatus]);
+    } else {
+      completedActions.push(skip("Init state check skipped (scoped update)"));
     }
 
-    if (opts?.reload !== false) {
-      const uiRefreshCompleted = yield* withStepTimeout(
-        "Reload UI",
+    if (opts?.reload === false) {
+      completedActions.push(skip("Shell module refresh skipped (--no-reload)"));
+    } else {
+      const refreshed = yield* withStepTimeout(
+        "Refresh Shell Modules",
         STEP_TIMEOUT_SECONDS.uiReload,
-        runUiReload,
+        refreshShellModules.pipe(
+          Effect.map((recap) => {
+            completedActions.push(recap);
+          }),
+        ),
       );
 
-      if (uiRefreshCompleted) {
-        completedActions.push(done("Completed the UI resume refresh step"));
+      if (!refreshed) {
+        completedActions.push(warn("Shell module refresh timed out"));
       }
     }
+
+    const executor = yield* CommandExecutor;
+
+    const refreshExitCode = yield* executor.exitCode("dot", [
+      "updates",
+      "refresh",
+      "--dot-only",
+    ]);
+
+    completedActions.push(
+      refreshExitCode === 0
+        ? done("Refreshed the update status")
+        : warn(`Update status refresh failed (exit ${refreshExitCode})`),
+    );
 
     yield* opts.summaryFile
       ? writeUpdateSummary(
@@ -1652,17 +1761,4 @@ export const update = (updateOpts?: UpdateOptions) =>
           completedActions,
           startedAt,
         );
-
-    yield* log.section("Update Status");
-    const executor = yield* CommandExecutor;
-
-    const refreshExitCode = yield* executor.inherit("dot", [
-      "updates",
-      "refresh",
-      "--dot-only",
-    ]);
-
-    if (refreshExitCode !== 0) {
-      yield* log.warn(`Update status refresh failed (exit ${refreshExitCode})`);
-    }
   });

@@ -127,7 +127,11 @@ export const install = Effect.gen(function* () {
     );
   }
 
-  actions.push(...(yield* syncSkills));
+  actions.push(
+    ...(yield* syncSkills)
+      .filter((action) => action.status === "done")
+      .map((action) => action.message),
+  );
 
   if (counts.deployed > 0)
     actions.push(`Deployed ${plural(counts.deployed, "Omarchy plugin")}`);

@@ -62,11 +62,11 @@ Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: pass
 dot update [flags]
 ```
 
-A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, installs missing public Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs agents sync, backfills the init marker, and starts the resume refresh. It finishes with a summary of updated repositories and completed actions.
+A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, installs missing public Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs agents sync, backfills the init marker, and refreshes shell modules. The shell restarts only when its generated config or a deployed Omarchy plugin changed. It finishes with a summary of updated repositories and every completed or skipped step, in order.
 
 Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip full-update package reconciliation, agents sync, and init-marker backfill.
 
-Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands, skipping the dotfiles rebuild and stow. Herdr plugins are refreshed only inside Herdr. The Git panel uses --no-reload to skip shell reload and UI resume refresh.
+Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands, skipping the dotfiles rebuild and stow. Herdr plugins are refreshed only inside Herdr. The Git panel uses --no-reload to skip shell reload and module refresh.
 
 **Options**
 
@@ -79,7 +79,7 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--check` | Report dotfiles pulls, pending pins and stow changes, skipping local work |
 | `--check-all` | Also check development repos for pulls, skipping local work |
 | `--no-self-update` | Skip the internal self-update phase |
-| `--no-reload` | Skip shell reload and UI resume refresh |
+| `--no-reload` | Skip shell reload and module refresh |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
 | `--summary-file` `<string>` | Internal: write the final summary to this file instead of printing it |
 | `--started-at` `<integer>` | Internal: epoch ms the run started, for the summary timing |

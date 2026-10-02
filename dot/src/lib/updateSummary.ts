@@ -53,6 +53,24 @@ export interface RecapEntry {
   readonly message: string;
 }
 
+/** A recap entry for a stage that did work. */
+export const done = (message: string): RecapEntry => ({
+  status: "done",
+  message,
+});
+
+/** A recap entry for a stage that was skipped. */
+export const skip = (message: string): RecapEntry => ({
+  status: "skip",
+  message,
+});
+
+/** A recap entry for a stage that needs attention. */
+export const warn = (message: string): RecapEntry => ({
+  status: "warn",
+  message,
+});
+
 const renderRecapEntry = (
   entry: RecapEntry,
   style: Styler,

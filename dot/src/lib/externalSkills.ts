@@ -13,6 +13,8 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { plural } from "./runSummary.js";
+import { done, skip, warn } from "./updateSummary.js";
+import type { RecapEntry } from "./updateSummary.js";
 
 /** Skills directory shared by every Agent Skills client. */
 export const AGENT_SKILLS_DIR = join(HOME_DIR, ".agents", "skills");
@@ -217,7 +219,7 @@ const installExternalSkills = Effect.fn("ExternalSkills.install")(function* (
       "Skipping external skills (skill-maintenance is not built)",
     );
 
-    return [];
+    return warn("External skills skipped (skill-maintenance is not built)");
   }
 
   const before = yield* readManifest(AGENT_SKILLS_DIR);
@@ -233,7 +235,9 @@ const installExternalSkills = Effect.fn("ExternalSkills.install")(function* (
       `External skill install exited ${exitCode}; installed skills were kept`,
     );
 
-    return [];
+    return warn(
+      `External skill install exited ${exitCode}; installed skills were kept`,
+    );
   }
 
   const previous: Record<string, string> = Option.getOrElse(before, () => ({}));
@@ -249,11 +253,11 @@ const installExternalSkills = Effect.fn("ExternalSkills.install")(function* (
     ),
   ).size;
 
-  if (changed > 0) return [`Updated ${plural(changed, "external skill")}`];
+  if (changed > 0) return done(`Updated ${plural(changed, "external skill")}`);
 
   yield* log.info("External skills are up to date");
 
-  return [];
+  return skip("External skills already up to date");
 });
 
 /**
@@ -261,12 +265,12 @@ const installExternalSkills = Effect.fn("ExternalSkills.install")(function* (
  * skill-maintenance executable, then link authored skills from the managed
  * skills checkout. Failures are warnings so stowing still completes offline.
  *
- * @returns Actions taken, for a closing summary.
+ * @returns Actions taken or skipped in order, for a closing summary.
  */
 export const syncSkills = Effect.gen(function* () {
   const config = yield* Config;
   const log = yield* OutputLog;
-  const actions: string[] = [];
+  const actions: RecapEntry[] = [];
 
   yield* log.section("Skills");
 
@@ -276,7 +280,8 @@ export const syncSkills = Effect.gen(function* () {
     ),
   );
 
-  if (pruned > 0) actions.push(`Removed ${plural(pruned, "stale skill link")}`);
+  if (pruned > 0)
+    actions.push(done(`Removed ${plural(pruned, "stale skill link")}`));
 
   const cloned = yield* ensureSkillsCheckout.pipe(
     Effect.catch((error) =>
@@ -286,16 +291,25 @@ export const syncSkills = Effect.gen(function* () {
     ),
   );
 
-  if (cloned === null) return actions;
+  if (cloned === null) {
+    actions.push(warn("Skills sync skipped (could not clone the checkout)"));
 
-  if (cloned) actions.push(`Cloned skills to ${displayPath(SKILLS_CHECKOUT)}`);
+    return actions;
+  }
 
-  actions.push(...(yield* installExternalSkills(config.publicDotfiles)));
+  if (cloned)
+    actions.push(done(`Cloned skills to ${displayPath(SKILLS_CHECKOUT)}`));
+
+  actions.push(yield* installExternalSkills(config.publicDotfiles));
 
   const linked = yield* linkAuthoredSkills(config.publicDotfiles);
 
-  if (linked > 0) actions.push(`Linked ${plural(linked, "authored skill")}`);
-  else yield* log.info("Authored skills are up to date");
+  if (linked > 0) {
+    actions.push(done(`Linked ${plural(linked, "authored skill")}`));
+  } else {
+    yield* log.info("Authored skills are up to date");
+    actions.push(skip("Authored skills already linked"));
+  }
 
   return actions;
 }).pipe(Effect.withSpan("Skills.sync"));

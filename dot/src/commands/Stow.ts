@@ -21,13 +21,15 @@ import {
 } from "../lib/stowPackages.js";
 import { cliStyler } from "../lib/ansi.js";
 import { plural } from "../lib/runSummary.js";
+import { done, skip, warn } from "../lib/updateSummary.js";
+import type { RecapEntry } from "../lib/updateSummary.js";
 
 /** Result of a stow run. */
 export interface StowResult {
-  /** Whether the generated Omarchy `shell.json` changed. */
-  readonly shellConfigChanged: boolean;
-  /** Actions taken, for a closing summary. */
-  readonly actions: readonly string[];
+  /** Whether the generated `shell.json` or a deployed Omarchy plugin changed. */
+  readonly shellChanged: boolean;
+  /** Actions taken or skipped in order, for a closing summary. */
+  readonly actions: readonly RecapEntry[];
 }
 
 /**
@@ -36,8 +38,9 @@ export interface StowResult {
  * Matches legacy behaviour: enumerates stow package directories, logs each one,
  * and applies per-folder stow with appropriate flags.
  *
- * @returns Whether the generated Omarchy `shell.json` changed, so the caller
- *   can reload the running shell, and the actions taken for a summary.
+ * @returns Whether the generated Omarchy `shell.json` or a deployed plugin
+ *   changed, so the caller can restart the running shell, and the actions
+ *   taken or skipped for a summary.
  */
 export const stow = (opts?: {
   readonly publicOnly?: boolean;
@@ -52,7 +55,7 @@ export const stow = (opts?: {
     const runPrivate = !opts?.publicOnly;
 
     let shellConfigChanged = false;
-    const actions: string[] = [];
+    const actions: RecapEntry[] = [];
     const counts = emptyStowCounts();
 
     if (runPrivate && config.canUsePrivate && config.gitConfig.valid) {
@@ -86,11 +89,12 @@ export const stow = (opts?: {
       yield* log.success(
         `Generated Notes capture repositories ${style.dim(displayPath(captureRepositoriesPath))}`,
       );
-      actions.push("Generated repository shortcuts and pickers");
+      actions.push(done("Generated repository shortcuts and pickers"));
     } else if (runPrivate && config.canUsePrivate) {
       yield* log.warn(
         "Keeping repository shortcuts because dot-git.yml is invalid",
       );
+      actions.push(warn("Repository shortcuts kept (dot-git.yml is invalid)"));
     }
 
     if (runPublic) {
@@ -103,20 +107,20 @@ export const stow = (opts?: {
       }
 
       actions.push(
-        `Generated ${plural(completions.length, "completion file")}`,
+        done(`Generated ${plural(completions.length, "completion file")}`),
       );
 
       yield* log.section("OpenCode Plugins");
       yield* log.success(
         `Installed dependencies ${style.dim(displayPath(yield* installOpencodePluginDependencies))}`,
       );
-      actions.push("Installed OpenCode plugin dependencies");
+      actions.push(done("Installed OpenCode plugin dependencies"));
 
       yield* log.section("Stow Public Dotfiles");
       yield* removeRetiredStowState(counts);
       yield* backupUnmanagedTargets(config.publicDotfiles, counts);
       yield* stowRepo(config.publicDotfiles, "public", counts);
-      actions.push(`Stowed ${plural(counts.public, "public package")}`);
+      actions.push(done(`Stowed ${plural(counts.public, "public package")}`));
 
       yield* log.section("Omarchy Neovim Theme");
       yield* ensureNvimThemeLink(log);
@@ -124,7 +128,11 @@ export const stow = (opts?: {
       yield* log.section("Omarchy Shell Config");
       shellConfigChanged = yield* applyOmarchyShellConfig;
 
-      if (shellConfigChanged) actions.push("Regenerated Omarchy shell config");
+      actions.push(
+        shellConfigChanged
+          ? done("Regenerated Omarchy shell config")
+          : skip("Omarchy shell config unchanged"),
+      );
     }
 
     if (runPrivate) {
@@ -132,10 +140,15 @@ export const stow = (opts?: {
         yield* log.section("Stow Private Dotfiles");
         yield* backupUnmanagedTargets(config.privateDotfiles, counts);
         yield* stowRepo(config.privateDotfiles, "private", counts);
-        actions.push(`Stowed ${plural(counts.private, "private package")}`);
+        actions.push(
+          done(`Stowed ${plural(counts.private, "private package")}`),
+        );
       } else {
         yield* log.warn(
           "Skipping private stow (private dotfiles not available)",
+        );
+        actions.push(
+          warn("Private stow skipped (private dotfiles not available)"),
         );
       }
     }
@@ -143,13 +156,20 @@ export const stow = (opts?: {
     if (runPublic) actions.push(...(yield* syncSkills));
 
     if (counts.deployed > 0)
-      actions.push(`Deployed ${plural(counts.deployed, "Omarchy plugin")}`);
+      actions.push(
+        done(`Deployed ${plural(counts.deployed, "Omarchy plugin")}`),
+      );
 
     if (counts.backedUp > 0)
-      actions.push(`Backed up ${plural(counts.backedUp, "unmanaged target")}`);
+      actions.push(
+        done(`Backed up ${plural(counts.backedUp, "unmanaged target")}`),
+      );
 
     if (counts.removed > 0)
-      actions.push(`Removed ${plural(counts.removed, "retired link")}`);
+      actions.push(done(`Removed ${plural(counts.removed, "retired link")}`));
 
-    return { shellConfigChanged, actions } satisfies StowResult;
+    return {
+      shellChanged: shellConfigChanged || counts.deployed > 0,
+      actions,
+    } satisfies StowResult;
   });
