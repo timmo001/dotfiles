@@ -22,3 +22,7 @@
 	path = omarchy/.config/omarchy/plugins/sceny.devices
 	url = https://github.com/sceny/omarchy-devices.git
 	branch = main
+[submodule "omarchy/.config/omarchy/plugins/nosignal.deckshift"]
+	path = omarchy/.config/omarchy/plugins/nosignal.deckshift
+	url = https://github.com/28allday/deckshift.git
+	branch = master

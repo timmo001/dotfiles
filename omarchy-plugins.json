@@ -117,6 +117,13 @@
       "id": "sceny.devices",
       "managed": true,
       "placement": { "section": "right", "before": "omarchy.bluetooth" }
+    },
+    {
+      "id": "nosignal.deckshift",
+      "managed": true,
+      "path": "plugins/nosignal.deckshift",
+      "onlyHosts": ["desktop"],
+      "placement": { "section": "right", "index": 0 }
     }
   ]
 }

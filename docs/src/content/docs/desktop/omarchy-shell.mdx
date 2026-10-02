@@ -35,4 +35,6 @@ Custom plugins live under `omarchy/.config/omarchy/plugins/`. Some are local QML
 
 Third-party bar plugins can be imported the same way: <a href="https://omarchy.org" target="_blank" rel="noopener noreferrer">Omarchy</a>'s `omarchy plugin add` (backed by `dot omarchy-plugin`) checks them out as submodules. `dot stow` then copies those checkouts as real files, because Omarchy rejects plugin-directory symlinks. Placement and config live in `omarchy-plugins.json`. A private overlay can extend that layout the same way.
 
+When a repository keeps its plugin in a subfolder, add it with `dot omarchy-plugin add <id> <url> <checkout> --path <subfolder>`. The submodule holds the whole repository, and the registry's `path` tells `dot stow` and updates which folder to deploy. An `onlyHosts` list (for example `["desktop"]`) keeps an entry out of the generated layout on other hosts. DeckShift's `nosignal.deckshift` panel is set up this way, with its Gaming Mode binds in the desktop Hypr host files.
+
 Do not hand-edit the live `shell.json`. Change the generator or registry, rebuild `dot` when needed, then stow.
