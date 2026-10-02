@@ -9,6 +9,7 @@ import { stow as runStow } from "./Stow.js";
 import { agentsSync } from "./AgentsSync.js";
 import { mcpSync } from "../mcp/commands/McpSync.js";
 import { syncNotesRemotes } from "../git/notesRemote.js";
+import { syncNotesRepositoryDirectories } from "../lib/notesRepositoryDirectories.js";
 import { rebuild, restartDot } from "../lib/selfUpdate.js";
 import {
   buildSkillsMaintenance,
@@ -1701,9 +1702,13 @@ export const update = (updateOpts?: UpdateOptions) =>
         postHooks,
       );
       completedActions.push(done("Synced agent instructions"));
+      completedActions.push(yield* syncNotesRepositoryDirectories);
     } else {
       completedActions.push(
         skip("Agent instructions sync skipped (scoped update)"),
+      );
+      completedActions.push(
+        skip("Notes repository directories skipped (scoped update)"),
       );
     }
 

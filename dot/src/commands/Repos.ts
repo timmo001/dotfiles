@@ -236,7 +236,7 @@ function renderTable(repos: readonly TrackedRepo[]): string {
 }
 
 /** Load tracked repositories and shortcuts from private `dot-git.yml`. */
-const loadTracked = Effect.gen(function* () {
+export const loadTracked = Effect.gen(function* () {
   const config = yield* Config;
   const fs = yield* FileSystem.FileSystem;
 
