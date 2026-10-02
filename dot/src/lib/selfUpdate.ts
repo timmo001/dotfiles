@@ -1,4 +1,4 @@
-import { Effect, FileSystem, Option } from "effect";
+import { Effect, FileSystem, Option, Schema } from "effect";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
 import { join, dirname } from "path";
 import { ENV, envString } from "./env.js";
@@ -108,10 +108,22 @@ export const rebuild = Effect.gen(function* () {
   return true;
 });
 
+/** The restarted dot exited non-zero after handling and reporting its own failure. */
+export class DotRestartError extends Schema.TaggedError<DotRestartError>()(
+  "DotRestartError",
+  {
+    message: Schema.String,
+  },
+) {}
+
 /** Restart the rebuilt dot binary with inherited stdio and fail on non-zero exit. */
 export const restartDot = (
   args: readonly string[],
-): Effect.Effect<void, CommandError, CommandExecutor | FileSystem.FileSystem> =>
+): Effect.Effect<
+  void,
+  CommandError | DotRestartError,
+  CommandExecutor | FileSystem.FileSystem
+> =>
   Effect.gen(function* () {
     const executor = yield* CommandExecutor;
     const { binPath } = yield* resolveDotLocation();
@@ -120,6 +132,8 @@ export const restartDot = (
     const exitCode = yield* executor.inherit(binPath, args);
 
     if (exitCode !== 0) {
-      return yield* new CommandError({ command, exitCode, stderr: "" });
+      return yield* new DotRestartError({
+        message: `${command} exited ${exitCode}`,
+      });
     }
   });

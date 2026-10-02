@@ -19,6 +19,8 @@ export interface LogEntry {
 
 /** Service interface for structured output logging */
 export interface OutputLogService {
+  /** This run's log file, created on the first logged line. */
+  readonly logFile: string;
   /** Log an informational message */
   readonly info: (msg: string) => Effect.Effect<void>;
   /** Log a completed step with a success marker */
@@ -347,6 +349,7 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
         });
 
       return {
+        logFile: defaultLogFile,
         info: (msg) => emit("info", msg),
         success: (msg) => emit("success", msg),
         warn: (msg) => emit("warn", msg),

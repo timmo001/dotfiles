@@ -14,6 +14,7 @@ import { ENV, envString, setEnv, unsetEnv } from "./lib/env.js";
 import { isGvfsPath, writeMirroredLog } from "./lib/logMirror.js";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "./lib/paths.js";
 import { formatCause } from "./lib/schema.js";
+import { offerAgentOnFailure } from "./lib/failureAgent.js";
 import { withStepTimeout, withTimeoutOption } from "./lib/workflowStep.js";
 import { DotDiff } from "./git/services/DotDiff.js";
 import { GitHub } from "./git/services/GitHub.js";
@@ -233,9 +234,19 @@ const commandProgram = Command.runWith(dotCommand, { version: "1.0.0" })(
   args.length === 0 ? ["--help"] : args,
 );
 
-const program = withNativeCommandTimeout(
-  getCliCommand(invokedCommand ?? "")?.name,
-  commandProgram,
+const commandName = getCliCommand(invokedCommand ?? "")?.name;
+
+const timedProgram = withNativeCommandTimeout(commandName, commandProgram);
+
+// Update checks report available work through their exit code.
+const offersFailureAgent =
+  (commandName === "update" || commandName === "stow") &&
+  !args.some((arg) => ["--check", "--check-all", "--help", "-h"].includes(arg));
+
+const program = (
+  offersFailureAgent
+    ? offerAgentOnFailure(`dot ${args.join(" ")}`, timedProgram)
+    : timedProgram
 ).pipe(
   Effect.provide(
     Layer.mergeAll(CliLayers, CliConfig.layer({ builtIns: cliBuiltIns })),
