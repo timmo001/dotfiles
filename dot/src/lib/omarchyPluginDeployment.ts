@@ -2,7 +2,9 @@ import { Effect, FileSystem, type PlatformError } from "effect";
 import { basename, dirname, join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { LauncherError } from "../services/Launcher.js";
-import { lstatOrNull, pathExists } from "./fsProbe.js";
+import { lstatOrNull, pathExists, readTextOrNull } from "./fsProbe.js";
+import { parseManagedPlugins } from "./omarchyShellConfig.js";
+import { decodeJson } from "./schema.js";
 
 /** Discover real plugin submodule directories in the Omarchy stow package. */
 export const omarchyPluginSubmodules = Effect.fn("OmarchyPlugin.submodules")(
@@ -30,6 +32,40 @@ export const omarchyPluginSubmodules = Effect.fn("OmarchyPlugin.submodules")(
     }
 
     return sources;
+  },
+);
+
+/**
+ * Resolve the plugin directory inside each managed checkout from the repo's
+ * own registry. Checkouts without a `path` entry hold the plugin at their root.
+ */
+export const omarchyPluginSourcePaths = Effect.fn("OmarchyPlugin.sourcePaths")(
+  function* (repo: string) {
+    const registryPath = join(repo, "omarchy-plugins.json");
+    const text = yield* readTextOrNull(registryPath);
+
+    if (text === null) return new Map<string, string>();
+
+    const registry = (() => {
+      try {
+        return parseManagedPlugins(decodeJson(JSON.parse(text)));
+      } catch {
+        return null;
+      }
+    })();
+
+    if (!registry) {
+      return yield* new LauncherError({
+        message: `Invalid managed plugin registry: ${registryPath}`,
+        exitCode: 1,
+      });
+    }
+
+    return new Map(
+      registry.plugins.flatMap(({ id, path }): [string, string][] =>
+        path ? [[id, path]] : [],
+      ),
+    );
   },
 );
 
@@ -104,7 +140,7 @@ export const deployOmarchyPlugin = Effect.fn("deployOmarchyPlugin")(function* (
       Effect.mapError(
         (error) =>
           new LauncherError({
-            message: `Could not deploy ${basename(source)}: ${String(error)}`,
+            message: `Could not deploy ${basename(target)}: ${String(error)}`,
             exitCode: 1,
           }),
       ),
@@ -150,7 +186,7 @@ export const deployOmarchyPlugin = Effect.fn("deployOmarchyPlugin")(function* (
         backup = join(
           yield* fs.makeTempDirectory({
             directory: backups,
-            prefix: `${basename(source)}-`,
+            prefix: `${basename(target)}-`,
           }),
           "plugin",
         );

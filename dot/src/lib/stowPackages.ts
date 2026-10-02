@@ -14,6 +14,7 @@ import { foldOpencodePluginFolders } from "./opencodePluginFolders.js";
 import { ensureHyprConfigLink, ensureHyprHostLink } from "./omarchyHost.js";
 import {
   deployOmarchyPlugin,
+  omarchyPluginSourcePaths,
   omarchyPluginSubmodules,
 } from "./omarchyPluginDeployment.js";
 import {
@@ -223,6 +224,11 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
       const plugins =
         folder === "omarchy" ? yield* omarchyPluginSubmodules(repoDir) : [];
 
+      const pluginPaths =
+        plugins.length > 0
+          ? yield* omarchyPluginSourcePaths(repoDir)
+          : new Map<string, string>();
+
       const pluginIgnores = plugins.map(
         (source) =>
           `--ignore='^\\.config/omarchy/plugins/${basename(source).replaceAll(".", "\\.")}($|/)'`,
@@ -287,10 +293,12 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
 
       if (folder === "agents") yield* foldOpencodePluginFolders(repoDir);
 
-      for (const source of plugins) {
+      for (const checkout of plugins) {
+        const id = basename(checkout);
+
         const deployed = yield* deployOmarchyPlugin(
-          source,
-          join(HOME_DIR, ".config/omarchy/plugins", basename(source)),
+          join(checkout, pluginPaths.get(id) ?? ""),
+          join(HOME_DIR, ".config/omarchy/plugins", id),
           repoDir,
         );
 

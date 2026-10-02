@@ -728,6 +728,10 @@ const pluginAdd = describe(
       checkout: Argument.Path("checkout").pipe(
         Argument.withDescription("Validated live plugin checkout"),
       ),
+      path: text(
+        "path",
+        "Plugin directory inside the checkout, for repositories that keep the plugin in a subfolder",
+      ),
       section: Flag.Literals("section", ["left", "center", "right"]).pipe(
         Flag.optional,
       ),
@@ -738,6 +742,7 @@ const pluginAdd = describe(
       omarchyPlugin(
         OmarchyPluginInput.add({
           ...input,
+          path: optional(input.path),
           section: optional(input.section),
           before: optional(input.before),
           after: optional(input.after),
@@ -833,7 +838,7 @@ const omarchyPluginCommand = describe(
   ],
   {
     description:
-      "Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.\n\nsync-components copies the shared panel components in omarchy/.config/omarchy/components into the plugin directories set by omarchy_components entries in the private dot-git.yml, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.",
+      "Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.\n\nFor a repository that keeps its plugin in a subfolder, pass add --path with that folder. The submodule holds the whole repository, and the registry's path entry tells stow and update which folder to validate and deploy.\n\nsync-components copies the shared panel components in omarchy/.config/omarchy/components into the plugin directories set by omarchy_components entries in the private dot-git.yml, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.",
     sections: [
       {
         title: "Exit codes",

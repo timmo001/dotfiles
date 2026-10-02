@@ -3,6 +3,7 @@ import { join } from "path";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { Config } from "../services/Config.js";
 import { deployOmarchyPlugin } from "../lib/omarchyPluginDeployment.js";
+import { isPluginPath } from "../lib/omarchyShellConfig.js";
 import { gitRemoteOutput } from "../lib/git.js";
 import {
   CommandExecutor,
@@ -49,6 +50,7 @@ interface AddOptions {
   readonly id: string;
   readonly url: string;
   readonly checkout: string;
+  readonly path?: string;
   readonly placement: Placement;
 }
 
@@ -59,6 +61,7 @@ export type OmarchyPluginInput =
       readonly id: string;
       readonly url: string;
       readonly checkout: string;
+      readonly path?: string;
       readonly section?: "left" | "center" | "right";
       readonly before?: string;
       readonly after?: string;
@@ -178,6 +181,23 @@ function managedPluginIds(paths: OmarchyPluginPaths) {
 
 function isManaged(paths: OmarchyPluginPaths, id: string) {
   return managedPluginIds(paths).pipe(Effect.map((ids) => ids.includes(id)));
+}
+
+/** Plugin directory for a managed checkout, honouring a registry `path`. */
+function pluginSource(paths: OmarchyPluginPaths, id: string) {
+  return readRegistry(paths).pipe(
+    Effect.map((registry) => {
+      const path = pluginEntries(registry).find(
+        (plugin) => plugin.id === id,
+      )?.path;
+
+      return join(
+        paths.pluginsSource,
+        id,
+        path !== undefined && isPluginPath(path) ? path : "",
+      );
+    }),
+  );
 }
 
 function fsError(message: string) {
@@ -553,7 +573,15 @@ function addPlugin(paths: OmarchyPluginPaths, options: AddOptions) {
       const placement: JsonValue = { ...options.placement };
       yield* writeRegistry(paths, {
         ...registry,
-        plugins: [...plugins, { id, managed: true, placement }],
+        plugins: [
+          ...plugins,
+          {
+            id,
+            managed: true,
+            ...(options.path && { path: options.path }),
+            placement,
+          },
+        ],
       });
       yield* removeLivePlugin(paths, id);
       yield* stowPublic();
@@ -575,6 +603,7 @@ const PLUGIN_FETCH_TIMEOUT = Duration.seconds(30);
 interface FetchedPlugin {
   readonly id: string;
   readonly pluginPath: string;
+  readonly source: string;
   readonly oldSha: string;
   readonly newSha: string;
 }
@@ -624,13 +653,19 @@ function fetchPlugin(paths: OmarchyPluginPaths, id: string) {
       cwd: pluginPath,
     })).trim();
 
-    return { id, pluginPath, oldSha, newSha } satisfies FetchedPlugin;
+    return {
+      id,
+      pluginPath,
+      source: yield* pluginSource(paths, id),
+      oldSha,
+      newSha,
+    } satisfies FetchedPlugin;
   });
 }
 
 function applyPluginUpdate(
   paths: OmarchyPluginPaths,
-  { id, pluginPath, oldSha, newSha }: FetchedPlugin,
+  { id, pluginPath, source, oldSha, newSha }: FetchedPlugin,
   assumeYes: boolean,
 ) {
   return Effect.gen(function* () {
@@ -655,7 +690,7 @@ function applyPluginUpdate(
     yield* executor.run("git", ["checkout", "-q", newSha], { cwd: pluginPath });
 
     const validation = yield* executor.inherit("omarchy-plugin-validate", [
-      pluginPath,
+      source,
     ]);
 
     if (validation !== 0) {
@@ -667,7 +702,7 @@ function applyPluginUpdate(
     }
 
     yield* deployOmarchyPlugin(
-      pluginPath,
+      source,
       join(paths.pluginsLive, id),
       paths.repo,
     ).pipe(
@@ -874,7 +909,13 @@ export const omarchyPlugin = Effect.fn("omarchyPlugin")(function* (
   }
 
   if (OmarchyPluginInput.$is("add")(input)) {
-    const defaultSection = yield* manifestDefaultSection(input.checkout);
+    if (input.path !== undefined && !isPluginPath(input.path)) {
+      return yield* fail(`invalid plugin path '${input.path}'`);
+    }
+
+    const defaultSection = yield* manifestDefaultSection(
+      join(input.checkout, input.path ?? ""),
+    );
 
     const placement = yield* parsePlacement(
       [
@@ -889,6 +930,7 @@ export const omarchyPlugin = Effect.fn("omarchyPlugin")(function* (
       id: input.id,
       url: input.url,
       checkout: input.checkout,
+      ...(input.path && { path: input.path }),
       placement,
     });
   }

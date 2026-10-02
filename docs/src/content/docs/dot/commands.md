@@ -569,6 +569,8 @@ dot omarchy-plugin <subcommand> [flags]
 
 Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.
 
+For a repository that keeps its plugin in a subfolder, pass add --path with that folder. The submodule holds the whole repository, and the registry's path entry tells stow and update which folder to validate and deploy.
+
 sync-components copies the shared panel components in omarchy/.config/omarchy/components into the plugin directories set by omarchy_components entries in the private dot-git.yml, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.
 
 **Options**
@@ -605,6 +607,7 @@ dot omarchy-plugin add [flags] <id> <url> <checkout>
 
 | Option | Description |
 | --- | --- |
+| `--path` `<string>` | Plugin directory inside the checkout, for repositories that keep the plugin in a subfolder |
 | `--section` `<choice>` | (choices: left, center, right) |
 | `--before` `<string>` | Place before this plugin |
 | `--after` `<string>` | Place after this plugin |

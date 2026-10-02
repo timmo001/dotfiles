@@ -66,6 +66,10 @@ export interface ManagedPlugin {
   readonly enabled?: boolean;
   /** Whether source lifecycle is managed as a Git submodule. */
   readonly managed?: boolean;
+  /** Plugin directory inside a managed checkout, when not at its root. */
+  readonly path?: string;
+  /** Hosts that include the plugin; omit for every host. */
+  readonly onlyHosts?: readonly string[];
   /** Stock widget id replaced by this plugin. */
   readonly replace?: string;
   /** Whether settings from a replaced stock entry are preserved. */
@@ -142,6 +146,8 @@ interface MutableManagedPlugin {
   id: string;
   enabled?: boolean;
   managed?: boolean;
+  path?: string;
+  onlyHosts?: readonly string[];
   replace?: string;
   inheritSettings?: boolean;
   placement?: ManagedPluginPlacement;
@@ -262,6 +268,8 @@ export function parseManagedPlugins(
       id,
       enabled,
       managed,
+      path,
+      onlyHosts,
       replace,
       inheritSettings,
       placement,
@@ -275,6 +283,14 @@ export function parseManagedPlugins(
     if (enabled !== undefined && !isBoolean(enabled)) return null;
 
     if (managed !== undefined && !isBoolean(managed)) return null;
+
+    if (path !== undefined && !isPluginPath(path)) return null;
+
+    if (
+      onlyHosts !== undefined &&
+      (!Array.isArray(onlyHosts) || !onlyHosts.every(isString))
+    )
+      return null;
 
     if (replace !== undefined && !isPluginId(replace)) return null;
 
@@ -329,6 +345,11 @@ export function parseManagedPlugins(
     if (managed !== undefined && isBoolean(managed))
       parsedPlugin.managed = managed;
 
+    if (path !== undefined && isPluginPath(path)) parsedPlugin.path = path;
+
+    if (Array.isArray(onlyHosts))
+      parsedPlugin.onlyHosts = onlyHosts.filter(isString);
+
     if (replace !== undefined && isString(replace))
       parsedPlugin.replace = replace;
 
@@ -357,6 +378,17 @@ function isPluginId(value: JsonValue): value is string {
     isString(value) &&
     /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value) &&
     !value.includes("..")
+  );
+}
+
+/** A relative subdirectory that cannot escape its checkout. */
+export function isPluginPath(value: JsonValue): value is string {
+  return (
+    isString(value) &&
+    !value.startsWith("/") &&
+    value
+      .split("/")
+      .every((part) => part !== "" && part !== "." && part !== "..")
   );
 }
 
@@ -401,7 +433,11 @@ export function mergeOmarchyShellConfig(
   }
 
   for (const plugin of managedPlugins.plugins) {
-    if (plugin.enabled === false) continue;
+    if (
+      plugin.enabled === false ||
+      (plugin.onlyHosts && !plugin.onlyHosts.includes(host))
+    )
+      continue;
 
     if (plugin.placement) {
       placeManagedPlugin(base.bar.layout, plugin, host);
