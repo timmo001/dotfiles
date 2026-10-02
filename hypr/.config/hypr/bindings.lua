@@ -138,6 +138,10 @@ o.bind("CTRL + ALT + T", nil, "omarchy-shell shell toggle timmo.twitch")
 hl.unbind("SUPER + CTRL + T")
 o.bind("SUPER + CTRL + T", "Clock", "omarchy-shell shell toggle timmo.clock")
 
+-- No scratchpad
+hl.unbind("SUPER + S")
+hl.unbind("SUPER + ALT + S")
+
 -- Precise window resizing (fractional, like 1% volume with ALT)
 hl.unbind("SUPER + ALT + code:20")
 hl.unbind("SUPER + ALT + code:21")
