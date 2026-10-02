@@ -150,6 +150,16 @@ class UpdateError extends Schema.TaggedError<UpdateError>()("UpdateError", {
   message: Schema.String,
 }) {}
 
+/** One or more selected repositories could not be pulled. */
+export class RepoPullError extends Schema.TaggedError<RepoPullError>()(
+  "RepoPullError",
+  {
+    message: Schema.String,
+    /** Paths of the repositories whose pull failed. */
+    paths: Schema.Array(Schema.String),
+  },
+) {}
+
 function requiredUpdateStep<E, R>(
   label: string,
   seconds: number,
@@ -388,6 +398,7 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
   const updatedNames: string[] = [];
   const updatedPaths = new Set<string>();
   const failures: string[] = [];
+  const failedPulls: string[] = [];
   const pulledDotfiles: string[] = [];
   const managed = managedGitRepos(config.gitConfig);
   const publicPath = yield* fs.realPath(config.publicDotfiles);
@@ -421,6 +432,7 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
           Effect.gen(function* () {
             const message = `${displayPath(path)}: ${error.message}`;
             failures.push(message);
+            failedPulls.push(path);
             yield* log.error(message);
 
             return null;
@@ -486,6 +498,12 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
   } else {
     yield* notifyUpdated(updatedNames);
   }
+
+  if (failedPulls.length > 0)
+    return yield* new RepoPullError({
+      message: failures.join("\n"),
+      paths: failedPulls,
+    });
 
   if (failures.length > 0)
     return yield* new UpdateError({ message: failures.join("\n") });
