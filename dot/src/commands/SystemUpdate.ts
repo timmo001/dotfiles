@@ -9,7 +9,6 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 
 const TOPGRADE_UPDATES = [
   ["Topgrade: Yazi", "yazi", false],
-  ["Topgrade: Mise", "mise", false],
   ["Topgrade: ProtonPlus", "protonplus", false],
   ["Topgrade: Firmware", "firmware", false],
   ["Topgrade: Rustup", "rustup", false],
