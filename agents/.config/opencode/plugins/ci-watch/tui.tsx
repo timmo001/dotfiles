@@ -147,6 +147,8 @@ export default Plugin.define({
 
       const label = () => {
         switch (current().state) {
+          case "loading":
+            return "CI …";
           case "running":
             return "CI ↻";
           case "failure":

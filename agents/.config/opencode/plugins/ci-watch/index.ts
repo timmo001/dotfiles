@@ -24,9 +24,9 @@ const PluginList = Schema.fromJsonString(
 );
 
 type Token =
-  | { readonly state: Exclude<CiState, "none" | "unavailable" | "failure">; readonly sha: string }
+  | { readonly state: Exclude<CiState, "none" | "loading" | "unavailable" | "failure">; readonly sha: string }
   | { readonly state: "failure"; readonly sha: string; readonly fingerprint: string }
-  | { readonly state: "unavailable" };
+  | { readonly state: "loading" | "unavailable" };
 
 // See the Integrations section of the herdr-workflow-watch README.
 const parse = (value: string | undefined): Token | null => {
@@ -34,7 +34,7 @@ const parse = (value: string | undefined): Token | null => {
 
   if (version !== "v1") return null;
 
-  if (state === "unavailable") return { state };
+  if (state === "loading" || state === "unavailable") return { state };
 
   if (!sha) return null;
 
@@ -101,7 +101,7 @@ export default Plugin.define({
       const status = (sessionID: string): CiStatus => {
         if (!token) return noStatus(sessionID);
 
-        if (token.state === "unavailable") return { ...noStatus(sessionID), state: token.state };
+        if (!("sha" in token)) return { ...noStatus(sessionID), state: token.state };
 
         return {
           sessionID,

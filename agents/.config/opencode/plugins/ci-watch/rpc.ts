@@ -6,7 +6,7 @@ import type { Rpc } from "@opencode/schema/rpc";
 import { Schema } from "effect";
 
 /** CI state of the session's checkout, from the Workflow Watch state token. */
-export const CiState = Schema.Literals(["none", "running", "failure", "success", "idle", "unavailable"]);
+export const CiState = Schema.Literals(["none", "loading", "running", "failure", "success", "idle", "unavailable"]);
 
 /** CI state of the session's checkout. */
 export type CiState = typeof CiState.Type;
