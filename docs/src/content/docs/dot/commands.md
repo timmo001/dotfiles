@@ -1483,6 +1483,77 @@ dot skills updates-agent device [flags]
 | `--run-id` `<string>` | Wait for this workflow run |
 | `--help` `-h` | Show help information |
 
+### `dot skills consumers`
+
+Manage repositories that receive shared skill copies
+
+```text
+dot skills consumers <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot skills consumers add`
+
+Share skills with a repository through consumers.yml and commit the change
+
+```text
+dot skills consumers add [flags] <skill...>
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--repo` `<string>` | owner/name of the consumer repository (default: the current directory's GitHub repository) |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<skill>` | Skills to share with the repository |
+
+**Examples**
+
+```bash
+dot skills consumers add code-review testing
+dot skills consumers add --repo timmo001/ha-bridge writing-style
+```
+
+#### `dot skills consumers remove`
+
+Stop sharing skills with a repository through consumers.yml and commit the change. Dropping the last skill, or --all, removes the copies from the repository straight away and drops its entry.
+
+```text
+dot skills consumers remove [flags] [<skill...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--repo` `<string>` | owner/name of the consumer repository (default: the current directory's GitHub repository) |
+| `--all` | Stop sharing every skill, remove the copies now and drop the repository |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<skill>` | Skills to stop sharing with the repository |
+
+**Examples**
+
+```bash
+dot skills consumers remove writing-style
+dot skills consumers remove --repo timmo001/ha-bridge --all
+```
+
 ## `dot completions`
 
 Generate shell completions

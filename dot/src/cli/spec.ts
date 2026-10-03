@@ -51,7 +51,7 @@ import { prReviews } from "../commands/PrReviews.js";
 import { prWatch } from "../commands/PrWatch.js";
 import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
 import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
-import { runSkillsMaintenance } from "../commands/Skills.js";
+import { editSkillConsumer, runSkillsMaintenance } from "../commands/Skills.js";
 import { runCommand } from "../commands/Run.js";
 import { stow } from "../commands/Stow.js";
 import { logRunSummary } from "../lib/runSummary.js";
@@ -1671,6 +1671,65 @@ const skillsUpdatesAgent = describe(
   "Run skill update automation",
 );
 
+const consumerRepo = text(
+  "repo",
+  "owner/name of the consumer repository (default: the current directory's GitHub repository)",
+);
+
+const skillsConsumersAdd = describe(
+  Command.make(
+    "add",
+    {
+      repo: consumerRepo,
+      skills: Argument.String("skill").pipe(
+        Argument.atLeast(1),
+        Argument.withDescription("Skills to share with the repository"),
+      ),
+    },
+    ({ repo, skills }) =>
+      editSkillConsumer("add", Option.getOrUndefined(repo), skills),
+  ),
+  "Share skills with a repository through consumers.yml and commit the change",
+  [
+    "dot skills consumers add code-review testing",
+    "dot skills consumers add --repo timmo001/ha-bridge writing-style",
+  ],
+);
+
+const skillsConsumersRemove = describe(
+  Command.make(
+    "remove",
+    {
+      repo: consumerRepo,
+      all: bool(
+        "all",
+        "Stop sharing every skill, remove the copies now and drop the repository",
+      ),
+      skills: Argument.String("skill").pipe(
+        Argument.atLeast(0),
+        Argument.withDescription("Skills to stop sharing with the repository"),
+      ),
+    },
+    ({ all, repo, skills }) =>
+      editSkillConsumer("remove", Option.getOrUndefined(repo), [
+        ...(all ? ["--all"] : []),
+        ...skills,
+      ]),
+  ),
+  "Stop sharing skills with a repository through consumers.yml and commit the change. Dropping the last skill, or --all, removes the copies from the repository straight away and drops its entry.",
+  [
+    "dot skills consumers remove writing-style",
+    "dot skills consumers remove --repo timmo001/ha-bridge --all",
+  ],
+);
+
+const skillsConsumers = describe(
+  Command.make("consumers").pipe(
+    Command.withSubcommands([skillsConsumersAdd, skillsConsumersRemove]),
+  ),
+  "Manage repositories that receive shared skill copies",
+);
+
 const skillsCommand = describe(
   Command.make("skills").pipe(
     Command.withSubcommands([
@@ -1679,6 +1738,7 @@ const skillsCommand = describe(
       skillsUpdates,
       skillsCheck,
       skillsUpdatesAgent,
+      skillsConsumers,
     ]),
   ),
   "Maintain imported agent skills",

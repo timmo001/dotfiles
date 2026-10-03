@@ -22,3 +22,33 @@ export const runSkillsMaintenance = Effect.fn("Skills.run")(function* (
     setExitCode(exitCode);
   }
 });
+
+/**
+ * Edit a consumer repository's shared skills, defaulting to the GitHub
+ * repository of the caller's directory, since skill-maintenance runs from the
+ * skills checkout.
+ */
+export const editSkillConsumer = Effect.fn("Skills.editConsumer")(function* (
+  action: "add" | "remove",
+  repo: string | undefined,
+  args: readonly string[],
+) {
+  const repository =
+    repo ??
+    (yield* (yield* CommandExecutor).run("gh", [
+      "repo",
+      "view",
+      "--json",
+      "nameWithOwner",
+      "--jq",
+      ".nameWithOwner",
+    ])).trim();
+
+  yield* runSkillsMaintenance([
+    "consumers",
+    action,
+    "--repo",
+    repository,
+    ...args,
+  ]);
+});
