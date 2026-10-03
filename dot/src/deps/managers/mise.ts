@@ -52,6 +52,8 @@ const upstreams = {
   zls: "zigtools/zls",
   zoxide: "ajeetdsouza/zoxide",
   just: "casey/just",
+  actionlint: "rhysd/actionlint",
+  yamllint: "adrienverge/yamllint",
 };
 
 /** Read backend-specific mise pins without executing mise or repository hooks. */
