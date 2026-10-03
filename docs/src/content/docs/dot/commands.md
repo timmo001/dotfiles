@@ -1499,7 +1499,7 @@ dot skills consumers <subcommand> [flags]
 
 #### `dot skills consumers add`
 
-Share skills with a repository through consumers.yml and commit the change
+Share skills with a repository through consumers.yml, push the change and install them there straight away
 
 ```text
 dot skills consumers add [flags] <skill...>
@@ -1527,7 +1527,7 @@ dot skills consumers add --repo timmo001/ha-bridge writing-style
 
 #### `dot skills consumers remove`
 
-Stop sharing skills with a repository through consumers.yml and commit the change. Dropping the last skill, or --all, removes the copies from the repository straight away and drops its entry.
+Stop sharing skills with a repository through consumers.yml, push the change and remove the copies there straight away. Dropping the last skill, or --all, also drops its entry.
 
 ```text
 dot skills consumers remove [flags] [<skill...>]

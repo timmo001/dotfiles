@@ -1689,7 +1689,7 @@ const skillsConsumersAdd = describe(
     ({ repo, skills }) =>
       editSkillConsumer("add", Option.getOrUndefined(repo), skills),
   ),
-  "Share skills with a repository through consumers.yml and commit the change",
+  "Share skills with a repository through consumers.yml, push the change and install them there straight away",
   [
     "dot skills consumers add code-review testing",
     "dot skills consumers add --repo timmo001/ha-bridge writing-style",
@@ -1716,7 +1716,7 @@ const skillsConsumersRemove = describe(
         ...skills,
       ]),
   ),
-  "Stop sharing skills with a repository through consumers.yml and commit the change. Dropping the last skill, or --all, removes the copies from the repository straight away and drops its entry.",
+  "Stop sharing skills with a repository through consumers.yml, push the change and remove the copies there straight away. Dropping the last skill, or --all, also drops its entry.",
   [
     "dot skills consumers remove writing-style",
     "dot skills consumers remove --repo timmo001/ha-bridge --all",
