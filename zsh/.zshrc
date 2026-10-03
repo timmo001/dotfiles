@@ -15,7 +15,7 @@ export PATH="$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
 
 # ------------------------------
 # Completion fpath
-# (compinit is handled by zsh-autocomplete, loaded below)
+# (compinit runs before the plugins below)
 # ------------------------------
 if [[ -d "${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions" ]]; then
   fpath=("${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions" $fpath)
@@ -24,7 +24,7 @@ fi
 # ------------------------------
 # mise completions
 # Generated at runtime into a live (non-stowed) path; regenerates when the
-# mise binary is upgraded. Runs before zsh-autocomplete's compinit so _mise
+# mise binary is upgraded. Runs before compinit so _mise
 # is discovered on fpath in the same session. Not version-controlled.
 # ------------------------------
 if command -v mise &> /dev/null; then
@@ -49,16 +49,24 @@ if [[ -n "${GHOSTTY_SHELL_FEATURES:-}" ]]; then
 fi
 
 # ------------------------------
-# Zsh plugins (pacman/AUR, managed by dot via .dot-public-packages)
+# Zsh plugins
+# autosuggestions and fast-syntax-highlighting come from pacman via
+# .dot-public-packages; fzf-tab comes from the global mise config.
 # fast-syntax-highlighting replaces zsh-syntax-highlighting; do not load both.
-# zsh-autocomplete loads last so it sees the widgets the others define.
+# fzf-tab needs compinit first and must load before the widget-wrapping plugins.
 # ------------------------------
+autoload -Uz compinit && compinit
+zstyle ':completion:*' menu no
+zstyle ':completion:*:descriptions' format '[%d]'
+
+_fzf_tab_plugin="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}/installs/http-fzf-tab/latest/fzf-tab.plugin.zsh"
+[[ -r "$_fzf_tab_plugin" ]] && source "$_fzf_tab_plugin"
+unset _fzf_tab_plugin
+
 [[ -r /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && \
   source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 [[ -r /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh ]] && \
   source /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh
-[[ -r /usr/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh ]] && \
-  source /usr/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh
 
 autoload -Uz _dot 2>/dev/null
 compdef _dot dot 2>/dev/null

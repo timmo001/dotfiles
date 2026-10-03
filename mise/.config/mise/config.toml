@@ -53,6 +53,11 @@ minimum_release_age = "2h"
 version = "0.27.25"
 minimum_release_age = "2h"
 
+# Zsh plugin with no release assets; .zshrc sources it from the latest install.
+[tools."http:fzf-tab"]
+version = "1.3.0"
+url = "https://github.com/Aloxaf/fzf-tab/archive/refs/tags/v{{ version }}.tar.gz"
+
 # Base build; the postinstall adds the CUDA libraries when an NVIDIA driver is present.
 [tools."github:ollaya-dev/ollaya"]
 version = "0.9.0"
