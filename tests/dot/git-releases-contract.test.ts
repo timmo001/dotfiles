@@ -465,9 +465,9 @@ test("strict optional config feeds separate patch peers and quiet development-ve
   const old = JSON.stringify({ peerDependencies: { oxlint: "1.0", "@oxlint/plugins": "1.0" }, devDependencies: { oxlint: "1.0", "@oxlint/plugins": "1.0" } });
   const next = JSON.stringify({ peerDependencies: { oxlint: "2.0", "@oxlint/plugins": "2.0" }, devDependencies: { oxlint: "2.0", "@oxlint/plugins": "2.0" } });
   const current = snapshot(manifestChanges("package.json", old, next, config));
-  expect(current.findings.filter((fact) => fact.role === "peer").map((fact) => fact.impact)).toEqual(["patch", "patch"]);
+  expect(current.findings.filter((fact) => fact.role === "peer").map((fact) => fact.impact)).toEqual(["none", "none"]);
   expect(current.findings.filter((fact) => fact.role === "development").map((fact) => fact.impact)).toEqual(["none", "none"]);
-  expect(current.suggestion).toBe("patch");
+  expect(current.suggestion).toBe("none");
   const devOnly = manifestChanges("package.json", old, JSON.stringify({ peerDependencies: { oxlint: "1.0", "@oxlint/plugins": "1.0" }, devDependencies: { oxlint: "3.0", "@oxlint/plugins": "3.0" } }), config);
   expect(snapshot(devOnly).suggestion).toBe("none");
   const source = appendGitRepository("schema_version: 2\nrepositories: []\n", repository);
@@ -547,7 +547,7 @@ test("quiet paths, excluded scripts and dependency churn do not inflate source i
     expect(changes.errors).toEqual([]);
     const current = snapshot(changes.facts, head, config);
     expect(current.suggestion).toBe("patch");
-    expect(current.findings.filter((finding) => finding.impact === "none").map((finding) => finding.path)).toEqual([".github/workflows/check.yml", "client/source_test.go", "docs/guide.md", "omarchy-plugin/Panel.qml"]);
+    expect(current.findings.filter((finding) => finding.impact === "none" && finding.dependency === null).map((finding) => finding.path)).toEqual([".github/workflows/check.yml", "client/source_test.go", "docs/guide.md", "omarchy-plugin/Panel.qml"]);
 
     const newCategory = history.commit({
       "client/source.go": "old\n",
@@ -645,8 +645,8 @@ test("runtime lock-only updates, shared reachability and build exceptions remain
   const changes = bunLockChanges("web-client/bun.lock", lock("1", "1"), lock("9", "9"), config);
   expect(changes.errors).toEqual([]);
   const current = snapshot(changes.facts, "head", config);
-  expect(current.findings.map((fact) => [fact.dependency, fact.role, fact.impact])).toEqual([["lint", "development", "none"], ["shared", "runtime", "patch"], ["vite", "build", "patch"]]);
-  expect(current.suggestion).toBe("patch");
+  expect(current.findings.map((fact) => [fact.dependency, fact.role, fact.impact])).toEqual([["lint", "development", "none"], ["shared", "runtime", "none"], ["vite", "build", "none"]]);
+  expect(current.suggestion).toBe("none");
   expect(bunLockChanges("bun.lock", lock("1", "1"), lock("1", "1").replaceAll('"hash"', '"other"'), config).facts).toEqual([]);
   const unresolved = bunLockChanges("bun.lock", null, JSON.stringify({ lockfileVersion: 1, workspaces: { "": {} }, packages: { orphan: ["orphan@1", "", {}] } }), config);
   expect(unresolved.errors.length).toBeGreaterThan(0);
@@ -669,7 +669,7 @@ test("GitHub Bun tuples retain transitive roles and resolved identity across npm
   const changes = bunLockChanges("bun.lock", lock("1", false), lock("2", true), config);
   expect(changes.errors).toEqual([]);
   expect(snapshot(changes.facts, "head", config).findings.map((fact) => [fact.dependency, fact.role, fact.impact])).toEqual([
-    ["app", "runtime", "patch"], ["lint", "development", "none"], ["shared", "runtime", "patch"], ["peer", "runtime", "patch"], ["tool", "development", "none"],
+    ["app", "runtime", "none"], ["lint", "development", "none"], ["shared", "runtime", "none"], ["peer", "runtime", "none"], ["tool", "development", "none"],
   ]);
   expect(bunLockChanges("bun.lock", lock("2", true), lock("2", true), config)).toEqual({ facts: [], errors: [] });
   expect(bunLockChanges("bun.lock", lock("2", true), lock("2", true).replaceAll('"hash"', '"other"'), config)).toEqual({ facts: [], errors: [] });
@@ -685,7 +685,7 @@ test("Go requirements and replacements compare structurally, not by source order
   const facts = goModuleChanges("go.mod", before, reordered.replace("fork v1.0", "fork v9.0"));
   expect(facts).toHaveLength(1);
   expect(facts[0].detail).toContain("replace");
-  expect(snapshot(facts).suggestion).toBe("patch");
+  expect(snapshot(facts).suggestion).toBe("none");
 });
 
 test("quiet head updates preserve overall review and delivery identity, changed evidence rejects stale actions", () => {
@@ -949,7 +949,7 @@ test("application docs retain quiet file evidence without entering the shipped d
     const shippedHead = history.commit({ ...docs, "bun.lock": lock("2", true) }, "Update shipped dependency", docsHead);
     const shipped = await history.collect(base, shippedHead, config);
     expect(shipped.errors).toEqual([]);
-    expect(snapshot(shipped.facts, shippedHead, config).findings.filter((fact) => fact.impact !== "none").map((fact) => [fact.path, fact.role, fact.impact])).toEqual([["bun.lock", "runtime", "patch"]]);
+    expect(snapshot(shipped.facts, shippedHead, config).findings.filter((fact) => fact.role === "runtime").map((fact) => [fact.path, fact.role, fact.impact])).toEqual([["bun.lock", "runtime", "none"]]);
     const orphanHead = history.commit({ ...docs, "bun.lock": lock("2", false).replaceAll("app", "orphan") }, "Unresolved shipped dependency", base);
     const orphan = await history.collect(base, orphanHead, config);
     expect(orphan.errors).toContain("Cannot establish runtime/development reachability for bun.lock: orphan");

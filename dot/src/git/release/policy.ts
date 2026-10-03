@@ -7,7 +7,7 @@ import type {
 } from "./types.js";
 
 /** Portable shipped-content boundaries; increment when classification semantics change. */
-export const RELEASE_POLICY_VERSION = 11;
+export const RELEASE_POLICY_VERSION = 12;
 
 const quietPaths = [
   "**/docs",
@@ -96,14 +96,13 @@ const tests: ReleaseRule = {
 const dependencies: readonly ReleaseRule[] = [
   {
     roles: ["runtime", "build"],
-    impact: "patch",
-    reason:
-      "Runtime or build-output dependency changed; dependency semver does not set consumer impact",
+    impact: "none",
+    reason: "Dependency updates are quiet",
   },
   {
     roles: ["peer"],
-    impact: "patch",
-    reason: "Published peer requirement changed",
+    impact: "none",
+    reason: "Peer requirement updates are quiet",
   },
   {
     roles: ["development"],
@@ -218,15 +217,9 @@ const presets: Record<ReleaseSettings["policy"], readonly ReleaseRule[]> = {
     },
     ...dependencies,
     {
-      paths: [
-        ".github/actions/build-client-web/**",
-        ".github/scripts/bash/package-*.sh",
-        ".github/scripts/powershell/package-*.ps1",
-        ".resources/**",
-        "build/**",
-      ],
+      paths: [".resources/**"],
       impact: "patch",
-      reason: "Shipped package content or build definition changed",
+      reason: "Shipped package content changed",
     },
     {
       paths: [
@@ -249,20 +242,16 @@ const presets: Record<ReleaseSettings["policy"], readonly ReleaseRule[]> = {
         "CLAUDE.md",
         "package.json",
         "mise.lock",
-      ],
-      impact: "none",
-      reason: "Documentation, lint/type tooling or CI-only change",
-    },
-    {
-      paths: [
-        "**/*.go",
-        "web-client/**",
-        "tui/**",
+        "build/**",
+        "Dockerfile*",
         "go.mod",
         "go.sum",
-        "mise.toml",
-        "LICENSE",
       ],
+      impact: "none",
+      reason: "Documentation, dependency, build tooling or CI-only change",
+    },
+    {
+      paths: ["**/*.go", "web-client/**", "tui/**", "mise.toml", "LICENSE"],
       impact: "patch",
       reason:
         "Shipped application, embedded client, TUI or package content changed",
