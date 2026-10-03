@@ -12,8 +12,14 @@ const Tools = Schema.Struct({
 
 const Pin = Schema.Union([
   Schema.String,
-  Schema.Struct({ version: Schema.String }),
+  Schema.Struct({
+    version: Schema.String,
+    url: Schema.optionalKey(Schema.String),
+  }),
 ]);
+
+const githubTagArchive =
+  /^https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/archive\/refs\/tags\/v?\{\{ ?version ?\}\}\.(?:tar\.gz|zip)$/;
 
 const upstreams = {
   bun: "oven-sh/bun",
@@ -102,9 +108,15 @@ export const extractMise = Effect.fn("Dependencies.extractMise")(function* (
       continue;
     }
 
+    const archive =
+      backend === "http" && !Schema.is(Schema.String)(value)
+        ? githubTagArchive.exec(value.url ?? "")?.[1]
+        : undefined;
+
     const repository = ["aqua", "github"].includes(backend)
       ? tool
-      : Object.entries(upstreams).find(([tool]) => tool === name)?.[1];
+      : (archive ??
+        Object.entries(upstreams).find(([tool]) => tool === name)?.[1]);
 
     const crate = backend === "cargo" && !tool.includes(":");
     dependencies.push({
@@ -118,7 +130,7 @@ export const extractMise = Effect.fn("Dependencies.extractMise")(function* (
           : crate
             ? "crate"
             : repository
-              ? ["go", "python"].includes(name)
+              ? archive || ["go", "python"].includes(name)
                 ? "github-tags"
                 : "github-releases"
               : name === "android-sdk"
