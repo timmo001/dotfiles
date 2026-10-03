@@ -3,6 +3,10 @@ min_version = "2026.9.14"
 [tools]
 node = "26.10.0"
 bun = "1.4.2"
+"npm:markdownlint-cli2" = "0.23.3"
+actionlint = "1.7.12"
+yamllint = "1.38.0"
+shellcheck = "0.11.0"
 
 [tasks.lint]
 description = "Lint owned TypeScript and JavaScript with Oxlint"
@@ -10,7 +14,6 @@ run = "bunx oxlint --type-aware"
 
 [tasks."lint:actions"]
 description = "Run the required ActionLint check on tracked source"
-tools = { actionlint = "1.7.12" }
 run = "bun dot/src/checkRepositoryFiles.ts actions"
 
 [tasks."lint:json"]
@@ -19,7 +22,6 @@ run = "bun dot/src/checkRepositoryFiles.ts json"
 
 [tasks."lint:yaml"]
 description = "Run the required YAMLLint check on tracked source"
-tools = { yamllint = "1.38.0" }
 run = "bun dot/src/checkRepositoryFiles.ts yaml"
 
 [tasks."lint:markdown"]
@@ -28,7 +30,6 @@ run = "bun dot/src/checkRepositoryFiles.ts markdown"
 
 [tasks."lint:shell"]
 description = "Run the required ShellCheck scope and severity"
-tools = { shellcheck = "0.11.0" }
 run = "bun dot/src/checkRepositoryFiles.ts shell"
 
 # dot (runs in ./dot)
