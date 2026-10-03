@@ -294,15 +294,26 @@ const printRepos = Effect.fn("repos.print")(function* (
   options: {
     readonly query?: string;
     readonly json: boolean;
+    /** Keep only repositories with an open Herdr workspace. */
+    readonly open?: boolean;
     /** Search output: JSON becomes `{ results, hint }`, with the hint also after the table. */
     readonly search?: { readonly hint: string | undefined };
   },
 ) {
   const snapshot = selected.length > 0 ? yield* herdrSnapshot : undefined;
 
-  const result = snapshot
+  if (options.open && selected.length > 0 && !snapshot)
+    return yield* new ReposError({
+      message: "Cannot list open repositories: Herdr server is unreachable",
+    });
+
+  const attached = snapshot
     ? selected.map((repo) => ({ ...repo, herdr: repoHerdr(repo, snapshot) }))
     : selected;
+
+  const result = options.open
+    ? attached.filter((repo) => repo.herdr?.open)
+    : attached;
 
   const hint = options.search?.hint;
 
@@ -324,12 +335,14 @@ const printRepos = Effect.fn("repos.print")(function* (
 /**
  * List tracked repositories and shortcuts from private `dot-git.yml` with
  * their live Herdr workspaces and agents, optionally filtered by a name,
- * alias, GitHub slug or path query. Prints JSON with `--json` or under an AI
- * agent, and exits 1 when a query matches nothing.
+ * alias, GitHub slug or path query. `open` keeps only repositories with an
+ * open Herdr workspace. Prints JSON with `--json` or under an AI agent, and
+ * exits 1 when a query matches nothing.
  */
 export const repos = Effect.fn("repos")(function* (options: {
   readonly query?: string;
   readonly json: boolean;
+  readonly open: boolean;
 }) {
   const tracked = yield* loadTracked;
   const query = options.query?.trim() || undefined;
@@ -345,7 +358,11 @@ export const repos = Effect.fn("repos")(function* (options: {
         .map(({ repo }) => repo)
     : tracked;
 
-  yield* printRepos(selected, { query, json: options.json });
+  yield* printRepos(selected, {
+    query,
+    json: options.json,
+    open: options.open,
+  });
 });
 
 /**

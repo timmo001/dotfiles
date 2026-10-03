@@ -1827,15 +1827,21 @@ const repoListCommand = describe(
         ),
         Argument.optional,
       ),
+      open: bool("open", "Only list repositories open in Herdr"),
       json: bool("json", "Print JSON (the default under an AI agent)"),
     },
-    ({ query, json }) => repos({ query: optional(query), json }),
+    ({ query, open, json }) => repos({ query: optional(query), open, json }),
   ),
   "List tracked repositories and shortcuts from private dot-git.yml",
-  ["dot repo list", "dot repo list notes", "dot repo list arch-repo --json"],
+  [
+    "dot repo list",
+    "dot repo list notes",
+    "dot repo list arch-repo --json",
+    "dot repo list --open --json",
+  ],
   {
     description:
-      "Read-only lookup of the repositories and path shortcuts configured in private dot-git.yml, the same list behind the prefix+s picker and repository shortcuts. Reads the config directly, so it does not depend on the generated picker cache. Each entry reports name, path, github (null for shortcuts), aliases, kind, whether the checkout exists and whether it is the deepest tracked path containing the working directory. Each entry also reports herdr: live state from the shared Herdr server (HERDR_SOCKET_PATH or the default socket), with open, the workspaces labelled with the repository name or inside its worktrees (id, label, focused, tabCount, paneCount, agentStatus, checkoutPath, linkedWorktree), and the agents running in them (name, agent, status, workspaceId, paneId, focused, cwd). herdr is null when the server cannot be reached; agent status is a snapshot. A query matches name, aliases, GitHub slug or repository name, and path, case-insensitively, with exact matches first. Prints JSON with --json or when run under an AI agent, otherwise an aligned table. Exits 1 when a query matches nothing, and fails when private config is unavailable or invalid.",
+      "Read-only lookup of the repositories and path shortcuts configured in private dot-git.yml, the same list behind the prefix+s picker and repository shortcuts. Reads the config directly, so it does not depend on the generated picker cache. Each entry reports name, path, github (null for shortcuts), aliases, kind, whether the checkout exists and whether it is the deepest tracked path containing the working directory. Each entry also reports herdr: live state from the shared Herdr server (HERDR_SOCKET_PATH or the default socket), with open, the workspaces labelled with the repository name or inside its worktrees (id, label, focused, tabCount, paneCount, agentStatus, checkoutPath, linkedWorktree), and the agents running in them (name, agent, status, workspaceId, paneId, focused, cwd). herdr is null when the server cannot be reached; agent status is a snapshot. A query matches name, aliases, GitHub slug or repository name, and path, case-insensitively, with exact matches first. --open keeps only repositories with an open Herdr workspace, and fails when the Herdr server cannot be reached. Prints JSON with --json or when run under an AI agent, otherwise an aligned table. Exits 1 when a query matches nothing, and fails when private config is unavailable or invalid.",
   },
 );
 
