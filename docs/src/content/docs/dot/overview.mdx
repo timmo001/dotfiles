@@ -51,6 +51,7 @@ Managed-repo lists, browser choices, and notification rules live in the private 
 | `dot omarchy-shell-config` | Regenerate `shell.json` without a full stow |
 | `dot omarchy-plugin` | Add, update, or remove Omarchy bar plugins |
 | `dot herdr` | Shared Herdr server, repo workspaces, and attached context |
+| `dot fans` | Ramp chassis fans from a Home Assistant temperature |
 | `dot launch-floating-webapp` | Open a floating webapp window |
 
 ## Agents and tooling
@@ -63,7 +64,9 @@ Managed-repo lists, browser choices, and notification rules live in the private 
 | `dot skills` | Check and apply skill updates from the skills repo |
 | `dot notes-capture-sync` | Sync notes-capture repository wiring |
 | `dot private-pkg-publish` | Publish a package to the private pacman repo |
+| `dot session-status` | Query an OpenCode 2 session's model and context pressure |
 | `dot is-agent` | Detect whether the current process is under an AI agent |
 | `dot agent-oxlint` | Optional advisory Oxlint pass on changed lines |
+| `dot agent-lint` | Repository-configured fallback lint on changed files |
 
 Full flags and subcommands: [Command Reference](/dot/commands/) (generated from `dot/src/cli/spec.ts`) or `dot --help`.
