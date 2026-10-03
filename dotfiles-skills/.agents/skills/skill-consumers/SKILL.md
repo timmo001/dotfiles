@@ -21,7 +21,7 @@ metadata:
 dot skills consumers add [--repo <owner/repo>] <skill>...
 ```
 
-Without `--repo`, it uses the GitHub repository of the current directory. It adds the skills to that repository's entry, creating the entry if needed, and commits `consumers.yml` in `~/repos/skills` through `dot git-commit`. New repositories must be public, owned by the skills repository's owner, and not forks or archived. Only skills committed in the skills repository can be shared, and only those in the Portable section of `~/repos/skills/SKILLS.md` suit consumers; the rest depend on these devices. If the user did not name skills, read that section and suggest the skills whose descriptions fit the repository's stack and work.
+Without `--repo`, it uses the GitHub repository of the current directory. It adds the skills to that repository's entry, creating the entry if needed, and commits `consumers.yml` in `~/repos/skills` through `dot git-commit`. New repositories must be public, owned by the skills repository's owner, and not archived. Only skills that work outside these devices suit consumers: those in the Portable section of `~/repos/skills/SKILLS.md`, and external imports (`"distribution": "external"` in `~/repos/skills/imports.json`) whose origin skill is general guidance, such as a library's skill for a repository that uses it. Unlicensed imports are refused. If the user did not name skills, read both and suggest the ones whose descriptions fit the repository's stack and work.
 
 ## Remove skills
 
