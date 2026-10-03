@@ -135,6 +135,10 @@ const UpstreamTags = Schema.Array(
   Schema.Array(Schema.Struct({ name: Schema.String })),
 );
 
+const UpstreamManifest = Schema.fromJsonString(
+  Schema.Struct({ version: Schema.String }),
+);
+
 function policyIdentity(settings: ReleaseSettings): string {
   return evidenceId([
     RELEASE_POLICY_VERSION,
@@ -391,12 +395,40 @@ export class GitReleases extends Context.Service<
           });
 
         const upstream =
-          settings.versioning === "fork"
+          settings.versioning === "fork" ||
+          settings.versioning === "fork-base-js"
             ? yield* Effect.gen(function* () {
                 if (!settings.fork)
                   return yield* new ReleaseError({
                     message: "Fork release settings are missing",
                   });
+
+                if (settings.versioning === "fork-base-js") {
+                  yield* fetchGit([
+                    "fetch",
+                    "--atomic",
+                    "--no-write-fetch-head",
+                    "--no-tags",
+                    "--no-recurse-submodules",
+                    `git@github.com:${settings.fork.upstream}.git`,
+                    `+HEAD:${prefix}/upstream`,
+                  ]);
+
+                  const base = (yield* runGit([
+                    "merge-base",
+                    `${prefix}/upstream^{commit}`,
+                    head,
+                  ])).trim();
+
+                  const manifest = yield* runGit([
+                    "show",
+                    `${base}:package.json`,
+                  ]);
+
+                  return (yield* Schema.decodeUnknownEffect(UpstreamManifest)(
+                    manifest,
+                  )).version;
+                }
 
                 const pages = yield* github
                   .json([

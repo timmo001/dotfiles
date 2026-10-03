@@ -278,7 +278,25 @@ $defs:
         enum:
           - semver
           - calver
-        description: Stable tag scheme. Omission retains SemVer; CalVer uses UTC YYYYMMDD.N.
+          - fork
+          - fork-base-js
+        description: Stable tag scheme. Omission retains SemVer; CalVer uses UTC YYYYMMDD.N. fork uses the newest upstream X.Y.Z tag merged into the branch; fork-base-js uses the package.json version at the merge-base with the upstream default branch. Both release as BASE-SUFFIX.N.
+      fork:
+        type: object
+        additionalProperties: false
+        description: Upstream version source for fork and fork-base-js versioning.
+        required:
+          - upstream
+          - suffix
+        properties:
+          upstream:
+            type: string
+            pattern: '^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_][A-Za-z0-9_.-]*$'
+            description: GitHub owner/repo of the upstream repository.
+          suffix:
+            type: string
+            pattern: '^(?![0-9]+$)[0-9A-Za-z-]+$'
+            description: Non-numeric SemVer prerelease identifier for fork releases.
       source_minor_threshold:
         type: integer
         minimum: 0

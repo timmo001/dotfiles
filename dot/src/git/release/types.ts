@@ -68,11 +68,13 @@ export const ReleaseSettings = Schema.Struct({
   /** Portable shipped-content policy. */
   policy: Schema.Literals(["oxlint-rules", "system-bridge", "application"]),
   /** Stable tag scheme; omission retains SemVer. */
-  versioning: Schema.optional(Schema.Literals(["semver", "calver", "fork"])),
+  versioning: Schema.optional(
+    Schema.Literals(["semver", "calver", "fork", "fork-base-js"]),
+  ),
   /** Upstream version source and fork-specific release counter prefix. */
   fork: Schema.optional(
     Schema.Struct({
-      /** GitHub owner/repo whose plain SemVer tags define the base. */
+      /** GitHub owner/repo whose plain SemVer tags, or merged package.json for fork-base-js, define the base. */
       upstream: Schema.String.check(
         Schema.isPattern(
           /^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9_][A-Za-z0-9_.-]*$/,
@@ -112,8 +114,10 @@ export const ReleaseSettings = Schema.Struct({
   }),
 }).check(
   Schema.makeFilter((settings) =>
-    settings.versioning === "fork" && !settings.fork
-      ? "versioning: fork requires fork.upstream and fork.suffix"
+    (settings.versioning === "fork" ||
+      settings.versioning === "fork-base-js") &&
+    !settings.fork
+      ? `versioning: ${settings.versioning} requires fork.upstream and fork.suffix`
       : undefined,
   ),
 );

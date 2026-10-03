@@ -302,7 +302,7 @@ export function nextReleaseTag(
 ): string {
   const versioning = isString(settings) ? settings : settings.versioning;
 
-  if (versioning === "fork") {
+  if (versioning === "fork" || versioning === "fork-base-js") {
     const fork = isString(settings) ? undefined : settings.fork;
 
     if (!fork || snapshot.suggestion === "none" || !snapshot.upstreamBase)
