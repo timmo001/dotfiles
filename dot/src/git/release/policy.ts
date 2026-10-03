@@ -7,7 +7,7 @@ import type {
 } from "./types.js";
 
 /** Portable shipped-content boundaries; increment when classification semantics change. */
-export const RELEASE_POLICY_VERSION = 10;
+export const RELEASE_POLICY_VERSION = 11;
 
 const quietPaths = [
   "**/docs",
@@ -28,6 +28,7 @@ const quietPaths = [
   "**/.mise.lock",
   "**/.config/mise/**",
   "**/.agents/**",
+  "**/skills-lock.json",
   "**/.opencode/**",
   "**/.cursor/**",
   "**/.vscode/**",
@@ -37,6 +38,8 @@ const quietPaths = [
   "**/oxlint.config.*",
   "**/.oxlint*",
   "**/.prettier*",
+  "**/.yamllint*",
+  "**/.markdownlint*",
   "**/eslint.config.*",
   "**/.eslintrc*",
   "**/.editorconfig",
