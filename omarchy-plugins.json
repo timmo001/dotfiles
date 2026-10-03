@@ -120,6 +120,7 @@
     },
     {
       "id": "nosignal.deckshift",
+      "enabled": false,
       "managed": true,
       "path": "plugins/nosignal.deckshift",
       "onlyHosts": ["desktop"],
