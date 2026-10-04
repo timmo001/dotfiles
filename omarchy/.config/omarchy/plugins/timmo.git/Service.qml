@@ -36,6 +36,30 @@ Item {
     contextUpdating()
     herdrContext = value
     contextUpdated()
+    refreshActiveStatus()
+  }
+
+  // The full scan runs once a minute; the attached repository is polled cheaply so its counts stay current.
+  readonly property string activePath: herdrContext && herdrContext.repository ? herdrContext.repository.path : ""
+  property var activeStatus: null
+
+  function refreshActiveStatus() {
+    if (activePath === "") { activeStatus = null; return }
+    if (activeStatusProcess.running) { activeStatusProcess.pending = true; return }
+    activeStatusProcess.repoPath = activePath
+    activeStatusProcess.command = ["git", "-C", activePath, "status", "--porcelain=v2", "--branch"]
+    activeStatusProcess.running = true
+  }
+
+  function applyActiveStatus(path, raw) {
+    if (path !== activePath) return
+    var status = { path: path, modified: 0, ahead: 0, behind: 0 }
+    String(raw || "").split("\n").forEach(function(line) {
+      var ab = line.match(/^# branch\.ab \+(\d+) -(\d+)$/)
+      if (ab) { status.ahead = Number(ab[1]); status.behind = Number(ab[2]) }
+      else if (/^[12u?] /.test(line)) status.modified++
+    })
+    activeStatus = status
   }
   property string diffText: ""
   property string diffTooltip: ""
@@ -615,6 +639,25 @@ Item {
       if (exitCode === 0) root.applyAgents(agentDiscoveryOutput.text)
       else root.installedAgents = []
     }
+  }
+
+  Process {
+    id: activeStatusProcess
+    property string repoPath: ""
+    property bool pending: false
+    stdout: StdioCollector { id: activeStatusOutput; waitForEnd: true }
+    onExited: function(exitCode) {
+      if (exitCode === 0) root.applyActiveStatus(repoPath, activeStatusOutput.text)
+      else if (repoPath === root.activePath) root.activeStatus = null
+      if (pending) { pending = false; root.refreshActiveStatus() }
+    }
+  }
+
+  Timer {
+    interval: 3000
+    running: root.activePath !== ""
+    repeat: true
+    onTriggered: root.refreshActiveStatus()
   }
 
   Process {

@@ -37,7 +37,8 @@ BarWidget {
     var segments = []
     function add(text, count, color) { if (count > 0) segments.push({ text: text + count, color: color }) }
 
-    var active = git.repos.find(function(repo) { return repo.path === root.activePath })
+    var active = git.activeStatus && git.activeStatus.path === root.activePath ? git.activeStatus
+      : git.repos.find(function(repo) { return repo.path === root.activePath })
     if (active) {
       add("\uF418 ", active.modified, "#56b6c2")
       add("\u2191", active.ahead, "#c678dd")
