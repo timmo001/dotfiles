@@ -381,15 +381,19 @@ function isPluginId(value: JsonValue): value is string {
   );
 }
 
-/** A relative subdirectory that cannot escape its checkout. */
-export function isPluginPath(value: JsonValue): value is string {
+/** Whether a path is a relative subdirectory that cannot escape its checkout. */
+export function isRelativePluginPath(value: string): boolean {
   return (
-    isString(value) &&
     !value.startsWith("/") &&
     value
       .split("/")
       .every((part) => part !== "" && part !== "." && part !== "..")
   );
+}
+
+/** A relative subdirectory that cannot escape its checkout. */
+export function isPluginPath(value: JsonValue): value is string {
+  return isString(value) && isRelativePluginPath(value);
 }
 
 function isSettings(value: JsonValue): value is JsonObject {

@@ -3,7 +3,10 @@ import { join } from "path";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { Config } from "../services/Config.js";
 import { deployOmarchyPlugin } from "../lib/omarchyPluginDeployment.js";
-import { isPluginPath } from "../lib/omarchyShellConfig.js";
+import {
+  isPluginPath,
+  isRelativePluginPath,
+} from "../lib/omarchyShellConfig.js";
 import { gitRemoteOutput } from "../lib/git.js";
 import {
   CommandExecutor,
@@ -909,7 +912,7 @@ export const omarchyPlugin = Effect.fn("omarchyPlugin")(function* (
   }
 
   if (OmarchyPluginInput.$is("add")(input)) {
-    if (input.path !== undefined && !isPluginPath(input.path)) {
+    if (input.path !== undefined && !isRelativePluginPath(input.path)) {
       return yield* fail(`invalid plugin path '${input.path}'`);
     }
 
