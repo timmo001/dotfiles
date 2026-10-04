@@ -1,3 +1,4 @@
+import { resolveSocketPath, UpnextClient } from "@timmo001/effect-upnext";
 import { Effect, FileSystem, Option } from "effect";
 import { basename } from "path";
 import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
@@ -53,20 +54,27 @@ const upnext = Effect.fn("Reload.upnext")(function* (open: boolean) {
     return yield* log.warn("upnext is not installed");
   }
 
-  const exitCode = yield* executor.exitCode("upnext", [
-    "recheck",
-    ...(open ? ["--open"] : []),
-  ]);
+  const socketPath = yield* resolveSocketPath(Option.none());
 
-  if (exitCode === 0) return yield* log.success("Rechecked upnext");
-
-  yield* executor.exitCode("systemctl", [
-    "--user",
-    "restart",
-    "upnext.service",
-  ]);
-
-  yield* log.warn(`upnext recheck failed (exit ${exitCode}), restarted it`);
+  yield* Effect.gen(function* () {
+    const client = yield* UpnextClient;
+    yield* client.Recheck({ open });
+  }).pipe(
+    Effect.provide(UpnextClient.layer(socketPath)),
+    Effect.matchEffect({
+      onFailure: (error) =>
+        executor
+          .exitCode("systemctl", ["--user", "restart", "upnext.service"])
+          .pipe(
+            Effect.andThen(
+              log.warn(
+                `upnext recheck failed (${error.message}), restarted it`,
+              ),
+            ),
+          ),
+      onSuccess: () => log.success("Rechecked upnext"),
+    }),
+  );
 });
 
 // A workspace command waiting on a shell menu never returns once the shell
