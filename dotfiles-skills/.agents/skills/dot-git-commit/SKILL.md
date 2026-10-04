@@ -1,5 +1,5 @@
 ---
-name: git-commit
+name: dot-git-commit
 license: Apache-2.0
 compatibility: Requires Git and the dot git-commit gateway in a build-capable agent. Working-tree refresh uses the context CLI when injected commit context is unavailable or stale.
 description: Commit workflow using the dot git-commit gateway, splitting a reviewed changeset into coherent commits by default. Use only after the user explicitly requests a commit or push, including /commit or /commit-push. Never infer authorisation for later changes; never run raw git commit.

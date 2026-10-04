@@ -1,5 +1,5 @@
 ---
-name: skill-consumers
+name: dot-skill-consumers
 description: >
   Share skills from timmo001/skills with a repository through the skill
   consumers sync on these devices, with `dot skills consumers add`. Use

@@ -1013,7 +1013,7 @@ Create a commit through dot's guarded gateway instead of raw git commit. The sub
 
 Pass --amend to rewrite the previous commit instead of creating a new one; it keeps the existing message unless you pass --message. With --push, an amend force-pushes with --force-with-lease, never a plain force.
 
-In repositories opted into agent Oxlint, the files being committed are linted and only findings on added or modified lines are reported. Warnings print and the commit continues; errors refuse the commit until they are fixed or --skip-agent-oxlint is passed. Agents are routed here by the git-commit skill and blocked from raw git commit in the OpenCode permission config.
+In repositories opted into agent Oxlint, the files being committed are linted and only findings on added or modified lines are reported. Warnings print and the commit continues; errors refuse the commit until they are fixed or --skip-agent-oxlint is passed. Agents are routed here by the dot-git-commit skill and blocked from raw git commit in the OpenCode permission config.
 
 **Modes**
 

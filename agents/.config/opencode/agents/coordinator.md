@@ -183,7 +183,7 @@ Honour the user's explicit agent choice and keep runtime selection separate from
 the profile selected inside that runtime. Prefer visible Herdr-managed sessions
 for delegated work, including research. Use native child sessions only when
 the user explicitly requests them. If Herdr is unavailable, report the limitation
-rather than silently substituting native subagents. Apply `dotfiles-repositories`
+rather than silently substituting native subagents. Apply `dot-repositories`
 for repository discovery and open-in-agent flows on this setup. It owns the shared
 opener, alternate-runtime checks, and focus restoration; `session-coordination`
 owns launch approval and worker lifecycle. Use the configured exact OpenCode 2

@@ -1,5 +1,5 @@
 ---
-name: pr-queue
+name: dot-pr-queue
 description: >
   Find reviewable pull requests and catch up on what was merged, closed or
   opened in a repository with `dot pr queue`, then rank or summarise them the

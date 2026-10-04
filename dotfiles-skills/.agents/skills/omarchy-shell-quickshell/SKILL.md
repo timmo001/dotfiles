@@ -66,7 +66,7 @@ Whenever an authorised push lands a change to a managed plugin, follow through t
    Plugin repositories that are the submodule itself need no wait.
    `<sha>` must be the full commit hash. A run that already finished is reported straight away.
 4. If the run fails, report it with the failing job and stop. On success, run `dot omarchy-plugin update <id> --yes` from `~/.config/dotfiles`. It validates, deploys and rescans the plugin, leaving the bump unstaged. If it reports the plugin is up to date, the publish was a no-op; say so and stop.
-5. Then `dot reload shell` and act on the permission from step 2 through the `git-commit` skill, scoped with `--path omarchy/.config/omarchy/plugins/<id>`.
+5. Then `dot reload shell` and act on the permission from step 2 through the `dot-git-commit` skill, scoped with `--path omarchy/.config/omarchy/plugins/<id>`.
 
 ## Reload matrix (dotfiles changes)
 

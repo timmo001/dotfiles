@@ -110,7 +110,7 @@ export default Plugin.define({
         text: [
           `Open review threads on #${current.number}: ${current.title} (${current.url})`,
           ...current.threads.map(threadText),
-          "Load the pr-watch skill and follow its Triage section for these threads, then fix the valid ones.",
+          "Load the dot-pr-watch skill and follow its Triage section for these threads, then fix the valid ones.",
           instruction.trim(),
         ]
           .filter(Boolean)

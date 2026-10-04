@@ -1,5 +1,5 @@
 ---
-name: agent-oxlint
+name: dot-agent-oxlint
 license: Apache-2.0
 compatibility: Requires the dot agent-oxlint command and its managed package cache. Running the advisory pass normally requires repository opt-in through private configuration.
 description: Run the advisory Oxlint pass on JavaScript or TypeScript changes in dot-managed repositories. Use after the repository's own lint workflow whenever a task changes JS or TS files; the command checks private opt-in and local Oxlint precedence and reports only findings on changed lines.
@@ -46,7 +46,7 @@ description: Run the advisory Oxlint pass on JavaScript or TypeScript changes in
    result. The managed pass uses only the generic recommended rules.
 
 `dot git-commit` runs the same changed-lines check on the files it commits;
-`git-commit` owns what to do when it refuses a commit.
+`dot-git-commit` owns what to do when it refuses a commit.
 
 For a repository that should own these rules, load
 `install-timmo-oxlint-rules` instead. Do not use this wrapper as a substitute

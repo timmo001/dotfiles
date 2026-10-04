@@ -1,5 +1,5 @@
 ---
-name: dotfiles-stow
+name: dot-stow
 description: >
   REQUIRED when changing configs managed by ~/.config/dotfiles or
   ~/.config/dotfiles-private. Enforces editing stow source paths (not ad-hoc
@@ -26,7 +26,7 @@ Use this skill for changes to user config managed by GNU Stow through the public
 
 - `~/.zshrc` -> `~/.config/dotfiles/zsh/.zshrc`
 - `~/.config/nvim/init.lua` -> `~/.config/dotfiles/neovim/.config/nvim/init.lua`
-- `~/.agents/skills/dotfiles-stow` -> `~/.config/dotfiles/dotfiles-skills/.agents/skills/dotfiles-stow`
+- `~/.agents/skills/dot-stow` -> `~/.config/dotfiles/dotfiles-skills/.agents/skills/dot-stow`
 - Shared adapted skills -> `~/repos/skills/<name>`
 - Reviewed third-party snapshots -> `~/repos/skills/<name>` plus `imports.json`
 

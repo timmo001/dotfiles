@@ -1,5 +1,5 @@
 ---
-name: pr-watch
+name: dot-pr-watch
 description: >
   Watch a pull request's CI runs, external checks and Copilot or other reviews
   with `dot pr watch` in an OpenCode 2 background shell, then triage failures

@@ -1,5 +1,5 @@
 ---
-name: dotfiles-repositories
+name: dot-repositories
 description: Find tracked local repositories with `dot repo list`, `dot repo list --open`, or the fuzzy `dot repo search`, induct new ones with `dot repo induct`, and open them in agents through the shared dot Herdr launcher. Use whenever the user names a repository, refers to one by its purpose, or says things like "look at my dotfiles", "my skills", "my ha repos" or "check my tracked repos for x", asks which repositories are tracked or wants one tracked, and for cross-repository work involving dotfiles or skills, open-in-agent requests, and approved workers in another project workspace. Shares the prefix+s picker and Omarchy Git panel launch path.
 compatibility: Repository discovery requires dotfiles repository configuration; launching requires dot, Herdr, and the herdr skill.
 metadata:
@@ -128,7 +128,7 @@ active work.
 Use `dot herdr model <target> "opus 5.5#low"` or
 `dot herdr model <target> "opus 5.5" --variant low` to switch effort as well.
 For an effort-only request, retain the session's current provider and model and
-pass them with the requested variant. Apply `session-status` and query the exact
+pass them with the requested variant. Apply `dot-session-status` and query the exact
 OpenCode session ID before preserving its settings; the injected identity does
 not include the variant. Omitting the variant selects the model's
 default settings. The command verifies the resulting session model and variant;

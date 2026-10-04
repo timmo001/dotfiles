@@ -1,5 +1,5 @@
 ---
-name: session-status
+name: dot-session-status
 description: Query an OpenCode 2 session's selected model, effort variant, context usage and limits with dot session-status. Use before preserving or changing model settings, when asked about context size or the dumb zone, or when context pressure could affect continuing, compacting or handing off work.
 license: Apache-2.0
 compatibility: Requires the dot CLI and the host's configured OpenCode 2 launcher.
@@ -59,7 +59,7 @@ compatibility: Requires the dot CLI and the host's configured OpenCode 2 launche
   decisions, current changes and remaining checks. Use `task-focus` for changing
   tasks, and `session-coordination` for a useful independent Herdr assignment.
 - A stronger model or higher effort does not itself shrink context. Query before
-  preserving or changing settings, and use `dotfiles-repositories` for supported
+  preserving or changing settings, and use `dot-repositories` for supported
   Herdr model switches. Do not silently change the user's model selection.
 - Querying is read-only. The report does not authorise compaction, model changes,
   new workers or closing the current session; follow the owning workflows.
