@@ -61,6 +61,7 @@ import { repos, searchRepos } from "../commands/Repos.js";
 import { systemUpdate } from "../commands/SystemUpdate.js";
 import { update, updateCheck, updateRepositories } from "../commands/Update.js";
 import { workspaceRelayout } from "../commands/WorkspaceRelayout.js";
+import { RELOAD_PARTS, reload } from "../commands/Reload.js";
 import { workspaceSetup } from "../commands/WorkspaceSetup.js";
 import { configureFirewallRules } from "../lib/firewallSetup.js";
 import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
@@ -2481,6 +2482,34 @@ const herdr = describe(
   "Manage the shared Herdr server and repository workspaces",
 );
 
+const reloadCommand = describe(
+  Command.make(
+    "reload",
+    {
+      parts: Argument.Literals("part", RELOAD_PARTS).pipe(
+        Argument.variadic(),
+        Argument.withDescription("Parts to reload (default: all)"),
+      ),
+      noAutoOpen: bool(
+        "no-auto-open",
+        "Do not open auto-open live channels during the upnext recheck",
+      ),
+    },
+    reload,
+  ),
+  "Reload the desktop shell and services, or selected parts",
+  [
+    "dot reload",
+    "dot reload --no-auto-open",
+    "dot reload shell",
+    "dot reload shell updates",
+  ],
+  {
+    description:
+      "Reload parts of the desktop that can go stale after suspend or a change. With no parts, reloads everything. keyboard re-arms the keyboard backlight. upnext rechecks Up Next sources, restarting its service if the recheck fails; it runs alongside the other parts because the YouTube check takes several seconds. shell clears a workspace mutation lock left by a dot workspace command stuck on a shell menu, regenerates shell.json, restarts the Omarchy shell, rescans plugins and refreshes shell modules. updates refreshes available updates. doctor starts the dot doctor check.",
+  },
+);
+
 const relayout = describe(
   Command.make(
     "workspace-relayout",
@@ -2596,6 +2625,7 @@ export const dotCommand = describe(
       prCommand,
       floating,
       herdr,
+      reloadCommand,
       setupWorkspace,
       relayout,
       helpCommand,

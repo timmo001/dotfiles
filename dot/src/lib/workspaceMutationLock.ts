@@ -10,12 +10,17 @@ import {
 import { dirname, join } from "path";
 import { STATE_DIR } from "./paths.js";
 
-const LOCK_PATH = join(STATE_DIR, "dot", "workspace-mutation.lock");
+/** Shared workspace mutation lock path. */
+export const WORKSPACE_MUTATION_LOCK_PATH = join(
+  STATE_DIR,
+  "dot",
+  "workspace-mutation.lock",
+);
 
 /** Acquire the shared PID lock for commands that mutate Hyprland workspaces. */
 export function acquireWorkspaceMutationLock(
   failure: (message: string) => Error,
-  path = LOCK_PATH,
+  path = WORKSPACE_MUTATION_LOCK_PATH,
 ): string {
   mkdirSync(dirname(path), { recursive: true });
 

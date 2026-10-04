@@ -2167,6 +2167,38 @@ dot herdr agents [flags]
 | --- | --- |
 | `--help` `-h` | Show help information |
 
+## `dot reload`
+
+Reload the desktop shell and services, or selected parts
+
+```text
+dot reload [flags] [<part...>]
+```
+
+Reload parts of the desktop that can go stale after suspend or a change. With no parts, reloads everything. keyboard re-arms the keyboard backlight. upnext rechecks Up Next sources, restarting its service if the recheck fails; it runs alongside the other parts because the YouTube check takes several seconds. shell clears a workspace mutation lock left by a dot workspace command stuck on a shell menu, regenerates shell.json, restarts the Omarchy shell, rescans plugins and refreshes shell modules. updates refreshes available updates. doctor starts the dot doctor check.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--no-auto-open` | Do not open auto-open live channels during the upnext recheck |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<part>` | Parts to reload (default: all) |
+
+**Examples**
+
+```bash
+dot reload
+dot reload --no-auto-open
+dot reload shell
+dot reload shell updates
+```
+
 ## `dot workspace-setup`
 
 Launch or reuse desktop apps and rebuild the workspace layout
