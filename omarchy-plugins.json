@@ -19,7 +19,7 @@
       "placement": { "section": "left", "after": "timmo.workspaces" }
     },
     {
-      "id": "timmo.twitch",
+      "id": "timmo.upnext",
       "managed": true,
       "placement": { "section": "center", "index": 0 },
       "settings": { "revealOnHover": true, "primaryOnly": true },
@@ -30,7 +30,7 @@
     },
     {
       "id": "timmo.git",
-      "placement": { "section": "center", "after": "timmo.twitch" },
+      "placement": { "section": "center", "after": "timmo.upnext" },
       "settings": { "revealOnHover": true, "primaryOnly": true },
       "hosts": {
         "desktop": { "primaryOutput": "HDMI-A-2" },

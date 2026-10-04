@@ -35,20 +35,17 @@ if command -v kbd-backlight-rearm >/dev/null 2>&1; then
   log "Re-armed keyboard backlight"
 fi
 
-# Restart twitch-notifications, auto-opening configured live channels after a real resume.
-twitch_args=(--restart)
-launch_args=()
+# Recheck upnext, opening configured live channels after a real resume. The
+# daemon restarts its sources after sleep by itself; this only rechecks now.
+upnext_args=(recheck)
 if [[ "${1:-}" != "--no-auto-open" ]]; then
-  twitch_args+=(--open)
-  launch_args+=(--open)
+  upnext_args+=(--open)
 fi
 
-if ! twitch-notifications "${twitch_args[@]}" >/dev/null 2>&1; then
-  pkill -f '/usr/bin/[t]witch-notifications( |$)' >/dev/null 2>&1 || pkill -f '(^| )[t]witch-notifications( |$)' >/dev/null 2>&1 || true
-  sleep 1
-  setsid uwsm-app -s b -- twitch-notifications "${launch_args[@]}" >/dev/null 2>&1 &
+if ! upnext "${upnext_args[@]}" >/dev/null 2>&1; then
+  systemctl --user restart upnext.service >/dev/null 2>&1 || true
 fi
-log "twitch-notifications restart requested"
+log "upnext recheck requested"
 
 # Restore the generated host layout before restarting the shell. This also
 # reverses ad-hoc `omarchy bar move` changes made since the last stow.

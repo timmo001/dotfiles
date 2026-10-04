@@ -18,7 +18,7 @@ Several centre/right widgets are primary-output only, with host-specific outputs
 | Plugin | Role |
 | --- | --- |
 | `timmo.workspaces` | Dynamic workspace numbers only (no persistent empties); focused full opacity, others dimmed |
-| `timmo.twitch` | Live channel status and controls for the local <a href="https://github.com/timmo001/twitch-notifications" target="_blank" rel="noopener noreferrer">Twitch notifications</a> daemon |
+| `timmo.upnext` | Twitch live channels, YouTube uploads and the watch-later queue from the local <a href="https://upnext.timmo.dev" target="_blank" rel="noopener noreferrer">upnext</a> daemon |
 | `timmo.git` | Managed-repo state, recent commits, GitHub notifications, release reviews, and open pull requests in one centre widget and panel |
 | `timmo.command` | Interval command cell; here shows Dotfiles and watched package update status via `dot updates` |
 | `timmo.stream-command` | Streaming status JSON for long-running watchers; available but not placed on the public bar |
@@ -33,7 +33,7 @@ Several centre/right widgets are primary-output only, with host-specific outputs
 
 ## Sources
 
-Custom plugins live under `omarchy/.config/omarchy/plugins/`. Some are local QML in this repo (`workspaces`, `command`, `stream-command`, `git`, `services`, `workspace-context`, `workspace-relayout`, `popup-loading`); others are managed plugin checkouts (`clock`, `twitch`, `notes`, `system-bridge`, `momentumctl`, `sceny.devices`, `nosignal.deckshift`) with placement recorded in `omarchy-plugins.json`. `workspace-context` shares attached Herdr workspace changes with the bar; `workspace-relayout` and `popup-loading` are overlays rather than bar cells.
+Custom plugins live under `omarchy/.config/omarchy/plugins/`. Some are local QML in this repo (`workspaces`, `command`, `stream-command`, `git`, `services`, `workspace-context`, `workspace-relayout`, `popup-loading`); others are managed plugin checkouts (`clock`, `upnext`, `notes`, `system-bridge`, `momentumctl`, `sceny.devices`, `nosignal.deckshift`) with placement recorded in `omarchy-plugins.json`. `workspace-context` shares attached Herdr workspace changes with the bar; `workspace-relayout` and `popup-loading` are overlays rather than bar cells.
 
 Third-party bar plugins can be imported the same way: <a href="https://omarchy.org" target="_blank" rel="noopener noreferrer">Omarchy</a>'s `omarchy plugin add` (backed by `dot omarchy-plugin`) checks them out as submodules. `dot stow` then copies those checkouts as real files, because Omarchy rejects plugin-directory symlinks. Placement and config live in `omarchy-plugins.json`. A private overlay can extend that layout the same way.
 

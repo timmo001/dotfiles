@@ -2,10 +2,6 @@
 	path = omarchy/.config/omarchy/plugins/timmo.system-bridge
 	url = https://github.com/timmo001/omarchy-system-bridge.git
 	branch = dev
-[submodule "omarchy/.config/omarchy/plugins/timmo.twitch"]
-	path = omarchy/.config/omarchy/plugins/timmo.twitch
-	url = https://github.com/timmo001/omarchy-twitch-notifications.git
-	branch = dev
 [submodule "omarchy/.config/omarchy/plugins/timmo.momentumctl"]
 	path = omarchy/.config/omarchy/plugins/timmo.momentumctl
 	url = https://github.com/timmo001/omarchy-momentumctl.git
@@ -26,3 +22,7 @@
 	path = omarchy/.config/omarchy/plugins/nosignal.deckshift
 	url = https://github.com/28allday/deckshift.git
 	branch = master
+[submodule "omarchy/.config/omarchy/plugins/timmo.upnext"]
+	path = omarchy/.config/omarchy/plugins/timmo.upnext
+	url = https://github.com/timmo001/omarchy-upnext.git
+	branch = dev
