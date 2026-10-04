@@ -27,21 +27,41 @@ BarWidget {
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
   readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
   readonly property real openPanelIndicatorWidth: content.implicitWidth
+  // Counts cover only the attached Herdr workspace's repository; other repositories
+  // surface only when they need a pull, need you or have CI or security problems.
+  readonly property string activePath: git && git.herdrContext && git.herdrContext.repository
+    ? git.herdrContext.repository.path : ""
   readonly property var displaySegments: {
-    if (!git) return [{ text: " ?", color: "#9b9b9b" }, { text: " ?", color: "#9b9b9b" }]
+    var idle = [{ text: "\uF418", color: "#5c6370" }]
+    if (!git || activePath === "") return idle
     var segments = []
-    var diffColor = git.diffClass === "dots-attention" ? "#e5c07b"
-      : git.diffClass === "dots-pull-only" ? "#98c379"
-      : git.diffClass === "dots-extra-only" ? "#61afef" : "#9b9b9b"
-    if (git.diffError !== "") segments.push({ text: " ?", color: "#9b9b9b" })
-    else if (!git.diffLoaded) segments.push({ text: " ..", color: "#9b9b9b" })
-    else if (git.repos.length > 0) segments.push({ text: " " + git.repos.length, color: diffColor })
-    var notificationColor = git.notificationClass === "notifications-attention" ? "#e06c75"
-      : git.notificationClass === "notifications-unread" ? "#e5c07b" : "#9b9b9b"
-    if (git.notificationsError !== "") segments.push({ text: " ?", color: "#9b9b9b" })
-    else if (!git.notificationsLoaded) segments.push({ text: " ..", color: "#9b9b9b" })
-    else if (git.threads.length > 0) segments.push({ text: " " + git.threads.length, color: notificationColor })
-    return segments.length > 0 ? segments : [{ text: "", color: "#9b9b9b" }]
+    function add(text, count, color) { if (count > 0) segments.push({ text: text + count, color: color }) }
+
+    var active = git.repos.find(function(repo) { return repo.path === root.activePath })
+    if (active) {
+      add("\uF418 ", active.modified, "#56b6c2")
+      add("\u2191", active.ahead, "#c678dd")
+      add("\u2193", active.behind, "#61afef")
+    }
+    var pullRepo = git.pullRequestRepositories.find(function(entry) { return entry.path === root.activePath })
+    add("\uF407 ", pullRepo ? pullRepo.pulls.length : 0, "#abb2bf")
+
+    var notificationRepo = git.notificationRepositories.find(function(entry) { return entry.path === root.activePath })
+    var kinds = notificationRepo && notificationRepo.kinds ? notificationRepo.kinds : {}
+    add("\uF0F3 ", kinds["needs-you"] || 0, "#98c379")
+    add("\uF071 ", kinds.alert || 0, "#d19a66")
+    add("\uF27A ", kinds.people || 0, "#abb2bf")
+    add("\uDB81\uDEA9 ", kinds.quiet || 0, "#7f848e")
+
+    var activeSlugs = (notificationRepo && notificationRepo.slugs ? notificationRepo.slugs : [])
+      .map(function(slug) { return String(slug).toLowerCase() })
+    var elsewhere = git.threads.filter(function(thread) {
+      return thread.unread && activeSlugs.indexOf(String(thread.repo).toLowerCase()) < 0
+    })
+    add("\u2193 ", git.repos.filter(function(repo) { return repo.path !== root.activePath && repo.behind > 0 }).length, "#61afef")
+    add("\uF0F3 ", elsewhere.filter(function(thread) { return thread.kind === "needs-you" }).length, "#98c379")
+    add("\uF071 ", elsewhere.filter(function(thread) { return thread.kind === "alert" }).length, "#d19a66")
+    return segments.length > 0 ? segments : idle
   }
   readonly property string tooltipText: git
     ? [git.diffTooltip || git.diffError, git.notificationTooltip || git.notificationsError, git.pullRequestTooltip].filter(function(value) { return value !== "" }).join("\n")
