@@ -32,7 +32,7 @@ BarWidget {
   readonly property string activePath: git && git.herdrContext && git.herdrContext.repository
     ? git.herdrContext.repository.path : ""
   readonly property var displaySegments: {
-    var idle = [{ text: "\uF418", color: button.foreground }]
+    var idle = [{ text: "\uF418", color: "#9b9b9b" }]
     if (!git || activePath === "") return idle
     var segments = []
     function add(text, count, color) { if (count > 0) segments.push({ text: text + count, color: color }) }
