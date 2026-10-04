@@ -37,7 +37,20 @@ const SKILLS_REPOSITORY_URL = "https://github.com/timmo001/skills.git";
  */
 export const SKILLS_CHECKOUT = join(DATA_DIR, "dot", "skills");
 
-/** Clone the managed skills checkout when it does not exist yet. */
+/**
+ * Trust the checkout's mise config so tools run inside it never stop at a
+ * trust prompt. Best-effort: a missing `mise` or failed trust is ignored.
+ */
+const trustSkillsCheckout = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const miseConfig = join(SKILLS_CHECKOUT, "mise.toml");
+
+  if (!(yield* pathExists(miseConfig))) return;
+
+  yield* executor.exitCode("mise", ["trust", miseConfig], { cwd: HOME_DIR });
+}).pipe(Effect.withSpan("SkillsCheckout.trust"));
+
+/** Clone and trust the managed skills checkout when it does not exist yet. */
 export const ensureSkillsCheckout = Effect.gen(function* () {
   if (yield* pathExists(join(SKILLS_CHECKOUT, ".git"))) return false;
 
@@ -52,12 +65,14 @@ export const ensureSkillsCheckout = Effect.gen(function* () {
     .run("git", ["clone", "--quiet", SKILLS_REPOSITORY_URL, SKILLS_CHECKOUT])
     .pipe(Effect.mapError((error) => checkoutError({ message: error.stderr })));
 
+  yield* trustSkillsCheckout;
+
   return true;
 }).pipe(Effect.withSpan("SkillsCheckout.ensure"));
 
 /**
  * Fetch `main` and detach the managed skills checkout at `origin/main`,
- * discarding any local edits.
+ * discarding any local edits, then re-trust its mise config.
  *
  * @returns The revisions before and after, equal when nothing changed.
  */
@@ -92,6 +107,8 @@ export const updateSkillsCheckout = Effect.gen(function* () {
   ]);
 
   yield* git(["clean", "-fdq"]);
+
+  if (!cloned) yield* trustSkillsCheckout;
 
   return { from, to: yield* head };
 }).pipe(Effect.withSpan("SkillsCheckout.update"));
