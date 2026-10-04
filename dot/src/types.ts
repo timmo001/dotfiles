@@ -80,6 +80,8 @@ export interface GitNotificationThread {
   readonly subjectApiUrl: string | null;
   /** REST API URL for the latest comment, if GitHub provided one. */
   readonly latestCommentApiUrl: string | null;
+  /** Whether the bar filter detected bot activity; only set on bar queries. */
+  readonly bot?: boolean;
 }
 
 /** Query options for fetching GitHub notifications. */

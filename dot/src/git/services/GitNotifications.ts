@@ -1,5 +1,14 @@
 import { NodeServices } from "@effect/platform-node";
-import { Clock, Context, Effect, Layer, Option, Schema } from "effect";
+import { join } from "node:path";
+import {
+  Clock,
+  Context,
+  Effect,
+  FileSystem,
+  Layer,
+  Option,
+  Schema,
+} from "effect";
 import type {
   GitNotificationAction,
   GitNotificationActionResult,
@@ -24,6 +33,8 @@ import { notificationReasonIsImportant } from "./notificationStatus.js";
 import { managedRepoGitHubSlugs } from "./repoRelations.js";
 import { formatGhError, nullableStringValue, stringValue } from "./record.js";
 import { ENV, envString } from "../../lib/env.js";
+import { writeFileAtomic } from "../../lib/atomicWrite.js";
+import { CACHE_DIR } from "../../lib/paths.js";
 import { isWorkTime } from "../../lib/workTime.js";
 import type { JsonObject, JsonValue } from "../../lib/schema.js";
 import { inspectNotification } from "./notificationReview.js";
@@ -50,6 +61,37 @@ const NotificationRecord = Schema.Struct({
 });
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
+
+const BOT_CACHE_FILE = join(CACHE_DIR, "dot", "notification-bots.json");
+
+const BotCache = Schema.Record(Schema.String, Schema.Boolean);
+
+const botCacheKey = (thread: GitNotificationThread) =>
+  `${thread.id}:${thread.updatedAt ?? ""}`;
+
+// Bot checks can call the GitHub API per thread, so results are kept until the thread updates.
+const readBotCache = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const text = yield* fs.readFileString(BOT_CACHE_FILE);
+
+  return yield* Schema.decodeEffect(Schema.fromJsonString(BotCache))(text);
+}).pipe(
+  Effect.orElseSucceed((): Readonly<Record<string, boolean>> => ({})),
+  Effect.provide(NodeServices.layer),
+);
+
+const writeBotCache = (
+  previous: Readonly<Record<string, boolean>>,
+  next: Readonly<Record<string, boolean>>,
+) =>
+  JSON.stringify(previous) === JSON.stringify(next)
+    ? Effect.void
+    : Effect.try(() =>
+        writeFileAtomic(BOT_CACHE_FILE, JSON.stringify(next), {
+          mode: 0o600,
+          createDirectory: true,
+        }),
+      ).pipe(Effect.ignore);
 
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:GitNotifications] ${msg}`);
@@ -205,12 +247,23 @@ export class GitNotifications extends Context.Service<
               : false;
 
           const now = new Date(yield* Clock.currentTimeMillis);
+          const botCache = yield* readBotCache;
+          const nextBotCache: Record<string, boolean> = {};
 
           const filtered = yield* Effect.forEach(
             threads,
-            (thread) => includeBarThread(thread, now, workTimeActive),
+            (thread) =>
+              includeBarThread(
+                thread,
+                now,
+                workTimeActive,
+                botCache,
+                nextBotCache,
+              ),
             { concurrency: 4 },
           );
+
+          yield* writeBotCache(botCache, nextBotCache);
 
           return filtered.filter((thread) => thread !== null);
         });
@@ -220,6 +273,8 @@ export class GitNotifications extends Context.Service<
         thread: GitNotificationThread,
         now: Date,
         workTimeActive: boolean,
+        botCache: Readonly<Record<string, boolean>>,
+        nextBotCache: Record<string, boolean>,
       ) =>
         Effect.gen(function* () {
           const repo = yield* managedRepoForNotification(thread.repo);
@@ -229,10 +284,17 @@ export class GitNotifications extends Context.Service<
           if (!gitRepoNotificationsActive(repo, now, workTimeActive))
             return null;
 
-          if (!repo.notifications.bar.ignoreBotActivity) return thread;
-          const botThread = yield* notificationThreadLooksBot(thread, github);
+          const key = botCacheKey(thread);
 
-          return botThread ? null : thread;
+          const bot =
+            botCache[key] ??
+            (yield* notificationThreadLooksBot(thread, github));
+
+          nextBotCache[key] = bot;
+
+          if (bot && repo.notifications.bar.ignoreBotActivity) return null;
+
+          return { ...thread, bot };
         });
 
       const managedRepoForNotification = (notificationRepo: string) =>

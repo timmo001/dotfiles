@@ -50,10 +50,29 @@ export const notificationsBarJson = (opts?: GitNotificationQueryOptions) =>
               ),
           );
 
+          const kinds = filteredState.threads
+            .filter(
+              (thread) =>
+                thread.unread &&
+                slugs.some(
+                  (slug) => slug.toLowerCase() === thread.repo.toLowerCase(),
+                ),
+            )
+            .reduce<Record<NotificationKind, number>>(
+              (counts, thread) => {
+                counts[notificationKind(thread)] += 1;
+
+                return counts;
+              },
+              { "needs-you": 0, alert: 0, people: 0, quiet: 0 },
+            );
+
           return {
             path: repo.path,
             repo: repo.github,
+            slugs,
             count: threads.length,
+            kinds,
             titles: threads.slice(0, 3).map((thread) => thread.title),
           };
         }),
@@ -93,20 +112,45 @@ export function formatNotificationsBarJson(state: GitNotificationState) {
     tooltip: formatBarJsonTooltip(state, summary),
     class: notificationBarClass(state, summary),
     allCount: state.totalCount,
-    threads: state.threads.map(
-      ({ id, repo, title, reason, type, unread, updatedAt, webUrl }) => ({
-        id,
-        repo,
-        title,
-        reason,
-        type,
-        unread,
-        updatedAt,
-        webUrl,
-        important: notificationReasonIsImportant(reason),
-      }),
-    ),
+    threads: state.threads.map((thread) => ({
+      id: thread.id,
+      repo: thread.repo,
+      title: thread.title,
+      reason: thread.reason,
+      type: thread.type,
+      unread: thread.unread,
+      updatedAt: thread.updatedAt,
+      webUrl: thread.webUrl,
+      important: notificationReasonIsImportant(thread.reason),
+      kind: notificationKind(thread),
+    })),
   };
+}
+
+/** Bar grouping for a notification thread, from most to least actionable. */
+export type NotificationKind = "needs-you" | "alert" | "people" | "quiet";
+
+const ALERT_REASONS = new Set(["ci_activity", "security_alert"]);
+
+const ALERT_TYPES = new Set([
+  "CheckSuite",
+  "WorkflowRun",
+  "RepositoryAdvisory",
+  "SecurityAdvisory",
+]);
+
+/** Classify a thread: requests for you, CI or security problems, people activity, or bots and releases. */
+export function notificationKind(
+  thread: GitNotificationThread,
+): NotificationKind {
+  if (ALERT_REASONS.has(thread.reason) || ALERT_TYPES.has(thread.type))
+    return "alert";
+
+  if (notificationReasonIsImportant(thread.reason)) return "needs-you";
+
+  if (thread.bot === true || thread.type === "Release") return "quiet";
+
+  return "people";
 }
 
 function notificationBarText(
