@@ -36,6 +36,7 @@ const RETIRED_PUBLIC_STOW_PATHS = [
   "zsh/.local/share/zsh/site-functions/_context",
   "scripts/.local/bin/waybar",
   "scripts/.local/bin/reload-ui-monitor",
+  "scripts/.local/bin/reload-ui",
   "scripts/.local/bin/git-diff-bar",
   "scripts/.local/bin/gh-is-file-changed",
   "scripts/.local/bin/gh-import-dotenv-to-secrets",
