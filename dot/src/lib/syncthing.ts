@@ -5,7 +5,7 @@ import { OutputLog } from "../services/OutputLog.js";
 import { cliStyler } from "./ansi.js";
 import { CONFIG_DIR, displayPath, expandHomePath } from "./paths.js";
 import { plural } from "./runSummary.js";
-import { done, skip, warn } from "./updateSummary.js";
+import { notable, skip, warn } from "./updateSummary.js";
 import type { RecapEntry } from "./updateSummary.js";
 
 /** Syncthing user unit shipped by the Arch package. */
@@ -247,7 +247,7 @@ export const applySyncthingConfig = Effect.gen(function* () {
     return [skip("Syncthing config unchanged")];
   }
 
-  return [done(`Applied ${plural(added, "Syncthing change")}`)];
+  return [notable(`Applied ${plural(added, "Syncthing change")}`)];
 }).pipe(
   Effect.catch((error) =>
     Effect.gen(function* () {

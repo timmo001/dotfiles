@@ -6,7 +6,7 @@ import { OutputLog } from "../services/OutputLog.js";
 import { writeFileAtomic } from "./atomicWrite.js";
 import { STATE_DIR } from "./paths.js";
 import { plural } from "./runSummary.js";
-import { done, skip, warn } from "./updateSummary.js";
+import { notable, skip, warn } from "./updateSummary.js";
 
 /** Notes' map of repository slugs to local checkout directories. */
 const NOTES_REPOSITORY_DIRECTORIES_FILE = join(
@@ -71,7 +71,7 @@ export const syncNotesRepositoryDirectories = Effect.gen(function* () {
     `Added ${plural(added, "repository", "repositories")} to Notes repository directories`,
   );
 
-  return done(
+  return notable(
     `Added ${plural(added, "repository", "repositories")} to Notes repository directories`,
   );
 }).pipe(

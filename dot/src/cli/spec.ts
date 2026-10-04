@@ -55,6 +55,8 @@ import { editSkillConsumer, runSkillsMaintenance } from "../commands/Skills.js";
 import { runCommand } from "../commands/Run.js";
 import { stow } from "../commands/Stow.js";
 import { logRunSummary } from "../lib/runSummary.js";
+import { cliStyler } from "../lib/ansi.js";
+import { recapMessage } from "../lib/updateSummary.js";
 import { snapshot } from "../commands/Snapshot.js";
 import { sessionStatus } from "../commands/SessionStatus.js";
 import { repos, searchRepos } from "../commands/Repos.js";
@@ -705,12 +707,13 @@ const stowCommand = describe(
       Effect.gen(function* () {
         const startedAt = yield* Clock.currentTimeMillis;
         const result = yield* stow({ publicOnly, privateOnly });
+        const style = cliStyler();
 
         yield* logRunSummary(
           "Summary",
           result.actions
             .filter((action) => action.status === "done")
-            .map((action) => action.message),
+            .map((action) => recapMessage(action, style)),
           { startedAt },
         );
       }),

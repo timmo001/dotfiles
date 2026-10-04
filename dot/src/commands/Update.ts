@@ -24,6 +24,7 @@ import {
   done,
   logRepoChanges,
   logUpdateSummary,
+  notable,
   skip,
   warn,
   writeUpdateSummary,
@@ -187,7 +188,7 @@ const repoStatus = (repo: DiffRepo, style: Styler): string => {
 };
 
 const INIT_MARKER_RECAP: Record<InitCompleteMarkerStatus, RecapEntry> = {
-  created: done("Marked init state complete"),
+  created: notable("Marked init state complete"),
   exists: skip("Init state already complete"),
   "in-progress": skip("Init state backfill skipped (init is in progress)"),
 };
@@ -729,7 +730,7 @@ const installMissingMiseTools = Effect.gen(function* () {
     tools,
     recap:
       tools.length > 0
-        ? done(`Installed ${plural(tools.length, "mise tool")}`)
+        ? notable(`Installed ${plural(tools.length, "mise tool")}`)
         : done("Ran mise install"),
   } satisfies MiseStepResult;
 });
@@ -836,7 +837,7 @@ const pruneRemovedMiseTools = Effect.gen(function* () {
     tools: pruned,
     recap:
       pruned.length > 0
-        ? done(`Pruned ${plural(pruned.length, "mise tool version")}`)
+        ? notable(`Pruned ${plural(pruned.length, "mise tool version")}`)
         : skip("No mise tool versions pruned (still in use)"),
   } satisfies MiseStepResult;
 });
@@ -1079,7 +1080,7 @@ const reloadOmarchyShell = Effect.gen(function* () {
 
   yield* log.success("Reloaded Omarchy shell (shell components changed)");
 
-  return done("Reloaded the Omarchy shell");
+  return notable("Reloaded the Omarchy shell");
 });
 
 /** Restart the Omarchy shell only when stow changed its config or plugins. */
@@ -1322,7 +1323,7 @@ export const update = (updateOpts?: UpdateOptions) =>
     } else if (opts?.selfUpdate === false) {
       completedActions.push(
         opts.postHookRepos?.length
-          ? done(`Pulled ${opts.postHookRepos.join(", ")} and restarted`)
+          ? notable(`Pulled ${opts.postHookRepos.join(", ")} and restarted`)
           : skip("Self-update skipped (--no-self-update)"),
       );
     } else {
@@ -1541,7 +1542,7 @@ export const update = (updateOpts?: UpdateOptions) =>
 
       completedActions.push(
         pulledNames.length > 0
-          ? done(
+          ? notable(
               `Pulled ${plural(pulledNames.length, "repository", "repositories")}: ${pulledNames.join(", ")}`,
             )
           : skip("No repositories pulled (nothing new upstream)"),
@@ -1586,7 +1587,7 @@ export const update = (updateOpts?: UpdateOptions) =>
                 `Skills checkout moved to ${checkout.to}${checkout.from ? ` (was ${checkout.from})` : ""}`,
               );
               completedActions.push(
-                done(`Updated the skills checkout to ${checkout.to}`),
+                notable(`Updated the skills checkout to ${checkout.to}`),
               );
             } else {
               yield* log.info(`Skills checkout is up to date (${checkout.to})`);
@@ -1604,7 +1605,7 @@ export const update = (updateOpts?: UpdateOptions) =>
 
           completedActions.push(
             built
-              ? done("Rebuilt the skill-maintenance executable")
+              ? notable("Rebuilt the skill-maintenance executable")
               : skip("Skill-maintenance executable already built"),
           );
         }),
@@ -1680,11 +1681,13 @@ export const update = (updateOpts?: UpdateOptions) =>
 
       completedActions.push(
         built
-          ? done("Rebuilt the dot binary")
+          ? notable("Rebuilt the dot binary")
           : skip("dot binary already built from this source"),
       );
     } else if (doApp) {
-      completedActions.push(done("Rebuilt the dot binary before restarting"));
+      completedActions.push(
+        notable("Rebuilt the dot binary before restarting"),
+      );
     } else {
       completedActions.push(
         skip("dot rebuild skipped (app phase not selected)"),

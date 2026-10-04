@@ -22,7 +22,7 @@ import {
 } from "../lib/stowPackages.js";
 import { cliStyler } from "../lib/ansi.js";
 import { plural } from "../lib/runSummary.js";
-import { done, skip, warn } from "../lib/updateSummary.js";
+import { done, notable, skip, warn } from "../lib/updateSummary.js";
 import type { RecapEntry } from "../lib/updateSummary.js";
 
 /** Result of a stow run. */
@@ -131,7 +131,7 @@ export const stow = (opts?: {
 
       actions.push(
         shellConfigChanged
-          ? done("Regenerated Omarchy shell config")
+          ? notable("Regenerated Omarchy shell config")
           : skip("Omarchy shell config unchanged"),
       );
     }
@@ -159,16 +159,18 @@ export const stow = (opts?: {
 
     if (counts.deployed > 0)
       actions.push(
-        done(`Deployed ${plural(counts.deployed, "Omarchy plugin")}`),
+        notable(`Deployed ${plural(counts.deployed, "Omarchy plugin")}`),
       );
 
     if (counts.backedUp > 0)
       actions.push(
-        done(`Backed up ${plural(counts.backedUp, "unmanaged target")}`),
+        notable(`Backed up ${plural(counts.backedUp, "unmanaged target")}`),
       );
 
     if (counts.removed > 0)
-      actions.push(done(`Removed ${plural(counts.removed, "retired link")}`));
+      actions.push(
+        notable(`Removed ${plural(counts.removed, "retired link")}`),
+      );
 
     return {
       shellChanged: shellConfigChanged || counts.deployed > 0,

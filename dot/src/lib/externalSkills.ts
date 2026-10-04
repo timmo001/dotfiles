@@ -13,7 +13,7 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { plural } from "./runSummary.js";
-import { done, skip, warn } from "./updateSummary.js";
+import { notable, skip, warn } from "./updateSummary.js";
 import type { RecapEntry } from "./updateSummary.js";
 
 /** Skills directory shared by every Agent Skills client. */
@@ -253,7 +253,8 @@ const installExternalSkills = Effect.fn("ExternalSkills.install")(function* (
     ),
   ).size;
 
-  if (changed > 0) return done(`Updated ${plural(changed, "external skill")}`);
+  if (changed > 0)
+    return notable(`Updated ${plural(changed, "external skill")}`);
 
   yield* log.info("External skills are up to date");
 
@@ -281,7 +282,7 @@ export const syncSkills = Effect.gen(function* () {
   );
 
   if (pruned > 0)
-    actions.push(done(`Removed ${plural(pruned, "stale skill link")}`));
+    actions.push(notable(`Removed ${plural(pruned, "stale skill link")}`));
 
   const cloned = yield* ensureSkillsCheckout.pipe(
     Effect.catch((error) =>
@@ -298,14 +299,14 @@ export const syncSkills = Effect.gen(function* () {
   }
 
   if (cloned)
-    actions.push(done(`Cloned skills to ${displayPath(SKILLS_CHECKOUT)}`));
+    actions.push(notable(`Cloned skills to ${displayPath(SKILLS_CHECKOUT)}`));
 
   actions.push(yield* installExternalSkills(config.publicDotfiles));
 
   const linked = yield* linkAuthoredSkills(config.publicDotfiles);
 
   if (linked > 0) {
-    actions.push(done(`Linked ${plural(linked, "authored skill")}`));
+    actions.push(notable(`Linked ${plural(linked, "authored skill")}`));
   } else {
     yield* log.info("Authored skills are up to date");
     actions.push(skip("Authored skills already linked"));

@@ -51,13 +51,26 @@ export interface RecapEntry {
   readonly status: "done" | "skip" | "warn";
   /** Sentence-case description of the outcome. */
   readonly message: string;
+  /** Whether the work is out of the ordinary for a run, shown in bold. */
+  readonly notable?: boolean;
 }
 
-/** A recap entry for a stage that did work. */
+/** A recap entry for a stage that did routine work. */
 export const done = (message: string): RecapEntry => ({
   status: "done",
   message,
 });
+
+/** A recap entry for a stage that did work most runs do not, such as pulling changes. */
+export const notable = (message: string): RecapEntry => ({
+  status: "done",
+  message,
+  notable: true,
+});
+
+/** A recap entry's message: bold when the work was notable, dimmed when routine. */
+export const recapMessage = (entry: RecapEntry, style: Styler): string =>
+  entry.notable ? style.label(entry.message) : style.dim(entry.message);
 
 /** A recap entry for a stage that was skipped. */
 export const skip = (message: string): RecapEntry => ({
@@ -78,7 +91,7 @@ const renderRecapEntry = (
 ) => {
   switch (entry.status) {
     case "done":
-      return line("success", entry.message);
+      return line("success", recapMessage(entry, style));
     case "skip":
       return line("info", `${style.dim("○")} ${style.dim(entry.message)}`);
     case "warn":
