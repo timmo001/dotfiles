@@ -1,8 +1,9 @@
 import { Effect, FileSystem, Schema } from "effect";
-import { join } from "path";
+import { basename, join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import type { DiffRepo } from "../types.js";
+import { omarchyPluginSubmodules } from "./omarchyPluginDeployment.js";
 import { CONFIG_DIR } from "./paths.js";
 import { listStowFolders, requiresNoFolding } from "./stowFolders.js";
 
@@ -73,6 +74,14 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
 
       if (yield* requiresNoFolding(repo.path, folder))
         flags.push("--no-folding");
+
+      if (folder === "omarchy") {
+        for (const source of yield* omarchyPluginSubmodules(repo.path)) {
+          flags.push(
+            `--ignore=^\\.config/omarchy/plugins/${basename(source).replaceAll(".", "\\.")}($|/)`,
+          );
+        }
+      }
 
       if (folder === "agents") {
         flags.push(
