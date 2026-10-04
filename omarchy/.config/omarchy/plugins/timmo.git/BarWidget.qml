@@ -40,7 +40,7 @@ BarWidget {
     var active = git.activeStatus && git.activeStatus.path === root.activePath ? git.activeStatus
       : git.repos.find(function(repo) { return repo.path === root.activePath })
     var modified = active ? active.modified : 0
-    segments.push(modified > 0 ? { text: "\uF418 " + modified, color: "#56b6c2" } : { text: "\uF418", color: idle[0].color })
+    segments.push({ text: "\uF418 " + modified, color: modified > 0 ? "#56b6c2" : idle[0].color })
     if (active) {
       add("\u2191", active.ahead, "#c678dd")
       add("\u2193", active.behind, "#61afef")
