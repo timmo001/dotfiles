@@ -1,6 +1,6 @@
 ---
 name: omarchy-shell-quickshell
-description: "Customise and reload the Omarchy shell (omarchy-shell) - the Quickshell process behind the bar, notifications, OSD, launcher, and settings - in this dotfiles repo. Use when working with the Omarchy shell or Quickshell: editing omarchy/.config/omarchy/plugins/, the shell.json generator dot/src/lib/omarchyShellConfig.ts, shell.json, BarWidget/WidgetButton or other Quickshell QML, running omarchy plugin or omarchy restart shell, referencing upstream Quickshell, or when a shell or bar change is not showing up."
+description: "Customise and reload the Omarchy shell (omarchy-shell) - the Quickshell process behind the bar, notifications, OSD, launcher, and settings - in this dotfiles repo. Use when working with the Omarchy shell or Quickshell: editing omarchy/.config/omarchy/plugins/, the shell.json generator dot/src/lib/omarchyShellConfig.ts, shell.json, BarWidget/WidgetButton or other Quickshell QML, running omarchy plugin or omarchy restart shell, referencing upstream Quickshell, when a shell or bar change is not showing up, or after pushing a change to a shell plugin's source repository so the published plugin can be bumped here."
 metadata:
   author: timmo001
 ---
@@ -25,7 +25,8 @@ Read the owning sources before relying on remembered plugin or backend behaviour
 
 ## Source of truth (never edit live)
 
-- Custom shell content ships as **user plugins**. Edit the stow source `omarchy/.config/omarchy/plugins/<id>/` (stows to `~/.config/omarchy/plugins/<id>/`).
+- Custom shell content ships as **user plugins**. Plugins that live in this repo are edited at the stow source `omarchy/.config/omarchy/plugins/<id>/` (stows to `~/.config/omarchy/plugins/<id>/`).
+- Managed plugins (submodules in `.gitmodules`) are edited only in their actual source repository: the publishing repo's `omarchy-plugin/` folder when one publishes it, otherwise the plugin repository itself. Find the local checkout with `dot repo search`, and ask before cloning if there is none. Never edit, commit in, or push from the submodule checkout, and never copy plugin files between the source repo, the submodule, and the live directory by hand. Changes reach this repo only through the bump flow below.
 - `~/.config/omarchy/shell.json` is **generated, not hand-edited**. It is rendered by `dot` from `dot/src/lib/omarchyShellConfig.ts` (`mergeOmarchyShellConfig`), starting from Omarchy's default and inserting personal modules. Edit the generator, rebuild `dot`, then `dot stow` regenerates the file. The live file is mode `0600` and tracked by neither dotfiles repo.
 
 ## Plugin workflow
@@ -38,6 +39,24 @@ Read the owning sources before relying on remembered plugin or backend behaviour
 - Plugins run unsandboxed in the shell process. Review all plugin code before enabling it.
 
 `~/.config/omarchy/plugins/` is a real directory with per-plugin symlinks. A new stowed plugin is invisible until `dot stow` creates its symlink. Existing plugin files are already live through their symlinks.
+
+## After pushing a shell plugin change
+
+Managed plugins are submodules listed in `.gitmodules` under `omarchy/.config/omarchy/plugins/`. Some are published from another repository: a source repo with `.github/workflows/publish-omarchy-plugin.yml` copies its `omarchy-plugin/` folder into the `repository:` that workflow names (for example `upnext` to `omarchy-upnext`). Others, such as `omarchy-clock`, are the plugin repository itself.
+
+Whenever an authorised push lands a change to a managed plugin, follow through to this repo:
+
+1. Map the pushed repo to its plugin ID by matching the publish target (or the repo itself) against the submodule URLs in `.gitmodules`. Stop if it is not a managed plugin.
+2. Settle permission for the dotfiles bump before waiting. It is granted when the user's request already covers it (for example "push and bump dotfiles" or "ship it to the bar"). Otherwise ask once with the question tool: commit, commit and push, or leave the bump unstaged. A push to the source repo alone does not authorise a dotfiles commit.
+3. For published plugins, check the pushed commits touched the workflow's `paths` on its publish branch; if not, nothing is published, so stop. Otherwise wait for the run in a background shell and carry on with other work:
+
+   ```bash
+   dot run --timeout 30m -- bash -c 'until id=$(gh run list -R <owner/source-repo> --workflow publish-omarchy-plugin.yml --commit <sha> --event push --json databaseId -q ".[0].databaseId") && [ -n "$id" ]; do sleep 10; done; gh run watch "$id" -R <owner/source-repo> --exit-status'
+   ```
+
+   Plugin repositories that are the submodule itself need no wait.
+4. If the run fails, report it with the failing job and stop. On success, run `dot omarchy-plugin update <id> --yes`. It validates, deploys and rescans the plugin, leaving the bump unstaged. If it reports the plugin is up to date, the publish was a no-op; say so and stop.
+5. Then `dot reload shell` and act on the permission from step 2 through the `git-commit` skill, scoped with `--path omarchy/.config/omarchy/plugins/<id>`.
 
 ## Reload matrix (run after a change)
 
