@@ -39,8 +39,9 @@ BarWidget {
 
     var active = git.activeStatus && git.activeStatus.path === root.activePath ? git.activeStatus
       : git.repos.find(function(repo) { return repo.path === root.activePath })
+    var modified = active ? active.modified : 0
+    segments.push(modified > 0 ? { text: "\uF418 " + modified, color: "#56b6c2" } : idle[0])
     if (active) {
-      add("\uF418 ", active.modified, "#56b6c2")
       add("\u2191", active.ahead, "#c678dd")
       add("\u2193", active.behind, "#61afef")
     }
@@ -62,7 +63,7 @@ BarWidget {
     add("\u2193 ", git.repos.filter(function(repo) { return repo.path !== root.activePath && repo.behind > 0 }).length, "#61afef")
     add("\uF0F3 ", elsewhere.filter(function(thread) { return thread.kind === "needs-you" }).length, "#98c379")
     add("\uF071 ", elsewhere.filter(function(thread) { return thread.kind === "alert" }).length, "#d19a66")
-    return segments.length > 0 ? segments : idle
+    return segments
   }
   readonly property string tooltipText: git
     ? [git.diffTooltip || git.diffError, git.notificationTooltip || git.notificationsError, git.pullRequestTooltip].filter(function(value) { return value !== "" }).join("\n")
