@@ -1533,8 +1533,8 @@ const privatePublishCommand = describe(
   ),
   "Build and publish a private package",
   [
-    "dot private-pkg-publish twitch-notifications --install",
-    "dot private-pkg-publish --skip-build --no-git twitch-notifications",
+    "dot private-pkg-publish my-package --install",
+    "dot private-pkg-publish --skip-build --no-git my-package",
   ],
   {
     description:

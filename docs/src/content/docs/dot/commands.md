@@ -1333,8 +1333,8 @@ Build and publish a mapped private package into the private pacman repo.
 **Examples**
 
 ```bash
-dot private-pkg-publish twitch-notifications --install
-dot private-pkg-publish --skip-build --no-git twitch-notifications
+dot private-pkg-publish my-package --install
+dot private-pkg-publish --skip-build --no-git my-package
 ```
 
 ## `dot skills`
