@@ -63,7 +63,6 @@ BarWidget {
     add("\u2193 ", git.repos.filter(function(repo) { return repo.path !== root.activePath && repo.behind > 0 }).length, "#61afef")
     add("\uF0F3 ", elsewhere.filter(function(thread) { return thread.kind === "needs-you" }).length, "#98c379")
     add("\uF071 ", elsewhere.filter(function(thread) { return thread.kind === "alert" }).length, "#d19a66")
-    if (modified === 0 && segments.length > 1) segments[0].color = segments[1].color
     return segments
   }
   readonly property string tooltipText: git
