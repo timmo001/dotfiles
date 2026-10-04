@@ -7,6 +7,8 @@ OnFailure=dot-service-failed@%n.service
 [Service]
 Type=simple
 ExecStart=%h/.local/bin/notes-capture-daemon
+# The Effect runtime exits 130 when systemd stops it.
+SuccessExitStatus=130
 Restart=on-failure
 RestartSec=15
 
