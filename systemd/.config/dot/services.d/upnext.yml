@@ -1,6 +1,6 @@
 ---
 unit: upnext.service
-label: upnext
+label: Up Next
 restartLimit:
   count: 3
   within: 1 hour
