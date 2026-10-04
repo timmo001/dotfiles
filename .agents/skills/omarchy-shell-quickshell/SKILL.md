@@ -43,16 +43,18 @@ Read the owning sources before relying on remembered plugin or backend behaviour
 
 | Change | Action |
 | --- | --- |
-| `shell.json` layout/settings, existing modules only | `dot stow`, then `omarchy restart shell` |
-| User plugin QML edited | `dot stow`, then `omarchy restart shell` |
-| New manual plugin added | `dot stow`, rescan, enable, then `omarchy restart shell` |
-| Rescan or automatic reload cannot recover | Restart the shell with Omarchy's lifecycle command |
+| `shell.json` layout/settings, existing modules only | `dot stow`, then `dot reload shell` |
+| User plugin QML edited | `dot stow`, then `dot reload shell` |
+| New manual plugin added | `dot stow`, rescan, enable, then `dot reload shell` |
+| Rescan or automatic reload cannot recover | `dot reload shell` |
+
+`dot reload shell` reloads only the shell: it clears a stuck workspace lock, regenerates `shell.json`, runs `omarchy restart shell`, rescans plugins and refreshes shell modules. Bare `dot reload` also rechecks upnext, refreshes updates and starts a doctor check; reload only the parts a change needs.
 
 Use `$OMARCHY_PATH/docs/omarchy-shell.md` for current IPC method names and return values. A full `omarchy restart shell` protects an active lock session, stops matching Quickshell instances, and asks Hyprland to launch the replacement with the canonical session environment.
 
 ## Shell lifecycle
 
-- Do not recreate shell launch or termination logic. Use `omarchy restart shell` and inspect the current launch scripts when diagnosing lifecycle behaviour.
+- Do not recreate shell launch or termination logic. Use `dot reload shell`, which wraps `omarchy restart shell`, and inspect the current launch scripts when diagnosing lifecycle behaviour.
 - Current Quattro launches the replacement through Hyprland so it inherits the session environment rather than transient terminal, SSH, or agent variables. `dot update` retains an existing `QT_QPA_PLATFORM=wayland` override on its restart call for compatibility; do not copy it into new callers or treat it as the source of the replacement process's environment.
 - Omarchy disables Quickshell's whole-config file watcher for the packaged shell and restarts deliberately during lifecycle operations. Shell-owned `FileView` and plugin-directory watchers still handle `shell.json` and user-plugin updates.
 - `dot update` restarts the shell only when the generated `shell.json` changed. Standalone `dot stow` does not restart it.
