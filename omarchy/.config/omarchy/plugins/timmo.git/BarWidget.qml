@@ -28,19 +28,24 @@ BarWidget {
   readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
   readonly property real openPanelIndicatorWidth: content.implicitWidth
   // Counts cover only the attached Herdr workspace's repository; other repositories
-  // surface only when they need a pull, need you or have CI or security problems.
+  // surface when they have local changes, need a pull, need you or have CI or security problems.
   readonly property string activePath: git && git.herdrContext && git.herdrContext.repository
     ? git.herdrContext.repository.path : ""
   readonly property var displaySegments: {
     var idle = [{ text: "\uF418", color: "#9b9b9b" }]
-    if (!git || activePath === "") return idle
+    if (!git) return idle
     var segments = []
     function add(text, count, color) { if (count > 0) segments.push({ text: text + count, color: color }) }
+    var changedElsewhere = git.repos.filter(function(repo) { return repo.path !== root.activePath && repo.modified > 0 }).length
+    var elsewhereText = changedElsewhere > 0 ? " +" + changedElsewhere : ""
+
+    if (activePath === "")
+      return changedElsewhere > 0 ? [{ text: "\uF418" + elsewhereText, color: "#56b6c2" }] : idle
 
     var active = git.activeStatus && git.activeStatus.path === root.activePath ? git.activeStatus
       : git.repos.find(function(repo) { return repo.path === root.activePath })
     var modified = active ? active.modified : 0
-    segments.push({ text: "\uF418 " + modified, color: modified > 0 ? "#56b6c2" : idle[0].color })
+    segments.push({ text: "\uF418 " + modified + elsewhereText, color: modified > 0 || changedElsewhere > 0 ? "#56b6c2" : idle[0].color })
     if (active) {
       add("\u2191", active.ahead, "#c678dd")
       add("\u2193", active.behind, "#61afef")
