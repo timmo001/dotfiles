@@ -37,6 +37,7 @@ import {
   checkPrivatePackages,
 } from "./checks/packages.js";
 import { checkPacmanHooks } from "./checks/pacmanHooks.js";
+import { checkRetiredApps } from "./checks/retiredApps.js";
 import { checkFirewall } from "./checks/firewall.js";
 import { withTimeoutOption } from "../lib/workflowStep.js";
 import type { CheckResult, CheckSection, DoctorReport } from "./types.js";
@@ -110,6 +111,7 @@ const sections: readonly SectionDef[] = [
     requiresPrivate: true,
   },
   { name: "Pacman hooks", check: checkPacmanHooks },
+  { name: "Retired apps", check: checkRetiredApps },
   { name: "Firewall rules", check: checkFirewall },
 ];
 
