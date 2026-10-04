@@ -1,4 +1,4 @@
-import { Clock, Effect, FileSystem, Option, Schema } from "effect";
+import { Clock, Effect, FileSystem, Option, Predicate, Schema } from "effect";
 import { basename, join } from "path";
 import { parse as parseToml } from "smol-toml";
 import { Config } from "../services/Config.js";
@@ -1195,7 +1195,13 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
         Effect.catch((error) =>
           Effect.gen(function* () {
             failed = true;
-            yield* log.error(`Could not check ${repo.name}: ${error.message}`);
+            yield* log.error(
+              `Could not check ${repo.name}: ${
+                Predicate.isTagged(error, "CommandError")
+                  ? `${error.command} exited ${error.exitCode}`
+                  : error.message
+              }`,
+            );
           }),
         ),
       );
