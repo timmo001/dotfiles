@@ -18,6 +18,37 @@ refresh_git_modules() {
   omarchy-shell -q timmo.git refresh || true
 }
 
+# A workspace command waiting on a shell menu never returns once the shell
+# restarts, and keeps holding the mutation lock. Stop it and clear the lock.
+clear_workspace_mutation_lock() {
+  local lock="${XDG_STATE_HOME:-$HOME/.local/state}/dot/workspace-mutation.lock"
+  local pid cmdline
+
+  [[ -f "$lock" ]] || return 0
+  pid=$(<"$lock")
+
+  if [[ "$pid" =~ ^[0-9]+$ ]] && (( pid > 1 )) && [[ -r "/proc/$pid/cmdline" ]]; then
+    cmdline=$(tr '\0' ' ' < "/proc/$pid/cmdline")
+    if [[ "$cmdline" != dot\ workspace-* ]]; then
+      log "Workspace mutation lock held by $pid ($cmdline), left in place"
+      return 0
+    fi
+
+    pkill -TERM -P "$pid" || true
+    kill -TERM -- "$pid" || true
+    if ! timeout 3s pidwait --pid "$pid"; then
+      if [[ -e "/proc/$pid" ]]; then
+        log "Workspace mutation holder $pid did not exit, lock left in place"
+        return 0
+      fi
+    fi
+    log "Stopped stuck workspace mutation $pid ($cmdline)"
+  fi
+
+  rm -f "$lock"
+  log "Cleared workspace mutation lock"
+}
+
 if [[ "${RELOAD_UI_DETACHED:-0}" != "1" ]]; then
   export RELOAD_UI_DETACHED=1
   setsid "$0" "$@" >/dev/null 2>&1 &
@@ -54,6 +85,8 @@ if dot omarchy-shell-config; then
 else
   log "Omarchy shell layout regeneration failed"
 fi
+
+clear_workspace_mutation_lock
 
 # Restart the shell before asking its modules to repaint current state.
 if omarchy restart shell; then
