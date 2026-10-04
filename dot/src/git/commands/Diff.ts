@@ -94,8 +94,9 @@ export function formatDiffBarJson(changed: readonly DiffRepo[]) {
     text,
     tooltip,
     class: cls,
-    repos: changed.map(({ name, category, modified, ahead, behind }) => ({
+    repos: changed.map(({ name, path, category, modified, ahead, behind }) => ({
       name,
+      path,
       category,
       modified,
       ahead,
