@@ -1,0 +1,7 @@
+---
+unit: upnext.service
+label: upnext
+restartLimit:
+  count: 3
+  within: 1 hour
+repository: timmo001/upnext
