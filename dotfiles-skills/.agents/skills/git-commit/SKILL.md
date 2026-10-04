@@ -138,6 +138,9 @@ dot git-commit -m "<subject>" --push
   plain force): it overwrites the remote branch only when it still matches the
   ref last seen, so a teammate's or bot's newer commit blocks the push instead
   of being clobbered. Only do this on a branch that is safe to rewrite.
+- Before pushing a change to an Omarchy shell plugin's source (an
+  `omarchy-plugin/` folder or a managed plugin repository), apply
+  `omarchy-shell-quickshell` so the dotfiles bump is settled with the push.
 
 ## 7. Report
 
