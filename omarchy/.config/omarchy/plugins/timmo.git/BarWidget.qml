@@ -40,7 +40,7 @@ BarWidget {
     var active = git.activeStatus && git.activeStatus.path === root.activePath ? git.activeStatus
       : git.repos.find(function(repo) { return repo.path === root.activePath })
     var modified = active ? active.modified : 0
-    segments.push(modified > 0 ? { text: "\uF418 " + modified, color: "#56b6c2" } : idle[0])
+    segments.push(modified > 0 ? { text: "\uF418 " + modified, color: "#56b6c2" } : { text: "\uF418", color: idle[0].color })
     if (active) {
       add("\u2191", active.ahead, "#c678dd")
       add("\u2193", active.behind, "#61afef")
@@ -63,6 +63,7 @@ BarWidget {
     add("\u2193 ", git.repos.filter(function(repo) { return repo.path !== root.activePath && repo.behind > 0 }).length, "#61afef")
     add("\uF0F3 ", elsewhere.filter(function(thread) { return thread.kind === "needs-you" }).length, "#98c379")
     add("\uF071 ", elsewhere.filter(function(thread) { return thread.kind === "alert" }).length, "#d19a66")
+    if (modified === 0 && segments.length > 1) segments[0].color = segments[1].color
     return segments
   }
   readonly property string tooltipText: git
@@ -197,7 +198,7 @@ BarWidget {
         Text {
           required property var modelData
           required property int index
-          text: (index > 0 ? "  " : "") + modelData.text
+          text: (index > 0 ? " " : "") + modelData.text
           color: modelData.color
           font.family: button.fontFamily
           font.pixelSize: button.fontSize
