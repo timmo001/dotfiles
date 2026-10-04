@@ -243,14 +243,13 @@ BarWidget {
       if (!root.herdrLaunch) root.activateCommand(b, Qt.NoModifier)
     }
 
+    // Clicks only: hover stays with WidgetButton, whose own hover state the
+    // bar requires before it shows the tooltip.
     MouseArea {
       anchors.fill: parent
       enabled: root.herdrLaunch
       acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-      hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
-      onEntered: if (root.bar) root.bar.showTooltip(button, button.tooltipText)
-      onExited: if (root.bar) root.bar.hideTooltip(button)
       onClicked: function(mouse) {
         if (root.bar) root.bar.hideTooltip(button)
         root.activateCommand(mouse.button, mouse.modifiers)
