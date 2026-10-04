@@ -10,7 +10,7 @@ shellcheck = "0.11.0"
 
 [tasks.lint]
 description = "Lint owned TypeScript and JavaScript with Oxlint"
-run = "bunx oxlint --type-aware --deny-warnings"
+run = "bunx oxlint"
 
 [tasks."lint:actions"]
 description = "Run the required ActionLint check on tracked source"

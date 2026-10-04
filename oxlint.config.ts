@@ -3,6 +3,10 @@ import recommendedEffect from "@timmo001/oxlint-rules/configs/recommended-effect
 
 export default defineConfig({
   extends: [recommendedEffect],
+  options: {
+    typeAware: true,
+    maxWarnings: 0,
+  },
   ignorePatterns: [
     ".agent/**",
     ".agents/**",
