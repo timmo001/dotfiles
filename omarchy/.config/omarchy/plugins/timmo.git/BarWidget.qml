@@ -66,7 +66,7 @@ BarWidget {
     return segments
   }
   readonly property string tooltipText: git
-    ? [git.diffTooltip || git.diffError, git.notificationTooltip || git.notificationsError, git.pullRequestTooltip].filter(function(value) { return value !== "" }).join("\n")
+    ? [git.diffTooltip || git.diffError, git.notificationTooltip || git.notificationsError, git.pullRequestTooltip].filter(function(value) { return value !== "" }).join("\n\n")
     : "Git status unavailable"
 
   function activeWidget() {
