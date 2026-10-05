@@ -50,7 +50,7 @@ version = "1.0.2"
 minimum_release_age = "2h"
 
 [tools."github:backnotprop/plannotator"]
-version = "0.27.25"
+version = "0.28.0"
 minimum_release_age = "2h"
 
 # Zsh plugin with no release assets; .zshrc sources it from the latest install.
