@@ -575,18 +575,34 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
       (result) => result.status === "failed",
     ).length;
 
+    const published = results.filter(
+      (result) => result.status === "published",
+    ).length;
+
     yield* log.event(
-      `[SUMMARY] ${results.filter((result) => result.status === "published").length} published, ${results.filter((result) => result.status === "skipped").length} skipped, ${failed} failed; ${log.path}`,
+      `[SUMMARY] ${published} published, ${results.filter((result) => result.status === "skipped").length} skipped, ${failed} failed; ${log.path}`,
     );
 
-    if (failed)
-      return yield* new DependencyRunWarning({
-        message: `Dependency run completed with warnings: ${failed} unsuccessful group${failed === 1 ? "" : "s"}; inspect ${paths.run}`,
-      });
+    const outcome = published ? `${published} published` : "no updates";
 
-    if (unavailable.length)
+    if (failed) {
+      const summary = `${outcome}, ${failed} update group${failed === 1 ? "" : "s"} failed`;
+
       return yield* new DependencyRunWarning({
-        message: `Dependency run skipped ${unavailable.length} unavailable dependenc${unavailable.length === 1 ? "y" : "ies"}: ${unavailable.map((entry) => entry.dependency.name).join(", ")}`,
+        message: `Dependency run completed with warnings: ${summary}; inspect ${paths.run}`,
+        summary,
       });
+    }
+
+    if (unavailable.length) {
+      const summary = `${outcome}; skipped ${unavailable.map((entry) => `${entry.dependency.name} (${entry.selection.reason})`).join(", ")}`;
+
+      return yield* new DependencyRunWarning({
+        message: `Dependency run completed with warnings: ${summary}`,
+        summary,
+      });
+    }
+
+    return outcome;
   }).pipe(Effect.raceFirst(lease.keepAlive));
 }, Effect.scoped);

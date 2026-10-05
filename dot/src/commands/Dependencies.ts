@@ -120,6 +120,7 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
         reachability.failure.transientNetwork
       ) {
         yield* log.event("[WARN] Network unavailable; dependency run deferred");
+        yield* log.event("[RESULT] Deferred: GitHub unreachable");
         process.exitCode = 2;
 
         return;
@@ -143,6 +144,7 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
         claim.failure.transientNetwork
       ) {
         yield* log.event("[WARN] Network unavailable; dependency run deferred");
+        yield* log.event("[RESULT] Deferred: GitHub unreachable");
         process.exitCode = 2;
 
         return;
@@ -156,6 +158,9 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
     if (!lease) {
       // Skipped polls would otherwise hide the last real run from `dot services logs`.
       yield* fs.remove(directory, { recursive: true });
+      yield* output.info(
+        "[RESULT] Skipped: another machine ran this interval or it is not due",
+      );
       process.exitCode = 3;
 
       return;
@@ -164,6 +169,7 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
     yield* Effect.gen(function* () {
       const failures: string[] = [];
       const warnings: string[] = [];
+      const outcomes: string[] = [];
 
       for (const repository of new Set(config.repositories)) {
         yield* lease.assertOwned;
@@ -181,22 +187,35 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
           ignoreCooldown,
         ).pipe(Effect.result);
 
-        if (Result.isFailure(result)) {
-          if (
-            result.failure instanceof DependencyRunWarning ||
-            (result.failure instanceof DependencyRunError &&
-              result.failure.transientNetwork)
-          ) {
-            warnings.push(repository);
-            yield* log.event(`[WARN] ${repository}: ${result.failure.message}`);
-          } else {
-            failures.push(repository);
-            yield* log.event(
-              `[FAILED] ${repository}: ${result.failure.message}`,
-            );
-          }
+        const name = repository.split("/")[1] ?? repository;
+
+        if (Result.isSuccess(result)) {
+          outcomes.push(`${name}: ${result.success ?? "not due"}`);
+          continue;
+        }
+
+        const brief =
+          result.failure instanceof DependencyRunWarning &&
+          result.failure.summary
+            ? result.failure.summary
+            : result.failure.message.replace(/;\s*(?:see|inspect) \S+$/, "");
+
+        outcomes.push(`${name}: ${brief}`);
+
+        if (
+          result.failure instanceof DependencyRunWarning ||
+          (result.failure instanceof DependencyRunError &&
+            result.failure.transientNetwork)
+        ) {
+          warnings.push(repository);
+          yield* log.event(`[WARN] ${repository}: ${result.failure.message}`);
+        } else {
+          failures.push(repository);
+          yield* log.event(`[FAILED] ${repository}: ${result.failure.message}`);
         }
       }
+
+      yield* log.event(`[RESULT] ${outcomes.join(" · ")}`);
 
       if (failures.length)
         return yield* new DependencyRunError({
@@ -218,6 +237,7 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
         (error) =>
           Effect.gen(function* () {
             yield* log.event(`[WARN] Network unavailable: ${error.message}`);
+            yield* log.event("[RESULT] Deferred: network unavailable");
             process.exitCode = 2;
           }),
       ),
