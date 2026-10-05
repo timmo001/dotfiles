@@ -84,6 +84,10 @@ Panel {
     return "󰒋"
   }
 
+  function stateLabel(state) {
+    return state === "warning" ? "heads-up" : state
+  }
+
   function runColor(result) {
     if (result === "failed") return urgentColor
     if (result === "warning") return warningColor
@@ -139,7 +143,7 @@ Panel {
   }
 
   function runText(status, run) {
-    var parts = [run.started ? Qt.formatDateTime(new Date(run.started), "ddd HH:mm") : "—", run.result]
+    var parts = [run.started ? Qt.formatDateTime(new Date(run.started), "ddd HH:mm") : "—", stateLabel(run.result)]
     var elapsed = status.tags[0] === "Service" ? "" : runtime(run)
     if (elapsed) parts.push(elapsed)
     if (run.summary) parts.push(run.summary)
@@ -260,7 +264,7 @@ Panel {
             title: root.view === "agent" ? "Open in agent" : "Services"
             meta: root.view === "agent" && root.agentStatus
               ? root.agentStatus.label + " · " + root.agentStatus.repository.name : root.heroMeta()
-            detail: root.view === "services" && root.service && root.service.loaded ? String(root.service.worst).toUpperCase() : ""
+            detail: root.view === "services" && root.service && root.service.loaded ? String(root.stateLabel(root.service.worst)).toUpperCase() : ""
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             iconComponent: Component {
@@ -461,7 +465,7 @@ Panel {
                           ? root.mutedColor : root.healthColor(rowSurface.status.health)
                         font.family: root.contentFontFamily
                         font.pixelSize: Style.font.caption
-                        elide: Text.ElideRight
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                       }
 
                       Text {
@@ -472,7 +476,7 @@ Panel {
                         color: run && run.result !== "success" ? root.runColor(run.result) : root.mutedColor
                         font.family: root.contentFontFamily
                         font.pixelSize: Style.font.caption
-                        elide: Text.ElideRight
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                       }
 
                       Text {
@@ -585,7 +589,7 @@ Panel {
                         color: root.runColor(modelData.result)
                         font.family: root.contentFontFamily
                         font.pixelSize: Style.font.caption
-                        elide: Text.ElideRight
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                       }
                     }
                   }
