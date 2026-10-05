@@ -42,6 +42,7 @@ import {
   servicesRunLogs,
   servicesNotify,
   servicesStart,
+  servicesStop,
   servicesStatus,
 } from "../commands/Services.js";
 import { fansRun } from "../commands/Fans.js";
@@ -598,6 +599,13 @@ const servicesCommand = describe(
         ),
         "Run a registered job now, or restart a long-running service",
         ["dot services start dot-deps.timer"],
+      ),
+      describe(
+        Command.make("stop", { unit: serviceUnit }, ({ unit }) =>
+          servicesStop(unit),
+        ),
+        "Stop a registered job's running service, leaving its timer scheduled",
+        ["dot services stop notes-capture-daemon.service"],
       ),
       describe(
         Command.make("logs", { unit: serviceUnit }, ({ unit }) =>

@@ -392,6 +392,32 @@ dot services start [flags] <unit>
 dot services start dot-deps.timer
 ```
 
+### `dot services stop`
+
+Stop a registered job's running service, leaving its timer scheduled
+
+```text
+dot services stop [flags] <unit>
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<unit>` | Registered timer or service unit |
+
+**Examples**
+
+```bash
+dot services stop notes-capture-daemon.service
+```
+
 ### `dot services logs`
 
 Open a registered job's logs in a Herdr tab for the repository that owns it

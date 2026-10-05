@@ -1045,6 +1045,23 @@ export const servicesStart = Effect.fn("Services.start")(function* (
   ]);
 });
 
+/** Stop a registered job's service, leaving any timer scheduled. */
+export const servicesStop = Effect.fn("Services.stop")(function* (
+  unit: string,
+) {
+  const { descriptor } = yield* findRegistered(unit);
+  const [status] = yield* collectServiceStatus([{ file: "", descriptor }]);
+  const executor = yield* CommandExecutor;
+
+  yield* executor.run("systemctl", [
+    "--user",
+    "stop",
+    "--no-block",
+    "--",
+    status?.service ?? descriptor.unit,
+  ]);
+});
+
 /** Open a registered job's logs in a new tab of its repository's Herdr workspace. */
 export const servicesLogs = Effect.fn("Services.logs")(function* (
   unit: string,
