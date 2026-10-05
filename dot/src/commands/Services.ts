@@ -336,26 +336,33 @@ const nextElapses = Effect.gen(function* () {
   );
 }).pipe(Effect.withSpan("Services.nextElapses"));
 
-const nextCalendarElapse = Effect.fn("Services.nextCalendarElapse")(function* (
+const calendarElapses = Effect.fn("Services.calendarElapses")(function* (
   expressions: readonly string[],
+  iterations: number,
+  after?: number,
 ) {
-  if (expressions.length === 0) return undefined;
+  if (expressions.length === 0) return [];
 
   const executor = yield* CommandExecutor;
 
   const output = yield* executor
-    .run("systemd-analyze", ["calendar", "--iterations=1", ...expressions])
+    .run("systemd-analyze", [
+      "calendar",
+      `--iterations=${iterations}`,
+      ...(after === undefined
+        ? []
+        : [`--base-time=@${Math.floor(after / 1000)}`]),
+      ...expressions,
+    ])
     .pipe(Effect.orElseSucceed(() => ""));
 
-  const elapses = [
-    ...output.matchAll(/\(in UTC\): \w+ (\S+ \S+) UTC/g),
-  ].flatMap((match) => {
-    const time = Date.parse(`${match[1]}Z`);
+  return [...output.matchAll(/\(in UTC\): \w+ (\S+ \S+) UTC/g)]
+    .flatMap((match) => {
+      const time = Date.parse(`${match[1]}Z`);
 
-    return Number.isFinite(time) ? [time] : [];
-  });
-
-  return elapses.length > 0 ? Math.min(...elapses) : undefined;
+      return Number.isFinite(time) ? [time] : [];
+    })
+    .sort((a, b) => a - b);
 });
 
 const humanSpan = (span: string) => span.replace(/(\d)([a-zµ])/g, "$1 $2");
@@ -895,23 +902,36 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
         lastSuccessAt ??
         unixMillis(timer?.ActiveEnterTimestamp);
 
-      // Time spent powered off or asleep is not a missed run; wait for the
-      // first run after boot or resume before reporting staleness.
-      const awaitingFirstRun =
-        resumedAt !== undefined &&
-        (staleReference === undefined || staleReference < resumedAt) &&
-        !runs.some(
-          (run) =>
-            run.result !== "running" &&
-            run.started !== undefined &&
-            run.started >= resumedAt,
-        );
+      // Time spent powered off or asleep is not a missed run, so the clock
+      // starts again at the last boot or resume.
+      const staleSince =
+        staleReference === undefined
+          ? undefined
+          : Math.max(staleReference, resumedAt ?? 0);
 
       const loaded =
         properties.LoadState === "loaded" &&
         (!timer || timer.LoadState === "loaded");
 
       const triggers = timer ? timerTriggers(timer) : undefined;
+
+      const overdue =
+        staleAfter !== undefined &&
+        staleSince !== undefined &&
+        now - staleSince > staleAfter;
+
+      // Calendar gaps such as quiet hours are not missed runs either: count
+      // from one interval before the first run due after that point.
+      const [firstDue, secondDue] =
+        overdue && triggers && triggers.calendar.length > 0
+          ? yield* calendarElapses(triggers.calendar, 2, staleSince)
+          : [];
+
+      const stale =
+        overdue &&
+        (firstDue === undefined ||
+          secondDue === undefined ||
+          now - Math.max(staleSince, 2 * firstDue - secondDue) > staleAfter);
 
       const serviceBusy =
         properties.ActiveState === "activating" ||
@@ -921,7 +941,7 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
         ? (elapses.get(descriptor.unit) ??
           unixMillis(timer.NextElapseUSecRealtime) ??
           (triggers && triggers.calendar.length > 0
-            ? yield* nextCalendarElapse(triggers.calendar)
+            ? (yield* calendarElapses(triggers.calendar, 1))[0]
             : undefined))
         : undefined;
 
@@ -959,10 +979,7 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
           : timer || oneshot
             ? (timer && timer.ActiveState !== "active") || unscheduled
               ? "inactive"
-              : staleAfter !== undefined &&
-                  staleReference !== undefined &&
-                  !awaitingFirstRun &&
-                  now - staleReference > staleAfter
+              : stale
                 ? "stale"
                 : consecutiveFailures > 0
                   ? "degraded"
