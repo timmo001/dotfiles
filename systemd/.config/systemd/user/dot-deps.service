@@ -8,6 +8,7 @@ OnFailure=dot-service-failed@%n.service
 [Service]
 Type=oneshot
 Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin
+ExecCondition=%h/.local/bin/dot services on-schedule
 ExecStart=%h/.local/bin/mise exec -- %h/.local/bin/dot deps service
 TimeoutStartSec=3h
 TimeoutStopSec=30s
