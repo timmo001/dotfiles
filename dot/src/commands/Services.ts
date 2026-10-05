@@ -18,6 +18,7 @@ import {
 import { herdrRepoOpen } from "./HerdrRepoOpen.js";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "../lib/paths.js";
 import { writeManualStart } from "../lib/manualStart.js";
+import { ENV, envString } from "../lib/env.js";
 
 /** Registered unit is unknown or its descriptor cannot be used. */
 export class ServiceMonitorError extends Schema.TaggedError<ServiceMonitorError>()(
@@ -193,6 +194,7 @@ const MESSAGE = {
   exited: "98e322203f7a4ed290d09fe03c09fe15",
   stopped: "9d1aaa27d60140bd96365438aad20286",
   succeeded: "7ad2d189f7e94e70a38c781354912448",
+  skipped: "0e4284a0caca4bfc81c0bb6786972673",
   restart: "5eb03494b6584870a536b337290809b3",
 } as const;
 
@@ -613,6 +615,11 @@ function buildRuns(
           run.finished = time;
         }
 
+        break;
+      case MESSAGE.skipped:
+        run.result = "skipped";
+        run.finished = time;
+        run.detail = "Skipped off schedule";
         break;
       case MESSAGE.restart:
         run.restarted = true;
@@ -1153,6 +1160,44 @@ export const servicesStop = Effect.fn("Services.stop")(function* (
     status?.service ?? descriptor.unit,
   ]);
 });
+
+/** How long after a scheduled calendar time a timer run still counts as on schedule. */
+const ON_SCHEDULE_GRACE = Duration.minutes(5);
+
+/**
+ * Fail when a timer started this service outside its calendar schedule, so an
+ * `ExecCondition=` skips the catch-up run systemd makes after boot or resume.
+ * Manual starts have no triggering timer and always pass.
+ */
+export const servicesOnSchedule = Effect.gen(function* () {
+  const trigger = envString(ENV.TRIGGER_UNIT);
+
+  if (!trigger?.endsWith(".timer")) return;
+
+  const timer = (yield* showUnits([trigger]).pipe(
+    Effect.orElseSucceed(() => new Map<string, UnitProperties>()),
+  )).get(trigger);
+
+  const calendar = timer ? timerTriggers(timer).calendar : [];
+
+  if (calendar.length === 0) return;
+
+  const now = yield* Clock.currentTimeMillis;
+
+  const [due] = yield* calendarElapses(
+    calendar,
+    1,
+    now - Duration.toMillis(ON_SCHEDULE_GRACE),
+  );
+
+  if (due === undefined || due <= now) return;
+
+  yield* Console.log(
+    `[INFO] Skipping ${trigger} catch-up run; next run at ${new Date(due).toLocaleTimeString()}`,
+  );
+
+  process.exitCode = 1;
+}).pipe(Effect.withSpan("Services.onSchedule"));
 
 /** Open a registered job's logs in a new tab of its repository's Herdr workspace. */
 export const servicesLogs = Effect.fn("Services.logs")(function* (
