@@ -46,7 +46,7 @@ version = "0.9.3"
 minimum_release_age = "2h"
 
 [tools."aqua:earendil-works/pi"]
-version = "1.0.2"
+version = "1.0.3"
 minimum_release_age = "2h"
 
 [tools."github:backnotprop/plannotator"]
