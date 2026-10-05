@@ -596,7 +596,7 @@ function buildRuns(
           .filter(Boolean)
           .join(", ");
 
-        if (run.result === "warning") run.detail = "Finished, with a heads-up";
+        if (run.result === "warning") run.detail = "Completed with warnings";
 
         if (run.result === "skipped") run.detail = "No work performed";
         break;
@@ -714,7 +714,7 @@ function summarise(status: Omit<ServiceStatus, "summary">): string {
         ? `Restarted ${status.restarts} times recently`
         : `Last run failed (${status.consecutiveFailures} of ${status.failAfter})`;
     case "warning":
-      return "Last run finished, with a heads-up";
+      return "Last run completed with warnings";
     case "running":
       return "Running now";
     case "ok":

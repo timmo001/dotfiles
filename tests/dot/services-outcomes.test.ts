@@ -116,7 +116,7 @@ test("completed warnings do not become failures or stale, and cooldown skips ret
   const status = await snapshot([1, 1, 2, 2, 3]);
   expect(status.health).toBe("warning");
   expect(status.consecutiveFailures).toBe(0);
-  expect(status.summary).toBe("Last run finished, with a heads-up");
+  expect(status.summary).toBe("Last run completed with warnings");
   expect(status.runs.map((run) => run.result)).toEqual([
     "skipped",
     "warning",
