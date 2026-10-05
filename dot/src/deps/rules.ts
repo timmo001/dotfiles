@@ -228,6 +228,8 @@ export interface Selection {
   readonly reason: string;
   /** Relevant unsupported policy or missing metadata. */
   readonly blockers: readonly string[];
+  /** The provider was temporarily unreachable, so this dependency is skipped for the run. */
+  readonly unavailable?: boolean;
   /** Update kind for group separation. */
   readonly updateType?: string;
 }

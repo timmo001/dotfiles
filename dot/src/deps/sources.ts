@@ -164,6 +164,7 @@ export class DependencySources extends Context.Service<
               () =>
                 new DependencyDiscoveryError({
                   message: `${parsed.hostname}: HTTP request failed or timed out`,
+                  transient: true,
                 }),
             ),
           );
@@ -173,6 +174,7 @@ export class DependencySources extends Context.Service<
         if (response.status < 200 || response.status >= 300)
           return yield* new DependencyDiscoveryError({
             message: `${parsed.hostname}: HTTP ${response.status}${response.status === 429 || response.status === 403 ? `; rate limit or access denied, retry after ${response.headers["retry-after"] ?? "provider reset"}` : ""}`,
+            transient: response.status === 429,
           });
 
         const body = yield* response.text.pipe(
@@ -181,6 +183,7 @@ export class DependencySources extends Context.Service<
             () =>
               new DependencyDiscoveryError({
                 message: `${parsed.hostname}: cannot read response body`,
+                transient: true,
               }),
           ),
         );
@@ -522,11 +525,14 @@ export class DependencySources extends Context.Service<
               Effect.mapError((error) =>
                 error instanceof DependencyDiscoveryError
                   ? error
-                  : new DependencyDiscoveryError({
-                      message: Predicate.isTagged(error, "TimeoutError")
-                        ? `${dependency.name}: ${dependency.datasource} lookup exceeded ${timeout}ms`
-                        : `${dependency.name}: ${dependency.datasource} returned metadata that failed decoding`,
-                    }),
+                  : Predicate.isTagged(error, "TimeoutError")
+                    ? new DependencyDiscoveryError({
+                        message: `${dependency.name}: ${dependency.datasource} lookup exceeded ${timeout}ms`,
+                        transient: true,
+                      })
+                    : new DependencyDiscoveryError({
+                        message: `${dependency.name}: ${dependency.datasource} returned metadata that failed decoding`,
+                      }),
               ),
             );
           },

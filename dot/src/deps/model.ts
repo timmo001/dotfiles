@@ -3,7 +3,11 @@ import { Schema } from "effect";
 /** A discovery or provider failure that must remain visible in the preview. */
 export class DependencyDiscoveryError extends Schema.TaggedError<DependencyDiscoveryError>()(
   "DependencyDiscoveryError",
-  { message: Schema.String },
+  {
+    message: Schema.String,
+    /** The provider was unreachable, timed out or rate limited; a later run may succeed. */
+    transient: Schema.optionalKey(Schema.Boolean),
+  },
 ) {}
 
 /** Immutable dependency occurrence extracted from a pinned source file. */

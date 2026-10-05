@@ -460,6 +460,30 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
     const initial = yield* planner.plan({ ...options, target });
     yield* runnablePlan(initial);
 
+    const unavailable = initial.dependencies.filter(
+      (entry) => entry.selection.unavailable,
+    );
+
+    if (unavailable.length) {
+      const looked = initial.dependencies.filter(
+        (entry) =>
+          !entry.skippedBy.length &&
+          entry.selection.settings.enabled !== false &&
+          entry.dependency.datasource !== "local",
+      );
+
+      const summary = unavailable
+        .map((entry) => `${entry.dependency.name} (${entry.selection.reason})`)
+        .join("; ");
+
+      if (unavailable.length === looked.length)
+        return yield* new DependencyRunError({
+          message: `Every dependency lookup failed: ${summary}`,
+        });
+
+      yield* log.event(`[WARN] Skipping unavailable dependencies: ${summary}`);
+    }
+
     const activeGroups = new Set(
       initial.dependencies
         .filter(
@@ -558,6 +582,11 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
     if (failed)
       return yield* new DependencyRunWarning({
         message: `Dependency run completed with warnings: ${failed} unsuccessful group${failed === 1 ? "" : "s"}; inspect ${paths.run}`,
+      });
+
+    if (unavailable.length)
+      return yield* new DependencyRunWarning({
+        message: `Dependency run skipped ${unavailable.length} unavailable dependenc${unavailable.length === 1 ? "y" : "ies"}: ${unavailable.map((entry) => entry.dependency.name).join(", ")}`,
       });
   }).pipe(Effect.raceFirst(lease.keepAlive));
 }, Effect.scoped);

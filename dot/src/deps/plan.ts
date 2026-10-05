@@ -395,6 +395,7 @@ export class DependencyPlanner extends Context.Service<
               dependency: Dependency;
               metadata?: Releases;
               failure?: string;
+              unavailable?: boolean;
               previous?: PlannedDependency;
             }> {
               const old = reusable.get(dependencyIdentity(dependency));
@@ -444,7 +445,11 @@ export class DependencyPlanner extends Context.Service<
                     ),
                   })),
                   Effect.catch((error) =>
-                    Effect.succeed({ dependency, failure: error.message }),
+                    Effect.succeed({
+                      dependency,
+                      failure: error.message,
+                      unavailable: error.transient === true,
+                    }),
                   ),
                 );
             },
@@ -503,6 +508,7 @@ export class DependencyPlanner extends Context.Service<
             dependency,
             metadata,
             failure,
+            unavailable,
             previous,
             groups,
           }): Effect.fn.Return<PlannedDependency> {
@@ -528,7 +534,8 @@ export class DependencyPlanner extends Context.Service<
                 (skippedBy.length
                   ? "Covered by an open dependency PR (or ambiguous overlapping change)"
                   : "Disabled or local dependency"),
-              blockers: failure ? [failure] : [],
+              blockers: failure && !unavailable ? [failure] : [],
+              unavailable: unavailable === true,
             };
 
             if (
@@ -571,7 +578,8 @@ export class DependencyPlanner extends Context.Service<
                     Effect.succeed({
                       settings,
                       reason: error.message,
-                      blockers: [error.message],
+                      blockers: error.transient ? [] : [error.message],
+                      unavailable: error.transient === true,
                     }),
                   ),
                 ));
