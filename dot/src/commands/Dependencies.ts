@@ -190,7 +190,7 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
         const name = repository.split("/")[1] ?? repository;
 
         if (Result.isSuccess(result)) {
-          outcomes.push(`${name}: ${result.success ?? "not due"}`);
+          outcomes.push(`${name}: ${result.success ?? "not due yet"}`);
           continue;
         }
 

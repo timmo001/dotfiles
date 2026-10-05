@@ -163,7 +163,7 @@ export class DependencySources extends Context.Service<
             Effect.mapError(
               () =>
                 new DependencyDiscoveryError({
-                  message: `${parsed.hostname}: HTTP request failed or timed out`,
+                  message: `${parsed.hostname} is unreachable and may be down`,
                   transient: true,
                 }),
             ),
@@ -182,7 +182,7 @@ export class DependencySources extends Context.Service<
           Effect.mapError(
             () =>
               new DependencyDiscoveryError({
-                message: `${parsed.hostname}: cannot read response body`,
+                message: `${parsed.hostname} stopped responding and may be down`,
                 transient: true,
               }),
           ),
@@ -527,7 +527,7 @@ export class DependencySources extends Context.Service<
                   ? error
                   : Predicate.isTagged(error, "TimeoutError")
                     ? new DependencyDiscoveryError({
-                        message: `${dependency.name}: ${dependency.datasource} lookup exceeded ${timeout}ms`,
+                        message: `${dependency.name}: ${dependency.datasource} lookup timed out after ${timeout}ms; the provider may be slow or down`,
                         transient: true,
                       })
                     : new DependencyDiscoveryError({

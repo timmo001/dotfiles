@@ -595,7 +595,18 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
     }
 
     if (unavailable.length) {
-      const summary = `${outcome}; skipped ${unavailable.map((entry) => `${entry.dependency.name} (${entry.selection.reason})`).join(", ")}`;
+      const byReason = Map.groupBy(
+        unavailable,
+        (entry) => entry.selection.reason,
+      );
+
+      const summary = [
+        `${outcome}.`,
+        ...[...byReason].map(
+          ([reason, entries]) =>
+            `${reason}, so ${entries.map((entry) => entry.dependency.name).join(", ")} will be checked next run.`,
+        ),
+      ].join(" ");
 
       return yield* new DependencyRunWarning({
         message: `Dependency run completed with warnings: ${summary}`,
