@@ -5,7 +5,7 @@
     "": {
       "name": "dot-cli",
       "dependencies": {
-        "@effect/platform-node": "4.0.0",
+        "@effect/platform-node": "4.0.1",
         "@timmo001/effect-gh": "0.3.0",
         "@timmo001/effect-ha-bridge": "1.1.0",
         "@timmo001/effect-herdr": "0.9.0-timmo001.0",
@@ -31,13 +31,13 @@
     },
   },
   "overrides": {
-    "@effect/platform-node-shared": "4.0.0",
+    "@effect/platform-node-shared": "4.0.1",
     "effect": "4.0.1",
   },
   "packages": {
-    "@effect/platform-node": ["@effect/platform-node@4.0.0", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.0", "undici": "^8.11.2" }, "peerDependencies": { "effect": "^4.0.0", "redis": ">=5.0.0 <7.0.0" } }, "sha512-/L+4MUbl8FejPKLHLROYSOebvHnfixkP8KiblSD/DE5uH5xENZBHaux4nH6XMnRP+lr8ajpEJFS8sUrmmxFJeQ=="],
+    "@effect/platform-node": ["@effect/platform-node@4.0.1", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.1", "undici": "^8.11.2" }, "peerDependencies": { "effect": "^4.0.1", "redis": ">=5.0.0 <7.0.0" } }, "sha512-FT0Fu5LO0/XP9zBpj0HqrtJNLluK4StNKqf6TSulUsjp8FPBsDVXGJiDuyoN5J2yVMT7tgvhxSwaDcObWVRIaQ=="],
 
-    "@effect/platform-node-shared": ["@effect/platform-node-shared@4.0.0", "", { "dependencies": { "@types/ws": "^8.18.1", "ws": "^8.22.0" }, "peerDependencies": { "effect": "^4.0.0" } }, "sha512-VBXHJU9UXVZPdQGGDRjGXpo+TpOzRwZuMrdKAtIxi1qwcRftmacZ1zTgIrzBa0Z2RA2KVkoOecQUsTlt/nJZhw=="],
+    "@effect/platform-node-shared": ["@effect/platform-node-shared@4.0.1", "", { "dependencies": { "@types/ws": "^8.18.1", "ws": "^8.22.0" }, "peerDependencies": { "effect": "^4.0.1" } }, "sha512-VanaejudEhKJ4mpmqnEzdncVUhN6sGSO9ZDND54mRxAlZxj+4dYAWjDTYAy9o4tJo9aALeP2U8cVcOFzEdSeLg=="],
 
     "@effect/tsgo": ["@effect/tsgo@0.48.0", "", { "optionalDependencies": { "@effect/tsgo-darwin-arm64": "0.48.0", "@effect/tsgo-darwin-x64": "0.48.0", "@effect/tsgo-linux-arm": "0.48.0", "@effect/tsgo-linux-arm64": "0.48.0", "@effect/tsgo-linux-x64": "0.48.0", "@effect/tsgo-win32-arm64": "0.48.0", "@effect/tsgo-win32-x64": "0.48.0" }, "bin": { "effect-tsgo": "dist/effect-tsgo.cjs" } }, "sha512-802nDQDmDxT/zGtGqJp+AVvhMMHfnHNxdAK92612hDU1ba1fWrXlxY2ayuTi3iACIP94NCIdSaFRaTcqw/FEnw=="],
 
