@@ -119,6 +119,8 @@ export interface ServiceRun {
     "success" | "warning" | "skipped" | "failed" | "running" | "stopped";
   /** systemd result and exit status for failed runs. */
   readonly detail?: string;
+  /** What the job reported doing, from its last `[RESULT] ` output line. */
+  readonly summary?: string;
 }
 
 /** Repository that owns a registered job's executable. */
@@ -207,6 +209,31 @@ const JournalEntry = Schema.Struct({
 const decodeJournalEntry = Schema.decodeUnknownOption(
   Schema.fromJsonString(JournalEntry),
 );
+
+const ResultEntry = Schema.Struct({
+  _SYSTEMD_INVOCATION_ID: Schema.String,
+  MESSAGE: Schema.String,
+});
+
+// journalctl emits non-UTF-8 messages as byte arrays.
+const ByteResultEntry = Schema.Struct({
+  _SYSTEMD_INVOCATION_ID: Schema.String,
+  MESSAGE: Schema.Array(Schema.Int),
+});
+
+const decodeResultEntry = (line: string) =>
+  Schema.decodeOption(Schema.fromJsonString(ResultEntry))(line).pipe(
+    Option.orElse(() =>
+      Schema.decodeOption(Schema.fromJsonString(ByteResultEntry))(line).pipe(
+        Option.map((entry) => ({
+          ...entry,
+          MESSAGE: new TextDecoder().decode(Uint8Array.from(entry.MESSAGE)),
+        })),
+      ),
+    ),
+  );
+
+const RESULT_MARKER = "[RESULT] ";
 
 /** Load every descriptor in the services directory, collecting invalid files. */
 export const readRegisteredServices = Effect.gen(function* () {
@@ -428,6 +455,45 @@ const readJournal = Effect.fn("Services.readJournal")(function* (
     .reverse();
 });
 
+/** Each invocation's last `[RESULT] ` line, the job's own summary of the run. */
+const readResults = Effect.fn("Services.readResults")(function* (
+  service: string,
+  limit: number,
+) {
+  const executor = yield* CommandExecutor;
+
+  const output = yield* executor
+    .run("journalctl", [
+      "--user",
+      "--no-pager",
+      "--output=json",
+      "--output-fields=MESSAGE,_SYSTEMD_INVOCATION_ID",
+      "--reverse",
+      `--lines=${limit}`,
+      "--case-sensitive=true",
+      "--grep=\\[RESULT\\] ",
+      `_SYSTEMD_USER_UNIT=${service}`,
+    ])
+    .pipe(Effect.orElseSucceed(() => ""));
+
+  const results = new Map<string, string>();
+
+  for (const line of output.split("\n"))
+    for (const entry of Option.toArray(decodeResultEntry(line))) {
+      if (results.has(entry._SYSTEMD_INVOCATION_ID)) continue;
+
+      const index = entry.MESSAGE.indexOf(RESULT_MARKER);
+
+      if (index >= 0)
+        results.set(
+          entry._SYSTEMD_INVOCATION_ID,
+          entry.MESSAGE.slice(index + RESULT_MARKER.length).trim(),
+        );
+    }
+
+  return results;
+});
+
 /** When the user manager last started or the system last woke from sleep. */
 const lastResume = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
@@ -480,6 +546,7 @@ function buildRuns(
   entries: readonly (typeof JournalEntry.Type)[],
   oneshot: boolean,
   exitStatuses: ServiceDescriptor["exitStatuses"],
+  results: ReadonlyMap<string, string> = new Map(),
 ) {
   const runs = new Map<string, MutableRun>();
   const restarts: number[] = [];
@@ -562,8 +629,13 @@ function buildRuns(
         exitStatus: _exitStatus,
         restarted: _restarted,
         ...run
-      }): ServiceRun[] =>
-        run.started !== undefined || run.finished !== undefined ? [run] : [],
+      }): ServiceRun[] => {
+        const summary = results.get(run.invocation);
+
+        return run.started !== undefined || run.finished !== undefined
+          ? [summary ? { ...run, summary } : run]
+          : [];
+      },
     )
     .reverse();
 
@@ -756,10 +828,13 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
       const staleAfter =
         descriptor.staleAfter && Duration.toMillis(descriptor.staleAfter);
 
+      const results = yield* readResults(service, history * 2);
+
       const { runs, restarts } = buildRuns(
         yield* readJournal(service, Math.max(200, history * 8)),
         oneshot,
         descriptor.exitStatuses,
+        results,
       );
 
       const lastCompleted = runs.find(
@@ -1121,6 +1196,7 @@ const runSummary = (run: ServiceRun) =>
       ? `${Math.round((run.finished - run.started) / 1000)}s`
       : undefined,
     run.detail,
+    run.summary,
     `invocation ${run.invocation}`,
   ]
     .filter(Boolean)
@@ -1349,7 +1425,9 @@ export const servicesNotify = Effect.fn("Services.notify")(function* (
     "-u",
     "critical",
     `${status.label} failed`,
-    [status.summary, lastFailure?.detail].filter(Boolean).join(" · "),
+    [status.summary, lastFailure?.summary ?? lastFailure?.detail]
+      .filter(Boolean)
+      .join(" · "),
     "--exec",
     "dot",
     "services",

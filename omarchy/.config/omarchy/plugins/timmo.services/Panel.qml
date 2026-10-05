@@ -142,8 +142,14 @@ Panel {
     var parts = [run.started ? Qt.formatDateTime(new Date(run.started), "ddd HH:mm") : "—", run.result]
     var elapsed = status.tags[0] === "Service" ? "" : runtime(run)
     if (elapsed) parts.push(elapsed)
-    if (run.detail) parts.push(run.detail)
+    if (run.summary) parts.push(run.summary)
+    else if (run.detail) parts.push(run.detail)
     return parts.join(" · ")
+  }
+
+  function latestSummary(status) {
+    var run = status.runs.find(function(entry) { return entry.summary })
+    return run || null
   }
 
   function heroMeta() {
@@ -453,6 +459,17 @@ Panel {
                         text: root.metaText(rowSurface.status)
                         color: rowSurface.status.health === "ok" || rowSurface.status.health === "running"
                           ? root.mutedColor : root.healthColor(rowSurface.status.health)
+                        font.family: root.contentFontFamily
+                        font.pixelSize: Style.font.caption
+                        elide: Text.ElideRight
+                      }
+
+                      Text {
+                        readonly property var run: root.latestSummary(rowSurface.status)
+                        width: parent.width
+                        visible: run !== null
+                        text: run ? run.summary : ""
+                        color: run && run.result !== "success" ? root.runColor(run.result) : root.mutedColor
                         font.family: root.contentFontFamily
                         font.pixelSize: Style.font.caption
                         elide: Text.ElideRight
