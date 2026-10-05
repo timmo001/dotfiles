@@ -7,6 +7,7 @@ import { Plugin } from "@opencode/plugin/effect";
 import type { Session } from "@opencode/schema/session";
 import { Effect, Fiber, Schema, Stream } from "effect";
 import { isAbsolute, join } from "node:path";
+import { debugLog, type DebugFields } from "../lib/debug";
 import { runText } from "../lib/process";
 import { connectClient, discoverService } from "../lib/service";
 import { AgentLintRpc, idleStatus, type LintCheck, type LintStatus } from "./rpc";
@@ -42,17 +43,44 @@ export default Plugin.define({
 
       const current = (sessionID: string) => statuses.get(sessionID) ?? idleStatus(sessionID);
 
+      const debug = (message: string, data: DebugFields = {}) =>
+        Effect.sync(() =>
+          debugLog("agent-lint", "server", message, { directory: context.location.directory, ...data }),
+        );
+
+      const summarise = (status: LintStatus) => ({
+        running: status.running,
+        clean: status.clean,
+        checks: status.checks.length,
+        timedOut: status.timedOut.length,
+      });
+
+      yield* debug("plugin started");
+      yield* Effect.addFinalizer(() => debug("plugin stopped", { statuses: statuses.size }));
+
       const publish = (status: LintStatus) =>
         Effect.gen(function* () {
           statuses.set(status.sessionID, status);
+
+          yield* debug("publish", { sessionID: status.sessionID, emit: Boolean(emit), ...summarise(status) });
 
           if (emit) yield* emit(status);
         }).pipe(Effect.catch((error) => Effect.logWarning(`agent-lint: ${String(error)}`)));
 
       const registration = yield* context.rpc.register(AgentLintRpc, {
-        status: (input) => Effect.succeed(current(input.sessionID)),
+        status: (input) =>
+          Effect.succeed(current(input.sessionID)).pipe(
+            Effect.tap((status) =>
+              debug("status call", { sessionID: input.sessionID, stored: statuses.has(input.sessionID), ...summarise(status) }),
+            ),
+          ),
         dismiss: (input) =>
-          publish({ ...current(input.sessionID), timedOut: [], checks: [], message: "" }).pipe(
+          debug("dismiss call", {
+            sessionID: input.sessionID,
+            stored: statuses.has(input.sessionID),
+            ...summarise(current(input.sessionID)),
+          }).pipe(
+            Effect.andThen(publish({ ...current(input.sessionID), timedOut: [], checks: [], message: "" })),
             Effect.as(null),
           ),
       }).pipe(Effect.orDie);

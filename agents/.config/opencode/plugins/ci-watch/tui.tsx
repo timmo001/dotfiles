@@ -7,6 +7,7 @@ import { type ScrollBoxRenderable, TextAttributes } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid";
 import { spawn } from "node:child_process";
 import { createMemo, createResource, createSignal, For, Show } from "solid-js";
+import { debugLog, describe } from "../lib/debug";
 import { type CiStatus, CiWatchRpc, type FailedRun, noStatus } from "./rpc";
 
 type Action = "view" | "fix-now" | "dismiss";
@@ -54,8 +55,12 @@ export default Plugin.define({
 
       void rpc
         .status({ sessionID }, at(sessionID))
-        .then(update)
-        .catch(() => {
+        .then((loaded) => {
+          debugLog("ci-watch", "tui", "status loaded", { sessionID, result: loaded });
+          update(loaded);
+        })
+        .catch((error) => {
+          debugLog("ci-watch", "tui", "status failed", { sessionID, error: describe(error) });
           requested.delete(sessionID);
           setTimeout(() => load(sessionID), 10_000);
         });
@@ -76,7 +81,28 @@ export default Plugin.define({
     const dismiss = async (sessionID: string) => {
       closeView();
 
-      await rpc.dismiss({ sessionID }, at(sessionID));
+      const options = at(sessionID);
+
+      debugLog("ci-watch", "tui", "dismiss start", {
+        sessionID,
+        location: options.location,
+        hasSession: Boolean(context.data.session.get(sessionID)),
+        before: state.sessions[sessionID] ?? null,
+      });
+
+      const result = await rpc.dismiss({ sessionID }, options).catch((error) => {
+        debugLog("ci-watch", "tui", "dismiss failed", { sessionID, error: describe(error) });
+
+        throw error;
+      });
+
+      debugLog("ci-watch", "tui", "dismiss done", { sessionID, result, after: state.sessions[sessionID] ?? null });
+
+      // Shows whether the server's status event arrived after the call returned.
+      setTimeout(
+        () => debugLog("ci-watch", "tui", "dismiss settled", { sessionID, after: state.sessions[sessionID] ?? null }),
+        2_000,
+      );
     };
 
     const fixNow = async (sessionID: string, instruction = "") => {
@@ -121,7 +147,27 @@ export default Plugin.define({
       );
     };
 
-    const stopEvents = rpc.events.on("status", (event) => update(event.data));
+    const events = new AbortController();
+
+    debugLog("ci-watch", "tui", "events subscribed", { location: context.location });
+
+    void (async () => {
+      for await (const event of rpc.events.subscribe("status", { signal: events.signal })) {
+        debugLog("ci-watch", "tui", "status event", {
+          sessionID: event.data.sessionID,
+          state: event.data.state,
+          dismissed: event.data.dismissed,
+          location: event.location ?? null,
+        });
+        update(event.data);
+      }
+
+      debugLog("ci-watch", "tui", "events ended", { aborted: events.signal.aborted });
+    })().catch((error) =>
+      debugLog("ci-watch", "tui", "events failed", { aborted: events.signal.aborted, error: describe(error) }),
+    );
+
+    const stopEvents = () => events.abort();
 
     function Link(props: { label: string; onPress: () => void }) {
       const plugin = usePlugin();

@@ -6,6 +6,7 @@ import type { OpenCodeClient } from "@opencode/client/effect";
 import { Plugin } from "@opencode/plugin/effect";
 import { Session } from "@opencode/schema/session";
 import { Clock, DateTime, Effect, Fiber, Predicate, Schedule, Schema, Semaphore, Stream } from "effect";
+import { debugLog, type DebugFields } from "../lib/debug";
 import { runText } from "../lib/process";
 import { connectClient, discoverService } from "../lib/service";
 import { metadataUpdates, snapshot, type Snapshot } from "./herdr";
@@ -70,6 +71,19 @@ export default Plugin.define({
       const locked = Semaphore.withPermit(lock);
       const logged = Effect.catch((error) => Effect.logWarning(`ci-watch: ${String(error)}`));
 
+      const debug = (message: string, data: DebugFields = {}) =>
+        Effect.sync(() =>
+          debugLog("ci-watch", "server", message, {
+            directory,
+            token: token && "fingerprint" in token ? `${token.state} ${token.fingerprint}` : (token?.state ?? null),
+            dismissed: dismissed ?? null,
+            ...data,
+          }),
+        );
+
+      yield* debug("plugin started");
+      yield* Effect.addFinalizer(() => debug("plugin stopped", { sessions: sessions.size }));
+
       const getClient = Effect.gen(function* () {
         if (client) return client;
 
@@ -116,7 +130,16 @@ export default Plugin.define({
       let emit: (status: CiStatus) => Effect.Effect<void, unknown> = () => Effect.void;
 
       const broadcast = Effect.suspend(() =>
-        Effect.forEach([...sessions.keys()], (sessionID) => emit(status(sessionID)), { discard: true }),
+        Effect.andThen(
+          debug("broadcast", {
+            sessions: [...sessions.keys()].map((sessionID) => {
+              const current = status(sessionID);
+
+              return `${sessionID} ${current.state}${current.dismissed ? " dismissed" : ""}`;
+            }),
+          }),
+          Effect.forEach([...sessions.keys()], (sessionID) => emit(status(sessionID)), { discard: true }),
+        ),
       ).pipe(logged);
 
       // Only sessions opened here get CI status; execution events reach every loaded copy of this plugin.
@@ -182,6 +205,8 @@ export default Plugin.define({
       const apply = (value: string | undefined) =>
         Effect.gen(function* () {
           if (value === raw) return;
+
+          yield* debug("token changed", { previous: raw ?? null, next: value ?? null });
 
           raw = value;
           token = parse(value);
@@ -254,11 +279,26 @@ export default Plugin.define({
               locked,
               logged,
               Effect.map(() => status(input.sessionID)),
+              Effect.tap((result) =>
+                debug("status call", {
+                  sessionID: input.sessionID,
+                  tracked: [...sessions.keys()].some((id) => id === input.sessionID),
+                  ignored: ignored.has(input.sessionID),
+                  result,
+                }),
+              ),
             ),
           details: () =>
             Effect.succeed(token?.state === "failure" && details?.fingerprint === token.fingerprint ? details.failures : null),
-          dismiss: () =>
+          dismiss: (input) =>
             Effect.gen(function* () {
+              yield* debug("dismiss call", {
+                sessionID: input.sessionID,
+                tracked: [...sessions.keys()].some((id) => id === input.sessionID),
+                ignored: ignored.has(input.sessionID),
+                sessions: sessions.size,
+              });
+
               if (token?.state === "failure") dismissed = token.fingerprint;
 
               yield* broadcast;
@@ -280,6 +320,8 @@ export default Plugin.define({
 
           sessions.set(session.id, DateTime.toEpochMillis(session.time.updated));
         }
+
+        yield* debug("sessions rebuilt", { sessions: [...sessions.keys()] });
       }).pipe(locked, logged);
 
       if (socket) yield* Effect.forkScoped(follow(socket));

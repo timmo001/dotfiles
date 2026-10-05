@@ -6,6 +6,7 @@ import { Plugin, usePlugin } from "@opencode/plugin/tui";
 import { type ScrollBoxRenderable, TextAttributes } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import { debugLog, describe } from "../lib/debug";
 import { AgentLintRpc, idleStatus, type LintCheck, type LintStatus } from "./rpc";
 
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -53,15 +54,26 @@ export default Plugin.define({
 
     const status = (sessionID: string) => state.sessions[sessionID] ?? idleStatus(sessionID);
 
+    const summarise = (current: LintStatus | undefined) =>
+      current
+        ? { running: current.running, clean: current.clean, checks: current.checks.length, timedOut: current.timedOut.length }
+        : null;
+
     const load = (sessionID: string) => {
       if (state.sessions[sessionID]) return;
 
       void rpc
         .status({ sessionID })
         .then((loaded) => {
+          debugLog("agent-lint", "tui", "status loaded", {
+            sessionID,
+            result: summarise(loaded),
+            raced: Boolean(state.sessions[sessionID]),
+          });
+
           if (!state.sessions[sessionID]) update(loaded);
         })
-        .catch(() => undefined);
+        .catch((error) => debugLog("agent-lint", "tui", "status failed", { sessionID, error: describe(error) }));
     };
 
     const checks = (sessionID: string) => status(sessionID).checks;
@@ -75,7 +87,28 @@ export default Plugin.define({
     const dismiss = async (sessionID: string) => {
       closeView();
 
-      await rpc.dismiss({ sessionID });
+      const session = context.data.session.get(sessionID);
+
+      debugLog("agent-lint", "tui", "dismiss start", {
+        sessionID,
+        sessionLocation: session?.location ?? null,
+        tuiLocation: context.location,
+        before: summarise(state.sessions[sessionID]),
+      });
+
+      const result = await rpc.dismiss({ sessionID }).catch((error) => {
+        debugLog("agent-lint", "tui", "dismiss failed", { sessionID, error: describe(error) });
+
+        throw error;
+      });
+
+      debugLog("agent-lint", "tui", "dismiss done", { sessionID, result, after: summarise(state.sessions[sessionID]) });
+
+      // Shows whether the server's status event arrived after the call returned.
+      setTimeout(
+        () => debugLog("agent-lint", "tui", "dismiss settled", { sessionID, after: summarise(state.sessions[sessionID]) }),
+        2_000,
+      );
     };
 
     const fixNow = async (sessionID: string, instruction = "") => {
@@ -126,7 +159,26 @@ export default Plugin.define({
       );
     };
 
-    const stopEvents = rpc.events.on("status", (event) => update(event.data));
+    const events = new AbortController();
+
+    debugLog("agent-lint", "tui", "events subscribed", { location: context.location });
+
+    void (async () => {
+      for await (const event of rpc.events.subscribe("status", { signal: events.signal })) {
+        debugLog("agent-lint", "tui", "status event", {
+          sessionID: event.data.sessionID,
+          ...summarise(event.data),
+          location: event.location ?? null,
+        });
+        update(event.data);
+      }
+
+      debugLog("agent-lint", "tui", "events ended", { aborted: events.signal.aborted });
+    })().catch((error) =>
+      debugLog("agent-lint", "tui", "events failed", { aborted: events.signal.aborted, error: describe(error) }),
+    );
+
+    const stopEvents = () => events.abort();
 
     function Link(props: { label: string; onPress: () => void }) {
       const plugin = usePlugin();
