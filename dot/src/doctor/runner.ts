@@ -13,6 +13,7 @@ import { checkStow } from "./checks/stow.js";
 import { checkOpencode } from "./checks/opencode.js";
 import { resolvedOmarchyHost } from "../lib/omarchyHost.js";
 import { checkHerdr } from "./checks/herdr.js";
+import { checkPitchforkProxy } from "./checks/pitchfork.js";
 import { checkGithubMcpAuth } from "./checks/githubMcpAuth.js";
 import { checkGitConfig } from "../git/doctor/gitConfig.js";
 import { checkOriginHead } from "../git/doctor/originHead.js";
@@ -80,6 +81,7 @@ const sections: readonly SectionDef[] = [
   { name: "Stow integrity", check: checkStow },
   { name: "OpenCode location checks", check: checkOpencode },
   { name: "Herdr integration", check: checkHerdr },
+  { name: "pitchfork proxy", check: checkPitchforkProxy },
   { name: "GitHub MCP auth", check: checkGithubMcpAuth },
   { name: "Git config include", check: checkGitConfig },
   { name: "Git notification checks", check: checkGitNotifications },
