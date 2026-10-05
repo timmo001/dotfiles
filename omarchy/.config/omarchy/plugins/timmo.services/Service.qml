@@ -46,9 +46,18 @@ Item {
   }
 
   function start(unit) {
+    runAction("start", unit)
+  }
+
+  function stop(unit) {
+    runAction("stop", unit)
+  }
+
+  function runAction(action, unit) {
     if (actionProcess.running) return
     pendingUnit = unit
-    actionProcess.command = ["dot", "services", "start", unit]
+    actionProcess.action = action
+    actionProcess.command = ["dot", "services", action, unit]
     actionProcess.running = true
   }
 
@@ -129,9 +138,10 @@ Item {
 
   Process {
     id: actionProcess
+    property string action: ""
     stdout: StdioCollector { waitForEnd: true }
     onExited: function(exitCode) {
-      if (exitCode !== 0) root.errorText = "Could not start " + root.pendingUnit
+      if (exitCode !== 0) root.errorText = "Could not " + actionProcess.action + " " + root.pendingUnit
       root.pendingUnit = ""
       refreshSoon.restart()
     }

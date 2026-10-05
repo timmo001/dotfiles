@@ -502,6 +502,17 @@ Panel {
                       }
 
                       PanelActionButton {
+                        enabled: root.service && !root.service.actionBusy
+                          && (rowSurface.status.activeState === "active" || rowSurface.status.activeState === "activating"
+                            || rowSurface.status.activeState === "reloading")
+                        iconText: "󰓛"
+                        tooltipText: "Stop"
+                        foreground: root.contentForeground
+                        fontFamily: root.contentFontFamily
+                        onClicked: root.service.stop(rowSurface.status.unit)
+                      }
+
+                      PanelActionButton {
                         enabled: root.service && root.service.installedAgents.length > 0
                         iconText: "󱚣"
                         tooltipText: "Investigate in agent · " + rowSurface.status.repository.name
