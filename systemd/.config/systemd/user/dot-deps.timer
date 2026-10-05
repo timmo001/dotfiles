@@ -1,8 +1,8 @@
 [Unit]
-Description=Check for dependency updates hourly
+Description=Check for dependency updates hourly, outside 01:00-07:00
 
 [Timer]
-OnCalendar=*-*-* *:10:00
+OnCalendar=*-*-* 00,07..23:10:00
 Persistent=true
 RandomizedDelaySec=30s
 Unit=dot-deps.service

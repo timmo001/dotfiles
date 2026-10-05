@@ -13,7 +13,7 @@ metadata:
 
 # Skill consumers
 
-`consumers.yml` in `~/repos/skills` lists the repositories that keep project copies of shared skills, and which skills each gets. The `skill-consumers` timer syncs that list hourly from its own checkout of skills `main`, refreshed each run. It adds, updates and removes those copies and pushes them to each repository's default branch.
+`consumers.yml` in `~/repos/skills` lists the repositories that keep project copies of shared skills, and which skills each gets. The `skill-consumers` timer syncs that list hourly (except 01:00-07:00) from its own checkout of skills `main`, refreshed each run. It adds, updates and removes those copies and pushes them to each repository's default branch.
 
 ## Share skills
 
