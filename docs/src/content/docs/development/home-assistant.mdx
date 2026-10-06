@@ -25,7 +25,7 @@ Port 443 already reaches pitchfork's proxy (listening on 8443), so the URLs need
 
 - Long-running functions go through `dot status-run`. It pins a header to the top of the terminal with the state (Setting up, Starting, Running, Stopped or Failed), the URL and how long it has been in that state, and keeps the terminal title in step with a spinner. It works in any terminal, not just Herdr.
 - Each function runs the same setup it always has (Git, virtual environment, `script/bootstrap`), then starts the daemon.
-- If the daemon is already running, it asks before restarting it.
+- If the daemon is already running, it asks before restarting it. `hadev`'s Frontend tab follows a running build instead (`--attach`).
 - The foreground versions follow the daemon's logs. Ctrl+C stops the daemon and returns to the prompt.
 - The `bg` versions start the daemon and return once it's ready. `*status`, `*stop` and `*logs` go through pitchfork.
 - `hadev` opens a Core tab and a Frontend tab. `hadevbg` does the same, leaving both daemons in the background.
@@ -48,6 +48,8 @@ The proxy sets `Host` to `localhost:<port>` and adds `X-Forwarded-*` headers. Co
 ```
 
 `hafdevserve` against a remote Core also needs `https://serve.ha-frontend.localhost` in that instance's `cors_allowed_origins`. `build` and `serve` share the frontend's workflow lock, so only one runs at a time. Starting one asks to stop the other first.
+
+Core only registers the frontend routes if `hass_frontend` exists when it starts, and a fresh build briefly removes it. `ha-core/dev` depends on `ha-frontend/build`, so starting Core starts the build too and waits for it to be ready.
 
 ## Pitchfork config
 
@@ -91,8 +93,11 @@ retry = true
 stop_signal = { signal = "SIGTERM", timeout = "60s" }
 
 # Core serving the local frontend build through frontend.development_repo in config/ (hacdev).
+# Core only registers the frontend routes if hass_frontend exists at startup, so
+# it waits for the build to be ready.
 [daemons.dev]
 run = "exec .venv/bin/hass -c config"
+depends = ["ha-frontend/build"]
 port = 8123
 ready_port = { port = 8123, timeout = "5m" }
 retry = true
@@ -274,9 +279,11 @@ function hacdev_cmd() {
 }
 
 # Core serving the local frontend build: https://dev.ha-core.localhost
+# ha-core/dev depends on ha-frontend/build, so this starts the build too.
 function _hacdev() {
   _ha_status_run _hac_run "$1" "$2 && hacdev_cmd" \
-    --url https://dev.ha-core.localhost --pitchfork ha-core/dev "${@:3}"
+    --url https://dev.ha-core.localhost --pitchfork ha-core/dev \
+    --conflicts ha-frontend/serve "${@:3}"
 }
 
 function hacdev() { _hacdev "HA Core Dev" hacdev_setup }
@@ -385,7 +392,7 @@ function hadev() {
   fi
 
   REPO_RUN_NO_FOCUS=1 hacdevlatest || return
-  hafdev
+  hafdev --attach
 }
 
 function hadevbg() {
@@ -395,7 +402,7 @@ function hadevbg() {
   fi
 
   REPO_RUN_NO_FOCUS=1 hacdevlatestbg || return
-  hafdevbg
+  hafdev --attach --background
 }
 
 HA_DEV_DAEMONS=(ha-core/dev ha-core/bundled ha-frontend/build ha-frontend/serve)

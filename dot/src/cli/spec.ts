@@ -493,6 +493,10 @@ const statusRunCommand = describe(
           "Pitchfork daemon that cannot run alongside --pitchfork; asks to stop it first. Repeat for more",
         ),
       ),
+      attach: bool(
+        "attach",
+        "Follow an already running --pitchfork daemon instead of asking to restart it",
+      ),
       background: bool(
         "background",
         "Return once the pitchfork daemon is ready, leaving it running",
@@ -518,7 +522,7 @@ const statusRunCommand = describe(
   ],
   {
     description:
-      "Pins a header to the top of the terminal with the state (Setting up, Starting, Running, Done, Stopped or Failed), the URL and the elapsed time, and keeps the terminal title in step with a spinner while work is in progress. --setup runs in an interactive zsh first. With --pitchfork, an already running daemon prompts before restarting, its logs are followed once it is ready, and Ctrl+C stops it. --background returns once the daemon is ready. Without a TTY, state changes print as lines.",
+      "Pins a header to the top of the terminal with the state (Setting up, Starting, Running, Done, Stopped or Failed), the URL and the elapsed time, and keeps the terminal title in step with a spinner while work is in progress. --setup runs in an interactive zsh first. With --pitchfork, an already running daemon prompts before restarting (--attach follows it instead), its logs are followed once it is ready, and Ctrl+C stops it. --background returns once the daemon is ready. Without a TTY, state changes print as lines.",
   },
 );
 

@@ -31,6 +31,8 @@ export interface StatusRunOptions {
   readonly pitchfork?: string;
   /** Pitchfork daemons that cannot run alongside the daemon; stopped first after asking. */
   readonly conflicts: readonly string[];
+  /** Follow an already running daemon instead of asking to restart it. */
+  readonly attach: boolean;
   /** Leave the pitchfork daemon running and return once it is ready. */
   readonly background: boolean;
   /** Command and arguments run in the foreground. */
@@ -159,6 +161,11 @@ export const statusRun = Effect.fn("StatusRun")(function* (
   if (daemon === undefined && options.conflicts.length > 0)
     return yield* new StatusRunError({
       message: "--conflicts only applies to --pitchfork daemons",
+    });
+
+  if (daemon === undefined && options.attach)
+    return yield* new StatusRunError({
+      message: "--attach only applies to --pitchfork daemons",
     });
 
   const tty = process.stdout.isTTY === true;
@@ -354,6 +361,8 @@ export const statusRun = Effect.fn("StatusRun")(function* (
     if (!stop || (yield* cancelled))
       return yield* finish({ kind: "cancelled" }, 1);
 
+    if ((yield* statusOfDaemon(conflict)) !== "running") continue;
+
     yield* setPhase({ kind: "stopping" });
     const stopExit = yield* executor.inherit("pitchfork", ["stop", conflict]);
 
@@ -366,7 +375,7 @@ export const statusRun = Effect.fn("StatusRun")(function* (
 
   let restart = false;
 
-  if ((yield* status) === "running") {
+  if (!options.attach && (yield* status) === "running") {
     yield* setPhase({ kind: "prompt" });
     restart = yield* ask(`${daemon} is already running. Restart it?`);
   }
