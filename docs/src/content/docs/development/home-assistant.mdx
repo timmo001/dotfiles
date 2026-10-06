@@ -12,7 +12,6 @@ The config lives in the private overlay, so it is copied below with real URLs re
 | Setup | Command | URL |
 | --- | --- | --- |
 | Core serving the local frontend build | `hacdev`, `hacdevlatest` | `https://dev.ha-core.localhost` |
-| Core with its bundled frontend | `hacdevbundled` | `https://bundled.ha-core.localhost` |
 | Frontend watch build, served by Core | `hafdev` | Through Core's URL |
 | Frontend dev server against another Core | `hafdevserve -c <core URL>` | `https://serve.ha-frontend.localhost` |
 | HTTPS front for the HTTP-only prod Core | Started by `hafdevserveprod` | `https://prod.ha-core.localhost` |
@@ -84,19 +83,6 @@ config = ["/home/<user>/.config/dotfiles-private/pitchfork/.config/pitchfork/hom
 #   pitchfork config add ~/.config/pitchfork/home-assistant/core.toml \
 #     --dir ~/repos/home-assistant/core --namespace ha-core
 
-# Core with its bundled frontend, in a separate config dir seeded on first run.
-[daemons.bundled]
-run = """
-dir="$HOME/.local/share/home-assistant/core-bundled"
-mkdir -p "$dir"
-[ -f "$dir/configuration.yaml" ] || cp "$HOME/.config/pitchfork/home-assistant/core-bundled.yaml" "$dir/configuration.yaml"
-exec .venv/bin/hass -c "$dir"
-"""
-port = 8125
-ready_port = { port = 8125, timeout = "5m" }
-retry = true
-stop_signal = { signal = "SIGTERM", timeout = "60s" }
-
 # Core serving the local frontend build through frontend.development_repo in config/ (hacdev).
 # Core only registers the frontend routes if hass_frontend exists at startup, so
 # it waits for the build to be ready.
@@ -116,19 +102,6 @@ stop_signal = { signal = "SIGTERM", timeout = "60s" }
 run = "exec dot http-forward --port 8126 --target http://homeassistant.local:8123"
 port = 8126
 ready_port = 8126
-```
-
-`home-assistant/core-bundled.yaml` seeds the bundled Core's config:
-
-```yaml
-default_config:
-
-http:
-  server_port: 8125
-  use_x_forwarded_for: true
-  trusted_proxies:
-    - 127.0.0.1
-    - ::1
 ```
 
 `home-assistant/frontend.toml`:
@@ -308,12 +281,6 @@ function hacdevstatus() { pitchfork status ha-core/dev }
 function hacdevstop() { pitchfork stop ha-core/dev }
 function hacdevlogs() { pitchfork logs --tail ha-core/dev }
 
-# Core with its bundled frontend: https://bundled.ha-core.localhost
-function hacdevbundled() {
-  _ha_status_run _hac_run "HA Core Bundled" 'hacdev_setup && hacdev_cmd' \
-    --url https://bundled.ha-core.localhost --pitchfork ha-core/bundled
-}
-
 function hafdev_setup() {
   cd "$HOME/repos/home-assistant/frontend" && script/bootstrap
 }
@@ -417,7 +384,7 @@ function hadevbg() {
   hafdev --attach --background
 }
 
-HA_DEV_DAEMONS=(ha-core/dev ha-core/bundled ha-core/prod ha-frontend/build ha-frontend/serve)
+HA_DEV_DAEMONS=(ha-core/dev ha-core/prod ha-frontend/build ha-frontend/serve)
 
 # Every HA dev server: the pitchfork daemons and the frontend's pnpm suites.
 function hadevstatus() {
