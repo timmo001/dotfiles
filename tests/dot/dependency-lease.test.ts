@@ -19,7 +19,7 @@ const testLayer = NodeServices.layer;
 
 const advanceClock = Effect.forkScoped(
   Effect.forever(
-    TestClock.adjust("1 second").pipe(
+    TestClock.adjust("100 millis").pipe(
       Effect.andThen(TestClock.withLive(Effect.sleep("5 millis"))),
     ),
   ),
