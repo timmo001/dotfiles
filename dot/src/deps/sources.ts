@@ -163,7 +163,7 @@ export class DependencySources extends Context.Service<
             Effect.mapError(
               () =>
                 new DependencyDiscoveryError({
-                  message: `${parsed.hostname} is unreachable and may be down`,
+                  message: `${parsed.hostname} could not be reached`,
                   transient: true,
                 }),
             ),
@@ -182,7 +182,7 @@ export class DependencySources extends Context.Service<
           Effect.mapError(
             () =>
               new DependencyDiscoveryError({
-                message: `${parsed.hostname} stopped responding and may be down`,
+                message: `${parsed.hostname} stopped responding`,
                 transient: true,
               }),
           ),
