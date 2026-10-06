@@ -1,0 +1,428 @@
+---
+title: Home Assistant
+description: Running Home Assistant Core and frontend development servers through pitchfork and Herdr.
+---
+
+I work on <a href="https://github.com/home-assistant/core" target="_blank" rel="noopener noreferrer">Home Assistant Core</a> and the <a href="https://github.com/home-assistant/frontend" target="_blank" rel="noopener noreferrer">frontend</a> most days. A set of zsh functions sets up each repository, then runs its dev server as a <a href="https://pitchfork.jdx.dev" target="_blank" rel="noopener noreferrer">pitchfork</a> daemon so it gets a stable HTTPS URL from pitchfork's proxy. Under [Herdr](/desktop/herdr/), each function opens its own tab in the `[HA] Core` or `[HA] Frontend` workspace.
+
+The config lives in the private overlay, so it is copied below with real URLs replaced.
+
+## Setups
+
+| Setup | Command | URL |
+| --- | --- | --- |
+| Core serving the local frontend build | `hacdev`, `hacdevlatest` | `https://dev.ha-core.localhost` |
+| Core with its bundled frontend | `hacdevbundled` | `https://bundled.ha-core.localhost` |
+| Frontend watch build, served by Core | `hafdev` | Through Core's URL |
+| Frontend dev server against another Core | `hafdevserve -c <core URL>` | `https://serve.ha-frontend.localhost` |
+| Core and frontend together | `hadev` | `https://dev.ha-core.localhost` |
+
+`hadevstatus` shows every HA dev server, and `hadevstop` stops them all, including the frontend's gallery, demo and e2e servers.
+
+Port 443 already reaches pitchfork's proxy (listening on 8443), so the URLs need no port. The proxy builds each hostname from the daemon name and namespace.
+
+## How the functions behave
+
+- Long-running functions go through `dot status-run`. It pins a header to the top of the terminal with the state (Setting up, Starting, Running, Stopped or Failed), the URL and how long it has been in that state, and keeps the terminal title in step with a spinner. It works in any terminal, not just Herdr.
+- Each function runs the same setup it always has (Git, virtual environment, `script/bootstrap`), then starts the daemon.
+- If the daemon is already running, it asks before restarting it.
+- The foreground versions follow the daemon's logs. Ctrl+C stops the daemon and returns to the prompt.
+- The `bg` versions start the daemon and return once it's ready. `*status`, `*stop` and `*logs` go through pitchfork.
+- `hadev` opens a Core tab and a Frontend tab. `hadevbg` does the same, leaving both daemons in the background.
+- Tabs open through `dot herdr repo-open --layout tab --after-prefix "[HA]"`, set their title before the command starts, and share a name between the foreground and `bg` versions. A new HA workspace goes straight after the existing `[HA]` ones, and `hadev` opens Core with `--no-focus` so it doesn't take over the screen. Run from inside its own workspace, a function runs in place.
+- The gallery, demo, e2e and quality commands use the same header without pitchfork. The servers keep using the frontend's own `pnpm` background mode.
+
+:::note
+Pitchfork doesn't pass the caller's environment to a daemon. `hafdevserve` writes its arguments to `~/.local/state/ha-frontend/serve.args`, and the `serve` daemon reads them when it starts. The proxy only covers port 8124, so a different `-p` isn't on the HTTPS URL.
+:::
+
+## Core behind the proxy
+
+The proxy sets `Host` to `localhost:<port>` and adds `X-Forwarded-*` headers. Core rejects those unless it trusts the proxy. The dev config keeps its HTTP settings in `config/.storage/http` rather than YAML, so they go there:
+
+```json
+{
+  "use_x_forwarded_for": true,
+  "trusted_proxies": ["127.0.0.1/32", "::1/128"]
+}
+```
+
+`hafdevserve` against a remote Core also needs `https://serve.ha-frontend.localhost` in that instance's `cors_allowed_origins`. `build` and `serve` share the frontend's workflow lock, so only one runs at a time. Starting one asks to stop the other first.
+
+## Pitchfork config
+
+`~/.config/pitchfork/config.toml` enables the proxy and registers both repositories as namespaces:
+
+```toml
+[daemons]
+
+[settings.proxy]
+enable = true
+https = true
+port = 8443
+
+[namespaces.ha-core]
+dir = "/home/<user>/repos/home-assistant/core"
+config = ["/home/<user>/.config/dotfiles-private/pitchfork/.config/pitchfork/home-assistant/core.toml"]
+
+[namespaces.ha-frontend]
+dir = "/home/<user>/repos/home-assistant/frontend"
+config = ["/home/<user>/.config/dotfiles-private/pitchfork/.config/pitchfork/home-assistant/frontend.toml"]
+```
+
+`home-assistant/core.toml`:
+
+```toml
+# Attached to ~/repos/home-assistant/core with:
+#   pitchfork config add ~/.config/pitchfork/home-assistant/core.toml \
+#     --dir ~/repos/home-assistant/core --namespace ha-core
+
+# Core with its bundled frontend, in a separate config dir seeded on first run.
+[daemons.bundled]
+run = """
+dir="$HOME/.local/share/home-assistant/core-bundled"
+mkdir -p "$dir"
+[ -f "$dir/configuration.yaml" ] || cp "$HOME/.config/pitchfork/home-assistant/core-bundled.yaml" "$dir/configuration.yaml"
+exec .venv/bin/hass -c "$dir"
+"""
+port = 8125
+ready_port = { port = 8125, timeout = "5m" }
+retry = true
+stop_signal = { signal = "SIGTERM", timeout = "60s" }
+
+# Core serving the local frontend build through frontend.development_repo in config/ (hacdev).
+[daemons.dev]
+run = "exec .venv/bin/hass -c config"
+port = 8123
+ready_port = { port = 8123, timeout = "5m" }
+retry = true
+stop_signal = { signal = "SIGTERM", timeout = "60s" }
+```
+
+`home-assistant/core-bundled.yaml` seeds the bundled Core's config:
+
+```yaml
+default_config:
+
+http:
+  server_port: 8125
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 127.0.0.1
+    - ::1
+```
+
+`home-assistant/frontend.toml`:
+
+```toml
+# Attached to ~/repos/home-assistant/frontend with:
+#   pitchfork config add ~/.config/pitchfork/home-assistant/frontend.toml \
+#     --dir ~/repos/home-assistant/frontend --namespace ha-frontend
+#
+# build and serve share the frontend's workflow lock, so only one runs at a time.
+# Started by the hafdev* functions in .zshrc-private.
+
+# pnpm dev: watch build into hass_frontend, served by ha-core/dev.
+[daemons.build]
+run = "exec pnpm dev --fetch-translations"
+ready_output = { pattern = "Build done", timeout = "10m" }
+
+# pnpm dev:serve, with the arguments hafdevserve writes (for example -c <core URL>).
+[daemons.serve]
+run = """
+args="$HOME/.local/state/ha-frontend/serve.args"
+eval "set -- $(cat "$args" 2>/dev/null)"
+exec pnpm dev:serve --fetch-translations "$@"
+"""
+port = 8124
+ready_port = { port = 8124, timeout = "10m" }
+```
+
+## zsh config
+
+The Home Assistant section of my private `.zshrc-private`:
+
+```zsh
+function _repo_run() {
+  local label="$1"
+  local directory="$2"
+  local tab_label="$3"
+  shift 3
+
+  if [ "${HERDR_ENV:-}" != 1 ]; then
+    cd "$directory" && "$@"
+    return
+  fi
+
+  local workspace_id
+  workspace_id="$(herdr workspace list | jq -r --arg label "$label" '
+    (.result.workspaces // .workspaces // [])
+    | map(select(.label == $label))
+    | first
+    | .workspace_id // empty
+  ')"
+
+  if [ -n "$workspace_id" ] && [ "$workspace_id" = "${HERDR_WORKSPACE_ID:-}" ]; then
+    cd "$directory" && "$@"
+    return
+  fi
+
+  local -a flags=(--layout tab --after-prefix "${label%%\]*}]")
+  [ "${REPO_RUN_NO_FOCUS:-}" = 1 ] && flags+=(--no-focus)
+  dot herdr repo-open "${flags[@]}" "$label" "$directory" "$tab_label" \
+    "_dot_set_terminal_title ${(q+)tab_label}; ${(j: :)${(q+)@}}"
+}
+
+# Runs a command under dot status-run, which pins the title, state and any URL
+# to the top of the terminal and keeps the terminal title in step.
+# Usage: _ha_status_run <_hac_run|_haf_run> <title> <setup or ""> [status-run args...]
+function _ha_status_run() {
+  local run="$1"
+  local title="$2"
+  local setup="$3"
+  shift 3
+
+  local -a flags=(--title "$title")
+  [ -n "$setup" ] && flags+=(--setup "$setup")
+  "$run" "$title" dot status-run "${flags[@]}" "$@"
+}
+
+function _hac_run() {
+  _repo_run "[HA] Core" "$HOME/repos/home-assistant/core" "$@"
+}
+
+function _haf_run() {
+  _repo_run "[HA] Frontend" "$HOME/repos/home-assistant/frontend" "$@"
+}
+
+function _haf_shell_run() {
+  local tab_label="$1"
+  shift
+  _haf_run "$tab_label" zsh -ic "$*"
+}
+
+function echo_section() {
+  echo "--------------------------------"
+  echo "$1"
+  echo "--------------------------------"
+}
+
+function hacdev_setup() {
+  echo_section "Switching to Home Assistant Core directory"
+  cd "$HOME/repos/home-assistant/core" || return
+
+  echo_section "Git status"
+  git status
+
+  # Make sure the branch is clean
+  echo_section "Checking if branch is clean"
+  if [ "$(git status --porcelain)" != "" ]; then
+    echo "Branch is not clean, will not switch to dev branch or pull latest changes."
+    sleep 4
+  else
+    echo "Branch is clean"
+
+    # Make sure we are on the dev branch
+    echo_section "Checking if we are on the dev branch"
+    if [ "$(git rev-parse --abbrev-ref HEAD)" != "dev" ]; then
+      git switch dev
+      echo "Switched to dev branch"
+    else
+      echo "Already on dev branch"
+    fi
+
+    echo_section "Pulling latest dev branch"
+    git pull --rebase
+
+    echo_section "Fetching upstream dev branch"
+    git fetch upstream dev
+  fi
+}
+
+function hacdevlatest_setup() {
+  hacdev_setup
+
+  # Make sure the branch is clean
+  echo_section "Checking if branch is clean"
+  if [ "$(git status --porcelain)" != "" ]; then
+    echo "Branch is not clean, will not rebase at this time"
+    sleep 4
+  else
+    echo_section "Rebasing upstream/dev branch"
+    git rebase upstream/dev
+
+    # Push if changes were made
+    if [ "$(git rev-list HEAD@{upstream}..HEAD 2>/dev/null)" != "" ]; then
+      echo_section "Pushing latest dev branch"
+      git push --force-with-lease
+    else
+      echo_section "No changes to push"
+    fi
+  fi
+}
+
+function hacdev_cmd() {
+  echo_section "Activating virtual environment"
+  if [ ! -x .venv/bin/python3 ]; then
+    echo "Virtual environment not found, creating it"
+    VIRTUAL_ENV= script/setup || return
+  fi
+  source .venv/bin/activate || return
+
+  echo_section "Running script/bootstrap"
+  script/bootstrap
+}
+
+# Core serving the local frontend build: https://dev.ha-core.localhost
+function _hacdev() {
+  _ha_status_run _hac_run "$1" "$2 && hacdev_cmd" \
+    --url https://dev.ha-core.localhost --pitchfork ha-core/dev "${@:3}"
+}
+
+function hacdev() { _hacdev "HA Core Dev" hacdev_setup }
+function hacdevbg() { _hacdev "HA Core Dev" hacdev_setup --background }
+function hacdevlatest() { _hacdev "HA Core Dev (latest)" hacdevlatest_setup }
+function hacdevlatestbg() { _hacdev "HA Core Dev (latest)" hacdevlatest_setup --background }
+function hacdevstatus() { pitchfork status ha-core/dev }
+function hacdevstop() { pitchfork stop ha-core/dev }
+function hacdevlogs() { pitchfork logs --tail ha-core/dev }
+
+# Core with its bundled frontend: https://bundled.ha-core.localhost
+function hacdevbundled() {
+  _ha_status_run _hac_run "HA Core Bundled" 'hacdev_setup && hacdev_cmd' \
+    --url https://bundled.ha-core.localhost --pitchfork ha-core/bundled
+}
+
+function hafdev_setup() {
+  cd "$HOME/repos/home-assistant/frontend" && script/bootstrap
+}
+
+# App dev server (pnpm dev, as ha-frontend/build), served by hacdev
+function hafdev() {
+  _ha_status_run _haf_run "HA Frontend Dev" hafdev_setup \
+    --url https://dev.ha-core.localhost --via "HA Core" --pitchfork ha-frontend/build \
+    --conflicts ha-frontend/serve "$@"
+}
+function hafdevbg() { hafdev --background }
+function hafdevstatus() { pitchfork status ha-frontend/build }
+function hafdevstop() { pitchfork stop ha-frontend/build }
+function hafdevlogs() { pitchfork logs --tail ha-frontend/build }
+
+# App dev server with serve (pnpm dev:serve, as ha-frontend/serve): https://serve.ha-frontend.localhost
+# Usage: _hafdevserve <title> [dev:serve args...] [--background]
+function _hafdevserve() {
+  local title="$1"
+  shift
+  local arg
+  local -a args bg
+  for arg in "$@"; do
+    if [ "$arg" = --background ]; then bg=(--background); else args+=("$arg"); fi
+  done
+  mkdir -p "$HOME/.local/state/ha-frontend"
+  print -r -- "${(q+)args[@]}" > "$HOME/.local/state/ha-frontend/serve.args"
+  _ha_status_run _haf_run "$title" hafdev_setup \
+    --url https://serve.ha-frontend.localhost --pitchfork ha-frontend/serve \
+    --conflicts ha-frontend/build "${bg[@]}"
+}
+function hafdevserve() { _hafdevserve "HA Frontend Serve" "$@" }
+function hafdevservestatus() { pitchfork status ha-frontend/serve }
+function hafdevservestop() { pitchfork stop ha-frontend/serve }
+function hafdevservelogs() { pitchfork logs --tail ha-frontend/serve }
+function hafdevserveprod() { _hafdevserve "HA Frontend Serve (Prod)" -c http://homeassistant.local:8123 "$@" }
+function hafdevserveprodbg() { hafdevserveprod --background "$@" }
+function hafdevserveprodnc() { _hafdevserve "HA Frontend Serve (Cloud)" -c https://<instance-id>.ui.nabu.casa "$@" }
+function hafdevserveprodncbg() { hafdevserveprodnc --background "$@" }
+function hafdevservevm() { _hafdevserve "HA Frontend Serve (VM)" -c http://<vm-ip>:8123 "$@" }
+function hafdevservevmbg() { hafdevservevm --background "$@" }
+
+# Gallery (pnpm dev:gallery)
+function hafdevdesign() { _ha_status_run _haf_run "HA Frontend Gallery" hafdev_setup -- pnpm dev:gallery --fetch-translations }
+function hafdevdesignbg() { _ha_status_run _haf_run "HA Frontend Gallery" hafdev_setup -- pnpm dev:gallery --fetch-translations --background }
+function hafdevdesignstatus() { _haf_run "HA Frontend Gallery Status" pnpm dev:gallery --status }
+function hafdevdesignstop() { _haf_run "HA Frontend Gallery Stop" pnpm dev:gallery --stop }
+function hafdevdesignlogs() { _haf_run "HA Frontend Gallery Logs" pnpm dev:gallery --logs --follow }
+
+# Demo (pnpm dev:demo)
+function hafdevdemo() { _ha_status_run _haf_run "HA Frontend Demo" hafdev_setup -- pnpm dev:demo --fetch-translations }
+function hafdevdemobg() { _ha_status_run _haf_run "HA Frontend Demo" hafdev_setup -- pnpm dev:demo --fetch-translations --background }
+function hafdevdemostatus() { _haf_run "HA Frontend Demo Status" pnpm dev:demo --status }
+function hafdevdemostop() { _haf_run "HA Frontend Demo Stop" pnpm dev:demo --stop }
+function hafdevdemologs() { _haf_run "HA Frontend Demo Logs" pnpm dev:demo --logs --follow }
+
+# E2E app test suite dev server (pnpm test:e2e:app:dev)
+function hafdeve2eapp() { _ha_status_run _haf_run "HA Frontend E2E App" hafdev_setup -- pnpm test:e2e:app:dev }
+function hafdeve2eappbg() { _ha_status_run _haf_run "HA Frontend E2E App" hafdev_setup -- pnpm test:e2e:app:dev --background }
+function hafdeve2eappstatus() { _haf_run "HA Frontend E2E App Status" pnpm test:e2e:app:dev --status }
+function hafdeve2eappstop() { _haf_run "HA Frontend E2E App Stop" pnpm test:e2e:app:dev --stop }
+function hafdeve2eapplogs() { _haf_run "HA Frontend E2E App Logs" pnpm test:e2e:app:dev --logs --follow }
+
+function hafdevsuitesstatus() {
+  _haf_shell_run "HA Frontend Suites Status" \
+    'pnpm dev:demo --status && pnpm dev:gallery --status && pnpm test:e2e:app:dev --status'
+}
+
+function hafdevsuitesstart() {
+  _ha_status_run _haf_run "HA Frontend Suites" hafdev_setup -- zsh -c \
+    'pnpm dev:demo --fetch-translations --background && pnpm dev:gallery --fetch-translations --background && pnpm test:e2e:app:dev --background'
+}
+
+function hafdevsuitesstop() {
+  _haf_shell_run "HA Frontend Suites Stop" \
+    'pnpm dev:demo --stop && pnpm dev:gallery --stop && pnpm test:e2e:app:dev --stop'
+}
+
+# Quality commands
+function haflint() { _ha_status_run _haf_run "HA Frontend Lint" "" -- pnpm lint }
+function hafformat() { _ha_status_run _haf_run "HA Frontend Format" "" -- pnpm format }
+function haftypes() { _ha_status_run _haf_run "HA Frontend Types" "" -- pnpm lint:types }
+function haftest() { _ha_status_run _haf_run "HA Frontend Test" "" -- pnpm test }
+function hafbuild() { _ha_status_run _haf_run "HA Frontend Build" "" -- pnpm build }
+
+function hadev() {
+  if [ "${HERDR_ENV:-}" != 1 ]; then
+    echo "hadev requires Herdr" >&2
+    return 1
+  fi
+
+  REPO_RUN_NO_FOCUS=1 hacdevlatest || return
+  hafdev
+}
+
+function hadevbg() {
+  if [ "${HERDR_ENV:-}" != 1 ]; then
+    echo "hadevbg requires Herdr" >&2
+    return 1
+  fi
+
+  REPO_RUN_NO_FOCUS=1 hacdevlatestbg || return
+  hafdevbg
+}
+
+HA_DEV_DAEMONS=(ha-core/dev ha-core/bundled ha-frontend/build ha-frontend/serve)
+
+# Every HA dev server: the pitchfork daemons and the frontend's pnpm suites.
+function hadevstatus() {
+  local daemon
+  for daemon in "${HA_DEV_DAEMONS[@]}"; do
+    pitchfork status "$daemon" | grep -E '^(Name|Status):' | paste -sd ' '
+  done
+  (
+    cd "$HOME/repos/home-assistant/frontend" || return
+    pnpm dev:demo --status
+    pnpm dev:gallery --status
+    pnpm test:e2e:app:dev --status
+  )
+}
+
+function hadevstop() {
+  pitchfork stop "${HA_DEV_DAEMONS[@]}"
+  (
+    cd "$HOME/repos/home-assistant/frontend" || return
+    pnpm dev:demo --stop
+    pnpm dev:gallery --stop
+    pnpm test:e2e:app:dev --stop
+  )
+}
+```
+
+The same file also maps each function to a tab title through `DOT_TERMINAL_TITLE_ALIASES`, which the `dotfiles.terminal-title` Herdr plugin uses.

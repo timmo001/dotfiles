@@ -42,6 +42,12 @@ export default defineConfig({
       },
       '/stow',
       {
+        label: 'Development',
+        items: [
+          '/development/home-assistant',
+        ],
+      },
+      {
         label: 'Agents',
         items: [
           '/agents/overview',
