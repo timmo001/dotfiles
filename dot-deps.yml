@@ -14125,14 +14125,6 @@ policy:
           dependency: "anomalyco/opencode"
           versioning: "semver"
       - files:
-          - "/^\\.github/workflows/quickshell-lint\\.ya?ml$/"
-        patterns:
-          - "QUICKSHELL_VERSION: \"(?<currentValue>[^\"]+)\""
-        templates:
-          datasource: "custom.arch-quickshell"
-          dependency: "arch/quickshell"
-          versioning: "loose"
-      - files:
           - "/^herdr\\/\\.config\\/herdr\\/plugins\\/config\\/herdr-lazy\\/plugins\\.list$/"
           - "/^herdr\\/\\.config\\/herdr\\/plugins\\/config\\/herdr-lazy\\/plugins\\.lock$/"
         patterns:
@@ -14147,11 +14139,6 @@ policy:
         format: "plain"
         transforms:
           - "{\"releases\": [releases[$contains(version, /^pkgver=/)].{\"version\": $substringAfter(version, \"pkgver=\")}], \"sourceUrl\": \"https://github.com/omacom-io/omarchy-pkgs\"}"
-      arch-quickshell:
-        registry: "https://archlinux.org/packages/extra/x86_64/quickshell/json/"
-        format: "json"
-        transforms:
-          - "{\"releases\":[{\"version\":pkgver}],\"sourceUrl\":url}"
 validation:
   setup:
     - argv:
@@ -14708,6 +14695,8 @@ validation:
                 - "aqua:cloudflare/cloudflared"
 import:
   source: "renovate.json"
+  leaveToRenovate:
+    - "arch/quickshell"
   resolverVersion: "44.126.1"
   overrideHash: "a8786eb306f2e659f33d6d29782eaec0e30fdd2ef235c89911e42d759362cba1"
   baseDiagnostics:
@@ -17547,3 +17536,9 @@ import:
     - path: "renovate.json.$schema"
       disposition: "ignored"
       message: "Not used by the on-demand, no-PR workflow"
+    - path: "renovate.json.customManagers[2]"
+      disposition: "ignored"
+      message: "Left to hosted Renovate by import.leaveToRenovate"
+    - path: "renovate.json.customDatasources.arch-quickshell"
+      disposition: "ignored"
+      message: "Only used by managers left to hosted Renovate by import.leaveToRenovate"
