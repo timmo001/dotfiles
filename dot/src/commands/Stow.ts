@@ -14,6 +14,7 @@ import { writeAllCompletions } from "./Completions.js";
 import { installOpencodePluginDependencies } from "../lib/opencodePlugins.js";
 import { syncSkills } from "../lib/externalSkills.js";
 import { applySyncthingConfig } from "../lib/syncthing.js";
+import { applySecretFiles } from "../lib/secretFiles.js";
 import {
   backupUnmanagedTargets,
   emptyStowCounts,
@@ -145,6 +146,7 @@ export const stow = (opts?: {
           done(`Stowed ${plural(counts.private, "private package")}`),
         );
         actions.push(...(yield* applySyncthingConfig));
+        actions.push(...(yield* applySecretFiles));
       } else {
         yield* log.warn(
           "Skipping private stow (private dotfiles not available)",
