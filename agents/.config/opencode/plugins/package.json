@@ -6,10 +6,10 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@opencode/client": "2.0.23",
-    "@opencode/plugin": "2.0.23",
-    "@opencode/schema": "2.0.23",
-    "@opencode/theme": "2.0.23",
+    "@opencode/client": "2.0.24",
+    "@opencode/plugin": "2.0.24",
+    "@opencode/schema": "2.0.24",
+    "@opencode/theme": "2.0.24",
     "@opentui/core": "0.5.14",
     "@opentui/solid": "0.5.14",
     "@types/bun": "^1.3.14",
