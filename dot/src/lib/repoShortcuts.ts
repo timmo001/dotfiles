@@ -49,7 +49,11 @@ export function writeRepoPicker(
   writeFileAtomic(
     target,
     `${JSON.stringify(
-      repositories.map(({ name, path }) => ({ name, path })),
+      repositories.map(({ name, path, herdrAfter }) => ({
+        name,
+        path,
+        ...(herdrAfter && { herdrAfter }),
+      })),
       null,
       2,
     )}\n`,

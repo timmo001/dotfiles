@@ -60,6 +60,10 @@ $defs:
         items:
           type: string
           pattern: "^[A-Za-z_][A-Za-z0-9_-]*$"
+      herdr_after:
+        type: string
+        minLength: 1
+        description: Workspace label a new Herdr workspace for this shortcut opens after, when that workspace is open.
 
   repository:
     type: object
@@ -90,6 +94,10 @@ $defs:
           type: string
           pattern: "^[A-Za-z_][A-Za-z0-9_-]*$"
         description: Shell shortcuts generated for this repository.
+      herdr_after:
+        type: string
+        minLength: 1
+        description: Workspace label a new Herdr workspace for this repository opens after, when that workspace is open.
       post_update:
         type: string
         minLength: 1

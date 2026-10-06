@@ -40,6 +40,7 @@ const REPO_KEYS = new Set([
   "notifications",
   "pull_requests",
   "releases",
+  "herdr_after",
 ]);
 
 const CHECK_KEYS = new Set(["enabled", "schedule"]);
@@ -48,7 +49,7 @@ const NOTIFICATION_KEYS = new Set(["enabled", "schedule", "bar"]);
 
 const NOTIFICATION_BAR_KEYS = new Set(["ignore_bot_activity"]);
 
-const SHORTCUT_KEYS = new Set(["name", "path", "aliases"]);
+const SHORTCUT_KEYS = new Set(["name", "path", "aliases", "herdr_after"]);
 
 /** A shell shortcut target generated from private git configuration. */
 export interface GitRepoShortcut {
@@ -58,6 +59,8 @@ export interface GitRepoShortcut {
   readonly path: string;
   /** Generated shell function names. */
   readonly aliases: readonly string[];
+  /** Workspace label a new Herdr workspace for this entry opens after. */
+  readonly herdrAfter?: string;
 }
 
 /** Git checks that can be independently toggled and scheduled. */
@@ -134,6 +137,8 @@ export interface GitManagedRepo {
   readonly github: string;
   /** Shell shortcuts generated for this repository. */
   readonly aliases: readonly string[];
+  /** Workspace label a new Herdr workspace for this repository opens after. */
+  readonly herdrAfter?: string;
   /** Command run from the repository root after `dot update` pulls a new HEAD. */
   readonly postUpdate: string | null;
   /** Whether the dot-managed generic Oxlint pass may run without a local setup. */
@@ -441,7 +446,22 @@ function parseShortcuts(
       diagnostics,
     );
 
-    return name && path ? [{ name, path: expandHomePath(path), aliases }] : [];
+    const herdrAfter = optionalString(
+      shortcut.herdr_after,
+      `${location}.herdr_after`,
+      diagnostics,
+    );
+
+    return name && path
+      ? [
+          {
+            name,
+            path: expandHomePath(path),
+            aliases,
+            ...(herdrAfter && { herdrAfter }),
+          },
+        ]
+      : [];
   });
 }
 
@@ -477,6 +497,12 @@ function parseRepo(
   const aliases = optionalAliases(
     value.aliases,
     `${location}.aliases`,
+    diagnostics,
+  );
+
+  const herdrAfter = optionalString(
+    value.herdr_after,
+    `${location}.herdr_after`,
     diagnostics,
   );
 
@@ -571,6 +597,7 @@ function parseRepo(
       path: expandHomePath(rawPath),
       github,
       aliases,
+      ...(herdrAfter && { herdrAfter }),
       postUpdate,
       agentOxlint,
       ...(agentLint && { agentLint }),

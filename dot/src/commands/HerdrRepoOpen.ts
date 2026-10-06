@@ -44,7 +44,11 @@ const CONTROL_MODIFIER = 0x04000000;
 const ALT_MODIFIER = 0x08000000;
 
 const PickerCacheSchema = Schema.Array(
-  Schema.Struct({ name: Schema.String, path: Schema.String }),
+  Schema.Struct({
+    name: Schema.String,
+    path: Schema.String,
+    herdrAfter: Schema.optionalKey(Schema.String),
+  }),
 );
 
 /** Parsed repository-opening options. */
@@ -75,7 +79,7 @@ export interface HerdrRepoOpenOptions {
   readonly variant?: string;
   /** Unique name assigned to the verified agent before prompting. */
   readonly agentName?: string;
-  /** Place a new workspace after the last one whose label starts with this prefix; defaults to an existing whole-word label prefix. */
+  /** Place a new workspace after the last one whose label starts with this prefix; defaults to a leading [tag] or an existing whole-word label prefix. */
   readonly afterPrefix?: string;
   /** Leave the current view focused and do not open a terminal client. */
   readonly noFocus?: boolean;
@@ -139,7 +143,7 @@ const readPromptFile = Effect.fn("herdrRepoOpen.readPromptFile")(function* (
   return text.trimEnd();
 });
 
-const canonicalLabel = Effect.fn("herdrRepoOpen.canonicalLabel")(function* (
+const readPickerCache = Effect.fn("herdrRepoOpen.readPickerCache")(function* (
   options: HerdrRepoOpenOptions,
 ) {
   const fs = yield* FileSystem.FileSystem;
@@ -148,20 +152,13 @@ const canonicalLabel = Effect.fn("herdrRepoOpen.canonicalLabel")(function* (
     options.pickerCache ?? join(CACHE_DIR, "dot", "repo-picker.json");
 
   if (!(yield* fs.exists(path).pipe(Effect.orElseSucceed(() => false))))
-    return options.label;
+    return [];
 
   return yield* fs.readFileString(path).pipe(
-    Effect.map((text) => {
-      const entries = Schema.decodeUnknownSync(PickerCacheSchema)(
-        JSON.parse(text),
-      );
-
-      return (
-        entries.find((entry) => entry.path === options.directory)?.name ??
-        options.label
-      );
-    }),
-    Effect.catchCause(() => Effect.succeed(options.label)),
+    Effect.map((text) =>
+      Schema.decodeUnknownSync(PickerCacheSchema)(JSON.parse(text)),
+    ),
+    Effect.catchCause(() => Effect.succeed([])),
   );
 });
 
@@ -208,7 +205,12 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   const executor = yield* CommandExecutor;
   const herdr = yield* HerdrSdk;
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-  const label = yield* canonicalLabel(options);
+  const pickerEntries = yield* readPickerCache(options);
+
+  const label =
+    pickerEntries.find((entry) => entry.path === options.directory)?.name ??
+    options.label;
+
   const directory = resolve(options.directory);
 
   if (options.layout !== undefined && options.modifiers !== undefined)
@@ -414,6 +416,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 
     const afterPrefix =
       options.afterPrefix ??
+      /^\[[^\]]+\]/.exec(label)?.[0] ??
       workspaces
         .map((existing) => existing.label)
         .filter(
@@ -425,14 +428,53 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
         )
         .toSorted((left, right) => left.length - right.length)[0];
 
+    const herdrAfter = new Map(
+      pickerEntries.flatMap((entry) =>
+        entry.herdrAfter ? [[entry.name, entry.herdrAfter] as const] : [],
+      ),
+    );
+
+    const predecessors = (start: string) => {
+      const chain: string[] = [];
+
+      for (
+        let current = herdrAfter.get(start);
+        current !== undefined && current !== start && !chain.includes(current);
+        current = herdrAfter.get(current)
+      )
+        chain.push(current);
+
+      return chain;
+    };
+
+    const anchor =
+      predecessors(label)
+        .map((name) =>
+          workspaces.findIndex((existing) => existing.label === name),
+        )
+        .find((index) => index >= 0) ?? -1;
+
+    const follower = workspaces.findIndex((existing) =>
+      predecessors(existing.label).includes(label),
+    );
+
     const groupEnd = afterPrefix
       ? workspaces.findLastIndex((existing) =>
           existing.label.startsWith(afterPrefix),
         )
       : -1;
 
-    if (groupEnd >= 0 && groupEnd < workspaces.length - 1)
-      yield* herdr.workspaces.move(workspaceId, { insertIndex: groupEnd + 1 });
+    const insertIndex =
+      anchor >= 0
+        ? anchor + 1
+        : follower >= 0
+          ? follower
+          : groupEnd >= 0
+            ? groupEnd + 1
+            : -1;
+
+    if (insertIndex >= 0 && insertIndex < workspaces.length)
+      yield* herdr.workspaces.move(workspaceId, { insertIndex });
     created.tab = true;
     created.pane = true;
   } else if (command !== undefined && layout === "tab") {
