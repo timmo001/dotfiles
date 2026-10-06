@@ -2328,6 +2328,12 @@ const herdrRepoOpenCommand = describe(
         "agent-name",
         "Unique Herdr agent name, assigned before prompting",
       ),
+      afterPrefix: Flag.String("after-prefix").pipe(
+        Flag.withDescription(
+          "Place a newly created workspace after the last workspace whose label starts with this prefix",
+        ),
+        Flag.optional,
+      ),
       noFocus: bool(
         "no-focus",
         "Keep the current view focused without opening a terminal client",
@@ -2365,12 +2371,14 @@ const herdrRepoOpenCommand = describe(
       tabLabel,
       layout,
       modifiers,
+      afterPrefix,
       ...input
     }) =>
       herdrRepoOpen({
         ...input,
         layout: optional(layout),
         modifiers: optional(modifiers),
+        afterPrefix: optional(afterPrefix),
         command: optional(command),
         prompt: optional(prompt),
         promptFile: optional(promptFile),
@@ -2382,7 +2390,7 @@ const herdrRepoOpenCommand = describe(
         tabLabel: optional(tabLabel),
       }),
   ),
-  "Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Use --agent to resolve the launcher, label and kind from dot herdr agents; it cannot be combined with a command or --agent-kind. With --agent opencode2, --model creates an OpenCode session on a uniquely matched model before launching the full TUI and sending any prompt. Agent launches wait for readiness and verify the selected kind before naming or prompting. --prompt-file reads the prompt from a file before anything is launched and cannot be combined with --prompt. --no-focus leaves the current view alone. --json reports resource IDs, creation flags, agent details, model and whether the prompt was sent. Without a command or --agent, focus the workspace; an empty command opens a shell using the selected layout.",
+  "Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Use --agent to resolve the launcher, label and kind from dot herdr agents; it cannot be combined with a command or --agent-kind. With --agent opencode2, --model creates an OpenCode session on a uniquely matched model before launching the full TUI and sending any prompt. Agent launches wait for readiness and verify the selected kind before naming or prompting. --prompt-file reads the prompt from a file before anything is launched and cannot be combined with --prompt. --no-focus leaves the current view alone. --after-prefix places a newly created workspace after the last workspace whose label starts with the prefix, keeping related workspaces together. --json reports resource IDs, creation flags, agent details, model and whether the prompt was sent. Without a command or --agent, focus the workspace; an empty command opens a shell using the selected layout.",
   [],
   {
     sections: [
