@@ -252,6 +252,30 @@ Child exit code on completion
 dot run --timeout '5 minutes' -- opencode2 run --standalone 'Process this capture'
 ```
 
+## `dot http-forward`
+
+Forward HTTP and websockets to another server without proxy headers
+
+```text
+dot http-forward [flags]
+```
+
+Listens on 127.0.0.1 and forwards HTTP requests and websockets to the target origin, dropping Host and X-Forwarded-* headers so a server that doesn't trust this machine as a proxy accepts them. Use it behind a local HTTPS proxy, such as a pitchfork daemon, to reach a plain HTTP server from an HTTPS page.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--port` `<integer>` | Local port to listen on, bound to 127.0.0.1 |
+| `--target` `<string>` | Origin to forward to, such as http://host:8123 |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot http-forward --port 8126 --target http://homeassistant.local:8123
+```
+
 ## `dot status-run`
 
 Run a command or pitchfork daemon under a pinned status header
