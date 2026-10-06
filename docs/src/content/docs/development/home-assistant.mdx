@@ -19,7 +19,7 @@ The config lives in the private overlay, so it is copied below with real URLs re
 
 `hadevstatus` shows every HA dev server, and `hadevstop` stops them all, including the frontend's gallery, demo and e2e servers.
 
-Port 443 already reaches pitchfork's proxy (listening on 8443), so the URLs need no port. The proxy builds each hostname from the daemon name and namespace.
+Port 443 already reaches pitchfork's proxy (listening on 8443), so the URLs need no port. The proxy builds each hostname from the daemon name and namespace. Its auto-start is off, so a stopped daemon's URL shows pitchfork's "No daemon found" page rather than starting it; only the commands start daemons.
 
 ## How the functions behave
 
@@ -44,7 +44,7 @@ The proxy sets `Host` to `localhost:<port>` and adds `X-Forwarded-*` headers. Co
 
 [![Open your Home Assistant instance and show your network configuration.](https://my.home-assistant.io/badges/network.svg)](https://my.home-assistant.io/redirect/network/)
 
-The browser blocks an HTTPS page from calling a plain HTTP Core, so the login works but the frontend can't connect afterwards. `ha-core/prod` fronts the prod instance on an HTTPS URL with `dot http-forward`, which drops the proxy's `X-Forwarded-*` headers so the remote Core accepts the requests without trusting this machine as a proxy. The pitchfork proxy starts it on the first request.
+The browser blocks an HTTPS page from calling a plain HTTP Core, so the login works but the frontend can't connect afterwards. `ha-core/prod` fronts the prod instance on an HTTPS URL with `dot http-forward`, which drops the proxy's `X-Forwarded-*` headers so the remote Core accepts the requests without trusting this machine as a proxy. `hafdevserveprod` starts it before `serve`.
 
 `build` and `serve` share the frontend's workflow lock, so only one runs at a time. Starting one asks to stop the other first.
 
@@ -58,6 +58,7 @@ Core only registers the frontend routes if `hass_frontend` exists when it starts
 [daemons]
 
 [settings.proxy]
+auto_start = false
 enable = true
 https = true
 port = 8443
@@ -91,8 +92,7 @@ stop_signal = { signal = "SIGTERM", timeout = "60s" }
 
 # HTTPS front for the prod Core, which is only reachable over plain HTTP, so the
 # frontend served at https://serve.ha-frontend.localhost (hafdevserveprod) can
-# call it without the browser blocking mixed content. The proxy starts it on
-# first request.
+# call it without the browser blocking mixed content. hafdevserveprod starts it.
 [daemons.prod]
 run = "exec dot http-forward --port 8126 --target http://homeassistant.local:8123"
 port = 8126
@@ -311,7 +311,10 @@ function hafdevserve() { _hafdevserve "HA Frontend Serve" "$@" }
 function hafdevservestatus() { pitchfork status ha-frontend/serve }
 function hafdevservestop() { pitchfork stop ha-frontend/serve }
 function hafdevservelogs() { pitchfork logs --tail ha-frontend/serve }
-function hafdevserveprod() { _hafdevserve "HA Frontend Serve (Prod)" -c https://prod.ha-core.localhost "$@" }
+function hafdevserveprod() {
+  pitchfork start ha-core/prod || return
+  _hafdevserve "HA Frontend Serve (Prod)" -c https://prod.ha-core.localhost "$@"
+}
 function hafdevserveprodbg() { hafdevserveprod --background "$@" }
 function hafdevserveprodnc() { _hafdevserve "HA Frontend Serve (Cloud)" -c https://<instance-id>.ui.nabu.casa "$@" }
 function hafdevserveprodncbg() { hafdevserveprodnc --background "$@" }
