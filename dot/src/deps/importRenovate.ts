@@ -113,7 +113,12 @@ function diagnosticsFor(
 /** Decode source sections and translate ordered rules without dropping unsupported selectors. */
 export const translateDependencyPolicy = Effect.fn(
   "Dependencies.translatePolicy",
-)(function* (source: RenovateObject, path: string, defaults?: RenovateObject) {
+)(function* (
+  source: RenovateObject,
+  path: string,
+  defaults?: RenovateObject,
+  leaveToRenovate: readonly string[] = [],
+) {
   const sections = yield* Schema.decodeEffect(
     Schema.Struct({
       packageRules: Schema.optionalKey(Schema.Array(RenovateObject)),
@@ -265,10 +270,26 @@ export const translateDependencyPolicy = Effect.fn(
     }),
   );
 
+  const leftToRenovate = (manager: RenovateObject) =>
+    leaveToRenovate.some((name) => manager.depNameTemplate === name);
+
   const customManagers = (sections.customManagers ?? []).map(
     (manager, index) => {
       const managerPath = `${path}.customManagers[${index}]`;
       const jsonataManager = manager.customType === "jsonata";
+
+      if (leftToRenovate(manager))
+        return {
+          findings: [
+            {
+              path: managerPath,
+              disposition: "ignored" as const,
+              message: "Left to hosted Renovate by import.leaveToRenovate",
+            },
+          ],
+          managers: [],
+          jsonataManagers: [],
+        };
 
       const findings = diagnosticsFor(
         manager,
@@ -343,12 +364,40 @@ export const translateDependencyPolicy = Effect.fn(
     },
   );
 
+  const datasourceUsers = (left: boolean) =>
+    new Set(
+      (sections.customManagers ?? [])
+        .filter((manager) => leftToRenovate(manager) === left)
+        .map((manager) => manager.datasourceTemplate),
+    );
+
+  const keptDatasources = datasourceUsers(false);
+  const leftDatasources = datasourceUsers(true);
+
   const datasources = Object.entries(sections.customDatasources ?? {}).map(
     ([name, datasource]) => {
+      const datasourcePath = `${path}.customDatasources.${name}`;
+
+      if (
+        leftDatasources.has(`custom.${name}`) &&
+        !keptDatasources.has(`custom.${name}`)
+      )
+        return {
+          findings: [
+            {
+              path: datasourcePath,
+              disposition: "ignored" as const,
+              message:
+                "Only used by managers left to hosted Renovate by import.leaveToRenovate",
+            },
+          ],
+          entries: [],
+        };
+
       const findings = diagnosticsFor(
         datasource,
         new Set(["defaultRegistryUrlTemplate", "format", "transformTemplates"]),
-        `${path}.customDatasources.${name}`,
+        datasourcePath,
       );
 
       return {
@@ -418,6 +467,8 @@ export const replaceDependencyOverrides = Effect.fn(
   const translated = yield* translateDependencyPolicy(
     source,
     config.import.source,
+    undefined,
+    config.import.leaveToRenovate,
   );
 
   return yield* Schema.decodeEffect(DependencyConfig)({

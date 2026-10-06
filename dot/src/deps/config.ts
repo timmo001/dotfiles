@@ -258,6 +258,10 @@ export const DependencyConfig = Schema.Struct({
   }),
   import: Schema.Struct({
     source: RepositoryPath,
+    leaveToRenovate: Schema.optionalKey(Strings).annotate({
+      description:
+        "Dependency names left to hosted Renovate. Re-imports skip their custom managers and any custom datasource only those managers use.",
+    }),
     resolverVersion: Schema.String,
     overrideHash: Schema.String,
     baseDiagnostics: Schema.Array(Diagnostic),
