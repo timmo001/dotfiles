@@ -248,7 +248,7 @@ export const statusRun = Effect.fn("StatusRun")(function* (
     yield* Console.log(`[status] ${title}`);
   });
 
-  const context = yield* Effect.context<never>();
+  const context = yield* Effect.context();
   const onInterrupt = () => Deferred.doneUnsafe(interrupted, Effect.void);
 
   const onResize = () =>
