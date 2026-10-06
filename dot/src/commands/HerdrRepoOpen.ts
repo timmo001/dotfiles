@@ -75,7 +75,7 @@ export interface HerdrRepoOpenOptions {
   readonly variant?: string;
   /** Unique name assigned to the verified agent before prompting. */
   readonly agentName?: string;
-  /** Place a new workspace after the last one whose label starts with this prefix. */
+  /** Place a new workspace after the last one whose label starts with this prefix; defaults to an existing whole-word label prefix. */
   readonly afterPrefix?: string;
   /** Leave the current view focused and do not open a terminal client. */
   readonly noFocus?: boolean;
@@ -412,7 +412,18 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
     renameTab = true;
     created.workspace = true;
 
-    const afterPrefix = options.afterPrefix;
+    const afterPrefix =
+      options.afterPrefix ??
+      workspaces
+        .map((existing) => existing.label)
+        .filter(
+          (existing) =>
+            existing &&
+            label.length > existing.length &&
+            label.startsWith(existing) &&
+            /[\s_-]/.test(label.charAt(existing.length)),
+        )
+        .toSorted((left, right) => left.length - right.length)[0];
 
     const groupEnd = afterPrefix
       ? workspaces.findLastIndex((existing) =>
