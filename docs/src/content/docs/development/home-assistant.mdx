@@ -15,6 +15,7 @@ The config lives in the private overlay, so it is copied below with real URLs re
 | Core with its bundled frontend | `hacdevbundled` | `https://bundled.ha-core.localhost` |
 | Frontend watch build, served by Core | `hafdev` | Through Core's URL |
 | Frontend dev server against another Core | `hafdevserve -c <core URL>` | `https://serve.ha-frontend.localhost` |
+| HTTPS fronts for HTTP-only Cores | Started by `hafdevserveprod`, `hafdevservevm` | `https://prod.ha-core.localhost`, `https://vm.ha-core.localhost` |
 | Core and frontend together | `hadev` | `https://dev.ha-core.localhost` |
 
 `hadevstatus` shows every HA dev server, and `hadevstop` stops them all, including the frontend's gallery, demo and e2e servers.
@@ -47,7 +48,11 @@ The proxy sets `Host` to `localhost:<port>` and adds `X-Forwarded-*` headers. Co
 }
 ```
 
-`hafdevserve` against a remote Core also needs `https://serve.ha-frontend.localhost` in that instance's `cors_allowed_origins`. `build` and `serve` share the frontend's workflow lock, so only one runs at a time. Starting one asks to stop the other first.
+`hafdevserve` against a remote Core also needs `https://serve.ha-frontend.localhost` in that instance's `cors_allowed_origins`.
+
+The browser blocks an HTTPS page from calling a plain HTTP Core, so the login works but the frontend can't connect afterwards. `ha-core/prod` and `ha-core/vm` front those instances on HTTPS URLs with `dot http-forward`, which drops the proxy's `X-Forwarded-*` headers so the remote Core accepts the requests without trusting this machine as a proxy. The pitchfork proxy starts them on the first request.
+
+`build` and `serve` share the frontend's workflow lock, so only one runs at a time. Starting one asks to stop the other first.
 
 Core only registers the frontend routes if `hass_frontend` exists when it starts, and a fresh build briefly removes it. `ha-core/dev` depends on `ha-frontend/build`, so starting Core starts the build too and waits for it to be ready.
 
@@ -102,6 +107,20 @@ port = 8123
 ready_port = { port = 8123, timeout = "5m" }
 retry = true
 stop_signal = { signal = "SIGTERM", timeout = "60s" }
+
+# HTTPS fronts for Core instances only reachable over plain HTTP, so the
+# frontend served at https://serve.ha-frontend.localhost (hafdevserve) can call
+# them without the browser blocking mixed content. The proxy starts them on
+# first request.
+[daemons.prod]
+run = "exec dot http-forward --port 8126 --target http://homeassistant.local:8123"
+port = 8126
+ready_port = 8126
+
+[daemons.vm]
+run = "exec dot http-forward --port 8127 --target http://<vm-ip>:8123"
+port = 8127
+ready_port = 8127
 ```
 
 `home-assistant/core-bundled.yaml` seeds the bundled Core's config:
@@ -335,11 +354,11 @@ function hafdevserve() { _hafdevserve "HA Frontend Serve" "$@" }
 function hafdevservestatus() { pitchfork status ha-frontend/serve }
 function hafdevservestop() { pitchfork stop ha-frontend/serve }
 function hafdevservelogs() { pitchfork logs --tail ha-frontend/serve }
-function hafdevserveprod() { _hafdevserve "HA Frontend Serve (Prod)" -c http://homeassistant.local:8123 "$@" }
+function hafdevserveprod() { _hafdevserve "HA Frontend Serve (Prod)" -c https://prod.ha-core.localhost "$@" }
 function hafdevserveprodbg() { hafdevserveprod --background "$@" }
 function hafdevserveprodnc() { _hafdevserve "HA Frontend Serve (Cloud)" -c https://<instance-id>.ui.nabu.casa "$@" }
 function hafdevserveprodncbg() { hafdevserveprodnc --background "$@" }
-function hafdevservevm() { _hafdevserve "HA Frontend Serve (VM)" -c http://<vm-ip>:8123 "$@" }
+function hafdevservevm() { _hafdevserve "HA Frontend Serve (VM)" -c https://vm.ha-core.localhost "$@" }
 function hafdevservevmbg() { hafdevservevm --background "$@" }
 
 # Gallery (pnpm dev:gallery)
@@ -405,7 +424,7 @@ function hadevbg() {
   hafdev --attach --background
 }
 
-HA_DEV_DAEMONS=(ha-core/dev ha-core/bundled ha-frontend/build ha-frontend/serve)
+HA_DEV_DAEMONS=(ha-core/dev ha-core/bundled ha-core/prod ha-core/vm ha-frontend/build ha-frontend/serve)
 
 # Every HA dev server: the pitchfork daemons and the frontend's pnpm suites.
 function hadevstatus() {
