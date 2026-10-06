@@ -66,6 +66,7 @@ const RETIRED_PUBLIC_STOW_PATHS = [
   "hypr/.config/hypr/bin/hyprsunset-toggle-dim",
   "hypr/.config/hypr/bin/timmo-setup-url-handler",
   "omarchy/.config/omarchy/plugins/omaconnect",
+  "pitchfork/.config/pitchfork",
   ...["desktop", "laptop"].flatMap((host) =>
     [
       "autostart.conf",
