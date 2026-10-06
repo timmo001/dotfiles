@@ -252,6 +252,42 @@ Child exit code on completion
 dot run --timeout '5 minutes' -- opencode2 run --standalone 'Process this capture'
 ```
 
+## `dot status-run`
+
+Run a command or pitchfork daemon under a pinned status header
+
+```text
+dot status-run [flags] [<command...>]
+```
+
+Pins a header to the top of the terminal with the state (Setting up, Starting, Running, Done, Stopped or Failed), the URL and the elapsed time, and keeps the terminal title in step with a spinner while work is in progress. --setup runs in an interactive zsh first. With --pitchfork, an already running daemon prompts before restarting, its logs are followed once it is ready, and Ctrl+C stops it. --background returns once the daemon is ready. Without a TTY, state changes print as lines.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--title` `<string>` | Name shown in the header and terminal title |
+| `--url` `<string>` | URL pinned in the header |
+| `--via` `<string>` | What serves the URL when it is not this command, shown beside it |
+| `--setup` `<string>` | zsh command run first, under the Setting up state |
+| `--pitchfork` `<string>` | Pitchfork daemon to start and follow instead of a command |
+| `--conflicts` `<string>` | Pitchfork daemon that cannot run alongside --pitchfork; asks to stop it first. Repeat for more |
+| `--background` | Return once the pitchfork daemon is ready, leaving it running |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<command>` | Command and arguments to run after -- |
+
+**Examples**
+
+```bash
+dot status-run --title 'Lint' -- pnpm lint
+dot status-run --title 'Core' --url https://dev.example.localhost --setup 'script/bootstrap' --pitchfork core/dev
+```
+
 ## `dot updates`
 
 Check watched package and Dotfiles updates for the status bar

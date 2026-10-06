@@ -55,6 +55,7 @@ import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
 import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
 import { editSkillConsumer, runSkillsMaintenance } from "../commands/Skills.js";
 import { runCommand } from "../commands/Run.js";
+import { statusRun } from "../commands/StatusRun.js";
 import { stow } from "../commands/Stow.js";
 import { logRunSummary } from "../lib/runSummary.js";
 import { cliStyler } from "../lib/ansi.js";
@@ -466,6 +467,58 @@ const dependenciesCommand = describe(
   {
     description:
       "Read native policy and manifests from a pinned remote target, preserving the caller's checkout. Exclude whole groups covered by any open dependency PR, including failed, pending and draft PRs. --all bypasses only PR inventory and exclusion. --dry-run discovers updates without repository scripts, installs, checks or writes to Git. Bare dot deps starts groups by priority and prepares and validates them concurrently in isolated worktrees, bounded by --concurrency. Check commands share the same concurrency cap across groups; setup and shared Git operations are serialised. A command's optional skipFor exclusions apply only when every updated dependency matches; mixed or unknown groups retain checks. The first ready group takes the publication slot and publishes one checked commit without creating PRs or waiting for hosted CI. Host permissions are read from $XDG_CONFIG_HOME/dot/dependencies.yml (default ~/.config/dot/dependencies.yml), keyed by owner/repository with trusted and allowBypass booleans. Required hosted checks must have equivalent validation.checks mappings; protected direct pushes require explicit allowBypass permission and existing account rights. Workflow edits require a credential with workflow write access. Unsupported policy remains blocking. Git-backed claims serialise each repository/target across machines and service or manual runs. Publication atomically advances the ownership record and target; target movement rebuilds and revalidates, up to three attempts per group. Failed work and per-group logs remain under $XDG_STATE_HOME/dot/dependencies. Clean published worktrees are removed, including submodules. Setup/check mutations and commit-hook mutations prevent publication. Independent groups continue after failures, including groups sharing files; a partial run exits non-zero. A normal invocation authorises passing updates, regardless of Renovate automerge policy.",
+  },
+);
+
+const statusRunCommand = describe(
+  Command.make(
+    "status-run",
+    {
+      title: Flag.String("title").pipe(
+        Flag.withDescription("Name shown in the header and terminal title"),
+      ),
+      url: text("url", "URL pinned in the header"),
+      via: text(
+        "via",
+        "What serves the URL when it is not this command, shown beside it",
+      ),
+      setup: text("setup", "zsh command run first, under the Setting up state"),
+      pitchfork: text(
+        "pitchfork",
+        "Pitchfork daemon to start and follow instead of a command",
+      ),
+      conflicts: Flag.String("conflicts").pipe(
+        Flag.atLeast(0),
+        Flag.withDescription(
+          "Pitchfork daemon that cannot run alongside --pitchfork; asks to stop it first. Repeat for more",
+        ),
+      ),
+      background: bool(
+        "background",
+        "Return once the pitchfork daemon is ready, leaving it running",
+      ),
+      command: Argument.String("command").pipe(
+        Argument.variadic(),
+        Argument.withDescription("Command and arguments to run after --"),
+      ),
+    },
+    ({ url, via, setup, pitchfork, ...input }) =>
+      statusRun({
+        ...input,
+        url: optional(url),
+        via: optional(via),
+        setup: optional(setup),
+        pitchfork: optional(pitchfork),
+      }),
+  ),
+  "Run a command or pitchfork daemon under a pinned status header",
+  [
+    "dot status-run --title 'Lint' -- pnpm lint",
+    "dot status-run --title 'Core' --url https://dev.example.localhost --setup 'script/bootstrap' --pitchfork core/dev",
+  ],
+  {
+    description:
+      "Pins a header to the top of the terminal with the state (Setting up, Starting, Running, Done, Stopped or Failed), the URL and the elapsed time, and keeps the terminal title in step with a spinner while work is in progress. --setup runs in an interactive zsh first. With --pitchfork, an already running daemon prompts before restarting, its logs are followed once it is ready, and Ctrl+C stops it. --background returns once the daemon is ready. Without a TTY, state changes print as lines.",
   },
 );
 
@@ -2614,6 +2667,7 @@ export const dotCommand = describe(
       systemUpdateCommand,
       dependenciesCommand,
       runCommandSpec,
+      statusRunCommand,
       updatesCommand,
       servicesCommand,
       fansCommand,
