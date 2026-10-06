@@ -82,8 +82,10 @@ const fillIn = Effect.fn("SecretFiles.fillIn")(function* (template: string) {
   for (const [, ref] of template.matchAll(reference)) {
     if (ref === undefined || values.has(ref)) continue;
 
+    // Keep op on the terminal's session so 1Password authorises it once per
+    // run and names the terminal, rather than prompting for every reference.
     const value = yield* executor
-      .run("op", ["read", "--no-newline", ref])
+      .run("op", ["read", "--no-newline", ref], { sameProcessGroup: true })
       .pipe(
         Effect.mapError(
           (cause) => new SecretFileError({ message: cause.message }),
