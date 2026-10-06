@@ -38,16 +38,11 @@ Pitchfork doesn't pass the caller's environment to a daemon. `hafdevserve` write
 
 ## Core behind the proxy
 
-The proxy sets `Host` to `localhost:<port>` and adds `X-Forwarded-*` headers. Core rejects those unless it trusts the proxy. The dev config keeps its HTTP settings in `config/.storage/http` rather than YAML, so they go there:
+The proxy sets `Host` to `localhost:<port>` and adds `X-Forwarded-*` headers. Core rejects those unless it trusts the proxy. In the dev Core, turn on **Trust X-Forwarded-For** and add `127.0.0.1/32` and `::1/128` to **Trusted proxies**, under **Settings > System > Network > Reverse proxy**.
 
-```json
-{
-  "use_x_forwarded_for": true,
-  "trusted_proxies": ["127.0.0.1/32", "::1/128"]
-}
-```
+`hafdevserve` against a remote Core also needs `https://serve.ha-frontend.localhost` in that instance's **CORS allowed origins**, on the same page.
 
-`hafdevserve` against a remote Core also needs `https://serve.ha-frontend.localhost` in that instance's `cors_allowed_origins`.
+[![Open your Home Assistant instance and show your network configuration.](https://my.home-assistant.io/badges/network.svg)](https://my.home-assistant.io/redirect/network/)
 
 The browser blocks an HTTPS page from calling a plain HTTP Core, so the login works but the frontend can't connect afterwards. `ha-core/prod` fronts the prod instance on an HTTPS URL with `dot http-forward`, which drops the proxy's `X-Forwarded-*` headers so the remote Core accepts the requests without trusting this machine as a proxy. The pitchfork proxy starts it on the first request.
 
