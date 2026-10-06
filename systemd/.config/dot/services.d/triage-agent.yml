@@ -1,6 +1,6 @@
 ---
 unit: triage-agent.service
-label: Triage agent
+label: Triage agent (collection)
 restartLimit:
   count: 3
   within: 1 hour
