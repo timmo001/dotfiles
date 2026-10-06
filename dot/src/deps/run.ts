@@ -423,7 +423,7 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
 
   if (!lease) return;
 
-  yield* Effect.gen(function* () {
+  return yield* Effect.gen(function* () {
     // Block unresolved policy before expensive metadata discovery or any repository command.
     const snapshot = yield* github.snapshot(
       repository.nameWithOwner,
@@ -585,34 +585,22 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
 
     const outcome = published ? `${published} published` : "no updates";
 
-    if (failed) {
-      const summary = `${outcome}, ${failed} update group${failed === 1 ? "" : "s"} failed`;
+    const issues = [
+      ...(failed
+        ? [`${failed} update group${failed === 1 ? "" : "s"} failed`]
+        : []),
+      ...[...Map.groupBy(unavailable, (entry) => entry.selection.reason)].map(
+        ([reason, entries]) =>
+          `${reason}, so ${entries.map((entry) => entry.dependency.name).join(", ")} will be checked next run`,
+      ),
+    ];
 
+    if (issues.length)
       return yield* new DependencyRunWarning({
-        message: `Dependency run completed with warnings: ${summary}; inspect ${paths.run}`,
-        summary,
+        message: `Dependency run completed with warnings: ${outcome}; ${issues.join("; ")}${failed ? `; inspect ${paths.run}` : ""}`,
+        outcome,
+        issues,
       });
-    }
-
-    if (unavailable.length) {
-      const byReason = Map.groupBy(
-        unavailable,
-        (entry) => entry.selection.reason,
-      );
-
-      const summary = [
-        `${outcome}.`,
-        ...[...byReason].map(
-          ([reason, entries]) =>
-            `${reason}, so ${entries.map((entry) => entry.dependency.name).join(", ")} will be checked next run.`,
-        ),
-      ].join(" ");
-
-      return yield* new DependencyRunWarning({
-        message: `Dependency run completed with warnings: ${summary}`,
-        summary,
-      });
-    }
 
     return outcome;
   }).pipe(Effect.raceFirst(lease.keepAlive));

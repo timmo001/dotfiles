@@ -170,6 +170,8 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
       const failures: string[] = [];
       const warnings: string[] = [];
       const outcomes: string[] = [];
+      const errorNotes: string[] = [];
+      const warningNotes: string[] = [];
 
       for (const repository of new Set(config.repositories)) {
         yield* lease.assertOwned;
@@ -194,28 +196,41 @@ export const serviceDependencies = Effect.fn("Dependencies.service")(
           continue;
         }
 
-        const brief =
-          result.failure instanceof DependencyRunWarning &&
-          result.failure.summary
-            ? result.failure.summary
-            : result.failure.message.replace(/;\s*(?:see|inspect) \S+$/, "");
+        const failure = result.failure;
+        const brief = failure.message.replace(/;\s*(?:see|inspect) \S+$/, "");
 
-        outcomes.push(`${name}: ${brief}`);
-
-        if (
-          result.failure instanceof DependencyRunWarning ||
-          (result.failure instanceof DependencyRunError &&
-            result.failure.transientNetwork)
-        ) {
+        if (failure instanceof DependencyRunWarning) {
+          outcomes.push(`${name}: ${failure.outcome ?? "completed"}`);
+          warningNotes.push(
+            ...(failure.issues ?? [brief]).map((issue) => `${name}: ${issue}`),
+          );
           warnings.push(repository);
-          yield* log.event(`[WARN] ${repository}: ${result.failure.message}`);
+          yield* log.event(`[WARN] ${repository}: ${failure.message}`);
+        } else if (
+          failure instanceof DependencyRunError &&
+          failure.transientNetwork
+        ) {
+          outcomes.push(`${name}: not checked`);
+          warningNotes.push(`${name}: ${brief}`);
+          warnings.push(repository);
+          yield* log.event(`[WARN] ${repository}: ${failure.message}`);
         } else {
+          outcomes.push(`${name}: failed`);
+          errorNotes.push(`${name}: ${brief}`);
           failures.push(repository);
-          yield* log.event(`[FAILED] ${repository}: ${result.failure.message}`);
+          yield* log.event(`[FAILED] ${repository}: ${failure.message}`);
         }
       }
 
-      yield* log.event(`[RESULT] ${outcomes.join(" · ")}`);
+      yield* log.event(
+        `[RESULT] ${[
+          outcomes.join(" · "),
+          ...(errorNotes.length ? [`Errors: ${errorNotes.join("; ")}`] : []),
+          ...(warningNotes.length
+            ? [`Warnings: ${warningNotes.join("; ")}`]
+            : []),
+        ].join(" - ")}`,
+      );
 
       if (failures.length)
         return yield* new DependencyRunError({

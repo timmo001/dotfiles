@@ -19,7 +19,9 @@ export class DependencyRunWarning extends Schema.TaggedError<DependencyRunWarnin
   {
     message: Schema.String,
     /** Short outcome without evidence paths, for service summaries. */
-    summary: Schema.optionalKey(Schema.String),
+    outcome: Schema.optionalKey(Schema.String),
+    /** Short warnings without evidence paths, listed after the outcome. */
+    issues: Schema.optionalKey(Schema.Array(Schema.String)),
   },
 ) {}
 
