@@ -52,6 +52,7 @@ const upstreams = {
   zls: "zigtools/zls",
   zoxide: "ajeetdsouza/zoxide",
   just: "casey/just",
+  ollama: "ollama/ollama",
   actionlint: "rhysd/actionlint",
   yamllint: "adrienverge/yamllint",
 };
