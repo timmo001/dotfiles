@@ -1058,10 +1058,14 @@ const gitLogCommand = describe(
               Flag.withDescription("Managed repository checkout path"),
             ),
             sha: text("sha", "Full or abbreviated commit SHA"),
-            changes: Flag.Literals("changes", ["uncommitted", "unpushed"]).pipe(
+            changes: Flag.Literals("changes", [
+              "uncommitted",
+              "unpushed",
+              "incoming",
+            ]).pipe(
               Flag.optional,
               Flag.withDescription(
-                "Preview uncommitted changes, including untracked files, or commits not pushed upstream",
+                "Preview uncommitted changes including untracked files, commits not pushed upstream, or fetched commits not pulled yet",
               ),
             ),
           },

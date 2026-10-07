@@ -1095,7 +1095,7 @@ dot git-log show [flags]
 | --- | --- |
 | `--path` `<string>` | Managed repository checkout path |
 | `--sha` `<string>` | Full or abbreviated commit SHA |
-| `--changes` `<choice>` | Preview uncommitted changes, including untracked files, or commits not pushed upstream (choices: uncommitted, unpushed) |
+| `--changes` `<choice>` | Preview uncommitted changes including untracked files, commits not pushed upstream, or fetched commits not pulled yet (choices: uncommitted, unpushed, incoming) |
 | `--help` `-h` | Show help information |
 
 ## `dot git-web`

@@ -213,12 +213,13 @@ const writeOutput = (text: string) =>
   );
 
 /** Local changes `dot git-log show` can preview instead of a commit. */
-export type LogShowChanges = "uncommitted" | "unpushed";
+export type LogShowChanges = "uncommitted" | "unpushed" | "incoming";
 
 /**
  * Print changed files and a diff preview as JSON for the Git panel: one
  * commit (merges are compared with their first parent), the uncommitted
- * working tree including untracked files, or the commits not pushed upstream.
+ * working tree including untracked files, the commits not pushed upstream, or
+ * the fetched upstream commits not pulled yet.
  */
 export const gitLogShow = Effect.fn("gitLog.show")(function* (
   path: string,
@@ -244,7 +245,14 @@ export const gitLogShow = Effect.fn("gitLog.show")(function* (
   const [command, revision] =
     sha !== undefined
       ? [["show", "--format=", "--diff-merges=first-parent"], sha]
-      : [["diff"], changes === "unpushed" ? "@{u}...HEAD" : "HEAD"];
+      : [
+          ["diff"],
+          {
+            uncommitted: "HEAD",
+            unpushed: "@{u}...HEAD",
+            incoming: "HEAD...@{u}",
+          }[changes ?? "uncommitted"],
+        ];
 
   const tracked = yield* readFileChanges(path, command, [revision]);
 
