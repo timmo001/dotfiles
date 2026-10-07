@@ -524,6 +524,21 @@ export function gitCommitRaw(
       formatCommitReport(shortHash, reportSubject, committed, options.amend),
     );
 
+    if (scoped) {
+      const leftOut = yield* readGit([
+        "diff",
+        "--name-only",
+        "--",
+        ...options.paths,
+      ]);
+
+      if (leftOut) {
+        yield* writeStderr(
+          `[dot git-commit] warning: kept the staged content of partly staged files, so these unstaged edits were not committed: ${leftOut.split("\n").join(", ")}. Run git add on them first to include them.\n`,
+        );
+      }
+    }
+
     if (options.push) {
       const pushed = yield* pushBranch({ amend: options.amend });
 
