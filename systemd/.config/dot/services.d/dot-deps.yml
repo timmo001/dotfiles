@@ -1,7 +1,6 @@
 ---
 unit: dot-deps.timer
 label: Dependency updates
-manualStartMarker: true
 failAfter: 2
 exitStatuses:
   "2": warning

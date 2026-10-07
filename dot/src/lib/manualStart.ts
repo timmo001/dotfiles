@@ -20,22 +20,32 @@ export const writeManualStart = Effect.fn("ManualStart.write")(function* (
   yield* fs.writeFileString(marker, String(yield* Clock.currentTimeMillis));
 });
 
-/** Remove a unit's manual start marker, returning whether a fresh one existed. */
-export const consumeManualStart = Effect.fn("ManualStart.consume")(function* (
+/** Whether a unit has a fresh manual start marker, leaving the marker in place. */
+export const hasManualStart = Effect.fn("ManualStart.has")(function* (
   unit: string,
 ) {
   const fs = yield* FileSystem.FileSystem;
-  const marker = manualStartMarker(unit);
 
-  const written = yield* fs.readFileString(marker).pipe(
+  const written = yield* fs.readFileString(manualStartMarker(unit)).pipe(
     Effect.map(Number),
     Effect.orElseSucceed(() => Number.NaN),
   );
-
-  yield* fs.remove(marker, { force: true });
 
   return (
     Number.isFinite(written) &&
     (yield* Clock.currentTimeMillis) - written < MANUAL_START_TTL_MILLIS
   );
+});
+
+/** Remove a unit's manual start marker, returning whether a fresh one existed. */
+export const consumeManualStart = Effect.fn("ManualStart.consume")(function* (
+  unit: string,
+) {
+  const fresh = yield* hasManualStart(unit);
+
+  yield* (yield* FileSystem.FileSystem).remove(manualStartMarker(unit), {
+    force: true,
+  });
+
+  return fresh;
 });

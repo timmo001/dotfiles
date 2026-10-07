@@ -17,7 +17,7 @@ import {
 } from "../services/GitConfig.js";
 import { herdrRepoOpen } from "./HerdrRepoOpen.js";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "../lib/paths.js";
-import { writeManualStart } from "../lib/manualStart.js";
+import { hasManualStart, writeManualStart } from "../lib/manualStart.js";
 import { ENV, envString } from "../lib/env.js";
 
 /** Registered unit is unknown or its descriptor cannot be used. */
@@ -52,7 +52,6 @@ const ServiceDescriptor = Schema.Struct({
   repository: Schema.optionalKey(
     Schema.String.check(Schema.isPattern(/^[\w.-]+\/[\w.-]+$/)),
   ),
-  manualStartMarker: Schema.optionalKey(Schema.Boolean),
   status: Schema.optionalKey(Schema.Struct({ file: Schema.String })),
 });
 
@@ -1133,7 +1132,7 @@ export const servicesStart = Effect.fn("Services.start")(function* (
   const executor = yield* CommandExecutor;
   const service = status?.service ?? descriptor.unit;
 
-  if (descriptor.manualStartMarker) yield* writeManualStart(service);
+  yield* writeManualStart(service);
 
   yield* executor.run("systemctl", [
     "--user",
@@ -1167,7 +1166,8 @@ const ON_SCHEDULE_GRACE = Duration.minutes(5);
 /**
  * Fail when a timer started this service outside its calendar schedule, so an
  * `ExecCondition=` skips the catch-up run systemd makes after boot or resume.
- * Manual starts have no triggering timer and always pass.
+ * Runs started through `dot services start` always pass: systemd can still
+ * report the timer as the trigger of a manual start.
  */
 export const servicesOnSchedule = Effect.gen(function* () {
   const trigger = envString(ENV.TRIGGER_UNIT);
@@ -1177,6 +1177,13 @@ export const servicesOnSchedule = Effect.gen(function* () {
   const timer = (yield* showUnits([trigger]).pipe(
     Effect.orElseSucceed(() => new Map<string, UnitProperties>()),
   )).get(trigger);
+
+  if (
+    yield* hasManualStart(
+      timer?.Unit || trigger.replace(/\.timer$/, ".service"),
+    )
+  )
+    return;
 
   const calendar = timer ? timerTriggers(timer).calendar : [];
 
