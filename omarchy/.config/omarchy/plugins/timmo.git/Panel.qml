@@ -92,11 +92,13 @@ Panel {
       sections.push({ path: String(repo.path || ""), target: "uncommitted", title: "Uncommitted changes", diffTitle: "Uncommitted diff" })
     if (Number(repo.ahead || 0) > 0)
       sections.push({ path: String(repo.path || ""), target: "unpushed", title: "Unpushed changes", diffTitle: "Unpushed diff" })
+    if (Number(repo.behind || 0) > 0)
+      sections.push({ path: String(repo.path || ""), target: "incoming", title: "Incoming changes", diffTitle: "Incoming diff" })
     return sections
   }
 
   function loadChangeSections(sections) {
-    if (service) sections.forEach(function(section) { service.loadChanges(section.path, section.target, section.target === "uncommitted" || section.target === "unpushed") })
+    if (service) sections.forEach(function(section) { service.loadChanges(section.path, section.target, service.localChangeTargets.indexOf(section.target) >= 0) })
   }
 
   // Long file lists and diff previews collapse to these heights until expanded.

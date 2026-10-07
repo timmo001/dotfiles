@@ -110,6 +110,7 @@ Item {
   property var changeDetailErrors: ({})
   property string changeDetailKey: ""
   property var changeDetailQueue: []
+  readonly property var localChangeTargets: ["uncommitted", "unpushed", "incoming"]
   property string logRefreshPending: ""
   readonly property bool logBusy: logProcess.running
   readonly property var recentCommits: logRepositories.reduce(function(commits, repo) {
@@ -255,7 +256,7 @@ Item {
     return logRepositories.find(function(repo) { return repo.path === path }) || null
   }
 
-  // target is a commit SHA, "uncommitted" or "unpushed".
+  // target is a commit SHA, or a local change set: "uncommitted", "unpushed" or "incoming".
   function changeDetail(path, target) {
     return path && target ? changeDetails[path + "@" + target] || null : null
   }
@@ -268,7 +269,7 @@ Item {
   function loadChanges(path, target, reload) {
     path = String(path || "")
     target = String(target || "")
-    if (!path || !(/^[0-9a-f]{7,64}$/.test(target) || target === "uncommitted" || target === "unpushed")) return
+    if (!path || !(/^[0-9a-f]{7,64}$/.test(target) || localChangeTargets.indexOf(target) >= 0)) return
     var key = path + "@" + target
     if ((changeDetails[key] && !reload) || changeDetailKey === key) return
     if (changeDetailProcess.running) {
@@ -277,7 +278,7 @@ Item {
       return
     }
     changeDetailKey = key
-    changeDetailProcess.command = ["dot", "git-log", "show", "--path", path].concat(target === "uncommitted" || target === "unpushed" ? ["--changes", target] : ["--sha", target])
+    changeDetailProcess.command = ["dot", "git-log", "show", "--path", path].concat(localChangeTargets.indexOf(target) >= 0 ? ["--changes", target] : ["--sha", target])
     changeDetailProcess.running = true
   }
 
