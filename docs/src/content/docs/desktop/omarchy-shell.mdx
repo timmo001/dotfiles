@@ -3,7 +3,7 @@ title: Omarchy Shell
 description: Omarchy Quickshell bar, panels, and timmo.* plugins.
 ---
 
-The Omarchy Shell is the long-running <a href="https://quickshell.org" target="_blank" rel="noopener noreferrer">Quickshell</a> process (`omarchy-shell`) behind the bar, notifications, OSD, launcher, and settings on <a href="https://omarchy.org" target="_blank" rel="noopener noreferrer">Omarchy</a>. These dotfiles extend it with `timmo.*` plugins instead of forking Omarchy's shell.
+The Omarchy Shell is the long-running [Quickshell](https://quickshell.org) process (`omarchy-shell`) behind the bar, notifications, OSD, launcher, and settings on [Omarchy](https://omarchy.org). These dotfiles extend it with `timmo.*` plugins instead of forking Omarchy's shell.
 
 `~/.config/omarchy/shell.json` is generated, not hand-edited. `dot` merges Omarchy's default layout with `omarchy-plugins.json` (and an optional private overlay). After plugin or layout changes, use `omarchy restart shell` when a hot-reload is not enough. `dot omarchy-shell-config` regenerates the layout without a full stow.
 
@@ -18,13 +18,13 @@ Several centre/right widgets are primary-output only, with host-specific outputs
 | Plugin | Role |
 | --- | --- |
 | `timmo.workspaces` | Dynamic workspace numbers only (no persistent empties); focused full opacity, others dimmed |
-| `timmo.upnext` | Twitch live channels, YouTube uploads and the watch-later queue from the local <a href="https://upnext.timmo.dev" target="_blank" rel="noopener noreferrer">upnext</a> daemon |
+| `timmo.upnext` | Twitch live channels, YouTube uploads and the watch-later queue from the local [upnext](https://upnext.timmo.dev) daemon |
 | `timmo.git` | Managed-repo state, recent commits, GitHub notifications, release reviews, and open pull requests in one centre widget and panel |
 | `timmo.command` | Interval command cell; here shows Dotfiles and watched package update status via `dot updates` |
 | `timmo.stream-command` | Streaming status JSON for long-running watchers; available but not placed on the public bar |
 | `timmo.home-assistant` | Home Assistant status on the right |
-| `timmo.system-bridge` | Local <a href="https://system-bridge.timmo.dev" target="_blank" rel="noopener noreferrer">System Bridge</a> health (bar + detail panel) |
-| `sceny.devices` | Phones and tablets in the bar through <a href="https://kdeconnect.kde.org/" target="_blank" rel="noopener noreferrer">KDE Connect</a> |
+| `timmo.system-bridge` | Local [System Bridge](https://system-bridge.timmo.dev) health (bar + detail panel) |
+| `sceny.devices` | Phones and tablets in the bar through [KDE Connect](https://kdeconnect.kde.org/) |
 | `timmo.notes` | Notes vault browse/search/capture panel wired to the `notes` CLI |
 | `timmo.services` | Health and run history of registered user services (bar + panel) |
 | `timmo.clock` | Compact clock with calendar, year progress, and world clocks (replaces stock clock) |
@@ -35,7 +35,7 @@ Several centre/right widgets are primary-output only, with host-specific outputs
 
 Custom plugins live under `omarchy/.config/omarchy/plugins/`. Some are local QML in this repo (`workspaces`, `command`, `stream-command`, `git`, `services`, `workspace-context`, `workspace-relayout`, `popup-loading`); others are managed plugin checkouts (`clock`, `upnext`, `notes`, `system-bridge`, `momentumctl`, `sceny.devices`, `nosignal.deckshift`) with placement recorded in `omarchy-plugins.json`. `workspace-context` shares attached Herdr workspace changes with the bar; `workspace-relayout` and `popup-loading` are overlays rather than bar cells.
 
-Third-party bar plugins can be imported the same way: <a href="https://omarchy.org" target="_blank" rel="noopener noreferrer">Omarchy</a>'s `omarchy plugin add` (backed by `dot omarchy-plugin`) checks them out as submodules. `dot stow` then copies those checkouts as real files, because Omarchy rejects plugin-directory symlinks. Placement and config live in `omarchy-plugins.json`. A private overlay can extend that layout the same way.
+Third-party bar plugins can be imported the same way: [Omarchy](https://omarchy.org)'s `omarchy plugin add` (backed by `dot omarchy-plugin`) checks them out as submodules. `dot stow` then copies those checkouts as real files, because Omarchy rejects plugin-directory symlinks. Placement and config live in `omarchy-plugins.json`. A private overlay can extend that layout the same way.
 
 When a repository keeps its plugin in a subfolder, add it with `dot omarchy-plugin add <id> <url> <checkout> --path <subfolder>`. The submodule holds the whole repository, and the registry's `path` tells `dot stow` and updates which folder to deploy. An `onlyHosts` list (for example `["desktop"]`) keeps an entry out of the generated layout on other hosts. DeckShift's `nosignal.deckshift` panel is set up this way, with its Gaming Mode binds in the desktop Hypr host files.
 

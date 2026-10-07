@@ -27,11 +27,7 @@ Short personal reference: what each major part of **these** dotfiles is, and why
 
 - Do **not** rewrite upstream product manuals (Herdr, Hyprland, Ghostty, Omarchy, OpenCode, Quickshell, etc.).
 - Link to official docs for product behaviour; document only local customisations, package layout, and how this repo wires them.
-- Name external applications with an upstream link that opens in a new tab. Blume markdown often will not emit `target="_blank"`; use an HTML anchor:
-
-  ```html
-  <a href="https://example.com" target="_blank" rel="noopener noreferrer">Name</a>
-  ```
+- Name external applications with an upstream link. Use plain Markdown links (`[Name](https://example.com)`); `markdown.externalLinks` opens them in a new tab, so do not write HTML anchors.
 
 ## Private overlay
 
@@ -44,7 +40,7 @@ Short personal reference: what each major part of **these** dotfiles is, and why
 - Stay generated; never hand-edit:
   - `docs/src/content/docs/dot/commands.md` ← `dot/src/cli/spec.ts` (CLI reference; sidebar nest under **dot**, not OpenCode)
   - `docs/src/content/docs/agents/opencode/{agents,commands,plugins}.md` ← OpenCode assets (paths under `/agents/opencode/`; sidebar nest under top-level **OpenCode** with `display: "group"`, Pi/Cursor as top-level siblings)
-- Shared skills are catalogued in <a href="https://github.com/timmo001/skills/blob/main/SKILLS.md#skills-catalogue" target="_blank" rel="noopener noreferrer">timmo001/skills</a> (`SKILLS.md`). Document them on `/agents/skills` (link the catalogue, then list repo-local `.agents/skills/` only). Do not ship or regenerate `reference/skills`.
+- Shared skills are catalogued in [timmo001/skills](https://github.com/timmo001/skills/blob/main/SKILLS.md#skills-catalogue) (`SKILLS.md`). Document them on `/agents/skills` (link the catalogue, then list repo-local `.agents/skills/` only). Do not ship or regenerate `reference/skills`.
 - After that link, optionally list **repo-local** skills under `.agents/skills/` only (name + short role from each `SKILL.md` description). Do not catalogue the shared skills or `dotfiles-skills/` there.
 - After OpenCode or `dot` sources change: `mise run docs:gen` and commit the result.
 - Keep `blume.config.ts`, site Overview, `agents/overview.mdx`, `agents/skills.mdx`, `agents/opencode/overview.mdx`, and README docs-map aligned: **paths** under `/agents/overview`, `/agents/skills`, `/agents/opencode/*`, `/agents/{pi,cursor}`; **sidebar** is **Agents** (flat Overview/Skills), **OpenCode** (`display: "group"`), then top-level **Pi** and **Cursor** (no Other agents wrapper). Machine-readable docs URLs live on the site Overview; `dot/commands` sits with `dot`. Sidebar labels: `/agents/overview` → **Overview**, `/agents/skills` → **Skills**, `/agents/opencode/overview` → **Overview**, `/agents/opencode/agents` → **Agents** (via generated page title). Desktop pages live under `/desktop/*`.

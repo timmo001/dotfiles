@@ -3,7 +3,7 @@ title: Home Assistant
 description: Running Home Assistant Core and frontend development servers through dot, pitchfork and Herdr.
 ---
 
-I work on <a href="https://github.com/home-assistant/core" target="_blank" rel="noopener noreferrer">Home Assistant Core</a> and the <a href="https://github.com/home-assistant/frontend" target="_blank" rel="noopener noreferrer">frontend</a> most days. `dot homeassistant` (`dot ha`) sets up each repository, then runs its dev server as a <a href="https://pitchfork.jdx.dev" target="_blank" rel="noopener noreferrer">pitchfork</a> daemon so it gets a stable HTTPS URL from pitchfork's proxy. Under [Herdr](/desktop/herdr/), each command opens its own tab in the `[HA] Core` or `[HA] Frontend` workspace.
+I work on [Home Assistant Core](https://github.com/home-assistant/core) and the [frontend](https://github.com/home-assistant/frontend) most days. `dot homeassistant` (`dot ha`) sets up each repository, then runs its dev server as a [pitchfork](https://pitchfork.jdx.dev) daemon so it gets a stable HTTPS URL from pitchfork's proxy. Under [Herdr](/desktop/herdr/), each command opens its own tab in the `[HA] Core` or `[HA] Frontend` workspace.
 
 The short `hacdev`, `hafdev*` and `hadev*` functions in `.zshrc` just call `dot ha`. Repository paths, workspaces, daemon names, URLs and serve targets live in the private `~/.config/dot/homeassistant.yml`, and the pitchfork config lives in the private overlay too, so it is copied below with real URLs replaced.
 

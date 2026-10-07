@@ -3,7 +3,7 @@ title: Hyprland
 description: Stowed Hyprland config and per-host overrides.
 ---
 
-<a href="https://hyprland.org" target="_blank" rel="noopener noreferrer">Hyprland</a> window manager config for this <a href="https://omarchy.org" target="_blank" rel="noopener noreferrer">Omarchy</a> setup. It is a stowed `hypr/` package, not a forked Omarchy Hypr repository. Shared Lua entry files live at the package root; each machine overrides them under `hosts/`.
+[Hyprland](https://hyprland.org) window manager config for this [Omarchy](https://omarchy.org) setup. It is a stowed `hypr/` package, not a forked Omarchy Hypr repository. Shared Lua entry files live at the package root; each machine overrides them under `hosts/`.
 
 `dot stow` lays the package down with `--no-folding`, keeps `~/.config/hypr/host` pointing at `hosts/$OMARCHY_HOST`, and reloads Hyprland afterwards without dropping the live config mid-stow.
 
@@ -31,7 +31,7 @@ Beyond monitors, each host keeps its own:
 
 **Look and feel** — Desktop uses small gaps, light rounding, blur/shadow, and window rules that park common apps on specific workspaces. Laptop tightens gaps/borders (no rounding) and shrinks the floating terminal.
 
-**Autostart** — Shared start pulls <a href="https://system-bridge.timmo.dev" target="_blank" rel="noopener noreferrer">System Bridge</a>, Chromium, <a href="https://kdeconnect.kde.org/" target="_blank" rel="noopener noreferrer">KDE Connect</a>, and the <a href="https://herdr.dev" target="_blank" rel="noopener noreferrer">Herdr</a> server. Desktop also starts Solaar and a delayed `workspace-setup`. Laptop starts `power-profile-daemon`.
+**Autostart** — Shared start pulls [System Bridge](https://system-bridge.timmo.dev), Chromium, [KDE Connect](https://kdeconnect.kde.org/), and the [Herdr](https://herdr.dev) server. Desktop also starts Solaar and a delayed `workspace-setup`. Laptop starts `power-profile-daemon`.
 
 **Bindings** — Shared bindings cover browsers, terminals, `dot reload`, and similar day-to-day chords. Host files only add machine-specific chords.
 
