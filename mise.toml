@@ -9,6 +9,10 @@ yamllint = "1.38.0"
 shellcheck = "0.11.0"
 
 [tasks.lint]
+description = "Run every lint check in parallel"
+depends = ["lint:oxlint", "lint:actions", "lint:json", "lint:yaml", "lint:markdown", "lint:shell"]
+
+[tasks."lint:oxlint"]
 description = "Lint owned TypeScript and JavaScript with Oxlint"
 run = "bunx oxlint"
 
@@ -52,6 +56,7 @@ run = "bun run build"
 [tasks."dot:typecheck"]
 description = "Type-check the dot source"
 dir = "dot"
+depends = ["dot:install"]
 run = "bunx tsc --noEmit"
 
 [tasks."dot:format"]
@@ -62,16 +67,18 @@ run = "bun run format"
 [tasks."dot:format:check"]
 description = "Check dot source formatting without writing"
 dir = "dot"
+depends = ["dot:install"]
 run = "bun run format:check"
 
 [tasks."dot:test"]
 description = "Run the dot test suite"
 dir = "dot"
+depends = ["dot:install"]
 run = "bun test tests --pass-with-no-tests"
 
 [tasks."dot:check"]
 description = "Lint, type-check, test, and verify dot formatting"
-depends = ["lint", "dot:typecheck", "dot:test", "dot:format:check", "dot:deps:schema:check"]
+depends = ["lint:oxlint", "dot:typecheck", "dot:test", "dot:format:check", "dot:deps:schema:check"]
 
 [tasks."dot:deps:schema"]
 description = "Generate the dependency policy editor schema"
@@ -90,14 +97,33 @@ depends = ["dot:install"]
 run = "bun run src/buildSkillsMaintenance.ts"
 
 [tasks."tests:integration"]
-description = "Run deterministic repository integration tests"
+description = "Run deterministic repository integration tests in parallel"
+depends = [
+  "tests:integration:dot",
+  "tests:integration:dependencies",
+  "tests:integration:plannotator",
+  "tests:integration:hypr",
+]
+
+[tasks."tests:integration:dot"]
+description = "Run the dot and OpenCode integration tests"
 depends = ["dot:build"]
-run = """
-  bun test tests/opencode tests/dot/agent-oxlint-opt-in.test.ts tests/dot/git-commit-branch-guard.test.ts tests/dot/git-pull-preserves-work.test.ts tests/dot/homeassistant-rebase-abort.test.ts tests/dot/git-notification-dismissal.test.ts tests/dot/git-releases-contract.test.ts tests/dot/herdr-context-contract.test.ts tests/dot/herdr-launch-contract.test.ts tests/dot/process-runner.test.ts tests/dot/mcp-repositories.test.ts tests/dot/omarchy-plugin-deployment.test.ts
-  bun test tests/dot/dependency-validation.test.ts tests/dot/dependency-lease.test.ts tests/dot/services-outcomes.test.ts
-bun test ./scripts/.local/share/herdr-plugins/plannotator/runner.test.ts
-bash tests/scripts/hypr-lua-dispatchers.test.sh
-"""
+run = "bun test tests/opencode tests/dot/agent-oxlint-opt-in.test.ts tests/dot/git-commit-branch-guard.test.ts tests/dot/git-pull-preserves-work.test.ts tests/dot/homeassistant-rebase-abort.test.ts tests/dot/git-notification-dismissal.test.ts tests/dot/git-releases-contract.test.ts tests/dot/herdr-context-contract.test.ts tests/dot/herdr-launch-contract.test.ts tests/dot/process-runner.test.ts tests/dot/mcp-repositories.test.ts tests/dot/omarchy-plugin-deployment.test.ts"
+
+[tasks."tests:integration:dependencies"]
+description = "Run the dependency service integration tests"
+depends = ["dot:build"]
+run = "bun test tests/dot/dependency-validation.test.ts tests/dot/dependency-lease.test.ts tests/dot/services-outcomes.test.ts"
+
+[tasks."tests:integration:plannotator"]
+description = "Run the Plannotator Herdr plugin runner tests"
+depends = ["dot:build"]
+run = "bun test ./scripts/.local/share/herdr-plugins/plannotator/runner.test.ts"
+
+[tasks."tests:integration:hypr"]
+description = "Check Hyprland Lua dispatcher syntax"
+depends = ["dot:build"]
+run = "bash tests/scripts/hypr-lua-dispatchers.test.sh"
 
 [tasks."tests:smoke"]
 description = "Build dot and run the git-diff index-lock smoke check"
@@ -106,15 +132,26 @@ run = """
 bash tests/dot/git-diff-index-lock.test.sh
 """
 
+[tasks.tests]
+description = "Run every test suite in parallel"
+depends = ["dot:test", "tests:integration", "tests:smoke"]
+
 # docs (runs in ./docs)
+[tasks."docs:install"]
+description = "Install docs dependencies"
+dir = "docs"
+run = "bun install"
+
 [tasks."docs:dev"]
 description = "Run the docs dev server (regenerates references first)"
 dir = "docs"
+depends = ["docs:install"]
 run = "bun run dev"
 
 [tasks."docs:build"]
 description = "Build the docs site"
 dir = "docs"
+depends = ["docs:install"]
 run = "bun run build"
 
 [tasks."docs:preview"]
@@ -145,3 +182,7 @@ run = "bun run gen"
 [tasks."docs:check"]
 description = "Build the docs site (validates internal links)"
 depends = ["docs:build"]
+
+[tasks.check]
+description = "Run every lint, check, test, and docs build in parallel"
+depends = ["lint", "dot:check", "tests", "docs:check"]

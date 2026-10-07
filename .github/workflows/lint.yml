@@ -83,7 +83,7 @@ jobs:
         run: bun install --cwd agents/.config/opencode/plugins --frozen-lockfile
 
       - name: Run TypeScript lint
-        run: mise run lint
+        run: mise run lint:oxlint
 
   validate-skills:
     uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@82ee28374d3471231113dabc3dd436f65a47132f # 20261004.0

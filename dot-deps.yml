@@ -14575,7 +14575,7 @@ validation:
         - argv:
             - "mise"
             - "run"
-            - "lint"
+            - "lint:oxlint"
           cwd: "."
           timeout: 120000
           skipFor:
