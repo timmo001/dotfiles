@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://dotfiles.timmo.dev/sitemap-index.xml
+Sitemap: https://dotfiles.timmo.dev/sitemap.xml
