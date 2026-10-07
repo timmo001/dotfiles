@@ -216,26 +216,42 @@ const topLiteral = (path: string) => `:(top,literal)${path}`;
 const splitNul = (output: string) =>
   output.split("\0").filter((field) => field.length > 0);
 
-/** Staged paths, root-relative, plus the path pairs git detects as renames. */
+/**
+ * Staged paths, root-relative, plus the path pairs git detects as renames and
+ * the rename targets whose staged content is unchanged from their source.
+ */
 interface StagedIndex {
   readonly paths: ReadonlySet<string>;
   readonly renames: readonly (readonly [string, string])[];
+  readonly pureRenames: ReadonlySet<string>;
 }
 
-/** Read the staged set with `git diff --cached --name-status -z -M`. */
+/** Read the staged set with `git diff --cached --raw -z -M`. */
 function readStagedIndex(
   cwd: string | undefined,
 ): Effect.Effect<StagedIndex, never, CommandExecutor> {
   return Effect.gen(function* () {
     const fields = splitNul(
-      yield* readGitIn(cwd, ["diff", "--cached", "--name-status", "-z", "-M"]),
+      yield* readGitIn(cwd, [
+        "diff",
+        "--cached",
+        "--raw",
+        "--no-abbrev",
+        "-z",
+        "-M",
+      ]),
     );
 
     const paths = new Set<string>();
     const renames: (readonly [string, string])[] = [];
+    const pureRenames = new Set<string>();
 
     for (let index = 0; index < fields.length;) {
-      const status = fields[index] ?? "";
+      const [srcMode, dstMode, srcOid, dstOid, status = ""] = (
+        fields[index] ?? ""
+      )
+        .replace(/^:/, "")
+        .split(" ");
 
       if (status.startsWith("R") || status.startsWith("C")) {
         const from = fields[index + 1];
@@ -245,6 +261,8 @@ function readStagedIndex(
           if (status.startsWith("R")) {
             paths.add(from);
             renames.push([from, to]);
+
+            if (srcMode === dstMode && srcOid === dstOid) pureRenames.add(to);
           }
 
           paths.add(to);
@@ -259,7 +277,7 @@ function readStagedIndex(
       }
     }
 
-    return { paths, renames };
+    return { paths, renames, pureRenames };
   });
 }
 
@@ -284,7 +302,8 @@ function stagedMatching(
  * pathspec with nothing staged is added as a whole, exactly as before. A
  * pathspec that already matches staged entries (deletions, renames, partially
  * staged files) keeps those entries as they are, and only its changed files
- * that are not staged at all are added.
+ * that are not staged at all are added. A rename staged with unchanged content
+ * (`git mv`) carries no partial staging, so later edits to it are added too.
  */
 function stageScope(
   cwd: string | undefined,
@@ -293,7 +312,7 @@ function stageScope(
   io: GitIo,
 ): Effect.Effect<GitStepResult, never, CommandExecutor> {
   return Effect.gen(function* () {
-    const staged = (yield* readStagedIndex(cwd)).paths;
+    const { paths: staged, pureRenames } = yield* readStagedIndex(cwd);
 
     for (const path of paths) {
       if ((yield* stagedMatching(cwd, [path])).length === 0) {
@@ -318,7 +337,7 @@ function stageScope(
             ]),
           ),
         ),
-      ].filter((file) => !staged.has(file));
+      ].filter((file) => !staged.has(file) || pureRenames.has(file));
 
       if (unstaged.length === 0) continue;
 
