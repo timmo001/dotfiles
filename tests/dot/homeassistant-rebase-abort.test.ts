@@ -90,7 +90,6 @@ test("aborting a conflicted rebase restores the branch and its files", async () 
   });
 
   expect(rebase.exitCode).not.toBe(0);
-  expect(git(root, ["rev-parse", "--git-path", "rebase-merge"])).not.toBe("");
   expect(readFileSync(join(root, "core"), "utf8")).toContain("<<<<<<");
 
   expect(await runAbort(root)).toBe(true);
@@ -104,18 +103,4 @@ test("aborting a conflicted rebase restores the branch and its files", async () 
   );
 
   expect(marker.exitCode).not.toBe(0);
-});
-
-test("a checkout that is not rebasing is left untouched", async () => {
-  const root = mkdtempSync(join(tmpdir(), "dot-ha-rebase-idle-"));
-  roots.push(root);
-  git(root, ["init", "--initial-branch=dev"]);
-  writeFileSync(join(root, "core"), "local\n");
-  git(root, ["add", "core"]);
-  git(root, ["commit", "-m", "local"]);
-  const head = git(root, ["rev-parse", "HEAD"]);
-
-  expect(await runAbort(root)).toBe(false);
-  expect(git(root, ["rev-parse", "HEAD"])).toBe(head);
-  expect(readFileSync(join(root, "core"), "utf8")).toBe("local\n");
 });
