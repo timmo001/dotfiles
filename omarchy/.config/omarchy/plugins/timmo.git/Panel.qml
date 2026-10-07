@@ -14,6 +14,11 @@ Panel {
   readonly property var barIdentity: hostWidget || root
   readonly property color contentForeground: bar ? bar.foreground : Color.foreground
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
+  readonly property color successColor: "#98c379"
+  readonly property color warningColor: "#e5c07b"
+  readonly property color hunkColor: "#56b6c2"
+  readonly property color urgentColor: bar ? bar.urgent : Color.urgent
+  readonly property color dimColor: Qt.darker(contentForeground, 1.4)
   property string view: "overview"
   property var selectedRepo: null
   property string selectedRepoView: "changed"
@@ -63,6 +68,8 @@ Panel {
   readonly property var contextRows: filterRows("context-action")
   property string contextCursorKey: ""
   property var selectedCommit: null
+  readonly property var selectedCommitDetail: service && selectedCommit ? service.commitDetail(selectedCommit.repo, selectedCommit.commit) : null
+  onSelectedCommitChanged: if (service && selectedCommit) service.loadCommitDetail(selectedCommit.repo, selectedCommit.commit)
   property string selectedCommitAgentTask: "guide"
   readonly property int overviewCommitLimit: 20
   readonly property int repoCommitLimit: 40
@@ -340,6 +347,49 @@ Panel {
     selectedCommit = entry
     commitReturnView = logRepoMode ? view : "repo"
     showView("commit")
+  }
+
+  function escapeHtml(text) {
+    return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  }
+
+  function colourSpan(colour, text) {
+    return "<span style=\"color:" + String(colour) + "\">" + escapeHtml(text) + "</span>"
+  }
+
+  function preformatted(lines) {
+    return "<div style=\"white-space:pre-wrap\">" + lines.join("<br>") + "</div>"
+  }
+
+  // Mirrors the Files changed list in dot update's summary.
+  function commitFilesText(detail) {
+    if (!detail) return escapeHtml(service && service.commitDetailError ? service.commitDetailError : "Loading changed files…")
+    var files = detail.files
+    if (!files.length) return escapeHtml("No file changes")
+    var lines = [files.length + " file" + (files.length === 1 ? "" : "s") + " changed · " + colourSpan(successColor, "+" + detail.added) + " " + colourSpan(urgentColor, "-" + detail.deleted)]
+    files.slice(0, 50).forEach(function(file) {
+      var status = String(file.status).charAt(0)
+      var colour = status === "A" ? successColor : (status === "D" ? urgentColor : (status === "M" ? warningColor : hunkColor))
+      var counts = file.added === null || file.deleted === null ? colourSpan(dimColor, "binary")
+        : [file.added > 0 ? colourSpan(successColor, "+" + file.added) : "", file.deleted > 0 ? colourSpan(urgentColor, "-" + file.deleted) : ""].filter(Boolean).join(" ")
+      lines.push(colourSpan(colour, status) + "  " + escapeHtml(file.path) + "  " + counts)
+    })
+    if (files.length > 50) lines.push(colourSpan(dimColor, "…and " + (files.length - 50) + " more"))
+    return preformatted(lines)
+  }
+
+  function commitDiffText(detail) {
+    if (!detail || !detail.preview) return ""
+    var lines = String(detail.preview).split("\n").map(function(line) {
+      if (line.indexOf("diff --git ") === 0) return "<b>" + escapeHtml(line) + "</b>"
+      if (/^(index |--- |\+\+\+ |new file|deleted file|old mode|new mode|similarity|rename |Binary files)/.test(line)) return colourSpan(dimColor, line)
+      if (line.indexOf("@@") === 0) return colourSpan(hunkColor, line)
+      if (line.charAt(0) === "+") return colourSpan(successColor, line)
+      if (line.charAt(0) === "-") return colourSpan(urgentColor, line)
+      return escapeHtml(line)
+    })
+    if (detail.truncated) lines.push(colourSpan(dimColor, "…preview truncated; open in diff viewer for the whole commit"))
+    return preformatted(lines)
   }
 
   function pullRequestRows() {
@@ -990,6 +1040,24 @@ Panel {
           }
 
           SectionHeading {
+            visible: root.view === "commit" && root.selectedCommit !== null
+            title: "Files changed"
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+          }
+
+          Text {
+            visible: root.view === "commit" && root.selectedCommit !== null
+            width: parent.width
+            text: root.view === "commit" ? root.commitFilesText(root.selectedCommitDetail) : ""
+            textFormat: Text.RichText
+            wrapMode: Text.WrapAnywhere
+            color: root.contentForeground
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.caption
+          }
+
+          SectionHeading {
             visible: root.view !== "overview" && root.filteredActions.length > 0
             title: "Actions"
             foreground: root.contentForeground
@@ -1031,6 +1099,24 @@ Panel {
                 MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: function(mouse) { root.activateAction(modelData.action, mouse.modifiers) } }
               }
             }
+          }
+
+          SectionHeading {
+            visible: root.view === "commit" && !!root.selectedCommitDetail && !!root.selectedCommitDetail.preview
+            title: "Diff preview"
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+          }
+
+          Text {
+            visible: root.view === "commit" && !!root.selectedCommitDetail && !!root.selectedCommitDetail.preview
+            width: parent.width
+            text: root.view === "commit" ? root.commitDiffText(root.selectedCommitDetail) : ""
+            textFormat: Text.RichText
+            wrapMode: Text.WrapAnywhere
+            color: root.contentForeground
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.caption
           }
 
           Text {

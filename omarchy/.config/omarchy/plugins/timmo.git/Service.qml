@@ -105,6 +105,11 @@ Item {
   property var logRepositories: []
   property bool logLoaded: false
   property string logError: ""
+  // Changed files and a diff preview for the commit view, cached per commit.
+  property var commitDetails: ({})
+  property string commitDetailKey: ""
+  property string commitDetailError: ""
+  property var commitDetailQueue: null
   property string logRefreshPending: ""
   readonly property bool logBusy: logProcess.running
   readonly property var recentCommits: logRepositories.reduce(function(commits, repo) {
@@ -248,6 +253,33 @@ Item {
 
   function logRepository(path) {
     return logRepositories.find(function(repo) { return repo.path === path }) || null
+  }
+
+  function commitDetail(repo, commit) {
+    return repo && commit ? commitDetails[repo.path + "@" + commit.sha] || null : null
+  }
+
+  function loadCommitDetail(repo, commit) {
+    if (!repo || !commit || !repo.path || !/^[0-9a-f]{7,64}$/.test(String(commit.sha))) return
+    var key = repo.path + "@" + commit.sha
+    if (commitDetails[key] || commitDetailKey === key) return
+    if (commitDetailProcess.running) { commitDetailQueue = { repo: repo, commit: commit }; return }
+    commitDetailError = ""
+    commitDetailKey = key
+    commitDetailProcess.command = ["dot", "git-log", "show", "--path", String(repo.path), "--sha", String(commit.sha)]
+    commitDetailProcess.running = true
+  }
+
+  function applyCommitDetail(raw) {
+    try {
+      var payload = JSON.parse(String(raw || "").trim())
+      if (!Array.isArray(payload.files)) throw new Error("Invalid commit response")
+      var next = Object.assign({}, commitDetails)
+      next[commitDetailKey] = payload
+      commitDetails = next
+    } catch (error) {
+      commitDetailError = "Invalid commit response"
+    }
   }
 
   function openCommitsWeb(repo, modifiers) {
@@ -729,6 +761,20 @@ Item {
       if (exitCode === 0) root.applyLog(logOutput.text)
       else { root.logLoaded = true; root.logError = String(logStderr.text || "Commit log unavailable; refresh to retry").trim().slice(0, 500) }
       root.drainLogRefresh()
+    }
+  }
+
+  Process {
+    id: commitDetailProcess
+    stdout: StdioCollector { id: commitDetailOutput; waitForEnd: true }
+    stderr: StdioCollector { id: commitDetailStderr; waitForEnd: true }
+    onExited: function(exitCode) {
+      if (exitCode === 0) root.applyCommitDetail(commitDetailOutput.text)
+      else root.commitDetailError = String(commitDetailStderr.text || "Commit changes unavailable").trim().slice(0, 500)
+      root.commitDetailKey = ""
+      var queued = root.commitDetailQueue
+      root.commitDetailQueue = null
+      if (queued) root.loadCommitDetail(queued.repo, queued.commit)
     }
   }
 
