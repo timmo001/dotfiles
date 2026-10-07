@@ -1314,6 +1314,7 @@ dot git-releases --refresh --panel-json
 dot git-releases --scheduled --notify --panel-json
 dot git-releases --open --repo example/project
 dot git-releases review --repo example/project --snapshot ID --finding FINDING --impact patch
+dot git-releases review --repo example/project --snapshot ID --finding ONE --finding TWO --impact none
 dot git-releases review --repo example/project --snapshot ID --impact auto
 dot git-releases publish --repo example/project --snapshot ID --notes-file notes.md
 dot git-releases publish --repo example/project --snapshot ID --notes-file notes.md --notes-mode replace --confirm PLAN
@@ -1334,7 +1335,7 @@ dot git-releases review [flags]
 | `--repo` `<string>` | Configured repository name or GitHub slug |
 | `--snapshot` `<string>` | Exact displayed snapshot ID; stale selections are rejected |
 | `--panel-json` | Return the updated complete JSON snapshot |
-| `--finding` `<string>` | Finding ID, or overall for the current release-relevant comparison |
+| `--finding` `<string>` | Finding ID, or overall for the current release-relevant comparison (default); repeatable to set several findings at once |
 | `--impact` `<choice>` | Local release impact; auto clears the override (choices: none, patch, minor, major, auto) |
 | `--help` `-h` | Show help information |
 

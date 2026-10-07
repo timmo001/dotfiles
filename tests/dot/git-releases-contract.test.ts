@@ -406,7 +406,7 @@ test("release query exposes the authoritative CalVer proposal and review can cle
           const service = yield* GitReleases;
           const [entry] = yield* service.query({ repo: "example/project", refresh: true });
           if (entry.stale || entry.nextVersion !== "v20260911.0") throw new Error(JSON.stringify(entry));
-          const reviewed = yield* service.action({ repo: entry.repo, snapshot: entry.snapshot.id, target: "overall", impact: "none" });
+          const reviewed = yield* service.action({ repo: entry.repo, snapshot: entry.snapshot.id, targets: ["overall"], impact: "none" });
           if (reviewed.nextVersion !== null) throw new Error("Quiet review still proposes a release");
           return entry.nextVersion;
         }).pipe(Effect.provide(GitReleases.layer), Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github), Effect.provide(Layer.mock(Config, { gitConfig: parseDotGitConfigText(${JSON.stringify(source)}, "fixture.yml") })));

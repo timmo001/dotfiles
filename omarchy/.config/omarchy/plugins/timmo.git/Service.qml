@@ -385,10 +385,12 @@ Item {
     }
   }
 
-  function releaseAction(entry, target, impact) {
+  function releaseAction(entry, targets, impact) {
     if (!entry || !entry.snapshot || releaseBusy) return
     releaseActionError = ""
-    var args = ["dot", "git-releases", "review", "--repo", entry.repo, "--snapshot", entry.snapshot.id, "--panel-json", "--finding", target, "--impact", impact]
+    var args = ["dot", "git-releases", "review", "--repo", entry.repo, "--snapshot", entry.snapshot.id, "--panel-json", "--impact", impact]
+    var findings = [].concat(targets)
+    for (var i = 0; i < findings.length; i++) args.push("--finding", findings[i])
     releaseActionProcess.command = args
     releaseActionProcess.running = true
   }

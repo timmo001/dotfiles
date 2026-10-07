@@ -75,8 +75,8 @@ export interface ReleaseAction {
   readonly repo: string;
   /** Displayed snapshot ID. */
   readonly snapshot: string;
-  /** Finding ID or overall. */
-  readonly target: string;
+  /** Finding IDs or overall, all set to the same impact. */
+  readonly targets: ReadonlyArray<string>;
   /** Explicit choice, or auto to clear it. */
   readonly impact: Impact | "auto";
 }
@@ -787,7 +787,11 @@ export class GitReleases extends Context.Service<
 
               let updated = yield* Effect.try({
                 try: () =>
-                  reviewRelease(snapshot, review, action.target, action.impact),
+                  action.targets.reduce(
+                    (state, target) =>
+                      reviewRelease(snapshot, state, target, action.impact),
+                    review,
+                  ),
                 catch: (error) =>
                   error instanceof ReleaseError
                     ? error

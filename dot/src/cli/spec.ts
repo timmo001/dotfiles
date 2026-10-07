@@ -1149,10 +1149,10 @@ const gitReleasesCommand = describe(
           "review",
           {
             ...releaseActionFlags,
-            finding: Flag.String("finding").pipe(
-              Flag.withDefault("overall"),
+            findings: Flag.String("finding").pipe(
+              Flag.atLeast(0),
               Flag.withDescription(
-                "Finding ID, or overall for the current release-relevant comparison",
+                "Finding ID, or overall for the current release-relevant comparison (default); repeatable to set several findings at once",
               ),
             ),
             impact: Flag.Literals("impact", [
@@ -1167,9 +1167,14 @@ const gitReleasesCommand = describe(
               ),
             ),
           },
-          ({ repo, snapshot, finding, impact, panelJson }) =>
+          ({ repo, snapshot, findings, impact, panelJson }) =>
             releasesAction(
-              { repo, snapshot, target: finding, impact },
+              {
+                repo,
+                snapshot,
+                targets: findings.length ? findings : ["overall"],
+                impact,
+              },
               panelJson,
             ),
         ),
@@ -1240,6 +1245,7 @@ const gitReleasesCommand = describe(
     "dot git-releases --scheduled --notify --panel-json",
     "dot git-releases --open --repo example/project",
     "dot git-releases review --repo example/project --snapshot ID --finding FINDING --impact patch",
+    "dot git-releases review --repo example/project --snapshot ID --finding ONE --finding TWO --impact none",
     "dot git-releases review --repo example/project --snapshot ID --impact auto",
     "dot git-releases publish --repo example/project --snapshot ID --notes-file notes.md",
     "dot git-releases publish --repo example/project --snapshot ID --notes-file notes.md --notes-mode replace --confirm PLAN",

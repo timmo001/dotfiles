@@ -29,6 +29,9 @@ Panel {
   property string selectedFindingId: ""
   property string selectedFindingGroupKey: ""
   property string selectedImpactView: "release"
+  property string selectedImpactScope: "overall"
+  readonly property var impactFindings: selectedImpactScope === "all" && releaseSnapshot ? releaseSnapshot.findings : (selectedImpactScope === "group" && selectedFindingGroup ? selectedFindingGroup.findings : [])
+  readonly property bool releaseReviewable: !!releaseSnapshot && !!selectedRelease && !selectedRelease.stale && releaseSnapshot.complete
   property string releaseCursorKey: ""
   readonly property var selectedRelease: service ? service.releases.find(function(entry) {
     return entry.repo.toLowerCase() === selectedReleaseKey.toLowerCase() || entry.name.toLowerCase() === selectedReleaseKey.toLowerCase()
@@ -104,7 +107,7 @@ Panel {
       return rows
     }
     if (releaseView) {
-      rows.push(navigationRow(view === "releases" || (view === "release" && selectedReleaseView === "overview") ? "Back to Git overview" : (view === "release" ? "Back to all tracked repositories" : (view === "finding" && selectedFindingGroup ? "Back to " + selectedFindingGroup.title.toLowerCase() : (view === "release-choice" && selectedImpactView === "release-prepare" ? "Back to release preparation" : "Back to release review")))))
+      rows.push(navigationRow(view === "releases" || (view === "release" && selectedReleaseView === "overview") ? "Back to Git overview" : (view === "release" ? "Back to all tracked repositories" : (view === "finding" && selectedFindingGroup ? "Back to " + selectedFindingGroup.title.toLowerCase() : (view === "release-choice" && selectedImpactView === "release-prepare" ? "Back to release preparation" : (view === "release-choice" && selectedImpactView === "finding-group" && selectedFindingGroup ? "Back to " + selectedFindingGroup.title.toLowerCase() : "Back to release review"))))))
       if (view !== "releases") rows.push(headerActionRow("release-refresh", "Refresh release comparison", "release-summary"))
       if (view === "releases") {
         rows.push(headerActionRow("release-refresh", "Refresh unreleased changes", "release"))
@@ -122,6 +125,8 @@ Panel {
               var group = findingGroups[g]
               if (group.findings.length) rows.push(releaseRow("finding-group", group.id, group, group.title + " · " + group.findings.length + "  ›", group.summary))
             }
+            if (releaseReviewable && releaseSnapshot.findings.length)
+              rows.push(actionRow("release-choice-all", "Choose impact for all " + releaseSnapshot.findings.length + " findings", "󰓹"))
           }
         } else if (view === "release-prepare") {
           rows.push(actionRow("release-choice", "Choose overall impact", "󰓹"))
@@ -131,6 +136,8 @@ Panel {
             rows.push(actionRow("release-agent", "Open in agent", "󱚣"))
         } else if (view === "finding-group" && selectedFindingGroup) {
           var findings = selectedFindingGroup.findings
+          if (releaseReviewable && findings.length)
+            rows.push(actionRow("release-choice-group", "Choose impact for all " + findings.length + " in this group", "󰓹"))
           for (var f = 0; f < findings.length; f++) {
             var finding = findings[f]
             rows.push(releaseRow("finding", finding.id, finding, "[" + (finding.impact === "none" ? "quiet" : finding.impact) + "] " + finding.detail, finding.reason + (finding.reviewed ? " · local review" : "")))
@@ -138,8 +145,13 @@ Panel {
         } else if (view === "release-choice" || view === "finding") {
           if (view === "finding" && selectedFinding && findingUrl(selectedFinding)) rows.push(actionRow("release-evidence", "Open full evidence", ""))
           if (releaseSnapshot && (view === "release-choice" || selectedFinding) && !selectedRelease.stale && releaseSnapshot.complete) {
+            var bulk = view === "release-choice" && selectedImpactScope !== "overall"
             var impacts = ["none", "patch", "minor", "major", "auto"]
-            for (var p = 0; p < impacts.length; p++) rows.push(actionRow("impact:" + impacts[p], impacts[p] === "auto" ? "Auto · reset local choice" : "Choose " + impacts[p], "󰓹"))
+            if (!bulk || impactFindings.length)
+              for (var p = 0; p < impacts.length; p++)
+                rows.push(actionRow("impact:" + impacts[p], bulk
+                  ? (impacts[p] === "auto" ? "Auto · reset local choices for all " + impactFindings.length : "Set all " + impactFindings.length + " to " + impacts[p])
+                  : (impacts[p] === "auto" ? "Auto · reset local choice" : "Choose " + impacts[p]), "󰓹"))
           }
         } else if (releaseSnapshot && view === "release-commits") {
           for (var c = 0; c < releaseSnapshot.commits.length; c++) {
@@ -511,6 +523,10 @@ Panel {
       if (issue) lines.push(issue)
     } else if (view === "finding-group") {
       lines.push(selectedFindingGroup && selectedFindingGroup.findings.length ? selectedFindingGroup.summary : "No findings remain in this group; their impact or evidence may have changed")
+    } else if (view === "release-choice" && selectedImpactScope !== "overall") {
+      lines.push(impactFindings.length
+        ? "Sets the same local impact on " + impactFindings.length + " findings" + (selectedImpactScope === "group" && selectedFindingGroup ? " in " + selectedFindingGroup.title.toLowerCase() : "") + ". Auto resets them to their automatic impact."
+        : "No findings remain in this group; their impact or evidence may have changed")
     } else if (releaseSnapshot) {
       lines.push("Suggested impact: " + releaseSnapshot.suggestion + (releaseSnapshot.reviewed ? " · local overall choice" : " · automatic"))
       var relevant = releaseSnapshot.findings.filter(function(finding) { return finding.impact !== "none" }).length
@@ -704,10 +720,18 @@ Panel {
     else if (action === "release-repo" && selectedRelease) showRepoActions(selectedRelease)
     else if (action === "release-agent") showAgentPicker(selectedRelease)
     else if (action === "release-publish") service.openRelease(selectedRelease, modifiers)
-    else if (action === "release-choice") { selectedImpactView = view; showView(action) }
+    else if (action.indexOf("release-choice") === 0) {
+      selectedImpactView = view
+      selectedImpactScope = action === "release-choice-all" ? "all" : (action === "release-choice-group" ? "group" : "overall")
+      showView("release-choice")
+    }
     else if (["release-prepare", "release-commits"].indexOf(action) >= 0) showView(action)
     else if (action === "release-evidence") service.openEvidence(view === "finding" ? findingUrl(selectedFinding) : (releaseSnapshot ? "https://github.com/" + releaseSnapshot.repo + (releaseSnapshot.releaseCommit ? "/compare/" + releaseSnapshot.releaseCommit + "...HEAD" : "/commits/" + releaseSnapshot.branch) : ""), selectedRelease, modifiers)
-    else if (action.indexOf("impact:") === 0) service.releaseAction(selectedRelease, view === "finding" ? selectedFindingId : "overall", action.slice(7))
+    else if (action.indexOf("impact:") === 0) {
+      var targets = view === "finding" ? [selectedFindingId]
+        : (selectedImpactScope === "overall" ? ["overall"] : impactFindings.map(function(finding) { return finding.id }))
+      if (targets.length) service.releaseAction(selectedRelease, targets, action.slice(7))
+    }
     else if (action === "back" && view === "agent") showView(selectedAgentView)
     else if (action === "log-refresh") service.refreshLog("refresh")
     else if (action === "log-web") { close(); service.openCommitsWeb(selectedLogRepo, modifiers) }
