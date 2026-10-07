@@ -1410,6 +1410,34 @@ dot git-pull-requests --refresh
 dot git-pull-requests --open
 ```
 
+## `dot git-issues`
+
+Track open issues for enabled repositories, independently of GitHub notifications
+
+```text
+dot git-issues [flags]
+```
+
+Opt in with issues.enabled in private dot-git.yml. Open issues exclude pull requests and are ordered by latest update. Rules under the top-level issues.exclude list hide matching issues, such as a Dependency Dashboard; each rule matches when every field it sets (title, author, label and optional repo) matches, case-insensitively. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and report an error.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--repo` `<string>` | Select an enabled repository by name or GitHub slug |
+| `--refresh` | Fetch now instead of using the five-minute cache |
+| `--open` | Open the tracked issue page in the Git panel |
+| `--panel-json` | Return enabled repositories and their open issues as JSON |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot git-issues --panel-json
+dot git-issues --refresh
+dot git-issues --open
+```
+
 ## `dot mcp-sync`
 
 Regenerate MCP configs for all harnesses from the spec
@@ -1853,6 +1881,7 @@ The terminal wizard asks for Normal (first and default) or Home Assistant, then 
 | `--notifications-schedule` `<string>` | Notification schedule: five-field cron or work |
 | `--ignore-bot-activity` | Filter bot-only activity; --no-ignore-bot-activity shows it |
 | `--pull-requests` | Show open pull requests in the Git panel; --no-pull-requests hides them |
+| `--issues` | Show open issues in the Git panel; --no-issues hides them (default: the preset, for repositories you own with GitHub issues enabled) |
 | `--browser` `<string>` | Named browser from dot-git.yml; empty for the desktop default |
 | `--herdr-after` `<string>` | Herdr workspace to open after; empty for none (default: last entry with the preset prefix) |
 | `--notes-remote` `<string>` | Git remote for notes; empty for none (default: upstream when present) |

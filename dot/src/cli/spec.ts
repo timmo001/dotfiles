@@ -94,6 +94,7 @@ import {
   pullRequestsOpenShell,
   pullRequestsQuery,
 } from "../git/commands/PullRequests.js";
+import { issuesOpenShell, issuesQuery } from "../git/commands/Issues.js";
 import {
   releasesAction,
   releasesPublish,
@@ -1133,6 +1134,40 @@ const gitPullRequestsCommand = describe(
   },
 );
 
+const gitIssuesCommand = describe(
+  Command.make(
+    "git-issues",
+    {
+      repo: text("repo", "Select an enabled repository by name or GitHub slug"),
+      refresh: bool(
+        "refresh",
+        "Fetch now instead of using the five-minute cache",
+      ),
+      open: bool("open", "Open the tracked issue page in the Git panel"),
+      panelJson: bool(
+        "panel-json",
+        "Return enabled repositories and their open issues as JSON",
+      ),
+    },
+    ({ repo, refresh, open, panelJson }) =>
+      Effect.gen(function* () {
+        if (open) return yield* issuesOpenShell(optional(repo));
+
+        return yield* issuesQuery({ repo: optional(repo), refresh }, panelJson);
+      }),
+  ),
+  "Track open issues for enabled repositories, independently of GitHub notifications",
+  [
+    "dot git-issues --panel-json",
+    "dot git-issues --refresh",
+    "dot git-issues --open",
+  ],
+  {
+    description:
+      "Opt in with issues.enabled in private dot-git.yml. Open issues exclude pull requests and are ordered by latest update. Rules under the top-level issues.exclude list hide matching issues, such as a Dependency Dashboard; each rule matches when every field it sets (title, author, label and optional repo) matches, case-insensitively. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and report an error.",
+  },
+);
+
 const releaseActionFlags = {
   repo: Flag.String("repo").pipe(
     Flag.withDescription("Configured repository name or GitHub slug"),
@@ -1992,6 +2027,10 @@ const repoInductCommand = describe(
         "pull-requests",
         "Show open pull requests in the Git panel; --no-pull-requests hides them",
       ),
+      issues: optionalBool(
+        "issues",
+        "Show open issues in the Git panel; --no-issues hides them (default: the preset, for repositories you own with GitHub issues enabled)",
+      ),
       browser: text(
         "browser",
         "Named browser from dot-git.yml; empty for the desktop default",
@@ -2044,6 +2083,7 @@ const repoInductCommand = describe(
         notificationsSchedule: optional(input.notificationsSchedule),
         ignoreBotActivity: optional(input.ignoreBotActivity),
         pullRequests: optional(input.pullRequests),
+        issues: optional(input.issues),
         browser: optional(input.browser),
         herdrAfter: optional(input.herdrAfter),
         notesRemote: optional(input.notesRemote),
@@ -3002,6 +3042,7 @@ export const dotCommand = describe(
       gitNotificationsCommand,
       gitReleasesCommand,
       gitPullRequestsCommand,
+      gitIssuesCommand,
       describe(
         Command.make("mcp-sync", {}, () =>
           Effect.promise(() => import("../mcp/commands/McpSync.js")).pipe(

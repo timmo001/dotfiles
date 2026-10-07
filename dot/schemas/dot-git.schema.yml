@@ -37,6 +37,43 @@ properties:
     type: array
     items:
       $ref: "#/$defs/shortcut"
+  issues:
+    description: Git panel issue settings shared by every repository.
+    type: object
+    additionalProperties: false
+    required:
+      - exclude
+    properties:
+      exclude:
+        description: Issues hidden from the Git panel. A rule matches when every field it sets matches, case-insensitively.
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          anyOf:
+            - required:
+                - title
+            - required:
+                - author
+            - required:
+                - label
+          properties:
+            title:
+              type: string
+              minLength: 1
+              description: Exact issue title.
+            author:
+              type: string
+              minLength: 1
+              description: Author login, such as renovate[bot].
+            label:
+              type: string
+              minLength: 1
+              description: A label the issue carries.
+            repo:
+              type: string
+              pattern: "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+              description: GitHub owner/repo slug; omitted applies to every repository.
 
 $defs:
   shortcut:
@@ -150,6 +187,15 @@ $defs:
         $ref: "#/$defs/scheduled_check"
       notifications:
         $ref: "#/$defs/notifications"
+      issues:
+        type: object
+        additionalProperties: false
+        required:
+          - enabled
+        description: Show this repository's open issues in the Git panel.
+        properties:
+          enabled:
+            type: boolean
       releases:
         $ref: "#/$defs/releases"
 

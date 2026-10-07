@@ -35,6 +35,7 @@ const Preset = Schema.Struct({
   browser: Schema.optionalKey(Schema.NullOr(Schema.String)),
   opencode_mcp: Schema.optionalKey(Schema.Array(Schema.String)),
   pull_requests: Schema.optionalKey(Schema.Boolean),
+  issues: Schema.optionalKey(Schema.Boolean),
   release_template: Schema.optionalKey(Schema.NullOr(Schema.String)),
   activity: ScheduledCheck,
   notifications: Schema.Struct({
@@ -85,6 +86,8 @@ export interface RepoInductOptions {
   readonly ignoreBotActivity?: boolean;
   /** Show open pull requests in the Git panel. */
   readonly pullRequests?: boolean;
+  /** Show open issues in the Git panel; defaults to the preset for your own repositories with GitHub issues enabled. */
+  readonly issues?: boolean;
   /** Named browser for web actions; an empty string means the desktop default. */
   readonly browser?: string;
   /** Herdr workspace this repository opens after; an empty string means none. */
@@ -292,10 +295,32 @@ export const inductRepository = Effect.fn("repoInduct.run")(
 
     const upstream = yield* gitLine(["remote", "get-url", "upstream"]);
 
+    const github = normalizeGitHubSlug(remote.trim()) ?? "";
+
+    // Default issue tracking on only for your own repositories with GitHub issues enabled.
+    const issuesDefault =
+      (preset.issues ?? false) &&
+      github !== "" &&
+      (yield* Effect.all([
+        executor.run("gh", [
+          "api",
+          `repos/${github}`,
+          "--jq",
+          '"\\(.has_issues) \\(.owner.login)"',
+        ]),
+        executor.run("gh", ["api", "user", "--jq", ".login"]),
+      ]).pipe(
+        Effect.map(
+          ([repo, login]) =>
+            repo.trim().toLowerCase() === `true ${login.trim().toLowerCase()}`,
+        ),
+        Effect.orElseSucceed(() => false),
+      ));
+
     let answers: GitManagedRepo = {
       name: options.name ?? `${preset.name_prefix ?? ""}${basename(root)}`,
       path: root,
-      github: normalizeGitHubSlug(remote.trim()) ?? "",
+      github,
       aliases: splitList(options.aliases ?? ""),
       herdrAfter: optionalText(options.herdrAfter ?? previousInPreset),
       browser: optionalText(
@@ -318,6 +343,7 @@ export const inductRepository = Effect.fn("repoInduct.run")(
         (options.pullRequests ?? preset.pull_requests ?? false)
           ? { enabled: true }
           : undefined,
+      issues: (options.issues ?? issuesDefault) ? { enabled: true } : undefined,
       activity: {
         enabled: options.activityEnabled ?? preset.activity.enabled,
         schedule: options.activitySchedule ?? preset.activity.schedule,
@@ -416,6 +442,11 @@ export const inductRepository = Effect.fn("repoInduct.run")(
           answers.pullRequests?.enabled ?? false,
         );
 
+        const issues = yield* askBoolean(
+          "Show open issues in the Git panel?",
+          answers.issues?.enabled ?? false,
+        );
+
         const activity = {
           enabled: yield* askBoolean(
             "Enable activity checks?",
@@ -483,6 +514,7 @@ export const inductRepository = Effect.fn("repoInduct.run")(
           agentLint: agentLintFor(agentLint),
           opencodeMcp,
           pullRequests: pullRequests ? { enabled: true } : undefined,
+          issues: issues ? { enabled: true } : undefined,
           activity,
           notifications,
           releases: releasesFor(releaseTemplate),

@@ -304,6 +304,8 @@ export function appendGitRepository(
   if (repo.pullRequests)
     Object.assign(entry, { pull_requests: repo.pullRequests });
 
+  if (repo.issues) Object.assign(entry, { issues: repo.issues });
+
   if (repo.releases) Object.assign(entry, { releases: repo.releases });
 
   if (repo.opencodeMcp?.length)
@@ -352,6 +354,9 @@ export function appendGitRepository(
       : []),
     ...(repo.pullRequests
       ? ["    pull_requests:", `      enabled: ${repo.pullRequests.enabled}`]
+      : []),
+    ...(repo.issues
+      ? ["    issues:", `      enabled: ${repo.issues.enabled}`]
       : []),
     "    activity:",
     `      enabled: ${entry.activity.enabled}`,

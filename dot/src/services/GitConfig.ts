@@ -21,6 +21,7 @@ const TOP_LEVEL_KEYS = new Set([
   "repositories",
   "shortcuts",
   "browsers",
+  "issues",
 ]);
 
 const REPO_KEYS = new Set([
@@ -39,6 +40,7 @@ const REPO_KEYS = new Set([
   "activity",
   "notifications",
   "pull_requests",
+  "issues",
   "releases",
   "herdr_after",
 ]);
@@ -127,6 +129,33 @@ export const AgentLintSettings = Schema.Struct({
 /** Decoded {@link AgentLintSettings}. */
 export type AgentLintSettings = typeof AgentLintSettings.Type;
 
+/** Hides matching issues from the Git panel; every field set must match, case-insensitively. */
+export const IssueExclusion = Schema.Struct({
+  /** Exact issue title. */
+  title: Schema.optionalKey(Schema.NonEmptyString),
+  /** Issue author login, such as `renovate[bot]`. */
+  author: Schema.optionalKey(Schema.NonEmptyString),
+  /** Label the issue carries. */
+  label: Schema.optionalKey(Schema.NonEmptyString),
+  /** GitHub owner/repo slug; omitted applies to every repository. */
+  repo: Schema.optionalKey(Schema.NonEmptyString),
+});
+
+/** Decoded {@link IssueExclusion}. */
+export type IssueExclusion = typeof IssueExclusion.Type;
+
+const IssueSettings = Schema.Struct({
+  exclude: Schema.Array(
+    IssueExclusion.check(
+      Schema.makeFilter((rule) =>
+        rule.title || rule.author || rule.label
+          ? undefined
+          : "an exclusion needs a title, author or label",
+      ),
+    ),
+  ),
+});
+
 /** A repository managed by the private dot git config. */
 export interface GitManagedRepo {
   /** Short display name. */
@@ -164,6 +193,11 @@ export interface GitManagedRepo {
     /** Include this repository in PR polling and panel pages. */
     readonly enabled: boolean;
   };
+  /** Whether open issues appear in the Git panel; omitted means disabled. */
+  readonly issues?: {
+    /** Include this repository in issue polling and panel pages. */
+    readonly enabled: boolean;
+  };
   /** Optional release comparison policy and schedule; omitted means disabled. */
   readonly releases?: ReleaseSettings;
 }
@@ -182,12 +216,15 @@ export interface DotGitConfig {
   readonly shortcuts: readonly GitRepoShortcut[];
   /** Named browser commands, with the URL appended as one argument. */
   readonly browsers: Readonly<Record<string, readonly string[]>>;
+  /** Issues hidden from the Git panel across tracked repositories. */
+  readonly issueExclusions: readonly IssueExclusion[];
   /** Validation diagnostics for missing or malformed config. */
   readonly diagnostics: readonly string[];
 }
 
 interface ParsedGitConfig {
   readonly browsers: Readonly<Record<string, readonly string[]>>;
+  readonly issueExclusions: readonly IssueExclusion[];
   readonly repositories: readonly GitManagedRepo[];
   readonly shortcuts: readonly GitRepoShortcut[];
   readonly diagnostics: readonly string[];
@@ -210,6 +247,7 @@ export function emptyDotGitConfig(
     repositories: [],
     shortcuts: [],
     browsers: {},
+    issueExclusions: [],
     diagnostics,
   };
 }
@@ -238,6 +276,7 @@ export const loadDotGitConfig = Effect.fn("GitConfig.load")(function* (
         repositories: [],
         shortcuts: [],
         browsers: {},
+        issueExclusions: [],
         diagnostics: [
           `Could not read private git config ${displayPath(filePath)}: ${formatError(error.cause)}`,
         ],
@@ -261,6 +300,8 @@ export function parseDotGitConfigText(
       repositories: result.diagnostics.length === 0 ? result.repositories : [],
       shortcuts: result.diagnostics.length === 0 ? result.shortcuts : [],
       browsers: result.diagnostics.length === 0 ? result.browsers : {},
+      issueExclusions:
+        result.diagnostics.length === 0 ? result.issueExclusions : [],
       diagnostics: result.diagnostics,
     };
   } catch (error) {
@@ -358,6 +399,7 @@ function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
       shortcuts: [],
       diagnostics: ["dot-git.yml must contain a YAML object"],
       browsers: {},
+      issueExclusions: [],
     };
   }
 
@@ -370,7 +412,13 @@ function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
   if (!Array.isArray(value.repositories)) {
     diagnostics.push("root.repositories must be an array");
 
-    return { repositories: [], shortcuts: [], browsers: {}, diagnostics };
+    return {
+      repositories: [],
+      shortcuts: [],
+      browsers: {},
+      issueExclusions: [],
+      diagnostics,
+    };
   }
 
   const repositories = value.repositories.flatMap((repo, index) =>
@@ -407,12 +455,24 @@ function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
       );
   }
 
+  let issueExclusions: readonly IssueExclusion[] = [];
+
+  if (value.issues !== undefined) {
+    try {
+      issueExclusions = Schema.decodeUnknownSync(IssueSettings)(value.issues, {
+        onExcessProperty: "error",
+      }).exclude;
+    } catch (error) {
+      diagnostics.push(`root.issues: ${formatError(error)}`);
+    }
+  }
+
   pushDuplicateDiagnostics(diagnostics, repositories, "name");
   pushDuplicateDiagnostics(diagnostics, repositories, "path");
   pushDuplicateDiagnostics(diagnostics, repositories, "github");
   pushDuplicateAliasDiagnostics(diagnostics, [...repositories, ...shortcuts]);
 
-  return { repositories, shortcuts, browsers, diagnostics };
+  return { repositories, shortcuts, browsers, issueExclusions, diagnostics };
 }
 
 function parseShortcuts(
@@ -579,6 +639,14 @@ function parseRepo(
           { onExcessProperty: "error" },
         );
 
+  const issues =
+    value.issues === undefined
+      ? undefined
+      : Schema.decodeUnknownSync(Schema.Struct({ enabled: Schema.Boolean }))(
+          value.issues,
+          { onExcessProperty: "error" },
+        );
+
   const releases = parseReleases(
     value.releases,
     `${location}.releases`,
@@ -609,6 +677,7 @@ function parseRepo(
       activity,
       notifications,
       ...(pullRequests && { pullRequests }),
+      ...(issues && { issues }),
       ...(releases && { releases }),
     },
   ];
