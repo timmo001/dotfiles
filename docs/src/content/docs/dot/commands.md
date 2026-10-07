@@ -295,7 +295,7 @@ Pins a header to the top of the terminal with the state (Setting up, Starting, R
 | `--via` `<string>` | What serves the URL when it is not this command, shown beside it |
 | `--setup` `<string>` | zsh command run first, under the Setting up state |
 | `--pitchfork` `<string>` | Pitchfork daemon to start and follow instead of a command |
-| `--conflicts` `<string>` | Pitchfork daemon that cannot run alongside --pitchfork; asks to stop it first. Repeat for more |
+| `--conflicts` `<string>` | Pitchfork daemon that cannot run alongside --pitchfork or the command; asks to stop it first. Repeat for more |
 | `--attach` | Follow an already running --pitchfork daemon instead of asking to restart it |
 | `--background` | Return once the pitchfork daemon is ready, leaving it running |
 | `--help` `-h` | Show help information |
@@ -2274,6 +2274,382 @@ dot herdr agents [flags]
 | Option | Description |
 | --- | --- |
 | `--help` `-h` | Show help information |
+
+## `dot homeassistant`
+
+Aliases: `dot ha`
+
+Run Home Assistant Core and frontend dev servers
+
+```text
+dot homeassistant <subcommand> [flags]
+```
+
+Runs the pitchfork daemons and frontend suites behind the Home Assistant dev setup, configured in $XDG_CONFIG_HOME/dot/homeassistant.yml. Interactive runs go through dot status-run and, under Herdr, open in the repository's workspace. Under an agent, commands skip setup, Herdr and prompts: they reuse a running daemon and fail with a message instead of stopping a conflicting one.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot ha c dev
+dot ha f serve prod
+dot ha status
+```
+
+### `dot homeassistant core`
+
+Aliases: `dot homeassistant c`
+
+Run Home Assistant Core
+
+```text
+dot homeassistant core <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot homeassistant core dev`
+
+Run Core serving the local frontend build
+
+```text
+dot homeassistant core dev [flags]
+```
+
+Runs setup, then starts the Core pitchfork daemon, which starts the frontend build it depends on. Stops the frontend serve daemon first after asking. Under an agent, it skips setup, Herdr and prompts, and only starts the daemon when nothing conflicts.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--latest` | Rebase dev onto upstream/dev and push it during setup |
+| `--background` | Return once it is ready, leaving it running |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot homeassistant core dev
+dot ha c dev --latest --background
+```
+
+#### `dot homeassistant core setup`
+
+Update Core's dev branch and bootstrap its virtual environment
+
+```text
+dot homeassistant core setup [flags]
+```
+
+On a clean tree, switches to dev, pulls it and fetches upstream/dev; --latest also rebases onto upstream/dev and pushes. Then creates the virtual environment if needed and runs script/bootstrap. Refuses to run under an agent.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--latest` | Rebase dev onto upstream/dev and push it after pulling |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot homeassistant core setup --latest
+```
+
+### `dot homeassistant frontend`
+
+Aliases: `dot homeassistant f`
+
+Run Home Assistant frontend builds and dev servers
+
+```text
+dot homeassistant frontend <subcommand> [flags]
+```
+
+Every command here takes the frontend's build lock, so each stops the frontend pitchfork daemons first after asking. Lint, format, type checks and unit tests don't take the lock; run them with pnpm directly.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot homeassistant frontend dev`
+
+Run the frontend watch build that Core serves
+
+```text
+dot homeassistant frontend dev [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--background` | Return once it is ready, leaving it running |
+| `--attach` | Follow an already running build instead of asking to restart it |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot homeassistant frontend dev
+dot ha f dev --background
+```
+
+#### `dot homeassistant frontend serve`
+
+Run the frontend dev server against another Core
+
+```text
+dot homeassistant frontend serve [flags] [<target>]
+```
+
+Writes the Core URL for the serve daemon, starts the target's own daemon when it has one, then starts the serve daemon. Stops the frontend build daemon first after asking.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--background` | Return once it is ready, leaving it running |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<target>` | Serve target from homeassistant.yml, or a Core URL |
+
+**Examples**
+
+```bash
+dot ha f serve prod
+dot ha f serve https://core.example.com --background
+```
+
+#### `dot homeassistant frontend build`
+
+Run the frontend production build
+
+```text
+dot homeassistant frontend build [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot ha f build
+```
+
+#### `dot homeassistant frontend gallery`
+
+Run the frontend gallery dev server
+
+```text
+dot homeassistant frontend gallery [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--background` | Return once it is ready, leaving it running |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot ha f gallery --background
+```
+
+#### `dot homeassistant frontend demo`
+
+Run the frontend demo dev server
+
+```text
+dot homeassistant frontend demo [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--background` | Return once it is ready, leaving it running |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot ha f demo --background
+```
+
+#### `dot homeassistant frontend e2e`
+
+Run the frontend e2e app dev server
+
+```text
+dot homeassistant frontend e2e [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--background` | Return once it is ready, leaving it running |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot ha f e2e --background
+```
+
+#### `dot homeassistant frontend test-e2e`
+
+Run the frontend e2e tests
+
+```text
+dot homeassistant frontend test-e2e [flags] [<suite>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<suite>` | Suite to test (default: all) |
+
+**Examples**
+
+```bash
+dot ha f test-e2e
+dot ha f test-e2e app
+```
+
+### `dot homeassistant dev`
+
+Run Core and the frontend build in their Herdr workspaces
+
+```text
+dot homeassistant dev [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--background` | Return once it is ready, leaving it running |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot ha dev
+dot ha dev --background
+```
+
+### `dot homeassistant status`
+
+Show the Home Assistant dev servers
+
+```text
+dot homeassistant status [flags] [<target...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<target>` | core, build, serve, a serve target with a daemon, gallery, demo or e2e (default: all) |
+
+**Examples**
+
+```bash
+dot ha status
+dot ha status core serve
+```
+
+### `dot homeassistant stop`
+
+Stop Home Assistant dev servers
+
+```text
+dot homeassistant stop [flags] [<target...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<target>` | core, build, serve, a serve target with a daemon, gallery, demo or e2e (default: all) |
+
+**Examples**
+
+```bash
+dot ha stop
+dot ha stop gallery
+```
+
+### `dot homeassistant logs`
+
+Print or follow a Home Assistant dev server's logs
+
+```text
+dot homeassistant logs [flags] <target>
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--follow` | Follow the logs |
+| `--lines` `<integer>` | Recent lines to print |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<target>` | core, build, serve, a serve target with a daemon, gallery, demo or e2e |
+
+**Examples**
+
+```bash
+dot ha logs core
+dot ha logs serve --follow
+```
 
 ## `dot reload`
 

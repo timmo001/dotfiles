@@ -798,6 +798,65 @@ alias ou="omarchy-update"
 alias ouf="omarchy-update-firmware"
 alias update="dot system-update"
 
+# Home Assistant dev servers: shortcuts for dot homeassistant (dot ha), which
+# reads its repositories, daemons and URLs from ~/.config/dot/homeassistant.yml.
+# Each prints the dot command it runs first.
+function _dot_ha() {
+  print -r -- $'\e[2m'"\$ dot ha ${(j: :)${(q-)@}}"$'\e[0m'
+  dot ha "$@"
+}
+
+function hacdev() { _dot_ha core dev "$@" }
+function hacdevbg() { _dot_ha core dev --background "$@" }
+function hacdevlatest() { _dot_ha core dev --latest "$@" }
+function hacdevlatestbg() { _dot_ha core dev --latest --background "$@" }
+function hacdevstatus() { _dot_ha status core }
+function hacdevstop() { _dot_ha stop core }
+function hacdevlogs() { _dot_ha logs core --follow }
+
+function hafdev() { _dot_ha frontend dev "$@" }
+function hafdevbg() { _dot_ha frontend dev --background "$@" }
+function hafdevstatus() { _dot_ha status build }
+function hafdevstop() { _dot_ha stop build }
+function hafdevlogs() { _dot_ha logs build --follow }
+
+function hafdevserve() { _dot_ha frontend serve "$@" }
+function hafdevservestatus() { _dot_ha status serve }
+function hafdevservestop() { _dot_ha stop serve }
+function hafdevservelogs() { _dot_ha logs serve --follow }
+function hafdevserveprod() { _dot_ha frontend serve prod "$@" }
+function hafdevserveprodbg() { _dot_ha frontend serve prod --background "$@" }
+function hafdevserveprodnc() { _dot_ha frontend serve cloud "$@" }
+function hafdevserveprodncbg() { _dot_ha frontend serve cloud --background "$@" }
+
+function hafdevdesign() { _dot_ha frontend gallery "$@" }
+function hafdevdesignbg() { _dot_ha frontend gallery --background "$@" }
+function hafdevdesignstatus() { _dot_ha status gallery }
+function hafdevdesignstop() { _dot_ha stop gallery }
+function hafdevdesignlogs() { _dot_ha logs gallery --follow }
+
+function hafdevdemo() { _dot_ha frontend demo "$@" }
+function hafdevdemobg() { _dot_ha frontend demo --background "$@" }
+function hafdevdemostatus() { _dot_ha status demo }
+function hafdevdemostop() { _dot_ha stop demo }
+function hafdevdemologs() { _dot_ha logs demo --follow }
+
+function hafdeve2eapp() { _dot_ha frontend e2e "$@" }
+function hafdeve2eappbg() { _dot_ha frontend e2e --background "$@" }
+function hafdeve2eappstatus() { _dot_ha status e2e }
+function hafdeve2eappstop() { _dot_ha stop e2e }
+function hafdeve2eapplogs() { _dot_ha logs e2e --follow }
+
+function hafdevsuitesstatus() { _dot_ha status gallery demo e2e }
+function hafdevsuitesstop() { _dot_ha stop gallery demo e2e }
+
+function hafbuild() { _dot_ha frontend build }
+
+function hadev() { _dot_ha dev "$@" }
+function hadevbg() { _dot_ha dev --background "$@" }
+function hadevstatus() { _dot_ha status }
+function hadevstop() { _dot_ha stop }
+
 # ------------------------------
 # History
 # zsh-native settings (oh-my-zsh used to provide these). HISTFILE/SAVEHIST

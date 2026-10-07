@@ -56,6 +56,21 @@ import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
 import { editSkillConsumer, runSkillsMaintenance } from "../commands/Skills.js";
 import { runCommand } from "../commands/Run.js";
 import { httpForward } from "../commands/HttpForward.js";
+import {
+  FRONTEND_SUITES,
+  type FrontendSuite,
+  coreDev,
+  coreSetup,
+  frontendBuild,
+  frontendDev,
+  frontendServe,
+  frontendSuite,
+  frontendTestE2e,
+  homeAssistantDev,
+  homeAssistantLogs,
+  homeAssistantStatus,
+  homeAssistantStop,
+} from "../commands/HomeAssistant.js";
 import { statusRun } from "../commands/StatusRun.js";
 import { stow } from "../commands/Stow.js";
 import { logRunSummary } from "../lib/runSummary.js";
@@ -512,7 +527,7 @@ const statusRunCommand = describe(
       conflicts: Flag.String("conflicts").pipe(
         Flag.atLeast(0),
         Flag.withDescription(
-          "Pitchfork daemon that cannot run alongside --pitchfork; asks to stop it first. Repeat for more",
+          "Pitchfork daemon that cannot run alongside --pitchfork or the command; asks to stop it first. Repeat for more",
         ),
       ),
       attach: bool(
@@ -2586,6 +2601,207 @@ const herdr = describe(
   "Manage the shared Herdr server and repository workspaces",
 );
 
+const homeAssistantBackground = bool(
+  "background",
+  "Return once it is ready, leaving it running",
+);
+
+const homeAssistantCoreCommand = describe(
+  Command.make("core").pipe(
+    Command.withAlias("c"),
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "dev",
+          {
+            latest: bool(
+              "latest",
+              "Rebase dev onto upstream/dev and push it during setup",
+            ),
+            background: homeAssistantBackground,
+          },
+          coreDev,
+        ),
+        "Run Core serving the local frontend build",
+        ["dot homeassistant core dev", "dot ha c dev --latest --background"],
+        {
+          description:
+            "Runs setup, then starts the Core pitchfork daemon, which starts the frontend build it depends on. Stops the frontend serve daemon first after asking. Under an agent, it skips setup, Herdr and prompts, and only starts the daemon when nothing conflicts.",
+        },
+      ),
+      describe(
+        Command.make(
+          "setup",
+          {
+            latest: bool(
+              "latest",
+              "Rebase dev onto upstream/dev and push it after pulling",
+            ),
+          },
+          coreSetup,
+        ),
+        "Update Core's dev branch and bootstrap its virtual environment",
+        ["dot homeassistant core setup --latest"],
+        {
+          description:
+            "On a clean tree, switches to dev, pulls it and fetches upstream/dev; --latest also rebases onto upstream/dev and pushes. Then creates the virtual environment if needed and runs script/bootstrap. Refuses to run under an agent.",
+        },
+      ),
+    ]),
+  ),
+  "Run Home Assistant Core",
+);
+
+const homeAssistantSuiteCommand = (suite: FrontendSuite) =>
+  describe(
+    Command.make(suite, { background: homeAssistantBackground }, (options) =>
+      frontendSuite(suite, options),
+    ),
+    `Run the frontend ${FRONTEND_SUITES[suite].title.toLowerCase()} dev server`,
+    [`dot ha f ${suite} --background`],
+  );
+
+const homeAssistantFrontendCommand = describe(
+  Command.make("frontend").pipe(
+    Command.withAlias("f"),
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "dev",
+          {
+            background: homeAssistantBackground,
+            attach: bool(
+              "attach",
+              "Follow an already running build instead of asking to restart it",
+            ),
+          },
+          frontendDev,
+        ),
+        "Run the frontend watch build that Core serves",
+        ["dot homeassistant frontend dev", "dot ha f dev --background"],
+      ),
+      describe(
+        Command.make(
+          "serve",
+          {
+            target: Argument.String("target").pipe(
+              Argument.withDescription(
+                "Serve target from homeassistant.yml, or a Core URL",
+              ),
+              Argument.optional,
+            ),
+            background: homeAssistantBackground,
+          },
+          ({ target, background }) =>
+            frontendServe({ target: optional(target), background }),
+        ),
+        "Run the frontend dev server against another Core",
+        [
+          "dot ha f serve prod",
+          "dot ha f serve https://core.example.com --background",
+        ],
+        {
+          description:
+            "Writes the Core URL for the serve daemon, starts the target's own daemon when it has one, then starts the serve daemon. Stops the frontend build daemon first after asking.",
+        },
+      ),
+      describe(
+        Command.make("build", {}, () => frontendBuild),
+        "Run the frontend production build",
+        ["dot ha f build"],
+      ),
+      homeAssistantSuiteCommand("gallery"),
+      homeAssistantSuiteCommand("demo"),
+      homeAssistantSuiteCommand("e2e"),
+      describe(
+        Command.make(
+          "test-e2e",
+          {
+            suite: Argument.Literals("suite", ["app", "demo", "gallery"]).pipe(
+              Argument.withDescription("Suite to test (default: all)"),
+              Argument.optional,
+            ),
+          },
+          ({ suite }) => frontendTestE2e(optional(suite)),
+        ),
+        "Run the frontend e2e tests",
+        ["dot ha f test-e2e", "dot ha f test-e2e app"],
+      ),
+    ]),
+  ),
+  "Run Home Assistant frontend builds and dev servers",
+  [],
+  {
+    description:
+      "Every command here takes the frontend's build lock, so each stops the frontend pitchfork daemons first after asking. Lint, format, type checks and unit tests don't take the lock; run them with pnpm directly.",
+  },
+);
+
+const homeAssistantTargets = Argument.String("target").pipe(
+  Argument.variadic(),
+  Argument.withDescription(
+    "core, build, serve, a serve target with a daemon, gallery, demo or e2e (default: all)",
+  ),
+);
+
+const homeAssistantCommand = describe(
+  Command.make("homeassistant").pipe(
+    Command.withAlias("ha"),
+    Command.withSubcommands([
+      homeAssistantCoreCommand,
+      homeAssistantFrontendCommand,
+      describe(
+        Command.make(
+          "dev",
+          { background: homeAssistantBackground },
+          homeAssistantDev,
+        ),
+        "Run Core and the frontend build in their Herdr workspaces",
+        ["dot ha dev", "dot ha dev --background"],
+      ),
+      describe(
+        Command.make(
+          "status",
+          { targets: homeAssistantTargets },
+          ({ targets }) => homeAssistantStatus(targets),
+        ),
+        "Show the Home Assistant dev servers",
+        ["dot ha status", "dot ha status core serve"],
+      ),
+      describe(
+        Command.make("stop", { targets: homeAssistantTargets }, ({ targets }) =>
+          homeAssistantStop(targets),
+        ),
+        "Stop Home Assistant dev servers",
+        ["dot ha stop", "dot ha stop gallery"],
+      ),
+      describe(
+        Command.make(
+          "logs",
+          {
+            target: Argument.String("target").pipe(
+              Argument.withDescription(
+                "core, build, serve, a serve target with a daemon, gallery, demo or e2e",
+              ),
+            ),
+            follow: bool("follow", "Follow the logs"),
+            lines: integer("lines", "Recent lines to print", 100),
+          },
+          ({ target, ...options }) => homeAssistantLogs(target, options),
+        ),
+        "Print or follow a Home Assistant dev server's logs",
+        ["dot ha logs core", "dot ha logs serve --follow"],
+      ),
+    ]),
+  ),
+  "Run Home Assistant Core and frontend dev servers",
+  ["dot ha c dev", "dot ha f serve prod", "dot ha status"],
+  {
+    description:
+      "Runs the pitchfork daemons and frontend suites behind the Home Assistant dev setup, configured in $XDG_CONFIG_HOME/dot/homeassistant.yml. Interactive runs go through dot status-run and, under Herdr, open in the repository's workspace. Under an agent, commands skip setup, Herdr and prompts: they reuse a running daemon and fail with a message instead of stopping a conflicting one.",
+  },
+);
+
 const reloadCommand = describe(
   Command.make(
     "reload",
@@ -2731,6 +2947,7 @@ export const dotCommand = describe(
       prCommand,
       floating,
       herdr,
+      homeAssistantCommand,
       reloadCommand,
       setupWorkspace,
       relayout,

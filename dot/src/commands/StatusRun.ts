@@ -129,7 +129,8 @@ const elapsed = (millis: number) => {
 
 const clip = (text: string, width: number) => text.slice(0, Math.max(width, 0));
 
-const statusOf = (output: string) =>
+/** Read the `Status:` line from `pitchfork status` output. */
+export const statusOf = (output: string) =>
   /^Status: (.+)$/m.exec(output)?.[1]?.trim() ?? "unknown";
 
 /**
@@ -156,11 +157,6 @@ export const statusRun = Effect.fn("StatusRun")(function* (
   if (daemon === undefined && options.background)
     return yield* new StatusRunError({
       message: "--background only applies to --pitchfork daemons",
-    });
-
-  if (daemon === undefined && options.conflicts.length > 0)
-    return yield* new StatusRunError({
-      message: "--conflicts only applies to --pitchfork daemons",
     });
 
   if (daemon === undefined && options.attach)
@@ -311,7 +307,14 @@ export const statusRun = Effect.fn("StatusRun")(function* (
   yield* setPhase({ kind: "setup" });
 
   if (options.setup !== undefined) {
-    const setupExit = yield* executor.inherit("zsh", ["-ic", options.setup]);
+    // Without job control (+m), the interactive shell would take the
+    // terminal's foreground and leave later prompts suspended.
+    const setupExit = yield* executor.inherit("zsh", [
+      "-i",
+      "+m",
+      "-c",
+      options.setup,
+    ]);
 
     if (setupExit !== 0)
       return yield* finish(yield* exitPhase(setupExit), setupExit);
@@ -319,24 +322,11 @@ export const statusRun = Effect.fn("StatusRun")(function* (
 
   if (yield* cancelled) return yield* finish({ kind: "cancelled" }, 130);
 
-  if (daemon === undefined) {
-    const [command, ...args] = options.command;
-    yield* setPhase({ kind: "running", daemon: false });
-    const exitCode = yield* executor.inherit(command, args);
-
-    return yield* finish(
-      exitCode === 0 ? { kind: "done" } : yield* exitPhase(exitCode),
-      exitCode,
-    );
-  }
-
   const statusOfDaemon = (name: string) =>
     executor.run("pitchfork", ["status", name]).pipe(
       Effect.map(statusOf),
       Effect.orElseSucceed(() => "unknown"),
     );
-
-  const status = statusOfDaemon(daemon);
 
   const ask = (question: string) =>
     Effect.map(
@@ -355,7 +345,7 @@ export const statusRun = Effect.fn("StatusRun")(function* (
     yield* setPhase({ kind: "prompt" });
 
     const stop = yield* ask(
-      `${conflict} is running and can't run alongside ${daemon}. Stop it?`,
+      `${conflict} is running and can't run alongside ${daemon ?? options.title}. Stop it?`,
     );
 
     if (!stop || (yield* cancelled))
@@ -372,6 +362,19 @@ export const statusRun = Effect.fn("StatusRun")(function* (
         stopExit,
       );
   }
+
+  if (daemon === undefined) {
+    const [command, ...args] = options.command;
+    yield* setPhase({ kind: "running", daemon: false });
+    const exitCode = yield* executor.inherit(command, args);
+
+    return yield* finish(
+      exitCode === 0 ? { kind: "done" } : yield* exitPhase(exitCode),
+      exitCode,
+    );
+  }
+
+  const status = statusOfDaemon(daemon);
 
   let restart = false;
 
