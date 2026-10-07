@@ -119,6 +119,8 @@ Panel {
     else next[key] = true
     expandedSections = next
   }
+  // Action groups start collapsed in every view.
+  property var expandedGroups: ({})
   property string selectedCommitAgentTask: "guide"
   readonly property int overviewCommitLimit: 20
   readonly property int repoCommitLimit: 40
@@ -146,7 +148,10 @@ Panel {
       var guide = actionRow("commit-guide", "Generate Plannotator guide…", "󱚣")
       guide.secondaryText = "Ask an agent to write a Guided Review of this commit"
       rows.push(actionRow("commit-web", "Open on GitHub", ""), diff, direct, plannotator, plannotatorFull, guide)
-      return rows
+      return groupActions(rows, [
+        { id: "open", label: "Open…", icon: "\uf08e", actions: ["commit-web", "commit-diff"] },
+        { id: "review", label: "Review…", actions: ["commit-plannotator", "commit-review-patch", "commit-review-worktree", "commit-guide"] }
+      ])
     }
     if (pullRequestView) {
       rows.push(navigationRow(view === "pulls" || selectedPullRequestView === "overview" ? "Back to Git overview" : "Back to all tracked repositories"))
@@ -582,12 +587,34 @@ Panel {
       actionRow("web", "Open on GitHub", ""),
       actionRow("actions", "Open GitHub Actions", "󰜎")
     )
+    rows = groupActions(rows, [
+      { id: "open", label: "Open…", icon: "\uf08e", actions: ["lazygit", "editor", "agent", "terminal", "web", "actions"] },
+      { id: "review", label: "Review and annotate…", actions: ["plannotator-review", "plannotator-last", "plannotator-annotate", "plannotator-tui"] }
+    ])
     if (service && service.notificationRepository(repo)) {
       var notifications = actionRow("repo-notifications", "Review notifications…", "")
       notifications.secondaryText = service.notificationSummary(repo)
       rows.push(notifications)
     }
     return rows
+  }
+
+  // Collapses related actions under a toggle row, placed where the first member was.
+  // Groups open while filtering so their members stay searchable.
+  function groupActions(rows, groups) {
+    var result = []
+    rows.forEach(function(row) {
+      var group = groups.find(function(group) { return group.actions.indexOf(row.action) >= 0 })
+      if (!group) result.push(row)
+      else if (group.members) group.members.push(row)
+      else { group.members = [row]; result.push(group) }
+    })
+    return result.reduce(function(all, item) {
+      if (!item.members) return all.concat([item])
+      var expanded = !!filterController.filterText || !!expandedGroups[item.id]
+      var header = actionRow("group:" + item.id, item.label + (expanded ? "  ▾" : "  ›"), item.icon || item.members[0].icon)
+      return all.concat([header], expanded ? item.members.map(function(row) { row.child = true; return row }) : [])
+    }, [])
   }
 
   function actionRow(action, label, icon) {
@@ -728,6 +755,7 @@ Panel {
     selectedIssueRepo = ""
     selectedIssueView = "overview"
     selectedIssue = null
+    expandedGroups = ({})
     var target = null
     try {
       var payload = JSON.parse(String(payloadJson || "{}"))
@@ -757,6 +785,7 @@ Panel {
     if ((issueView || view === "overview") && service) service.refreshIssues("read")
     if (service) service.refreshLog("read")
     filterController.reset()
+    if (target && view === "repo") expandedGroups = { review: true }
     controller.show()
     Qt.callLater(function() {
       if (view === "overview") {
@@ -843,6 +872,7 @@ Panel {
 
   function showView(nextView, focusKey) {
     revealTimer.stop()
+    expandedGroups = ({})
     view = nextView
     filterController.reset()
     panelFlick.contentY = 0
@@ -886,7 +916,12 @@ Panel {
 
   function activateAction(action, modifiers) {
     if (!service) return
-    if (action === "release-refresh") { service.releaseActionError = ""; service.refreshReleases("refresh") }
+    if (action.indexOf("group:") === 0) {
+      var groups = Object.assign({}, expandedGroups)
+      groups[action.slice(6)] = !groups[action.slice(6)]
+      expandedGroups = groups
+    }
+    else if (action === "release-refresh") { service.releaseActionError = ""; service.refreshReleases("refresh") }
     else if (action === "pulls-refresh") service.refreshPullRequests("refresh")
     else if (action === "pulls") showView("pulls")
     else if (action === "pulls-web") { close(); service.openPulls(selectedPullRequests, modifiers) }
@@ -1240,6 +1275,7 @@ Panel {
                   anchors.right: parent.right
                   anchors.verticalCenter: parent.verticalCenter
                   anchors.margins: Style.space(8)
+                  anchors.leftMargin: Style.space(modelData.child ? 28 : 8)
                   spacing: Style.space(10)
                   Text { width: Style.space(22); text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
                   Column {
@@ -1312,7 +1348,7 @@ Panel {
                   anchors.left: parent.left
                   anchors.right: parent.right
                   anchors.verticalCenter: parent.verticalCenter
-                  anchors.leftMargin: Style.space(8)
+                  anchors.leftMargin: Style.space(modelData.child ? 28 : 8)
                   anchors.rightMargin: Style.space(8)
                   spacing: Style.space(10)
                   Text { width: Style.space(22); text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
