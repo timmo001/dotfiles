@@ -135,6 +135,13 @@ export default defineConfig({
     og: {
       enabled: true,
       logo: 'src/assets/logo.svg',
+      palette: {
+        accent: '#d97706',
+        background: '#18181b',
+        border: '#3f3f46',
+        foreground: '#fafafa',
+        muted: '#a1a1aa',
+      },
       site: 'dotfiles.timmo.dev',
     },
     organization: {
