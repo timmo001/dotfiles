@@ -4,11 +4,13 @@ import { isDeepStrictEqual } from "node:util";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import {
+  AgentLintSettings,
   parseDotGitConfigText,
   type DotGitConfig,
   type GitManagedRepo,
 } from "../services/GitConfig.js";
 import { decodeJson, formatCause, isJsonObject } from "./schema.js";
+import type { ReleaseSettings } from "../git/release/types.js";
 import { displayPath } from "./paths.js";
 import { gitOutput } from "./git.js";
 
@@ -270,6 +272,9 @@ export function appendGitRepository(
   if (!isJsonObject(original) || !Array.isArray(original.repositories))
     throw new Error("Invalid repository config");
 
+  const agentLint =
+    repo.agentLint && Schema.encodeSync(AgentLintSettings)(repo.agentLint);
+
   const entry = {
     name: repo.name,
     path: displayPath(repo.path),
@@ -284,8 +289,20 @@ export function appendGitRepository(
     },
   };
 
+  if (repo.herdrAfter) Object.assign(entry, { herdr_after: repo.herdrAfter });
+
+  if (repo.browser) Object.assign(entry, { browser: repo.browser });
+
+  if (repo.notesRemote)
+    Object.assign(entry, { notes_remote: repo.notesRemote });
+
   if (repo.postUpdate !== null)
     Object.assign(entry, { post_update: repo.postUpdate });
+
+  if (agentLint) Object.assign(entry, { agent_lint: agentLint });
+
+  if (repo.pullRequests)
+    Object.assign(entry, { pull_requests: repo.pullRequests });
 
   if (repo.releases) Object.assign(entry, { releases: repo.releases });
 
@@ -293,10 +310,29 @@ export function appendGitRepository(
     Object.assign(entry, { opencode_mcp: repo.opencodeMcp });
   const newline = source.includes("\r\n") ? "\r\n" : "\n";
 
+  const nested = (
+    key: string,
+    value: typeof AgentLintSettings.Encoded | ReleaseSettings,
+  ) => [
+    `    ${key}:`,
+    ...Bun.YAML.stringify(value, null, 2)
+      .replace(/:[ \t]*\n\s+(\[\]|\{\})[ \t]*$/gm, ": $1")
+      .trimEnd()
+      .split("\n")
+      .map((line) => `      ${line.trimEnd()}`),
+  ];
+
   const block = [
     `  - name: ${JSON.stringify(entry.name)}`,
+    ...(repo.herdrAfter
+      ? [`    herdr_after: ${JSON.stringify(repo.herdrAfter)}`]
+      : []),
     `    path: ${JSON.stringify(entry.path)}`,
+    ...(repo.browser ? [`    browser: ${JSON.stringify(repo.browser)}`] : []),
     `    github: ${JSON.stringify(entry.github)}`,
+    ...(repo.notesRemote
+      ? [`    notes_remote: ${JSON.stringify(repo.notesRemote)}`]
+      : []),
     ...(entry.aliases.length
       ? [
           "    aliases:",
@@ -307,11 +343,15 @@ export function appendGitRepository(
       ? []
       : [`    post_update: ${JSON.stringify(repo.postUpdate)}`]),
     `    agent_oxlint: ${entry.agent_oxlint}`,
+    ...(agentLint ? nested("agent_lint", agentLint) : []),
     ...(repo.opencodeMcp?.length
       ? [
           "    opencode_mcp:",
           ...repo.opencodeMcp.map((name) => `      - ${JSON.stringify(name)}`),
         ]
+      : []),
+    ...(repo.pullRequests
+      ? ["    pull_requests:", `      enabled: ${repo.pullRequests.enabled}`]
       : []),
     "    activity:",
     `      enabled: ${entry.activity.enabled}`,
@@ -321,15 +361,7 @@ export function appendGitRepository(
     `      schedule: ${JSON.stringify(entry.notifications.schedule)}`,
     "      bar:",
     `        ignore_bot_activity: ${entry.notifications.bar.ignore_bot_activity}`,
-    ...(repo.releases
-      ? [
-          "    releases:",
-          ...Bun.YAML.stringify(repo.releases, null, 2)
-            .trimEnd()
-            .split("\n")
-            .map((line) => `      ${line.trimEnd()}`),
-        ]
-      : []),
+    ...(repo.releases ? nested("releases", repo.releases) : []),
     "",
   ].join(newline);
 
