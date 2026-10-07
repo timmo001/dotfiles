@@ -16,42 +16,14 @@ customCommands:
     description: Fetch and rebase onto remote default branch
     output: terminal
   - key: X
-    description: Plannotator
-    commandMenu:
-      - key: r
-        context: global
-        command: plannotator review
-        description: Review changes (browser)
-        output: terminal
-      - key: l
-        context: global
-        command: plannotator review --diff-type last-commit
-        description: Review the last commit (browser)
-        output: terminal
-      - key: c
-        context: commits, subCommits
-        command: >-
-          git diff {{.SelectedCommitRange.From}}^ {{.SelectedCommitRange.To}}
-          | plannotator review --patch-file -
-        description: Review the selected commits (browser)
-        output: terminal
-      - key: b
-        context: localBranches
-        command: plannotator review --base {{.SelectedLocalBranch.Name | quote}}
-        description: Review changes against the selected branch (browser)
-        output: terminal
-      - key: a
-        context: files
-        command: plannotator-tui {{.SelectedPath | quote}}
-        description: Annotate the selected Markdown file or folder (terminal)
-        output: terminal
-      - key: A
-        context: files
-        command: plannotator annotate {{.SelectedPath | quote}}
-        description: Annotate the selected file or folder (browser)
-        output: terminal
-      - key: d
-        context: global
-        command: plannotator-tui .
-        description: Annotate the repository's Markdown (terminal)
-        output: terminal
+    context: commits, subCommits, commitFiles
+    command: >-
+      omarchy-shell timmo.git commit "$(git rev-parse --show-toplevel)"
+      {{.SelectedCommit.Hash | quote}} {{.SelectedCommit.Name | quote}}
+      {{.SelectedCommit.AuthorName | quote}}
+      "$(date -u -d @{{.SelectedCommit.UnixTimestamp}} +%FT%TZ)"
+    description: Open the selected commit in the Git panel
+  - key: X
+    context: global
+    command: omarchy-shell timmo.git repo "$(git rev-parse --show-toplevel)"
+    description: Open this repository in the Git panel
