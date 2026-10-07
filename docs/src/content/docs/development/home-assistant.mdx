@@ -25,7 +25,7 @@ The short `hacdev`, `hafdev*` and `hadev*` functions in `.zshrc` just call `dot 
 | Frontend watch build alone | `dot ha frontend dev [--background] [--attach]` | `hafdev`, `hafdevbg` |
 | Frontend against another Core | `dot ha frontend serve [<target or URL>] [--background]` | `hafdevserve` |
 | Frontend against prod | `dot ha frontend serve prod [--background]` | `hafdevserveprod`, `hafdevserveprodbg` |
-| Frontend against the cloud instance | `dot ha frontend serve cloud [--background]` | `hafdevserveprodnc`, `hafdevserveprodncbg` |
+| Frontend through Home Assistant Link | `dot ha frontend serve link [--background]` | `hafdevserveprodnc`, `hafdevserveprodncbg` |
 | Gallery | `dot ha frontend gallery [--background]` | `hafdevdesign`, `hafdevdesignbg` |
 | Demo | `dot ha frontend demo [--background]` | `hafdevdemo`, `hafdevdemobg` |
 | E2E test app | `dot ha frontend e2e [--background]` | `hafdeve2eapp`, `hafdeve2eappbg` |
@@ -150,7 +150,7 @@ frontend:
         title: Prod
         url: https://prod.ha-core.localhost
         daemon: ha-core/prod
-      cloud:
-        title: Cloud
+      link:
+        title: Link
         url: https://<instance>.ui.nabu.casa
 ```

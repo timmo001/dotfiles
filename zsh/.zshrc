@@ -826,8 +826,8 @@ function hafdevservestop() { _dot_ha stop serve }
 function hafdevservelogs() { _dot_ha logs serve --follow }
 function hafdevserveprod() { _dot_ha frontend serve prod "$@" }
 function hafdevserveprodbg() { _dot_ha frontend serve prod --background "$@" }
-function hafdevserveprodnc() { _dot_ha frontend serve cloud "$@" }
-function hafdevserveprodncbg() { _dot_ha frontend serve cloud --background "$@" }
+function hafdevserveprodnc() { _dot_ha frontend serve link "$@" }
+function hafdevserveprodncbg() { _dot_ha frontend serve link --background "$@" }
 
 function hafdevdesign() { _dot_ha frontend gallery "$@" }
 function hafdevdesignbg() { _dot_ha frontend gallery --background "$@" }
