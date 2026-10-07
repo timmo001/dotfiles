@@ -1,4 +1,4 @@
-# 🧰 Dotfiles Docs
+# Dotfiles Docs
 
 The [dotfiles](https://github.com/timmo001/dotfiles) documentation site, built with Blume and Astro.
 
