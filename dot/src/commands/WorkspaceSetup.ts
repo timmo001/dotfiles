@@ -937,6 +937,21 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
           false,
         ),
       );
+
+      if (Bun.which("pitchfork") === null) {
+        yield* logStep("Skipping pitchfork ha-core/prod (pitchfork not found)");
+      } else {
+        yield* logStep("Starting pitchfork ha-core/prod");
+
+        const exit = yield* executor.exitCode("pitchfork", [
+          "start",
+          "ha-core/prod",
+        ]);
+
+        if (exit !== 0) {
+          yield* logStep(`pitchfork start ha-core/prod exited with ${exit}`);
+        }
+      }
     } else {
       yield* logStep("Preparing workspace 1 non-work apps");
       yield* clearTag(TAGS.slack);
