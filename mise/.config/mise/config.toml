@@ -21,7 +21,6 @@ node = "26.10.0"
 pitchfork = "2.29.0"
 pnpm = "12.9.1"
 "npm:skills" = "1.7.0"
-"npm:@opencode-ai/browser-control" = "0.8.3"
 "npm:rift-snapshot" = "latest"
 python = "3.14.8"
 ripgrep = "15.2.0"
@@ -88,6 +87,3 @@ npm.package_manager = "bun"
 # ~/.cache/yay/<pkg>/src, which contains package.json/.tool-versions/mise.toml)
 # from auto-installing and reshimming all shims on every update.
 ignored_config_paths = ["~/.cache"]
-
-[hooks]
-postinstall = "if command -v browser-control-extension-sync >/dev/null; then browser-control-extension-sync; fi"

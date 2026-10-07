@@ -35,6 +35,7 @@ const RETIRED_PUBLIC_STOW_PATHS = [
   "fish/.config/fish/completions/context.fish",
   "zsh/.local/share/zsh/site-functions/_context",
   "scripts/.local/bin/waybar",
+  "scripts/.local/bin/browser-control-extension-sync",
   "scripts/.local/bin/reload-ui-monitor",
   "scripts/.local/bin/reload-ui",
   "scripts/.local/bin/git-diff-bar",
