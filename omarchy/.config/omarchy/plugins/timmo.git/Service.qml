@@ -263,6 +263,8 @@ Item {
       openWeb("https://github.com/" + repo.repo + "/commit/" + sha, repo.path, modifiers)
     else if (action === "diff")
       Quickshell.execDetached(herdrCommand(repo, "Commit " + sha.slice(0, 7), "git show --stat --patch " + sha, modifiers))
+    else if (action === "plannotator")
+      Quickshell.execDetached(herdrCommand(repo, "Plannotator", "git show --format= --patch --first-parent " + sha + " | plannotator review --patch-file -", modifiers))
   }
 
   function openCommitAgent(repo, commit, task, command, modifiers) {
@@ -495,6 +497,14 @@ Item {
       Quickshell.execDetached(herdrCommand(repo, "Lazygit", "lazygit", modifiers))
     else if (action === "editor")
       Quickshell.execDetached(herdrCommand(repo, "Editor", "nvim .", modifiers))
+    else if (action === "plannotator-review")
+      Quickshell.execDetached(herdrCommand(repo, "Plannotator", "plannotator review", modifiers))
+    else if (action === "plannotator-last")
+      Quickshell.execDetached(herdrCommand(repo, "Plannotator", "plannotator review --diff-type last-commit", modifiers))
+    else if (action === "plannotator-annotate")
+      Quickshell.execDetached(herdrCommand(repo, "Plannotator", "plannotator annotate .", modifiers))
+    else if (action === "plannotator-tui")
+      Quickshell.execDetached(herdrCommand(repo, "Plannotator TUI", "plannotator-tui .", modifiers))
     else if (action === "terminal")
       Quickshell.execDetached(herdrCommand(repo, tabLabel, command, modifiers))
     else if (action === "web")

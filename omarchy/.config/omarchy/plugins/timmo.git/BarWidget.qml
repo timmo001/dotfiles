@@ -148,6 +148,10 @@ BarWidget {
         function open(): void { root.open() }
         function release(repo: string): void { root.open(JSON.stringify({ view: "releases", repo: repo })) }
         function pulls(repo: string): void { root.open(JSON.stringify({ view: "pulls", repo: repo })) }
+        function repo(path: string): void { root.open(JSON.stringify({ view: "repo", path: path })) }
+        function commit(path: string, sha: string, subject: string, author: string, date: string): void {
+          root.open(JSON.stringify({ view: "commit", path: path, sha: sha, subject: subject, author: author, date: date }))
+        }
         function pullsStatus(): string {
           var panel = panelLoader.item
           return JSON.stringify({

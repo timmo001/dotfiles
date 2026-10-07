@@ -77,13 +77,16 @@ Panel {
       if (!selectedCommit) return rows
       var diff = actionRow("commit-diff", "Open in diff viewer", "")
       diff.secondaryText = "git show in a terminal"
+      var direct = actionRow("commit-plannotator", "Review in Plannotator directly", "")
+      direct.secondaryText = "Browser review of the commit patch, without an agent"
       var plannotator = actionRow("commit-review-patch", "Review in Plannotator…", "󰈈")
       plannotator.secondaryText = "Quick review of the commit patch, feedback goes to an agent"
+      direct.icon = plannotator.icon
       var plannotatorFull = actionRow("commit-review-worktree", "Review in Plannotator with full context…", plannotator.icon)
       plannotatorFull.secondaryText = "Review a temporary checkout, feedback goes to an agent"
       var guide = actionRow("commit-guide", "Generate Plannotator guide…", "󱚣")
       guide.secondaryText = "Ask an agent to write a Guided Review of this commit"
-      rows.push(actionRow("commit-web", "Open on GitHub", ""), diff, plannotator, plannotatorFull, guide)
+      rows.push(actionRow("commit-web", "Open on GitHub", ""), diff, direct, plannotator, plannotatorFull, guide)
       return rows
     }
     if (pullRequestView) {
@@ -388,6 +391,10 @@ Panel {
     if (service && service.canPullRepo(repo)) rows.push(actionRow("pull", "Pull", "󰜷"))
     rows.push(
       actionRow("lazygit", "Open in lazygit", ""),
+      actionRow("plannotator-review", "Review changes in Plannotator", "󰈈"),
+      actionRow("plannotator-last", "Review the last commit in Plannotator", "󰈈"),
+      actionRow("plannotator-annotate", "Annotate files in Plannotator", "󰏫"),
+      actionRow("plannotator-tui", "Annotate Markdown in Plannotator TUI", "󰏫"),
       actionRow("editor", "Open in editor", ""),
       actionRow("agent", "Open in agent", "󱚣"),
       actionRow("terminal", "Open terminal", ""),
@@ -533,9 +540,11 @@ Panel {
     selectedFindingGroupKey = ""
     selectedPullRequestRepo = ""
     selectedPullRequestView = "overview"
+    var target = null
     try {
       var payload = JSON.parse(String(payloadJson || "{}"))
       if (payload.view === "notifications") initialView = payload.view
+      if ((payload.view === "repo" || payload.view === "commit") && String(payload.path || "").charAt(0) === "/") target = payload
       if (payload.view === "pulls") {
         selectedPullRequestRepo = String(payload.repo || "")
         initialView = selectedPullRequestRepo ? "pull-repo" : "pulls"
@@ -548,6 +557,7 @@ Panel {
     }
     view = initialView
     selectedRepo = null
+    if (target && service) openTarget(target)
     if (service) service.refreshHerdrContext()
     if (service) { service.notificationLaunchError = ""; service.refreshNotifications() }
     if ((releaseView || view === "overview") && service) service.refreshReleases("read")
@@ -562,10 +572,27 @@ Panel {
           index = filterController.indexForKey("action:repositories-refresh")
         filterController.selectIndex(index)
       }
+      if (target && view === "repo") filterController.selectIndex(filterController.indexForKey("action:plannotator-review"))
       panelFlick.contentY = 0
       selectFirstPullRequest()
       filterController.forceActiveFocus()
     })
+  }
+
+  function openTarget(target) {
+    var path = String(target.path)
+    selectedRepoView = "overview"
+    selectedRepo = service.changedRepos.concat(service.otherRepos).find(function(repo) { return String(repo.path || "") === path })
+      || { name: path.split("/").pop(), path: path, statusKnown: false }
+    view = "repo"
+    var sha = String(target.sha || "")
+    if (target.view !== "commit" || !/^[0-9a-f]{7,64}$/.test(sha)) return
+    var logRepo = service.logRepository(path)
+    var commit = logRepo ? logRepo.commits.find(function(entry) { return entry.sha === sha }) : null
+    selectedCommit = { repo: logRepo || selectedRepo, commit: commit || {
+      sha: sha, subject: String(target.subject || ""), author: String(target.author || ""), date: String(target.date || ""), incoming: false } }
+    commitReturnView = "repo"
+    view = "commit"
   }
 
   function close() { controller.hide() }
@@ -755,7 +782,14 @@ Panel {
     function onAgentOpened() { if (root.view === "agent") root.close() }
     function onReleaseOpened() { root.close() }
     function onNotificationReviewOpened() { root.close() }
-    function onPanelUpdated() { root.syncSelectedRepo() }
+    function onPanelUpdated() {
+      var key = root.cursorKey
+      root.syncSelectedRepo()
+      Qt.callLater(function() {
+        var index = filterController.indexForKey(key)
+        if (index >= 0) filterController.selectIndex(index)
+      })
+    }
     function onPullRequestsUpdating() { root.pullRequestCursorKey = root.cursorKey }
     function onPullRequestsUpdated() {
       Qt.callLater(function() {
