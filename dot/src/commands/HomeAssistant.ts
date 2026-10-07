@@ -103,6 +103,49 @@ const fail = (message: string) => new HomeAssistantError({ message });
 
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 
+/**
+ * Abort a rebase left in progress by a failed pull or rebase.
+ *
+ * @returns Whether a rebase was in progress and has been aborted, restoring
+ *   the branch to its pre-rebase state.
+ */
+export const abortGitRebase = Effect.fn("HomeAssistant.abortRebase")(function* (
+  cwd: string,
+) {
+  const executor = yield* CommandExecutor;
+  const fs = yield* FileSystem.FileSystem;
+
+  const inProgress = yield* Effect.gen(function* () {
+    for (const directory of ["rebase-merge", "rebase-apply"]) {
+      const relative = yield* executor
+        .run("git", ["rev-parse", "--git-path", directory], { cwd })
+        .pipe(
+          Effect.map((output) => output.trim()),
+          Effect.orElseSucceed(() => ""),
+        );
+
+      if (relative.length === 0) continue;
+
+      const path = relative.startsWith("/") ? relative : join(cwd, relative);
+
+      if (yield* fs.exists(path)) return true;
+    }
+
+    return false;
+  });
+
+  if (!inProgress) return false;
+
+  const exitCode = yield* executor.inherit("git", ["rebase", "--abort"], {
+    cwd,
+  });
+
+  if (exitCode !== 0)
+    return yield* fail(`git rebase --abort exited with ${exitCode}`);
+
+  return true;
+});
+
 const daemonStatus = Effect.fn("HomeAssistant.daemonStatus")(function* (
   daemon: string,
 ) {
@@ -280,7 +323,8 @@ const section = (title: string) =>
 /**
  * Prepare Core: on a clean tree, switch to dev and pull it (and with
  * `latest`, rebase onto upstream/dev and push), then create the virtual
- * environment if needed and run script/bootstrap.
+ * environment if needed and run script/bootstrap. A rebase that stops on
+ * conflicts is aborted so the branch is restored instead of left mid-rebase.
  */
 export const coreSetup = Effect.fn("HomeAssistant.coreSetup")(
   function* (options: { readonly latest: boolean }) {
@@ -310,6 +354,22 @@ export const coreSetup = Effect.fn("HomeAssistant.coreSetup")(
     const git = (...args: readonly string[]) =>
       executor.run("git", args, { cwd }).pipe(Effect.map((out) => out.trim()));
 
+    const gitRebase = Effect.fn("HomeAssistant.coreSetup.rebase")(function* (
+      args: readonly string[],
+    ) {
+      const exitCode = yield* executor.inherit("git", args, { cwd });
+
+      if (exitCode === 0) return;
+
+      const aborted = yield* abortGitRebase(cwd);
+
+      return yield* fail(
+        aborted
+          ? `git ${args.join(" ")} exited with ${exitCode}; aborted the rebase and restored the branch`
+          : `git ${args.join(" ")} exited with ${exitCode}`,
+      );
+    });
+
     yield* section("Git status");
     yield* step("git", ["status"]);
 
@@ -324,12 +384,12 @@ export const coreSetup = Effect.fn("HomeAssistant.coreSetup")(
       }
 
       yield* section("Pulling dev");
-      yield* step("git", ["pull", "--rebase"]);
+      yield* gitRebase(["pull", "--rebase"]);
       yield* step("git", ["fetch", "upstream", "dev"]);
 
       if (options.latest) {
         yield* section("Rebasing onto upstream/dev");
-        yield* step("git", ["rebase", "upstream/dev"]);
+        yield* gitRebase(["rebase", "upstream/dev"]);
 
         const ahead = yield* git("rev-list", "HEAD@{upstream}..HEAD").pipe(
           Effect.orElseSucceed(() => ""),
