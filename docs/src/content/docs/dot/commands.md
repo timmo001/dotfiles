@@ -1815,7 +1815,7 @@ Induct a local repository into private dot git config with a preview before comm
 dot repo induct [flags] [<path>]
 ```
 
-The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git-commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use agent-oxlint --opt-in to enable their agent pass.
+The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity, including an optional release watching template from its release_templates. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git-commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use agent-oxlint --opt-in to enable their agent pass.
 
 **Options**
 
@@ -1832,6 +1832,14 @@ The terminal wizard asks for Normal (first and default) or Home Assistant, then 
 | `--notifications-enabled` | Enable notifications; --no-notifications-enabled disables them |
 | `--notifications-schedule` `<string>` | Notification schedule: five-field cron or work |
 | `--ignore-bot-activity` | Filter bot-only activity; --no-ignore-bot-activity shows it |
+| `--pull-requests` | Show open pull requests in the Git panel; --no-pull-requests hides them |
+| `--browser` `<string>` | Named browser from dot-git.yml; empty for the desktop default |
+| `--herdr-after` `<string>` | Herdr workspace to open after; empty for none (default: last entry with the preset prefix) |
+| `--notes-remote` `<string>` | Git remote for notes; empty for none (default: upstream when present) |
+| `--agent-lint` `<string>` | Agent lint command, split on spaces; empty for none |
+| `--opencode-mcp` `<string>` | Space- or comma-separated OpenCode MCP servers; empty for none |
+| `--release-template` `<string>` | Private release template name from dot-git-presets.yml, or none |
+| `--release-branch` `<string>` | Branch compared with the published release (default: the template's branch, then origin's default branch) |
 | `--noninteractive` | Use flags and preset defaults without questions; preview by default |
 | `--commit` | Commit the proposed entry with --noninteractive after reviewing its preview |
 | `--help` `-h` | Show help information |

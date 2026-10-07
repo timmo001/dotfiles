@@ -1950,6 +1950,38 @@ const repoInductCommand = describe(
         "ignore-bot-activity",
         "Filter bot-only activity; --no-ignore-bot-activity shows it",
       ),
+      pullRequests: optionalBool(
+        "pull-requests",
+        "Show open pull requests in the Git panel; --no-pull-requests hides them",
+      ),
+      browser: text(
+        "browser",
+        "Named browser from dot-git.yml; empty for the desktop default",
+      ),
+      herdrAfter: text(
+        "herdr-after",
+        "Herdr workspace to open after; empty for none (default: last entry with the preset prefix)",
+      ),
+      notesRemote: text(
+        "notes-remote",
+        "Git remote for notes; empty for none (default: upstream when present)",
+      ),
+      agentLint: text(
+        "agent-lint",
+        "Agent lint command, split on spaces; empty for none",
+      ),
+      opencodeMcp: text(
+        "opencode-mcp",
+        "Space- or comma-separated OpenCode MCP servers; empty for none",
+      ),
+      releaseTemplate: text(
+        "release-template",
+        "Private release template name from dot-git-presets.yml, or none",
+      ),
+      releaseBranch: text(
+        "release-branch",
+        "Branch compared with the published release (default: the template's branch, then origin's default branch)",
+      ),
       noninteractive: bool(
         "noninteractive",
         "Use flags and preset defaults without questions; preview by default",
@@ -1973,6 +2005,14 @@ const repoInductCommand = describe(
         notificationsEnabled: optional(input.notificationsEnabled),
         notificationsSchedule: optional(input.notificationsSchedule),
         ignoreBotActivity: optional(input.ignoreBotActivity),
+        pullRequests: optional(input.pullRequests),
+        browser: optional(input.browser),
+        herdrAfter: optional(input.herdrAfter),
+        notesRemote: optional(input.notesRemote),
+        agentLint: optional(input.agentLint),
+        opencodeMcp: optional(input.opencodeMcp),
+        releaseTemplate: optional(input.releaseTemplate),
+        releaseBranch: optional(input.releaseBranch),
         noninteractive: input.noninteractive,
         commit: input.commit,
       }),
@@ -1985,7 +2025,7 @@ const repoInductCommand = describe(
   ],
   {
     description:
-      "The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git-commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use agent-oxlint --opt-in to enable their agent pass.",
+      "The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity, including an optional release watching template from its release_templates. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git-commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use agent-oxlint --opt-in to enable their agent pass.",
   },
 );
 

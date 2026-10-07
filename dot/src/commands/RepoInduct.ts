@@ -7,8 +7,10 @@ import { OutputLog } from "../services/OutputLog.js";
 import {
   normalizeGitHubSlug,
   parseDotGitConfigText,
+  type AgentLintSettings,
   type GitManagedRepo,
 } from "../services/GitConfig.js";
+import { ReleaseSettings } from "../git/release/types.js";
 import {
   appendGitRepository,
   commitGitRepoConfigEdit,
@@ -29,6 +31,11 @@ const Preset = Schema.Struct({
   name_prefix: Schema.optionalKey(Schema.String),
   post_update: Schema.NullOr(Schema.String),
   agent_oxlint: Schema.Boolean,
+  agent_lint: Schema.optionalKey(Schema.NullOr(Schema.String)),
+  browser: Schema.optionalKey(Schema.NullOr(Schema.String)),
+  opencode_mcp: Schema.optionalKey(Schema.Array(Schema.String)),
+  pull_requests: Schema.optionalKey(Schema.Boolean),
+  release_template: Schema.optionalKey(Schema.NullOr(Schema.String)),
   activity: ScheduledCheck,
   notifications: Schema.Struct({
     enabled: Schema.Boolean,
@@ -37,7 +44,18 @@ const Preset = Schema.Struct({
   }),
 });
 
-const Presets = Schema.Struct({ normal: Preset, "home-assistant": Preset });
+const ReleaseTemplate = Schema.Struct({
+  ...ReleaseSettings.fields,
+  branch: Schema.optionalKey(Schema.String),
+});
+
+const Presets = Schema.Struct({
+  normal: Preset,
+  "home-assistant": Preset,
+  release_templates: Schema.optionalKey(
+    Schema.Record(Schema.String, ReleaseTemplate),
+  ),
+});
 
 /** Terminal questionnaire defaults and non-interactive repository overrides. */
 export interface RepoInductOptions {
@@ -65,6 +83,22 @@ export interface RepoInductOptions {
   readonly notificationsSchedule?: string;
   /** Filter bot-only notification activity. */
   readonly ignoreBotActivity?: boolean;
+  /** Show open pull requests in the Git panel. */
+  readonly pullRequests?: boolean;
+  /** Named browser for web actions; an empty string means the desktop default. */
+  readonly browser?: string;
+  /** Herdr workspace this repository opens after; an empty string means none. */
+  readonly herdrAfter?: string;
+  /** Git remote used by notes; an empty string means none. */
+  readonly notesRemote?: string;
+  /** Agent lint command split on whitespace; an empty string means none. */
+  readonly agentLint?: string;
+  /** Space- or comma-separated OpenCode MCP servers; an empty string means none. */
+  readonly opencodeMcp?: string;
+  /** Private release template name, or `none`. */
+  readonly releaseTemplate?: string;
+  /** Branch compared with the published release; defaults to the template's, then origin's default branch. */
+  readonly releaseBranch?: string;
   /** Use defaults and flags without terminal prompts; preview unless commit is set. */
   readonly noninteractive?: boolean;
   /** Commit the previewed entry in non-interactive mode. */
@@ -109,6 +143,8 @@ function askText(message: string, value: string, required = true) {
 function askBoolean(message: string, initial: boolean) {
   return Prompt.run(Prompt.Confirm({ message, initial }));
 }
+
+const splitList = (value: string) => value.split(/[\s,]+/).filter(Boolean);
 
 /** Collect, preview and optionally commit a new entry; return null on preview or cancellation. */
 export const inductRepository = Effect.fn("repoInduct.run")(
@@ -189,23 +225,99 @@ export const inductRepository = Effect.fn("repoInduct.run")(
       });
     }
 
+    const gitLine = (args: readonly string[]) =>
+      executor.run("git", args, { cwd: root }).pipe(
+        Effect.map((output) => output.trim()),
+        Effect.orElseSucceed(() => ""),
+      );
+
     const remote =
-      options.github === undefined
-        ? yield* executor
-            .run("git", ["remote", "get-url", "origin"], { cwd: root })
-            .pipe(Effect.orElseSucceed(() => ""))
-        : options.github;
+      options.github ?? (yield* gitLine(["remote", "get-url", "origin"]));
+
+    const defaultBranch = (yield* gitLine([
+      "symbolic-ref",
+      "--short",
+      "refs/remotes/origin/HEAD",
+    ])).replace(/^origin\//, "");
+
+    const templates = presets.release_templates ?? {};
+    const templateNames = Object.keys(templates);
+
+    let releaseTemplate =
+      options.releaseTemplate === undefined
+        ? (preset.release_template ?? null)
+        : options.releaseTemplate === "none"
+          ? null
+          : options.releaseTemplate.trim() || null;
+
+    if (releaseTemplate !== null && !Object.hasOwn(templates, releaseTemplate))
+      return yield* new GitRepoConfigError({
+        message: `Unknown release template: ${releaseTemplate}. Choose ${["none", ...templateNames].join(", ")}`,
+      });
+
+    let releaseBranch = options.releaseBranch ?? "";
+
+    const templateBranch = (name: string) =>
+      releaseBranch || templates[name]?.branch || defaultBranch || "main";
+
+    const releasesFor = (name: string | null): ReleaseSettings | undefined => {
+      if (name === null) return undefined;
+
+      const {
+        branch: _branch,
+        enabled,
+        schedule,
+        ...template
+      } = templates[name];
+
+      return { enabled, schedule, branch: templateBranch(name), ...template };
+    };
+
+    const agentLintFor = (command: string): AgentLintSettings | undefined => {
+      const [first, ...rest] = command.trim().split(/\s+/).filter(Boolean);
+
+      return first
+        ? { commands: [{ name: "check", run: [first, ...rest] }] }
+        : undefined;
+    };
+
+    const optionalText = (value: string | undefined | null) =>
+      value?.trim() ? value.trim() : undefined;
+
+    const previousInPreset = preset.name_prefix
+      ? edit.config.repositories.findLast((repo) =>
+          repo.name.startsWith(preset.name_prefix ?? ""),
+        )?.name
+      : undefined;
+
+    const upstream = yield* gitLine(["remote", "get-url", "upstream"]);
 
     let answers: GitManagedRepo = {
       name: options.name ?? `${preset.name_prefix ?? ""}${basename(root)}`,
       path: root,
       github: normalizeGitHubSlug(remote.trim()) ?? "",
-      aliases: (options.aliases ?? "").split(/[\s,]+/).filter(Boolean),
+      aliases: splitList(options.aliases ?? ""),
+      herdrAfter: optionalText(options.herdrAfter ?? previousInPreset),
+      browser: optionalText(
+        options.browser === undefined ? preset.browser : options.browser,
+      ),
+      notesRemote: optionalText(
+        options.notesRemote ?? (upstream ? "upstream" : undefined),
+      ),
       postUpdate:
         options.postUpdate === undefined
           ? preset.post_update
           : options.postUpdate.trim() || null,
       agentOxlint: options.agentOxlint ?? preset.agent_oxlint,
+      agentLint: agentLintFor(options.agentLint ?? preset.agent_lint ?? ""),
+      opencodeMcp:
+        options.opencodeMcp === undefined
+          ? (preset.opencode_mcp ?? [])
+          : splitList(options.opencodeMcp),
+      pullRequests:
+        (options.pullRequests ?? preset.pull_requests ?? false)
+          ? { enabled: true }
+          : undefined,
       activity: {
         enabled: options.activityEnabled ?? preset.activity.enabled,
         schedule: options.activitySchedule ?? preset.activity.schedule,
@@ -220,57 +332,160 @@ export const inductRepository = Effect.fn("repoInduct.run")(
             preset.notifications.bar.ignore_bot_activity,
         },
       },
+      releases: releasesFor(releaseTemplate),
     };
+
+    const browserNames = Object.keys(edit.config.browsers);
 
     while (true) {
       if (!options.noninteractive) {
-        answers = {
-          name: yield* askText("Friendly name", answers.name),
-          path: root,
-          github: yield* askText("GitHub owner/repository", answers.github),
-          aliases: (yield* askText(
+        const name = yield* askText("Friendly name", answers.name);
+
+        const github = yield* askText(
+          "GitHub owner/repository",
+          answers.github,
+        );
+
+        const aliases = splitList(
+          yield* askText(
             "Aliases (spaces or commas, blank for none)",
             answers.aliases.join(" "),
             false,
-          ))
-            .split(/[\s,]+/)
-            .filter(Boolean),
-          postUpdate:
-            (yield* askText(
-              "Post-update command (blank for none)",
-              answers.postUpdate ?? "",
-              false,
-            )) || null,
-          agentOxlint: yield* askBoolean(
-            "Enable agent Oxlint?",
-            answers.agentOxlint,
           ),
-          activity: {
-            enabled: yield* askBoolean(
-              "Enable activity checks?",
-              answers.activity.enabled,
-            ),
-            schedule: yield* askText(
-              "Activity schedule (five-field cron or work)",
-              answers.activity.schedule,
+        );
+
+        const browser = browserNames.length
+          ? yield* Prompt.run(
+              Prompt.Select({
+                message: "Browser for web actions",
+                choices: [
+                  {
+                    title: "Desktop default",
+                    value: "",
+                    selected: !answers.browser,
+                  },
+                  ...browserNames.map((value) => ({
+                    title: value,
+                    value,
+                    selected: answers.browser === value,
+                  })),
+                ],
+              }),
+            )
+          : "";
+
+        const herdrAfter = yield* askText(
+          "Open Herdr workspace after (blank for none)",
+          answers.herdrAfter ?? "",
+          false,
+        );
+
+        const notesRemote = yield* askText(
+          "Notes remote (blank for none)",
+          answers.notesRemote ?? "",
+          false,
+        );
+
+        const postUpdate = yield* askText(
+          "Post-update command (blank for none)",
+          answers.postUpdate ?? "",
+          false,
+        );
+
+        const agentOxlint = yield* askBoolean(
+          "Enable agent Oxlint?",
+          answers.agentOxlint,
+        );
+
+        const agentLint = yield* askText(
+          "Agent lint command, such as mise run check (blank for none)",
+          answers.agentLint?.commands[0].run.join(" ") ?? "",
+          false,
+        );
+
+        const opencodeMcp = splitList(
+          yield* askText(
+            "OpenCode MCP servers (spaces or commas, blank for none)",
+            (answers.opencodeMcp ?? []).join(" "),
+            false,
+          ),
+        );
+
+        const pullRequests = yield* askBoolean(
+          "Show open pull requests in the Git panel?",
+          answers.pullRequests?.enabled ?? false,
+        );
+
+        const activity = {
+          enabled: yield* askBoolean(
+            "Enable activity checks?",
+            answers.activity.enabled,
+          ),
+          schedule: yield* askText(
+            "Activity schedule (five-field cron or work)",
+            answers.activity.schedule,
+          ),
+        };
+
+        const notifications = {
+          enabled: yield* askBoolean(
+            "Enable notifications?",
+            answers.notifications.enabled,
+          ),
+          schedule: yield* askText(
+            "Notification schedule (five-field cron or work)",
+            answers.notifications.schedule,
+          ),
+          bar: {
+            ignoreBotActivity: yield* askBoolean(
+              "Ignore bot-only activity?",
+              answers.notifications.bar.ignoreBotActivity,
             ),
           },
-          notifications: {
-            enabled: yield* askBoolean(
-              "Enable notifications?",
-              answers.notifications.enabled,
-            ),
-            schedule: yield* askText(
-              "Notification schedule (five-field cron or work)",
-              answers.notifications.schedule,
-            ),
-            bar: {
-              ignoreBotActivity: yield* askBoolean(
-                "Ignore bot-only activity?",
-                answers.notifications.bar.ignoreBotActivity,
-              ),
-            },
-          },
+        };
+
+        if (templateNames.length) {
+          releaseTemplate = yield* Prompt.run(
+            Prompt.Select<string | null>({
+              message: "Release watching template",
+              choices: [
+                {
+                  title: "None",
+                  value: null,
+                  selected: releaseTemplate === null,
+                },
+                ...templateNames.map((value) => ({
+                  title: value,
+                  value,
+                  selected: releaseTemplate === value,
+                })),
+              ],
+            }),
+          );
+        }
+
+        if (releaseTemplate !== null)
+          releaseBranch = yield* askText(
+            "Release branch",
+            templateBranch(releaseTemplate),
+          );
+
+        answers = {
+          name,
+          path: root,
+          github,
+          aliases,
+          herdrAfter: optionalText(herdrAfter),
+          browser: optionalText(browser),
+          notesRemote: optionalText(notesRemote),
+          postUpdate: postUpdate || null,
+          agentOxlint,
+          agentLint: agentLintFor(agentLint),
+          opencodeMcp,
+          pullRequests: pullRequests ? { enabled: true } : undefined,
+          activity,
+          notifications,
+          releases: releasesFor(releaseTemplate),
         };
       }
 
