@@ -5,11 +5,18 @@ export default defineConfig({
   title: 'Dotfiles',
   description: 'An agent-driven Omarchy setup for development, desktop, and automation.',
   logo: {
-    image: '/favicon.svg',
+    image: {
+      alt: 'Dotfiles',
+      dark: '/logo-dark.svg',
+      light: '/logo-light.svg',
+    },
     text: 'Dotfiles',
   },
   content: {
     root: 'src/content/docs',
+  },
+  markdown: {
+    externalLinks: true,
   },
   github: {
     owner: 'timmo001',
@@ -129,6 +136,10 @@ export default defineConfig({
       enabled: true,
       logo: 'src/assets/logo.svg',
       site: 'dotfiles.timmo.dev',
+    },
+    organization: {
+      logo: '/logo.png',
+      sameAs: ['https://github.com/timmo001/dotfiles'],
     },
   },
 });

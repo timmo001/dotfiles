@@ -50,6 +50,18 @@ const GENERATED_ARTIFACTS = [
     path: "docs/public/og.png",
     command: "mise run docs:og",
   },
+  {
+    path: "docs/public/logo.png",
+    command: "mise run docs:og",
+  },
+  {
+    path: "docs/public/apple-touch-icon.png",
+    command: "mise run docs:og",
+  },
+  {
+    path: ".github/social-preview.png",
+    command: "mise run docs:og",
+  },
 ] satisfies readonly GeneratedArtifact[];
 
 const PATCH_PATH_PATTERN = /^\*\*\* (?:Add|Delete|Update) File: (.+)$/gm;
