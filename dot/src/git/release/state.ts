@@ -3,30 +3,40 @@ import { join } from "node:path";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { acquireFileLock } from "../../lib/fileLock.js";
 import { Effect, FileSystem, Schema } from "effect";
-import { CACHE_DIR, STATE_DIR } from "../../lib/paths.js";
+import { CACHE_DIR, DATA_DIR, STATE_DIR } from "../../lib/paths.js";
 import { formatCause } from "../../lib/schema.js";
 import { evidenceId } from "./changes.js";
 import { highestImpact } from "./policy.js";
 import {
   ReleaseCache,
+  ReleaseDecisions,
+  ReleaseDelivery,
   ReleaseError,
-  ReleaseReviewState,
   type Impact,
+  type ReleaseReviewState,
   type ReleaseSettings,
   type ReleaseSnapshot,
 } from "./types.js";
 
-/** Repository-specific storage roots; private values never enter public policy. */
+/**
+ * Repository-specific storage roots; private values never enter public policy.
+ *
+ * Decisions live under the data root so the `git-releases` directory there can
+ * be synced between machines. The cache, lock, delivery state and publish
+ * artefacts stay local.
+ */
 export function releasePaths(
   repo: string,
   cacheRoot = CACHE_DIR,
   stateRoot = STATE_DIR,
+  dataRoot = DATA_DIR,
 ) {
   const key = evidenceId(repo.toLowerCase());
 
   return {
     cache: join(cacheRoot, "dot", "git-releases", key),
     state: join(stateRoot, "dot", "git-releases", key),
+    data: join(dataRoot, "dot", "git-releases", key),
   };
 }
 
@@ -140,19 +150,26 @@ function releaseReviewEvidence(snapshot: ReleaseSnapshot): string {
   ]);
 }
 
+/** Delivery state, still accepting decisions written before they moved out. */
+const LegacyReleaseDelivery = Schema.Struct({
+  ...ReleaseDelivery.fields,
+  findings: Schema.optional(ReleaseDecisions.fields.findings),
+  overall: Schema.optional(ReleaseDecisions.fields.overall),
+});
+
+const DECISIONS_FILE = "decisions.json";
+
+const DELIVERY_FILE = "review.json";
+
 /** Read validated cache and state while holding the repository lock. */
 export const readReleaseState = Effect.fn("releases.readState")(function* (
   paths: ReturnType<typeof releasePaths>,
 ) {
   const fs = yield* FileSystem.FileSystem;
 
-  const load = <A, I>(
-    file: string,
-    schema: Schema.Codec<A, I>,
-    empty: () => A,
-  ) =>
+  const load = <A, I>(file: string, schema: Schema.Codec<A, I>) =>
     Effect.gen(function* () {
-      if (!(yield* fs.exists(file))) return empty();
+      if (!(yield* fs.exists(file))) return undefined;
 
       const text = yield* fs.readFileString(file);
 
@@ -160,17 +177,32 @@ export const readReleaseState = Effect.fn("releases.readState")(function* (
     });
 
   return yield* Effect.gen(function* () {
-    const cache = yield* load(
-      join(paths.cache, "snapshot.json"),
-      ReleaseCache,
-      emptyReleaseCache,
+    const cache =
+      (yield* load(join(paths.cache, "snapshot.json"), ReleaseCache)) ??
+      emptyReleaseCache();
+
+    const delivery = yield* load(
+      join(paths.state, DELIVERY_FILE),
+      LegacyReleaseDelivery,
     );
 
-    const review = yield* load(
-      join(paths.state, "review.json"),
-      ReleaseReviewState,
-      emptyReleaseReview,
+    const decisions = yield* load(
+      join(paths.data, DECISIONS_FILE),
+      ReleaseDecisions,
     );
+
+    const empty = emptyReleaseReview();
+
+    const review: ReleaseReviewState = {
+      pending: delivery?.pending ?? empty.pending,
+      delivered: delivery?.delivered ?? empty.delivered,
+      deliveredAt: delivery?.deliveredAt ?? empty.deliveredAt,
+      deliveryError: delivery?.deliveryError ?? null,
+      findings: decisions?.findings ?? delivery?.findings ?? empty.findings,
+      overall: decisions
+        ? decisions.overall
+        : (delivery?.overall ?? empty.overall),
+    };
 
     return { cache, review };
   }).pipe(
@@ -188,17 +220,20 @@ export const saveReleaseDocument = Effect.fn("releases.saveDocument")(
   function* (
     directory: string,
     name: string,
-    value: ReleaseCache | ReleaseReviewState,
+    value:
+      ReleaseCache | ReleaseReviewState | ReleaseDecisions | ReleaseDelivery,
   ) {
     const fs = yield* FileSystem.FileSystem;
+    const file = join(directory, name);
+    const text = JSON.stringify(value);
 
     yield* Effect.gen(function* () {
+      // Unchanged files are left alone so a sync tool sees no new version.
+      if ((yield* fs.exists(file)) && (yield* fs.readFileString(file)) === text)
+        return;
+
       yield* fs.makeDirectory(directory, { recursive: true, mode: 0o700 });
-      yield* Effect.try(() =>
-        writeFileAtomic(join(directory, name), JSON.stringify(value), {
-          mode: 0o600,
-        }),
-      );
+      yield* Effect.try(() => writeFileAtomic(file, text, { mode: 0o600 }));
     }).pipe(
       Effect.mapError(
         (error) =>
@@ -209,6 +244,25 @@ export const saveReleaseDocument = Effect.fn("releases.saveDocument")(
     );
   },
 );
+
+/** Save shareable decisions and local delivery state to their own files. */
+export const saveReleaseReview = Effect.fn("releases.saveReview")(function* (
+  paths: ReturnType<typeof releasePaths>,
+  review: ReleaseReviewState,
+) {
+  yield* saveReleaseDocument(paths.data, DECISIONS_FILE, {
+    findings: Object.fromEntries(
+      Object.entries(review.findings).sort(([a], [b]) => a.localeCompare(b)),
+    ),
+    overall: review.overall,
+  });
+  yield* saveReleaseDocument(paths.state, DELIVERY_FILE, {
+    pending: review.pending,
+    delivered: review.delivered,
+    deliveredAt: review.deliveredAt,
+    deliveryError: review.deliveryError ?? null,
+  });
+});
 
 /** Serialise scans and reviews with a kernel lock released even after a crash. */
 export function withReleaseLock<A, E, R>(

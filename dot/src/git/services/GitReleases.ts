@@ -42,6 +42,7 @@ import {
   releasePaths,
   reviewRelease,
   saveReleaseDocument,
+  saveReleaseReview,
   withReleaseLock,
 } from "../release/state.js";
 import {
@@ -600,6 +601,8 @@ export class GitReleases extends Context.Service<
               );
 
               if (Result.isSuccess(result)) {
+                // Decisions may have synced in from another machine during the scan.
+                ({ review } = yield* readReleaseState(paths));
                 ({ cache, review } = acceptReleaseSnapshot(
                   cache,
                   review,
@@ -637,7 +640,7 @@ export class GitReleases extends Context.Service<
                   now,
                 ).stale,
               ).pipe(Effect.provideService(CommandExecutor, executor));
-            yield* saveReleaseDocument(paths.state, "review.json", review);
+            yield* saveReleaseReview(paths, review);
             yield* saveReleaseDocument(paths.cache, "snapshot.json", cache);
 
             return entry(
@@ -799,7 +802,7 @@ export class GitReleases extends Context.Service<
                 false,
               );
               // Reviews are authoritative; a scan cache never overwrites them.
-              yield* saveReleaseDocument(paths.state, "review.json", updated);
+              yield* saveReleaseReview(paths, updated);
 
               return entry(
                 repo,

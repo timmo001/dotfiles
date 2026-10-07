@@ -8,7 +8,7 @@ import { appendGitRepository } from "../../dot/src/lib/gitRepoConfig.js";
 import { parseDotGitConfigText, type GitManagedRepo } from "../../dot/src/services/GitConfig.js";
 import { bunLockChanges, collectReleaseChanges, goModuleChanges, manifestChanges, releaseFact } from "../../dot/src/git/release/changes.js";
 import { classifyReleaseFacts, highestImpact } from "../../dot/src/git/release/policy.js";
-import { acceptReleaseSnapshot, applyReleaseReview, assertReleaseSelection, emptyReleaseCache, emptyReleaseReview, readReleaseState, releaseNotificationState, releasePaths, reviewRelease, saveReleaseDocument, withReleaseLock } from "../../dot/src/git/release/state.js";
+import { acceptReleaseSnapshot, applyReleaseReview, assertReleaseSelection, emptyReleaseCache, emptyReleaseReview, readReleaseState, releaseNotificationState, releasePaths, reviewRelease, saveReleaseDocument, saveReleaseReview, withReleaseLock } from "../../dot/src/git/release/state.js";
 import { CommandError, CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
 import { deliverReleaseNotification } from "../../dot/src/git/services/GitReleases.js";
 import { GitHub } from "../../dot/src/git/services/GitHub.js";
@@ -418,7 +418,7 @@ test("release query exposes the authoritative CalVer proposal and review can cle
         monotonicTimeNanos: clock.monotonicTimeNanos, monotonicTimeNanosUnsafe: clock.monotonicTimeNanosUnsafe.bind(clock),
       }))));
       console.log(tag);
-    `], { env: { ...process.env, XDG_STATE_HOME: join(history.root, "state"), XDG_CACHE_HOME: join(history.root, "cache") }, stdout: "pipe", stderr: "pipe" });
+    `], { env: { ...process.env, XDG_STATE_HOME: join(history.root, "state"), XDG_CACHE_HOME: join(history.root, "cache"), XDG_DATA_HOME: join(history.root, "data") }, stdout: "pipe", stderr: "pipe" });
 
     const [output, error, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
     expect(error).toBe("");
@@ -713,7 +713,7 @@ test("quiet head updates preserve overall review and delivery identity, changed 
 
 test("release locks recover when a process exits without running finalisers", async () => {
   const root = mkdtempSync(join(tmpdir(), "release-interrupted-"));
-  const paths = releasePaths("example/project", root, root);
+  const paths = releasePaths("example/project", root, root, root);
   const module = (path: string) => JSON.stringify(join(import.meta.dir, "../../dot", path));
 
   try {
@@ -732,7 +732,7 @@ test("release locks recover when a process exits without running finalisers", as
 
 test("atomic locked persistence retains a failed scan's snapshot and concurrent evidence-bound reviews", async () => {
   const root = mkdtempSync(join(tmpdir(), "release-contract-"));
-  const paths = releasePaths("example/project", root, root);
+  const paths = releasePaths("example/project", root, root, root);
   const current = snapshot([file("src/first.ts"), file("src/second.ts")]);
 
   try {
@@ -744,12 +744,14 @@ test("atomic locked persistence retains a failed scan's snapshot and concurrent 
       expect(cache.snapshot?.id).toBe(current.id);
       expect(cache.error).toBe("Upstream unavailable");
       yield* Effect.sleep("10 millis");
-      yield* saveReleaseDocument(paths.state, "review.json", reviewRelease(current, review, finding.id, "none"));
+      yield* saveReleaseReview(paths, reviewRelease(current, review, finding.id, "none"));
     })))));
     const saved = await runP(withReleaseLock(paths, readReleaseState(paths)));
     expect(saved.review).not.toHaveProperty("acknowledged");
     expect(saved.review.delivered).toBe(current.notificationId);
     expect(Object.keys(saved.review.findings)).toHaveLength(2);
+    expect(Object.keys(JSON.parse(readFileSync(join(paths.data, "decisions.json"), "utf8")).findings)).toHaveLength(2);
+    expect(JSON.parse(readFileSync(join(paths.state, "review.json"), "utf8"))).not.toHaveProperty("findings");
     expect(saved.cache.snapshot?.id).toBe(current.id);
     expect(releaseNotificationState(current, saved.review, settings(), true).pending).toBeNull();
   } finally { rmSync(root, { recursive: true, force: true }); }
@@ -757,7 +759,7 @@ test("atomic locked persistence retains a failed scan's snapshot and concurrent 
 
 test("delivery retries failures, serialises success, and preserves pending evidence through cooldown without re-fetching", async () => {
   const root = mkdtempSync(join(tmpdir(), "release-delivery-"));
-  const paths = releasePaths("example/project", root, root);
+  const paths = releasePaths("example/project", root, root, root);
   const original = snapshot([file("src/rule.ts")]);
   let now = Date.parse("2026-09-10T12:00:00Z");
   let fail = true;
@@ -789,7 +791,7 @@ test("delivery retries failures, serialises success, and preserves pending evide
   const lockedDelivery = (current: ReleaseSnapshot) => runP(withReleaseLock(paths, Effect.gen(function* () {
     const { review } = yield* readReleaseState(paths);
     const next = yield* deliver(current, review);
-    yield* saveReleaseDocument(paths.state, "review.json", next);
+    yield* saveReleaseReview(paths, next);
 
     return next;
   })));

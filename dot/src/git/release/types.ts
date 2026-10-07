@@ -253,14 +253,21 @@ export const ReleaseSnapshot = Schema.Struct({
 /** Complete CLI review snapshot. */
 export type ReleaseSnapshot = typeof ReleaseSnapshot.Type;
 
-/** Local evidence-bound reviews and future notification delivery bookkeeping. */
-export const ReleaseReviewState = Schema.Struct({
+/** Evidence-bound review decisions, portable between machines. */
+export const ReleaseDecisions = Schema.Struct({
   /** Exact evidence IDs mapped to explicit impacts. */
   findings: Schema.Record(Schema.String, Impact),
   /** Overall decision bound to a release-relevant comparison. */
   overall: Schema.NullOr(
     Schema.Struct({ comparisonId: Schema.String, impact: Impact }),
   ),
+});
+
+/** Persisted shareable decisions. */
+export type ReleaseDecisions = typeof ReleaseDecisions.Type;
+
+/** Notification delivery bookkeeping owned by one machine. */
+export const ReleaseDelivery = Schema.Struct({
   /** Candidate awaiting explicit delivery, retained during cooldown. */
   pending: Schema.NullOr(Schema.String),
   /** Last successfully delivered candidate. */
@@ -271,7 +278,16 @@ export const ReleaseReviewState = Schema.Struct({
   deliveryError: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
-/** Persisted local decisions. */
+/** Persisted local delivery state. */
+export type ReleaseDelivery = typeof ReleaseDelivery.Type;
+
+/** Combined decisions and delivery state, stored in separate files. */
+export const ReleaseReviewState = Schema.Struct({
+  ...ReleaseDecisions.fields,
+  ...ReleaseDelivery.fields,
+});
+
+/** In-memory review state. */
 export type ReleaseReviewState = typeof ReleaseReviewState.Type;
 
 /** Cache envelope retains the last snapshot when a subsequent attempt fails. */
