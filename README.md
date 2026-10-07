@@ -1,4 +1,6 @@
-# 🧰 Dotfiles
+# Dotfiles
+
+![Dotfiles](.github/social-preview.png)
 
 Personal [Omarchy](https://omarchy.org) dotfiles, managed with [GNU Stow](https://www.gnu.org/software/stow/) and the `dot` command.
 
