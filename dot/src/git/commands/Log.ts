@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { Effect, FileSystem, Option, Result, Schema } from "effect";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
+import { readFileChanges } from "../../lib/updateSummary.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { managedGitRepos } from "../../services/GitConfig.js";
@@ -24,6 +25,10 @@ const LogEntry = Schema.Struct({
 });
 
 const LogState = Schema.Record(Schema.String, LogEntry);
+
+class GitLogError extends Schema.TaggedError<GitLogError>()("GitLogError", {
+  message: Schema.String,
+}) {}
 
 /** Recent commits for one managed repository. */
 export interface GitLogRepository {
@@ -190,10 +195,70 @@ export const gitLog = Effect.fn("gitLog.print")(function* (
         .join("\n\n") + "\n";
 
   // The CLI exits explicitly, so wait until the whole snapshot is flushed.
-  yield* Effect.promise(
+  yield* writeOutput(text);
+}, handleCommandError("dot git-log"));
+
+/** Most patch lines returned in a commit's diff preview. */
+const PREVIEW_LINES = 120;
+
+/** Widest patch line kept in a commit's diff preview. */
+const PREVIEW_LINE_WIDTH = 240;
+
+const writeOutput = (text: string) =>
+  Effect.promise(
     () =>
       new Promise<void>((resolve) =>
         process.stdout.write(text, () => resolve()),
       ),
   );
-}, handleCommandError("dot git-log"));
+
+/**
+ * Print one commit's changed files and a diff preview as JSON for the Git
+ * panel. Merge commits are compared with their first parent.
+ */
+export const gitLogShow = Effect.fn("gitLog.show")(function* (
+  path: string,
+  sha: string,
+) {
+  const config = yield* Config;
+  const executor = yield* CommandExecutor;
+
+  if (!/^[0-9a-f]{7,64}$/.test(sha))
+    return yield* new GitLogError({ message: `Invalid commit: ${sha}` });
+
+  if (!managedGitRepos(config.gitConfig).some((repo) => repo.path === path))
+    return yield* new GitLogError({
+      message: `Not a managed repository: ${path}`,
+    });
+
+  const show = ["show", "--format=", "--diff-merges=first-parent"];
+  const files = yield* readFileChanges(path, show, [sha]);
+
+  const patch = (yield* executor.run(
+    "git",
+    [...show, "--patch", "--no-color", "--no-renames", sha],
+    { cwd: path },
+  ))
+    .replace(/\n$/, "")
+    .split("\n");
+
+  const preview = patch
+    .slice(0, PREVIEW_LINES)
+    .map((line) =>
+      line.length > PREVIEW_LINE_WIDTH
+        ? `${line.slice(0, PREVIEW_LINE_WIDTH)}…`
+        : line,
+    )
+    .join("\n");
+
+  yield* writeOutput(
+    JSON.stringify({
+      sha,
+      files,
+      added: files.reduce((sum, file) => sum + (file.added ?? 0), 0),
+      deleted: files.reduce((sum, file) => sum + (file.deleted ?? 0), 0),
+      preview,
+      truncated: patch.length > PREVIEW_LINES,
+    }) + "\n",
+  );
+}, handleCommandError("dot git-log show"));

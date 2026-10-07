@@ -104,8 +104,11 @@ interface Commit {
   readonly subject: string;
 }
 
-interface FileChange {
+/** One changed file with its status letter and line counts. */
+export interface FileChange {
+  /** `git --name-status` letter, such as `A`, `M` or `D`. */
   readonly status: string;
+  /** Repository-relative path. */
   readonly path: string;
   /** Added lines, or null for binary files. */
   readonly added: number | null;
@@ -125,6 +128,45 @@ const lines = (output: string): string[] =>
 
 const parseCount = (value: string | undefined): number | null =>
   value === undefined || value === "-" ? null : Number(value);
+
+/**
+ * Read changed files with their status and line counts. `command` is the git
+ * subcommand and its options (such as `["diff"]` or `["show", "--format="]`),
+ * and `revisions` the revisions to compare.
+ */
+export const readFileChanges = (
+  cwd: string,
+  command: readonly string[],
+  revisions: readonly string[],
+) =>
+  Effect.gen(function* () {
+    const git = (format: string) =>
+      gitOutput([...command, format, "--no-renames", ...revisions], { cwd });
+
+    const counts = new Map(
+      lines(yield* git("--numstat")).map((line) => {
+        const [added, deleted, ...path] = line.split("\t");
+
+        return [
+          path.join("\t"),
+          { added: parseCount(added), deleted: parseCount(deleted) },
+        ] as const;
+      }),
+    );
+
+    return lines(yield* git("--name-status")).map((line): FileChange => {
+      const [status = "?", ...rest] = line.split("\t");
+      const path = rest.join("\t");
+      const count = counts.get(path);
+
+      return {
+        status,
+        path,
+        added: count?.added ?? null,
+        deleted: count?.deleted ?? null,
+      };
+    });
+  });
 
 const readChanges = (repo: UpdatedRepo) =>
   Effect.gen(function* () {
@@ -150,33 +192,11 @@ const readChanges = (repo: UpdatedRepo) =>
       return { sha, subject: subject.join("\t") };
     });
 
-    const counts = new Map(
-      lines(
-        yield* git(["diff", "--numstat", "--no-renames", repo.from, repo.to]),
-      ).map((line) => {
-        const [added, deleted, ...path] = line.split("\t");
-
-        return [
-          path.join("\t"),
-          { added: parseCount(added), deleted: parseCount(deleted) },
-        ] as const;
-      }),
+    const files = yield* readFileChanges(
+      repo.path,
+      ["diff"],
+      [repo.from, repo.to],
     );
-
-    const files = lines(
-      yield* git(["diff", "--name-status", "--no-renames", repo.from, repo.to]),
-    ).map((line): FileChange => {
-      const [status = "?", ...rest] = line.split("\t");
-      const path = rest.join("\t");
-      const count = counts.get(path);
-
-      return {
-        status,
-        path,
-        added: count?.added ?? null,
-        deleted: count?.deleted ?? null,
-      };
-    });
 
     return { from, to, commits, files } satisfies RepoChanges;
   });

@@ -1059,7 +1059,7 @@ dot git-diff --panel-json
 Show recent commits across managed repositories
 
 ```text
-dot git-log [flags]
+dot git-log <subcommand> [flags]
 ```
 
 Lists the latest commits on each managed checkout's branch, including fetched upstream commits that are not pulled yet. Results are cached per repository and only re-read when HEAD or the upstream ref moves; --refresh re-reads everything.
@@ -1077,7 +1077,24 @@ Lists the latest commits on each managed checkout's branch, including fetched up
 ```bash
 dot git-log
 dot git-log --panel-json
+dot git-log show --path ~/repos/example --sha abc1234
 ```
+
+### `dot git-log show`
+
+Return one commit's changed files and a diff preview as JSON for the Git panel
+
+```text
+dot git-log show [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--path` `<string>` | Managed repository checkout path |
+| `--sha` `<string>` | Full or abbreviated commit SHA |
+| `--help` `-h` | Show help information |
 
 ## `dot git-web`
 
