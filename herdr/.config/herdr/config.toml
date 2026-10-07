@@ -62,6 +62,62 @@ type = "plugin_action"
 command = "dotfiles.plannotator.last"
 description = "annotate the last response with Plannotator"
 
+# Herdr Annotate (plannotator-tui). Upstream defaults for copy-context and
+# manage clash with prefix+shift+a and zoom, so those two are moved.
+[[keys.command]]
+key = "prefix+a"
+type = "plugin_action"
+command = "annotate.capture"
+description = "annotate text with Plannotator"
+
+[[keys.command]]
+key = "prefix+alt+a"
+type = "plugin_action"
+command = "annotate.copy-context"
+description = "copy Plannotator annotations as context"
+
+[[keys.command]]
+key = "prefix+ctrl+a"
+type = "plugin_action"
+command = "annotate.copy-archive"
+description = "copy Plannotator annotations as context and archive them"
+
+[[keys.command]]
+key = "prefix+ctrl+v"
+type = "plugin_action"
+command = "annotate.paste-archive"
+description = "paste Plannotator annotations into the agent's prompt and archive them"
+
+[[keys.command]]
+key = "prefix+ctrl+s"
+type = "plugin_action"
+command = "annotate.send-archive"
+description = "send Plannotator annotations to the agent and archive them"
+
+[[keys.command]]
+key = "prefix+shift+n"
+type = "plugin_action"
+command = "annotate.manage"
+description = "manage Plannotator annotations"
+
+[[keys.command]]
+key = "prefix+o"
+type = "plugin_action"
+command = "annotate.open"
+description = "review documents in this folder with Plannotator TUI"
+
+[[keys.command]]
+key = "prefix+shift+o"
+type = "plugin_action"
+command = "annotate.last"
+description = "review the agent's last reply with Plannotator TUI"
+
+[[keys.command]]
+key = "prefix+ctrl+o"
+type = "plugin_action"
+command = "annotate.last-newest"
+description = "review the agent's newest reply with Plannotator TUI"
+
 [[keys.command]]
 key = "prefix+y"
 type = "plugin_action"
