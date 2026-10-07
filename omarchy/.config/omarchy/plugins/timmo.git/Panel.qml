@@ -68,8 +68,48 @@ Panel {
   readonly property var contextRows: filterRows("context-action")
   property string contextCursorKey: ""
   property var selectedCommit: null
-  readonly property var selectedCommitDetail: service && selectedCommit ? service.commitDetail(selectedCommit.repo, selectedCommit.commit) : null
-  onSelectedCommitChanged: if (service && selectedCommit) service.loadCommitDetail(selectedCommit.repo, selectedCommit.commit)
+  // Files changed and diff previews: the open commit, or a repository's uncommitted and unpushed changes.
+  readonly property var changeSections: {
+    if (!opened) return []
+    if (view === "commit" && selectedCommit)
+      return [{ path: String(selectedCommit.repo.path || ""), target: selectedCommit.commit.sha, title: "Files changed", diffTitle: "Diff preview" }]
+    return view === "repo" ? localChangeSections(selectedRepo) : []
+  }
+  // The detected workspace repository's local changes, shown under its overview heading.
+  readonly property var contextChangeSections: {
+    if (!opened || view !== "overview" || !service || !workspaceContext || !workspaceContext.repository) return []
+    var path = workspaceContext.repository.path
+    return localChangeSections(service.changedRepos.concat(service.otherRepos).find(function(repo) { return repo.path === path }) || null)
+  }
+  // Local changes move, so reload them whenever the sections or repository state are recomputed.
+  onChangeSectionsChanged: loadChangeSections(changeSections)
+  onContextChangeSectionsChanged: loadChangeSections(contextChangeSections)
+
+  function localChangeSections(repo) {
+    if (!repo || repo.statusKnown === false) return []
+    var sections = []
+    if (Number(repo.modified || 0) > 0)
+      sections.push({ path: String(repo.path || ""), target: "uncommitted", title: "Uncommitted changes", diffTitle: "Uncommitted diff" })
+    if (Number(repo.ahead || 0) > 0)
+      sections.push({ path: String(repo.path || ""), target: "unpushed", title: "Unpushed changes", diffTitle: "Unpushed diff" })
+    return sections
+  }
+
+  function loadChangeSections(sections) {
+    if (service) sections.forEach(function(section) { service.loadChanges(section.path, section.target, section.target === "uncommitted" || section.target === "unpushed") })
+  }
+
+  // Long file lists and diff previews collapse to these heights until expanded.
+  readonly property real filesCollapsedHeight: Style.space(160)
+  readonly property real diffCollapsedHeight: Style.space(240)
+  property var expandedSections: ({})
+
+  function toggleExpanded(key) {
+    var next = Object.assign({}, expandedSections)
+    if (next[key]) delete next[key]
+    else next[key] = true
+    expandedSections = next
+  }
   property string selectedCommitAgentTask: "guide"
   readonly property int overviewCommitLimit: 20
   readonly property int repoCommitLimit: 40
@@ -361,24 +401,29 @@ Panel {
     return "<div style=\"white-space:pre-wrap\">" + lines.join("<br>") + "</div>"
   }
 
-  // Mirrors the Files changed list in dot update's summary.
-  function commitFilesText(detail) {
-    if (!detail) return escapeHtml(service && service.commitDetailError ? service.commitDetailError : "Loading changed files…")
+  // Summary line for a Files changed list, mirroring dot update's summary. label prefixes it when the section has no heading.
+  function changeFilesText(detail, error, label) {
+    var prefix = label ? "<b>" + escapeHtml(label) + "</b> · " : ""
+    if (!detail) return prefix + escapeHtml(error || "Loading changed files…")
     var files = detail.files
-    if (!files.length) return escapeHtml("No file changes")
-    var lines = [files.length + " file" + (files.length === 1 ? "" : "s") + " changed · " + colourSpan(successColor, "+" + detail.added) + " " + colourSpan(urgentColor, "-" + detail.deleted)]
-    files.slice(0, 50).forEach(function(file) {
-      var status = String(file.status).charAt(0)
-      var colour = status === "A" ? successColor : (status === "D" ? urgentColor : (status === "M" ? warningColor : hunkColor))
-      var counts = file.added === null || file.deleted === null ? colourSpan(dimColor, "binary")
-        : [file.added > 0 ? colourSpan(successColor, "+" + file.added) : "", file.deleted > 0 ? colourSpan(urgentColor, "-" + file.deleted) : ""].filter(Boolean).join(" ")
-      lines.push(colourSpan(colour, status) + "  " + escapeHtml(file.path) + "  " + counts)
-    })
-    if (files.length > 50) lines.push(colourSpan(dimColor, "…and " + (files.length - 50) + " more"))
-    return preformatted(lines)
+    if (!files.length) return prefix + escapeHtml("No file changes")
+    var lines = [prefix + files.length + " file" + (files.length === 1 ? "" : "s") + " changed · " + colourSpan(successColor, "+" + detail.added) + " " + colourSpan(urgentColor, "-" + detail.deleted)]
+    if (error) lines.push(colourSpan(urgentColor, error))
+    return lines.join("<br>")
   }
 
-  function commitDiffText(detail) {
+  function fileStatusColour(file) {
+    var status = String(file.status).charAt(0)
+    return status === "A" || status === "?" ? successColor : (status === "D" ? urgentColor : (status === "M" ? warningColor : hunkColor))
+  }
+
+  function fileCountsText(file) {
+    if (String(file.status).charAt(0) === "?") return colourSpan(dimColor, "untracked")
+    if (file.added === null || file.deleted === null) return colourSpan(dimColor, "binary")
+    return [file.added > 0 ? colourSpan(successColor, "+" + file.added) : "", file.deleted > 0 ? colourSpan(urgentColor, "-" + file.deleted) : ""].filter(Boolean).join(" ")
+  }
+
+  function changeDiffText(detail) {
     if (!detail || !detail.preview) return ""
     var lines = String(detail.preview).split("\n").map(function(line) {
       if (line.indexOf("diff --git ") === 0) return "<b>" + escapeHtml(line) + "</b>"
@@ -388,7 +433,7 @@ Panel {
       if (line.charAt(0) === "-") return colourSpan(urgentColor, line)
       return escapeHtml(line)
     })
-    if (detail.truncated) lines.push(colourSpan(dimColor, "…preview truncated; open in diff viewer for the whole commit"))
+    if (detail.truncated) lines.push(colourSpan(dimColor, "…preview truncated; open in diff viewer for the rest"))
     return preformatted(lines)
   }
 
@@ -950,6 +995,17 @@ Panel {
             }
           }
 
+          Text {
+            visible: root.view === "commit" && root.selectedCommit !== null
+            width: parent.width
+            text: root.selectedCommit ? [root.selectedCommit.commit.subject, root.selectedCommit.commit.sha, root.selectedCommit.commit.author + " · " + root.relativeTime(root.selectedCommit.commit.date) + (root.selectedCommit.commit.incoming ? " · not pulled yet" : "")].join("\n") : ""
+            textFormat: Text.PlainText
+            wrapMode: Text.WrapAnywhere
+            color: root.contentForeground
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.caption
+          }
+
           SectionHeading {
             id: contextHeading
             visible: root.contextRows.length > 0 || filterController.indexForKey("action:context-refresh") >= 0
@@ -961,6 +1017,103 @@ Panel {
             hasCursor: root.cursorKey === "action:context-refresh"
             onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:context-refresh")
             onRefreshRequested: root.activateAction("context-refresh")
+          }
+
+          // Only one of these is non-empty, as they belong to different views.
+          Repeater {
+            model: root.changeSections.concat(root.contextChangeSections)
+            Column {
+              id: filesSection
+              required property var modelData
+              readonly property string expandKey: "files:" + modelData.path + "@" + modelData.target
+              readonly property bool expanded: !!root.expandedSections[expandKey]
+              readonly property var detail: root.service ? root.service.changeDetail(modelData.path, modelData.target) : null
+              readonly property string error: root.service ? root.service.changeDetailError(modelData.path, modelData.target) : ""
+              readonly property bool overflowing: filesContent.implicitHeight > root.filesCollapsedHeight
+              width: contentColumn.width
+              spacing: contentColumn.spacing
+              SectionHeading {
+                visible: root.view !== "overview"
+                title: modelData.title
+                foreground: root.contentForeground
+                fontFamily: root.contentFontFamily
+              }
+              Item {
+                x: Style.space(16)
+                width: parent.width - Style.space(32)
+                height: filesSection.overflowing && !filesSection.expanded ? root.filesCollapsedHeight : filesContent.implicitHeight
+                clip: true
+                Column {
+                  id: filesContent
+                  width: parent.width
+                  Text {
+                    width: parent.width
+                    text: root.changeFilesText(filesSection.detail, filesSection.error, root.view === "overview" ? filesSection.modelData.title : "")
+                    textFormat: Text.RichText
+                    wrapMode: Text.Wrap
+                    color: root.contentForeground
+                    font.family: root.contentFontFamily
+                    font.pixelSize: Style.font.caption
+                  }
+                  Repeater {
+                    model: filesSection.detail ? filesSection.detail.files.slice(0, 50) : []
+                    Row {
+                      id: fileRow
+                      required property var modelData
+                      width: filesContent.width
+                      spacing: Style.space(8)
+                      Text {
+                        id: fileStatus
+                        text: String(fileRow.modelData.status).charAt(0)
+                        color: root.fileStatusColour(fileRow.modelData)
+                        font.family: root.contentFontFamily
+                        font.pixelSize: Style.font.caption
+                      }
+                      Text {
+                        width: Math.max(0, fileRow.width - fileStatus.implicitWidth - fileCounts.implicitWidth - fileRow.spacing * 2)
+                        text: fileRow.modelData.path
+                        textFormat: Text.PlainText
+                        elide: Text.ElideMiddle
+                        color: root.contentForeground
+                        font.family: root.contentFontFamily
+                        font.pixelSize: Style.font.caption
+                      }
+                      Text {
+                        id: fileCounts
+                        text: root.fileCountsText(fileRow.modelData)
+                        textFormat: Text.RichText
+                        color: root.contentForeground
+                        font.family: root.contentFontFamily
+                        font.pixelSize: Style.font.caption
+                      }
+                    }
+                  }
+                  Text {
+                    visible: !!filesSection.detail && filesSection.detail.files.length > 50
+                    text: filesSection.detail ? "…and " + (filesSection.detail.files.length - 50) + " more" : ""
+                    color: root.dimColor
+                    font.family: root.contentFontFamily
+                    font.pixelSize: Style.font.caption
+                  }
+                }
+              }
+              Text {
+                visible: filesSection.overflowing
+                x: Style.space(16)
+                text: filesSection.expanded ? "Show less" : "Show more"
+                color: root.dimColor
+                font.family: root.contentFontFamily
+                font.pixelSize: Style.font.caption
+                font.underline: filesToggle.containsMouse
+                MouseArea {
+                  id: filesToggle
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: root.toggleExpanded(filesSection.expandKey)
+                }
+              }
+            }
           }
 
           Column {
@@ -1028,35 +1181,6 @@ Panel {
             font.pixelSize: Style.font.caption
           }
 
-          Text {
-            visible: root.view === "commit" && root.selectedCommit !== null
-            width: parent.width
-            text: root.selectedCommit ? [root.selectedCommit.commit.subject, root.selectedCommit.commit.sha, root.selectedCommit.commit.author + " · " + root.relativeTime(root.selectedCommit.commit.date) + (root.selectedCommit.commit.incoming ? " · not pulled yet" : "")].join("\n") : ""
-            textFormat: Text.PlainText
-            wrapMode: Text.WrapAnywhere
-            color: root.contentForeground
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.caption
-          }
-
-          SectionHeading {
-            visible: root.view === "commit" && root.selectedCommit !== null
-            title: "Files changed"
-            foreground: root.contentForeground
-            fontFamily: root.contentFontFamily
-          }
-
-          Text {
-            visible: root.view === "commit" && root.selectedCommit !== null
-            width: parent.width
-            text: root.view === "commit" ? root.commitFilesText(root.selectedCommitDetail) : ""
-            textFormat: Text.RichText
-            wrapMode: Text.WrapAnywhere
-            color: root.contentForeground
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.caption
-          }
-
           SectionHeading {
             visible: root.view !== "overview" && root.filteredActions.length > 0
             title: "Actions"
@@ -1101,22 +1225,56 @@ Panel {
             }
           }
 
-          SectionHeading {
-            visible: root.view === "commit" && !!root.selectedCommitDetail && !!root.selectedCommitDetail.preview
-            title: "Diff preview"
-            foreground: root.contentForeground
-            fontFamily: root.contentFontFamily
-          }
-
-          Text {
-            visible: root.view === "commit" && !!root.selectedCommitDetail && !!root.selectedCommitDetail.preview
-            width: parent.width
-            text: root.view === "commit" ? root.commitDiffText(root.selectedCommitDetail) : ""
-            textFormat: Text.RichText
-            wrapMode: Text.WrapAnywhere
-            color: root.contentForeground
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.caption
+          Repeater {
+            model: root.changeSections
+            Column {
+              id: diffSection
+              required property var modelData
+              readonly property var detail: root.service ? root.service.changeDetail(modelData.path, modelData.target) : null
+              readonly property string expandKey: "diff:" + modelData.path + "@" + modelData.target
+              readonly property bool expanded: !!root.expandedSections[expandKey]
+              readonly property bool overflowing: diffText.implicitHeight > root.diffCollapsedHeight
+              visible: !!detail && !!detail.preview
+              width: contentColumn.width
+              spacing: contentColumn.spacing
+              SectionHeading {
+                title: modelData.diffTitle
+                foreground: root.contentForeground
+                fontFamily: root.contentFontFamily
+              }
+              Item {
+                x: Style.space(16)
+                width: parent.width - Style.space(32)
+                height: diffSection.overflowing && !diffSection.expanded ? root.diffCollapsedHeight : diffText.implicitHeight
+                clip: true
+                Text {
+                  id: diffText
+                  width: parent.width
+                  text: root.changeDiffText(diffSection.detail)
+                  textFormat: Text.RichText
+                  wrapMode: Text.WrapAnywhere
+                  color: root.contentForeground
+                  font.family: root.contentFontFamily
+                  font.pixelSize: Style.font.caption
+                }
+              }
+              Text {
+                visible: diffSection.overflowing
+                x: Style.space(16)
+                text: diffSection.expanded ? "Show less" : "Show more"
+                color: root.dimColor
+                font.family: root.contentFontFamily
+                font.pixelSize: Style.font.caption
+                font.underline: diffToggle.containsMouse
+                MouseArea {
+                  id: diffToggle
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: root.toggleExpanded(diffSection.expandKey)
+                }
+              }
+            }
           }
 
           Text {

@@ -105,11 +105,11 @@ Item {
   property var logRepositories: []
   property bool logLoaded: false
   property string logError: ""
-  // Changed files and a diff preview for the commit view, cached per commit.
-  property var commitDetails: ({})
-  property string commitDetailKey: ""
-  property string commitDetailError: ""
-  property var commitDetailQueue: null
+  // Changed files and diff previews for commits and local changes, keyed by path@target.
+  property var changeDetails: ({})
+  property var changeDetailErrors: ({})
+  property string changeDetailKey: ""
+  property var changeDetailQueue: []
   property string logRefreshPending: ""
   readonly property bool logBusy: logProcess.running
   readonly property var recentCommits: logRepositories.reduce(function(commits, repo) {
@@ -255,31 +255,53 @@ Item {
     return logRepositories.find(function(repo) { return repo.path === path }) || null
   }
 
-  function commitDetail(repo, commit) {
-    return repo && commit ? commitDetails[repo.path + "@" + commit.sha] || null : null
+  // target is a commit SHA, "uncommitted" or "unpushed".
+  function changeDetail(path, target) {
+    return path && target ? changeDetails[path + "@" + target] || null : null
   }
 
-  function loadCommitDetail(repo, commit) {
-    if (!repo || !commit || !repo.path || !/^[0-9a-f]{7,64}$/.test(String(commit.sha))) return
-    var key = repo.path + "@" + commit.sha
-    if (commitDetails[key] || commitDetailKey === key) return
-    if (commitDetailProcess.running) { commitDetailQueue = { repo: repo, commit: commit }; return }
-    commitDetailError = ""
-    commitDetailKey = key
-    commitDetailProcess.command = ["dot", "git-log", "show", "--path", String(repo.path), "--sha", String(commit.sha)]
-    commitDetailProcess.running = true
+  function changeDetailError(path, target) {
+    return path && target ? changeDetailErrors[path + "@" + target] || "" : ""
   }
 
-  function applyCommitDetail(raw) {
-    try {
-      var payload = JSON.parse(String(raw || "").trim())
-      if (!Array.isArray(payload.files)) throw new Error("Invalid commit response")
-      var next = Object.assign({}, commitDetails)
-      next[commitDetailKey] = payload
-      commitDetails = next
-    } catch (error) {
-      commitDetailError = "Invalid commit response"
+  // Commits never change, so they load once; local changes reload on request.
+  function loadChanges(path, target, reload) {
+    path = String(path || "")
+    target = String(target || "")
+    if (!path || !(/^[0-9a-f]{7,64}$/.test(target) || target === "uncommitted" || target === "unpushed")) return
+    var key = path + "@" + target
+    if ((changeDetails[key] && !reload) || changeDetailKey === key) return
+    if (changeDetailProcess.running) {
+      if (!changeDetailQueue.some(function(job) { return job.path + "@" + job.target === key }))
+        changeDetailQueue = changeDetailQueue.concat([{ path: path, target: target }])
+      return
     }
+    changeDetailKey = key
+    changeDetailProcess.command = ["dot", "git-log", "show", "--path", path].concat(target === "uncommitted" || target === "unpushed" ? ["--changes", target] : ["--sha", target])
+    changeDetailProcess.running = true
+  }
+
+  function finishChanges(exitCode, raw, stderr) {
+    var error = ""
+    if (exitCode === 0) {
+      try {
+        var payload = JSON.parse(String(raw || "").trim())
+        if (!Array.isArray(payload.files)) throw new Error("Invalid changes response")
+        var next = Object.assign({}, changeDetails)
+        next[changeDetailKey] = payload
+        changeDetails = next
+      } catch (parseError) {
+        error = "Invalid changes response"
+      }
+    } else error = String(stderr || "Changes unavailable").trim().slice(0, 500)
+    var errors = Object.assign({}, changeDetailErrors)
+    if (error) errors[changeDetailKey] = error
+    else delete errors[changeDetailKey]
+    changeDetailErrors = errors
+    changeDetailKey = ""
+    var queued = changeDetailQueue[0]
+    changeDetailQueue = changeDetailQueue.slice(1)
+    if (queued) loadChanges(queued.path, queued.target, true)
   }
 
   function openCommitsWeb(repo, modifiers) {
@@ -765,17 +787,10 @@ Item {
   }
 
   Process {
-    id: commitDetailProcess
-    stdout: StdioCollector { id: commitDetailOutput; waitForEnd: true }
-    stderr: StdioCollector { id: commitDetailStderr; waitForEnd: true }
-    onExited: function(exitCode) {
-      if (exitCode === 0) root.applyCommitDetail(commitDetailOutput.text)
-      else root.commitDetailError = String(commitDetailStderr.text || "Commit changes unavailable").trim().slice(0, 500)
-      root.commitDetailKey = ""
-      var queued = root.commitDetailQueue
-      root.commitDetailQueue = null
-      if (queued) root.loadCommitDetail(queued.repo, queued.commit)
-    }
+    id: changeDetailProcess
+    stdout: StdioCollector { id: changeDetailOutput; waitForEnd: true }
+    stderr: StdioCollector { id: changeDetailStderr; waitForEnd: true }
+    onExited: function(exitCode) { root.finishChanges(exitCode, changeDetailOutput.text, changeDetailStderr.text) }
   }
 
   Process {
