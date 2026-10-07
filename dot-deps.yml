@@ -13933,8 +13933,6 @@ policy:
             - "@effect/**"
             - "@opencode/**"
             - "npm:@opencode/**"
-            - "@opencode-ai/browser-control"
-            - "npm:@opencode-ai/browser-control"
             - "anomalyco/opencode"
             - "github:anomalyco/opencode"
             - "aqua:earendil-works/pi"
