@@ -3,6 +3,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { displayPath } from "../lib/paths.js";
 import { ensureNvimThemeLink } from "../lib/omarchyNvim.js";
+import { disableOmarchyCrashCapture } from "../lib/omarchyCrashCapture.js";
 import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
 import {
   writeCaptureRepositoryOptions,
@@ -126,6 +127,9 @@ export const stow = (opts?: {
 
       yield* log.section("Omarchy Neovim Theme");
       yield* ensureNvimThemeLink(log);
+
+      yield* log.section("Omarchy Crash Notifications");
+      actions.push(...(yield* disableOmarchyCrashCapture));
 
       yield* log.section("Omarchy Shell Config");
       shellConfigChanged = yield* applyOmarchyShellConfig;
