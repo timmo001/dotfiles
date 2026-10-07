@@ -14,7 +14,7 @@ depends = ["lint:oxlint", "lint:actions", "lint:json", "lint:yaml", "lint:markdo
 
 [tasks."lint:oxlint"]
 description = "Lint owned TypeScript and JavaScript with Oxlint"
-run = "bunx oxlint"
+run = "bunx oxlint --disable-nested-config"
 
 [tasks."lint:actions"]
 description = "Run the required ActionLint check on tracked source"
