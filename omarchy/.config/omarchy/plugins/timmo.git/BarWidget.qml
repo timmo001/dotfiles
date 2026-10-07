@@ -148,6 +148,7 @@ BarWidget {
         function open(): void { root.open() }
         function release(repo: string): void { root.open(JSON.stringify({ view: "releases", repo: repo })) }
         function pulls(repo: string): void { root.open(JSON.stringify({ view: "pulls", repo: repo })) }
+        function issues(repo: string): void { root.open(JSON.stringify({ view: "issues", repo: repo })) }
         function repo(path: string): void { root.open(JSON.stringify({ view: "repo", path: path })) }
         function commit(path: string, sha: string, subject: string, author: string, date: string): void {
           root.open(JSON.stringify({ view: "commit", path: path, sha: sha, subject: subject, author: author, date: date }))
@@ -160,6 +161,16 @@ BarWidget {
             cursor: panel ? panel.cursorKey : "", loaded: root.git ? root.git.pullRequestsLoaded : false,
             busy: root.git ? root.git.pullRequestsBusy : false, error: root.git ? root.git.pullRequestsError : "Service unavailable",
             count: root.git ? root.git.pullRequestCount : 0, readyCount: root.git ? root.git.readyPullRequestCount : 0
+          })
+        }
+        function issuesStatus(): string {
+          var panel = panelLoader.item
+          return JSON.stringify({
+            opened: root.opened, view: panel ? panel.view : "", repo: panel ? panel.selectedIssueRepo : "",
+            rows: panel ? panel.panelRows.filter(function(row) { return row.section === "issues" || row.section === "issues-empty" }).map(function(row) { return { key: row.key, kind: row.kind, title: row.primaryText } }) : [],
+            cursor: panel ? panel.cursorKey : "", loaded: root.git ? root.git.issuesLoaded : false,
+            busy: root.git ? root.git.issuesBusy : false, error: root.git ? root.git.issuesError : "Service unavailable",
+            count: root.git ? root.git.issueCount : 0
           })
         }
         function releaseStatus(): string {
