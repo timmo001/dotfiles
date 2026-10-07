@@ -5,7 +5,7 @@ import type { CheckResult } from "../types.js";
 
 /**
  * Check that a GitHub MCP bearer can be sourced from gh. The public `.zshrc`
- * export `DOT_GH_MCP_BEARER="$(gh auth token)"` feeds the read-only GitHub MCP
+ * export `DOT_GH_MCP_BEARER="$(gh auth token)"` feeds the GitHub MCP
  * server used by OpenCode and Cursor, so a logged-out gh leaves it empty and the
  * server returns 401. Drains output without collecting it so the token value
  * is never captured into the saved doctor report.
