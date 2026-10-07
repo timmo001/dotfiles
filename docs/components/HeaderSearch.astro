@@ -1,0 +1,20 @@
+---
+import Search from "blume/components/layout/Search.astro";
+import { SOCIAL_ICONS } from "blume/components/layout/footer-socials.ts";
+
+const github = SOCIAL_ICONS.github;
+---
+
+<Search {...Astro.props} />
+<a
+  aria-label="GitHub repository"
+  class="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+  data-blume-tooltip="GitHub repository"
+  href="https://github.com/timmo001/dotfiles"
+  rel="noreferrer"
+  target="_blank"
+>
+  <svg aria-hidden="true" fill="currentColor" height="18" viewBox="0 0 24 24" width="18">
+    <path d={github.path} />
+  </svg>
+</a>

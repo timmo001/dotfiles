@@ -3,11 +3,40 @@ title: Overview
 description: An agent-driven Omarchy setup for development, desktop, and automation.
 ---
 
-Personal <a href="https://omarchy.org" target="_blank" rel="noopener noreferrer">Omarchy</a> dotfiles (Arch-based), managed with <a href="https://www.gnu.org/software/stow/" target="_blank" rel="noopener noreferrer">GNU Stow</a> and a compiled `dot` CLI. Public config, desktop customisations, git tooling, and a shared <a href="https://opencode.ai" target="_blank" rel="noopener noreferrer">OpenCode</a> setup. Private machine details live in a separate overlay.
+My [Omarchy](https://omarchy.org) dotfiles (Arch-based). [GNU Stow](https://www.gnu.org/software/stow/) links each package into place, and a compiled `dot` CLI sets up, updates and checks each machine. It covers public config, desktop customisations, git tooling and a shared [OpenCode](https://opencode.ai) setup. Private machine details live in a separate overlay.
+
+```bash
+# Pull, refresh config, re-stow and rebuild
+dot update
+
+# Run the health checks and save a report
+dot doctor
+```
 
 :::caution[Personal setup]
 These docs and the public dotfiles are for reference. They are tuned for my machines and a private overlay that is not public, so installation is not recommended; borrow ideas rather than installing wholesale.
 :::
+
+## How it fits together
+
+<div style={{ display: "flex", flexWrap: "wrap", gap: "1.5rem", justifyContent: "center", margin: "1.5rem 0" }}>
+  <figure style={{ margin: 0, width: "9rem", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+    <img src="/illustrations/stow.svg" alt="" width="120" height="120" />
+    <figcaption>Stow links the packages into place</figcaption>
+  </figure>
+  <figure style={{ margin: 0, width: "9rem", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+    <img src="/logo-dark.svg" alt="" width="120" height="120" />
+    <figcaption><code>dot</code> sets up and maintains the machine</figcaption>
+  </figure>
+  <figure style={{ margin: 0, width: "9rem", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+    <img src="/illustrations/desktop.svg" alt="" width="120" height="120" />
+    <figcaption>Hyprland and the Omarchy Shell make the desktop</figcaption>
+  </figure>
+  <figure style={{ margin: 0, width: "9rem", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+    <img src="/illustrations/agents.svg" alt="" width="120" height="120" />
+    <figcaption>Agents share skills and guidance</figcaption>
+  </figure>
+</div>
 
 ## Core
 
@@ -40,13 +69,13 @@ These docs and the public dotfiles are for reference. They are tuned for my mach
 
 ## Machine-readable docs
 
-Build-time <a href="https://llmstxt.org" target="_blank" rel="noopener noreferrer">llms.txt</a> bundles and a read-only docs MCP, generated from the same source as the site.
+Build-time [llms.txt](https://llmstxt.org) bundles and a read-only docs MCP, generated from the same source as the site.
 
 | URL | Use |
 | --- | --- |
 | https://dotfiles.timmo.dev/llms.txt | Compact page index |
 | https://dotfiles.timmo.dev/llms-full.txt | Full docs bundle |
-| https://dotfiles.timmo.dev/mcp | Hosted MCP (search / page / navigation) |
+| https://dotfiles.timmo.dev/mcp | Hosted MCP (search, page and navigation) |
 | `/{route}.md` | One page as Markdown |
 
-Ask AI on the site is off. For live repo state, use <a href="https://context.timmo.dev" target="_blank" rel="noopener noreferrer">context</a> rather than these static bundles.
+Ask AI on the site is off. For live repo state, use [context](https://context.timmo.dev) rather than these static bundles.
