@@ -11,6 +11,7 @@ gcc
 git
 ha-bridge-git
 home-assistant-tui-git
+momentum-git
 music-assistant-tui-git
 gtk4-layer-shell
 iperf3
