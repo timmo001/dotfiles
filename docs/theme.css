@@ -1,0 +1,36 @@
+/* Widen the content column on larger screens. */
+@media (min-width: 96rem) {
+  :root {
+    --blume-content-width: 52rem;
+  }
+}
+
+@media (min-width: 120rem) {
+  :root {
+    --blume-content-width: 60rem;
+  }
+}
+
+/* Keep the "On this page" rail beside the content instead of at the far right
+   edge: centre the content and rail, with equal space either side. The content
+   column is the content width plus main's 2.5rem padding either side. */
+@media (min-width: 80rem) {
+  [data-blume-doc-grid]:has(> [data-blume-toc]) {
+    container-type: inline-size;
+    grid-template-columns:
+      17.5rem minmax(0, 1fr) minmax(0, calc(var(--blume-content-width) + 5rem))
+      17.5rem minmax(0, 1fr);
+  }
+
+  [data-blume-doc-grid]:has(> [data-blume-toc]) > #blume-nav-drawer {
+    grid-column: 1;
+  }
+
+  [data-blume-doc-grid]:has(> [data-blume-toc]) > #blume-content {
+    grid-column: 3;
+  }
+
+  [data-blume-doc-grid]:has(> [data-blume-toc]) > [data-blume-toc] {
+    grid-column: 4;
+  }
+}
