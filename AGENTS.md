@@ -155,19 +155,19 @@ This is a personal dotfiles repo. Do not aim for coverage, and do not add a test
 
 ## Validation
 
-- After changing `dot/`, `tests/`, or OpenCode plugins, run all of these before reporting done:
+- Run only the checks the change needs, and run them in parallel. Pick the narrowest tasks that cover the touched files and pass them to a single `mise run`, separated by `:::` (for example `mise run lint:yaml ::: lint:actions` after a workflow edit). Don't run aggregate tasks such as `check` to cover a narrow change.
+- After changing `dot/`, `tests/`, or OpenCode plugins, format first (it writes files), then run the rest in parallel before reporting done:
 
   ```bash
   mise run dot:format
-  mise run dot:check
-  mise run dot:build
-  mise run tests:integration
+  mise run dot:check ::: tests:integration
   ```
 
-  `dot:check` only runs `dot/tests`. The regression tests that import `dot/src` live in `tests/` and only run through `tests:integration`, the CI `regression-tests` job.
-- Run the changed command's relevant help or behaviour check. When command metadata changes, also run `mise run tests:smoke`.
+  `tests:integration` builds `dot` itself. `dot:check` only runs `dot/tests`. The regression tests that import `dot/src` live in `tests/` and only run through `tests:integration`, the CI `regression-tests` job.
+- Run the changed command's relevant help or behaviour check. When command metadata changes, also add `tests:smoke` to the parallel run.
 - Basic health check: `dot doctor`
-- Dev tasks: `mise run <task>` from the repo root. `mise run lint` checks owned TypeScript and JavaScript with `@timmo001/oxlint-rules`. Project tasks are namespaced: `dot:*` (`dot:build`, `dot:typecheck`, `dot:test`, `dot:format`, `dot:check`), `docs:*` (`docs:build`, `docs:dev`, `docs:gen`, `docs:check`), and `tests:*` (`tests:integration`, `tests:smoke`); `mise tasks` lists them.
+- Aggregate tasks run their parts in parallel: `mise run check` runs every lint, dot check, test suite and the docs build, `mise run tests` runs every test suite, and `mise run lint` runs every linter. Use them for broad changes that genuinely touch all of those areas.
+- Dev tasks: `mise run <task>` from the repo root. `mise run lint:oxlint` checks owned TypeScript and JavaScript with `@timmo001/oxlint-rules`. Project tasks are namespaced: `dot:*` (`dot:build`, `dot:typecheck`, `dot:test`, `dot:format`, `dot:check`), `docs:*` (`docs:build`, `docs:dev`, `docs:gen`, `docs:check`), and `tests:*` (`tests:integration`, `tests:smoke`); `mise tasks` lists them.
 - Skill frontmatter: the `lint.yml` `validate-skills` job validates public skills with the shared `lint-agent-skills` workflow.
 - OpenCode validation: check `opencode debug --help` and run supported checks relevant to the change. V2 exposes `config`, `paths`, and `agents`; skill discovery uses the Skills CLI. Use the configured launcher so checks target the same environment as the session.
 - MCP config sync: `dot mcp-sync` regenerates each active agent harness's MCP config from the single private spec `dotfiles-private/mcp.yml`; some agent harnesses are documented stubs. Runs automatically in `dot update` before re-stow; run `dot stow` after a manual sync.
