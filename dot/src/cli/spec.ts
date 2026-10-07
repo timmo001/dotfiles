@@ -1694,7 +1694,7 @@ const skillsUpdates = describe(
   "Check/apply imported skill updates",
   [
     "dot skills updates --json",
-    "dot skills updates --update --skill browser-control --no-commit",
+    "dot skills updates --update --skill agentic-workflows --no-commit",
   ],
 );
 
@@ -1715,7 +1715,7 @@ const skillsCheck = describe(
       ]),
   ),
   "Check adapted imports against upstream",
-  ["dot skills check --skill browser-control"],
+  ["dot skills check --skill agentic-workflows"],
 );
 
 const skillsAgentGitHub = describe(

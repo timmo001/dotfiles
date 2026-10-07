@@ -1519,7 +1519,7 @@ dot skills updates [flags]
 
 ```bash
 dot skills updates --json
-dot skills updates --update --skill browser-control --no-commit
+dot skills updates --update --skill agentic-workflows --no-commit
 ```
 
 ### `dot skills check`
@@ -1542,7 +1542,7 @@ dot skills check [flags]
 **Examples**
 
 ```bash
-dot skills check --skill browser-control
+dot skills check --skill agentic-workflows
 ```
 
 ### `dot skills updates-agent`
