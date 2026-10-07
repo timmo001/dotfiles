@@ -17,9 +17,8 @@ This directory is the Blume + Astro documentation site for the dotfiles repo, de
 - Content: `src/content/docs/` (Markdown/MDX with YAML frontmatter; file names map to routes). Top-level pages for the main sections; `dot/`, `desktop/`, and `agents/` hold section pages (`agents/opencode/` for OpenCode, other harnesses directly under `agents/`). Generated catalogues live under `dot/commands.md` and `agents/opencode/{agents,commands,plugins}.md`.
 - Sidebar order is set explicitly in `blume.config.ts` (`navigation.sidebar`).
 - Branding: `src/assets/logo.svg` is the source logo; `public/favicon.svg`, `public/logo-light.svg` and `public/logo-dark.svg` are copies of it. Overview illustrations live in `public/illustrations/`.
-- Layout overrides: `components.ts` wires `components/HomeBanner.astro` (the Overview banner) and `components/HeaderSearch.astro` (search plus the header GitHub link).
-- `theme.css` overrides Blume's styles. It widens the content column on larger screens and, on wide screens, moves the "On this page" column next to the content instead of the far right; the home banner's sizes in `HomeBanner.astro` assume those column widths.
-- Site, navigation, theme, AI, SEO, and deployment config: `blume.config.ts`.
+- Shared parts come from [`@timmo001/docs-kit`](https://github.com/timmo001/docs-kit): `components.ts` wires its home banner and header GitHub link, and `theme.css` imports its layout styles (wider content column, "On this page" next to the content). Put site-specific style overrides after that import.
+- Site, navigation, theme, and SEO config: `blume.config.ts`, built with docs-kit's `docsConfig`, which supplies the shared defaults (logos, agent surfaces, Cloudflare deployment, share cards).
 - Generated runtime: `.blume/` (ignored; never edit it directly).
 
 ## Generated Content
@@ -31,7 +30,7 @@ Two areas are generated from the single source of truth in the repo:
 
 Regenerate the affected catalogue from its source and include the output in the changeset; never hand-edit it. `mise run docs:gen` regenerates both. `docs:dev` also regenerates them, while production builds consume committed output. CI checks catalogue drift and builds the site.
 
-`mise run docs:og` (wraps `bun run og`) renders the raster branding from `src/assets/logo.svg`: the Open Graph image `public/og.png`, the search engine logo `public/logo.png`, `public/apple-touch-icon.png`, and the GitHub social preview `.github/social-preview.png` (upload it by hand under the repository's **Settings > Social preview**). Regenerate them only when the branding or tagline changes.
+`mise run docs:og` (wraps `bun run og`) renders the raster branding from `src/assets/logo.svg` with docs-kit's `writeBrandImages`: the Open Graph image `public/og.png`, the search engine logo `public/logo.png`, `public/apple-touch-icon.png`, and the GitHub social preview `.github/social-preview.png` (upload it by hand under the repository's **Settings > Social preview**). Regenerate them only when the branding or tagline changes.
 
 ## Authoring
 

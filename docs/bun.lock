@@ -6,6 +6,7 @@
       "name": "dotfiles-docs",
       "dependencies": {
         "@astrojs/cloudflare": "14.3.4",
+        "@timmo001/docs-kit": "0.1.0",
         "blume": "2.1.3",
         "sharp": "^0.35.1",
       },
@@ -504,6 +505,8 @@
     "@takumi-rs/helpers": ["@takumi-rs/helpers@2.14.0", "", { "peerDependencies": { "preact": "^10.0.0", "react": "^18.0.0 || ^19.0.0" }, "optionalPeers": ["preact", "react"] }, "sha512-jFIpuWfBMAxlULx3tEk2V+FCs1CLOMo2/c7h3I2P+eNzMmxwE9TJ/BtwJVghnLlFW1M88QW/ZOY/E7MqXACWJA=="],
 
     "@takumi-rs/wasm": ["@takumi-rs/wasm@2.14.0", "", { "dependencies": { "@takumi-rs/helpers": "2.14.0" }, "peerDependencies": { "csstype": "*" }, "optionalPeers": ["csstype"] }, "sha512-ncaNPVl9CL47g5eOyQp1kMPzc0GsUDbQdxRURvNBzMpUC2u6ImeMwJN6ZXiu3tqfSVgYZP1aU0Ntkg+q1S2d4g=="],
+
+    "@timmo001/docs-kit": ["@timmo001/docs-kit@0.1.0", "", { "dependencies": { "sharp": "0.35.5" }, "peerDependencies": { "blume": "2.1.3" } }, "sha512-jWJYqgh6I91zxxjirCa8GSYFnse0AmMc6lr43vzsm+mKMPLfet7gG5N1Ywaw8Eu0FLky/nHqpE1WaEITkBqUyA=="],
 
     "@tybys/wasm-util": ["@tybys/wasm-util@0.10.4", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-W3c4gRigFS0T/Ma4qIYF3GDAc5AQdHb1yL5znJT1Zv1YaD9Kitx656wBjvr19qbiosmZT8lWDM5BEMynUqX65A=="],
 
