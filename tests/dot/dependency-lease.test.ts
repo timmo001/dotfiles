@@ -5,25 +5,37 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { NodeServices } from "../../dot/node_modules/@effect/platform-node/dist/index.js";
 import {
+  Clock,
   Deferred,
+  Duration,
   Effect,
   Exit,
   Scope,
 } from "../../dot/node_modules/effect/dist/index.js";
-import { TestClock } from "../../dot/node_modules/effect/dist/testing/index.js";
 import { acquireDependencyLease } from "../../dot/src/deps/lease";
 import { DependencyRunError } from "../../dot/src/deps/state";
 import type { DependencyRunLog } from "../../dot/src/deps/log";
 
 const testLayer = NodeServices.layer;
 
-const advanceClock = Effect.forkScoped(
-  Effect.forever(
-    TestClock.adjust("100 millis").pipe(
-      Effect.andThen(TestClock.withLive(Effect.sleep("5 millis"))),
-    ),
-  ),
-);
+// Time moves only when the code sleeps, so slow git calls cannot expire the lease.
+const steppingClock = (): Clock.Clock => {
+  let millis = 0;
+  const nanos = () => BigInt(millis) * 1_000_000n;
+
+  return {
+    currentTimeMillisUnsafe: () => millis,
+    currentTimeMillis: Effect.sync(() => millis),
+    currentTimeNanosUnsafe: nanos,
+    currentTimeNanos: Effect.sync(nanos),
+    monotonicTimeNanosUnsafe: nanos,
+    monotonicTimeNanos: Effect.sync(nanos),
+    sleep: (duration) =>
+      Effect.sync(() => {
+        millis += Duration.toMillis(duration);
+      }),
+  };
+};
 
 const command = Effect.fn("Test.git")(function* (
   argv: readonly string[],
@@ -153,7 +165,6 @@ test("concurrent machines get one claim and a shared cooldown", async () => {
 test("target and ownership advance atomically, including server rejection", async () => {
   await Effect.runPromise(
     Effect.gen(function* () {
-      yield* advanceClock;
       const remote = yield* fixture();
 
       const lease = yield* acquireDependencyLease(
@@ -198,7 +209,7 @@ test("target and ownership advance atomically, including server rejection", asyn
       yield* lease.assertOwned;
     }).pipe(
       Effect.scoped,
-      Effect.provide(TestClock.layer()),
+      Effect.provideService(Clock.Clock, steppingClock()),
       Effect.provide(testLayer),
     ),
   );
