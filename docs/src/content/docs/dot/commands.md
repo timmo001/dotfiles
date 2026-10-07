@@ -390,7 +390,7 @@ Monitor registered systemd user services and timers
 dot services <subcommand> [flags]
 ```
 
-Each job registers itself with a YAML descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour", counted from the latest of the last completed run, the last boot or resume, and one interval before the first calendar run due after those, so sleep, power off and gaps in the schedule are not missed runs), restartLimit ({ count, within }) for long-running services, notify, logs ({ dir, file }) for jobs that keep their own run logs, and repository (a GitHub owner/repo slug from dot-git.yml) naming the repository that logs and agents open in. A long-running service can add status ({ file }) pointing at a JSON file it writes with health ("ok", "warning", "degraded" or "failed"), summary and updated (epoch milliseconds); while systemd sees the service as healthy, a report from its current run replaces the health and summary. Without repository, the repository containing the unit's executable is used, falling back to the public dotfiles. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations retain the last completed outcome. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. A job can summarise each run by printing a line containing "[RESULT] " followed by a short outcome; the last such line per invocation becomes that run's summary in status, run logs, notifications and the timmo.services panel. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel. Timer services with ExecCondition=dot services on-schedule run only at their calendar times, not as catch-up runs after boot or resume; those runs show as skipped.
+Each job registers itself with a YAML descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour", counted from the latest of the last completed run, the last boot or resume, and one interval before the first calendar run due after those, so sleep, power off and gaps in the schedule are not missed runs), restartLimit ({ count, within }) for long-running services, notify, logs ({ dir, file }) for jobs that keep their own run logs, and repository (a GitHub owner/repo slug from dot-git.yml) naming the repository that logs and agents open in. A long-running service can add status ({ file }) pointing at a JSON file it writes with health ("ok", "warning", "degraded" or "failed"), summary and updated (epoch milliseconds); while systemd sees the service as healthy, a report from its current run replaces the health and summary. Without repository, the repository containing the unit's executable is used, falling back to the public dotfiles. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations retain the last completed outcome. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. A job can summarise each run by printing a line containing "[RESULT] " followed by a short outcome; the last such line per invocation becomes that run's summary in status, run logs, notifications and the timmo.services panel. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel. Timer services with ExecCondition=dot services on-schedule run only at their calendar times, not as catch-up runs after boot or resume; those runs show as skipped. dot services start always runs them.
 
 **Options**
 
@@ -1078,11 +1078,12 @@ Lists the latest commits on each managed checkout's branch, including fetched up
 dot git-log
 dot git-log --panel-json
 dot git-log show --path ~/repos/example --sha abc1234
+dot git-log show --path ~/repos/example --changes uncommitted
 ```
 
 ### `dot git-log show`
 
-Return one commit's changed files and a diff preview as JSON for the Git panel
+Return changed files and a diff preview as JSON for the Git panel, for one commit or a repository's local changes
 
 ```text
 dot git-log show [flags]
@@ -1094,6 +1095,7 @@ dot git-log show [flags]
 | --- | --- |
 | `--path` `<string>` | Managed repository checkout path |
 | `--sha` `<string>` | Full or abbreviated commit SHA |
+| `--changes` `<choice>` | Preview uncommitted changes, including untracked files, or commits not pushed upstream (choices: uncommitted, unpushed) |
 | `--help` `-h` | Show help information |
 
 ## `dot git-web`

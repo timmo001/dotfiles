@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { Effect, FileSystem, Option, Result, Schema } from "effect";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
-import { readFileChanges } from "../../lib/updateSummary.js";
+import { readFileChanges, type FileChange } from "../../lib/updateSummary.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { managedGitRepos } from "../../services/GitConfig.js";
@@ -212,18 +212,28 @@ const writeOutput = (text: string) =>
       ),
   );
 
+/** Local changes `dot git-log show` can preview instead of a commit. */
+export type LogShowChanges = "uncommitted" | "unpushed";
+
 /**
- * Print one commit's changed files and a diff preview as JSON for the Git
- * panel. Merge commits are compared with their first parent.
+ * Print changed files and a diff preview as JSON for the Git panel: one
+ * commit (merges are compared with their first parent), the uncommitted
+ * working tree including untracked files, or the commits not pushed upstream.
  */
 export const gitLogShow = Effect.fn("gitLog.show")(function* (
   path: string,
-  sha: string,
+  sha: string | undefined,
+  changes: LogShowChanges | undefined,
 ) {
   const config = yield* Config;
   const executor = yield* CommandExecutor;
 
-  if (!/^[0-9a-f]{7,64}$/.test(sha))
+  if ((sha === undefined) === (changes === undefined))
+    return yield* new GitLogError({
+      message: "Pass exactly one of --sha or --changes",
+    });
+
+  if (sha !== undefined && !/^[0-9a-f]{7,64}$/.test(sha))
     return yield* new GitLogError({ message: `Invalid commit: ${sha}` });
 
   if (!managedGitRepos(config.gitConfig).some((repo) => repo.path === path))
@@ -231,12 +241,42 @@ export const gitLogShow = Effect.fn("gitLog.show")(function* (
       message: `Not a managed repository: ${path}`,
     });
 
-  const show = ["show", "--format=", "--diff-merges=first-parent"];
-  const files = yield* readFileChanges(path, show, [sha]);
+  const [command, revision] =
+    sha !== undefined
+      ? [["show", "--format=", "--diff-merges=first-parent"], sha]
+      : [["diff"], changes === "unpushed" ? "@{u}...HEAD" : "HEAD"];
+
+  const tracked = yield* readFileChanges(path, command, [revision]);
+
+  const untracked =
+    changes === "uncommitted"
+      ? (yield* executor.run(
+          "git",
+          ["ls-files", "--others", "--exclude-standard"],
+          { cwd: path },
+        ))
+          .split("\n")
+          .filter((file) => file.length > 0)
+          .map((file): FileChange => ({
+            status: "?",
+            path: file,
+            added: null,
+            deleted: null,
+          }))
+      : [];
+
+  const files = [...tracked, ...untracked];
 
   const patch = (yield* executor.run(
     "git",
-    [...show, "--patch", "--no-color", "--no-renames", sha],
+    [
+      ...command,
+      "--patch",
+      "--no-color",
+      "--no-renames",
+      "--default-prefix",
+      revision,
+    ],
     { cwd: path },
   ))
     .replace(/\n$/, "")
@@ -253,7 +293,7 @@ export const gitLogShow = Effect.fn("gitLog.show")(function* (
 
   yield* writeOutput(
     JSON.stringify({
-      sha,
+      target: sha ?? changes,
       files,
       added: files.reduce((sum, file) => sum + (file.added ?? 0), 0),
       deleted: files.reduce((sum, file) => sum + (file.deleted ?? 0), 0),
