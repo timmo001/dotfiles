@@ -113,6 +113,60 @@ export const updateSkillsCheckout = Effect.gen(function* () {
   return { from, to: yield* head };
 }).pipe(Effect.withSpan("SkillsCheckout.update"));
 
+const MissingCheckoutTools = Schema.fromJsonString(
+  Schema.Record(
+    Schema.String,
+    Schema.Array(Schema.Struct({ version: Schema.String })),
+  ),
+);
+
+/**
+ * Install tools pinned in the checkout's own `mise.toml` that are missing, such
+ * as the Agent Skills CLI after a version bump. Global tools are left to the
+ * update's mise step.
+ *
+ * @returns The `tool@version` specs that were installed.
+ */
+export const installSkillsCheckoutTools = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+
+  if (!(yield* pathExists(join(SKILLS_CHECKOUT, "mise.toml")))) return [];
+
+  const missing = yield* executor
+    .run("mise", ["ls", "--local", "--missing", "--json"], {
+      cwd: SKILLS_CHECKOUT,
+    })
+    .pipe(
+      Effect.mapError((error) => checkoutError({ message: error.stderr })),
+      Effect.flatMap((output) =>
+        Schema.decodeEffect(MissingCheckoutTools)(output).pipe(
+          Effect.mapError(checkoutError),
+        ),
+      ),
+    );
+
+  const specs = Object.entries(missing).flatMap(([tool, versions]) =>
+    versions.map(({ version }) => `${tool}@${version}`),
+  );
+
+  if (specs.length === 0) return specs;
+
+  // Bare names keep the checkout's tool options; `tool@version` would drop them.
+  const tools = Object.keys(missing);
+
+  const exitCode = yield* executor.inherit("mise", ["install", ...tools], {
+    cwd: SKILLS_CHECKOUT,
+  });
+
+  if (exitCode !== 0) {
+    return yield* new SkillsCheckoutError({
+      message: `mise install ${tools.join(" ")} exited ${exitCode}`,
+    });
+  }
+
+  return specs;
+}).pipe(Effect.withSpan("SkillsCheckout.installTools"));
+
 /**
  * Resolve the source for authoring commands: the writable checkout when it
  * exists, otherwise the managed checkout.

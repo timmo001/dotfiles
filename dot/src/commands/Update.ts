@@ -14,6 +14,7 @@ import { rebuild, restartDot } from "../lib/selfUpdate.js";
 import {
   buildSkillsMaintenance,
   updateSkillsCheckout,
+  installSkillsCheckoutTools,
 } from "../lib/skillsMaintenance.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { trustRepoMiseConfigs } from "../lib/miseTrust.js";
@@ -1599,6 +1600,31 @@ export const update = (updateOpts?: UpdateOptions) =>
               yield* log.info(`Skills checkout is up to date (${checkout.to})`);
               completedActions.push(skip("Skills checkout already up to date"));
             }
+          }
+
+          const checkoutTools = yield* installSkillsCheckoutTools.pipe(
+            Effect.catch((error) =>
+              log
+                .warn(
+                  `Could not install the skills checkout's mise tools: ${error.message}`,
+                )
+                .pipe(Effect.as(null)),
+            ),
+          );
+
+          if (!checkoutTools) {
+            completedActions.push(
+              warn("Could not install the skills checkout's mise tools"),
+            );
+          } else if (checkoutTools.length > 0) {
+            yield* log.info(
+              `Installed skills checkout tools: ${checkoutTools.join(", ")}`,
+            );
+            completedActions.push(
+              notable(
+                `Installed ${plural(checkoutTools.length, "skills checkout tool")}`,
+              ),
+            );
           }
 
           const { target, built } = yield* buildSkillsMaintenance;
