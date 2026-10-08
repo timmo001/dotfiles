@@ -262,13 +262,13 @@ export const agentLint = Effect.fn("agentLint")(function* (
     ? yield* Effect.gen(function* () {
         const files = yield* changedFiles(root, options.paths);
 
-        const results = files.length
-          ? yield* Effect.forEach(
-              settings.commands,
-              (command) => runLintCommand(root, command, files),
-              { concurrency: "unbounded" },
-            )
-          : [];
+        // With no changed files every command is reported as skipped, so
+        // callers still see each configured check.
+        const results = yield* Effect.forEach(
+          settings.commands,
+          (command) => runLintCommand(root, command, files),
+          { concurrency: "unbounded" },
+        );
 
         return {
           configured: true,
