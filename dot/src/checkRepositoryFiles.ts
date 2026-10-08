@@ -31,6 +31,14 @@ const checkRepositoryFiles = Effect.gen(function* () {
     .split("\0")
     .filter(Boolean);
 
+  const deleted = new Set(
+    (yield* executor.run("git", ["ls-files", "--deleted", "-z"], {
+      cwd: root,
+    }))
+      .split("\0")
+      .filter(Boolean),
+  );
+
   const files: string[] = [];
 
   for (const entry of entries) {
@@ -43,6 +51,9 @@ const checkRepositoryFiles = Effect.gen(function* () {
       return yield* new SourceCheckError({
         message: "Resolve index conflicts before checking repository files",
       });
+
+    if (deleted.has(file)) continue;
+
     const destination = join(temporary, file);
     yield* fs.makeDirectory(dirname(destination), { recursive: true });
 
