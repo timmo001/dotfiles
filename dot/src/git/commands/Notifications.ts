@@ -106,12 +106,16 @@ function refreshNotificationState(opts?: GitNotificationQueryOptions) {
 /** Format notification state for status bars and the native shell panel. */
 export function formatNotificationsBarJson(state: GitNotificationState) {
   const summary = notificationStateSummary(state);
+  const shown = new Set(state.threads.map((thread) => thread.id));
 
   return {
     text: notificationBarText(state, summary),
     tooltip: formatBarJsonTooltip(state, summary),
     class: notificationBarClass(state, summary),
     allCount: state.totalCount,
+    hiddenBotCount: state.inbox.filter(
+      (thread) => thread.bot === true && !shown.has(thread.id),
+    ).length,
     threads: state.threads.map((thread) => ({
       id: thread.id,
       repo: thread.repo,
@@ -119,6 +123,7 @@ export function formatNotificationsBarJson(state: GitNotificationState) {
       reason: thread.reason,
       type: thread.type,
       unread: thread.unread,
+      bot: thread.bot === true,
       updatedAt: thread.updatedAt,
       webUrl: thread.webUrl,
       important: notificationReasonIsImportant(thread.reason),

@@ -189,20 +189,22 @@ export class GitNotifications extends Context.Service<
 
           const allThreads = yield* fetchThreads(normalizedQuery);
 
-          const threads = yield* filterBarThreadsIfNeeded(
+          const filtered = yield* filterBarThreadsIfNeeded(
             allThreads,
             normalizedQuery,
           );
 
-          log(`Query complete: ${threads.length} notification threads`);
+          log(
+            `Query complete: ${filtered.threads.length} notification threads`,
+          );
 
           return buildState(
-            threads,
+            filtered.threads,
             allThreads.length,
             new Date(yield* Clock.currentTimeMillis),
             normalizedQuery,
             undefined,
-            allThreads,
+            filtered.inbox,
           );
         }).pipe(
           Effect.withSpan("GitNotifications.query"),
@@ -224,11 +226,11 @@ export class GitNotifications extends Context.Service<
         query: GitNotificationQueryOptions,
       ) => {
         if (!query.barFilter) {
-          return Effect.succeed(threads);
+          return Effect.succeed({ inbox: threads, threads });
         }
 
         if (!config.canUsePrivate || !config.gitConfig.valid)
-          return Effect.succeed([]);
+          return Effect.succeed({ inbox: threads, threads: [] });
 
         return Effect.gen(function* () {
           const workTimeActive =
@@ -265,7 +267,13 @@ export class GitNotifications extends Context.Service<
 
           yield* writeBotCache(botCache, nextBotCache);
 
-          return filtered.filter((thread) => thread !== null);
+          // The inbox keeps hidden threads, with bot activity marked where it was checked.
+          return {
+            inbox: filtered.map((entry) => entry.thread),
+            threads: filtered
+              .filter((entry) => entry.shown)
+              .map((entry) => entry.thread),
+          };
         });
       };
 
@@ -279,10 +287,10 @@ export class GitNotifications extends Context.Service<
         Effect.gen(function* () {
           const repo = yield* managedRepoForNotification(thread.repo);
 
-          if (!repo) return null;
+          if (!repo) return { thread, shown: false };
 
           if (!gitRepoNotificationsActive(repo, now, workTimeActive))
-            return null;
+            return { thread, shown: false };
 
           const key = botCacheKey(thread);
 
@@ -292,9 +300,10 @@ export class GitNotifications extends Context.Service<
 
           nextBotCache[key] = bot;
 
-          if (bot && repo.notifications.bar.ignoreBotActivity) return null;
-
-          return { ...thread, bot };
+          return {
+            thread: { ...thread, bot },
+            shown: !(bot && repo.notifications.bar.ignoreBotActivity),
+          };
         });
 
       const managedRepoForNotification = (notificationRepo: string) =>
