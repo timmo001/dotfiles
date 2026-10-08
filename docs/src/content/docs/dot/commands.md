@@ -1078,12 +1078,13 @@ Lists the latest commits on each managed checkout's branch, including fetched up
 dot git-log
 dot git-log --panel-json
 dot git-log show --path ~/repos/example --sha abc1234
+dot git-log show --path ~/repos/example --from def5678 --sha abc1234
 dot git-log show --path ~/repos/example --changes uncommitted
 ```
 
 ### `dot git-log show`
 
-Return changed files and a diff preview as JSON for the Git panel, for one commit or a repository's local changes
+Return changed files and a diff preview as JSON for the Git panel, for one commit, a commit range or a repository's local changes
 
 ```text
 dot git-log show [flags]
@@ -1095,6 +1096,8 @@ dot git-log show [flags]
 | --- | --- |
 | `--path` `<string>` | Managed repository checkout path |
 | `--sha` `<string>` | Full or abbreviated commit SHA |
+| `--from` `<string>` | Show the net changes to --sha from this earlier commit, or from the empty tree with root |
+| `--file` `<string>` | Repository-relative file to limit the result to; repeatable |
 | `--changes` `<choice>` | Preview uncommitted changes including untracked files, commits not pushed upstream, or fetched commits not pulled yet (choices: uncommitted, unpushed, incoming) |
 | `--help` `-h` | Show help information |
 

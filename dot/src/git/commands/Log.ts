@@ -217,14 +217,18 @@ export type LogShowChanges = "uncommitted" | "unpushed" | "incoming";
 
 /**
  * Print changed files and a diff preview as JSON for the Git panel: one
- * commit (merges are compared with their first parent), the uncommitted
+ * commit (merges are compared with their first parent), the net changes from
+ * an earlier commit or the empty tree (`root`) to a commit, the uncommitted
  * working tree including untracked files, the commits not pushed upstream, or
- * the fetched upstream commits not pulled yet.
+ * the fetched upstream commits not pulled yet. Non-empty `paths` limit the
+ * result to those repository-relative files.
  */
 export const gitLogShow = Effect.fn("gitLog.show")(function* (
   path: string,
   sha: string | undefined,
   changes: LogShowChanges | undefined,
+  from: string | undefined,
+  paths: readonly string[],
 ) {
   const config = yield* Config;
   const executor = yield* CommandExecutor;
@@ -237,30 +241,58 @@ export const gitLogShow = Effect.fn("gitLog.show")(function* (
   if (sha !== undefined && !/^[0-9a-f]{7,64}$/.test(sha))
     return yield* new GitLogError({ message: `Invalid commit: ${sha}` });
 
+  if (from !== undefined && sha === undefined)
+    return yield* new GitLogError({ message: "--from requires --sha" });
+
+  if (from !== undefined && !/^([0-9a-f]{7,64}|root)$/.test(from))
+    return yield* new GitLogError({ message: `Invalid commit: ${from}` });
+
   if (!managedGitRepos(config.gitConfig).some((repo) => repo.path === path))
     return yield* new GitLogError({
       message: `Not a managed repository: ${path}`,
     });
 
-  const [command, revision] =
+  const base =
+    from === "root"
+      ? (yield* executor.run(
+          "git",
+          ["hash-object", "-t", "tree", "/dev/null"],
+          {
+            cwd: path,
+          },
+        )).trim()
+      : from;
+
+  const [command, revisions]: readonly [readonly string[], readonly string[]] =
     sha !== undefined
-      ? [["show", "--format=", "--diff-merges=first-parent"], sha]
+      ? base !== undefined
+        ? [["diff"], [base, sha]]
+        : [["show", "--format=", "--diff-merges=first-parent"], [sha]]
       : [
           ["diff"],
-          {
-            uncommitted: "HEAD",
-            unpushed: "@{u}...HEAD",
-            incoming: "HEAD...@{u}",
-          }[changes ?? "uncommitted"],
+          [
+            {
+              uncommitted: "HEAD",
+              unpushed: "@{u}...HEAD",
+              incoming: "HEAD...@{u}",
+            }[changes ?? "uncommitted"],
+          ],
         ];
 
-  const tracked = yield* readFileChanges(path, command, [revision]);
+  const pathspecs = paths.length
+    ? ["--", ...paths.map((file) => `:(literal)${file}`)]
+    : [];
+
+  const tracked = yield* readFileChanges(path, command, [
+    ...revisions,
+    ...pathspecs,
+  ]);
 
   const untracked =
     changes === "uncommitted"
       ? (yield* executor.run(
           "git",
-          ["ls-files", "--others", "--exclude-standard"],
+          ["ls-files", "--others", "--exclude-standard", ...pathspecs],
           { cwd: path },
         ))
           .split("\n")
@@ -283,7 +315,8 @@ export const gitLogShow = Effect.fn("gitLog.show")(function* (
       "--no-color",
       "--no-renames",
       "--default-prefix",
-      revision,
+      ...revisions,
+      ...pathspecs,
     ],
     { cwd: path },
   ))
@@ -301,7 +334,10 @@ export const gitLogShow = Effect.fn("gitLog.show")(function* (
 
   yield* writeOutput(
     JSON.stringify({
-      target: sha ?? changes,
+      target:
+        sha !== undefined && from !== undefined
+          ? `${from}..${sha}`
+          : (sha ?? changes),
       files,
       added: files.reduce((sum, file) => sum + (file.added ?? 0), 0),
       deleted: files.reduce((sum, file) => sum + (file.deleted ?? 0), 0),

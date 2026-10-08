@@ -1059,6 +1059,16 @@ const gitLogCommand = describe(
               Flag.withDescription("Managed repository checkout path"),
             ),
             sha: text("sha", "Full or abbreviated commit SHA"),
+            from: text(
+              "from",
+              "Show the net changes to --sha from this earlier commit, or from the empty tree with root",
+            ),
+            files: Flag.String("file").pipe(
+              Flag.atLeast(0),
+              Flag.withDescription(
+                "Repository-relative file to limit the result to; repeatable",
+              ),
+            ),
             changes: Flag.Literals("changes", [
               "uncommitted",
               "unpushed",
@@ -1070,10 +1080,16 @@ const gitLogCommand = describe(
               ),
             ),
           },
-          ({ path, sha, changes }) =>
-            gitLogShow(path, optional(sha), optional(changes)),
+          ({ path, sha, from, changes, files }) =>
+            gitLogShow(
+              path,
+              optional(sha),
+              optional(changes),
+              optional(from),
+              files,
+            ),
         ),
-        "Return changed files and a diff preview as JSON for the Git panel, for one commit or a repository's local changes",
+        "Return changed files and a diff preview as JSON for the Git panel, for one commit, a commit range or a repository's local changes",
       ),
     ]),
   ),
@@ -1082,6 +1098,7 @@ const gitLogCommand = describe(
     "dot git-log",
     "dot git-log --panel-json",
     "dot git-log show --path ~/repos/example --sha abc1234",
+    "dot git-log show --path ~/repos/example --from def5678 --sha abc1234",
     "dot git-log show --path ~/repos/example --changes uncommitted",
   ],
   {
