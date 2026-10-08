@@ -2,13 +2,10 @@
  * @file Follows the Herdr Workflow Watch state for the session's checkout. Failures only reach the model when the user sends them.
  */
 
-import type { OpenCodeClient } from "@opencode/client/effect";
 import { Plugin } from "@opencode/plugin/effect";
-import { Session } from "@opencode/schema/session";
-import { Clock, DateTime, Effect, Fiber, Predicate, Schedule, Schema, Semaphore, Stream } from "effect";
+import { Effect, Fiber, Schedule, Schema, Semaphore, Stream } from "effect";
 import { debugLog, type DebugFields } from "../lib/debug";
 import { runText } from "../lib/process";
-import { connectClient, discoverService } from "../lib/service";
 import { metadataUpdates, snapshot, type Snapshot } from "./herdr";
 import { type CiState, type CiStatus, CiWatchRpc, Failures, noStatus } from "./rpc";
 
@@ -55,9 +52,6 @@ export default Plugin.define({
       const directory = context.location.directory;
       const socket = process.env.HERDR_SOCKET_PATH;
       const lock = yield* Semaphore.make(1);
-      // Top-level sessions in this directory, by when they were last active.
-      const sessions = new Map<Session.ID, number>();
-      const ignored = new Set<string>();
       const roots = new Map<string, string | null>();
       const matches = new Map<string, boolean>();
       let raw: string | undefined;
@@ -66,7 +60,6 @@ export default Plugin.define({
       let dismissed: string | undefined;
       let fetching: Fiber.Fiber<void> | undefined;
       let pluginRoot: string | undefined;
-      let client: OpenCodeClient | undefined;
 
       const locked = Semaphore.withPermit(lock);
       const logged = Effect.catch((error) => Effect.logWarning(`ci-watch: ${String(error)}`));
@@ -82,19 +75,7 @@ export default Plugin.define({
         );
 
       yield* debug("plugin started");
-      yield* Effect.addFinalizer(() => debug("plugin stopped", { sessions: sessions.size }));
-
-      const getClient = Effect.gen(function* () {
-        if (client) return client;
-
-        const endpoint = yield* discoverService();
-
-        if (!endpoint) return yield* Effect.fail(new Error("OpenCode service not found"));
-
-        client = yield* connectClient(endpoint);
-
-        return client;
-      });
+      yield* Effect.addFinalizer(() => debug("plugin stopped"));
 
       const root = (path: string) =>
         Effect.gen(function* () {
@@ -112,13 +93,13 @@ export default Plugin.define({
           return found;
         });
 
-      const status = (sessionID: string): CiStatus => {
-        if (!token) return noStatus(sessionID);
+      const status = (): CiStatus => {
+        if (!token) return noStatus(directory);
 
-        if (!("sha" in token)) return { ...noStatus(sessionID), state: token.state };
+        if (!("sha" in token)) return { ...noStatus(directory), state: token.state };
 
         return {
-          sessionID,
+          directory,
           state: token.state,
           sha: token.sha,
           failures: token.state === "failure" ? (details?.failures.runs.length ?? 0) : 0,
@@ -129,45 +110,14 @@ export default Plugin.define({
       // Replaced once the RPC is registered below.
       let emit: (status: CiStatus) => Effect.Effect<void, unknown> = () => Effect.void;
 
-      const broadcast = Effect.suspend(() =>
-        Effect.andThen(
-          debug("broadcast", {
-            sessions: [...sessions.keys()].map((sessionID) => {
-              const current = status(sessionID);
+      const broadcast = Effect.suspend(() => {
+        const current = status();
 
-              return `${sessionID} ${current.state}${current.dismissed ? " dismissed" : ""}`;
-            }),
-          }),
-          Effect.forEach([...sessions.keys()], (sessionID) => emit(status(sessionID)), { discard: true }),
-        ),
-      ).pipe(logged);
-
-      // Only sessions opened here get CI status; execution events reach every loaded copy of this plugin.
-      const track = (id: string) =>
-        Effect.gen(function* () {
-          if (ignored.has(id)) return;
-
-          const sessionID = yield* Schema.decodeUnknownEffect(Session.ID)(id);
-
-          if (!sessions.has(sessionID)) {
-            const session = yield* context.session
-              .get({ sessionID })
-              .pipe(
-                Effect.catchIf(
-                  (error) => Predicate.isTagged(error, "Session.NotFoundError"),
-                  () => Effect.succeed(null),
-                ),
-              );
-
-            if (!session || session.parentID || session.location.directory !== directory) {
-              ignored.add(id);
-
-              return;
-            }
-          }
-
-          sessions.set(sessionID, yield* Clock.currentTimeMillis);
-        });
+        return Effect.andThen(
+          debug("broadcast", { state: `${current.state}${current.dismissed ? " dismissed" : ""}` }),
+          emit(current),
+        );
+      }).pipe(logged);
 
       const locate = Effect.gen(function* () {
         if (pluginRoot) return pluginRoot;
@@ -274,30 +224,13 @@ export default Plugin.define({
 
       const registration = yield* context.rpc
         .register(CiWatchRpc, {
-          status: (input) =>
-            track(input.sessionID).pipe(
-              locked,
-              logged,
-              Effect.map(() => status(input.sessionID)),
-              Effect.tap((result) =>
-                debug("status call", {
-                  sessionID: input.sessionID,
-                  tracked: [...sessions.keys()].some((id) => id === input.sessionID),
-                  ignored: ignored.has(input.sessionID),
-                  result,
-                }),
-              ),
-            ),
+          status: () =>
+            Effect.sync(status).pipe(Effect.tap((result) => debug("status call", { result }))),
           details: () =>
             Effect.succeed(token?.state === "failure" && details?.fingerprint === token.fingerprint ? details.failures : null),
-          dismiss: (input) =>
+          dismiss: () =>
             Effect.gen(function* () {
-              yield* debug("dismiss call", {
-                sessionID: input.sessionID,
-                tracked: [...sessions.keys()].some((id) => id === input.sessionID),
-                ignored: ignored.has(input.sessionID),
-                sessions: sessions.size,
-              });
+              yield* debug("dismiss call");
 
               if (token?.state === "failure") dismissed = token.fingerprint;
 
@@ -310,30 +243,6 @@ export default Plugin.define({
 
       emit = (status) => registration.events.emit("status", status);
 
-      // A reload or service restart starts empty, and open TUIs only register once.
-      yield* Effect.gen(function* () {
-        const api = yield* getClient;
-        const listed = yield* api.session.list({ directory, parentID: null, order: "desc", limit: 20 });
-
-        for (const session of listed.data) {
-          if (session.parentID || session.time.archived || session.location.directory !== directory) continue;
-
-          sessions.set(session.id, DateTime.toEpochMillis(session.time.updated));
-        }
-
-        yield* debug("sessions rebuilt", { sessions: [...sessions.keys()] });
-      }).pipe(locked, logged);
-
       if (socket) yield* Effect.forkScoped(follow(socket));
-
-      yield* context.event.subscribe().pipe(
-        Stream.runForEach((event) =>
-          event.type === "session.execution.started"
-            ? track(event.data.sessionID).pipe(locked, logged)
-            : Effect.void,
-        ),
-        Effect.orDie,
-        Effect.forkScoped,
-      );
     }),
 });

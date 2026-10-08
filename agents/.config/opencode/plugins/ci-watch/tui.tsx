@@ -1,12 +1,13 @@
 /**
- * @file Shows CI state for the session's checkout and waiting CI failures, with user actions to view, fix now or dismiss them.
+ * @file Shows CI state for the open checkout, on the home screen and in sessions, and waiting CI failures, with user actions to view, fix now or dismiss them.
  */
 
+import type { LocationRef } from "@opencode/client";
 import { Plugin, usePlugin } from "@opencode/plugin/tui";
 import { type ScrollBoxRenderable, TextAttributes } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid";
 import { spawn } from "node:child_process";
-import { createMemo, createResource, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, For, Show } from "solid-js";
 import { debugLog, describe } from "../lib/debug";
 import { type CiStatus, CiWatchRpc, type FailedRun, noStatus } from "./rpc";
 
@@ -18,9 +19,9 @@ const COMMANDS: ReadonlyArray<{ action: Action; slash: string; title: string; de
   { action: "dismiss", slash: "ci-dismiss", title: "CI: dismiss", description: "Drop the waiting CI failures until different runs fail" },
 ];
 
-type State = { sessions: Record<string, CiStatus> };
+type State = { checkouts: Record<string, CiStatus> };
 
-const initialState: State = { sessions: {} };
+const initialState: State = { checkouts: {} };
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
@@ -37,36 +38,44 @@ export default Plugin.define({
 
     const update = (status: CiStatus) =>
       setState((draft) => {
-        draft.sessions[status.sessionID] = status;
+        draft.checkouts[status.directory] = status;
       });
 
-    const status = (sessionID: string) => state.sessions[sessionID] ?? noStatus(sessionID);
+    // Each checkout has its own server plugin, so calls must reach the session's location, or the home screen's without one.
+    const locate = (sessionID?: string): LocationRef =>
+      (sessionID ? context.data.session.get(sessionID)?.location : undefined) ??
+      context.location ??
+      context.data.location.default();
+
+    const at = (sessionID?: string) => ({ location: locate(sessionID) });
+
+    const status = (sessionID?: string) => {
+      const { directory } = locate(sessionID);
+
+      return state.checkouts[directory] ?? noStatus(directory);
+    };
 
     const requested = new Set<string>();
 
-    // Each checkout has its own server plugin, so calls must reach the session's location.
-    const at = (sessionID: string) => ({ location: context.data.session.get(sessionID)?.location ?? context.location });
+    const load = (location: LocationRef) => {
+      if (requested.has(location.directory)) return;
 
-    // Also registers the session with the server, so it can receive waiting failures.
-    const load = (sessionID: string) => {
-      if (requested.has(sessionID)) return;
-
-      requested.add(sessionID);
+      requested.add(location.directory);
 
       void rpc
-        .status({ sessionID }, at(sessionID))
+        .status({}, { location })
         .then((loaded) => {
-          debugLog("ci-watch", "tui", "status loaded", { sessionID, result: loaded });
+          debugLog("ci-watch", "tui", "status loaded", { directory: location.directory, result: loaded });
           update(loaded);
         })
         .catch((error) => {
-          debugLog("ci-watch", "tui", "status failed", { sessionID, error: describe(error) });
-          requested.delete(sessionID);
-          setTimeout(() => load(sessionID), 10_000);
+          debugLog("ci-watch", "tui", "status failed", { directory: location.directory, error: describe(error) });
+          requested.delete(location.directory);
+          setTimeout(() => load(location), 10_000);
         });
     };
 
-    const waiting = (sessionID: string) => {
+    const waiting = (sessionID?: string) => {
       const current = status(sessionID);
 
       return current.state === "failure" && !current.dismissed;
@@ -78,35 +87,49 @@ export default Plugin.define({
       if (viewing()) context.ui.dialog.clear();
     };
 
-    const dismiss = async (sessionID: string) => {
+    const dismiss = async (sessionID?: string) => {
       closeView();
 
       const options = at(sessionID);
 
       debugLog("ci-watch", "tui", "dismiss start", {
-        sessionID,
-        location: options.location,
-        hasSession: Boolean(context.data.session.get(sessionID)),
-        before: state.sessions[sessionID] ?? null,
+        sessionID: sessionID ?? null,
+        directory: options.location.directory,
+        before: status(sessionID),
       });
 
-      const result = await rpc.dismiss({ sessionID }, options).catch((error) => {
-        debugLog("ci-watch", "tui", "dismiss failed", { sessionID, error: describe(error) });
+      const result = await rpc.dismiss({}, options).catch((error) => {
+        debugLog("ci-watch", "tui", "dismiss failed", { sessionID: sessionID ?? null, error: describe(error) });
 
         throw error;
       });
 
-      debugLog("ci-watch", "tui", "dismiss done", { sessionID, result, after: state.sessions[sessionID] ?? null });
+      debugLog("ci-watch", "tui", "dismiss done", { sessionID: sessionID ?? null, result, after: status(sessionID) });
 
       // Shows whether the server's status event arrived after the call returned.
       setTimeout(
-        () => debugLog("ci-watch", "tui", "dismiss settled", { sessionID, after: state.sessions[sessionID] ?? null }),
+        () => debugLog("ci-watch", "tui", "dismiss settled", { sessionID: sessionID ?? null, after: status(sessionID) }),
         2_000,
       );
     };
 
-    const fixNow = async (sessionID: string, instruction = "") => {
-      const failures = await rpc.details({ sessionID }, at(sessionID));
+    // The home screen has no session yet, so fixing from there starts one in the same checkout.
+    const startSession = async (location: LocationRef) => {
+      const model = context.ui.model.current();
+
+      const session = await context.client.session.create({
+        location: { directory: location.directory },
+        model: model ? { id: model.modelID, providerID: model.providerID, variant: model.variant } : undefined,
+      });
+
+      context.ui.router.navigate({ type: "session", sessionID: session.id });
+
+      return session.id;
+    };
+
+    const fixNow = async (sessionID?: string, instruction = "") => {
+      const options = at(sessionID);
+      const failures = await rpc.details({}, options);
 
       if (!failures?.prompt) {
         context.ui.toast.show({ message: "No CI failures to fix", variant: "info" });
@@ -116,14 +139,14 @@ export default Plugin.define({
 
       closeView();
 
-      await rpc.dismiss({ sessionID }, at(sessionID));
+      await rpc.dismiss({}, options);
       await context.client.session.prompt({
-        sessionID,
+        sessionID: sessionID ?? (await startSession(options.location)),
         text: [failures.prompt, instruction.trim()].filter(Boolean).join("\n\n"),
       });
     };
 
-    const view = (sessionID: string) => {
+    const view = (sessionID?: string) => {
       if (status(sessionID).state !== "failure") {
         context.ui.toast.show({ message: "No CI failures", variant: "info" });
 
@@ -135,13 +158,13 @@ export default Plugin.define({
       context.ui.dialog.set({ size: "xlarge", centered: true });
     };
 
-    const handlers: Record<Action, (sessionID: string, input?: string) => Promise<void>> = {
+    const handlers: Record<Action, (sessionID?: string, input?: string) => Promise<void>> = {
       view: async (sessionID) => view(sessionID),
       "fix-now": fixNow,
       dismiss,
     };
 
-    const run = (action: Action, sessionID: string, input?: string) => {
+    const run = (action: Action, sessionID?: string, input?: string) => {
       void handlers[action](sessionID, input).catch((cause: unknown) =>
         context.ui.toast.show({ message: `CI: ${String(cause)}`, variant: "error" }),
       );
@@ -154,7 +177,7 @@ export default Plugin.define({
     void (async () => {
       for await (const event of rpc.events.subscribe("status", { signal: events.signal })) {
         debugLog("ci-watch", "tui", "status event", {
-          sessionID: event.data.sessionID,
+          directory: event.data.directory,
           state: event.data.state,
           dismissed: event.data.dismissed,
           location: event.location ?? null,
@@ -185,11 +208,11 @@ export default Plugin.define({
       );
     }
 
-    function Footer(props: { sessionID: string }) {
+    function Footer(props: { sessionID?: string }) {
       const plugin = usePlugin();
       const current = () => status(props.sessionID);
 
-      load(props.sessionID);
+      createEffect(() => load(locate(props.sessionID)));
 
       const label = () => {
         switch (current().state) {
@@ -222,7 +245,7 @@ export default Plugin.define({
       );
     }
 
-    function Strip(props: { sessionID: string }) {
+    function Strip(props: { sessionID?: string }) {
       const plugin = usePlugin();
       const current = () => status(props.sessionID);
 
@@ -303,15 +326,15 @@ export default Plugin.define({
       );
     }
 
-    function View(props: { sessionID: string }) {
+    function View(props: { sessionID?: string }) {
       const theme = context.theme.surface("dialog");
       const dimensions = useTerminalDimensions();
       const maxHeight = createMemo(() => Math.max(8, Math.floor(dimensions().height * 0.6)));
 
       // Refetches when the failing runs change while the dialog is open.
       const [failures] = createResource(
-        () => ({ sessionID: props.sessionID, sha: status(props.sessionID).sha, failures: status(props.sessionID).failures }),
-        (source) => rpc.details({ sessionID: source.sessionID }, at(source.sessionID)),
+        () => ({ location: locate(props.sessionID), sha: status(props.sessionID).sha, failures: status(props.sessionID).failures }),
+        (source) => rpc.details({}, { location: source.location }),
       );
 
       const runs = () => failures()?.runs ?? [];
@@ -389,11 +412,15 @@ export default Plugin.define({
     const slots = [
       context.ui.slot({
         append: "prompt.footer.status",
-        render: (input) => <Show when={input.sessionID}>{(id) => <Footer sessionID={id()} />}</Show>,
+        render: (input) => <Footer sessionID={input.sessionID} />,
       }),
       context.ui.slot({
         append: "session.composer.top",
         render: (input) => <Strip sessionID={input.sessionID} />,
+      }),
+      context.ui.slot({
+        before: "home.footer",
+        render: () => <Strip />,
       }),
       context.ui.slot({
         append: "app",
@@ -410,13 +437,13 @@ export default Plugin.define({
               run(input) {
                 const route = context.ui.router.current();
 
-                if (route.type !== "session") {
-                  context.ui.toast.show({ message: "Open a session first", variant: "warning" });
+                if (route.type === "plugin") {
+                  context.ui.toast.show({ message: "Open a session or the home screen first", variant: "warning" });
 
                   return;
                 }
 
-                run(command.action, route.sessionID, input);
+                run(command.action, route.type === "session" ? route.sessionID : undefined, input);
               },
             })),
           }));

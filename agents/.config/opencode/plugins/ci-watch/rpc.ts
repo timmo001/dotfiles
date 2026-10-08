@@ -12,7 +12,8 @@ export const CiState = Schema.Literals(["none", "loading", "running", "failure",
 export type CiState = typeof CiState.Type;
 
 const Status = Schema.Struct({
-  sessionID: Schema.String,
+  /** Checkout directory the state belongs to; sessions there share it. */
+  directory: Schema.String,
   state: CiState,
   /** Pushed commit the state describes. */
   sha: Schema.NullOr(Schema.String),
@@ -22,12 +23,12 @@ const Status = Schema.Struct({
   dismissed: Schema.Boolean,
 });
 
-/** CI state of one session, as shown to the user. */
+/** CI state of one checkout, as shown to the user. */
 export type CiStatus = typeof Status.Type;
 
-/** Status of a session with no CI state. */
-export const noStatus = (sessionID: string): CiStatus => ({
-  sessionID,
+/** Status of a checkout with no CI state. */
+export const noStatus = (directory: string): CiStatus => ({
+  directory,
   state: "none",
   sha: null,
   failures: 0,
@@ -74,22 +75,23 @@ export const Failures = Schema.Struct({
 /** Failed runs on a checkout's pushed commit. */
 export type Failures = typeof Failures.Type;
 
-const SessionInput = Schema.toStandardSchemaV1(Schema.Struct({ sessionID: Schema.String }));
+// Calls are routed to the checkout's server plugin by location, so they need no input.
+const NoInput = Schema.toStandardSchemaV1(Schema.Struct({}));
 
 /** Lets the TUI read and follow CI state, and act on waiting failures. */
 export const CiWatchRpc = {
   id: "ci-watch",
   methods: {
     status: {
-      input: SessionInput,
+      input: NoInput,
       output: Schema.toStandardSchemaV1(Status),
     },
     details: {
-      input: SessionInput,
+      input: NoInput,
       output: Schema.toStandardSchemaV1(Schema.NullOr(Failures)),
     },
     dismiss: {
-      input: SessionInput,
+      input: NoInput,
       output: Schema.toStandardSchemaV1(Schema.Null),
     },
   },
