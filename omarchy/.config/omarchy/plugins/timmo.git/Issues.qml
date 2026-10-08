@@ -13,11 +13,14 @@ Column {
   required property string fontFamily
   property bool refreshing: false
   property string status: ""
+  property bool sectionsCollapsible: false
+  property var expanded: ({ issues: true, "issues-empty": true })
   signal hovered(string key)
   signal activated(var entry, int modifiers)
   signal refreshRequested()
   signal agentRequested(var entry)
   signal copyRequested(var entry)
+  signal toggleRequested(string id)
 
   spacing: Style.space(8)
 
@@ -37,11 +40,13 @@ Column {
       id: group
       required property string modelData
       readonly property var entries: root.rows.filter(function(row) { return row.section === group.modelData && row.kind !== "header-action" })
+      readonly property bool bodyShown: root.expanded[modelData] !== false
       visible: modelData === "issues" || root.view === "issues"
       width: root.width
       spacing: Style.space(8)
 
       function itemForKey(key) {
+        if (key === "toggle:" + modelData) return heading
         if (key === "action:issues-refresh" && modelData === "issues") return heading
         for (var i = 0; i < entries.length; i++)
           if (entries[i].key === key) return items.itemAt(i)
@@ -57,12 +62,17 @@ Column {
         refreshable: group.modelData === "issues"
         refreshing: root.refreshing
         hasCursor: root.cursorKey === "action:issues-refresh" && group.modelData === "issues"
+        collapsible: root.sectionsCollapsible
+        expanded: group.bodyShown
+        toggleHasCursor: root.cursorKey === "toggle:" + group.modelData
+        onToggleHovered: root.hovered("toggle:" + group.modelData)
+        onToggleRequested: root.toggleRequested(group.modelData)
         onRefreshHovered: root.hovered("action:issues-refresh")
         onRefreshRequested: root.refreshRequested()
       }
 
       Text {
-        visible: group.modelData === "issues" && root.status !== ""
+        visible: group.modelData === "issues" && group.bodyShown && root.status !== ""
         width: parent.width
         text: root.status
         textFormat: Text.PlainText
@@ -73,6 +83,7 @@ Column {
       }
 
       Column {
+        visible: group.bodyShown
         width: parent.width
         spacing: Style.space(2)
         Repeater {

@@ -66,7 +66,12 @@ Panel {
   readonly property bool notificationReviewEnabled: service !== null && !service.notificationLaunching && allThreadCount > 0
   readonly property int otherThreadCount: Math.max(0, allThreadCount - threadCount)
   readonly property string notificationCountText: threadCount + (threadCount === 1 ? " notification" : " notifications") + " (" + otherThreadCount + (otherThreadCount === 1 ? " other)" : " others)")
-  readonly property var panelRows: buildPanelRows()
+  readonly property var panelRows: withSectionToggles(buildPanelRows())
+  // Rows in collapsed sections stay rendered for their counts but leave keyboard navigation.
+  readonly property var navigationRows: filterController.filteredModel.filter(function(row) {
+    var id = sectionId(row)
+    return row.kind === "toggle" || !id || sectionExpanded(id)
+  })
   readonly property var filteredActions: filterRows("action")
   readonly property var filteredRepos: filterRows("repo")
   readonly property var filteredThreads: filterRows("thread")
@@ -139,6 +144,56 @@ Panel {
   }
   // Action groups start collapsed in every view.
   property var expandedGroups: ({})
+  // Sections the user toggled, keyed by view and section.
+  property var sectionOverrides: ({})
+  readonly property bool sectionsCollapsible: !filterController.filterText
+
+  // Filtering opens every section. In a Herdr workspace the overview starts with only the workspace open.
+  function sectionExpanded(id) {
+    if (filterController.filterText) return true
+    var key = view + ":" + id
+    if (key in sectionOverrides) return sectionOverrides[key]
+    return !(view === "overview" && id !== "context" && workspaceContext && workspaceContext.repository)
+  }
+
+  function toggleSection(id) {
+    var next = Object.assign({}, sectionOverrides)
+    next[view + ":" + id] = !sectionExpanded(id)
+    sectionOverrides = next
+  }
+
+  function sectionId(row) {
+    if (row.kind === "toggle" || row.kind === "navigation") return ""
+    if (row.kind === "action") return view === "overview" ? "repositories" : "actions"
+    return ({ "release-summary": "summary", context: "context", repo: "repositories", thread: "notifications", footer: "notifications",
+      release: "releases", pulls: "pulls", "pulls-empty": "pulls-empty", issues: "issues", "issues-empty": "issues-empty", log: "log" })[row.section] || ""
+  }
+
+  function toggleRow(id) {
+    return { key: "toggle:" + id, kind: "toggle", sectionId: id }
+  }
+
+  // Adds a keyboard stop for each heading, placed where the heading sits in the panel.
+  function withSectionToggles(rows) {
+    var changes = view === "overview" ? [] : changeSections
+    var files = changes.map(function(section) { return toggleRow("files:" + section.target) })
+    var diffs = changes.filter(function(section) {
+      var detail = service ? service.changeDetail(section.path, section.target, section.files) : null
+      return !!detail && !!detail.preview
+    }).map(function(section) { return toggleRow("diff:" + section.target) })
+    var seen = {}
+    var result = []
+    rows.forEach(function(row) {
+      var id = sectionId(row)
+      if (!releaseView && id === "log" && diffs.length) { result = result.concat(diffs); diffs = [] }
+      if (id && !seen[id]) { seen[id] = true; result.push(toggleRow(id)) }
+      result.push(row)
+      if (row.kind !== "navigation") return
+      if (releaseView && view !== "releases" && !seen.summary) { seen.summary = true; result.push(toggleRow("summary")) }
+      if (!releaseView) { result = result.concat(files); files = [] }
+    })
+    return result.concat(files, diffs)
+  }
   property string selectedCommitAgentTask: "guide"
   readonly property int overviewCommitLimit: 20
   readonly property int repoCommitLimit: 40
@@ -526,7 +581,7 @@ Panel {
 
   function selectFirstPullRequest() {
     if (view !== "pull-repo") return
-    var index = filterController.filteredModel.findIndex(function(entry) { return entry.kind === "pull" })
+    var index = filterController.navigationEntries.findIndex(function(entry) { return entry.kind === "pull" })
     if (index < 0) index = filterController.indexForKey("action:pulls-web")
     filterController.selectIndex(index)
   }
@@ -581,7 +636,7 @@ Panel {
 
   function selectFirstIssue() {
     if (view !== "issue-repo") return
-    var index = filterController.filteredModel.findIndex(function(entry) { return entry.kind === "issue" })
+    var index = filterController.navigationEntries.findIndex(function(entry) { return entry.kind === "issue" })
     if (index < 0) index = filterController.indexForKey("action:issues-web")
     filterController.selectIndex(index)
   }
@@ -801,6 +856,7 @@ Panel {
     selectedIssueView = "overview"
     selectedIssue = null
     expandedGroups = ({})
+    sectionOverrides = ({})
     var target = null
     try {
       var payload = JSON.parse(String(payloadJson || "{}"))
@@ -834,7 +890,7 @@ Panel {
     controller.show()
     Qt.callLater(function() {
       if (view === "overview") {
-        var index = filterController.filteredModel.findIndex(function(entry) { return entry.kind === "repo" || entry.kind === "context-action" })
+        var index = filterController.navigationEntries.findIndex(function(entry) { return entry.kind === "repo" || entry.kind === "context-action" })
         if (index < 0)
           index = filterController.indexForKey("action:repositories-refresh")
         filterController.selectIndex(index)
@@ -876,6 +932,7 @@ Panel {
     var entry = filterController.selectedEntry()
     if (!entry) return null
     if (entry.kind === "navigation") return panelHeader
+    if (entry.kind === "toggle") return sectionHeading(entry.sectionId)
     if (entry.section === "pulls" || entry.section === "pulls-empty") return pullRequestsSection.itemForKey(entry.key)
     if (entry.section === "issues" || entry.section === "issues-empty") return issuesSection.itemForKey(entry.key)
     if (entry.kind === "release-action") return allReleasesAction
@@ -897,6 +954,23 @@ Panel {
       : (entry.kind === "repo" ? repoRepeater
         : (entry.kind === "thread" ? threadRepeater : footerActionRepeater))
     return repeater.itemAt(rows.indexOf(entry) + (entry.hidden ? 1 : 0))
+  }
+
+  function sectionHeading(id) {
+    if (id.indexOf("files:") === 0 || id.indexOf("diff:") === 0) {
+      var target = id.slice(id.indexOf(":") + 1)
+      var repeaters = id.indexOf("files:") === 0 ? [filesRepeater, releaseFilesRepeater] : [diffRepeater, releaseDiffRepeater]
+      for (var r = 0; r < repeaters.length; r++)
+        for (var i = 0; i < repeaters[r].count; i++) {
+          var item = repeaters[r].itemAt(i)
+          if (item && item.modelData.target === target) return item.heading
+        }
+      return null
+    }
+    if (id.indexOf("pulls") === 0) return pullRequestsSection.itemForKey("toggle:" + id)
+    if (id.indexOf("issues") === 0) return issuesSection.itemForKey("toggle:" + id)
+    return ({ summary: comparisonHeading, context: contextHeading, actions: actionsHeading, repositories: repositoriesHeading,
+      notifications: notificationsHeading, releases: releasesHeading, log: logHeading })[id] || null
   }
 
   function scrollCursorIntoView() {
@@ -1037,7 +1111,8 @@ Panel {
   }
 
   function activateEntry(entry, modifiers) {
-    if (entry.kind === "action" || entry.kind === "navigation" || entry.kind === "footer-action" || entry.kind === "header-action" || entry.kind === "release-action" || entry.kind === "pull-action" || entry.kind === "issue-action" || entry.kind === "log-action") activateAction(entry.action, modifiers)
+    if (entry.kind === "toggle") toggleSection(entry.sectionId)
+    else if (entry.kind === "action" || entry.kind === "navigation" || entry.kind === "footer-action" || entry.kind === "header-action" || entry.kind === "release-action" || entry.kind === "pull-action" || entry.kind === "issue-action" || entry.kind === "log-action") activateAction(entry.action, modifiers)
     else if (entry.kind === "log") activateLog(entry.value)
     else if (entry.kind === "pull-repo") {
       if (entry.value.pulls.length === 0 && entry.value.checkedAt !== null && !entry.value.error) { close(); service.openPulls(entry.value, modifiers) }
@@ -1136,6 +1211,7 @@ Panel {
       id: filterController
       anchors.fill: parent
       model: root.panelRows
+      navigationModel: root.navigationRows
       backOnEmptyFilter: true
       onRevealRequested: { revealTimer.requestedKey = root.cursorKey; revealTimer.restart() }
       onActivateRequested: function(entry, modifiers) { root.activateEntry(entry, modifiers) }
@@ -1201,12 +1277,17 @@ Panel {
             refreshable: !root.releaseAgentView
             refreshing: root.service ? root.service.releaseRefreshing : false
             hasCursor: root.cursorKey === "action:release-refresh"
+            collapsible: root.sectionsCollapsible
+            expanded: root.sectionExpanded("summary")
+            toggleHasCursor: root.cursorKey === "toggle:summary"
+            onToggleHovered: filterController.cursorIndex = filterController.indexForKey("toggle:summary")
+            onToggleRequested: root.toggleSection("summary")
             onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:release-refresh")
             onRefreshRequested: root.activateAction("release-refresh")
           }
 
           Text {
-            visible: root.releaseView
+            visible: root.releaseView && (root.view === "releases" || root.sectionExpanded("summary"))
             width: parent.width
             text: root.releaseSummary() + (root.service && root.service.releasesError ? "\n" + root.service.releasesError : "") + (root.service && root.service.releaseActionError ? "\n" + root.service.releaseActionError : "")
             textFormat: Text.PlainText
@@ -1225,12 +1306,18 @@ Panel {
             refreshable: true
             refreshing: root.service ? root.service.contextRefreshing : false
             hasCursor: root.cursorKey === "action:context-refresh"
+            collapsible: root.sectionsCollapsible
+            expanded: root.sectionExpanded("context")
+            toggleHasCursor: root.cursorKey === "toggle:context"
+            onToggleHovered: filterController.cursorIndex = filterController.indexForKey("toggle:context")
+            onToggleRequested: root.toggleSection("context")
             onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:context-refresh")
             onRefreshRequested: root.activateAction("context-refresh")
           }
 
           // Release views show changes after their actions and findings; the other sections belong to different views.
           Repeater {
+            id: filesRepeater
             model: (root.releaseView ? [] : root.changeSections).concat(root.contextChangeSections)
             delegate: filesSectionDelegate
           }
@@ -1240,20 +1327,32 @@ Panel {
             Column {
               id: filesSection
               required property var modelData
+              readonly property alias heading: filesHeading
+              readonly property string sectionId: "files:" + modelData.target
+              readonly property bool bodyShown: root.view === "overview" || root.sectionExpanded(sectionId)
               readonly property string expandKey: "files:" + modelData.path + "@" + modelData.target + "#" + (modelData.files || []).join("\n")
               readonly property bool expanded: !!root.expandedSections[expandKey]
               readonly property var detail: root.service ? root.service.changeDetail(modelData.path, modelData.target, modelData.files) : null
               readonly property string error: root.service ? root.service.changeDetailError(modelData.path, modelData.target, modelData.files) : ""
               readonly property bool overflowing: filesContent.implicitHeight > root.filesCollapsedHeight
+              // On the overview these are the workspace's changes, shown under its heading.
+              visible: root.view !== "overview" || root.sectionExpanded("context")
               width: contentColumn.width
               spacing: contentColumn.spacing
               SectionHeading {
+                id: filesHeading
                 visible: root.view !== "overview"
                 title: modelData.title
                 foreground: root.contentForeground
                 fontFamily: root.contentFontFamily
+                collapsible: root.sectionsCollapsible
+                expanded: filesSection.bodyShown
+                toggleHasCursor: root.cursorKey === "toggle:" + filesSection.sectionId
+                onToggleHovered: filterController.cursorIndex = filterController.indexForKey("toggle:" + filesSection.sectionId)
+                onToggleRequested: root.toggleSection(filesSection.sectionId)
               }
               Item {
+                visible: filesSection.bodyShown
                 x: Style.space(16)
                 width: parent.width - Style.space(32)
                 height: filesSection.overflowing && !filesSection.expanded ? root.filesCollapsedHeight : filesContent.implicitHeight
@@ -1313,7 +1412,7 @@ Panel {
                 }
               }
               Text {
-                visible: filesSection.overflowing
+                visible: filesSection.bodyShown && filesSection.overflowing
                 x: Style.space(16)
                 text: filesSection.expanded ? "Show less" : "Show more"
                 color: root.dimColor
@@ -1332,7 +1431,7 @@ Panel {
           }
 
           Column {
-            visible: root.contextRows.length > 0
+            visible: root.contextRows.length > 0 && root.sectionExpanded("context")
             width: parent.width
             spacing: Style.space(2)
             Repeater {
@@ -1395,14 +1494,20 @@ Panel {
           }
 
           SectionHeading {
+            id: actionsHeading
             visible: root.view !== "overview" && root.filteredActions.length > 0
             title: "Actions"
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
+            collapsible: root.sectionsCollapsible
+            expanded: root.sectionExpanded("actions")
+            toggleHasCursor: root.cursorKey === "toggle:actions"
+            onToggleHovered: filterController.cursorIndex = filterController.indexForKey("toggle:actions")
+            onToggleRequested: root.toggleSection("actions")
           }
 
           Column {
-            visible: root.view !== "overview"
+            visible: root.view !== "overview" && root.sectionExpanded("actions")
             width: parent.width
             spacing: Style.space(2)
             Repeater {
@@ -1460,6 +1565,7 @@ Panel {
           }
 
           Repeater {
+            id: diffRepeater
             model: root.releaseView ? [] : root.changeSections
             delegate: diffSectionDelegate
           }
@@ -1469,6 +1575,9 @@ Panel {
             Column {
               id: diffSection
               required property var modelData
+              readonly property alias heading: diffHeading
+              readonly property string sectionId: "diff:" + modelData.target
+              readonly property bool bodyShown: root.sectionExpanded(sectionId)
               readonly property var detail: root.service ? root.service.changeDetail(modelData.path, modelData.target, modelData.files) : null
               readonly property string expandKey: "diff:" + modelData.path + "@" + modelData.target + "#" + (modelData.files || []).join("\n")
               readonly property bool expanded: !!root.expandedSections[expandKey]
@@ -1477,11 +1586,18 @@ Panel {
               width: contentColumn.width
               spacing: contentColumn.spacing
               SectionHeading {
+                id: diffHeading
                 title: modelData.diffTitle
                 foreground: root.contentForeground
                 fontFamily: root.contentFontFamily
+                collapsible: root.sectionsCollapsible
+                expanded: diffSection.bodyShown
+                toggleHasCursor: root.cursorKey === "toggle:" + diffSection.sectionId
+                onToggleHovered: filterController.cursorIndex = filterController.indexForKey("toggle:" + diffSection.sectionId)
+                onToggleRequested: root.toggleSection(diffSection.sectionId)
               }
               Item {
+                visible: diffSection.bodyShown
                 x: Style.space(16)
                 width: parent.width - Style.space(32)
                 height: diffSection.overflowing && !diffSection.expanded ? root.diffCollapsedHeight : diffText.implicitHeight
@@ -1498,7 +1614,7 @@ Panel {
                 }
               }
               Text {
-                visible: diffSection.overflowing
+                visible: diffSection.bodyShown && diffSection.overflowing
                 x: Style.space(16)
                 text: diffSection.expanded ? "Show less" : "Show more"
                 color: root.dimColor
@@ -1547,6 +1663,11 @@ Panel {
             refreshable: true
             refreshing: root.service ? root.service.repositoriesBusy : false
             hasCursor: root.cursorKey === "action:repositories-refresh"
+            collapsible: root.sectionsCollapsible
+            expanded: root.sectionExpanded("repositories")
+            toggleHasCursor: root.cursorKey === "toggle:repositories"
+            onToggleHovered: filterController.cursorIndex = filterController.indexForKey("toggle:repositories")
+            onToggleRequested: root.toggleSection("repositories")
             onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:repositories-refresh")
             onRefreshRequested: root.activateAction("repositories-refresh")
             trailingControl: Component {
@@ -1576,6 +1697,7 @@ Panel {
           }
 
           Column {
+            visible: root.sectionExpanded("repositories")
             width: parent.width
             spacing: Style.space(2)
             Repeater {
@@ -1607,7 +1729,7 @@ Panel {
           }
 
           Text {
-            visible: !filterController.filterText && (root.view === "overview" || root.view === "changed" || root.view === "other") && root.filteredRepos.length === 0 && root.service && (root.service.panelError !== "" || !root.service.panelLoaded)
+            visible: !filterController.filterText && (root.view === "overview" || root.view === "changed" || root.view === "other") && root.sectionExpanded("repositories") && root.filteredRepos.length === 0 && root.service && (root.service.panelError !== "" || !root.service.panelLoaded)
             width: parent.width
             text: root.service && root.service.panelError !== "" ? root.service.panelError : "Loading repositories"
             color: Qt.darker(root.contentForeground, 1.4)
@@ -1617,7 +1739,7 @@ Panel {
           }
 
           Column {
-            visible: root.view === "overview" || root.view === "notifications"
+            visible: (root.view === "overview" || root.view === "notifications") && root.sectionExpanded("repositories")
             width: parent.width
             spacing: Style.space(2)
             Repeater {
@@ -1662,6 +1784,11 @@ Panel {
             refreshable: true
             refreshing: root.service ? root.service.notificationsBusy : false
             hasCursor: root.cursorKey === "action:notifications-refresh"
+            collapsible: root.sectionsCollapsible
+            expanded: root.sectionExpanded("notifications")
+            toggleHasCursor: root.cursorKey === "toggle:notifications"
+            onToggleHovered: filterController.cursorIndex = filterController.indexForKey("toggle:notifications")
+            onToggleRequested: root.toggleSection("notifications")
             onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:notifications-refresh")
             onRefreshRequested: root.activateAction("notifications-refresh")
             trailingControl: Component {
@@ -1679,6 +1806,7 @@ Panel {
           }
 
           Column {
+            visible: root.sectionExpanded("notifications")
             width: parent.width
             spacing: Style.space(2)
             Repeater {
@@ -1711,7 +1839,7 @@ Panel {
           }
 
           Text {
-            visible: (root.view === "overview" || root.view === "notifications") && !filterController.filterText && root.threadCount === 0 && root.service && (root.service.notificationsError !== "" || !root.service.notificationsLoaded)
+            visible: (root.view === "overview" || root.view === "notifications") && !filterController.filterText && root.sectionExpanded("notifications") && root.threadCount === 0 && root.service && (root.service.notificationsError !== "" || !root.service.notificationsLoaded)
             width: parent.width
             text: root.service && root.service.notificationsError !== "" ? root.service.notificationsError : "Loading notifications"
             color: Qt.darker(root.contentForeground, 1.4)
@@ -1721,7 +1849,7 @@ Panel {
           }
 
           Column {
-            visible: (root.view === "overview" || root.view === "notifications") && root.filteredFooterActions.length > 0
+            visible: (root.view === "overview" || root.view === "notifications") && root.sectionExpanded("notifications") && root.filteredFooterActions.length > 0
             width: parent.width
             spacing: Style.space(8)
 
@@ -1774,12 +1902,17 @@ Panel {
             refreshable: root.view === "overview" || root.view === "releases"
             refreshing: root.service ? root.service.releaseRefreshing : false
             hasCursor: root.cursorKey === "action:release-refresh"
+            collapsible: root.sectionsCollapsible
+            expanded: root.sectionExpanded("releases")
+            toggleHasCursor: root.cursorKey === "toggle:releases"
+            onToggleHovered: filterController.cursorIndex = filterController.indexForKey("toggle:releases")
+            onToggleRequested: root.toggleSection("releases")
             onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:release-refresh")
             onRefreshRequested: root.activateAction("release-refresh")
           }
 
           Text {
-            visible: (root.view === "overview" || root.view === "releases") && !filterController.filterText && (!root.service || !root.service.releasesLoaded || root.service.releases.length === 0 || root.service.releasesError !== "")
+            visible: (root.view === "overview" || root.view === "releases") && !filterController.filterText && root.sectionExpanded("releases") && (!root.service || !root.service.releasesLoaded || root.service.releases.length === 0 || root.service.releasesError !== "")
             width: parent.width
             text: root.service && root.service.releasesError ? root.service.releasesError : (root.service && root.service.releasesLoaded ? "No repositories configured for release tracking" : "Loading release comparisons")
             textFormat: Text.PlainText
@@ -1790,6 +1923,7 @@ Panel {
           }
 
           Column {
+            visible: root.sectionExpanded("releases")
             width: parent.width
             spacing: Style.space(2)
             Repeater {
@@ -1819,11 +1953,13 @@ Panel {
           }
 
           Repeater {
+            id: releaseFilesRepeater
             model: root.releaseView ? root.changeSections : []
             delegate: filesSectionDelegate
           }
 
           Repeater {
+            id: releaseDiffRepeater
             model: root.releaseView ? root.changeSections : []
             delegate: diffSectionDelegate
           }
@@ -1831,7 +1967,7 @@ Panel {
           CursorSurface {
             id: allReleasesAction
             readonly property var entry: root.filterRows("release-action")[0] || null
-            visible: entry !== null
+            visible: entry !== null && root.sectionExpanded("releases")
             x: Style.space(8)
             width: Math.max(0, contentColumn.width - Style.space(16))
             implicitHeight: allReleasesRow.implicitHeight + Style.space(12)
@@ -1871,6 +2007,9 @@ Panel {
             onHovered: function(key) { filterController.cursorIndex = filterController.indexForKey(key) }
             onActivated: function(entry, modifiers) { root.activateEntry(entry, modifiers) }
             onRefreshRequested: root.activateAction("pulls-refresh")
+            sectionsCollapsible: root.sectionsCollapsible
+            expanded: ({ pulls: root.sectionExpanded("pulls"), "pulls-empty": root.sectionExpanded("pulls-empty") })
+            onToggleRequested: function(id) { root.toggleSection(id) }
             onIgnoreRequested: function(entry) { if (root.service) root.service.ignorePullRequest(root.selectedPullRequests, entry.value) }
           }
 
@@ -1888,6 +2027,9 @@ Panel {
             onHovered: function(key) { filterController.cursorIndex = filterController.indexForKey(key) }
             onActivated: function(entry, modifiers) { root.activateEntry(entry, modifiers) }
             onRefreshRequested: root.activateAction("issues-refresh")
+            sectionsCollapsible: root.sectionsCollapsible
+            expanded: ({ issues: root.sectionExpanded("issues"), "issues-empty": root.sectionExpanded("issues-empty") })
+            onToggleRequested: function(id) { root.toggleSection(id) }
             onAgentRequested: function(entry) { root.showIssueAgentPicker(entry.value) }
             onCopyRequested: function(entry) { if (root.service) root.service.copyIssueLink(entry.value) }
           }
@@ -1901,13 +2043,18 @@ Panel {
             refreshable: true
             refreshing: root.service ? root.service.logBusy : false
             hasCursor: root.cursorKey === "action:log-refresh"
+            collapsible: root.sectionsCollapsible
+            expanded: root.sectionExpanded("log")
+            toggleHasCursor: root.cursorKey === "toggle:log"
+            onToggleHovered: filterController.cursorIndex = filterController.indexForKey("toggle:log")
+            onToggleRequested: root.toggleSection("log")
             onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:log-refresh")
             onRefreshRequested: root.activateAction("log-refresh")
           }
 
           Text {
             readonly property string status: root.logStatus()
-            visible: logHeading.visible && !filterController.filterText && status !== ""
+            visible: logHeading.visible && !filterController.filterText && root.sectionExpanded("log") && status !== ""
             width: parent.width
             text: status
             textFormat: Text.PlainText
@@ -1918,7 +2065,7 @@ Panel {
           }
 
           Column {
-            visible: ["overview", "repo", "commits"].indexOf(root.view) >= 0
+            visible: ["overview", "repo", "commits"].indexOf(root.view) >= 0 && root.sectionExpanded("log")
             width: parent.width
             spacing: Style.space(2)
             Repeater {

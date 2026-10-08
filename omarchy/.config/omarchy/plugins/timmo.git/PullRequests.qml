@@ -13,10 +13,13 @@ Column {
   required property string fontFamily
   property bool refreshing: false
   property string status: ""
+  property bool sectionsCollapsible: false
+  property var expanded: ({ pulls: true, "pulls-empty": true })
   signal hovered(string key)
   signal activated(var entry, int modifiers)
   signal refreshRequested()
   signal ignoreRequested(var entry)
+  signal toggleRequested(string id)
 
   spacing: Style.space(8)
 
@@ -36,11 +39,13 @@ Column {
       id: group
       required property string modelData
       readonly property var entries: root.rows.filter(function(row) { return row.section === group.modelData && row.kind !== "header-action" })
+      readonly property bool bodyShown: root.expanded[modelData] !== false
       visible: modelData === "pulls" || root.view === "pulls"
       width: root.width
       spacing: Style.space(8)
 
       function itemForKey(key) {
+        if (key === "toggle:" + modelData) return heading
         if (key === "action:pulls-refresh" && modelData === "pulls") return heading
         for (var i = 0; i < entries.length; i++)
           if (entries[i].key === key) return items.itemAt(i)
@@ -56,12 +61,17 @@ Column {
         refreshable: group.modelData === "pulls"
         refreshing: root.refreshing
         hasCursor: root.cursorKey === "action:pulls-refresh" && group.modelData === "pulls"
+        collapsible: root.sectionsCollapsible
+        expanded: group.bodyShown
+        toggleHasCursor: root.cursorKey === "toggle:" + group.modelData
+        onToggleHovered: root.hovered("toggle:" + group.modelData)
+        onToggleRequested: root.toggleRequested(group.modelData)
         onRefreshHovered: root.hovered("action:pulls-refresh")
         onRefreshRequested: root.refreshRequested()
       }
 
       Text {
-        visible: group.modelData === "pulls" && root.status !== ""
+        visible: group.modelData === "pulls" && group.bodyShown && root.status !== ""
         width: parent.width
         text: root.status
         textFormat: Text.PlainText
@@ -72,6 +82,7 @@ Column {
       }
 
       Column {
+        visible: group.bodyShown
         width: parent.width
         spacing: Style.space(2)
         Repeater {
