@@ -45,8 +45,8 @@ export interface AgentLintResult {
   readonly durationMs?: number;
   /** Last lines of combined stdout and stderr for failed or timed-out commands. */
   readonly output?: string;
-  /** Expanded argv, run from the repository root, for failed or timed-out commands. */
-  readonly command?: readonly string[];
+  /** Expanded argv run from the repository root, or the configured argv when skipped. */
+  readonly command: readonly string[];
 }
 
 /** Report printed by `dot agent-lint --json`. */
@@ -137,7 +137,11 @@ const runLintCommand = Effect.fn("agentLint.runCommand")(function* (
   const matched = matchingFiles(command, files);
 
   if (matched.length === 0)
-    return { name: command.name, status: "skipped" } satisfies AgentLintResult;
+    return {
+      name: command.name,
+      status: "skipped",
+      command: command.run,
+    } satisfies AgentLintResult;
 
   const argv = command.run.flatMap((arg) =>
     arg === FILES_PLACEHOLDER ? matched : [arg],
@@ -172,6 +176,7 @@ const runLintCommand = Effect.fn("agentLint.runCommand")(function* (
       status: "passed",
       exitCode: 0,
       durationMs,
+      command: argv,
     } satisfies AgentLintResult;
 
   return {

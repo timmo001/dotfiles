@@ -280,7 +280,7 @@ export const inductRepository = Effect.fn("repoInduct.run")(
       const [first, ...rest] = command.trim().split(/\s+/).filter(Boolean);
 
       return first
-        ? { commands: [{ name: "check", run: [first, ...rest] }] }
+        ? { commands: [{ name: "Check", run: [first, ...rest] }] }
         : undefined;
     };
 

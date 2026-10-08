@@ -219,8 +219,8 @@ $defs:
           properties:
             name:
               type: string
-              pattern: "^[a-z][a-z0-9_-]*$"
-              description: Unique label shown in results.
+              pattern: "^\\S(?:.*\\S)?$"
+              description: Unique display name shown in results, such as Typecheck or GitHub Actions.
             run:
               type: array
               minItems: 1

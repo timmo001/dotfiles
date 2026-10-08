@@ -105,8 +105,8 @@ const OmarchyComponentsSettings = Schema.Struct({
 
 /** One fallback lint command run by `dot agent-lint`. */
 export const AgentLintCommand = Schema.Struct({
-  /** Short label shown in results. */
-  name: Schema.String.check(Schema.isPattern(/^[a-z][a-z0-9_-]*$/)),
+  /** Display name shown in results, such as `Typecheck` or `GitHub Actions`. */
+  name: Schema.String.check(Schema.isPattern(/^\S(?:.*\S)?$/)),
   /** Argv run from the repository root; a `{files}` argument expands to the matching changed files. */
   run: Schema.NonEmptyArray(Schema.NonEmptyString),
   /** Repository-relative globs; the command only runs when a changed file matches. */
