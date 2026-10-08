@@ -115,14 +115,14 @@ ready_port = 8126
 
 ```toml
 [daemons.build]
-run = "exec pnpm dev --fetch-translations"
+run = "exec env HA_DEV_BACKGROUND=0 pnpm dev --fetch-translations"
 ready_output = { pattern = "Build done", timeout = "10m" }
 
 [daemons.serve]
 run = """
 args="${XDG_STATE_HOME:-$HOME/.local/state}/dot/homeassistant/serve.args"
 eval "set -- $(cat "$args" 2>/dev/null)"
-exec pnpm dev:serve --fetch-translations "$@"
+exec env HA_DEV_BACKGROUND=0 pnpm dev:serve --fetch-translations "$@"
 """
 port = 8124
 ready_port = { port = 8124, timeout = "10m" }
