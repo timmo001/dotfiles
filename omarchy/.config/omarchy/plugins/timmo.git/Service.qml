@@ -105,6 +105,8 @@ Item {
   property string notificationTooltip: ""
   property string notificationClass: "notifications-unknown"
   property int notificationAllCount: 0
+  // Hidden notifications from bot activity such as Renovate or Dependabot.
+  property int notificationHiddenBotCount: 0
   property var threads: []
   property bool notificationsLoaded: false
   property string notificationsError: ""
@@ -196,6 +198,7 @@ Item {
       notificationTooltip = String(payload.tooltip || "")
       notificationClass = String(payload["class"] || "notifications-unknown")
       notificationAllCount = Number(payload.allCount || 0)
+      notificationHiddenBotCount = Number(payload.hiddenBotCount || 0)
       notificationWorkspace = payload.workspace && typeof payload.workspace.path === "string" ? payload.workspace : null
       notificationRepositories = Array.isArray(payload.repositories) ? payload.repositories : []
       var payloadThreads = Array.isArray(payload.threads) ? payload.threads : []
@@ -235,6 +238,7 @@ Item {
     notificationText = ""
     notificationTooltip = ""
     notificationAllCount = 0
+    notificationHiddenBotCount = 0
     threads = []
     notificationRepositories = []
     notificationsLoaded = true

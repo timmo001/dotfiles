@@ -65,7 +65,12 @@ Panel {
   readonly property int allThreadCount: service ? service.notificationAllCount : 0
   readonly property bool notificationReviewEnabled: service !== null && !service.notificationLaunching && allThreadCount > 0
   readonly property int otherThreadCount: Math.max(0, allThreadCount - threadCount)
-  readonly property string notificationCountText: threadCount + (threadCount === 1 ? " notification" : " notifications") + " (" + otherThreadCount + (otherThreadCount === 1 ? " other)" : " others)")
+  readonly property int hiddenDependencyCount: service ? Math.min(otherThreadCount, service.notificationHiddenBotCount) : 0
+  readonly property string hiddenThreadText: [
+    hiddenDependencyCount ? hiddenDependencyCount + (hiddenDependencyCount === 1 ? " dependency" : " dependencies") : "",
+    otherThreadCount - hiddenDependencyCount ? (otherThreadCount - hiddenDependencyCount) + (otherThreadCount - hiddenDependencyCount === 1 ? " other" : " others") : ""
+  ].filter(Boolean).join(" · ")
+  readonly property string notificationCountText: threadCount + (threadCount === 1 ? " notification" : " notifications") + " (" + (hiddenThreadText || "0 others") + ")"
   readonly property var panelRows: withSectionToggles(buildPanelRows())
   // Rows in collapsed sections stay rendered for their counts but leave keyboard navigation.
   readonly property var navigationRows: filterController.filteredModel.filter(function(row) {
@@ -1174,7 +1179,7 @@ Panel {
       return counts[label[0]] + " " + (counts[label[0]] === 1 ? label[1] : label[2])
     })
     if (!values.length) values.push(String(rows.length))
-    if (!filterController.filterText && otherThreadCount > 0) values.push(otherThreadCount + (otherThreadCount === 1 ? " other" : " others"))
+    if (!filterController.filterText && hiddenThreadText) values.push(hiddenThreadText)
     return values.join(" · ")
   }
 
@@ -1880,7 +1885,7 @@ Panel {
                   spacing: Style.space(2)
                   Text { width: parent.width; text: String(modelData.value.repo || ""); color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; font.bold: modelData.value.unread === true; elide: Text.ElideRight }
                   Text { width: parent.width; text: String(modelData.value.title || ""); color: Qt.darker(root.contentForeground, 1.25); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
-                  Text { width: parent.width; text: String(modelData.value.reason || "") + " · " + String(modelData.value.type || ""); color: Qt.darker(root.contentForeground, 1.5); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
+                  Text { width: parent.width; text: (modelData.value.bot === true ? "dependency · " : "") + String(modelData.value.reason || "") + " · " + String(modelData.value.type || ""); color: Qt.darker(root.contentForeground, 1.5); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
                 }
                 MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: function(mouse) { root.activateThread(modelData.value, mouse.modifiers) } }
               }
