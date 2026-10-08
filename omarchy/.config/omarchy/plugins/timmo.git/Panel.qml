@@ -148,10 +148,7 @@ Panel {
       var guide = actionRow("commit-guide", "Generate Plannotator guide…", "󱚣")
       guide.secondaryText = "Ask an agent to write a Guided Review of this commit"
       rows.push(actionRow("commit-web", "Open on GitHub", ""), diff, direct, plannotator, plannotatorFull, guide)
-      return groupActions(rows, [
-        { id: "open", label: "Open…", icon: "\uf08e", actions: ["commit-web", "commit-diff"] },
-        { id: "review", label: "Review…", actions: ["commit-plannotator", "commit-review-patch", "commit-review-worktree", "commit-guide"] }
-      ])
+      return groupActions(rows, ["commit-open", "commit-review"])
     }
     if (pullRequestView) {
       rows.push(navigationRow(view === "pulls" || selectedPullRequestView === "overview" ? "Back to Git overview" : "Back to all tracked repositories"))
@@ -235,7 +232,7 @@ Panel {
         var known = service.changedRepos.concat(service.otherRepos).find(function(repo) { return repo.path === current.path })
         var value = known || { name: current.name, path: current.path, statusKnown: false }
         repoActions(value).forEach(function(row) {
-          row.key = "context:" + workspaceContext.session.socketPath + ":" + (workspaceContext.pane ? workspaceContext.pane.id : "") + ":" + current.path + ":" + row.action
+          row.key = "context:" + workspaceContext.session.socketPath + ":" + (workspaceContext.pane ? workspaceContext.pane.id : "") + ":" + current.path + ":" + row.key
           row.kind = "context-action"
           row.section = "context"
           row.value = value
@@ -587,10 +584,7 @@ Panel {
       actionRow("web", "Open on GitHub", ""),
       actionRow("actions", "Open GitHub Actions", "󰜎")
     )
-    rows = groupActions(rows, [
-      { id: "open", label: "Open…", icon: "\uf08e", actions: ["lazygit", "editor", "agent", "terminal", "web", "actions"] },
-      { id: "review", label: "Review and annotate…", actions: ["plannotator-review", "plannotator-last", "plannotator-annotate", "plannotator-tui"] }
-    ])
+    rows = groupActions(rows, ["open", "review"])
     if (service && service.notificationRepository(repo)) {
       var notifications = actionRow("repo-notifications", "Review notifications…", "")
       notifications.secondaryText = service.notificationSummary(repo)
@@ -599,12 +593,23 @@ Panel {
     return rows
   }
 
+  // Each group lists its actions with the short name its quick button shows.
+  readonly property var actionGroups: ({
+    "commit-open": { label: "Open in…", icon: "\uf08e", actions: { "commit-web": "GitHub", "commit-diff": "Diff viewer" } },
+    "commit-review": { label: "Review in Plannotator…", actions: { "commit-plannotator": "Directly", "commit-review-patch": "With an agent", "commit-review-worktree": "Full context", "commit-guide": "Guide" } },
+    "open": { label: "Open in…", icon: "\uf08e", actions: { "lazygit": "Lazygit", "editor": "Editor", "agent": "Agent", "terminal": "Terminal", "web": "GitHub", "actions": "GitHub Actions" } },
+    "review": { label: "Review in Plannotator…", actions: { "plannotator-review": "Changes", "plannotator-last": "Last commit", "plannotator-annotate": "Annotate files", "plannotator-tui": "Annotate Markdown (TUI)" } }
+  })
+
   // Collapses related actions under a toggle row, placed where the first member was.
+  // The toggle row carries a quick button for the group's last used action (or its first),
+  // which takes the cursor before the toggle itself.
   // Groups open while filtering so their members stay searchable.
-  function groupActions(rows, groups) {
+  function groupActions(rows, ids) {
+    var groups = ids.map(function(id) { return { id: id, definition: actionGroups[id], members: null } })
     var result = []
     rows.forEach(function(row) {
-      var group = groups.find(function(group) { return group.actions.indexOf(row.action) >= 0 })
+      var group = groups.find(function(group) { return row.action in group.definition.actions })
       if (!group) result.push(row)
       else if (group.members) group.members.push(row)
       else { group.members = [row]; result.push(group) }
@@ -612,8 +617,23 @@ Panel {
     return result.reduce(function(all, item) {
       if (!item.members) return all.concat([item])
       var expanded = !!filterController.filterText || !!expandedGroups[item.id]
-      var header = actionRow("group:" + item.id, item.label + (expanded ? "  ▾" : "  ›"), item.icon || item.members[0].icon)
-      return all.concat([header], expanded ? item.members.map(function(row) { row.child = true; return row }) : [])
+      var lastAction = service ? service.lastGroupActions[item.id] : ""
+      var last = item.members.find(function(row) { return row.action === lastAction }) || item.members[0]
+      var header = actionRow("group:" + item.id, item.definition.label + (expanded ? "  ▾" : "  ›"), item.definition.icon || item.members[0].icon)
+      var quick = []
+      if (!filterController.filterText) {
+        quick.push(Object.assign({}, last, { key: "quick:" + item.id, hidden: true, chip: item.definition.actions[last.action] }))
+        header.quick = quick[0]
+        header.label = item.definition.label
+        header.chevron = expanded ? "▾" : "›"
+      }
+      // Members show the short name under the group; the full label stays searchable.
+      return all.concat(quick, [header], expanded ? item.members.map(function(row) {
+        row.child = true
+        row.tertiaryText = row.primaryText
+        row.primaryText = item.definition.actions[row.action]
+        return row
+      }) : [])
     }, [])
   }
 
@@ -834,7 +854,7 @@ Panel {
     if (entry.section === "pulls" || entry.section === "pulls-empty") return pullRequestsSection.itemForKey(entry.key)
     if (entry.section === "issues" || entry.section === "issues-empty") return issuesSection.itemForKey(entry.key)
     if (entry.kind === "release-action") return allReleasesAction
-    if (entry.kind === "context-action") return contextRepeater.itemAt(contextRows.indexOf(entry))
+    if (entry.kind === "context-action") return contextRepeater.itemAt(contextRows.indexOf(entry) + (entry.hidden ? 1 : 0))
     if (entry.section === "log") return entry.kind === "header-action" ? logHeading : logRepeater.itemAt(filteredLogRows.indexOf(entry))
     if (entry.kind === "header-action") {
       if (entry.action === "context-refresh") return contextHeading
@@ -851,7 +871,7 @@ Panel {
     var repeater = entry.kind === "action" ? (view === "overview" ? overviewActionRepeater : actionRepeater)
       : (entry.kind === "repo" ? repoRepeater
         : (entry.kind === "thread" ? threadRepeater : footerActionRepeater))
-    return repeater.itemAt(rows.indexOf(entry))
+    return repeater.itemAt(rows.indexOf(entry) + (entry.hidden ? 1 : 0))
   }
 
   function scrollCursorIntoView() {
@@ -916,6 +936,8 @@ Panel {
 
   function activateAction(action, modifiers) {
     if (!service) return
+    for (var group in actionGroups)
+      if (action in actionGroups[group].actions) service.rememberGroupAction(group, action)
     if (action.indexOf("group:") === 0) {
       var groups = Object.assign({}, expandedGroups)
       groups[action.slice(6)] = !groups[action.slice(6)]
@@ -1263,12 +1285,20 @@ Panel {
               model: root.contextRows
               CursorSurface {
                 required property var modelData
+                visible: !modelData.hidden
                 x: Style.space(8)
                 width: Math.max(0, contentColumn.width - Style.space(16))
                 implicitHeight: contextActionRow.implicitHeight + Style.space(12)
                 hasCursor: root.cursorKey === modelData.key
                 foreground: root.contentForeground
                 accent: root.contentForeground
+                MouseArea {
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key)
+                  onClicked: function(mouse) { root.activateEntry(modelData, mouse.modifiers) }
+                }
                 Row {
                   id: contextActionRow
                   anchors.left: parent.left
@@ -1277,21 +1307,34 @@ Panel {
                   anchors.margins: Style.space(8)
                   anchors.leftMargin: Style.space(modelData.child ? 28 : 8)
                   spacing: Style.space(10)
-                  Text { width: Style.space(22); text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
+                  Text { width: Style.space(22); anchors.verticalCenter: parent.verticalCenter; text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
                   Column {
+                    visible: !modelData.quick
                     width: Math.max(0, contextActionRow.width - Style.space(32))
                     spacing: Style.space(2)
                     Text { width: parent.width; text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
                     Text { visible: modelData.action === "repo-notifications"; width: parent.width; text: modelData.secondaryText; textFormat: Text.PlainText; color: Qt.darker(root.contentForeground, 1.25); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
                   }
+                  Text { visible: !!modelData.quick; anchors.verticalCenter: parent.verticalCenter; text: modelData.label || ""; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
+                  PanelActionButton {
+                    id: contextQuickButton
+                    readonly property var entry: modelData.quick || null
+                    visible: entry !== null
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: contextQuickMetrics.width + Style.space(20)
+                    iconText: entry ? entry.icon + "  " + entry.chip : ""
+                    tooltipText: entry ? entry.primaryText : ""
+                    bordered: true
+                    fontSize: Style.font.body
+                    foreground: root.contentForeground
+                    fontFamily: root.contentFontFamily
+                    hasCursor: entry !== null && root.cursorKey === entry.key
+                    onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey(entry.key) }
+                    onClicked: root.activateEntry(entry, Qt.NoModifier)
+                    TextMetrics { id: contextQuickMetrics; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; text: contextQuickButton.iconText }
+                  }
                 }
-                MouseArea {
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key)
-                  onClicked: function(mouse) { root.activateEntry(modelData, mouse.modifiers) }
-                }
+                Text { visible: !!modelData.quick; anchors.right: parent.right; anchors.rightMargin: Style.space(16); anchors.verticalCenter: parent.verticalCenter; text: modelData.chevron || ""; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
               }
             }
           }
@@ -1337,12 +1380,14 @@ Panel {
               CursorSurface {
                 required property int index
                 required property var modelData
+                visible: !modelData.hidden
                 x: Style.space(8)
                 width: Math.max(0, contentColumn.width - Style.space(16))
                 implicitHeight: actionRow.implicitHeight + Style.space(12)
                 hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
                 foreground: root.contentForeground
                 accent: root.contentForeground
+                MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: function(mouse) { root.activateAction(modelData.action, mouse.modifiers) } }
                 Row {
                   id: actionRow
                   anchors.left: parent.left
@@ -1351,15 +1396,34 @@ Panel {
                   anchors.leftMargin: Style.space(modelData.child ? 28 : 8)
                   anchors.rightMargin: Style.space(8)
                   spacing: Style.space(10)
-                  Text { width: Style.space(22); text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
+                  Text { width: Style.space(22); anchors.verticalCenter: parent.verticalCenter; text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
                   Column {
+                    visible: !modelData.quick
                     width: Math.max(0, actionRow.width - Style.space(32))
                     spacing: Style.space(2)
                     Text { width: parent.width; text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
                     Text { visible: !!modelData.secondaryText; width: parent.width; text: modelData.secondaryText; textFormat: Text.PlainText; color: Qt.darker(root.contentForeground, 1.25); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
                   }
+                  Text { visible: !!modelData.quick; anchors.verticalCenter: parent.verticalCenter; text: modelData.label || ""; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
+                  PanelActionButton {
+                    id: actionQuickButton
+                    readonly property var entry: modelData.quick || null
+                    visible: entry !== null
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: actionQuickMetrics.width + Style.space(20)
+                    iconText: entry ? entry.icon + "  " + entry.chip : ""
+                    tooltipText: entry ? entry.primaryText : ""
+                    bordered: true
+                    fontSize: Style.font.body
+                    foreground: root.contentForeground
+                    fontFamily: root.contentFontFamily
+                    hasCursor: entry !== null && root.cursorKey === entry.key
+                    onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey(entry.key) }
+                    onClicked: root.activateEntry(entry, Qt.NoModifier)
+                    TextMetrics { id: actionQuickMetrics; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; text: actionQuickButton.iconText }
+                  }
                 }
-                MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: function(mouse) { root.activateAction(modelData.action, mouse.modifiers) } }
+                Text { visible: !!modelData.quick; anchors.right: parent.right; anchors.rightMargin: Style.space(16); anchors.verticalCenter: parent.verticalCenter; text: modelData.chevron || ""; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
               }
             }
           }

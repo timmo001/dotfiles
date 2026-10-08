@@ -11,6 +11,30 @@ Item {
   signal contextUpdating()
   signal contextUpdated()
 
+  // The last action used in each panel action group, kept across shell restarts.
+  property var lastGroupActions: ({})
+
+  function rememberGroupAction(group, action) {
+    if (lastGroupActions[group] === action) return
+    var next = Object.assign({}, lastGroupActions)
+    next[group] = action
+    lastGroupActions = next
+    lastActionsFile.setText(JSON.stringify(next) + "\n")
+  }
+
+  FileView {
+    id: lastActionsFile
+    path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/omarchy/timmo.git/last-actions.json"
+    atomicWrites: true
+    printErrors: false
+    onLoaded: {
+      try {
+        var value = JSON.parse(text())
+        if (value && typeof value === "object" && !Array.isArray(value)) root.lastGroupActions = value
+      } catch (error) {}
+    }
+  }
+
   function refreshHerdrContext(manual) {
     if (manual === true) {
       contextRefreshing = true
