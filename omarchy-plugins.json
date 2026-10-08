@@ -117,7 +117,7 @@
       "id": "sceny.devices",
       "managed": true,
       "placement": { "section": "right", "before": "omarchy.bluetooth" },
-      "settings": { "showPhotos": false }
+      "settings": { "showPhotos": false, "screenFeature": false }
     },
     {
       "id": "nosignal.deckshift",
