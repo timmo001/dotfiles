@@ -38,6 +38,7 @@ import {
   checkPrivatePackages,
 } from "./checks/packages.js";
 import { checkPacmanHooks } from "./checks/pacmanHooks.js";
+import { checkFileManager } from "./checks/fileManager.js";
 import { checkRetiredApps } from "./checks/retiredApps.js";
 import { checkFirewall } from "./checks/firewall.js";
 import { checkSyncthing } from "./checks/syncthing.js";
@@ -114,6 +115,7 @@ const sections: readonly SectionDef[] = [
     requiresPrivate: true,
   },
   { name: "Pacman hooks", check: checkPacmanHooks },
+  { name: "File manager", check: checkFileManager },
   { name: "Retired apps", check: checkRetiredApps },
   { name: "Firewall rules", check: checkFirewall },
   { name: "Syncthing", check: checkSyncthing },
