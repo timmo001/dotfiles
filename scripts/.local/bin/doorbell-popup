@@ -3,8 +3,8 @@
 set -euo pipefail
 
 MOTION_ENTITY="input_boolean.doorbell"
-CAMERA_ENTITY="camera.front_door_snapshot"
-HOME_ASSISTANT_BASE_URL="http://homeassistant.local:8123"
+CAMERA_ENTITY="camera.front_door"
+HOME_ASSISTANT_BASE_URL="https://prod.ha-core.localhost"
 
 POPUP_WIDTH="380"
 POPUP_HEIGHT="500"
