@@ -39,7 +39,7 @@ just = "1.58.0"
 uv = "0.12.23"
 [tools."npm:@opencode/cli"]
 version = "2.0.26"
-bun_args = "--trust"
+allow_builds = ["@opencode/cli"]
 
 [tools."aqua:herdrdev/herdr"]
 version = "0.9.3"
@@ -87,7 +87,7 @@ idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]
 idiomatic_version_file_ignore_minimum_versions = true
 lockfile = true
 minimum_release_age = "1d"
-npm.package_manager = "bun"
+npm.package_manager = "aube"
 # Don't treat build/cache dirs as mise projects. Stops AUR builds (yay cd's into
 # ~/.cache/yay/<pkg>/src, which contains package.json/.tool-versions/mise.toml)
 # from auto-installing and reshimming all shims on every update.
