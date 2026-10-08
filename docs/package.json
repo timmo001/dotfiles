@@ -20,7 +20,7 @@
   "dependencies": {
     "@astrojs/cloudflare": "14.3.4",
     "@timmo001/docs-kit": "0.1.0",
-    "blume": "2.2.0",
+    "blume": "2.2.1",
     "sharp": "^0.35.1"
   },
   "devDependencies": {
