@@ -32,13 +32,6 @@ type CommandCandidate =
   | { readonly kind: "dev-aggregate" }
   | { readonly kind: "target"; readonly target: string };
 
-const MANAGEMENT_SERVE_TASKS = new Set([
-  "serve:logs",
-  "serve:restart",
-  "serve:status",
-  "serve:stop",
-]);
-
 const PITCHFORK_CONFIG_FILES = [
   "pitchfork.toml",
   "pitchfork.local.toml",
@@ -197,7 +190,16 @@ function candidateFromCommand(command: string, cwd: string, projectRoot: string)
 
   if (/^(?:mise\s+run\s+dev|mise\s+dev)(?:\s|$)/.test(stripped)) return { kind: "dev-aggregate" };
 
-  if (/^(?:(?:bun|npm|yarn)\s+run\s+dev|pnpm\s+(?:run\s+)?dev|vite)(?:\s|$)/.test(stripped)) {
+  const miseDevMatch = stripped.match(/^mise\s+run\s+([A-Za-z0-9_-]+):dev(?:\s|$)/);
+
+  if (miseDevMatch) return { kind: "target", target: miseDevMatch[1] };
+
+  if (
+    /^(?:(?:bun|npm|yarn)\s+run\s+dev|pnpm\s+(?:run\s+)?dev|vite)(?:\s|$)/.test(stripped) ||
+    /^(?:(?:bunx|npx|pnpx|bun\s+x|pnpm\s+(?:exec|dlx))\s+)?(?:astro|blume)\s+dev(?!\s+(?:stop|status|logs)\b)(?:\s|$)/.test(
+      stripped,
+    )
+  ) {
     return cwd === projectRoot
       ? { kind: "dev-aggregate" }
       : { kind: "target", target: basename(cwd) };
@@ -214,7 +216,7 @@ function candidateFromCommand(command: string, cwd: string, projectRoot: string)
 
 function startTasks(project: PitchforkProject): string[] {
   return [...project.tasks]
-    .filter((task) => task.startsWith("serve:") && !MANAGEMENT_SERVE_TASKS.has(task))
+    .filter((task) => task.startsWith("serve:") && !/:(?:status|logs|restart|stop)$/.test(task))
     .sort();
 }
 
