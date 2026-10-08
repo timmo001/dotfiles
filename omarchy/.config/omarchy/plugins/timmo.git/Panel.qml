@@ -423,8 +423,10 @@ Panel {
 
   function logHeadingCount() {
     var shown = filteredLogRows.filter(function(row) { return row.kind === "log" }).length
-    var recent = logWindowEntries().length
-    return (shown === recent ? "" : shown + (recent > shown ? " of " : " · ")) + recent + " in the last " + logWindowHours + " hours"
+    var recent = logWindowEntries()
+    var incoming = recent.filter(function(entry) { return entry.commit.incoming }).length
+    return (shown === recent.length ? "" : shown + (recent.length > shown ? " of " : " · ")) + recent.length + " in the last " + logWindowHours + " hours"
+      + (incoming ? " · " + incoming + " not pulled" : "")
   }
 
   function showAllCommits() {
@@ -1164,6 +1166,29 @@ Panel {
     return values.join(" · ") || String(rows.length)
   }
 
+  function threadSummary(rows) {
+    var counts = {}
+    rows.forEach(function(row) { counts[row.value.kind] = (counts[row.value.kind] || 0) + 1 })
+    var labels = [["needs-you", "needs you", "need you"], ["alert", "alert", "alerts"], ["people", "people", "people"], ["quiet", "quiet", "quiet"]]
+    var values = labels.filter(function(label) { return counts[label[0]] }).map(function(label) {
+      return counts[label[0]] + " " + (counts[label[0]] === 1 ? label[1] : label[2])
+    })
+    return values.join(" · ") || String(rows.length)
+  }
+
+  function unreleasedSummary(rows) {
+    var counts = { major: 0, minor: 0, patch: 0 }
+    var stale = 0
+    rows.forEach(function(row) {
+      var impact = row.value.snapshot ? row.value.snapshot.suggestion : ""
+      if (impact in counts) counts[impact]++
+      if (row.value.stale) stale++
+    })
+    var values = ["major", "minor", "patch"].filter(function(impact) { return counts[impact] }).map(function(impact) { return counts[impact] + " " + impact })
+    if (stale) values.push(stale + " stale")
+    return values.join(" · ") || rows.length + " of " + (service ? service.releases.length : 0)
+  }
+
   Shortcut {
     sequence: "Ctrl+P"
     context: Qt.ApplicationShortcut
@@ -1800,7 +1825,7 @@ Panel {
           SectionHeading {
             id: notificationsHeading
             visible: (root.view === "overview" || root.view === "notifications") && (!filterController.filterText || root.filteredThreads.length > 0 || root.filteredFooterActions.length > 0 || filterController.indexForKey("action:notifications-refresh") >= 0 || filterController.indexForKey("action:notifications-dismiss") >= 0)
-            title: "Notifications · " + root.filteredThreads.length
+            title: "Notifications · " + root.threadSummary(root.filteredThreads)
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             refreshable: true
@@ -1917,7 +1942,8 @@ Panel {
             id: releasesHeading
             visible: (root.view === "overview" || root.view === "releases") && (!filterController.filterText || root.filteredReleaseRows.length > 0 || filterController.indexForKey("action:release-refresh") >= 0)
               || (root.releaseView && root.filteredReleaseRows.length > 0)
-            title: root.view === "overview" || root.view === "releases" ? (root.view === "releases" ? "Tracked repositories · " : "Unreleased changes · ") + root.filteredReleaseRows.length + " of " + (root.service ? root.service.releases.length : 0)
+            title: root.view === "overview" ? "Unreleased changes · " + root.unreleasedSummary(root.filteredReleaseRows)
+              : root.view === "releases" ? "Tracked repositories · " + root.filteredReleaseRows.length + " of " + (root.service ? root.service.releases.length : 0)
               : (root.view === "release-commits" ? "Commits" : (root.view === "release" ? "Finding groups" : "Findings")) + " · " + root.filteredReleaseRows.length
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily

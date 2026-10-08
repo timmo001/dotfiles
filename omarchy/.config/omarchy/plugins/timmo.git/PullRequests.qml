@@ -23,6 +23,17 @@ Column {
 
   spacing: Style.space(8)
 
+  function pullSummary(entries) {
+    var pulls = entries.reduce(function(all, row) {
+      return all.concat(row.kind === "pull" ? [row.value] : (row.kind === "pull-repo" ? row.value.pulls : []))
+    }, [])
+    var ready = pulls.filter(function(pr) { return !pr.draft && pr.checks === "pass" }).length
+    var failing = pulls.filter(function(pr) { return !pr.draft && pr.checks === "fail" }).length
+    var drafts = pulls.filter(function(pr) { return pr.draft }).length
+    return [pulls.length + " open", ready ? ready + " ready" : "", failing ? failing + " failing" : "", drafts ? drafts + (drafts === 1 ? " draft" : " drafts") : ""]
+      .filter(Boolean).join(" · ")
+  }
+
   function itemForKey(key) {
     for (var i = 0; i < groups.count; i++) {
       var group = groups.itemAt(i)
@@ -55,7 +66,7 @@ Column {
       SectionHeading {
         id: heading
         title: group.modelData === "pulls-empty" ? "Without pull requests · " + group.entries.length
-          : (root.view === "pulls" ? "With pull requests" : "Pull requests") + " · " + group.entries.filter(function(row) { return row.kind !== "pull-action" }).length
+          : (root.view === "pulls" ? "With pull requests" : "Pull requests") + " · " + root.pullSummary(group.entries)
         foreground: root.foreground
         fontFamily: root.fontFamily
         refreshable: group.modelData === "pulls"

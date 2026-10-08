@@ -24,6 +24,13 @@ Column {
 
   spacing: Style.space(8)
 
+  function issueSummary(entries) {
+    var repos = entries.filter(function(row) { return row.kind === "issue-repo" })
+    if (!repos.length) return entries.filter(function(row) { return row.kind === "issue" }).length + " open"
+    var open = repos.reduce(function(count, row) { return count + row.value.issues.length }, 0)
+    return open + " open in " + repos.length + (repos.length === 1 ? " repo" : " repos")
+  }
+
   function itemForKey(key) {
     for (var i = 0; i < groups.count; i++) {
       var group = groups.itemAt(i)
@@ -56,7 +63,7 @@ Column {
       SectionHeading {
         id: heading
         title: group.modelData === "issues-empty" ? "Without issues · " + group.entries.length
-          : (root.view === "issues" ? "With issues" : "Issues") + " · " + group.entries.filter(function(row) { return row.kind !== "issue-action" }).length
+          : (root.view === "issues" ? "With issues" : "Issues") + " · " + root.issueSummary(group.entries)
         foreground: root.foreground
         fontFamily: root.fontFamily
         refreshable: group.modelData === "issues"
