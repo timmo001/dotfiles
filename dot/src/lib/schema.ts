@@ -29,9 +29,10 @@ export const isNumber = Schema.is(Schema.Finite);
 /** Whether a value is a boolean. */
 export const isBoolean = Schema.is(Schema.Boolean);
 
-/** Whether a JSON value is an object rather than an array or null. */
+/** Whether a JSON value is an object rather than an array, null or a missing key. */
 export function isJsonObject(value: JsonValue): value is JsonObject {
   return (
+    value !== undefined &&
     value !== null &&
     !Array.isArray(value) &&
     !isString(value) &&
