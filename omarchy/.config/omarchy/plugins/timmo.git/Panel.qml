@@ -1173,7 +1173,9 @@ Panel {
     var values = labels.filter(function(label) { return counts[label[0]] }).map(function(label) {
       return counts[label[0]] + " " + (counts[label[0]] === 1 ? label[1] : label[2])
     })
-    return values.join(" · ") || String(rows.length)
+    if (!values.length) values.push(String(rows.length))
+    if (!filterController.filterText && otherThreadCount > 0) values.push(otherThreadCount + (otherThreadCount === 1 ? " other" : " others"))
+    return values.join(" · ")
   }
 
   function unreleasedSummary(rows) {
