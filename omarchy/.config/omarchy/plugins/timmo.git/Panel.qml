@@ -153,12 +153,12 @@ Panel {
   property var sectionOverrides: ({})
   readonly property bool sectionsCollapsible: !filterController.filterText
 
-  // Filtering opens every section. In a Herdr workspace the overview starts with only the workspace open.
+  // Filtering opens every section. The overview starts with only the workspace open, if there is one.
   function sectionExpanded(id) {
     if (filterController.filterText) return true
     var key = view + ":" + id
     if (key in sectionOverrides) return sectionOverrides[key]
-    return !(view === "overview" && id !== "context" && workspaceContext && workspaceContext.repository)
+    return !(view === "overview" && id !== "context")
   }
 
   function toggleSection(id) {
