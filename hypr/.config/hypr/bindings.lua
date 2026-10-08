@@ -131,6 +131,8 @@ o.bind("CTRL + ALT + C", "Capture note", "omarchy-shell timmo.notes capture")
 o.bind("CTRL + ALT + M", "MOMENTUM 4 controls", "omarchy-shell shell toggle timmo.momentumctl")
 o.bind("CTRL + ALT + T", "Up Next: Twitch", "omarchy-shell timmo.upnext twitch")
 o.bind("CTRL + ALT + Y", "Up Next: YouTube", "omarchy-shell timmo.upnext youtube")
+o.bind("CTRL + ALT + F", "Agent Checks: CI", [[omarchy-shell timmo.agent-checks ci "" ""]])
+o.bind("CTRL + ALT + L", "Agent Checks: lint", [[omarchy-shell timmo.agent-checks lint "" ""]])
 
 -- Local automations
 o.bind("SUPER + CTRL + SHIFT + C", nil, "timmo-run-command ha-bridge input_boolean toggle input_boolean.in_a_call")
