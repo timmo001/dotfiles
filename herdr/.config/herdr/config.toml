@@ -188,6 +188,11 @@ rows = [
   [
     "branch",
     "git_status",
+    { token = "$timmo_agent_checks_lint", fg = "#f38ba8", dim = false, rules = [
+      { equals = "\uF4B1  ⚠", fg = "#f9e2af" },
+      { equals = "\uF4B1  ↻", fg = "#f9e2af" },
+      { equals = "\uF4B1  ✓", fg = "#a6e3a1" },
+    ] },
     { token = "$timmo_agent_checks_ci", fg = "#f38ba8", dim = false, rules = [
       { equals = "\uF52E  ⚠", fg = "#f9e2af" },
       { equals = "\uF52E  …", fg = "#89b4fa" },
@@ -197,11 +202,6 @@ rows = [
       { contains = "✓ ↶", fg = "#7f9f7a" },
       { contains = "↻ ↶", fg = "#b3a078" },
       { contains = "↶", fg = "#b07883" },
-    ] },
-    { token = "$timmo_agent_checks_lint", fg = "#f38ba8", dim = false, rules = [
-      { equals = "󰃢 ⚠", fg = "#f9e2af" },
-      { equals = "󰃢 ↻", fg = "#f9e2af" },
-      { equals = "󰃢 ✓", fg = "#a6e3a1" },
     ] },
   ],
 ]
