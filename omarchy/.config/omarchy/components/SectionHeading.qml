@@ -20,7 +20,8 @@ Rectangle {
   signal refreshRequested()
   signal refreshHovered()
   signal toggleRequested()
-  signal toggleHovered()
+  // Sends the global pointer position so panels can ignore hover from rows moving under a still pointer.
+  signal toggleHovered(point globalPoint)
 
   width: parent.width
   implicitHeight: Math.max(titleText.implicitHeight, refreshButton.implicitHeight, trailingLoader.implicitHeight) + Style.space(12)
@@ -47,11 +48,12 @@ Rectangle {
   }
 
   MouseArea {
+    id: toggleArea
     anchors.fill: parent
     visible: root.collapsible
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
-    onEntered: root.toggleHovered()
+    onPositionChanged: function(mouse) { root.toggleHovered(toggleArea.mapToGlobal(mouse.x, mouse.y)) }
     onClicked: root.toggleRequested()
   }
 
