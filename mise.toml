@@ -41,6 +41,8 @@ run = "bun dot/src/checkRepositoryFiles.ts shell"
 description = "Install dot dependencies"
 dir = "dot"
 run = "bun install"
+sources = ["package.json", "bun.lock"]
+outputs = ["node_modules/.bin"]
 
 [tasks."dot:dev"]
 description = "Run dot in watch mode"
