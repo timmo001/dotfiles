@@ -209,7 +209,7 @@ $defs:
       commands:
         type: array
         minItems: 1
-        description: Commands run in order from the repository root.
+        description: Commands run in parallel from the repository root; results keep this order. Each command is a separate result, so prefer one command per check over an aggregate task.
         items:
           type: object
           additionalProperties: false

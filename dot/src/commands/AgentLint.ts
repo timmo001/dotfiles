@@ -258,8 +258,10 @@ export const agentLint = Effect.fn("agentLint")(function* (
         const files = yield* changedFiles(root, options.paths);
 
         const results = files.length
-          ? yield* Effect.forEach(settings.commands, (command) =>
-              runLintCommand(root, command, files),
+          ? yield* Effect.forEach(
+              settings.commands,
+              (command) => runLintCommand(root, command, files),
+              { concurrency: "unbounded" },
             )
           : [];
 

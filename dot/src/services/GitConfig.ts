@@ -120,7 +120,7 @@ export type AgentLintCommand = typeof AgentLintCommand.Type;
 
 /** Per-repository fallback lint commands for agent sessions. */
 export const AgentLintSettings = Schema.Struct({
-  /** Commands run in order. */
+  /** Commands run in parallel; results keep this order. */
   commands: Schema.NonEmptyArray(AgentLintCommand),
   /** Closing line of the lint message, naming the repository's own checks. */
   message: Schema.optionalKey(Schema.NonEmptyString),

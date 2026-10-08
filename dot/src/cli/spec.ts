@@ -2454,7 +2454,7 @@ const agentLintCommand = describe(
   ],
   {
     description:
-      "Collect files changed in the working tree against HEAD, plus untracked files that are not ignored, and run each configured agent_lint command from the repository root under dot run --timeout. Deleted files and submodule changes are left out. Paths narrow the changed files. A run argument of exactly {files} expands to the changed files matching the command's include globs; commands without it run as they are, but only when a changed file matches. Each result is passed, failed, timed-out or skipped, with the last lines of output for failures. Exits non-zero when any command fails or times out. Repositories without agent_lint print a notice and exit zero.",
+      "Collect files changed in the working tree against HEAD, plus untracked files that are not ignored, and run the configured agent_lint commands in parallel from the repository root under dot run --timeout, reporting results in config order. Deleted files and submodule changes are left out. Paths narrow the changed files. A run argument of exactly {files} expands to the changed files matching the command's include globs; commands without it run as they are, but only when a changed file matches. Each result is passed, failed, timed-out or skipped, with the last lines of output for failures. Exits non-zero when any command fails or times out. Repositories without agent_lint print a notice and exit zero.",
   },
 );
 
