@@ -14057,7 +14057,7 @@ policy:
         templates: {}
     datasources:
       python-precompiled:
-        registry: "https://raw.githubusercontent.com/astral-sh/uv/main/crates/uv-python/download-metadata.json"
+        registry: "https://raw.githubusercontent.com/astral-sh/uv/main/crates/uv-python-managed/download-metadata.json"
         format: "json"
         transforms:
           - "($builds := $.*[name = \"cpython\" and os = \"linux\" and arch.family = \"x86_64\" and arch.variant = null and libc = \"gnu\" and variant = null and prerelease = \"\"]; $first := $builds{$string(major) & \".\" & $string(minor) & \".\" & $string(patch): $min($number(build))}; {\"releases\": [$each($first, function($b, $v) {($d := $string($b); $t := $substring($d, 0, 4) & \"-\" & $substring($d, 4, 2) & \"-\" & $substring($d, 6, 2) & \"T00:00:00Z\"; {\"version\": $v, \"date\": $t, \"releaseTimestamp\": $t})})], \"sourceUrl\": \"https://github.com/astral-sh/python-build-standalone\"})"
