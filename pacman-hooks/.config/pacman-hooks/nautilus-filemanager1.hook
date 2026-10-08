@@ -1,0 +1,10 @@
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Target = usr/share/dbus-1/services/org.freedesktop.FileManager1.service
+
+[Action]
+Description = Removing Nautilus's FileManager1 D-Bus service so Thunar owns it
+When = PostTransaction
+Exec = /usr/bin/rm -f /usr/share/dbus-1/services/org.freedesktop.FileManager1.service
