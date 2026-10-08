@@ -12,16 +12,22 @@ Rectangle {
   property bool refreshing: false
   property bool hasCursor: false
   property Component trailingControl: null
+  // Collapsible headings show a chevron and toggle when clicked; the owner keeps the state.
+  property bool collapsible: false
+  property bool expanded: true
+  property bool toggleHasCursor: false
 
   signal refreshRequested()
   signal refreshHovered()
+  signal toggleRequested()
+  signal toggleHovered()
 
   width: parent.width
   implicitHeight: Math.max(titleText.implicitHeight, refreshButton.implicitHeight, trailingLoader.implicitHeight) + Style.space(12)
   radius: 0
-  color: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.06)
+  color: toggleHasCursor ? Style.hoverFillFor(foreground, foreground) : Qt.rgba(foreground.r, foreground.g, foreground.b, 0.06)
   border.width: 1
-  border.color: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.16)
+  border.color: Qt.rgba(foreground.r, foreground.g, foreground.b, toggleHasCursor ? 0.4 : 0.16)
 
   Text {
     id: titleText
@@ -30,7 +36,7 @@ Rectangle {
     anchors.right: trailingLoader.item && trailingLoader.item.visible ? trailingLoader.left : (refreshButton.visible ? refreshButton.left : parent.right)
     anchors.rightMargin: Style.space(12)
     anchors.verticalCenter: parent.verticalCenter
-    text: root.title.toUpperCase()
+    text: (root.collapsible ? (root.expanded ? "󰅀 " : "󰅂 ") : "") + root.title.toUpperCase()
     textFormat: Text.PlainText
     elide: Text.ElideRight
     color: Qt.darker(root.foreground, 1.15)
@@ -38,6 +44,15 @@ Rectangle {
     font.pixelSize: Style.font.caption
     font.bold: true
     font.letterSpacing: 1.2
+  }
+
+  MouseArea {
+    anchors.fill: parent
+    visible: root.collapsible
+    hoverEnabled: true
+    cursorShape: Qt.PointingHandCursor
+    onEntered: root.toggleHovered()
+    onClicked: root.toggleRequested()
   }
 
   Loader {
