@@ -29,7 +29,7 @@ env:
   # customManagers entry in renovate.json); the version check below fails if
   # the container's quickshell has drifted from this pin, which is the signal
   # to merge the Renovate bump.
-  QUICKSHELL_VERSION: "0.3.1"
+  QUICKSHELL_VERSION: "0.3.2"
 
 jobs:
   qmllint:
