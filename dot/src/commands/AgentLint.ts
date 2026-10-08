@@ -25,6 +25,10 @@ export interface AgentLintOptions {
   readonly paths: readonly string[];
   /** Print one JSON report instead of log lines. */
   readonly json: boolean;
+  /** Lint every tracked and untracked file, not only changed ones. */
+  readonly all: boolean;
+  /** Names of the commands to run; empty runs them all. */
+  readonly only: readonly string[];
 }
 
 /** Domain error raised before any lint command starts. */
@@ -69,6 +73,7 @@ const outputTail = (text: string) =>
 const changedFiles = Effect.fn("agentLint.changedFiles")(function* (
   root: string,
   paths: readonly string[],
+  all: boolean,
 ) {
   const executor = yield* CommandExecutor;
   const fs = yield* FileSystem.FileSystem;
@@ -95,7 +100,16 @@ const changedFiles = Effect.fn("agentLint.changedFiles")(function* (
   const pathspec = paths.length ? ["--", ...paths] : [];
 
   const [tracked, untracked] = yield* Effect.all([
-    git(["diff", "--name-only", "-z", "--diff-filter=d", base, ...pathspec]),
+    all
+      ? git(["ls-files", "--cached", "--full-name", "-z", ...pathspec])
+      : git([
+          "diff",
+          "--name-only",
+          "-z",
+          "--diff-filter=d",
+          base,
+          ...pathspec,
+        ]),
     git([
       "ls-files",
       "--others",
@@ -260,12 +274,25 @@ export const agentLint = Effect.fn("agentLint")(function* (
 
   const report: AgentLintReport = settings
     ? yield* Effect.gen(function* () {
-        const files = yield* changedFiles(root, options.paths);
+        const unknown = options.only.filter(
+          (name) => !settings.commands.some((command) => command.name === name),
+        );
+
+        if (unknown.length)
+          return yield* new AgentLintError({
+            message: `agent-lint: no agent_lint command named ${unknown.join(", ")}`,
+          });
+
+        const files = yield* changedFiles(root, options.paths, options.all);
 
         // With no changed files every command is reported as skipped, so
         // callers still see each configured check.
         const results = yield* Effect.forEach(
-          settings.commands,
+          options.only.length
+            ? settings.commands.filter((command) =>
+                options.only.includes(command.name),
+              )
+            : settings.commands,
           (command) => runLintCommand(root, command, files),
           { concurrency: "unbounded" },
         );

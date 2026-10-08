@@ -1972,13 +1972,15 @@ Run the repository's agent_lint commands from private dot-git.yml on changed fil
 dot agent-lint [flags] [<path...>]
 ```
 
-Collect files changed in the working tree against HEAD, plus untracked files that are not ignored, and run the configured agent_lint commands in parallel from the repository root under dot run --timeout, reporting results in config order. Deleted files and submodule changes are left out. Paths narrow the changed files. A run argument of exactly {files} expands to the changed files matching the command's include globs; commands without it run as they are, but only when a changed file matches. Each result is passed, failed, timed-out or skipped, with the last lines of output for failures. Exits non-zero when any command fails or times out. Repositories without agent_lint print a notice and exit zero.
+Collect files changed in the working tree against HEAD, plus untracked files that are not ignored, and run the configured agent_lint commands in parallel from the repository root under dot run --timeout, reporting results in config order. Deleted files and submodule changes are left out. Paths narrow the changed files. --all uses every tracked and untracked file that is not ignored instead, so commands run without changes. --only runs just the named commands and reports only those. A run argument of exactly {files} expands to the changed files matching the command's include globs; commands without it run as they are, but only when a changed file matches. Each result is passed, failed, timed-out or skipped, with the last lines of output for failures. Exits non-zero when any command fails or times out. Repositories without agent_lint print a notice and exit zero.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
 | `--json` | Print one JSON report instead of log lines |
+| `--all` | Lint every file, not only changed ones |
+| `--only` `<string>` | Run only the command with this name; repeatable |
 | `--help` `-h` | Show help information |
 
 **Arguments**
@@ -1993,6 +1995,7 @@ Collect files changed in the working tree against HEAD, plus untracked files tha
 dot agent-lint
 dot agent-lint --json
 dot agent-lint src/one.ts src/two.ts --json
+dot agent-lint --all --only Typecheck --json
 ```
 
 ## `dot pr`
