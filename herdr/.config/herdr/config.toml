@@ -133,8 +133,26 @@ description = "open Yazi in a new tab"
 [[keys.command]]
 key = "prefix+f"
 type = "plugin_action"
-command = "timmo.workflow-watch.open"
-description = "open workflow failures"
+command = "timmo.agent-checks.open"
+description = "open CI checks"
+
+[[keys.command]]
+key = "prefix+alt+f"
+type = "plugin_action"
+command = "timmo.agent-checks.paste-ci"
+description = "paste CI failures into this agent"
+
+[[keys.command]]
+key = "prefix+l"
+type = "plugin_action"
+command = "timmo.agent-checks.lint"
+description = "open lint checks"
+
+[[keys.command]]
+key = "prefix+alt+l"
+type = "plugin_action"
+command = "timmo.agent-checks.paste-lint"
+description = "paste lint failures into this agent"
 
 [[keys.command]]
 key = "prefix+t"
@@ -170,15 +188,20 @@ rows = [
   [
     "branch",
     "git_status",
-    { token = "$timmo_workflow_watch", fg = "#f38ba8", dim = false, rules = [
-      { equals = "⚠", fg = "#f9e2af" },
-      { equals = "…", fg = "#89b4fa" },
-      { equals = "↻", fg = "#f9e2af" },
-      { equals = "✓", fg = "#a6e3a1" },
-      { equals = "○", fg = "#73758a" },
+    { token = "$timmo_agent_checks_ci", fg = "#f38ba8", dim = false, rules = [
+      { equals = "CI ⚠", fg = "#f9e2af" },
+      { equals = "CI …", fg = "#89b4fa" },
+      { equals = "CI ↻", fg = "#f9e2af" },
+      { equals = "CI ✓", fg = "#a6e3a1" },
+      { equals = "CI ○", fg = "#73758a" },
       { contains = "✓ ↶", fg = "#7f9f7a" },
       { contains = "↻ ↶", fg = "#b3a078" },
       { contains = "↶", fg = "#b07883" },
+    ] },
+    { token = "$timmo_agent_checks_lint", fg = "#f38ba8", dim = false, rules = [
+      { equals = "lint ⚠", fg = "#f9e2af" },
+      { equals = "lint ↻", fg = "#f9e2af" },
+      { equals = "lint ✓", fg = "#a6e3a1" },
     ] },
   ],
 ]

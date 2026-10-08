@@ -126,6 +126,16 @@
       "path": "plugins/nosignal.deckshift",
       "onlyHosts": ["desktop"],
       "placement": { "section": "right", "index": 0 }
+    },
+    {
+      "id": "timmo.agent-checks",
+      "managed": true,
+      "placement": { "section": "center", "before": "timmo.git" },
+      "settings": { "primaryOnly": true },
+      "hosts": {
+        "desktop": { "primaryOutput": "HDMI-A-2" },
+        "laptop": { "primaryOutput": "eDP-1" }
+      }
     }
   ]
 }

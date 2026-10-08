@@ -26,3 +26,7 @@
 	path = omarchy/.config/omarchy/plugins/timmo.upnext
 	url = https://github.com/timmo001/omarchy-upnext.git
 	branch = dev
+[submodule "omarchy/.config/omarchy/plugins/timmo.agent-checks"]
+	path = omarchy/.config/omarchy/plugins/timmo.agent-checks
+	url = https://github.com/timmo001/agent-checks.git
+	branch = main
