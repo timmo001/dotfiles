@@ -290,29 +290,38 @@ Item {
     return logRepositories.find(function(repo) { return repo.path === path }) || null
   }
 
-  // target is a commit SHA, or a local change set: "uncommitted", "unpushed" or "incoming".
-  function changeDetail(path, target) {
-    return path && target ? changeDetails[path + "@" + target] || null : null
+  // target is a commit SHA, a "<from>..<sha>" range where from may be "root" for the empty tree,
+  // or a local change set: "uncommitted", "unpushed" or "incoming". Non-empty files limit it to those paths.
+  function changeDetailKeyFor(path, target, files) {
+    return path + "@" + target + (files && files.length ? "\n" + files.join("\n") : "")
   }
 
-  function changeDetailError(path, target) {
-    return path && target ? changeDetailErrors[path + "@" + target] || "" : ""
+  function changeDetail(path, target, files) {
+    return path && target ? changeDetails[changeDetailKeyFor(path, target, files)] || null : null
   }
 
-  // Commits never change, so they load once; local changes reload on request.
-  function loadChanges(path, target, reload) {
+  function changeDetailError(path, target, files) {
+    return path && target ? changeDetailErrors[changeDetailKeyFor(path, target, files)] || "" : ""
+  }
+
+  // Commits and ranges between them never change, so they load once; local changes reload on request.
+  function loadChanges(path, target, reload, files) {
     path = String(path || "")
     target = String(target || "")
-    if (!path || !(/^[0-9a-f]{7,64}$/.test(target) || localChangeTargets.indexOf(target) >= 0)) return
-    var key = path + "@" + target
+    files = (files || []).map(String)
+    var range = /^([0-9a-f]{7,64}|root)\.\.([0-9a-f]{7,64})$/.exec(target)
+    if (!path || !(range || /^[0-9a-f]{7,64}$/.test(target) || localChangeTargets.indexOf(target) >= 0)) return
+    var key = changeDetailKeyFor(path, target, files)
     if ((changeDetails[key] && !reload) || changeDetailKey === key) return
     if (changeDetailProcess.running) {
-      if (!changeDetailQueue.some(function(job) { return job.path + "@" + job.target === key }))
-        changeDetailQueue = changeDetailQueue.concat([{ path: path, target: target }])
+      if (!changeDetailQueue.some(function(job) { return changeDetailKeyFor(job.path, job.target, job.files) === key }))
+        changeDetailQueue = changeDetailQueue.concat([{ path: path, target: target, files: files }])
       return
     }
     changeDetailKey = key
-    changeDetailProcess.command = ["dot", "git-log", "show", "--path", path].concat(localChangeTargets.indexOf(target) >= 0 ? ["--changes", target] : ["--sha", target])
+    changeDetailProcess.command = ["dot", "git-log", "show", "--path", path]
+      .concat(range ? ["--from", range[1], "--sha", range[2]] : (localChangeTargets.indexOf(target) >= 0 ? ["--changes", target] : ["--sha", target]))
+      .concat(files.reduce(function(args, file) { return args.concat(["--file", file]) }, []))
     changeDetailProcess.running = true
   }
 
@@ -336,7 +345,7 @@ Item {
     changeDetailKey = ""
     var queued = changeDetailQueue[0]
     changeDetailQueue = changeDetailQueue.slice(1)
-    if (queued) loadChanges(queued.path, queued.target, true)
+    if (queued) loadChanges(queued.path, queued.target, true, queued.files)
   }
 
   function openCommitsWeb(repo, modifiers) {
@@ -551,6 +560,14 @@ Item {
 
   function openEvidence(url, repo, modifiers) {
     if (url) openWeb(url, repo ? repo.path : "", modifiers)
+  }
+
+  function openReleaseDiff(entry, modifiers) {
+    if (!entry || !entry.snapshot || !entry.path) return
+    var head = String(entry.snapshot.head)
+    var from = entry.snapshot.releaseCommit ? String(entry.snapshot.releaseCommit) : "$(git hash-object -t tree /dev/null)"
+    if (!/^[0-9a-f]{7,64}$/.test(head) || (entry.snapshot.releaseCommit && !/^[0-9a-f]{7,64}$/.test(from))) return
+    Quickshell.execDetached(herdrCommand(entry, "Release diff", "git diff --stat --patch " + from + " " + head, modifiers))
   }
 
   function herdrCommand(repo, tabLabel, command, modifiers, flags) {

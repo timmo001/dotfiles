@@ -80,6 +80,14 @@ Panel {
     if (!opened) return []
     if (view === "commit" && selectedCommit)
       return [{ path: String(selectedCommit.repo.path || ""), target: selectedCommit.commit.sha, title: "Files changed", diffTitle: "Diff preview" }]
+    if (releaseView && selectedRelease && selectedRelease.path && releaseSnapshot) {
+      var range = (releaseSnapshot.releaseCommit || "root") + ".." + releaseSnapshot.head
+      var release = { path: String(selectedRelease.path), target: range, files: [], title: "Files changed", diffTitle: "Diff preview" }
+      if (view === "release") return [release]
+      var scoped = view === "finding" ? (selectedFinding ? [selectedFinding] : []) : (view === "finding-group" && selectedFindingGroup ? selectedFindingGroup.findings : [])
+      var files = findingFiles(scoped)
+      return files.length ? [Object.assign(release, { files: files })] : []
+    }
     return view === "repo" ? localChangeSections(selectedRepo) : []
   }
   // The detected workspace repository's local changes, shown under its overview heading.
@@ -105,7 +113,17 @@ Panel {
   }
 
   function loadChangeSections(sections) {
-    if (service) sections.forEach(function(section) { service.loadChanges(section.path, section.target, service.localChangeTargets.indexOf(section.target) >= 0) })
+    if (service) sections.forEach(function(section) { service.loadChanges(section.path, section.target, service.localChangeTargets.indexOf(section.target) >= 0, section.files) })
+  }
+
+  // Superproject paths behind release findings; submodule content is shown as its pin change.
+  function findingFiles(findings) {
+    var files = []
+    findings.forEach(function(finding) {
+      var paths = finding.submodule ? [finding.submodule] : [finding.path, finding.previousPath]
+      paths.forEach(function(path) { if (path && files.indexOf(String(path)) < 0) files.push(String(path)) })
+    })
+    return files.sort()
   }
 
   // Long file lists and diff previews collapse to these heights until expanded.
@@ -183,6 +201,11 @@ Panel {
           rows.push(actionRow("release-prepare", "Prepare release…", "󰑓"))
           if (releaseSnapshot) {
             rows.push(actionRow("release-evidence", "Open full comparison", ""))
+            if (selectedRelease.path) {
+              var releaseDiff = actionRow("release-diff", "Open in diff viewer", "\uf440")
+              releaseDiff.secondaryText = "git diff in a terminal"
+              rows.push(releaseDiff)
+            }
             rows.push(actionRow("release-commits", "All commits · " + releaseSnapshot.commits.length, ""))
             for (var g = 0; g < findingGroups.length; g++) {
               var group = findingGroups[g]
@@ -725,7 +748,9 @@ Panel {
         lines.push(selectedFinding.changeType + " · " + selectedFinding.path)
         if (selectedFinding.previousPath) lines.push("From path: " + selectedFinding.previousPath)
         if (selectedFinding.role) lines.push("Dependency role: " + selectedFinding.role)
-        lines.push("Before: " + String(selectedFinding.before || "absent"), "After: " + String(selectedFinding.after || "absent"))
+        // The diff below shows file, metadata and submodule changes; a dependency's values pinpoint its entry in a larger manifest or lockfile diff.
+        if (selectedFinding.kind === "dependency" || !changeSections.length)
+          lines.push("Before: " + String(selectedFinding.before || "absent"), "After: " + String(selectedFinding.after || "absent"))
         if (!findingUrl(selectedFinding)) lines.push("Upstream link unavailable in this cached snapshot; refresh to collect it")
       }
     } else if (view === "release-prepare" || releaseAgentView) {
@@ -968,6 +993,7 @@ Panel {
     }
     else if (["release-prepare", "release-commits"].indexOf(action) >= 0) showView(action)
     else if (action === "release-evidence") service.openEvidence(view === "finding" ? findingUrl(selectedFinding) : (releaseSnapshot ? "https://github.com/" + releaseSnapshot.repo + (releaseSnapshot.releaseCommit ? "/compare/" + releaseSnapshot.releaseCommit + "...HEAD" : "/commits/" + releaseSnapshot.branch) : ""), selectedRelease, modifiers)
+    else if (action === "release-diff" && selectedRelease) { close(); service.openReleaseDiff(selectedRelease, modifiers) }
     else if (action.indexOf("impact:") === 0) {
       var targets = view === "finding" ? [selectedFindingId]
         : (selectedImpactScope === "overall" ? ["overall"] : impactFindings.map(function(finding) { return finding.id }))
@@ -1167,6 +1193,30 @@ Panel {
           }
 
           SectionHeading {
+            id: comparisonHeading
+            visible: root.releaseView && root.view !== "releases"
+            title: root.view === "release-prepare" || root.releaseAgentView ? "Prepare release" : (root.view === "finding-group" ? "Group summary" : "Release comparison")
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+            refreshable: !root.releaseAgentView
+            refreshing: root.service ? root.service.releaseRefreshing : false
+            hasCursor: root.cursorKey === "action:release-refresh"
+            onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:release-refresh")
+            onRefreshRequested: root.activateAction("release-refresh")
+          }
+
+          Text {
+            visible: root.releaseView
+            width: parent.width
+            text: root.releaseSummary() + (root.service && root.service.releasesError ? "\n" + root.service.releasesError : "") + (root.service && root.service.releaseActionError ? "\n" + root.service.releaseActionError : "")
+            textFormat: Text.PlainText
+            wrapMode: Text.WrapAnywhere
+            color: root.contentForeground
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.caption
+          }
+
+          SectionHeading {
             id: contextHeading
             visible: root.contextRows.length > 0 || filterController.indexForKey("action:context-refresh") >= 0
             title: root.workspaceContext?.workspace?.label.trim() || "Current workspace"
@@ -1179,16 +1229,21 @@ Panel {
             onRefreshRequested: root.activateAction("context-refresh")
           }
 
-          // Only one of these is non-empty, as they belong to different views.
+          // Release views show changes after their actions and findings; the other sections belong to different views.
           Repeater {
-            model: root.changeSections.concat(root.contextChangeSections)
+            model: (root.releaseView ? [] : root.changeSections).concat(root.contextChangeSections)
+            delegate: filesSectionDelegate
+          }
+
+          Component {
+            id: filesSectionDelegate
             Column {
               id: filesSection
               required property var modelData
-              readonly property string expandKey: "files:" + modelData.path + "@" + modelData.target
+              readonly property string expandKey: "files:" + modelData.path + "@" + modelData.target + "#" + (modelData.files || []).join("\n")
               readonly property bool expanded: !!root.expandedSections[expandKey]
-              readonly property var detail: root.service ? root.service.changeDetail(modelData.path, modelData.target) : null
-              readonly property string error: root.service ? root.service.changeDetailError(modelData.path, modelData.target) : ""
+              readonly property var detail: root.service ? root.service.changeDetail(modelData.path, modelData.target, modelData.files) : null
+              readonly property string error: root.service ? root.service.changeDetailError(modelData.path, modelData.target, modelData.files) : ""
               readonly property bool overflowing: filesContent.implicitHeight > root.filesCollapsedHeight
               width: contentColumn.width
               spacing: contentColumn.spacing
@@ -1340,30 +1395,6 @@ Panel {
           }
 
           SectionHeading {
-            id: comparisonHeading
-            visible: root.releaseView && root.view !== "releases"
-            title: root.view === "release-prepare" || root.releaseAgentView ? "Prepare release" : (root.view === "finding-group" ? "Group summary" : "Release comparison")
-            foreground: root.contentForeground
-            fontFamily: root.contentFontFamily
-            refreshable: !root.releaseAgentView
-            refreshing: root.service ? root.service.releaseRefreshing : false
-            hasCursor: root.cursorKey === "action:release-refresh"
-            onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:release-refresh")
-            onRefreshRequested: root.activateAction("release-refresh")
-          }
-
-          Text {
-            visible: root.releaseView
-            width: parent.width
-            text: root.releaseSummary() + (root.service && root.service.releasesError ? "\n" + root.service.releasesError : "") + (root.service && root.service.releaseActionError ? "\n" + root.service.releaseActionError : "")
-            textFormat: Text.PlainText
-            wrapMode: Text.WrapAnywhere
-            color: root.contentForeground
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.caption
-          }
-
-          SectionHeading {
             visible: root.view !== "overview" && root.filteredActions.length > 0
             title: "Actions"
             foreground: root.contentForeground
@@ -1429,12 +1460,17 @@ Panel {
           }
 
           Repeater {
-            model: root.changeSections
+            model: root.releaseView ? [] : root.changeSections
+            delegate: diffSectionDelegate
+          }
+
+          Component {
+            id: diffSectionDelegate
             Column {
               id: diffSection
               required property var modelData
-              readonly property var detail: root.service ? root.service.changeDetail(modelData.path, modelData.target) : null
-              readonly property string expandKey: "diff:" + modelData.path + "@" + modelData.target
+              readonly property var detail: root.service ? root.service.changeDetail(modelData.path, modelData.target, modelData.files) : null
+              readonly property string expandKey: "diff:" + modelData.path + "@" + modelData.target + "#" + (modelData.files || []).join("\n")
               readonly property bool expanded: !!root.expandedSections[expandKey]
               readonly property bool overflowing: diffText.implicitHeight > root.diffCollapsedHeight
               visible: !!detail && !!detail.preview
@@ -1780,6 +1816,16 @@ Panel {
                 MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: function(mouse) { root.activateEntry(modelData, mouse.modifiers) } }
               }
             }
+          }
+
+          Repeater {
+            model: root.releaseView ? root.changeSections : []
+            delegate: filesSectionDelegate
+          }
+
+          Repeater {
+            model: root.releaseView ? root.changeSections : []
+            delegate: diffSectionDelegate
           }
 
           CursorSurface {
