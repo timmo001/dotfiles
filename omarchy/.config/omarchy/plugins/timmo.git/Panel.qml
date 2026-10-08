@@ -579,6 +579,12 @@ Panel {
     return repositories.some(function(repo) { return repo.pulls.length > 0 }) ? "" : "No open pull requests"
   }
 
+  // reset() lands on the first row after Back, which is now a heading toggle.
+  function selectFirstRow() {
+    var index = filterController.navigationEntries.findIndex(function(entry) { return entry.navigation !== true && entry.kind !== "toggle" })
+    if (index >= 0) filterController.selectIndex(index)
+  }
+
   function selectFirstPullRequest() {
     if (view !== "pull-repo") return
     var index = filterController.navigationEntries.findIndex(function(entry) { return entry.kind === "pull" })
@@ -889,6 +895,7 @@ Panel {
     if (target && view === "repo") expandedGroups = { review: true }
     controller.show()
     Qt.callLater(function() {
+      selectFirstRow()
       if (view === "overview") {
         var index = filterController.navigationEntries.findIndex(function(entry) { return entry.kind === "repo" || entry.kind === "context-action" })
         if (index < 0)
@@ -999,6 +1006,7 @@ Panel {
       revealTimer.stop()
       filterController.reset()
       panelFlick.contentY = 0
+      selectFirstRow()
       selectFirstPullRequest()
       selectFirstIssue()
       var index = focusKey ? filterController.indexForKey(focusKey) : -1
