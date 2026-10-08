@@ -9,8 +9,9 @@ This directory is the Blume + Astro documentation site for the dotfiles repo, de
 
 ## Background Dev Servers
 
-- The dev server is `blume dev` (via `mise run docs:dev` or `bun run dev`). Stop it with `Ctrl+C`; do not edit the generated `.blume/` runtime.
-- This project does not use pitchfork.
+- Start the dev server with `mise run serve:docs`, which runs `blume dev` through Pitchfork in the background and restarts it if it exits or stops responding. Do not run `mise run docs:dev` or `blume dev` in the foreground from an agent; Blume does not detach on its own. Manage it with `serve:docs:status`, `serve:docs:logs`, `serve:docs:restart` and `serve:docs:stop`. Do not edit the generated `.blume/` runtime.
+- The daemon is configured in the root `pitchfork.toml`. It serves `http://127.0.0.1:7790/`, or the next free port, and is always at `https://docs.dotfiles.localhost` through the Pitchfork proxy.
+- Test through that HTTPS address, in the browser, with curl and anywhere else. Never add the proxy's own port, such as `:8443`, even if Pitchfork prints one: that means the 443 redirect is missing (it's lost on reboot), so run `pitchfork proxy doctor`, then `pitchfork proxy setup -y` to restore it. Use the `127.0.0.1` port only when the proxy isn't running.
 
 ## Layout
 

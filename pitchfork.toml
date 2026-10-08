@@ -1,0 +1,9 @@
+# Keeps the docs dev server running in the background, outside the invoking
+# shell or agent. Manage it with the serve:docs* mise tasks.
+
+[daemons.docs]
+run = 'exec mise run docs:dev --host 127.0.0.1 --port "$PORT"'
+port = { expect = [7790], bump = 10 }
+ready_cmd = 'curl -fsS "http://127.0.0.1:$PORT/"'
+health_cmd = 'curl -fsS "http://127.0.0.1:$PORT/"'
+retry = true
