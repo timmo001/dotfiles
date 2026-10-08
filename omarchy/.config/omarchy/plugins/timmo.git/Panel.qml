@@ -1150,6 +1150,20 @@ Panel {
     return values.join(" · ") || "Clean"
   }
 
+  function repoSummary(rows) {
+    var changed = 0, pull = 0, push = 0
+    rows.forEach(function(row) {
+      if (Number(row.value.modified || 0) > 0) changed++
+      if (Number(row.value.behind || 0) > 0) pull++
+      if (Number(row.value.ahead || 0) > 0) push++
+    })
+    var values = []
+    if (changed > 0) values.push(changed + " changed")
+    if (pull > 0) values.push(pull + " to pull")
+    if (push > 0) values.push(push + " to push")
+    return values.join(" · ") || String(rows.length)
+  }
+
   Shortcut {
     sequence: "Ctrl+P"
     context: Qt.ApplicationShortcut
@@ -1665,7 +1679,7 @@ Panel {
           SectionHeading {
             id: repositoriesHeading
             visible: ["overview", "changed", "other"].indexOf(root.view) >= 0 && (!filterController.filterText || root.filteredRepos.length > 0 || filterController.indexForKey("action:repositories-refresh") >= 0 || filterController.indexForKey("action:pull-changed") >= 0)
-            title: (root.view === "overview" && !filterController.filterText ? "Changed repositories" : "Repositories") + " · " + root.filteredRepos.length
+            title: "Repositories · " + root.repoSummary(root.filteredRepos)
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             refreshable: true
