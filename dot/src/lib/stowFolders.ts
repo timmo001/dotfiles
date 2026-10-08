@@ -35,6 +35,8 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  *   it (the `lua/plugins/theme.lua` symlink and its default plugin files).
  * - `.config/omarchy/plugins`: public and private user plugins share this
  *   directory, and Omarchy may manage additional plugins alongside them.
+ * - `.config/pacman-hooks`: public and private pacman hooks share this
+ *   directory.
  * - `.config/uwsm`: UWSM and Omarchy may add package or migration-owned files
  *   alongside the stowed user environment override.
  * - `.config/systemd/user`: omarchy ships units here and `systemctl --user
@@ -55,6 +57,7 @@ const NO_FOLDING_TARGET_PREFIXES = [
   ".config/hypr",
   ".config/nvim",
   ".config/omarchy/plugins",
+  ".config/pacman-hooks",
   ".config/uwsm",
   ".config/systemd/user",
   ".local/bin",
