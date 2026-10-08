@@ -39,6 +39,49 @@ export function writeRepoShortcuts(
   return target;
 }
 
+/**
+ * Order picker entries like Herdr workspaces: each entry follows its
+ * `herdr_after` predecessor, and chains sharing a `[Tag]` prefix stay together
+ * at the position of the first one. Unresolvable entries keep config order.
+ */
+function orderRepoPicker(
+  repositories: readonly GitRepoShortcut[],
+): readonly GitRepoShortcut[] {
+  const names = new Set(repositories.map((repo) => repo.name));
+  const visited = new Set<GitRepoShortcut>();
+
+  const chain = (root: GitRepoShortcut): GitRepoShortcut[] => {
+    if (visited.has(root)) return [];
+    visited.add(root);
+
+    return [
+      root,
+      ...repositories
+        .filter((repo) => repo.herdrAfter === root.name)
+        .flatMap(chain),
+    ];
+  };
+
+  const chains = repositories.flatMap((repo) =>
+    repo.herdrAfter === undefined ||
+    repo.herdrAfter === repo.name ||
+    !names.has(repo.herdrAfter)
+      ? [chain(repo)]
+      : [],
+  );
+
+  const leftovers = repositories.filter((repo) => !visited.has(repo));
+
+  const groups = new Map<string, GitRepoShortcut[][]>();
+
+  for (const [index, entries] of chains.entries()) {
+    const tag = /^\[[^\]]+\]/.exec(entries[0]?.name ?? "")?.[0] ?? `#${index}`;
+    groups.set(tag, [...(groups.get(tag) ?? []), entries]);
+  }
+
+  return [...[...groups.values()].flat(2), ...leftovers];
+}
+
 /** Write managed repositories for the Herdr repository picker. */
 export function writeRepoPicker(
   cacheDir: string,
@@ -49,7 +92,7 @@ export function writeRepoPicker(
   writeFileAtomic(
     target,
     `${JSON.stringify(
-      repositories.map(({ name, path, herdrAfter }) => ({
+      orderRepoPicker(repositories).map(({ name, path, herdrAfter }) => ({
         name,
         path,
         ...(herdrAfter && { herdrAfter }),
