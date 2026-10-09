@@ -11,6 +11,7 @@ import {
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { join } from "path";
 import { CACHE_DIR } from "../lib/paths.js";
+import { SKILLS_CHECKOUT } from "../lib/skillsMaintenance.js";
 import { Config } from "../services/Config.js";
 
 const BarStatus = Schema.Struct({
@@ -21,10 +22,22 @@ const BarStatus = Schema.Struct({
 
 type BarStatus = typeof BarStatus.Type;
 
+const DotState = Schema.Literals(["current", "available", "unknown"]);
+
+const SkillsStatus = Schema.Struct({
+  behind: Schema.Int,
+  changed: Schema.Array(Schema.String),
+});
+
+type SkillsStatus = typeof SkillsStatus.Type;
+
 const CachedStatus = Schema.Struct({
   ...BarStatus.fields,
   packageStatus: Schema.optional(BarStatus),
   packagesCheckedAt: Schema.optional(Schema.Finite),
+  dot: Schema.optional(DotState),
+  skills: Schema.optional(Schema.NullOr(SkillsStatus)),
+  checkedAt: Schema.optional(Schema.Finite),
 });
 
 const decodeStatus = Schema.decodeUnknownOption(
@@ -41,7 +54,7 @@ const AUR_HTTP_FAILURE_PATTERNS = [
 ] as const;
 
 const current: BarStatus = {
-  text: "󰏕 0",
+  text: "\uF487 0",
   tooltip: "Watched packages are up to date",
   class: "updates-current",
 };
@@ -53,7 +66,7 @@ const unavailable: BarStatus = {
 };
 
 const loading: BarStatus = {
-  text: "󰏕 ..",
+  text: "\uF487 ..",
   tooltip: "Dotfiles update status: loading\nWatched package updates: loading",
   class: "updates-unknown",
 };
@@ -208,11 +221,71 @@ const packages = Effect.fn("Updates.packages")(function* (
   if (updates.length === 0) return aurAvailable ? current : unavailable;
 
   return {
-    text: `󰏕 ${updates.length}`,
+    text: `\uF487 ${updates.length}`,
     tooltip: `Watched package updates:\n${updates.join("\n")}${aurAvailable ? "" : "\n\nAUR updates unavailable"}`,
     class: "updates",
   } satisfies BarStatus;
 });
+
+const skillNames = (listing: string) =>
+  new Set(
+    listing
+      .split("\n")
+      .flatMap((path) => /^([^/]+)\/SKILL\.md$/.exec(path.trim())?.[1] ?? []),
+  );
+
+/** Compare the managed skills checkout with the latest `main`, without moving it. */
+const skills = Effect.fn("Updates.skills")(function* (options: UpdatesOptions) {
+  const git = (args: readonly string[]) =>
+    query("git", ["-C", SKILLS_CHECKOUT, ...args], options.timeout);
+
+  if ((yield* git(["fetch", "--quiet", "origin", "main"])).code !== 0)
+    return null;
+
+  const count = yield* git(["rev-list", "--count", "HEAD..origin/main"]);
+  const behind = Number(count.stdout.trim());
+
+  if (count.code !== 0 || !Number.isInteger(behind)) return null;
+
+  if (behind === 0) return { behind, changed: [] } satisfies SkillsStatus;
+
+  const [diff, current, latest] = yield* Effect.all([
+    git(["diff", "--name-only", "HEAD", "origin/main"]),
+    git(["ls-tree", "-r", "--name-only", "HEAD"]),
+    git(["ls-tree", "-r", "--name-only", "origin/main"]),
+  ]);
+
+  const known = new Set([
+    ...skillNames(current.stdout),
+    ...skillNames(latest.stdout),
+  ]);
+
+  const changed = [
+    ...new Set(
+      diff.stdout.split("\n").flatMap((path) => {
+        const name = path.trim().split("/", 1)[0];
+
+        return name && known.has(name) ? [name] : [];
+      }),
+    ),
+  ].sort();
+
+  return { behind, changed } satisfies SkillsStatus;
+});
+
+const plural = (count: number, word: string) =>
+  `${count} ${word}${count === 1 ? "" : "s"}`;
+
+const skillsMessage = (status: SkillsStatus | null) => {
+  if (status === null) return "Skills update status unavailable";
+
+  if (status.behind === 0) return "Skills are up to date";
+
+  const names =
+    status.changed.length > 0 ? `: ${status.changed.join(", ")}` : "";
+
+  return `Skills are ${plural(status.behind, "commit")} behind${names}`;
+};
 
 /** Refresh Dotfiles status and optionally packages, respecting scheduled AUR backoff. */
 export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
@@ -257,19 +330,31 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
           options.timeout,
         );
 
-        const message = Match.value(dotResult.code).pipe(
-          Match.when(0, () => "Dotfiles are up to date"),
-          Match.when(10, () => "Dotfiles updates available"),
-          Match.orElse(() => "Dotfiles update status unavailable"),
+        const skillsStatus = yield* skills(options);
+
+        const dot = Match.value(dotResult.code).pipe(
+          Match.when(0, () => "current" as const),
+          Match.when(10, () => "available" as const),
+          Match.orElse(() => "unknown" as const),
         );
 
+        const message = {
+          current: "Dotfiles are up to date",
+          available: "Dotfiles updates available",
+          unknown: "Dotfiles update status unavailable",
+        }[dot];
+
+        const skillsBehind = (skillsStatus?.behind ?? 0) > 0;
+
         const status: BarStatus = {
-          ...packageStatus,
-          tooltip: `${message}\n\n${packageStatus.tooltip}`,
+          text: skillsBehind
+            ? `${packageStatus.text}  \uF404 ${skillsStatus?.behind}`
+            : packageStatus.text,
+          tooltip: `${message}\n${skillsMessage(skillsStatus)}\n\n${packageStatus.tooltip}`,
           class:
-            dotResult.code === 10
+            dot === "available" || skillsBehind
               ? "updates"
-              : dotResult.code !== 0 &&
+              : (dot === "unknown" || skillsStatus === null) &&
                   packageStatus.class === "updates-current"
                 ? "updates-unknown"
                 : packageStatus.class,
@@ -277,7 +362,14 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
 
         yield* fs.writeFileString(
           `${locations.cache}.tmp`,
-          `${JSON.stringify({ ...status, packageStatus, packagesCheckedAt })}\n`,
+          `${JSON.stringify({
+            ...status,
+            packageStatus,
+            packagesCheckedAt,
+            dot,
+            skills: skillsStatus,
+            checkedAt: yield* Clock.currentTimeMillis,
+          })}\n`,
           { mode: 0o600 },
         );
         yield* fs.rename(`${locations.cache}.tmp`, locations.cache);
@@ -291,7 +383,9 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
 });
 
 /** Print cached status immediately and start a detached refresh when it is stale. */
-export const updatesStatus = Effect.fn("Updates.status")(function* () {
+export const updatesStatus = Effect.fn("Updates.status")(function* (
+  json = false,
+) {
   const fs = yield* FileSystem.FileSystem;
   const locations = yield* paths({ timeout: 120 });
   const now = yield* Clock.currentTimeMillis;
@@ -343,6 +437,21 @@ export const updatesStatus = Effect.fn("Updates.status")(function* () {
       );
 
     yield* spawnRefresh;
+  }
+
+  if (json) {
+    const cachedStatus = Option.getOrUndefined(status);
+
+    yield* Console.log(
+      JSON.stringify({
+        checkedAt: cachedStatus?.checkedAt ?? null,
+        dot: cachedStatus?.dot ?? null,
+        skills: cachedStatus?.skills ?? null,
+        packages: cachedStatus?.packageStatus ?? null,
+      }),
+    );
+
+    return;
   }
 
   const {

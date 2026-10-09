@@ -45,7 +45,7 @@
         "run": "dot updates status",
         "interval": 60000,
         "refreshTarget": "timmo.updates",
-        "loadingText": "󰏕 ..",
+        "loadingText": "\uF487 ..",
         "loadingClass": "updates-unknown",
         "onClick": "dot herdr repo-open dotfiles \"${DOTFILES_PUBLIC_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles}\" Update update",
         "herdrLaunch": true,

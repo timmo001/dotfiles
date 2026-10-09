@@ -634,9 +634,18 @@ const updatesCommand = describe(
   Command.make("updates").pipe(
     Command.withSubcommands([
       describe(
-        Command.make("status", {}, () => updatesStatus()),
+        Command.make(
+          "status",
+          {
+            json: bool(
+              "json",
+              "Print cached dotfiles, skills and package sections as JSON",
+            ),
+          },
+          ({ json }) => updatesStatus(json),
+        ),
         "Print cached status-bar JSON and refresh stale data in the background",
-        ["dot updates status"],
+        ["dot updates status", "dot updates status --json"],
       ),
       describe(
         Command.make(
@@ -660,16 +669,16 @@ const updatesCommand = describe(
               input.dotOnly,
             ),
         ),
-        "Refresh package and Dotfiles status and notify the shell",
+        "Refresh package, Dotfiles and skills status and notify the shell",
         ["dot updates refresh", "dot updates refresh --dot-only"],
       ),
     ]),
   ),
-  "Check watched package and Dotfiles updates for the status bar",
+  "Check watched package, Dotfiles and skills updates for the status bar",
   ["dot updates status", "dot updates refresh"],
   {
     description:
-      "Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched repository/AUR packages and all dot-managed repositories, writes the cache atomically under a shared lock, and notifies the Omarchy shell. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --package-file, --cache-dir, --timeout, and status --cache-max-age to override defaults.",
+      "Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched repository/AUR packages, all dot-managed repositories and whether the managed skills checkout is behind timmo001/skills main, writes the cache atomically under a shared lock, and notifies the Omarchy shell. status --json prints the cached sections for other readers such as the OpenCode skill-updates plugin. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --package-file, --cache-dir and --timeout to override defaults.",
   },
 );
 
