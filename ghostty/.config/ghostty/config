@@ -29,6 +29,8 @@ cursor-style-blink = false
 
 # Keyboard bindings
 keybind = f11=toggle_fullscreen
+# Pass Ctrl+Enter through to apps (default toggles fullscreen)
+keybind = ctrl+enter=unbind
 keybind = shift+insert=paste_from_clipboard
 keybind = control+insert=copy_to_clipboard
 keybind = super+w=close_window
