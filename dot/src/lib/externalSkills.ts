@@ -19,6 +19,9 @@ import type { RecapEntry } from "./updateSummary.js";
 /** Skills directory shared by every Agent Skills client. */
 export const AGENT_SKILLS_DIR = join(HOME_DIR, ".agents", "skills");
 
+/** User skills directory Claude Code reads instead of the shared one. */
+const CLAUDE_SKILLS_DIR = join(HOME_DIR, ".claude", "skills");
+
 const decodeManifest = Schema.decodeUnknownOption(
   Schema.fromJsonString(Schema.Record(Schema.String, Schema.String)),
 );
@@ -200,6 +203,48 @@ const linkAuthoredSkills = Effect.fn("Skills.linkAuthored")(function* (
   return changed;
 });
 
+/**
+ * Mirror the shared skills directory into Claude Code's skills directory with
+ * one directory link per skill. Existing entries, such as stowed or
+ * tool-installed Claude skills, are left alone. Dangling links back into the
+ * shared directory are removed.
+ *
+ * @returns The number of links created and removed.
+ */
+const linkClaudeSkills = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  let linked = 0;
+  let removed = 0;
+
+  for (const entry of (yield* readDirectoryOrNull(CLAUDE_SKILLS_DIR)) ?? []) {
+    const path = join(CLAUDE_SKILLS_DIR, entry);
+    const link = yield* readLinkOrNull(path);
+
+    if (link === null || (yield* pathExists(path))) continue;
+
+    if (dirname(resolve(CLAUDE_SKILLS_DIR, link)) !== AGENT_SKILLS_DIR)
+      continue;
+
+    yield* fs.remove(path);
+    removed++;
+  }
+
+  for (const name of (yield* readDirectoryOrNull(AGENT_SKILLS_DIR)) ?? []) {
+    const source = join(AGENT_SKILLS_DIR, name);
+    const target = join(CLAUDE_SKILLS_DIR, name);
+
+    if (!(yield* pathExists(join(source, "SKILL.md")))) continue;
+
+    if ((yield* lstatOrNull(target)) !== null) continue;
+
+    yield* fs.makeDirectory(CLAUDE_SKILLS_DIR, { recursive: true });
+    yield* fs.symlink(source, target);
+    linked++;
+  }
+
+  return { linked, removed };
+}).pipe(Effect.withSpan("Skills.linkClaude"));
+
 const installExternalSkills = Effect.fn("ExternalSkills.install")(function* (
   publicDotfiles: string,
 ) {
@@ -263,8 +308,9 @@ const installExternalSkills = Effect.fn("ExternalSkills.install")(function* (
 
 /**
  * Prune stale skill links, install external skill imports with the built
- * skill-maintenance executable, then link authored skills from the managed
- * skills checkout. Failures are warnings so stowing still completes offline.
+ * skill-maintenance executable, link authored skills from the managed skills
+ * checkout, then mirror the result into Claude Code's skills directory.
+ * Failures are warnings so stowing still completes offline.
  *
  * @returns Actions taken or skipped in order, for a closing summary.
  */
@@ -310,6 +356,27 @@ export const syncSkills = Effect.gen(function* () {
   } else {
     yield* log.info("Authored skills are up to date");
     actions.push(skip("Authored skills already linked"));
+  }
+
+  const claude = yield* linkClaudeSkills.pipe(
+    Effect.catch((error) =>
+      log
+        .warn(`Could not link Claude Code skills: ${error.message}`)
+        .pipe(Effect.as(null)),
+    ),
+  );
+
+  if (claude === null) {
+    actions.push(warn("Claude Code skill links skipped"));
+  } else if (claude.linked + claude.removed > 0) {
+    actions.push(
+      notable(
+        `Linked ${plural(claude.linked, "Claude Code skill")}, removed ${plural(claude.removed, "stale link")}`,
+      ),
+    );
+  } else {
+    yield* log.info("Claude Code skills are up to date");
+    actions.push(skip("Claude Code skills already linked"));
   }
 
   return actions;
