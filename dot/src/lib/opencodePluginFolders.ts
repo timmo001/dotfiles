@@ -5,7 +5,15 @@ import { HOME_DIR } from "./paths.js";
 
 const PLUGINS_DIR = ".config/opencode/plugins";
 
-const ENTRYPOINTS = ["index.ts", "index.js", "server.ts", "server.js"];
+const ENTRYPOINTS = [
+  "index.ts",
+  "index.js",
+  "server.ts",
+  "server.js",
+  "tui.tsx",
+  "tui.ts",
+  "tui.js",
+];
 
 /** Whether every entry in a live directory is a link to the same-named source entry. */
 const onlyLinksTo = Effect.fn("opencodePluginFolders.onlyLinksTo")(function* (

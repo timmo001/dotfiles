@@ -149,7 +149,7 @@ async function generateCommands(): Promise<void> {
 
 async function generatePlugins(): Promise<void> {
   const directories = ['plugins'];
-  // Single-file plugins are `<name>.ts`; directory plugins have an `index.ts` entrypoint.
+  // Single-file plugins are `<name>.ts`; directory plugins have an `index.ts` entrypoint, or only `tui.tsx` for TUI plugins.
   const files = (
     await Promise.all(
       directories.map(async (directory) => {
@@ -161,7 +161,11 @@ async function generatePlugins(): Promise<void> {
             return [{ directory, name: entry.name.replace(/\.ts$/, ''), file: entry.name }];
           }
           if (entry.isDirectory() && entry.name !== 'node_modules') {
-            return [{ directory, name: entry.name, file: `${entry.name}/index.ts` }];
+            return ['index.ts', 'tui.tsx'].map((file) => ({
+              directory,
+              name: entry.name,
+              file: `${entry.name}/${file}`,
+            }));
           }
           return [];
         });
@@ -178,7 +182,9 @@ async function generatePlugins(): Promise<void> {
           : [],
       ),
     )
-  ).flat();
+  )
+    .flat()
+    .filter((entry, index, all) => all.findIndex((other) => other.name === entry.name) === index);
   existing.sort((a, b) => a.name.localeCompare(b.name));
   const lines = pageHeader(
     'Plugins',
