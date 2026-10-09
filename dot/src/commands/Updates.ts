@@ -68,7 +68,7 @@ const unavailable: BarStatus = {
 };
 
 const loading: BarStatus = {
-  text: "\uF487 ..",
+  text: "\uF4B5 ..",
   tooltip: "Dotfiles update status: loading\nWatched package updates: loading",
   class: "updates-unknown",
 };
