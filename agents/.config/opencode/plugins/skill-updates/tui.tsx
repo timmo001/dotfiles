@@ -1,5 +1,5 @@
 /**
- * @file Shows the Omarchy bar's package and skills update status in the prompt footer, from `dot updates status --json`.
+ * @file Shows the dotfiles, skills and package update counts in the prompt footer, from `dot updates status --json`.
  */
 
 import { Plugin, usePlugin } from "@opencode/plugin/tui";
@@ -21,6 +21,9 @@ const Status = Schema.fromJsonString(
       text: Schema.String,
       tooltip: Schema.String,
       class: Schema.String,
+    }),
+    footer: Schema.Struct({
+      text: Schema.String,
     }),
   }),
 );
@@ -98,12 +101,6 @@ export default Plugin.define({
     function Footer() {
       const plugin = usePlugin();
 
-      // The bar only adds the skills count when skills are behind; the footer always shows it.
-      const text = (current: Current) =>
-        (current.skills?.behind ?? 0) > 0
-          ? current.bar.text
-          : `${current.bar.text}  \uF404 ${current.skills ? 0 : "?"}`;
-
       return (
         <Show when={status()}>
           {(current) => (
@@ -112,7 +109,7 @@ export default Plugin.define({
                 fg={current().bar.class === "updates" ? plugin.theme.text.feedback.warning.base : plugin.theme.text.muted}
                 onMouseUp={view}
               >
-                {text(current())}
+                {current().footer.text}
               </text>
             </box>
           )}
