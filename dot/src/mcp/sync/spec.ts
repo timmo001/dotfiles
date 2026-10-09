@@ -8,18 +8,31 @@
  * the harness's native interpolation.
  */
 
-/** Active harnesses that the generator writes native config files for. */
-export type McpHarness = "opencode" | "cursor" | "vscode" | "copilot";
+/** Active harnesses that the generator keeps in sync. */
+export type McpHarness =
+  "opencode" | "cursor" | "vscode" | "copilot" | "claude";
+
+/**
+ * Active harnesses whose native config is a generated file. Claude Code is
+ * synced through its CLI instead, because ~/.claude.json is live runtime state.
+ */
+export type McpFileHarness = Exclude<McpHarness, "claude">;
 
 /** Known harnesses that exist but are not generated: documented stubs only. */
-export type McpStubHarness = "gemini" | "claude";
+export type McpStubHarness = "gemini";
 
-/** All active harness ids in canonical order. */
-export const MCP_HARNESSES: readonly McpHarness[] = [
+/** File-generated harness ids in canonical order. */
+export const MCP_FILE_HARNESSES: readonly McpFileHarness[] = [
   "opencode",
   "cursor",
   "vscode",
   "copilot",
+];
+
+/** All active harness ids in canonical order. */
+export const MCP_HARNESSES: readonly McpHarness[] = [
+  ...MCP_FILE_HARNESSES,
+  "claude",
 ];
 
 /** A stub harness with a short explainer of what enabling it would require. */
@@ -41,11 +54,6 @@ export const MCP_STUB_HARNESSES: readonly McpStubHarnessNote[] = [
     harness: "gemini",
     label: "Gemini CLI",
     note: "Would need an `mcpServers` block in ~/.gemini/settings.json using `$VAR` env syntax and `{httpUrl}` for remote servers. The settings file currently exists but carries no MCP block; add a merge adapter and per-server `enabled.gemini` flags to activate.",
-  },
-  {
-    harness: "claude",
-    label: "Claude Code",
-    note: "Special case: ~/.claude.json is a live runtime state file Claude rewrites, so it is not stowable or file-generatable. Wire servers with `claude mcp add --scope user NAME -- COMMAND ...` from a setup step rather than emitting a file.",
   },
 ];
 
@@ -143,7 +151,12 @@ export function resolveUrl(
  */
 export function renderEnvRefs(
   value: string,
-  style: "brace-env" | "dollar-brace-env" | "dollar-brace" | "dollar",
+  style:
+    | "brace-env"
+    | "dollar-brace-env"
+    | "dollar-brace"
+    | "dollar-brace-default"
+    | "dollar",
 ): string {
   return value.replace(
     /\{env:([A-Za-z_][A-Za-z0-9_]*)\}/g,
@@ -155,6 +168,8 @@ export function renderEnvRefs(
           return `\${env:${name}}`;
         case "dollar-brace":
           return `\${${name}}`;
+        case "dollar-brace-default":
+          return `\${${name}:-}`;
         case "dollar":
           return `$${name}`;
       }

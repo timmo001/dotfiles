@@ -2,9 +2,10 @@
  * @file `dot mcp-sync` native command handler.
  *
  * Reads the private canonical MCP spec (via {@link Config}) and regenerates each
- * active harness's native config in the stowed private source tree, so a single
- * spec edit keeps OpenCode, Cursor, VS Code, and Copilot aligned. Gemini and
- * Claude Code are documented stubs and are not generated. Pure shaping lives
+ * file-based harness's native config in the stowed private source tree, then
+ * syncs Claude Code's user scope through its CLI, so a single spec edit keeps
+ * OpenCode, Cursor, VS Code, Copilot, and Claude Code aligned. Gemini is a
+ * documented stub and is not generated. Pure shaping lives
  * in the sync adapters; this orchestrator owns IO and logging, mirroring
  * {@link file://./../../commands/AgentsSync.ts}.
  */
@@ -28,12 +29,13 @@ interface MutableJsonConfig {
 }
 
 import {
-  MCP_HARNESSES,
+  MCP_FILE_HARNESSES,
   serversForHarness,
-  type McpHarness,
+  type McpFileHarness,
   type McpSyncSpec,
 } from "../sync/spec.js";
 import { buildMcpEntries, topKeyFor } from "../sync/adapters.js";
+import { syncClaudeMcp } from "../sync/claude.js";
 import { formatJson } from "../sync/formatJson.js";
 import { syncRepoMcpConfigs } from "../sync/repositories.js";
 
@@ -43,7 +45,7 @@ const HARNESS_RELATIVE_PATH = {
   cursor: join("agents", ".cursor", "mcp.json"),
   vscode: join("agents", ".config", "Code", "User", "mcp.json"),
   copilot: join("agents", ".copilot", "mcp-config.json"),
-} satisfies Record<McpHarness, string>;
+} satisfies Record<McpFileHarness, string>;
 
 class McpSyncError extends Schema.TaggedError<McpSyncError>()("McpSyncError", {
   message: Schema.String,
@@ -135,7 +137,7 @@ function mergePermissions(existing: MutableJsonConfig, spec: McpSyncSpec) {
 
 /** Build the full harness config object, preserving unrelated existing keys. */
 function buildHarnessConfig(
-  harness: McpHarness,
+  harness: McpFileHarness,
   existing: MutableJsonConfig,
   spec: McpSyncSpec,
 ) {
@@ -209,7 +211,7 @@ export const mcpSync = Effect.gen(function* () {
 
   yield* syncRepoMcpConfigs;
 
-  for (const harness of MCP_HARNESSES) {
+  for (const harness of MCP_FILE_HARNESSES) {
     const dest = join(privateDotfiles, HARNESS_RELATIVE_PATH[harness]);
 
     const existing = yield* readJsonObject(dest);
@@ -224,6 +226,18 @@ export const mcpSync = Effect.gen(function* () {
     const count = serversForHarness(spec, harness).length;
     yield* log.success(
       `${style.accent(harness)} ${plural(count, "server")} ${style.dim(displayPath(dest))}`,
+    );
+  }
+
+  const claude = yield* syncClaudeMcp(spec);
+
+  if (claude === null) {
+    yield* log.info("Skipped claude (CLI not installed)");
+  } else {
+    yield* log.success(
+      `${style.accent("claude")} ${plural(claude.enabled, "server")} ${style.dim(
+        `user scope (${claude.added} added, ${claude.removed} removed)`,
+      )}`,
     );
   }
 });

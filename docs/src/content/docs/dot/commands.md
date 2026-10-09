@@ -1451,7 +1451,7 @@ Regenerate MCP configs for all harnesses from the spec
 dot mcp-sync [flags]
 ```
 
-Regenerate each active harness's native MCP config from the private spec (mcp.yml). Repository opencode_mcp lists in dot-git.yml opt into named servers using generated, Git-ignored .opencode/opencode.jsonc files; removing an opt-in removes its generated config. Existing unowned or tracked configs are preserved and reported as conflicts. Global configs are written into the stowed private source tree; run dot stow after. Some agent harnesses are documented stubs and are not written.
+Regenerate each active harness's native MCP config from the private spec (mcp.yml). Repository opencode_mcp lists in dot-git.yml opt into named servers using generated, Git-ignored .opencode/opencode.jsonc files; removing an opt-in removes its generated config. Existing unowned or tracked configs are preserved and reported as conflicts. Global configs are written into the stowed private source tree; run dot stow after. Claude Code's user scope is updated through the claude CLI instead of a file. Some agent harnesses are documented stubs and are not written.
 
 **Options**
 

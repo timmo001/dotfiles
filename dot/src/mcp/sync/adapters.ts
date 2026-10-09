@@ -21,16 +21,17 @@ interface MutableJsonObject {
   [key: string]: JsonValue;
 }
 
-/** Env interpolation style per active harness. */
+/**
+ * Env interpolation style per active harness. Claude Code fails to parse a
+ * server config when a bare `${VAR}` is unset, so its refs default to empty.
+ */
 const ENV_STYLE = {
   opencode: "brace-env",
   cursor: "dollar-brace-env",
   vscode: "dollar-brace-env",
   copilot: "dollar-brace",
-} as const satisfies Record<
-  McpHarness,
-  "brace-env" | "dollar-brace-env" | "dollar-brace" | "dollar"
->;
+  claude: "dollar-brace-default",
+} as const satisfies Record<McpHarness, Parameters<typeof renderEnvRefs>[1]>;
 
 /** Top-level config key that holds MCP servers for each harness. */
 export function topKeyFor(harness: McpHarness): string {
@@ -38,6 +39,7 @@ export function topKeyFor(harness: McpHarness): string {
     case "opencode":
     case "cursor":
     case "copilot":
+    case "claude":
       return harness === "opencode" ? "mcp" : "mcpServers";
     case "vscode":
       return "servers";
@@ -230,6 +232,33 @@ function renderCopilotEntry(server: McpServerSpec): JsonObject {
   return entry;
 }
 
+function renderClaudeEntry(server: McpServerSpec): JsonObject {
+  if (server.type === "local") {
+    const { command, args } = splitCommand(
+      resolveCommand(server, "claude") ?? [],
+    );
+
+    const entry: MutableJsonObject = {
+      type: "stdio",
+      command,
+      args,
+    };
+
+    if (server.env) entry.env = renderEnv(server.env, "claude");
+
+    return entry;
+  }
+
+  const entry: MutableJsonObject = {
+    type: "http",
+    url: resolveUrl(server, "claude") ?? "",
+  };
+
+  if (server.headers) entry.headers = renderHeaders(server.headers, "claude");
+
+  return entry;
+}
+
 function renderEntry(
   server: McpServerSpec,
   harness: Exclude<McpHarness, "opencode">,
@@ -241,6 +270,8 @@ function renderEntry(
       return renderVscodeEntry(server);
     case "copilot":
       return renderCopilotEntry(server);
+    case "claude":
+      return renderClaudeEntry(server);
   }
 }
 
