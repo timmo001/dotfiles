@@ -22,5 +22,6 @@
     "semanticDiff": true,
     "callFlow": true
   },
-  "agentTool": true
+  "agentTool": true,
+  "favicon": "totman"
 }
