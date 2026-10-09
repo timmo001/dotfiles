@@ -439,6 +439,14 @@ export const updatesStatus = Effect.fn("Updates.status")(function* (
     yield* spawnRefresh;
   }
 
+  const {
+    text,
+    tooltip,
+    class: statusClass,
+  } = Option.getOrElse(status, () => loading);
+
+  const bar = { text, tooltip, class: statusClass };
+
   if (json) {
     const cachedStatus = Option.getOrUndefined(status);
 
@@ -448,17 +456,12 @@ export const updatesStatus = Effect.fn("Updates.status")(function* (
         dot: cachedStatus?.dot ?? null,
         skills: cachedStatus?.skills ?? null,
         packages: cachedStatus?.packageStatus ?? null,
+        bar,
       }),
     );
 
     return;
   }
 
-  const {
-    text,
-    tooltip,
-    class: statusClass,
-  } = Option.getOrElse(status, () => loading);
-
-  yield* Console.log(JSON.stringify({ text, tooltip, class: statusClass }));
+  yield* Console.log(JSON.stringify(bar));
 });
