@@ -956,6 +956,28 @@ dot agents-sync [flags]
 | --- | --- |
 | `--help` `-h` | Show help information |
 
+## `dot claude-permission-hook`
+
+Enforce OpenCode permission rules in Claude Code
+
+```text
+dot claude-permission-hook [flags]
+```
+
+Claude Code PreToolUse hook. Reads the hook event from stdin, maps the tool call onto OpenCode actions (shell, read, edit, external_directory, MCP server tools, webfetch, websearch, todowrite), and evaluates the permissions in ~/.config/opencode/opencode.json with OpenCode's semantics: the last matching rule wins and each part of a compound shell command is checked. Prints allow, ask or deny for Claude Code, or nothing when no rule decides so Claude Code's own prompting applies.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot claude-permission-hook < event.json
+```
+
 ## `dot notes-capture-sync`
 
 Sync watched repositories to the notes capture picker
