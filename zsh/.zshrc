@@ -958,6 +958,10 @@ copilot() {
   _dot_with_mcp_bearers copilot "$@"
 }
 
+claude() {
+  _dot_with_mcp_bearers claude "$@"
+}
+
 # ------------------------------
 # Herdr managed session cleanup
 # ------------------------------
