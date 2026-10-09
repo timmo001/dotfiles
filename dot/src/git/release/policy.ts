@@ -251,6 +251,11 @@ const presets: Record<ReleaseSettings["policy"], readonly ReleaseRule[]> = {
       reason: "Documentation, dependency, build tooling or CI-only change",
     },
     {
+      paths: ["connector/**"],
+      impact: "patch",
+      reason: "Published Effect connector changed",
+    },
+    {
       paths: ["**/*.go", "web-client/**", "tui/**", "mise.toml", "LICENSE"],
       impact: "patch",
       reason:
