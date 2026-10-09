@@ -98,6 +98,12 @@ export default Plugin.define({
     function Footer() {
       const plugin = usePlugin();
 
+      // The bar only adds the skills count when skills are behind; the footer always shows it.
+      const text = (current: Current) =>
+        (current.skills?.behind ?? 0) > 0
+          ? current.bar.text
+          : `${current.bar.text}  \uF404 ${current.skills ? 0 : "?"}`;
+
       return (
         <Show when={status()}>
           {(current) => (
@@ -106,7 +112,7 @@ export default Plugin.define({
                 fg={current().bar.class === "updates" ? plugin.theme.text.feedback.warning.base : plugin.theme.text.muted}
                 onMouseUp={view}
               >
-                {current().bar.text}
+                {text(current())}
               </text>
             </box>
           )}
