@@ -321,7 +321,7 @@ Check watched package, Dotfiles and skills updates for the status bar
 dot updates <subcommand> [flags]
 ```
 
-Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched repository/AUR packages, all dot-managed repositories and whether the managed skills checkout is behind timmo001/skills main, writes the cache atomically under a shared lock, and notifies the Omarchy shell. status --json prints the cached sections and the bar output for other readers such as the OpenCode skill-updates plugin. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --package-file, --cache-dir and --timeout to override defaults.
+Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched repository/AUR packages, all dot-managed repositories and whether the managed skills checkout is behind timmo001/skills main, writes the cache atomically under a shared lock, and notifies the Omarchy shell. status --json prints the cached sections and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --package-file, --cache-dir and --timeout to override defaults.
 
 **Options**
 
@@ -348,7 +348,7 @@ dot updates status [flags]
 
 | Option | Description |
 | --- | --- |
-| `--json` | Print cached dotfiles, skills and package sections, and the bar output, as JSON |
+| `--json` | Print cached dotfiles, skills and package sections, and the bar and footer output, as JSON |
 | `--help` `-h` | Show help information |
 
 **Examples**

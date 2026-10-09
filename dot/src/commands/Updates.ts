@@ -33,9 +33,11 @@ type SkillsStatus = typeof SkillsStatus.Type;
 
 const CachedStatus = Schema.Struct({
   ...BarStatus.fields,
+  footerText: Schema.optional(Schema.String),
   packageStatus: Schema.optional(BarStatus),
   packagesCheckedAt: Schema.optional(Schema.Finite),
   dot: Schema.optional(DotState),
+  dotPending: Schema.optional(Schema.Array(Schema.String)),
   skills: Schema.optional(Schema.NullOr(SkillsStatus)),
   checkedAt: Schema.optional(Schema.Finite),
 });
@@ -60,7 +62,7 @@ const current: BarStatus = {
 };
 
 const unavailable: BarStatus = {
-  text: " ?",
+  text: "\uF487 ?",
   tooltip: "Watched package updates unavailable",
   class: "updates-unknown",
 };
@@ -70,6 +72,10 @@ const loading: BarStatus = {
   tooltip: "Dotfiles update status: loading\nWatched package updates: loading",
   class: "updates-unknown",
 };
+
+const DOT_ICON = "\uF4B5";
+
+const SKILLS_ICON = "\uF404";
 
 /** Paths and timing controls for update refreshes. */
 export interface UpdatesOptions {
@@ -276,6 +282,22 @@ const skills = Effect.fn("Updates.skills")(function* (options: UpdatesOptions) {
 const plural = (count: number, word: string) =>
   `${count} ${word}${count === 1 ? "" : "s"}`;
 
+/** Read the items `dot update --check` lists under its "N pending updates:" heading. */
+const pendingItems = (output: string) => {
+  const lines = output.split("\n").map((line) => line.trim());
+  const start = lines.findIndex((line) => /^\d+ pending updates:$/.test(line));
+
+  if (start === -1) return [];
+
+  const items = lines.slice(start + 1);
+
+  const end = items.findIndex(
+    (line) => line === "" || line.startsWith("Run `dot update`"),
+  );
+
+  return end === -1 ? items : items.slice(0, end);
+};
+
 const skillsMessage = (status: SkillsStatus | null) => {
   if (status === null) return "Skills update status unavailable";
 
@@ -338,18 +360,36 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
           Match.orElse(() => "unknown" as const),
         );
 
+        const dotPending =
+          dot === "available" ? pendingItems(dotResult.stdout) : [];
+
         const message = {
           current: "Dotfiles are up to date",
-          available: "Dotfiles updates available",
+          available: `Dotfiles updates available${dotPending.length > 0 ? `: ${dotPending.join(", ")}` : ""}`,
           unknown: "Dotfiles update status unavailable",
         }[dot];
 
+        const dotPart = `${DOT_ICON} ${
+          {
+            current: 0,
+            available: Math.max(1, dotPending.length),
+            unknown: "?",
+          }[dot]
+        }`;
+
+        const skillsPart = `${SKILLS_ICON} ${skillsStatus?.behind ?? "?"}`;
         const skillsBehind = (skillsStatus?.behind ?? 0) > 0;
 
+        const attention = [
+          ...(dot === "current" ? [] : [dotPart]),
+          ...(skillsStatus === null || skillsBehind ? [skillsPart] : []),
+          ...(packageStatus.class === "updates-current"
+            ? []
+            : [packageStatus.text]),
+        ];
+
         const status: BarStatus = {
-          text: skillsBehind
-            ? `${packageStatus.text}  \uF404 ${skillsStatus?.behind}`
-            : packageStatus.text,
+          text: attention.length > 0 ? attention.join("  ") : DOT_ICON,
           tooltip: `${message}\n${skillsMessage(skillsStatus)}\n\n${packageStatus.tooltip}`,
           class:
             dot === "available" || skillsBehind
@@ -364,9 +404,11 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
           `${locations.cache}.tmp`,
           `${JSON.stringify({
             ...status,
+            footerText: [dotPart, skillsPart, packageStatus.text].join("  "),
             packageStatus,
             packagesCheckedAt,
             dot,
+            dotPending,
             skills: skillsStatus,
             checkedAt: yield* Clock.currentTimeMillis,
           })}\n`,
@@ -454,9 +496,11 @@ export const updatesStatus = Effect.fn("Updates.status")(function* (
       JSON.stringify({
         checkedAt: cachedStatus?.checkedAt ?? null,
         dot: cachedStatus?.dot ?? null,
+        dotPending: cachedStatus?.dotPending ?? [],
         skills: cachedStatus?.skills ?? null,
         packages: cachedStatus?.packageStatus ?? null,
         bar,
+        footer: { ...bar, text: cachedStatus?.footerText ?? text },
       }),
     );
 
