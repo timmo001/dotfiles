@@ -1,5 +1,5 @@
 /**
- * @file Shows whether the dot-managed skills checkout is behind timmo001/skills main, from `dot updates status --json`.
+ * @file Shows the Omarchy bar's package and skills update status in the prompt footer, from `dot updates status --json`.
  */
 
 import { Plugin, usePlugin } from "@opencode/plugin/tui";
@@ -11,20 +11,21 @@ import { runText } from "../lib/process";
 // The parts of `dot updates status --json` this plugin reads.
 const Status = Schema.fromJsonString(
   Schema.Struct({
-    checkedAt: Schema.NullOr(Schema.Number),
     skills: Schema.NullOr(
       Schema.Struct({
         behind: Schema.Number,
         changed: Schema.Array(Schema.String),
       }),
     ),
+    bar: Schema.Struct({
+      text: Schema.String,
+      tooltip: Schema.String,
+      class: Schema.String,
+    }),
   }),
 );
 
-type Skills = NonNullable<(typeof Status.Type)["skills"]>;
-
-// `undefined` while no check has finished yet, `null` when the check could not run.
-type Current = Skills | null | undefined;
+type Current = typeof Status.Type;
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
@@ -33,30 +34,28 @@ const read = () =>
   Effect.runPromise(
     runText("dot", ["updates", "status", "--json"]).pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(Status)),
-      Effect.map((status): Current => (status.checkedAt === null ? undefined : status.skills)),
       Effect.timeout("10 seconds"),
-      Effect.orElseSucceed((): Current => null),
+      Effect.orElseSucceed((): Current | null => null),
     ),
   );
 
 export default Plugin.define({
   id: "skill-updates",
   setup(context) {
-    const [skills, setSkills] = createSignal<Current>(undefined);
+    const [status, setStatus] = createSignal<Current | null>(null);
     let announced = "";
-
-    const behind = () => skills()?.behind ?? 0;
 
     const poll = async () => {
       const next = await read();
 
-      setSkills(next);
+      setStatus(next);
 
-      const print = next && next.behind > 0 ? `${next.behind}:${next.changed.join(",")}` : "";
+      const skills = next?.skills;
+      const print = skills && skills.behind > 0 ? `${skills.behind}:${skills.changed.join(",")}` : "";
 
       if (print && print !== announced) {
         context.ui.toast.show({
-          message: `Skills are ${plural(next?.behind ?? 0, "commit")} behind. Run dot update to get them.`,
+          message: `Skills are ${plural(skills?.behind ?? 0, "commit")} behind. Run dot update to get them.`,
           variant: "info",
         });
       }
@@ -75,21 +74,18 @@ export default Plugin.define({
         <box gap={1} paddingLeft={2} paddingRight={2} paddingBottom={1}>
           <box flexDirection="row" gap={2}>
             <text attributes={TextAttributes.BOLD} fg={theme.text.base} flexGrow={1}>
-              {`Skills are ${plural(behind(), "commit")} behind`}
+              Updates
             </text>
             <text fg={theme.text.muted} flexShrink={0} onMouseUp={() => context.ui.dialog.clear()}>
               esc
             </text>
           </box>
-          <Show
-            when={skills()?.changed.length}
-            fallback={<text fg={theme.text.muted}>No authored skills changed, only imports or tooling</text>}
-          >
-            <box>
-              <For each={skills()?.changed}>{(name) => <text fg={theme.text.base}>{`• ${name}`}</text>}</For>
-            </box>
+          <box>
+            <For each={status()?.bar.tooltip.split("\n")}>{(line) => <text fg={theme.text.base}>{line}</text>}</For>
+          </box>
+          <Show when={status()?.bar.class === "updates"}>
+            <text fg={theme.text.muted}>Run dot update to get them.</text>
           </Show>
-          <text fg={theme.text.muted}>Run dot update to get them.</text>
         </box>
       );
     }
@@ -102,24 +98,19 @@ export default Plugin.define({
     function Footer() {
       const plugin = usePlugin();
 
-      const label = () => {
-        const current = skills();
-
-        if (current === undefined) return { text: "Skills …", fg: plugin.theme.text.muted };
-
-        if (current === null) return { text: "Skills ⚠", fg: plugin.theme.text.feedback.warning.base };
-
-        if (current.behind > 0) return { text: `Skills \u2193${current.behind}`, fg: plugin.theme.text.feedback.warning.base };
-
-        return { text: "Skills ✓", fg: plugin.theme.text.feedback.success.base };
-      };
-
       return (
-        <box flexShrink={0}>
-          <text fg={label().fg} onMouseUp={() => behind() > 0 && view()}>
-            {label().text}
-          </text>
-        </box>
+        <Show when={status()}>
+          {(current) => (
+            <box flexShrink={0}>
+              <text
+                fg={current().bar.class === "updates" ? plugin.theme.text.feedback.warning.base : plugin.theme.text.muted}
+                onMouseUp={view}
+              >
+                {current().bar.text}
+              </text>
+            </box>
+          )}
+        </Show>
       );
     }
 
