@@ -1,15 +1,7 @@
 import { NodeServices } from "@effect/platform-node";
 import { Api } from "@timmo001/effect-gh";
 import { join } from "node:path";
-import {
-  Clock,
-  Context,
-  Effect,
-  FileSystem,
-  Layer,
-  Option,
-  Schema,
-} from "effect";
+import { Clock, Context, Effect, FileSystem, Layer, Schema } from "effect";
 import type {
   GitNotificationAction,
   GitNotificationActionResult,
