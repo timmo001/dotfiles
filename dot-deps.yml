@@ -14105,6 +14105,15 @@ policy:
             - "dot/deps-import/mise.toml"
         set:
           allowedVersions: "<25"
+      - description:
+          - "Hold global Python on 3.14 until pyyaml publishes Python 3.15 wheels for yamllint."
+        match:
+          dependencies:
+            - "python"
+          files:
+            - "mise/.config/mise/config.toml"
+        set:
+          allowedVersions: "<3.15"
     regexManagers:
       - files:
           - "/^mise\\.toml$/"
@@ -14696,7 +14705,7 @@ import:
   leaveToRenovate:
     - "arch/quickshell"
   resolverVersion: "44.126.1"
-  overrideHash: "a8786eb306f2e659f33d6d29782eaec0e30fdd2ef235c89911e42d759362cba1"
+  overrideHash: "8fc73a3df2e5af0e18cbc68b497defdd154330a8c5429dc59700310c7d1ab638"
   baseDiagnostics:
     - path: "presets.description"
       disposition: "ignored"

@@ -92,6 +92,12 @@
       "matchFileNames": ["dot/deps-import/mise.toml"],
       "matchDepNames": ["node"],
       "allowedVersions": "<25"
+    },
+    {
+      "description": "Hold global Python on 3.14 until pyyaml publishes Python 3.15 wheels for yamllint.",
+      "matchFileNames": ["mise/.config/mise/config.toml"],
+      "matchDepNames": ["python"],
+      "allowedVersions": "<3.15"
     }
   ]
 }
