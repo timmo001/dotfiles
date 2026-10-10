@@ -45,6 +45,14 @@ command = "dotfiles.mise-task-runner.open"
 description = "run a mise task"
 
 [[keys.command]]
+key = "prefix+shift+j"
+type = "popup"
+command = "dot herdr pane move"
+description = "move pane into another tab"
+width = "70%"
+height = "50%"
+
+[[keys.command]]
 key = "prefix+shift+l"
 type = "plugin_action"
 command = "herdr-lazy.manage"
