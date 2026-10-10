@@ -23,5 +23,14 @@
     "callFlow": true
   },
   "agentTool": true,
-  "favicon": "totman"
+  "favicon": "totman",
+  "inboxNotifications": {
+    "enabled": true,
+    "dismissed": false,
+    "allowedOrigin": "http://localhost:38079"
+  },
+  "inboxTool": {
+    "opencode": true,
+    "pi": true
+  }
 }
