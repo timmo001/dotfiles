@@ -72,10 +72,10 @@ Panel {
   ].filter(Boolean).join(" · ")
   readonly property string notificationCountText: threadCount + (threadCount === 1 ? " notification" : " notifications") + " (" + (hiddenThreadText || "0 others") + ")"
   readonly property var panelRows: withSectionToggles(buildPanelRows())
-  // Rows in collapsed sections stay rendered for their counts but leave keyboard navigation, as do informational rows.
+  // Rows in collapsed sections stay rendered for their counts but leave keyboard navigation.
   readonly property var navigationRows: filterController.filteredModel.filter(function(row) {
     var id = sectionId(row)
-    return !row.inert && (row.kind === "toggle" || !id || sectionExpanded(id))
+    return row.kind === "toggle" || !id || sectionExpanded(id)
   })
   readonly property var filteredActions: filterRows("action")
   readonly property var filteredRepos: filterRows("repo")
@@ -707,11 +707,10 @@ Panel {
         row.secondaryText = [thread.reason, thread.type].filter(Boolean).join(" · ")
         return row
       }).concat([review])))
-      else {
+      else if (notificationEntry.count) {
         review.primaryText = "Notifications"
         review.secondaryText = service.notificationSummary(repo)
         review.showSecondary = true
-        review.inert = !notificationEntry.count
         rows.push(review)
       }
     }
@@ -1585,7 +1584,6 @@ Panel {
                 accent: root.contentForeground
                 MouseArea {
                   anchors.fill: parent
-                  enabled: !modelData.inert
                   hoverEnabled: true
                   cursorShape: Qt.PointingHandCursor
                   onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key)
@@ -1658,10 +1656,10 @@ Panel {
                 x: Style.space(8)
                 width: Math.max(0, contentColumn.width - Style.space(16))
                 implicitHeight: actionRow.implicitHeight + Style.space(12)
-                hasCursor: !modelData.inert && filterController.cursorIndex === filterController.indexForKey(modelData.key)
+                hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
                 foreground: root.contentForeground
                 accent: root.contentForeground
-                MouseArea { anchors.fill: parent; enabled: !modelData.inert; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: function(mouse) { root.activateAction(modelData.action, mouse.modifiers) } }
+                MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: function(mouse) { root.activateAction(modelData.action, mouse.modifiers) } }
                 Row {
                   id: actionRow
                   anchors.left: parent.left
