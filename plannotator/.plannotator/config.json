@@ -27,7 +27,7 @@
   "inboxNotifications": {
     "enabled": true,
     "dismissed": false,
-    "allowedOrigin": "http://localhost:38079"
+    "allowedOrigin": "https://plannotator.timmo.dev"
   },
   "inboxTool": {
     "opencode": true,
