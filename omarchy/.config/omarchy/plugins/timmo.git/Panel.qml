@@ -312,8 +312,7 @@ Panel {
       if (workspaceContext && workspaceContext.repository) {
         rows.push(headerActionRow("context-refresh", "Refresh workspace", "context"))
         var current = workspaceContext.repository
-        var known = service.changedRepos.concat(service.otherRepos).find(function(repo) { return repo.path === current.path })
-        var value = known || { name: current.name, path: current.path, statusKnown: false }
+        var value = contextRepository()
         repoActions(value).forEach(function(row) {
           row.key = "context:" + workspaceContext.session.socketPath + ":" + (workspaceContext.pane ? workspaceContext.pane.id : "") + ":" + current.path + ":" + row.key
           row.kind = "context-action"
@@ -727,6 +726,30 @@ Panel {
       return row
     }).concat([actionRow("repo-issues-web", "Open issues on GitHub", "")])))
     return rows
+  }
+
+  function contextRepository() {
+    if (!service || !workspaceContext || !workspaceContext.repository) return null
+    var current = workspaceContext.repository
+    return service.changedRepos.concat(service.otherRepos).find(function(repo) { return repo.path === current.path })
+      || { name: current.name, path: current.path, statusKnown: false }
+  }
+
+  // Counts for the workspace heading: local changes, unread notifications, open pull requests and issues.
+  function contextSummary() {
+    var repo = contextRepository()
+    if (!repo) return ""
+    var notifications = service.notificationRepository(repo)
+    var pulls = trackedRepository(service.pullRequestRepositories, repo)
+    var issues = trackedRepository(service.issueRepositories, repo)
+    return [
+      ["", Number(repo.modified || 0)],
+      ["", Number(repo.ahead || 0)],
+      ["", Number(repo.behind || 0)],
+      ["", notifications ? notifications.count : 0],
+      ["", pulls ? pulls.pulls.length : 0],
+      ["", issues ? issues.issues.length : 0]
+    ].filter(function(count) { return count[1] > 0 }).map(function(count) { return count[0] + " " + count[1] }).join("  ")
   }
 
   function trackedRepository(repositories, repo) {
@@ -1436,7 +1459,7 @@ Panel {
           SectionHeading {
             id: contextHeading
             visible: root.contextRows.length > 0 || filterController.indexForKey("action:context-refresh") >= 0
-            title: root.workspaceContext?.workspace?.label.trim() || "Current workspace"
+            title: [root.workspaceContext?.workspace?.label.trim() || "Current workspace", root.contextSummary()].filter(Boolean).join(" · ")
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             refreshable: true
