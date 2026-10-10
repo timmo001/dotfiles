@@ -62,6 +62,7 @@ Column {
 
       SectionHeading {
         id: heading
+        icon: ""
         title: group.modelData === "issues-empty" ? "Without issues · " + group.entries.length
           : (root.view === "issues" ? "With issues" : "Issues") + " · " + root.issueSummary(group.entries)
         foreground: root.foreground

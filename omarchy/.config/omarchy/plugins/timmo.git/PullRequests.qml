@@ -65,6 +65,7 @@ Column {
 
       SectionHeading {
         id: heading
+        icon: ""
         title: group.modelData === "pulls-empty" ? "Without pull requests · " + group.entries.length
           : (root.view === "pulls" ? "With pull requests" : "Pull requests") + " · " + root.pullSummary(group.entries)
         foreground: root.foreground

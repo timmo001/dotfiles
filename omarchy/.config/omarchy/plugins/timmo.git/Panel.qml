@@ -1430,6 +1430,7 @@ Panel {
           SectionHeading {
             id: comparisonHeading
             visible: root.releaseView && root.view !== "releases"
+            icon: ""
             title: root.view === "release-prepare" || root.releaseAgentView ? "Prepare release" : (root.view === "finding-group" ? "Group summary" : "Release comparison")
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
@@ -1459,6 +1460,7 @@ Panel {
           SectionHeading {
             id: contextHeading
             visible: root.contextRows.length > 0 || filterController.indexForKey("action:context-refresh") >= 0
+            icon: ""
             title: [root.workspaceContext?.workspace?.label.trim() || "Current workspace", root.contextSummary()].filter(Boolean).join(" · ")
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
@@ -1501,6 +1503,7 @@ Panel {
               SectionHeading {
                 id: filesHeading
                 visible: root.view !== "overview"
+                icon: ""
                 title: modelData.title
                 foreground: root.contentForeground
                 fontFamily: root.contentFontFamily
@@ -1662,6 +1665,7 @@ Panel {
             id: actionsHeading
             visible: root.view !== "overview" && root.filteredActions.length > 0
             title: "Actions"
+            icon: ""
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             collapsible: root.sectionsCollapsible
@@ -1753,6 +1757,7 @@ Panel {
               SectionHeading {
                 id: diffHeading
                 title: modelData.diffTitle
+                icon: ""
                 foreground: root.contentForeground
                 fontFamily: root.contentFontFamily
                 collapsible: root.sectionsCollapsible
@@ -1823,6 +1828,7 @@ Panel {
             id: repositoriesHeading
             visible: ["overview", "changed", "other"].indexOf(root.view) >= 0 && (!filterController.filterText || root.filteredRepos.length > 0 || filterController.indexForKey("action:repositories-refresh") >= 0 || filterController.indexForKey("action:pull-changed") >= 0)
             title: "Repositories · " + root.repoSummary(root.filteredRepos)
+            icon: ""
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             refreshable: true
@@ -1944,6 +1950,7 @@ Panel {
             id: notificationsHeading
             visible: (root.view === "overview" || root.view === "notifications") && (!filterController.filterText || root.filteredThreads.length > 0 || root.filteredFooterActions.length > 0 || filterController.indexForKey("action:notifications-refresh") >= 0 || filterController.indexForKey("action:notifications-dismiss") >= 0)
             title: "Notifications · " + root.threadSummary(root.filteredThreads)
+            icon: ""
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             refreshable: true
@@ -2060,6 +2067,7 @@ Panel {
             id: releasesHeading
             visible: (root.view === "overview" || root.view === "releases") && (!filterController.filterText || root.filteredReleaseRows.length > 0 || filterController.indexForKey("action:release-refresh") >= 0)
               || (root.releaseView && root.filteredReleaseRows.length > 0)
+            icon: ""
             title: root.view === "overview" ? "Unreleased changes · " + root.unreleasedSummary(root.filteredReleaseRows)
               : root.view === "releases" ? "Tracked repositories · " + root.filteredReleaseRows.length + " of " + (root.service ? root.service.releases.length : 0)
               : (root.view === "release-commits" ? "Commits" : (root.view === "release" ? "Finding groups" : "Findings")) + " · " + root.filteredReleaseRows.length
@@ -2204,6 +2212,7 @@ Panel {
             id: logHeading
             visible: ["overview", "repo", "commits"].indexOf(root.view) >= 0 && (!filterController.filterText || root.filteredLogRows.length > 0 || filterController.indexForKey("action:log-refresh") >= 0)
             title: (root.logRepoMode ? "Commits" : "Recent commits") + " · " + root.logHeadingCount()
+            icon: ""
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             refreshable: true
