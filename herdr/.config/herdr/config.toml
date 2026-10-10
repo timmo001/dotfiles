@@ -224,9 +224,9 @@ rows = [
       { contains = "↶", fg = "#b07883" },
     ] },
     { token = "$timmo_agent_checks_reviews", fg = "#f38ba8", dim = false, rules = [
-      { equals = "PR ⚠", fg = "#f9e2af" },
-      { equals = "PR ↻", fg = "#f9e2af" },
-      { equals = "PR ✓", fg = "#a6e3a1" },
+      { equals = "\uF407 ⚠", fg = "#f9e2af" },
+      { equals = "\uF407 ↻", fg = "#f9e2af" },
+      { equals = "\uF407 ✓", fg = "#a6e3a1" },
     ] },
   ],
 ]
