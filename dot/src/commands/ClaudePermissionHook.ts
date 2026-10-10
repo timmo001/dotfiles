@@ -48,6 +48,14 @@ const decodeHookInput = Schema.decodeUnknownOption(
   ),
 );
 
+/**
+ * Drop a leading `git -C <dir>` so the command matches the same rules as
+ * `git <subcommand>`, such as `git log *`.
+ */
+function withoutGitDirectory(command: string) {
+  return command.replace(/^git\s+-C\s+(?:'[^']*'|"[^"]*"|\S+)\s+/, "git ");
+}
+
 /** Requests for a tool that reads or writes a path. */
 function pathRequests(
   action: "read" | "edit",
@@ -92,7 +100,9 @@ function toolRequests(
         : [
             {
               action: "shell",
-              resources: splitShellCommands(command).map((part) => [part]),
+              resources: splitShellCommands(command).map((part) => [
+                withoutGitDirectory(part),
+              ]),
             },
           ];
     }
