@@ -203,15 +203,195 @@ const linkAuthoredSkills = Effect.fn("Skills.linkAuthored")(function* (
   return changed;
 });
 
+const decodeMarketplace = Schema.decodeUnknownOption(
+  Schema.fromJsonString(
+    Schema.Struct({
+      name: Schema.String,
+      plugins: Schema.Array(
+        Schema.Struct({
+          name: Schema.String,
+          source: Schema.Union([Schema.String, Schema.Struct({})]),
+          metadata: Schema.optionalKey(
+            Schema.Struct({ skill: Schema.optionalKey(Schema.String) }),
+          ),
+        }),
+      ),
+    }),
+  ),
+);
+
+const decodeListing = Schema.decodeUnknownOption(
+  Schema.fromJsonString(
+    Schema.Array(
+      Schema.Struct({
+        name: Schema.optionalKey(Schema.String),
+        id: Schema.optionalKey(Schema.String),
+      }),
+    ),
+  ),
+);
+
+/** Names or ids from a `claude plugin ... list --json` listing. */
+const listNames = Effect.fn("Skills.listClaudeNames")(function* (
+  args: readonly string[],
+  key: "name" | "id",
+) {
+  const executor = yield* CommandExecutor;
+  const output = yield* executor.run("claude", [...args, "--json"]);
+
+  return new Set(
+    Option.getOrElse(decodeListing(output), () => []).flatMap((entry) => {
+      const value = entry[key];
+
+      return value === undefined ? [] : [value];
+    }),
+  );
+});
+
+/** A marketplace plugin, from a path inside the marketplace or a remote source. */
+interface MarketplacePlugin {
+  /** Plugin name. */
+  readonly name: string;
+  /** Source path relative to the marketplace root, or `null` when remote. */
+  readonly localPath: string | null;
+  /** Skill a remote plugin provides: `metadata.skill`, else the plugin name. */
+  readonly skill: string;
+}
+
+const isLocalSource = Schema.is(Schema.String);
+
+/** Parse a `marketplace.json`, keeping each plugin's local path when it has one. */
+const readMarketplace = (text: string) =>
+  Option.map(decodeMarketplace(text), ({ name, plugins }) => ({
+    name,
+    plugins: plugins.map((plugin): MarketplacePlugin => ({
+      name: plugin.name,
+      localPath: isLocalSource(plugin.source) ? plugin.source : null,
+      skill: plugin.metadata?.skill ?? plugin.name,
+    })),
+  }));
+
 /**
- * Mirror the shared skills directory into Claude Code's skills directory with
- * one directory link per skill. Existing entries, such as stowed or
- * tool-installed Claude skills, are left alone. Dangling links back into the
- * shared directory are removed.
+ * Skills one plugin provides: each `SKILL.md` folder under a local source, or
+ * the named skill of a remote single-skill source.
+ */
+const pluginSkills = Effect.fn("Skills.pluginSkills")(function* (
+  root: string,
+  plugin: MarketplacePlugin,
+) {
+  if (plugin.localPath === null) return [plugin.skill];
+  const directory = resolve(root, plugin.localPath);
+  const skills: string[] = [];
+
+  for (const entry of (yield* readDirectoryOrNull(directory)) ?? [])
+    if (yield* pathExists(join(directory, entry, "SKILL.md")))
+      skills.push(entry);
+
+  return skills;
+});
+
+/**
+ * Register each local Claude plugin marketplace, refresh it, and install or
+ * update its plugins. A plugin that fails to install is left uncovered so its
+ * skills keep their `~/.claude/skills` links.
+ *
+ * @returns Skill names now provided by plugins, and the number of changes.
+ */
+const syncClaudePlugins = Effect.fn("Skills.syncClaudePlugins")(function* (
+  roots: readonly string[],
+) {
+  const executor = yield* CommandExecutor;
+  const log = yield* OutputLog;
+
+  const registered = yield* listNames(
+    ["plugin", "marketplace", "list"],
+    "name",
+  );
+
+  const installed = yield* listNames(["plugin", "list"], "id");
+  const covered = new Set<string>();
+  let changed = 0;
+
+  for (const root of roots) {
+    const text = yield* readTextOrNull(
+      join(root, ".claude-plugin", "marketplace.json"),
+    );
+
+    if (text === null) continue;
+    const marketplace = readMarketplace(text);
+
+    if (Option.isNone(marketplace)) {
+      yield* log.warn(
+        `Skipping unreadable marketplace in ${displayPath(root)}`,
+      );
+      continue;
+    }
+
+    const { name, plugins } = marketplace.value;
+
+    const added = registered.has(name)
+      ? yield* executor.exitCode("claude", [
+          "plugin",
+          "marketplace",
+          "update",
+          name,
+        ])
+      : yield* executor.exitCode("claude", [
+          "plugin",
+          "marketplace",
+          "add",
+          root,
+        ]);
+
+    if (added !== 0) {
+      yield* log.warn(`Could not register Claude marketplace ${name}`);
+      continue;
+    }
+
+    if (!registered.has(name)) changed++;
+
+    for (const plugin of plugins) {
+      const id = `${plugin.name}@${name}`;
+      const isInstalled = installed.has(id);
+
+      // Local plugins load in place; remote ones are pinned and need an update.
+      if (isInstalled && plugin.localPath !== null) {
+        for (const skill of yield* pluginSkills(root, plugin))
+          covered.add(skill);
+        continue;
+      }
+
+      const exitCode = yield* executor.exitCode("claude", [
+        "plugin",
+        isInstalled ? "update" : "install",
+        id,
+      ]);
+
+      if (exitCode !== 0) {
+        yield* log.warn(`Could not install Claude plugin ${id}`);
+        continue;
+      }
+
+      if (!isInstalled) changed++;
+
+      for (const skill of yield* pluginSkills(root, plugin)) covered.add(skill);
+    }
+  }
+
+  return { covered, changed };
+});
+
+/**
+ * Link skills that no Claude plugin provides into Claude Code's skills
+ * directory, one directory link per skill. Links back into the shared
+ * directory that are dangling, or now provided by a plugin, are removed;
+ * anything else, such as stowed or tool-installed Claude skills, is left alone.
  *
  * @returns The number of links created and removed.
  */
-const linkClaudeSkills = Effect.gen(function* () {
+const linkClaudeSkills = Effect.fn("Skills.linkClaude")(function* (
+  covered: ReadonlySet<string>,
+) {
   const fs = yield* FileSystem.FileSystem;
   let linked = 0;
   let removed = 0;
@@ -220,9 +400,15 @@ const linkClaudeSkills = Effect.gen(function* () {
     const path = join(CLAUDE_SKILLS_DIR, entry);
     const link = yield* readLinkOrNull(path);
 
-    if (link === null || (yield* pathExists(path))) continue;
+    if (link === null) continue;
+    const target = resolve(CLAUDE_SKILLS_DIR, link);
 
-    if (dirname(resolve(CLAUDE_SKILLS_DIR, link)) !== AGENT_SKILLS_DIR)
+    if (dirname(target) !== AGENT_SKILLS_DIR) continue;
+
+    if (
+      (yield* pathExists(path)) &&
+      !covered.has(target.slice(AGENT_SKILLS_DIR.length + 1))
+    )
       continue;
 
     yield* fs.remove(path);
@@ -232,6 +418,8 @@ const linkClaudeSkills = Effect.gen(function* () {
   for (const name of (yield* readDirectoryOrNull(AGENT_SKILLS_DIR)) ?? []) {
     const source = join(AGENT_SKILLS_DIR, name);
     const target = join(CLAUDE_SKILLS_DIR, name);
+
+    if (covered.has(name)) continue;
 
     if (!(yield* pathExists(join(source, "SKILL.md")))) continue;
 
@@ -243,7 +431,7 @@ const linkClaudeSkills = Effect.gen(function* () {
   }
 
   return { linked, removed };
-}).pipe(Effect.withSpan("Skills.linkClaude"));
+});
 
 const installExternalSkills = Effect.fn("ExternalSkills.install")(function* (
   publicDotfiles: string,
@@ -309,7 +497,8 @@ const installExternalSkills = Effect.fn("ExternalSkills.install")(function* (
 /**
  * Prune stale skill links, install external skill imports with the built
  * skill-maintenance executable, link authored skills from the managed skills
- * checkout, then mirror the result into Claude Code's skills directory.
+ * checkout, install the Claude Code plugins those sources publish, then link
+ * the remaining skills into Claude Code's skills directory.
  * Failures are warnings so stowing still completes offline.
  *
  * @returns Actions taken or skipped in order, for a closing summary.
@@ -358,7 +547,28 @@ export const syncSkills = Effect.gen(function* () {
     actions.push(skip("Authored skills already linked"));
   }
 
-  const claude = yield* linkClaudeSkills.pipe(
+  const plugins = yield* syncClaudePlugins([
+    SKILLS_CHECKOUT,
+    config.publicDotfiles,
+  ]).pipe(
+    Effect.catch((error) =>
+      log
+        .warn(`Could not sync Claude Code plugins: ${error.message}`)
+        .pipe(Effect.as(null)),
+    ),
+  );
+
+  if (plugins === null) {
+    actions.push(warn("Claude Code plugins skipped"));
+  } else if (plugins.changed > 0) {
+    actions.push(
+      notable(`Installed ${plural(plugins.changed, "Claude Code plugin")}`),
+    );
+  } else {
+    actions.push(skip("Claude Code plugins already installed"));
+  }
+
+  const claude = yield* linkClaudeSkills(plugins?.covered ?? new Set()).pipe(
     Effect.catch((error) =>
       log
         .warn(`Could not link Claude Code skills: ${error.message}`)
