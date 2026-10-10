@@ -5,6 +5,7 @@ import {
   type PullRequestQuery,
 } from "../services/GitPullRequests.js";
 import { handleCommandError, writeText } from "./rows.js";
+import { markOffSchedule } from "./workSchedule.js";
 
 /** Open the tracked PR page. */
 export const pullRequestsOpenShell = Effect.fn("pullRequests.openShell")(
@@ -27,7 +28,11 @@ export const pullRequestsQuery = Effect.fn("pullRequests.query")(function* (
   panelJson: boolean,
 ) {
   const service = yield* GitPullRequests;
-  const repositories = yield* service.query(options);
+
+  const repositories = yield* service
+    .query(options)
+    .pipe(Effect.flatMap(markOffSchedule));
+
   yield* writeText(
     panelJson
       ? JSON.stringify({ repositories }) + "\n"

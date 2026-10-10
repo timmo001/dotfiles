@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { GitIssues, type IssueQuery } from "../services/GitIssues.js";
 import { handleCommandError } from "./rows.js";
+import { markOffSchedule } from "./workSchedule.js";
 
 /** Open the tracked issue page. */
 export const issuesOpenShell = Effect.fn("issues.openShell")(function* (
@@ -23,7 +24,10 @@ export const issuesQuery = Effect.fn("issues.query")(function* (
   panelJson: boolean,
 ) {
   const service = yield* GitIssues;
-  const repositories = yield* service.query(options);
+
+  const repositories = yield* service
+    .query(options)
+    .pipe(Effect.flatMap(markOffSchedule));
 
   const text = panelJson
     ? JSON.stringify({ repositories }) + "\n"
