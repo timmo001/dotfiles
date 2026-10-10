@@ -701,6 +701,23 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
   const preselect = (direction: "d" | "r") =>
     dispatch(`hl.dsp.layout(${quote(`preselect ${direction}`)})`);
 
+  const startPitchforkDaemon = Effect.fn("workspaceSetup.startPitchforkDaemon")(
+    function* (id: string) {
+      if (Bun.which("pitchfork") === null) {
+        yield* logStep(`Skipping pitchfork ${id} (pitchfork not found)`);
+
+        return;
+      }
+
+      yield* logStep(`Starting pitchfork ${id}`);
+      const exit = yield* executor.exitCode("pitchfork", ["start", id]);
+
+      if (exit !== 0) {
+        yield* logStep(`pitchfork start ${id} exited with ${exit}`);
+      }
+    },
+  );
+
   const slot = (
     tag: string,
     pattern: string,
@@ -938,20 +955,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
         ),
       );
 
-      if (Bun.which("pitchfork") === null) {
-        yield* logStep("Skipping pitchfork ha-core/prod (pitchfork not found)");
-      } else {
-        yield* logStep("Starting pitchfork ha-core/prod");
-
-        const exit = yield* executor.exitCode("pitchfork", [
-          "start",
-          "ha-core/prod",
-        ]);
-
-        if (exit !== 0) {
-          yield* logStep(`pitchfork start ha-core/prod exited with ${exit}`);
-        }
-      }
+      yield* startPitchforkDaemon("ha-core/prod");
     } else {
       yield* logStep("Preparing workspace 1 non-work apps");
       yield* clearTag(TAGS.slack);
@@ -999,6 +1003,8 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       yield* clearTag(TAGS.workspace2Cursor);
       yield* ensureSlot(herdr);
     }
+
+    yield* startPitchforkDaemon("plannotator/inbox");
 
     yield* logStep("Switching to workspace 2");
     yield* dispatch('hl.dsp.focus({ workspace = "2" })');
