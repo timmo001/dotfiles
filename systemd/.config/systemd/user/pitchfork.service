@@ -1,0 +1,12 @@
+[Unit]
+Description=pitchfork
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=/home/aidan/.local/share/mise/installs/pitchfork/2.30.1/pitchfork supervisor run --boot
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

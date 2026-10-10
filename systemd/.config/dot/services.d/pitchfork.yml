@@ -1,0 +1,7 @@
+---
+unit: pitchfork.service
+label: Pitchfork
+restartLimit:
+  count: 3
+  within: 1 hour
+repository: jdx/pitchfork
