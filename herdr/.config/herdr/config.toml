@@ -163,6 +163,18 @@ command = "timmo.agent-checks.paste-lint"
 description = "paste lint failures into this agent"
 
 [[keys.command]]
+key = "prefix+g"
+type = "plugin_action"
+command = "timmo.agent-checks.reviews"
+description = "open PR reviews"
+
+[[keys.command]]
+key = "prefix+alt+g"
+type = "plugin_action"
+command = "timmo.agent-checks.paste-reviews"
+description = "paste open review threads into this agent"
+
+[[keys.command]]
 key = "prefix+t"
 type = "plugin_action"
 command = "timmo.mascot.toggle"
@@ -210,6 +222,11 @@ rows = [
       { contains = "✓ ↶", fg = "#7f9f7a" },
       { contains = "↻ ↶", fg = "#b3a078" },
       { contains = "↶", fg = "#b07883" },
+    ] },
+    { token = "$timmo_agent_checks_reviews", fg = "#f38ba8", dim = false, rules = [
+      { equals = "PR ⚠", fg = "#f9e2af" },
+      { equals = "PR ↻", fg = "#f9e2af" },
+      { equals = "PR ✓", fg = "#a6e3a1" },
     ] },
   ],
 ]
