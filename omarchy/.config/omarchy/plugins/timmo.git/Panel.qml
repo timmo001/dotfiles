@@ -72,10 +72,10 @@ Panel {
   ].filter(Boolean).join(" · ")
   readonly property string notificationCountText: threadCount + (threadCount === 1 ? " notification" : " notifications") + " (" + (hiddenThreadText || "0 others") + ")"
   readonly property var panelRows: withSectionToggles(buildPanelRows())
-  // Rows in collapsed sections stay rendered for their counts but leave keyboard navigation.
+  // Rows in collapsed sections stay rendered for their counts but leave keyboard navigation, as do informational rows.
   readonly property var navigationRows: filterController.filteredModel.filter(function(row) {
     var id = sectionId(row)
-    return row.kind === "toggle" || !id || sectionExpanded(id)
+    return !row.inert && (row.kind === "toggle" || !id || sectionExpanded(id))
   })
   readonly property var filteredActions: filterRows("action")
   readonly property var filteredRepos: filterRows("repo")
@@ -697,10 +697,23 @@ Panel {
       actionRow("actions", "Open GitHub Actions", "󰜎")
     )
     rows = groupActions(rows, ["open", "review"])
-    if (service && service.notificationRepository(repo)) {
-      var notifications = actionRow("repo-notifications", "Review notifications…", "")
-      notifications.secondaryText = service.notificationSummary(repo)
-      rows.push(notifications)
+    var notificationEntry = service ? service.notificationRepository(repo) : null
+    if (notificationEntry) {
+      var review = actionRow("repo-notifications", "Review notifications…", "")
+      var slugs = (notificationEntry.slugs || []).map(function(slug) { return String(slug).toLowerCase() })
+      var threads = service.threads.filter(function(thread) { return thread.unread !== false && slugs.indexOf(String(thread.repo || "").toLowerCase()) >= 0 })
+      if (threads.length) rows = rows.concat(trackedGroup("repo-notifications", "Notifications", review.icon, service.notificationSummary(repo), threads.map(function(thread) {
+        var row = actionRow("repo-thread:" + thread.id, thread.title, review.icon)
+        row.secondaryText = [thread.reason, thread.type].filter(Boolean).join(" · ")
+        return row
+      }).concat([review])))
+      else {
+        review.primaryText = "Notifications"
+        review.secondaryText = service.notificationSummary(repo)
+        review.showSecondary = true
+        review.inert = !notificationEntry.count
+        rows.push(review)
+      }
     }
     var pulls = trackedRepository(service ? service.pullRequestRepositories : [], repo)
     if (pulls) rows = rows.concat(trackedGroup("repo-pulls", "Pull requests…", "", pullRepositorySummary(pulls), pulls.pulls.map(function(pr) {
@@ -1137,6 +1150,10 @@ Panel {
     else if (action === "notifications-dismiss" && notificationReviewEnabled) service.openNotificationReview(null, "dependencies")
     else if (action === "repo-notifications") service.openNotificationReview(selectedRepo, "all")
     else if (/^repo-(pulls?|issues?)(-web|:)/.test(action)) openTrackedAction(action, modifiers)
+    else if (action.indexOf("repo-thread:") === 0) {
+      var thread = service.threads.find(function(entry) { return String(entry.id) === action.slice(12) })
+      if (thread) { close(); service.openThread(thread, modifiers) }
+    }
     else if (action === "releases") showView("releases")
     else if (action === "release-repo" && selectedRelease) showRepoActions(selectedRelease)
     else if (action === "release-agent") showAgentPicker(selectedRelease)
@@ -1568,6 +1585,7 @@ Panel {
                 accent: root.contentForeground
                 MouseArea {
                   anchors.fill: parent
+                  enabled: !modelData.inert
                   hoverEnabled: true
                   cursorShape: Qt.PointingHandCursor
                   onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key)
@@ -1587,7 +1605,7 @@ Panel {
                     width: Math.max(0, contextActionRow.width - Style.space(32))
                     spacing: Style.space(2)
                     Text { width: parent.width; text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
-                    Text { visible: modelData.action === "repo-notifications" || !!modelData.showSecondary; width: parent.width; text: modelData.secondaryText; textFormat: Text.PlainText; color: Qt.darker(root.contentForeground, 1.25); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
+                    Text { visible: !!modelData.showSecondary; width: parent.width; text: modelData.secondaryText; textFormat: Text.PlainText; color: Qt.darker(root.contentForeground, 1.25); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
                   }
                   Text { visible: !!modelData.quick; anchors.verticalCenter: parent.verticalCenter; text: modelData.label || ""; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
                   PanelActionButton {
@@ -1640,10 +1658,10 @@ Panel {
                 x: Style.space(8)
                 width: Math.max(0, contentColumn.width - Style.space(16))
                 implicitHeight: actionRow.implicitHeight + Style.space(12)
-                hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
+                hasCursor: !modelData.inert && filterController.cursorIndex === filterController.indexForKey(modelData.key)
                 foreground: root.contentForeground
                 accent: root.contentForeground
-                MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: function(mouse) { root.activateAction(modelData.action, mouse.modifiers) } }
+                MouseArea { anchors.fill: parent; enabled: !modelData.inert; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: function(mouse) { root.activateAction(modelData.action, mouse.modifiers) } }
                 Row {
                   id: actionRow
                   anchors.left: parent.left
