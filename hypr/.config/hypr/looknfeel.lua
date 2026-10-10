@@ -87,7 +87,6 @@ hl.window_rule({ name = "float-twitch-auth", match = { class = "^chrome-id\\.twi
 
 -- Shared workspace rules.
 hl.window_rule({ name = "workspace-slicers", match = { class = "^(BambuStudio|OrcaSlicer)$" }, workspace = "4" })
-hl.window_rule({ name = "workspace-plannotator", match = { class = "^plannotator$" }, workspace = "2 silent" })
 
 require("hypr.host.looknfeel")
 

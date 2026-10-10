@@ -9,7 +9,7 @@ hl.env("HYPRCURSOR_THEME", "catppuccin-mocha-dark-cursors")
 hl.env("XCURSOR_SIZE", "20")
 hl.env("HYPRCURSOR_SIZE", "20")
 
--- Open every Plannotator surface in its dedicated Chromium window.
+-- Open every Plannotator surface in the work browser during work time, otherwise the default browser.
 hl.env("PLANNOTATOR_BROWSER", "plannotator-browser")
 
 require("hypr.host.envs")
