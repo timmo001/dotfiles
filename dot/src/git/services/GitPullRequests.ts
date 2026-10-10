@@ -53,7 +53,10 @@ const RemotePullRequest = Schema.Struct({
   title: Schema.String,
   html_url: Schema.String,
   user: Schema.NullOr(Schema.Struct({ login: Schema.String })),
-  draft: Schema.Boolean,
+  // The issues API, used for the `mine` scope, also lists issues with no draft state.
+  draft: Schema.optionalKey(Schema.NullOr(Schema.Boolean)),
+  updated_at: Schema.String,
+  pull_request: Schema.optionalKey(Schema.Unknown),
 });
 
 /** Failure to load or persist tracked pull requests. */
@@ -154,6 +157,10 @@ export class GitPullRequests extends Context.Service<
             message: "Select one enabled pull request repository with --repo",
           });
 
+        const login = yield* Effect.cached(
+          github.api("user", { jq: ".login" }),
+        );
+
         return yield* Effect.forEach(
           repositories,
           (repo) =>
@@ -237,24 +244,53 @@ export class GitPullRequests extends Context.Service<
                 now < state.attemptedAt ||
                 now - state.attemptedAt >= REFRESH_MS
               ) {
-                const result = yield* github
-                  .json([
-                    "api",
-                    "--method",
-                    "GET",
-                    `repos/${repo.github}/pulls?state=open&sort=updated&direction=desc&per_page=100`,
-                    "--paginate",
-                    "--slurp",
-                  ])
-                  .pipe(
-                    Effect.flatMap(
-                      Schema.decodeUnknownEffect(
-                        Schema.Array(Schema.Array(RemotePullRequest)),
-                      ),
+                const mine = repo.pullRequests?.scope === "mine";
+
+                const result = yield* (
+                  mine
+                    ? login.pipe(
+                        Effect.map((user) =>
+                          ["creator", "assignee"].map(
+                            (filter) =>
+                              `repos/${repo.github}/issues?state=open&sort=updated&direction=desc&per_page=100&${filter}=${user}`,
+                          ),
+                        ),
+                      )
+                    : Effect.succeed([
+                        `repos/${repo.github}/pulls?state=open&sort=updated&direction=desc&per_page=100`,
+                      ])
+                ).pipe(
+                  Effect.flatMap((endpoints) =>
+                    Effect.forEach(endpoints, (endpoint) =>
+                      github
+                        .json([
+                          "api",
+                          "--method",
+                          "GET",
+                          endpoint,
+                          "--paginate",
+                          "--slurp",
+                        ])
+                        .pipe(
+                          Effect.flatMap(
+                            Schema.decodeUnknownEffect(
+                              Schema.Array(Schema.Array(RemotePullRequest)),
+                            ),
+                          ),
+                        ),
                     ),
-                    Effect.timeout("45 seconds"),
-                    Effect.result,
-                  );
+                  ),
+                  Effect.map((pages) =>
+                    pages
+                      .flat(2)
+                      .filter((pr) => !mine || pr.pull_request !== undefined)
+                      .toSorted((a, b) =>
+                        b.updated_at.localeCompare(a.updated_at),
+                      ),
+                  ),
+                  Effect.timeout("45 seconds"),
+                  Effect.result,
+                );
 
                 if (Result.isFailure(result))
                   state = {
@@ -266,7 +302,7 @@ export class GitPullRequests extends Context.Service<
                   };
                 else {
                   const unique = new Map(
-                    result.success.flat().map((pr) => [pr.number, pr]),
+                    result.success.map((pr) => [pr.number, pr]),
                   );
 
                   const ignored = (state.ignored ?? []).filter((number) =>
@@ -329,7 +365,7 @@ export class GitPullRequests extends Context.Service<
                             title: pr.title,
                             url: pr.html_url,
                             author: pr.user?.login ?? "Deleted user",
-                            draft: pr.draft,
+                            draft: pr.draft === true,
                             checks: checkStatus,
                             failingChecks,
                           };

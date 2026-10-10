@@ -156,6 +156,17 @@ const IssueSettings = Schema.Struct({
   ),
 });
 
+/** Git panel pull request or issue tracking for one repository. */
+const TrackingSettings = Schema.Struct({
+  /** Include this repository in polling and panel pages. */
+  enabled: Schema.Boolean,
+  /** `mine` lists only items you authored or are assigned to; omitted lists all open items. */
+  scope: Schema.optionalKey(Schema.Literals(["all", "mine"])),
+});
+
+/** Decoded {@link TrackingSettings}. */
+export type TrackingSettings = typeof TrackingSettings.Type;
+
 /** A repository managed by the private dot git config. */
 export interface GitManagedRepo {
   /** Short display name. */
@@ -189,15 +200,9 @@ export interface GitManagedRepo {
   /** GitHub notification check and status-bar filters. */
   readonly notifications: GitRepoNotificationConfig;
   /** Whether open pull requests appear in the Git panel; omitted means disabled. */
-  readonly pullRequests?: {
-    /** Include this repository in PR polling and panel pages. */
-    readonly enabled: boolean;
-  };
+  readonly pullRequests?: TrackingSettings;
   /** Whether open issues appear in the Git panel; omitted means disabled. */
-  readonly issues?: {
-    /** Include this repository in issue polling and panel pages. */
-    readonly enabled: boolean;
-  };
+  readonly issues?: TrackingSettings;
   /** Optional release comparison policy and schedule; omitted means disabled. */
   readonly releases?: ReleaseSettings;
 }
@@ -634,18 +639,16 @@ function parseRepo(
   const pullRequests =
     value.pull_requests === undefined
       ? undefined
-      : Schema.decodeUnknownSync(Schema.Struct({ enabled: Schema.Boolean }))(
-          value.pull_requests,
-          { onExcessProperty: "error" },
-        );
+      : Schema.decodeUnknownSync(TrackingSettings)(value.pull_requests, {
+          onExcessProperty: "error",
+        });
 
   const issues =
     value.issues === undefined
       ? undefined
-      : Schema.decodeUnknownSync(Schema.Struct({ enabled: Schema.Boolean }))(
-          value.issues,
-          { onExcessProperty: "error" },
-        );
+      : Schema.decodeUnknownSync(TrackingSettings)(value.issues, {
+          onExcessProperty: "error",
+        });
 
   const releases = parseReleases(
     value.releases,

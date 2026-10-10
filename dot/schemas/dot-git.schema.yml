@@ -187,15 +187,12 @@ $defs:
         $ref: "#/$defs/scheduled_check"
       notifications:
         $ref: "#/$defs/notifications"
+      pull_requests:
+        $ref: "#/$defs/tracking"
+        description: Show this repository's open pull requests in the Git panel.
       issues:
-        type: object
-        additionalProperties: false
-        required:
-          - enabled
+        $ref: "#/$defs/tracking"
         description: Show this repository's open issues in the Git panel.
-        properties:
-          enabled:
-            type: boolean
       releases:
         $ref: "#/$defs/releases"
 
@@ -430,6 +427,20 @@ $defs:
         description: Enables this scheduled check for the repository.
       schedule:
         $ref: "#/$defs/check_schedule"
+
+  tracking:
+    type: object
+    additionalProperties: false
+    required:
+      - enabled
+    properties:
+      enabled:
+        type: boolean
+      scope:
+        enum:
+          - all
+          - mine
+        description: mine lists only items you authored or are assigned to. Omitted lists all open items.
 
   notifications:
     type: object

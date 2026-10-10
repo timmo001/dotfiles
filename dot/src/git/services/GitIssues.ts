@@ -45,6 +45,7 @@ const RemoteIssue = Schema.Struct({
   user: Schema.NullOr(Schema.Struct({ login: Schema.String })),
   labels: Schema.Array(Schema.Struct({ name: Schema.String })),
   comments: Schema.Int,
+  updated_at: Schema.String,
   // The issues API also lists pull requests; they carry this key.
   pull_request: Schema.optionalKey(Schema.Unknown),
 });
@@ -145,6 +146,10 @@ export class GitIssues extends Context.Service<GitIssues, GitIssuesService>()(
 
         const exclusions = config.gitConfig.issueExclusions;
 
+        const login = yield* Effect.cached(
+          github.api("user", { jq: ".login" }),
+        );
+
         return yield* Effect.forEach(
           repositories,
           (repo) =>
@@ -210,24 +215,49 @@ export class GitIssues extends Context.Service<GitIssues, GitIssuesService>()(
                 now < state.attemptedAt ||
                 now - state.attemptedAt >= REFRESH_MS
               ) {
-                const result = yield* github
-                  .json([
-                    "api",
-                    "--method",
-                    "GET",
-                    `repos/${repo.github}/issues?state=open&sort=updated&direction=desc&per_page=100`,
-                    "--paginate",
-                    "--slurp",
-                  ])
-                  .pipe(
-                    Effect.flatMap(
-                      Schema.decodeUnknownEffect(
-                        Schema.Array(Schema.Array(RemoteIssue)),
-                      ),
+                const endpoint = `repos/${repo.github}/issues?state=open&sort=updated&direction=desc&per_page=100`;
+
+                const result = yield* (
+                  repo.issues?.scope === "mine"
+                    ? login.pipe(
+                        Effect.map((user) =>
+                          ["creator", "assignee"].map(
+                            (filter) => `${endpoint}&${filter}=${user}`,
+                          ),
+                        ),
+                      )
+                    : Effect.succeed([endpoint])
+                ).pipe(
+                  Effect.flatMap((endpoints) =>
+                    Effect.forEach(endpoints, (url) =>
+                      github
+                        .json([
+                          "api",
+                          "--method",
+                          "GET",
+                          url,
+                          "--paginate",
+                          "--slurp",
+                        ])
+                        .pipe(
+                          Effect.flatMap(
+                            Schema.decodeUnknownEffect(
+                              Schema.Array(Schema.Array(RemoteIssue)),
+                            ),
+                          ),
+                        ),
                     ),
-                    Effect.timeout("45 seconds"),
-                    Effect.result,
-                  );
+                  ),
+                  Effect.map((pages) =>
+                    pages
+                      .flat(2)
+                      .toSorted((a, b) =>
+                        b.updated_at.localeCompare(a.updated_at),
+                      ),
+                  ),
+                  Effect.timeout("45 seconds"),
+                  Effect.result,
+                );
 
                 if (Result.isFailure(result))
                   state = {
@@ -240,7 +270,6 @@ export class GitIssues extends Context.Service<GitIssues, GitIssuesService>()(
                 else {
                   const unique = new Map(
                     result.success
-                      .flat()
                       .filter((issue) => issue.pull_request === undefined)
                       .map((issue) => [issue.number, issue]),
                   );
