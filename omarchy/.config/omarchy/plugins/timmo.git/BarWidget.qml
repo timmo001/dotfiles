@@ -38,21 +38,21 @@ BarWidget {
     function add(text, count, color) { if (count > 0) segments.push({ text: text + count, color: color }) }
     var changedElsewhere = git.repos.filter(function(repo) { return repo.path !== root.activePath && repo.modified > 0 }).length
     var elsewhereText = changedElsewhere > 0 ? " +" + changedElsewhere : ""
+    // Changes use the panel's modified count icon in place of the branch icon.
+    var changedIcon = "\uF440"
 
     if (activePath === "")
-      return changedElsewhere > 0 ? [{ text: "\uF418" + elsewhereText, color: "#56b6c2" }] : idle
+      return changedElsewhere > 0 ? [{ text: changedIcon + elsewhereText, color: "#56b6c2" }] : idle
 
     var active = git.activeStatus && git.activeStatus.path === root.activePath ? git.activeStatus
       : git.repos.find(function(repo) { return repo.path === root.activePath })
     var modified = active ? active.modified : 0
-    segments.push({ text: "\uF418 " + modified + elsewhereText, color: modified > 0 || changedElsewhere > 0 ? "#56b6c2" : idle[0].color })
+    var changed = modified > 0 || changedElsewhere > 0
+    segments.push({ text: (changed ? changedIcon : "\uF418") + " " + modified + elsewhereText, color: changed ? "#56b6c2" : idle[0].color })
     if (active) {
       add("\u2191", active.ahead, "#c678dd")
       add("\u2193", active.behind, "#61afef")
     }
-    var pullRepo = git.pullRequestRepositories.find(function(entry) { return entry.path === root.activePath })
-    add("\uF407 ", pullRepo ? pullRepo.pulls.length : 0, "#abb2bf")
-
     var notificationRepo = git.notificationRepositories.find(function(entry) { return entry.path === root.activePath })
     var kinds = notificationRepo && notificationRepo.kinds ? notificationRepo.kinds : {}
     add("\uF0F3 ", kinds["needs-you"] || 0, "#98c379")
