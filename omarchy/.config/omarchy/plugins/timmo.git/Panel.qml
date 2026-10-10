@@ -541,13 +541,9 @@ Panel {
     var rows = [headerActionRow("pulls-refresh", "Refresh pull requests", "pulls")]
     if (view === "pull-repo") {
       if (selectedPullRequests) selectedPullRequests.pulls.forEach(function(pr) {
-        var ready = !pr.draft && pr.checks === "pass"
-        var status = pr.draft ? "Draft" : ready ? "Ready" : ({ fail: "Failed", pending: "Pending", cancelled: "Cancelled", none: "No passing checks", unknown: "CI unavailable" })[pr.checks] || "CI unavailable"
-        var failing = pr.failingChecks || []
-        var brief = failing.length ? " · Failed: " + failing.slice(0, 2).join(", ") + (failing.length > 2 ? " +" + (failing.length - 2) : "") : ""
         rows.push({ key: "pull:" + selectedPullRequests.repo + ":" + pr.number, kind: "pull", section: "pulls", value: pr,
           primaryText: "#" + pr.number + " " + pr.title,
-          secondaryText: pr.author + " · " + status + brief, ready: ready })
+          secondaryText: pullRequestDetail(pr), ready: pullRequestReady(pr) })
       })
       return rows
     }
@@ -555,12 +551,10 @@ Panel {
     var withPulls = repositories.filter(function(repo) { return repo.pulls.length > 0 || (view === "pulls" && (repo.error || repo.checkedAt === null)) })
     var withoutPulls = view === "pulls" ? repositories.filter(function(repo) { return repo.pulls.length === 0 && !repo.error && repo.checkedAt !== null }) : []
     withPulls.concat(withoutPulls).forEach(function(repo) {
-      var readyCount = repo.pulls.filter(function(pr) { return !pr.draft && pr.checks === "pass" }).length
-      var draftCount = repo.pulls.filter(function(pr) { return pr.draft }).length
       var empty = withoutPulls.indexOf(repo) >= 0
       rows.push({ key: "pull-repo:" + repo.repo, kind: "pull-repo", section: empty ? "pulls-empty" : "pulls", value: repo,
         primaryText: repo.name + (empty ? "" : "  ›"),
-        secondaryText: repo.checkedAt === null ? (repo.error || "Not checked yet") : repo.pulls.length + " open · " + readyCount + " ready" + (draftCount ? " · " + draftCount + " draft" + (draftCount === 1 ? "" : "s") : "") + (repo.error ? " · stale: " + repo.error : ""), ready: readyCount > 0 })
+        secondaryText: pullRepositorySummary(repo), ready: repo.pulls.some(pullRequestReady) })
     })
     if (view === "overview") {
       var all = actionRow("pulls", "All tracked repositories", "󰙅")
@@ -569,6 +563,24 @@ Panel {
       rows.push(all)
     }
     return rows
+  }
+
+  function pullRequestReady(pr) {
+    return !pr.draft && pr.checks === "pass"
+  }
+
+  function pullRequestDetail(pr) {
+    var status = pr.draft ? "Draft" : pullRequestReady(pr) ? "Ready" : ({ fail: "Failed", pending: "Pending", cancelled: "Cancelled", none: "No passing checks", unknown: "CI unavailable" })[pr.checks] || "CI unavailable"
+    var failing = pr.failingChecks || []
+    var brief = failing.length ? " · Failed: " + failing.slice(0, 2).join(", ") + (failing.length > 2 ? " +" + (failing.length - 2) : "") : ""
+    return pr.author + " · " + status + brief
+  }
+
+  function pullRepositorySummary(repo) {
+    if (repo.checkedAt === null) return repo.error || "Not checked yet"
+    var readyCount = repo.pulls.filter(pullRequestReady).length
+    var draftCount = repo.pulls.filter(function(pr) { return pr.draft }).length
+    return repo.pulls.length + " open · " + readyCount + " ready" + (draftCount ? " · " + draftCount + " draft" + (draftCount === 1 ? "" : "s") : "") + (repo.error ? " · stale: " + repo.error : "")
   }
 
   function pullRequestStatus() {
@@ -607,10 +619,8 @@ Panel {
     var rows = [headerActionRow("issues-refresh", "Refresh issues", "issues")]
     if (view === "issue-repo") {
       if (selectedIssues) selectedIssues.issues.forEach(function(issue) {
-        var details = [issue.author].concat(issue.labels.slice(0, 3))
-        if (issue.comments) details.push(issue.comments + (issue.comments === 1 ? " comment" : " comments"))
         rows.push({ key: issueKey(selectedIssues, issue), kind: "issue", section: "issues", value: issue,
-          primaryText: "#" + issue.number + " " + issue.title, secondaryText: details.join(" · ") })
+          primaryText: "#" + issue.number + " " + issue.title, secondaryText: issueDetail(issue) })
       })
       return rows
     }
@@ -621,7 +631,7 @@ Panel {
       var empty = withoutIssues.indexOf(repo) >= 0
       rows.push({ key: "issue-repo:" + repo.repo, kind: "issue-repo", section: empty ? "issues-empty" : "issues", value: repo,
         primaryText: repo.name + (empty ? "" : "  ›"),
-        secondaryText: repo.checkedAt === null ? (repo.error || "Not checked yet") : repo.issues.length + " open" + (repo.error ? " · stale: " + repo.error : "") })
+        secondaryText: issueRepositorySummary(repo) })
     })
     if (view === "overview") {
       var all = actionRow("issues", "All tracked repositories", "󰙅")
@@ -630,6 +640,17 @@ Panel {
       rows.push(all)
     }
     return rows
+  }
+
+  function issueDetail(issue) {
+    var details = [issue.author].concat(issue.labels.slice(0, 3))
+    if (issue.comments) details.push(issue.comments + (issue.comments === 1 ? " comment" : " comments"))
+    return details.join(" · ")
+  }
+
+  function issueRepositorySummary(repo) {
+    if (repo.checkedAt === null) return repo.error || "Not checked yet"
+    return repo.issues.length + " open" + (repo.error ? " · stale: " + repo.error : "")
   }
 
   function issueStatus() {
@@ -681,7 +702,51 @@ Panel {
       notifications.secondaryText = service.notificationSummary(repo)
       rows.push(notifications)
     }
+    var pulls = trackedRepository(service ? service.pullRequestRepositories : [], repo)
+    if (pulls) rows = rows.concat(trackedGroup("repo-pulls", "Pull requests…", "", pullRepositorySummary(pulls), pulls.pulls.map(function(pr) {
+      var row = actionRow("repo-pull:" + pr.number, "#" + pr.number + " " + pr.title, "")
+      row.secondaryText = pullRequestDetail(pr)
+      return row
+    }).concat([actionRow("repo-pulls-web", "Open pull requests on GitHub", "")])))
+    var issues = trackedRepository(service ? service.issueRepositories : [], repo)
+    if (issues) rows = rows.concat(trackedGroup("repo-issues", "Issues…", "", issueRepositorySummary(issues), issues.issues.map(function(issue) {
+      var row = actionRow("repo-issue:" + issue.number, "#" + issue.number + " " + issue.title, "")
+      row.secondaryText = issueDetail(issue)
+      return row
+    }).concat([actionRow("repo-issues-web", "Open issues on GitHub", "")])))
     return rows
+  }
+
+  function trackedRepository(repositories, repo) {
+    if (!repo || !repo.path) return null
+    return repositories.find(function(entry) { return entry.path === repo.path }) || null
+  }
+
+  // A collapsible group like groupActions, without the quick button, for a repository's tracked pull requests or issues.
+  function trackedGroup(id, label, icon, summary, members) {
+    var expanded = !!filterController.filterText || !!expandedGroups[id]
+    var header = actionRow("group:" + id, label + (expanded ? "  ▾" : "  ›"), icon)
+    header.secondaryText = summary
+    header.showSecondary = true
+    return [header].concat(expanded ? members.map(function(row) {
+      row.child = true
+      row.showSecondary = !!row.secondaryText
+      return row
+    }) : [])
+  }
+
+  function openTrackedAction(action, modifiers) {
+    var pulls = action.indexOf("repo-pull") === 0
+    var tracked = trackedRepository(pulls ? service.pullRequestRepositories : service.issueRepositories, selectedRepo)
+    if (!tracked) return
+    close()
+    if (action === "repo-pulls-web") return service.openPulls(tracked, modifiers)
+    if (action === "repo-issues-web") return service.openIssues(tracked, modifiers)
+    var number = Number(action.slice(action.indexOf(":") + 1))
+    var items = pulls ? tracked.pulls : tracked.issues
+    var item = items.find(function(entry) { return Number(entry.number) === number })
+    if (pulls) service.openPullRequest(tracked, item, modifiers)
+    else service.openIssue(tracked, item, modifiers)
   }
 
   // Each group lists its actions with the short name its quick button shows.
@@ -895,8 +960,8 @@ Panel {
     if (service) service.refreshHerdrContext()
     if (service) { service.notificationLaunchError = ""; service.refreshNotifications() }
     if ((releaseView || view === "overview") && service) service.refreshReleases("read")
-    if ((pullRequestView || view === "overview") && service) service.refreshPullRequests("read")
-    if ((issueView || view === "overview") && service) service.refreshIssues("read")
+    if ((pullRequestView || view === "overview" || view === "repo") && service) service.refreshPullRequests("read")
+    if ((issueView || view === "overview" || view === "repo") && service) service.refreshIssues("read")
     if (service) service.refreshLog("read")
     filterController.reset()
     if (target && view === "repo") expandedGroups = { review: true }
@@ -1071,6 +1136,7 @@ Panel {
     else if (action === "notifications-refresh") service.refreshNotifications()
     else if (action === "notifications-dismiss" && notificationReviewEnabled) service.openNotificationReview(null, "dependencies")
     else if (action === "repo-notifications") service.openNotificationReview(selectedRepo, "all")
+    else if (/^repo-(pulls?|issues?)(-web|:)/.test(action)) openTrackedAction(action, modifiers)
     else if (action === "releases") showView("releases")
     else if (action === "release-repo" && selectedRelease) showRepoActions(selectedRelease)
     else if (action === "release-agent") showAgentPicker(selectedRelease)
@@ -1521,7 +1587,7 @@ Panel {
                     width: Math.max(0, contextActionRow.width - Style.space(32))
                     spacing: Style.space(2)
                     Text { width: parent.width; text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
-                    Text { visible: modelData.action === "repo-notifications"; width: parent.width; text: modelData.secondaryText; textFormat: Text.PlainText; color: Qt.darker(root.contentForeground, 1.25); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
+                    Text { visible: modelData.action === "repo-notifications" || !!modelData.showSecondary; width: parent.width; text: modelData.secondaryText; textFormat: Text.PlainText; color: Qt.darker(root.contentForeground, 1.25); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
                   }
                   Text { visible: !!modelData.quick; anchors.verticalCenter: parent.verticalCenter; text: modelData.label || ""; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
                   PanelActionButton {
