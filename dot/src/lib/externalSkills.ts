@@ -210,7 +210,10 @@ const decodeMarketplace = Schema.decodeUnknownOption(
       plugins: Schema.Array(
         Schema.Struct({
           name: Schema.String,
-          source: Schema.Union([Schema.String, Schema.Struct({})]),
+          source: Schema.Union([
+            Schema.String,
+            Schema.Struct({ sha: Schema.optionalKey(Schema.String) }),
+          ]),
           metadata: Schema.optionalKey(
             Schema.Struct({ skill: Schema.optionalKey(Schema.String) }),
           ),
@@ -226,12 +229,16 @@ const decodeListing = Schema.decodeUnknownOption(
       Schema.Struct({
         name: Schema.optionalKey(Schema.String),
         id: Schema.optionalKey(Schema.String),
+        version: Schema.optionalKey(Schema.String),
       }),
     ),
   ),
 );
 
-/** Names or ids from a `claude plugin ... list --json` listing. */
+/**
+ * Names or ids from a `claude plugin ... list --json` listing, each mapped to
+ * its version (empty when the listing has none).
+ */
 const listNames = Effect.fn("Skills.listClaudeNames")(function* (
   args: readonly string[],
   key: "name" | "id",
@@ -239,11 +246,11 @@ const listNames = Effect.fn("Skills.listClaudeNames")(function* (
   const executor = yield* CommandExecutor;
   const output = yield* executor.run("claude", [...args, "--json"]);
 
-  return new Set(
+  return new Map(
     Option.getOrElse(decodeListing(output), () => []).flatMap((entry) => {
       const value = entry[key];
 
-      return value === undefined ? [] : [value];
+      return value === undefined ? [] : [[value, entry.version ?? ""] as const];
     }),
   );
 });
@@ -256,6 +263,11 @@ interface MarketplacePlugin {
   readonly localPath: string | null;
   /** Skill a remote plugin provides: `metadata.skill`, else the plugin name. */
   readonly skill: string;
+  /**
+   * Version prefix Claude Code gives a remote plugin pinned to a commit (the
+   * first 12 characters of its SHA), or `null` when it is not pinned.
+   */
+  readonly pin: string | null;
 }
 
 const isLocalSource = Schema.is(Schema.String);
@@ -268,6 +280,9 @@ const readMarketplace = (text: string) =>
       name: plugin.name,
       localPath: isLocalSource(plugin.source) ? plugin.source : null,
       skill: plugin.metadata?.skill ?? plugin.name,
+      pin: isLocalSource(plugin.source)
+        ? null
+        : (plugin.source.sha?.slice(0, 12) ?? null),
     })),
   }));
 
@@ -291,9 +306,9 @@ const pluginSkills = Effect.fn("Skills.pluginSkills")(function* (
 });
 
 /**
- * Register each local Claude plugin marketplace, refresh it, and install or
- * update its plugins. A plugin that fails to install is left uncovered so its
- * skills keep their `~/.claude/skills` links.
+ * Register each local Claude plugin marketplace, install its missing plugins,
+ * and update pinned ones whose commit changed. A plugin that fails to install
+ * is left uncovered so its skills keep their `~/.claude/skills` links.
  *
  * @returns Skill names now provided by plugins, and the number of changes.
  */
@@ -303,12 +318,25 @@ const syncClaudePlugins = Effect.fn("Skills.syncClaudePlugins")(function* (
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
 
-  const registered = yield* listNames(
-    ["plugin", "marketplace", "list"],
-    "name",
+  const [registered, installed] = yield* log.withSpinner(
+    "Reading Claude Code plugins",
+    Effect.all([
+      listNames(["plugin", "marketplace", "list"], "name"),
+      listNames(["plugin", "list"], "id"),
+    ]),
   );
 
-  const installed = yield* listNames(["plugin", "list"], "id");
+  // Each step shows a spinner, then a timed line; a failure logs its stderr.
+  const claude = (label: string, args: readonly string[]) =>
+    log.withSpinner(label, executor.run("claude", args)).pipe(
+      Effect.as(true),
+      Effect.catch((error) =>
+        log
+          .warn(`${label} failed: ${error.stderr || `exit ${error.exitCode}`}`)
+          .pipe(Effect.as(false)),
+      ),
+    );
+
   const covered = new Set<string>();
   let changed = 0;
 
@@ -329,53 +357,55 @@ const syncClaudePlugins = Effect.fn("Skills.syncClaudePlugins")(function* (
 
     const { name, plugins } = marketplace.value;
 
-    const added = registered.has(name)
-      ? yield* executor.exitCode("claude", [
-          "plugin",
-          "marketplace",
-          "update",
-          name,
-        ])
-      : yield* executor.exitCode("claude", [
+    // A local directory marketplace is read in place, so it never needs a refresh.
+    if (!registered.has(name)) {
+      if (
+        !(yield* claude(`Adding marketplace ${name}`, [
           "plugin",
           "marketplace",
           "add",
           root,
-        ]);
+        ]))
+      )
+        continue;
 
-    if (added !== 0) {
-      yield* log.warn(`Could not register Claude marketplace ${name}`);
-      continue;
+      changed++;
     }
 
-    if (!registered.has(name)) changed++;
+    let current = 0;
 
     for (const plugin of plugins) {
       const id = `${plugin.name}@${name}`;
-      const isInstalled = installed.has(id);
+      const version = installed.get(id);
 
-      // Local plugins load in place; remote ones are pinned and need an update.
-      if (isInstalled && plugin.localPath !== null) {
-        for (const skill of yield* pluginSkills(root, plugin))
-          covered.add(skill);
-        continue;
+      // Local plugins load in place; pinned ones only change with their pin.
+      const upToDate =
+        version !== undefined &&
+        (plugin.pin === null || version.startsWith(plugin.pin));
+
+      if (upToDate) {
+        current++;
+      } else {
+        const action = version === undefined ? "install" : "update";
+
+        if (
+          !(yield* claude(
+            `${version === undefined ? "Installing" : "Updating"} ${id}`,
+            ["plugin", action, id],
+          ))
+        )
+          continue;
+
+        changed++;
       }
-
-      const exitCode = yield* executor.exitCode("claude", [
-        "plugin",
-        isInstalled ? "update" : "install",
-        id,
-      ]);
-
-      if (exitCode !== 0) {
-        yield* log.warn(`Could not install Claude plugin ${id}`);
-        continue;
-      }
-
-      if (!isInstalled) changed++;
 
       for (const skill of yield* pluginSkills(root, plugin)) covered.add(skill);
     }
+
+    if (current > 0)
+      yield* log.info(
+        `${plural(current, "plugin")} from ${name} already up to date`,
+      );
   }
 
   return { covered, changed };
@@ -547,6 +577,8 @@ export const syncSkills = Effect.gen(function* () {
     actions.push(skip("Authored skills already linked"));
   }
 
+  yield* log.section("Claude Code Plugins");
+
   const plugins = yield* syncClaudePlugins([
     SKILLS_CHECKOUT,
     config.publicDotfiles,
@@ -562,7 +594,9 @@ export const syncSkills = Effect.gen(function* () {
     actions.push(warn("Claude Code plugins skipped"));
   } else if (plugins.changed > 0) {
     actions.push(
-      notable(`Installed ${plural(plugins.changed, "Claude Code plugin")}`),
+      notable(
+        `Installed or updated ${plural(plugins.changed, "Claude Code plugin")}`,
+      ),
     );
   } else {
     actions.push(skip("Claude Code plugins already installed"));
@@ -579,9 +613,12 @@ export const syncSkills = Effect.gen(function* () {
   if (claude === null) {
     actions.push(warn("Claude Code skill links skipped"));
   } else if (claude.linked + claude.removed > 0) {
+    yield* log.success(
+      `Linked ${plural(claude.linked, "Claude Code skill")}, removed ${plural(claude.removed, "link")} now provided by plugins`,
+    );
     actions.push(
       notable(
-        `Linked ${plural(claude.linked, "Claude Code skill")}, removed ${plural(claude.removed, "stale link")}`,
+        `Linked ${plural(claude.linked, "Claude Code skill")}, removed ${plural(claude.removed, "link")}`,
       ),
     );
   } else {
