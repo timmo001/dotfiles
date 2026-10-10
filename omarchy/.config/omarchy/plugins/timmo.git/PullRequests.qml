@@ -12,6 +12,7 @@ Column {
   required property color foreground
   required property string fontFamily
   property bool refreshing: false
+  property bool checkingOut: false
   property string status: ""
   property bool sectionsCollapsible: false
   property var expanded: ({ pulls: true, "pulls-empty": true })
@@ -20,6 +21,7 @@ Column {
   signal refreshRequested()
   signal ignoreRequested(var entry)
   signal agentRequested(var entry)
+  signal checkoutRequested(var entry)
   signal toggleRequested(string id)
 
   spacing: Style.space(8)
@@ -155,6 +157,15 @@ Column {
                 fontFamily: root.fontFamily
                 onHovered: function(hovered) { if (hovered) root.hovered(modelData.key) }
                 onClicked: root.agentRequested(modelData)
+              }
+              PanelActionButton {
+                enabled: !root.checkingOut
+                iconText: "󰘬"
+                tooltipText: "Check out pull request"
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                onHovered: function(hovered) { if (hovered) root.hovered(modelData.key) }
+                onClicked: root.checkoutRequested(modelData)
               }
               PanelActionButton {
                 enabled: !root.refreshing

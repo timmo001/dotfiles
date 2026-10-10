@@ -517,11 +517,17 @@ Item {
   // Checks the pull request out first when the working tree is clean, so the agent can work on it.
   // A dirty tree, or a failed checkout, leaves the branch alone and the agent reads the pull request remotely.
   function openPullRequestAgent(repo, pr, command, modifiers) {
-    if (!repo || !repo.path || !pr || !command || agentLaunching) return
+    if (!command) return
+    agentLaunchError = ""
+    checkoutPullRequest(repo, pr, command, modifiers)
+  }
+
+  // Without an agent command, only checks the pull request out and reports the result as a notification.
+  function checkoutPullRequest(repo, pr, command, modifiers) {
+    if (!repo || !repo.path || !pr || agentLaunching) return
     var number = Number(pr.number)
     if (!Number.isInteger(number) || number <= 0) return
-    agentLaunchError = ""
-    pullRequestCheckoutProcess.request = { repo: repo, pr: pr, number: number, command: command, modifiers: modifiers }
+    pullRequestCheckoutProcess.request = { repo: repo, pr: pr, number: number, command: command || "", modifiers: modifiers }
     pullRequestCheckoutProcess.workingDirectory = String(repo.path)
     pullRequestCheckoutProcess.command = ["bash", "-c",
       "if [ -n \"$(git status --porcelain)\" ]; then exit 3; fi; gh pr checkout \"$1\"", "pr-checkout", String(number)]
@@ -794,6 +800,14 @@ Item {
       pullRequestCheckoutProcess.request = null
       if (!request) return
       var checkout = { ok: exitCode === 0, dirty: exitCode === 3, error: String(pullRequestCheckoutStderr.text || "").trim().split("\n").pop().slice(0, 200) }
+      if (!request.command) {
+        var title = request.repo.name + " #" + request.number
+        Quickshell.execDetached(["notify-send", "-a", "Git", title, checkout.ok ? "Checked out " + String(request.pr.title || "")
+          : checkout.dirty ? "Not checked out: the working tree has uncommitted changes"
+          : "Checkout failed" + (checkout.error ? ": " + checkout.error : "")])
+        if (checkout.ok) root.refresh("action")
+        return
+      }
       root.openAgent(request.repo, request.command, root.pullRequestAgentPrompt(request.repo, request.pr, request.number, checkout), request.modifiers)
     }
   }

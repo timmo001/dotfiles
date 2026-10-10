@@ -1667,7 +1667,7 @@ Panel {
                 Row {
                   id: contextActionRow
                   anchors.left: parent.left
-                  anchors.right: contextAgentButton.visible ? contextAgentButton.left : parent.right
+                  anchors.right: contextItemButtons.visible ? contextItemButtons.left : parent.right
                   anchors.verticalCenter: parent.verticalCenter
                   anchors.margins: Style.space(8)
                   anchors.leftMargin: Style.space(modelData.child ? 28 : 8)
@@ -1701,18 +1701,41 @@ Panel {
                 }
                 Text { visible: !!modelData.quick; anchors.right: parent.right; anchors.rightMargin: Style.space(16); anchors.verticalCenter: parent.verticalCenter; text: modelData.chevron || ""; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
                 // Mouse only, like the pull request ignore button; the keyboard opens the row itself.
-                PanelActionButton {
-                  id: contextAgentButton
+                Row {
+                  id: contextItemButtons
                   visible: !!modelData.agentItem
                   anchors.right: parent.right
                   anchors.rightMargin: Style.space(8)
                   anchors.verticalCenter: parent.verticalCenter
-                  iconText: "󱚣"
-                  tooltipText: "Open in agent"
-                  foreground: root.contentForeground
-                  fontFamily: root.contentFontFamily
-                  onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey(modelData.key) }
-                  onClicked: root.showItemAgentPicker(modelData.agentItem.kind, modelData.agentItem.repo, modelData.agentItem.value)
+                  spacing: Style.space(4)
+                  PanelActionButton {
+                    iconText: "󱚣"
+                    tooltipText: "Open in agent"
+                    foreground: root.contentForeground
+                    fontFamily: root.contentFontFamily
+                    onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey(modelData.key) }
+                    onClicked: root.showItemAgentPicker(modelData.agentItem.kind, modelData.agentItem.repo, modelData.agentItem.value)
+                  }
+                  PanelActionButton {
+                    visible: !!modelData.agentItem && modelData.agentItem.kind === "pull"
+                    enabled: root.service !== null && !root.service.agentLaunching
+                    iconText: "󰘬"
+                    tooltipText: "Check out pull request"
+                    foreground: root.contentForeground
+                    fontFamily: root.contentFontFamily
+                    onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey(modelData.key) }
+                    onClicked: root.service.checkoutPullRequest(modelData.agentItem.repo, modelData.agentItem.value)
+                  }
+                  PanelActionButton {
+                    visible: !!modelData.agentItem && modelData.agentItem.kind === "pull"
+                    enabled: root.service !== null && !root.service.pullRequestsBusy
+                    iconText: "󰈉"
+                    tooltipText: "Ignore pull request"
+                    foreground: root.contentForeground
+                    fontFamily: root.contentFontFamily
+                    onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey(modelData.key) }
+                    onClicked: root.service.ignorePullRequest(modelData.agentItem.repo, modelData.agentItem.value)
+                  }
                 }
               }
             }
@@ -1759,7 +1782,7 @@ Panel {
                 Row {
                   id: actionRow
                   anchors.left: parent.left
-                  anchors.right: actionAgentButton.visible ? actionAgentButton.left : parent.right
+                  anchors.right: actionItemButtons.visible ? actionItemButtons.left : parent.right
                   anchors.verticalCenter: parent.verticalCenter
                   anchors.leftMargin: Style.space(modelData.child ? 28 : 8)
                   anchors.rightMargin: Style.space(8)
@@ -1792,18 +1815,41 @@ Panel {
                   }
                 }
                 Text { visible: !!modelData.quick; anchors.right: parent.right; anchors.rightMargin: Style.space(16); anchors.verticalCenter: parent.verticalCenter; text: modelData.chevron || ""; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
-                PanelActionButton {
-                  id: actionAgentButton
+                Row {
+                  id: actionItemButtons
                   visible: !!modelData.agentItem
                   anchors.right: parent.right
                   anchors.rightMargin: Style.space(8)
                   anchors.verticalCenter: parent.verticalCenter
-                  iconText: "󱚣"
-                  tooltipText: "Open in agent"
-                  foreground: root.contentForeground
-                  fontFamily: root.contentFontFamily
-                  onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey(modelData.key) }
-                  onClicked: root.showItemAgentPicker(modelData.agentItem.kind, modelData.agentItem.repo, modelData.agentItem.value)
+                  spacing: Style.space(4)
+                  PanelActionButton {
+                    iconText: "󱚣"
+                    tooltipText: "Open in agent"
+                    foreground: root.contentForeground
+                    fontFamily: root.contentFontFamily
+                    onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey(modelData.key) }
+                    onClicked: root.showItemAgentPicker(modelData.agentItem.kind, modelData.agentItem.repo, modelData.agentItem.value)
+                  }
+                  PanelActionButton {
+                    visible: !!modelData.agentItem && modelData.agentItem.kind === "pull"
+                    enabled: root.service !== null && !root.service.agentLaunching
+                    iconText: "󰘬"
+                    tooltipText: "Check out pull request"
+                    foreground: root.contentForeground
+                    fontFamily: root.contentFontFamily
+                    onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey(modelData.key) }
+                    onClicked: root.service.checkoutPullRequest(modelData.agentItem.repo, modelData.agentItem.value)
+                  }
+                  PanelActionButton {
+                    visible: !!modelData.agentItem && modelData.agentItem.kind === "pull"
+                    enabled: root.service !== null && !root.service.pullRequestsBusy
+                    iconText: "󰈉"
+                    tooltipText: "Ignore pull request"
+                    foreground: root.contentForeground
+                    fontFamily: root.contentFontFamily
+                    onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey(modelData.key) }
+                    onClicked: root.service.ignorePullRequest(modelData.agentItem.repo, modelData.agentItem.value)
+                  }
                 }
               }
             }
@@ -2236,6 +2282,8 @@ Panel {
             onToggleRequested: function(id) { root.toggleSection(id) }
             onIgnoreRequested: function(entry) { if (root.service) root.service.ignorePullRequest(root.selectedPullRequests, entry.value) }
             onAgentRequested: function(entry) { root.showItemAgentPicker("pull", root.selectedPullRequests, entry.value) }
+            checkingOut: root.service ? root.service.agentLaunching : false
+            onCheckoutRequested: function(entry) { if (root.service) root.service.checkoutPullRequest(root.selectedPullRequests, entry.value) }
           }
 
           Issues {
