@@ -83,7 +83,7 @@ export const releasesOpenShell = Effect.fn("releases.openShell")(function* (
   ]);
   // Installed shells discard summon payloads for bar-widget panels.
   yield* executor.run("omarchy-shell", ["timmo.git", "release", repo ?? ""]);
-}, handleCommandError("dot git-releases"));
+}, handleCommandError("dot git releases"));
 
 /** Offer the saved release log in the current terminal. */
 const viewReleaseLog = Effect.fn("releases.viewLog")(function* (path: string) {
@@ -168,7 +168,7 @@ export const releasesPublish = Effect.fn("releases.publish")(function* (
           ? []
           : [
               "Confirm these steps with:",
-              `dot git-releases publish --repo ${JSON.stringify(action.repo)} --snapshot ${action.snapshot}${result.plan.notes ? ` --notes-file ${JSON.stringify(result.plan.notes.file)} --notes-mode ${result.plan.notes.mode}` : ""} --confirm ${result.plan.id}`,
+              `dot git releases publish --repo ${JSON.stringify(action.repo)} --snapshot ${action.snapshot}${result.plan.notes ? ` --notes-file ${JSON.stringify(result.plan.notes.file)} --notes-mode ${result.plan.notes.mode}` : ""} --confirm ${result.plan.id}`,
             ]),
         "",
       ].join("\n"),
@@ -265,7 +265,7 @@ export const releasesPublish = Effect.fn("releases.publish")(function* (
   }
 
   yield* flushOutput;
-}, handleCommandError("dot git-releases publish"));
+}, handleCommandError("dot git releases publish"));
 
 /** Show cached or refreshed comparisons, with explicit opt-in desktop delivery. */
 export const releasesQuery = Effect.fn("releases.query")(function* (
@@ -278,7 +278,7 @@ export const releasesQuery = Effect.fn("releases.query")(function* (
     ? writeJsonLine(decodeJson({ repositories }))
     : writeText(summary(repositories));
   yield* flushOutput;
-}, handleCommandError("dot git-releases"));
+}, handleCommandError("dot git releases"));
 
 /** Apply a snapshot-bound local impact review and return the new display. */
 export const releasesAction = Effect.fn("releases.action")(function* (
@@ -291,4 +291,4 @@ export const releasesAction = Effect.fn("releases.action")(function* (
     ? writeJsonLine(decodeJson({ repositories: [repository] }))
     : writeText(summary([repository]));
   yield* flushOutput;
-}, handleCommandError("dot git-releases"));
+}, handleCommandError("dot git releases"));

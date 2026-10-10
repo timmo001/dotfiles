@@ -11,7 +11,7 @@
 //   returnType     "json" (text/tooltip/class) or "text" (default "json")
 //   tooltip        Whether to show the JSON tooltip (default true)
 //   onClick        Command run on left click
-//   herdrLaunch    Forward click modifiers to a dot herdr repo-open command
+//   herdrLaunch    Forward click modifiers to a dot herdr repo open command
 //   onClickRight   Command run on right click
 //   onMiddleClick  Command run on middle click
 //   classColors    Map of class name -> colour string

@@ -131,7 +131,7 @@ export const recordUpstreamFetch = Effect.fn("DotDiff.recordUpstreamFetch")(
   },
 );
 
-/** Domain error for `dot git-diff` command failures */
+/** Domain error for `dot git diff` command failures */
 export class DotDiffError extends Schema.TaggedError<DotDiffError>()(
   "DotDiffError",
   {

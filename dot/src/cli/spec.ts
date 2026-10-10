@@ -224,6 +224,20 @@ const installCommand = describe(
   "Ensure prerequisites, then backup/adopt dotfiles",
 );
 
+const systemUpdateCommand = describe(
+  Command.make(
+    "system",
+    { yes: bool("yes", "Select every update without prompting") },
+    (input) => systemUpdate(input),
+  ),
+  "Select and run Dotfiles, Omarchy, and Topgrade updates",
+  ["dot update system", "dot update system --yes"],
+  {
+    description:
+      "Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step. Cancelling the prompt exits without running updates.",
+  },
+);
+
 const updateCommand = describe(
   Command.make(
     "update",
@@ -320,8 +334,8 @@ const updateCommand = describe(
           startedAt: optional(startedAt),
         });
       }),
-  ),
-  "Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update, --post-hook-repo and --started-at flags support the active self-update handoff; internal --summary-file lets system-update print the summary last.",
+  ).pipe(Command.withSubcommands([systemUpdateCommand])),
+  "Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update, --post-hook-repo and --started-at flags support the active self-update handoff; internal --summary-file lets update system print the summary last.",
   [],
   {
     description:
@@ -340,20 +354,6 @@ const updateCommand = describe(
     ],
   },
 ).pipe(Command.withAlias("up"));
-
-const systemUpdateCommand = describe(
-  Command.make(
-    "system-update",
-    { yes: bool("yes", "Select every update without prompting") },
-    (input) => systemUpdate(input),
-  ),
-  "Select and run Dotfiles, Omarchy, and Topgrade updates",
-  ["dot system-update", "dot system-update --yes"],
-  {
-    description:
-      "Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step. Cancelling the prompt exits without running updates.",
-  },
-);
 
 const runDuration = (name: string, description: string) =>
   Flag.String(name).pipe(
@@ -444,34 +444,41 @@ const dependenciesCommand = describe(
         },
       ),
       describe(
-        Command.make(
-          "import-renovate",
-          {
-            directory: Argument.String("directory").pipe(
-              Argument.withDefault("."),
-            ),
-            source: Flag.String("source").pipe(
-              Flag.withDefault("renovate.json"),
-              Flag.withDescription(
-                "Repository-relative Renovate JSON file (default: renovate.json)",
+        Command.make("import").pipe(
+          Command.withSubcommands([
+            describe(
+              Command.make(
+                "renovate",
+                {
+                  directory: Argument.String("directory").pipe(
+                    Argument.withDefault("."),
+                  ),
+                  source: Flag.String("source").pipe(
+                    Flag.withDefault("renovate.json"),
+                    Flag.withDescription(
+                      "Repository-relative Renovate JSON file (default: renovate.json)",
+                    ),
+                  ),
+                  timeout: runDuration(
+                    "timeout",
+                    "Deadline per import pass (default: 5 minutes)",
+                  ).pipe(Flag.withDefault(5 * 60 * 1000)),
+                },
+                importRenovate,
               ),
+              "Import Renovate policy into dot-deps.yml with an editor schema",
+              [
+                "dot deps import renovate",
+                "dot deps import renovate /path/to/repository",
+              ],
+              {
+                description:
+                  "Create dot-deps.yml and its editor schema from a repository's JSON Renovate config, migrating an existing dot-deps.json policy. The first import resolves presets with an isolated, pinned Renovate runtime. Later imports replace explicit override sections, including edits within them, while preserving the native base policy and local check mappings. Unsupported settings are recorded as publication blockers. Importing creates no commits or PRs. Ordinary previews use the saved native policy without running Renovate or refreshing presets.",
+              },
             ),
-            timeout: runDuration(
-              "timeout",
-              "Deadline per import pass (default: 5 minutes)",
-            ).pipe(Flag.withDefault(5 * 60 * 1000)),
-          },
-          importRenovate,
+          ]),
         ),
-        "Import Renovate policy into dot-deps.yml with an editor schema",
-        [
-          "dot deps import-renovate",
-          "dot deps import-renovate /path/to/repository",
-        ],
-        {
-          description:
-            "Create dot-deps.yml and its editor schema from a repository's JSON Renovate config, migrating an existing dot-deps.json policy. The first import resolves presets with an isolated, pinned Renovate runtime. Later imports replace explicit override sections, including edits within them, while preserving the native base policy and local check mappings. Unsupported settings are recorded as publication blockers. Importing creates no commits or PRs. Ordinary previews use the saved native policy without running Renovate or refreshing presets.",
-        },
+        "Import dependency policy from other tools",
       ),
     ]),
   ),
@@ -489,7 +496,7 @@ const dependenciesCommand = describe(
 
 const httpForwardCommand = describe(
   Command.make(
-    "http-forward",
+    "forward",
     {
       port: Flag.Int("port").pipe(
         Flag.withDescription("Local port to listen on, bound to 127.0.0.1"),
@@ -501,16 +508,21 @@ const httpForwardCommand = describe(
     httpForward,
   ),
   "Forward HTTP and websockets to another server without proxy headers",
-  ["dot http-forward --port 8126 --target http://homeassistant.local:8123"],
+  ["dot http forward --port 8126 --target http://homeassistant.local:8123"],
   {
     description:
       "Listens on 127.0.0.1 and forwards HTTP requests and websockets to the target origin, dropping Host and X-Forwarded-* headers so a server that doesn't trust this machine as a proxy accepts them. Use it behind a local HTTPS proxy, such as a pitchfork daemon, to reach a plain HTTP server from an HTTPS page.",
   },
 );
 
+const httpCommand = describe(
+  Command.make("http").pipe(Command.withSubcommands([httpForwardCommand])),
+  "Local HTTP helpers",
+);
+
 const statusRunCommand = describe(
   Command.make(
-    "status-run",
+    "run",
     {
       title: Flag.String("title").pipe(
         Flag.withDescription("Name shown in the header and terminal title"),
@@ -555,13 +567,18 @@ const statusRunCommand = describe(
   ),
   "Run a command or pitchfork daemon under a pinned status header",
   [
-    "dot status-run --title 'Lint' -- pnpm lint",
-    "dot status-run --title 'Core' --url https://dev.example.localhost --setup 'script/bootstrap' --pitchfork core/dev",
+    "dot status run --title 'Lint' -- pnpm lint",
+    "dot status run --title 'Core' --url https://dev.example.localhost --setup 'script/bootstrap' --pitchfork core/dev",
   ],
   {
     description:
       "Pins a header to the top of the terminal with the state (Setting up, Starting, Running, Done, Stopped or Failed), the URL and the elapsed time, and keeps the terminal title in step with a spinner while work is in progress. --setup runs in an interactive zsh first. With --pitchfork, an already running daemon prompts before restarting (--attach follows it instead), its logs are followed once it is ready, and Ctrl+C stops it. --background returns once the daemon is ready. Without a TTY, state changes print as lines.",
   },
+);
+
+const statusCommand = describe(
+  Command.make("status").pipe(Command.withSubcommands([statusRunCommand])),
+  "Run work under a pinned terminal status header",
 );
 
 const runCommandSpec = describe(
@@ -720,25 +737,34 @@ const servicesCommand = describe(
         ["dot services logs notes-capture-daemon.service"],
       ),
       describe(
-        Command.make(
-          "run-logs",
-          {
-            unit: serviceUnit,
-            count: Flag.Int("count").pipe(
-              Flag.withSchema(
-                Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 50 })),
+        Command.make("run").pipe(
+          Command.withSubcommands([
+            describe(
+              Command.make(
+                "logs",
+                {
+                  unit: serviceUnit,
+                  count: Flag.Int("count").pipe(
+                    Flag.withSchema(
+                      Schema.Int.check(
+                        Schema.isBetween({ minimum: 1, maximum: 50 }),
+                      ),
+                    ),
+                    Flag.withDefault(3),
+                    Flag.withDescription("Number of recent runs to include"),
+                  ),
+                },
+                ({ unit, count }) => servicesRunLogs(unit, count),
               ),
-              Flag.withDefault(3),
-              Flag.withDescription("Number of recent runs to include"),
+              "Print the journal output of a registered job's most recent runs, newest first, with its latest run log",
+              [
+                "dot services run logs dot-deps.timer",
+                "dot services run logs skill-updates-agent.timer --count 5 | wl-copy",
+              ],
             ),
-          },
-          ({ unit, count }) => servicesRunLogs(unit, count),
+          ]),
         ),
-        "Print the journal output of a registered job's most recent runs, newest first, with its latest run log",
-        [
-          "dot services run-logs dot-deps.timer",
-          "dot services run-logs skill-updates-agent.timer --count 5 | wl-copy",
-        ],
+        "Inspect a registered job's recent runs",
       ),
       describe(
         Command.make(
@@ -757,7 +783,7 @@ const servicesCommand = describe(
                 ),
               ),
               Flag.withDescription(
-                "Qt keyboard modifier bitmask, as for dot herdr repo-open",
+                "Qt keyboard modifier bitmask, as for dot herdr repo open",
               ),
               Flag.optional,
             ),
@@ -782,9 +808,16 @@ const servicesCommand = describe(
         ["dot services notify dot-deps.service"],
       ),
       describe(
-        Command.make("on-schedule", {}, () => servicesOnSchedule),
-        "Skip a timer's catch-up run after boot or resume (used by ExecCondition=)",
-        ["dot services on-schedule"],
+        Command.make("schedule").pipe(
+          Command.withSubcommands([
+            describe(
+              Command.make("check", {}, () => servicesOnSchedule),
+              "Skip a timer's catch-up run after boot or resume (used by ExecCondition=)",
+              ["dot services schedule check"],
+            ),
+          ]),
+        ),
+        "Timer schedule checks for registered jobs",
       ),
     ]),
   ),
@@ -792,7 +825,7 @@ const servicesCommand = describe(
   ["dot services status", "dot services logs dot-deps.timer"],
   {
     description:
-      'Each job registers itself with a YAML descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour", counted from the latest of the last completed run, the last boot or resume, and one interval before the first calendar run due after those, so sleep, power off and gaps in the schedule are not missed runs), restartLimit ({ count, within }) for long-running services, notify, logs ({ dir, file }) for jobs that keep their own run logs, and repository (a GitHub owner/repo slug from dot-git.yml) naming the repository that logs and agents open in. A long-running service can add status ({ file }) pointing at a JSON file it writes with health ("ok", "warning", "degraded" or "failed"), summary and updated (epoch milliseconds); while systemd sees the service as healthy, a report from its current run replaces the health and summary. Without repository, the repository containing the unit\'s executable is used, falling back to the public dotfiles. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations retain the last completed outcome. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. A job can summarise each run by printing a line containing "[RESULT] " followed by a short outcome; the last such line per invocation becomes that run\'s summary in status, run logs, notifications and the timmo.services panel. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel. Timer services with ExecCondition=dot services on-schedule run only at their calendar times, not as catch-up runs after boot or resume; those runs show as skipped. dot services start always runs them.',
+      'Each job registers itself with a YAML descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour", counted from the latest of the last completed run, the last boot or resume, and one interval before the first calendar run due after those, so sleep, power off and gaps in the schedule are not missed runs), restartLimit ({ count, within }) for long-running services, notify, logs ({ dir, file }) for jobs that keep their own run logs, and repository (a GitHub owner/repo slug from dot-git.yml) naming the repository that logs and agents open in. A long-running service can add status ({ file }) pointing at a JSON file it writes with health ("ok", "warning", "degraded" or "failed"), summary and updated (epoch milliseconds); while systemd sees the service as healthy, a report from its current run replaces the health and summary. Without repository, the repository containing the unit\'s executable is used, falling back to the public dotfiles. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations retain the last completed outcome. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. A job can summarise each run by printing a line containing "[RESULT] " followed by a short outcome; the last such line per invocation becomes that run\'s summary in status, run logs, notifications and the timmo.services panel. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel. Timer services with ExecCondition=dot services schedule check run only at their calendar times, not as catch-up runs after boot or resume; those runs show as skipped. dot services start always runs them.',
   },
 );
 
@@ -917,7 +950,7 @@ const pluginRemove = describe(
       yes: bool("yes", "Remove without confirmation"),
       noCommitOffer: bool(
         "no-commit-offer",
-        "Do not offer the optional git-commit handoff",
+        "Do not offer the optional git commit handoff",
       ),
     },
     ({ confirm, id, noCommitOffer, save, yes }) =>
@@ -933,18 +966,25 @@ const pluginRemove = describe(
 );
 
 const pluginSyncComponents = describe(
-  Command.make(
-    "sync-components",
-    {
-      check: bool("check", "Report out-of-date copies without writing"),
-    },
-    ({ check }) => syncOmarchyComponents({ check }),
+  Command.make("sync").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "components",
+          {
+            check: bool("check", "Report out-of-date copies without writing"),
+          },
+          ({ check }) => syncOmarchyComponents({ check }),
+        ),
+        "Copy shared panel components into standalone plugin checkouts",
+      ),
+    ]),
   ),
-  "Copy shared panel components into standalone plugin checkouts",
+  "Sync shared files into plugin checkouts",
 );
 
 const omarchyPluginCommand = describe(
-  Command.make("omarchy-plugin").pipe(
+  Command.make("plugin").pipe(
     Command.withSubcommands([
       pluginAdd,
       pluginUpdate,
@@ -954,13 +994,13 @@ const omarchyPluginCommand = describe(
   ),
   "Manage Omarchy plugin submodules. The manage-omarchy-plugin compatibility wrapper may pass trailing 0/1 confirmation and commit-offer values to update and remove.",
   [
-    "dot omarchy-plugin update timmo.clock --yes",
-    "dot omarchy-plugin remove timmo.clock",
-    "dot omarchy-plugin sync-components --check",
+    "dot omarchy plugin update timmo.clock --yes",
+    "dot omarchy plugin remove timmo.clock",
+    "dot omarchy plugin sync components --check",
   ],
   {
     description:
-      "Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.\n\nFor a repository that keeps its plugin in a subfolder, pass add --path with that folder. The submodule holds the whole repository, and the registry's path entry tells stow and update which folder to validate and deploy.\n\nsync-components copies the shared panel components in omarchy/.config/omarchy/components into the plugin directories set by omarchy_components entries in the private dot-git.yml, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.",
+      "Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.\n\nFor a repository that keeps its plugin in a subfolder, pass add --path with that folder. The submodule holds the whole repository, and the registry's path entry tells stow and update which folder to validate and deploy.\n\nsync components copies the shared panel components in omarchy/.config/omarchy/components into the plugin directories set by omarchy_components entries in the private dot-git.yml, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.",
     sections: [
       {
         title: "Exit codes",
@@ -974,9 +1014,36 @@ const omarchyPluginCommand = describe(
   },
 );
 
+const omarchyCommand = describe(
+  Command.make("omarchy").pipe(
+    Command.withSubcommands([
+      omarchyPluginCommand,
+      describe(
+        Command.make("shell").pipe(
+          Command.withSubcommands([
+            describe(
+              Command.make("config", {}, () =>
+                applyOmarchyShellConfig.pipe(Effect.asVoid),
+              ),
+              "Regenerate the Omarchy shell layout",
+              ["dot omarchy shell config"],
+              {
+                description:
+                  "Regenerate ~/.config/omarchy/shell.json from Omarchy's shipped default and the host-specific dotfiles layout without running the full stow flow.",
+              },
+            ),
+          ]),
+        ),
+        "Manage the Omarchy shell",
+      ),
+    ]),
+  ),
+  "Manage Omarchy plugins and the shell layout",
+);
+
 const gitWebCommand = describe(
   Command.make(
-    "git-web",
+    "web",
     {
       path: text(
         "path",
@@ -1004,9 +1071,9 @@ const gitWebCommand = describe(
   ),
   "Open a Git web action using the repository's configured browser",
   [
-    "dot git-web",
-    "dot git-web --browser work",
-    "dot git-web --url https://github.com/example/project/issues/1",
+    "dot git web",
+    "dot git web --browser work",
+    "dot git web --url https://github.com/example/project/issues/1",
   ],
   {
     description:
@@ -1016,7 +1083,7 @@ const gitWebCommand = describe(
 
 const gitDiffCommand = describe(
   Command.make(
-    "git-diff",
+    "diff",
     {
       barJson: bool(
         "bar-json",
@@ -1037,7 +1104,7 @@ const gitDiffCommand = describe(
       }),
   ),
   "Show repository change state across all tracked repositories.",
-  ["dot git-diff", "dot git-diff --bar-json", "dot git-diff --panel-json"],
+  ["dot git diff", "dot git diff --bar-json", "dot git diff --panel-json"],
   {
     modes: [
       "(default)       Text summary of repos with changes",
@@ -1045,11 +1112,11 @@ const gitDiffCommand = describe(
       "--panel-json    Full JSON panel snapshot",
     ],
   },
-).pipe(Command.withAlias("diff"));
+);
 
 const gitLogCommand = describe(
   Command.make(
-    "git-log",
+    "log",
     {
       refresh: bool("refresh", "Re-read every repository, ignoring the cache"),
       panelJson: bool(
@@ -1104,11 +1171,11 @@ const gitLogCommand = describe(
   ),
   "Show recent commits across managed repositories",
   [
-    "dot git-log",
-    "dot git-log --panel-json",
-    "dot git-log show --path ~/repos/example --sha abc1234",
-    "dot git-log show --path ~/repos/example --from def5678 --sha abc1234",
-    "dot git-log show --path ~/repos/example --changes uncommitted",
+    "dot git log",
+    "dot git log --panel-json",
+    "dot git log show --path ~/repos/example --sha abc1234",
+    "dot git log show --path ~/repos/example --from def5678 --sha abc1234",
+    "dot git log show --path ~/repos/example --changes uncommitted",
   ],
   {
     description:
@@ -1118,7 +1185,7 @@ const gitLogCommand = describe(
 
 const gitPullRequestsCommand = describe(
   Command.make(
-    "git-pull-requests",
+    "list",
     {
       repo: text("repo", "Select an enabled repository by name or GitHub slug"),
       refresh: bool(
@@ -1149,11 +1216,7 @@ const gitPullRequestsCommand = describe(
       }),
   ),
   "Track open pull requests for enabled repositories, independently of GitHub notifications",
-  [
-    "dot git-pull-requests --panel-json",
-    "dot git-pull-requests --refresh",
-    "dot git-pull-requests --open",
-  ],
+  ["dot pr list --panel-json", "dot pr list --refresh", "dot pr list --open"],
   {
     description:
       "Opt in with pull_requests.enabled in private dot-git.yml. Open PRs include drafts and automation, ordered by latest update. Use --repo <repository> --ignore <number> to hide a PR locally from the panel and all PR counters. Successful refreshes remove ignored entries once they close, merge or disappear. A non-draft PR is ready when at least one CI check passes and none fail, remain pending or are cancelled; failed check names are shown in the panel. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and ignore entries, and report an error.",
@@ -1162,7 +1225,7 @@ const gitPullRequestsCommand = describe(
 
 const gitIssuesCommand = describe(
   Command.make(
-    "git-issues",
+    "issues",
     {
       repo: text("repo", "Select an enabled repository by name or GitHub slug"),
       refresh: bool(
@@ -1184,9 +1247,9 @@ const gitIssuesCommand = describe(
   ),
   "Track open issues for enabled repositories, independently of GitHub notifications",
   [
-    "dot git-issues --panel-json",
-    "dot git-issues --refresh",
-    "dot git-issues --open",
+    "dot git issues --panel-json",
+    "dot git issues --refresh",
+    "dot git issues --open",
   ],
   {
     description:
@@ -1208,7 +1271,7 @@ const releaseActionFlags = {
 
 const gitReleasesCommand = describe(
   Command.make(
-    "git-releases",
+    "releases",
     {
       repo: text("repo", "Select an enabled repository by name or GitHub slug"),
       scheduled: bool(
@@ -1326,22 +1389,22 @@ const gitReleasesCommand = describe(
         [],
         {
           description:
-            "Requires an explicit private releases.publish recipe. The preview is read-only. Confirmation binds the reviewed snapshot, version files, commands and target. Preparation runs in an isolated worktree. Only agreed version changes, plus any releases.publish.generated_files the commands regenerate (such as a lockfile), are committed through dot git-commit, then the version commit and tag are pushed atomically. GitHub release notes are generated from the previous stable release (or the full history for a first release), unless --notes-file supplies hand-written notes. The file must exist and not be empty; its text is shown in the preview and bound to the plan, so pass the same --notes-file on confirmation and an edited file needs a new preview. --notes-mode prepend (default) puts the file before the generated notes, editing the release straight after creation; replace uses only the file. Progress includes command output and a saved log. Release creation does not wait for GitHub publication jobs; follow the returned Actions URL. Failed preparation is retained for inspection. Refresh and preview again after resolving a failure.",
+            "Requires an explicit private releases.publish recipe. The preview is read-only. Confirmation binds the reviewed snapshot, version files, commands and target. Preparation runs in an isolated worktree. Only agreed version changes, plus any releases.publish.generated_files the commands regenerate (such as a lockfile), are committed through dot git commit, then the version commit and tag are pushed atomically. GitHub release notes are generated from the previous stable release (or the full history for a first release), unless --notes-file supplies hand-written notes. The file must exist and not be empty; its text is shown in the preview and bound to the plan, so pass the same --notes-file on confirmation and an edited file needs a new preview. --notes-mode prepend (default) puts the file before the generated notes, editing the release straight after creation; replace uses only the file. Progress includes command output and a saved log. Release creation does not wait for GitHub publication jobs; follow the returned Actions URL. Failed preparation is retained for inspection. Refresh and preview again after resolving a failure.",
         },
       ),
     ]),
   ),
   "Compare enabled repositories with their latest published stable release, explain impact and retain local reviews.",
   [
-    "dot git-releases",
-    "dot git-releases --refresh --panel-json",
-    "dot git-releases --scheduled --notify --panel-json",
-    "dot git-releases --open --repo example/project",
-    "dot git-releases review --repo example/project --snapshot ID --finding FINDING --impact patch",
-    "dot git-releases review --repo example/project --snapshot ID --finding ONE --finding TWO --impact none",
-    "dot git-releases review --repo example/project --snapshot ID --impact auto",
-    "dot git-releases publish --repo example/project --snapshot ID --notes-file notes.md",
-    "dot git-releases publish --repo example/project --snapshot ID --notes-file notes.md --notes-mode replace --confirm PLAN",
+    "dot git releases",
+    "dot git releases --refresh --panel-json",
+    "dot git releases --scheduled --notify --panel-json",
+    "dot git releases --open --repo example/project",
+    "dot git releases review --repo example/project --snapshot ID --finding FINDING --impact patch",
+    "dot git releases review --repo example/project --snapshot ID --finding ONE --finding TWO --impact none",
+    "dot git releases review --repo example/project --snapshot ID --impact auto",
+    "dot git releases publish --repo example/project --snapshot ID --notes-file notes.md",
+    "dot git releases publish --repo example/project --snapshot ID --notes-file notes.md --notes-mode replace --confirm PLAN",
   ],
   {
     description:
@@ -1368,7 +1431,7 @@ const gitReleasesCommand = describe(
 
 const gitCommitCommand = describe(
   Command.make(
-    "git-commit",
+    "commit",
     {
       message: Flag.String("message").pipe(
         Flag.withAlias("m"),
@@ -1399,12 +1462,12 @@ const gitCommitCommand = describe(
   ),
   "Commit staged changes through the guarded gateway. Subjects must be one line, have no trailing full stop, and stay within the hard length limit. Explicit --path scopes never imply git add -A; --amend keeps the existing message unless --message is supplied.",
   [
-    'dot git-commit -m "Add commit gateway"',
-    'dot git-commit -m "Scope to one file" --path src/git/commands/Status.ts',
-    'dot git-commit -m "Commit and push" --push',
-    "dot git-commit --amend",
-    'dot git-commit --amend -m "Reword the previous commit"',
-    'dot git-commit -m "Preview only" --dry-run',
+    'dot git commit -m "Add commit gateway"',
+    'dot git commit -m "Scope to one file" --path src/git/commands/Status.ts',
+    'dot git commit -m "Commit and push" --push',
+    "dot git commit --amend",
+    'dot git commit --amend -m "Reword the previous commit"',
+    'dot git commit -m "Preview only" --dry-run',
   ],
   {
     description:
@@ -1491,17 +1554,17 @@ const notificationDismissCommand = describe(
   ),
   "Show a coloured repository summary, then review merged dependencies followed by remaining unread notifications. Done queues work in the background while progress appears above the next choices. Every repository offers Done, Open on GitHub, Skip and Stop. Stop ends the questions and finishes queued work before a completion and issues summary. --repo selects a single notification stack. Bar hiding preferences do not restrict this inbox.",
   [
-    "dot git-notifications dismiss",
-    "dot git-notifications dismiss --repo owner/repository",
-    "dot git-notifications dismiss --dry-run",
-    "dot git-notifications dismiss dependencies --mode all",
-    "dot git-notifications dismiss remaining",
+    "dot git notifications dismiss",
+    "dot git notifications dismiss --repo owner/repository",
+    "dot git notifications dismiss --dry-run",
+    "dot git notifications dismiss dependencies --mode all",
+    "dot git notifications dismiss remaining",
   ],
 );
 
 const gitNotificationsCommand = describe(
   Command.make(
-    "git-notifications",
+    "notifications",
     {
       barJson: bool(
         "bar-json",
@@ -1532,11 +1595,11 @@ const gitNotificationsCommand = describe(
   ).pipe(Command.withSubcommands([notificationDismissCommand])),
   "Open the authenticated GitHub notification inbox. Without output, query or action flags, this opens the Omarchy shell panel. --all and --participating return filtered bar JSON.",
   [
-    "dot git-notifications",
-    "dot git-notifications --bar-json",
-    "dot git-notifications --participating",
-    "dot git-notifications dismiss --dry-run",
-    "dot git-notifications --mark-read 12345",
+    "dot git notifications",
+    "dot git notifications --bar-json",
+    "dot git notifications --participating",
+    "dot git notifications dismiss --dry-run",
+    "dot git notifications --mark-read 12345",
   ],
   {
     modes: [
@@ -1546,43 +1609,67 @@ const gitNotificationsCommand = describe(
   },
 );
 
-const simpleCommands = [
-  describe(
-    Command.make(
-      "session-status",
-      {
-        sessionId: Argument.String("session-id").pipe(
-          Argument.withDescription(
-            "Exact OpenCode 2 session ID from the agent's injected context",
-          ),
-        ),
-        warnAt: Flag.Finite("warn-at").pipe(
-          Flag.withDefault(70),
-          Flag.filter(
-            (value) => value > 0 && value <= 100,
-            () => "Warning percentage must be greater than 0 and at most 100",
-          ),
-          Flag.withDescription(
-            "Context or input percentage prompting a scope or handoff review (default: 70)",
-          ),
-        ),
-        json: bool(
-          "json",
-          "Print model, limits, context measurement and cumulative usage as JSON",
-        ),
-      },
-      sessionStatus,
-    ),
-    "Query an OpenCode 2 session's model, variant and context pressure",
-    [
-      "dot session-status ses_example --json",
-      "dot session-status ses_example --warn-at 80",
-    ],
-    {
-      description:
-        "Read-only OpenCode 2 session inspection through the configured launcher. Pass the exact session ID supplied in the agent's environment context; it is not inferred from the focused pane, working directory or a guessed shell variable. Reports the selected model and variant, supported variants, model limits, latest completed assistant token measurement, its age, the latest completed compaction, and separately labelled cumulative usage and cost. Context tokens include non-cached input, cache reads and writes, output and reasoning, matching OpenCode's display. Input usage includes non-cached and cached input. Pressure uses whichever percentage is higher: context-window usage or input-limit usage. Current usage is unknown after compaction without a new measurement, after a model/variant switch, or with a staged revert. Later tool results and messages are not counted. Looks back through at most 20 messages per type and marks incomplete lookups. --warn-at defaults to 70 percent: a workflow heuristic, not a proven cognitive degradation threshold. The command does not change models, compact or open sessions.",
-    },
+const gitCommand = describe(
+  Command.make("git").pipe(
+    Command.withSubcommands([
+      gitDiffCommand,
+      gitLogCommand,
+      gitWebCommand,
+      gitCommitCommand,
+      gitNotificationsCommand,
+      gitReleasesCommand,
+      gitIssuesCommand,
+    ]),
   ),
+  "Work across tracked Git repositories",
+);
+
+const sessionCommand = describe(
+  Command.make("session").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "status",
+          {
+            sessionId: Argument.String("session-id").pipe(
+              Argument.withDescription(
+                "Exact OpenCode 2 session ID from the agent's injected context",
+              ),
+            ),
+            warnAt: Flag.Finite("warn-at").pipe(
+              Flag.withDefault(70),
+              Flag.filter(
+                (value) => value > 0 && value <= 100,
+                () =>
+                  "Warning percentage must be greater than 0 and at most 100",
+              ),
+              Flag.withDescription(
+                "Context or input percentage prompting a scope or handoff review (default: 70)",
+              ),
+            ),
+            json: bool(
+              "json",
+              "Print model, limits, context measurement and cumulative usage as JSON",
+            ),
+          },
+          sessionStatus,
+        ),
+        "Query an OpenCode 2 session's model, variant and context pressure",
+        [
+          "dot session status ses_example --json",
+          "dot session status ses_example --warn-at 80",
+        ],
+        {
+          description:
+            "Read-only OpenCode 2 session inspection through the configured launcher. Pass the exact session ID supplied in the agent's environment context; it is not inferred from the focused pane, working directory or a guessed shell variable. Reports the selected model and variant, supported variants, model limits, latest completed assistant token measurement, its age, the latest completed compaction, and separately labelled cumulative usage and cost. Context tokens include non-cached input, cache reads and writes, output and reasoning, matching OpenCode's display. Input usage includes non-cached and cached input. Pressure uses whichever percentage is higher: context-window usage or input-limit usage. Current usage is unknown after compaction without a new measurement, after a model/variant switch, or with a staged revert. Later tool results and messages are not counted. Looks back through at most 20 messages per type and marks incomplete lookups. --warn-at defaults to 70 percent: a workflow heuristic, not a proven cognitive degradation threshold. The command does not change models, compact or open sessions.",
+        },
+      ),
+    ]),
+  ),
+  "Inspect agent sessions",
+);
+
+const simpleCommands = [
   describe(
     Command.make(
       "snapshot",
@@ -1635,18 +1722,7 @@ const simpleCommands = [
     ],
     {
       description:
-        "Print a Markdown CPU and memory summary with a usage-filtered process tree. --sort mem defaults to an 80 MiB measured subtree PSS cutoff; --sort cpu defaults to 1% of one core. Adjust these with --min-memory-mib and --min-cpu. Each tree row shows aligned memory and CPU totals beside the process name. Totals include hidden children, so small workers can qualify together; parent and child totals overlap. Expand the largest remaining qualifying branch until --limit visible processes are reached (default: 40, including ancestors). Zero-usage branches are omitted. The saved report adds CPU, memory and process-name rankings with the same cutoffs and per-table limit, plus pressure measurements. Interactive human runs open it in $EDITOR (vi if unset). The internal dot is-agent check automatically selects JSON. JSON retains all sampled processes and the complete processTree, and reportSelection identifies visible PIDs, cutoffs, the limit and omitted count. Missing measurements are null; unavailable parents are marked. CPU is sampled over approximately one second; 100% per process means one logical CPU. PSS divides shared pages between processes. Reports are saved in the system temporary directory ($TMPDIR, normally /tmp), named dot-snapshot-<timestamp>.md or .json. Existing output files are never overwritten.",
-    },
-  ),
-  describe(
-    Command.make("omarchy-shell-config", {}, () =>
-      applyOmarchyShellConfig.pipe(Effect.asVoid),
-    ),
-    "Regenerate the Omarchy shell layout",
-    ["dot omarchy-shell-config"],
-    {
-      description:
-        "Regenerate ~/.config/omarchy/shell.json from Omarchy's shipped default and the host-specific dotfiles layout without running the full stow flow.",
+        "Print a Markdown CPU and memory summary with a usage-filtered process tree. --sort mem defaults to an 80 MiB measured subtree PSS cutoff; --sort cpu defaults to 1% of one core. Adjust these with --min-memory-mib and --min-cpu. Each tree row shows aligned memory and CPU totals beside the process name. Totals include hidden children, so small workers can qualify together; parent and child totals overlap. Expand the largest remaining qualifying branch until --limit visible processes are reached (default: 40, including ancestors). Zero-usage branches are omitted. The saved report adds CPU, memory and process-name rankings with the same cutoffs and per-table limit, plus pressure measurements. Interactive human runs open it in $EDITOR (vi if unset). The internal dot agent detect check automatically selects JSON. JSON retains all sampled processes and the complete processTree, and reportSelection identifies visible PIDs, cutoffs, the limit and omitted count. Missing measurements are null; unavailable parents are marked. CPU is sampled over approximately one second; 100% per process means one logical CPU. PSS divides shared pages between processes. Reports are saved in the system temporary directory ($TMPDIR, normally /tmp), named dot-snapshot-<timestamp>.md or .json. Existing output files are never overwritten.",
     },
   ),
   describe(
@@ -1690,55 +1766,101 @@ const simpleCommands = [
     Command.make("clean", {}, () => clean),
     "Unstow managed dotfiles",
   ),
-  describe(
-    Command.make("agents-sync", {}, () => agentsSync),
-    "Mirror AGENTS.md to agent harness instruction files",
-  ),
-  describe(
-    Command.make("claude-permission-hook", {}, () =>
-      Effect.promise(() => import("../commands/ClaudePermissionHook.js")).pipe(
-        Effect.flatMap((module) => module.claudePermissionHook),
-      ),
-    ),
-    "Enforce OpenCode permission rules in Claude Code",
-    ["dot claude-permission-hook < event.json"],
-    {
-      description:
-        "Claude Code PreToolUse hook. Reads the hook event from stdin, maps the tool call onto OpenCode actions (shell, read, edit, external_directory, MCP server tools, webfetch, websearch, todowrite), and evaluates the permissions in ~/.config/opencode/opencode.json with OpenCode's semantics: the last matching rule wins and each part of a compound shell command is checked. Prints allow, ask or deny for Claude Code, or nothing when no rule decides so Claude Code's own prompting applies.",
-    },
-  ),
-  describe(
-    Command.make("notes-capture-sync", {}, () => notesCaptureSync),
-    "Sync watched repositories to the notes capture picker",
-    ["dot notes-capture-sync"],
-    {
-      description:
-        "Regenerate the notes capture repository picker from repositories with GitHub notifications enabled in the private dot-git.yml configuration. Updates only CAPTURE_REPOSITORIES in the ignored capture/wrangler.local.jsonc file, creating it from the deploy template when needed. Mirrors non-secret settings from the active Worker, then deploys when the live picker differs.",
-    },
-  ),
-  describe(
-    Command.make("setup-private-repo", {}, () => setupPrivateRepo),
-    "Sync and register the private pacman repository",
-    ["dot setup-private-repo"],
-    {
-      description:
-        "Sync the private Arch package repo mirror, write the private pacman repo snippet, and add the Include line to /etc/pacman.conf when it is missing. This repairs Omarchy pacman.conf refreshes that remove local repository includes. Privileged writes prefer pkexec and fall back to sudo.",
-    },
-  ),
-  describe(
-    Command.make("setup-public-repo", {}, () => setupPublicRepo),
-    "Trust and register the public timmo pacman repository",
-    ["dot setup-public-repo"],
-    {
-      description:
-        "Download the public signing key, require its pinned full fingerprint, locally sign it in pacman's keyring, and register the signed [timmo] repository before the other package repositories. The command fails before changing trust or pacman configuration when the repository is unavailable or the downloaded fingerprint does not match.",
-    },
-  ),
 ] as const;
+
+const agentSyncCommand = describe(
+  Command.make("sync", {}, () => agentsSync),
+  "Mirror AGENTS.md to agent harness instruction files",
+);
+
+const agentPermissionCommand = describe(
+  Command.make("permission").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make("hook", {}, () =>
+          Effect.promise(
+            () => import("../commands/ClaudePermissionHook.js"),
+          ).pipe(Effect.flatMap((module) => module.claudePermissionHook)),
+        ),
+        "Enforce OpenCode permission rules in Claude Code",
+        ["dot agent permission hook < event.json"],
+        {
+          description:
+            "Claude Code PreToolUse hook. Reads the hook event from stdin, maps the tool call onto OpenCode actions (shell, read, edit, external_directory, MCP server tools, webfetch, websearch, todowrite), and evaluates the permissions in ~/.config/opencode/opencode.json with OpenCode's semantics: the last matching rule wins and each part of a compound shell command is checked. Prints allow, ask or deny for Claude Code, or nothing when no rule decides so Claude Code's own prompting applies.",
+        },
+      ),
+    ]),
+  ),
+  "Apply OpenCode permissions to other agent harnesses",
+);
+
+const notesCommand = describe(
+  Command.make("notes").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make("capture").pipe(
+          Command.withSubcommands([
+            describe(
+              Command.make("sync", {}, () => notesCaptureSync),
+              "Sync watched repositories to the notes capture picker",
+              ["dot notes capture sync"],
+              {
+                description:
+                  "Regenerate the notes capture repository picker from repositories with GitHub notifications enabled in the private dot-git.yml configuration. Updates only CAPTURE_REPOSITORIES in the ignored capture/wrangler.local.jsonc file, creating it from the deploy template when needed. Mirrors non-secret settings from the active Worker, then deploys when the live picker differs.",
+              },
+            ),
+          ]),
+        ),
+        "Manage the notes capture Worker",
+      ),
+    ]),
+  ),
+  "Integrate with the notes tool",
+);
+
+const setupCommand = describe(
+  Command.make("setup").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make("private").pipe(
+          Command.withSubcommands([
+            describe(
+              Command.make("repo", {}, () => setupPrivateRepo),
+              "Sync and register the private pacman repository",
+              ["dot setup private repo"],
+              {
+                description:
+                  "Sync the private Arch package repo mirror, write the private pacman repo snippet, and add the Include line to /etc/pacman.conf when it is missing. This repairs Omarchy pacman.conf refreshes that remove local repository includes. Privileged writes prefer pkexec and fall back to sudo.",
+              },
+            ),
+          ]),
+        ),
+        "Set up private package sources",
+      ),
+      describe(
+        Command.make("public").pipe(
+          Command.withSubcommands([
+            describe(
+              Command.make("repo", {}, () => setupPublicRepo),
+              "Trust and register the public timmo pacman repository",
+              ["dot setup public repo"],
+              {
+                description:
+                  "Download the public signing key, require its pinned full fingerprint, locally sign it in pacman's keyring, and register the signed [timmo] repository before the other package repositories. The command fails before changing trust or pacman configuration when the repository is unavailable or the downloaded fingerprint does not match.",
+              },
+            ),
+          ]),
+        ),
+        "Set up public package sources",
+      ),
+    ]),
+  ),
+  "Set up pacman package repositories",
+);
 
 const privatePublishCommand = describe(
   Command.make(
-    "private-pkg-publish",
+    "publish",
     {
       packageName: Argument.String("package-name").pipe(
         Argument.withDescription("Mapped private package name"),
@@ -1757,13 +1879,27 @@ const privatePublishCommand = describe(
   ),
   "Build and publish a private package",
   [
-    "dot private-pkg-publish my-package --install",
-    "dot private-pkg-publish --skip-build --no-git my-package",
+    "dot private pkg publish my-package --install",
+    "dot private pkg publish --skip-build --no-git my-package",
   ],
   {
     description:
       "Build and publish a mapped private package into the private pacman repo.",
   },
+);
+
+const privateCommand = describe(
+  Command.make("private").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make("pkg").pipe(
+          Command.withSubcommands([privatePublishCommand]),
+        ),
+        "Manage private packages",
+      ),
+    ]),
+  ),
+  "Work with the private package repository",
 );
 
 const skillsValidate = describe(
@@ -1794,55 +1930,6 @@ const skillsImport = describe(
       ]),
   ),
   "Import or refresh a reviewed skill snapshot",
-);
-
-const skillsUpdates = describe(
-  Command.make(
-    "updates",
-    {
-      check: bool("check", "Check only"),
-      update: bool("update", "Apply clean updates"),
-      json: bool("json", "Report as JSON"),
-      skill: text("skill", "Limit to one skill"),
-      noCommit: bool("no-commit", "Apply without committing"),
-      skipReview: bool("skip-review", "Skip local-edit review"),
-    },
-    ({ check, json, noCommit, skill, skipReview, update }) =>
-      runSkillsMaintenance([
-        "updates",
-        ...(check ? ["--check"] : []),
-        ...(update ? ["--update"] : []),
-        ...(json ? ["--json"] : []),
-        ...(Option.isSome(skill) ? ["--skill", skill.value] : []),
-        ...(noCommit ? ["--no-commit"] : []),
-        ...(skipReview ? ["--skip-review"] : []),
-      ]),
-  ),
-  "Check/apply imported skill updates",
-  [
-    "dot skills updates --json",
-    "dot skills updates --update --skill agentic-workflows --no-commit",
-  ],
-);
-
-const skillsCheck = describe(
-  Command.make(
-    "check",
-    {
-      openOpencode: bool("open-opencode", "Attempt OpenCode analysis"),
-      diffOrigin: bool("diff-origin", "Diff against upstream origins"),
-      skill: text("skill", "Check one skill"),
-    },
-    ({ diffOrigin, openOpencode, skill }) =>
-      runSkillsMaintenance([
-        "check",
-        ...(Option.isSome(skill) ? ["--skill", skill.value] : []),
-        ...(diffOrigin ? ["--diff-origin"] : []),
-        ...(openOpencode ? ["--open-opencode"] : []),
-      ]),
-  ),
-  "Check adapted imports against upstream",
-  ["dot skills check --skill agentic-workflows"],
 );
 
 const skillsAgentGitHub = describe(
@@ -1889,10 +1976,59 @@ const skillsAgentDevice = describe(
 );
 
 const skillsUpdatesAgent = describe(
-  Command.make("updates-agent").pipe(
+  Command.make("agent").pipe(
     Command.withSubcommands([skillsAgentGitHub, skillsAgentDevice]),
   ),
   "Run skill update automation",
+);
+
+const skillsUpdates = describe(
+  Command.make(
+    "updates",
+    {
+      check: bool("check", "Check only"),
+      update: bool("update", "Apply clean updates"),
+      json: bool("json", "Report as JSON"),
+      skill: text("skill", "Limit to one skill"),
+      noCommit: bool("no-commit", "Apply without committing"),
+      skipReview: bool("skip-review", "Skip local-edit review"),
+    },
+    ({ check, json, noCommit, skill, skipReview, update }) =>
+      runSkillsMaintenance([
+        "updates",
+        ...(check ? ["--check"] : []),
+        ...(update ? ["--update"] : []),
+        ...(json ? ["--json"] : []),
+        ...(Option.isSome(skill) ? ["--skill", skill.value] : []),
+        ...(noCommit ? ["--no-commit"] : []),
+        ...(skipReview ? ["--skip-review"] : []),
+      ]),
+  ).pipe(Command.withSubcommands([skillsUpdatesAgent])),
+  "Check/apply imported skill updates",
+  [
+    "dot skills updates --json",
+    "dot skills updates --update --skill agentic-workflows --no-commit",
+  ],
+);
+
+const skillsCheck = describe(
+  Command.make(
+    "check",
+    {
+      openOpencode: bool("open-opencode", "Attempt OpenCode analysis"),
+      diffOrigin: bool("diff-origin", "Diff against upstream origins"),
+      skill: text("skill", "Check one skill"),
+    },
+    ({ diffOrigin, openOpencode, skill }) =>
+      runSkillsMaintenance([
+        "check",
+        ...(Option.isSome(skill) ? ["--skill", skill.value] : []),
+        ...(diffOrigin ? ["--diff-origin"] : []),
+        ...(openOpencode ? ["--open-opencode"] : []),
+      ]),
+  ),
+  "Check adapted imports against upstream",
+  ["dot skills check --skill agentic-workflows"],
 );
 
 const consumerRepo = text(
@@ -1961,7 +2097,6 @@ const skillsCommand = describe(
       skillsImport,
       skillsUpdates,
       skillsCheck,
-      skillsUpdatesAgent,
       skillsConsumers,
     ]),
   ),
@@ -1989,7 +2124,7 @@ const completionsCommand = describe(
 
 const isAgent = describe(
   Command.make(
-    "is-agent",
+    "detect",
     {
       quiet: Flag.Boolean("quiet").pipe(
         Flag.withAlias("q"),
@@ -2001,14 +2136,14 @@ const isAgent = describe(
   ),
   "Detect whether an AI coding agent is running dot",
   [
-    "dot is-agent",
-    "dot is-agent --quiet",
-    "dot is-agent --json",
-    "dot is-agent && echo running under an agent",
+    "dot agent detect",
+    "dot agent detect --quiet",
+    "dot agent detect --json",
+    "dot agent detect && echo running under an agent",
   ],
   {
     description:
-      "Detect whether dot is running under an agent harness from agent environment variables, falling back to a Linux /proc process-ancestry check. Exits 0 when an agent is detected and 1 otherwise, so scripts can branch with `if dot is-agent`. Set DOT_AGENT=1 to force detection on or DOT_AGENT=0 to force it off.",
+      "Detect whether dot is running under an agent harness from agent environment variables, falling back to a Linux /proc process-ancestry check. Exits 0 when an agent is detected and 1 otherwise, so scripts can branch with `if dot agent detect`. Set DOT_AGENT=1 to force detection on or DOT_AGENT=0 to force it off.",
     modes: [
       "(default)  Print the detected agent, or a no-agent message",
       "--quiet    Print only the provider id (nothing when no agent)",
@@ -2142,7 +2277,7 @@ const repoInductCommand = describe(
   ],
   {
     description:
-      "The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity, including an optional release watching template from its release_templates. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git-commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use agent-oxlint --opt-in to enable their agent pass.",
+      "The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity, including an optional release watching template from its release_templates. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use dot agent oxlint --opt-in to enable their agent pass.",
   },
 );
 
@@ -2398,14 +2533,19 @@ const prReviewsCommand = describe(
 
 const prCommand = describe(
   Command.make("pr").pipe(
-    Command.withSubcommands([prWatchCommand, prReviewsCommand, prQueueCommand]),
+    Command.withSubcommands([
+      prWatchCommand,
+      prReviewsCommand,
+      prQueueCommand,
+      gitPullRequestsCommand,
+    ]),
   ),
-  "Watch, read reviews on and queue pull requests",
+  "Watch, list, read reviews on and queue pull requests",
 );
 
 const agentOxlintCommand = describe(
   Command.make(
-    "agent-oxlint",
+    "oxlint",
     {
       paths: Argument.Path("path", { pathType: "either" }).pipe(
         Argument.atLeast(0),
@@ -2428,17 +2568,17 @@ const agentOxlintCommand = describe(
   ),
   "Run the advisory generic Oxlint pass on JavaScript and TypeScript changes in an opted-in repository. Repository-owned Oxlint takes precedence. Use --changed normally, explicit paths to lint whole files, or --all when explicitly requested. Pass --force to run despite those skips.",
   [
-    "dot agent-oxlint --changed",
-    "dot agent-oxlint --changed src/example.ts",
-    "dot agent-oxlint src/example.ts",
-    "dot agent-oxlint src/one.ts src/two.ts",
-    "dot agent-oxlint --all",
-    "dot agent-oxlint --force src/example.ts",
-    "dot agent-oxlint --opt-in",
+    "dot agent oxlint --changed",
+    "dot agent oxlint --changed src/example.ts",
+    "dot agent oxlint src/example.ts",
+    "dot agent oxlint src/one.ts src/two.ts",
+    "dot agent oxlint --all",
+    "dot agent oxlint --force src/example.ts",
+    "dot agent oxlint --opt-in",
   ],
   {
     description:
-      "Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cache without changing the target repository. The current repository must set agent_oxlint: true in private dot-git.yml. Repositories with their own Oxlint config, dependency, script, or local binary are skipped because their local setup takes precedence. Pass --force to run anyway. Diagnostics are advisory and do not make these personal rules authoritative for the host repository. --changed compares the working tree and untracked files with HEAD, prints only findings on added or modified lines, and exits non-zero when any remain. Paths with --changed limit that comparison to those files or directories. dot git-commit runs the same check on the files it commits.",
+      "Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cache without changing the target repository. The current repository must set agent_oxlint: true in private dot-git.yml. Repositories with their own Oxlint config, dependency, script, or local binary are skipped because their local setup takes precedence. Pass --force to run anyway. Diagnostics are advisory and do not make these personal rules authoritative for the host repository. --changed compares the working tree and untracked files with HEAD, prints only findings on added or modified lines, and exits non-zero when any remain. Paths with --changed limit that comparison to those files or directories. dot git commit runs the same check on the files it commits.",
     modes: [
       "--changed  Lint uncommitted changes, reporting only changed lines; add paths to narrow",
       "<path>...  Lint explicit files or directories in full",
@@ -2450,7 +2590,7 @@ const agentOxlintCommand = describe(
       {
         title: "Opt-in",
         lines: [
-          "--opt-in adds or sets only agent_oxlint: true in an existing private repository entry, preserving all other bytes. If the entry is missing, it offers the repo induct wizard with agent Oxlint prefilled as enabled. Without a terminal it prints induction instructions. The config must be tracked and clean. Active commit hooks are refused rather than bypassed so formatters cannot expand the change. Commits through dot git-commit without pushing; unrelated staged files are excluded. An existing opt-in creates no commit.",
+          "--opt-in adds or sets only agent_oxlint: true in an existing private repository entry, preserving all other bytes. If the entry is missing, it offers the repo induct wizard with agent Oxlint prefilled as enabled. Without a terminal it prints induction instructions. The config must be tracked and clean. Active commit hooks are refused rather than bypassed so formatters cannot expand the change. Commits through dot git commit without pushing; unrelated staged files are excluded. An existing opt-in creates no commit.",
         ],
       },
     ],
@@ -2459,7 +2599,7 @@ const agentOxlintCommand = describe(
 
 const agentLintCommand = describe(
   Command.make(
-    "agent-lint",
+    "lint",
     {
       paths: Argument.Path("path", { pathType: "either" }).pipe(
         Argument.atLeast(0),
@@ -2475,10 +2615,10 @@ const agentLintCommand = describe(
   ),
   "Run the repository's agent_lint commands from private dot-git.yml on changed files",
   [
-    "dot agent-lint",
-    "dot agent-lint --json",
-    "dot agent-lint src/one.ts src/two.ts --json",
-    "dot agent-lint --all --only Typecheck --json",
+    "dot agent lint",
+    "dot agent lint --json",
+    "dot agent lint src/one.ts src/two.ts --json",
+    "dot agent lint --all --only Typecheck --json",
   ],
   {
     description:
@@ -2486,9 +2626,22 @@ const agentLintCommand = describe(
   },
 );
 
+const agentCommand = describe(
+  Command.make("agent").pipe(
+    Command.withSubcommands([
+      agentSyncCommand,
+      agentLintCommand,
+      agentOxlintCommand,
+      isAgent,
+      agentPermissionCommand,
+    ]),
+  ),
+  "Agent harness tooling: instruction sync, linting and detection",
+);
+
 const floating = describe(
   Command.make(
-    "launch-floating-webapp",
+    "webapp",
     {
       url: Argument.String("url").pipe(
         Argument.withDescription("Webapp URL to launch"),
@@ -2527,9 +2680,21 @@ const floating = describe(
   },
 );
 
+const launchCommand = describe(
+  Command.make("launch").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make("floating").pipe(Command.withSubcommands([floating])),
+        "Launch floating windows",
+      ),
+    ]),
+  ),
+  "Launch desktop apps",
+);
+
 const herdrRepoOpenCommand = describe(
   Command.make(
-    "repo-open",
+    "open",
     {
       layout: Flag.Literals("layout", [
         "auto",
@@ -2718,7 +2883,12 @@ const herdr = describe(
       herdrStartCommand,
       herdrStopCommand,
       herdrRestartCommand,
-      herdrRepoOpenCommand,
+      describe(
+        Command.make("repo").pipe(
+          Command.withSubcommands([herdrRepoOpenCommand]),
+        ),
+        "Open repository workspaces",
+      ),
       herdrModelCommand,
       describe(
         Command.make(
@@ -2877,18 +3047,29 @@ const homeAssistantFrontendCommand = describe(
       homeAssistantSuiteCommand("demo"),
       homeAssistantSuiteCommand("e2e"),
       describe(
-        Command.make(
-          "test-e2e",
-          {
-            suite: Argument.Literals("suite", ["app", "demo", "gallery"]).pipe(
-              Argument.withDescription("Suite to test (default: all)"),
-              Argument.optional,
+        Command.make("test").pipe(
+          Command.withSubcommands([
+            describe(
+              Command.make(
+                "e2e",
+                {
+                  suite: Argument.Literals("suite", [
+                    "app",
+                    "demo",
+                    "gallery",
+                  ]).pipe(
+                    Argument.withDescription("Suite to test (default: all)"),
+                    Argument.optional,
+                  ),
+                },
+                ({ suite }) => frontendTestE2e(optional(suite)),
+              ),
+              "Run the frontend e2e tests",
+              ["dot ha f test e2e", "dot ha f test e2e app"],
             ),
-          },
-          ({ suite }) => frontendTestE2e(optional(suite)),
+          ]),
         ),
-        "Run the frontend e2e tests",
-        ["dot ha f test-e2e", "dot ha f test-e2e app"],
+        "Run frontend tests",
       ),
     ]),
   ),
@@ -2961,7 +3142,7 @@ const homeAssistantCommand = describe(
   ["dot ha c dev", "dot ha f serve prod", "dot ha status"],
   {
     description:
-      "Runs the pitchfork daemons and frontend suites behind the Home Assistant dev setup, configured in $XDG_CONFIG_HOME/dot/homeassistant.yml. Interactive runs go through dot status-run and, under Herdr, open in the repository's workspace. Under an agent, commands skip setup, Herdr and prompts: they reuse a running daemon and fail with a message instead of stopping a conflicting one.",
+      "Runs the pitchfork daemons and frontend suites behind the Home Assistant dev setup, configured in $XDG_CONFIG_HOME/dot/homeassistant.yml. Interactive runs go through dot status run and, under Herdr, open in the repository's workspace. Under an agent, commands skip setup, Herdr and prompts: they reuse a running daemon and fail with a message instead of stopping a conflicting one.",
   },
 );
 
@@ -2995,7 +3176,7 @@ const reloadCommand = describe(
 
 const relayout = describe(
   Command.make(
-    "workspace-relayout",
+    "relayout",
     { edit: bool("edit", "Capture or overwrite a preset") },
     workspaceRelayout,
   ),
@@ -3004,7 +3185,7 @@ const relayout = describe(
 
 const setupWorkspace = describe(
   Command.make(
-    "workspace-setup",
+    "setup",
     {
       sleep: Flag.Finite("sleep").pipe(
         Flag.withDefault(0),
@@ -3025,26 +3206,30 @@ const setupWorkspace = describe(
   ),
   "Launch or reuse desktop apps and rebuild the workspace layout",
   [
-    "dot workspace-setup",
-    "dot workspace-setup --mode=work",
-    "dot workspace-setup --mode=normal",
+    "dot workspace setup",
+    "dot workspace setup --mode=work",
+    "dot workspace setup --mode=normal",
   ],
 );
 
-function showHelp(command: Option.Option<string>): Effect.Effect<void> {
-  return Effect.gen(function* () {
-    const target = Option.isSome(command)
-      ? getCliCommand(command.value)
-      : dotCommand;
+const workspaceCommand = describe(
+  Command.make("workspace").pipe(
+    Command.withSubcommands([setupWorkspace, relayout]),
+  ),
+  "Set up and lay out desktop workspaces",
+);
 
+function showHelp(names: readonly string[]): Effect.Effect<void> {
+  return Effect.gen(function* () {
+    const resolved = resolveCliCommand(names);
     const formatter = yield* CliOutput.Formatter;
 
-    const path =
-      target === dotCommand ? ["dot"] : ["dot", target?.name ?? "help"];
+    const help =
+      resolved.path.length === names.length
+        ? commandHelp(resolved.command, ["dot", ...resolved.path])
+        : commandHelp(helpCommand, ["dot", "help"]);
 
-    process.stdout.write(
-      `${formatter.formatHelpDoc(commandHelp(target ?? helpCommand, path))}\n`,
-    );
+    process.stdout.write(`${formatter.formatHelpDoc(help)}\n`);
   });
 }
 
@@ -3053,13 +3238,14 @@ const helpCommand = describe(
     "help",
     {
       command: Argument.String("command").pipe(
-        Argument.withDescription("Command to show help for"),
-        Argument.optional,
+        Argument.variadic(),
+        Argument.withDescription("Command path to show help for"),
       ),
     },
     ({ command }) => showHelp(command),
   ),
   "Show this help menu",
+  ["dot help", "dot help git commit"],
 );
 
 /** Executable `dot` command tree and single source of CLI truth. */
@@ -3069,52 +3255,51 @@ export const dotCommand = describe(
       initCommand,
       installCommand,
       updateCommand,
-      systemUpdateCommand,
       dependenciesCommand,
       runCommandSpec,
-      httpForwardCommand,
-      statusRunCommand,
+      httpCommand,
+      statusCommand,
       updatesCommand,
       servicesCommand,
       fansCommand,
       stowCommand,
-      omarchyPluginCommand,
+      omarchyCommand,
+      sessionCommand,
       ...simpleCommands,
-      gitDiffCommand,
-      gitLogCommand,
-      gitWebCommand,
-      gitCommitCommand,
-      gitNotificationsCommand,
-      gitReleasesCommand,
-      gitPullRequestsCommand,
-      gitIssuesCommand,
+      agentCommand,
+      notesCommand,
+      setupCommand,
+      gitCommand,
       describe(
-        Command.make("mcp-sync", {}, () =>
-          Effect.promise(() => import("../mcp/commands/McpSync.js")).pipe(
-            Effect.flatMap((module) => module.mcpSync),
-          ),
+        Command.make("mcp").pipe(
+          Command.withSubcommands([
+            describe(
+              Command.make("sync", {}, () =>
+                Effect.promise(() => import("../mcp/commands/McpSync.js")).pipe(
+                  Effect.flatMap((module) => module.mcpSync),
+                ),
+              ),
+              "Regenerate MCP configs for all harnesses from the spec",
+              ["dot mcp sync"],
+              {
+                description:
+                  "Regenerate each active harness's native MCP config from the private spec (mcp.yml). Repository opencode_mcp lists in dot-git.yml opt into named servers using generated, Git-ignored .opencode/opencode.jsonc files; removing an opt-in removes its generated config. Existing unowned or tracked configs are preserved and reported as conflicts. Global configs are written into the stowed private source tree; run dot stow after. Claude Code's user scope is updated through the claude CLI instead of a file. Some agent harnesses are documented stubs and are not written.",
+              },
+            ),
+          ]),
         ),
-        "Regenerate MCP configs for all harnesses from the spec",
-        ["dot mcp-sync"],
-        {
-          description:
-            "Regenerate each active harness's native MCP config from the private spec (mcp.yml). Repository opencode_mcp lists in dot-git.yml opt into named servers using generated, Git-ignored .opencode/opencode.jsonc files; removing an opt-in removes its generated config. Existing unowned or tracked configs are preserved and reported as conflicts. Global configs are written into the stowed private source tree; run dot stow after. Claude Code's user scope is updated through the claude CLI instead of a file. Some agent harnesses are documented stubs and are not written.",
-        },
+        "Manage agent MCP server configs",
       ),
-      privatePublishCommand,
+      privateCommand,
       skillsCommand,
       completionsCommand,
-      isAgent,
       repoCommand,
-      agentOxlintCommand,
-      agentLintCommand,
       prCommand,
-      floating,
+      launchCommand,
       herdr,
       homeAssistantCommand,
       reloadCommand,
-      setupWorkspace,
-      relayout,
+      workspaceCommand,
       helpCommand,
     ]),
   ),
@@ -3126,11 +3311,63 @@ export const commandNames = dotCommand.subcommands.flatMap((group) =>
   group.commands.map((command) => command.name),
 );
 
-/** Resolve a top-level command by canonical name or alias. */
-export function getCliCommand(name: string): Command.Command.Any | undefined {
-  return dotCommand.subcommands
+/** Command reached by walking command-line words through the `dot` tree. */
+export interface ResolvedCliCommand {
+  /** Deepest command matched; the root `dot` command when none matched. */
+  readonly command: Command.Command.Any;
+  /** Canonical names from the root to the matched command, excluding `dot`. */
+  readonly path: readonly string[];
+  /** First positional word left after the match, such as an unknown command. */
+  readonly rest?: string;
+}
+
+function subcommand(
+  command: Command.Command.Any,
+  name: string,
+): Command.Command.Any | undefined {
+  return command.subcommands
     .flatMap((group) => group.commands)
-    .find((command) => command.name === name || command.alias === name);
+    .find((child) => child.name === name || child.alias === name);
+}
+
+function valueFlags(command: Command.Command.Any): ReadonlySet<string> {
+  return new Set(
+    commandHelp(command, [])
+      .flags.filter((flag) => flag.type !== "boolean")
+      .flatMap((flag) => [flag.name, ...flag.aliases])
+      .map((name) => name.replace(/^-+/, "")),
+  );
+}
+
+/**
+ * Resolve command-line words to the deepest matching command, skipping flags
+ * and the values of flags that take one. Stops at `--` or the first word that
+ * is not a subcommand, which is returned as `rest`.
+ */
+export function resolveCliCommand(args: readonly string[]): ResolvedCliCommand {
+  let command: Command.Command.Any = dotCommand;
+  const path: string[] = [];
+
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index];
+
+    if (arg === "--") break;
+
+    if (arg.startsWith("-")) {
+      if (!arg.includes("=") && valueFlags(command).has(arg.replace(/^-+/, "")))
+        index++;
+
+      continue;
+    }
+
+    const child = subcommand(command, arg);
+
+    if (!child) return { command, path, rest: arg };
+    command = child;
+    path.push(child.name);
+  }
+
+  return { command, path };
 }
 
 /** Runtime structural view exposed by Effect commands for generated consumers. */

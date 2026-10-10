@@ -12,7 +12,7 @@ import { GitNotifications } from "../services/GitNotifications.js";
 import { notificationReasonIsImportant } from "../services/notificationStatus.js";
 import { handleCommandError, writeJsonLine, writeText } from "./rows.js";
 
-const handleNotificationError = handleCommandError("dot git-notifications");
+const handleNotificationError = handleCommandError("dot git notifications");
 
 /** Open the GitHub notifications view in the Omarchy shell. */
 export const notificationsOpenShell = Effect.gen(function* () {

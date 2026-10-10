@@ -1,6 +1,6 @@
 import { Console, Effect, Schema } from "effect";
 
-/** Invalid `dot http-forward` arguments or a port that cannot be bound. */
+/** Invalid `dot http forward` arguments or a port that cannot be bound. */
 export class HttpForwardError extends Schema.TaggedError<HttpForwardError>()(
   "HttpForwardError",
   { message: Schema.String },

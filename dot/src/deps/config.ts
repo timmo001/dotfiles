@@ -405,7 +405,7 @@ export const assertDependencyOverrides = Effect.fn(
   if (config.import.overrideHash !== overrideHash(source)) {
     return yield* new DependencyConfigError({
       message:
-        "Renovate overrides changed; run dot deps import-renovate before updating dependencies",
+        "Renovate overrides changed; run dot deps import renovate before updating dependencies",
     });
   }
 });

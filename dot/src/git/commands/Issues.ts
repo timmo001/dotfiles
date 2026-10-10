@@ -15,7 +15,7 @@ export const issuesOpenShell = Effect.fn("issues.openShell")(function* (
     JSON.stringify({ view: "issues", repo }),
   ]);
   yield* executor.run("omarchy-shell", ["timmo.git", "issues", repo ?? ""]);
-}, handleCommandError("dot git-issues"));
+}, handleCommandError("dot git issues"));
 
 /** Read tracked issues, returning JSON for the Git panel. */
 export const issuesQuery = Effect.fn("issues.query")(function* (
@@ -46,4 +46,4 @@ export const issuesQuery = Effect.fn("issues.query")(function* (
         process.stdout.write(text, () => resolve()),
       ),
   );
-}, handleCommandError("dot git-issues"));
+}, handleCommandError("dot git issues"));

@@ -223,7 +223,7 @@ const privatePackageRepoStatusResult = Effect.fn(
       result: {
         severity: "warn",
         message: `Missing private package repo mirror: ${displayPath(repo.mirrorPath)}`,
-        detail: "Run dot setup-private-repo to sync the mirror",
+        detail: "Run dot setup private repo to sync the mirror",
       },
     },
     {
@@ -233,7 +233,7 @@ const privatePackageRepoStatusResult = Effect.fn(
         message: `Private pacman repo is not configured in ${displayPath(
           privatePacmanRepoConfigPath(),
         )}`,
-        detail: "Run dot setup-private-repo to configure it",
+        detail: "Run dot setup private repo to configure it",
       },
     },
     {
@@ -243,7 +243,7 @@ const privatePackageRepoStatusResult = Effect.fn(
         message: `Private pacman repo include is missing from ${displayPath(
           privatePacmanMainConfigPath(),
         )}`,
-        detail: "Run dot setup-private-repo to add it",
+        detail: "Run dot setup private repo to add it",
       },
     },
     {
@@ -253,7 +253,7 @@ const privatePackageRepoStatusResult = Effect.fn(
         message: `Private pacman repo config differs from expected contents: ${displayPath(
           privatePacmanRepoConfigPath(),
         )}`,
-        detail: "Run dot setup-private-repo to rewrite it",
+        detail: "Run dot setup private repo to rewrite it",
       },
     },
   ];
@@ -541,14 +541,14 @@ export const checkPublicPackageRepo = Effect.gen(function* () {
     results.push({
       severity: "warn",
       message: `Public pacman repo config is missing or differs from the signed configuration: ${displayPath(publicPacmanRepoConfigPath())}`,
-      detail: "Run dot setup-public-repo to repair it",
+      detail: "Run dot setup public repo to repair it",
     });
   } else if (!(yield* publicPackageRepoIncludeRegistered())) {
     results.push({
       severity: "warn",
       message:
         "Public pacman repo include is missing or ordered after another repository",
-      detail: "Run dot setup-public-repo to repair it",
+      detail: "Run dot setup public repo to repair it",
     });
   } else {
     results.push({
@@ -575,7 +575,7 @@ export const checkPublicPackageRepo = Effect.gen(function* () {
       : {
           severity: "warn",
           message: "Public package signing key is not trusted",
-          detail: "Run dot setup-public-repo to verify and trust it",
+          detail: "Run dot setup public repo to verify and trust it",
         },
   );
 

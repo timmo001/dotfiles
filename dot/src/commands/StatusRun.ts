@@ -11,7 +11,7 @@ import {
 import { ANSI, colorEnabled } from "../lib/ansi.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
-/** Invalid `dot status-run` arguments. */
+/** Invalid `dot status run` arguments. */
 export class StatusRunError extends Schema.TaggedError<StatusRunError>()(
   "StatusRunError",
   { message: Schema.String },

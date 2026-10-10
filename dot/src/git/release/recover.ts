@@ -96,7 +96,7 @@ export const recoverRelease = Effect.fn("releases.recover")(function* (
     const prompt = [
       `Resolve the failed programmatic release for ${action.repo}.`,
       `You are opening in ${choice === "dotfiles" ? "dotfiles to fix the release tooling or its private recipe" : "the release repository to fix its preparation, build or validation"}. Read the repository guidance and diagnose the failed step before editing.`,
-      "The release runs through dot git-releases publish. Inspect the retained preparation directory when one is reported. Keep any existing user changes intact. Check remote branch, tag and release state before retrying a partially completed operation.",
+      "The release runs through dot git releases publish. Inspect the retained preparation directory when one is reported. Keep any existing user changes intact. Check remote branch, tag and release state before retrying a partially completed operation.",
       "Fix and validate the cause. Do not commit, push, tag or publish without an explicit request in this session.",
       `Reviewed snapshot: ${action.snapshot}`,
       ...(logPath ? [`Full progress log: ${logPath}`] : []),
@@ -110,7 +110,8 @@ export const recoverRelease = Effect.fn("releases.recover")(function* (
     const opened = yield* executor
       .run("dot", [
         "herdr",
-        "repo-open",
+        "repo",
+        "open",
         "--agent-kind",
         agent.kind,
         "--prompt",

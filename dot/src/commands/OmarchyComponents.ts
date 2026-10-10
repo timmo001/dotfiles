@@ -101,7 +101,7 @@ export const syncOmarchyComponents = Effect.fn("syncOmarchyComponents")(
       yield* output.info("Shared components are up to date");
     } else if (options.check) {
       yield* output.error(
-        `${drifted.length} component copies are out of date; run dot omarchy-plugin sync-components`,
+        `${drifted.length} component copies are out of date; run dot omarchy plugin sync components`,
       );
       process.exitCode = 1;
     }

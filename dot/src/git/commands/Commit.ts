@@ -248,7 +248,7 @@ export function validateCommitMessage(raw: string): CommitMessageCheck {
   return { ok: errors.length === 0, subject, errors, warnings };
 }
 
-/** Options controlling a single `dot git-commit` invocation. */
+/** Options controlling a single `dot git commit` invocation. */
 export interface GitCommitOptions {
   /** Commit subject from `--message`/`-m`. */
   readonly message: string | undefined;
@@ -264,7 +264,7 @@ export interface GitCommitOptions {
   readonly skipAgentOxlint: boolean;
 }
 
-const handleCommitError = handleCommandError("dot git-commit");
+const handleCommitError = handleCommandError("dot git commit");
 
 class GitCommitError extends Schema.TaggedError<GitCommitError>()(
   "GitCommitError",
@@ -378,7 +378,7 @@ const checkAgentOxlint = Effect.fn("gitCommit.checkAgentOxlint")(
     const findings = yield* agentOxlintChangedFindings(input.scope).pipe(
       Effect.catch((error) =>
         writeStderr(
-          `[dot git-commit] warning: agent Oxlint check failed: ${formatCommandError(error)}\n`,
+          `[dot git commit] warning: agent Oxlint check failed: ${formatCommandError(error)}\n`,
         ).pipe(Effect.as(null)),
       ),
     );
@@ -403,7 +403,7 @@ const checkAgentOxlint = Effect.fn("gitCommit.checkAgentOxlint")(
       errors.length > 0 ? "would refuse the commit" : "the commit continues";
 
     yield* writeStderr(
-      `[dot git-commit] warning: agent Oxlint found ${plural(findings.length, "finding")} on changed lines (${outcome}):\n${list.join("\n")}\n`,
+      `[dot git commit] warning: agent Oxlint found ${plural(findings.length, "finding")} on changed lines (${outcome}):\n${list.join("\n")}\n`,
     );
 
     return null;
@@ -452,7 +452,7 @@ export function gitCommitRaw(
       const check = validateCommitMessage(options.message);
 
       for (const warning of check.warnings) {
-        yield* writeStderr(`[dot git-commit] warning: ${warning}\n`);
+        yield* writeStderr(`[dot git commit] warning: ${warning}\n`);
       }
 
       if (!check.ok) {
@@ -534,7 +534,7 @@ export function gitCommitRaw(
 
       if (leftOut) {
         yield* writeStderr(
-          `[dot git-commit] warning: kept the staged content of partly staged files, so these unstaged edits were not committed: ${leftOut.split("\n").join(", ")}. Run git add on them first to include them.\n`,
+          `[dot git commit] warning: kept the staged content of partly staged files, so these unstaged edits were not committed: ${leftOut.split("\n").join(", ")}. Run git add on them first to include them.\n`,
         );
       }
     }

@@ -103,7 +103,7 @@ const OmarchyComponentsSettings = Schema.Struct({
   ),
 });
 
-/** One fallback lint command run by `dot agent-lint`. */
+/** One fallback lint command run by `dot agent lint`. */
 export const AgentLintCommand = Schema.Struct({
   /** Display name shown in results, such as `Typecheck` or `GitHub Actions`. */
   name: Schema.String.check(Schema.isPattern(/^\S(?:.*\S)?$/)),
@@ -172,13 +172,13 @@ export interface GitManagedRepo {
   readonly postUpdate: string | null;
   /** Whether the dot-managed generic Oxlint pass may run without a local setup. */
   readonly agentOxlint: boolean;
-  /** Fallback lint commands `dot agent-lint` runs on changed files; omitted means disabled. */
+  /** Fallback lint commands `dot agent lint` runs on changed files; omitted means disabled. */
   readonly agentLint?: AgentLintSettings;
   /** Git remote notes resolves this checkout against, written to its local `notes.remote` config. */
   readonly notesRemote?: string;
-  /** MCP server names explicitly enabled for this repository by dot mcp-sync. */
+  /** MCP server names explicitly enabled for this repository by dot mcp sync. */
   readonly opencodeMcp?: readonly string[];
-  /** Shared Omarchy components synced by dot omarchy-plugin sync-components. */
+  /** Shared Omarchy components synced by dot omarchy plugin sync components. */
   readonly omarchyComponents?: GitRepoOmarchyComponents;
   /** Named browser for repository web actions; omitted uses the desktop default. */
   readonly browser?: string;

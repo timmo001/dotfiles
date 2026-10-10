@@ -90,7 +90,7 @@ export function renderDependencySchema(): string {
       $schema: "http://json-schema.org/draft-07/schema#",
       title: "Dot dependency policy",
       $comment:
-        "Generated from the native dependency policy schema by dot deps import-renovate",
+        "Generated from the native dependency policy schema by dot deps import renovate",
       ...document.schema,
       definitions: document.definitions,
     },

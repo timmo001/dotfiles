@@ -3,7 +3,7 @@
  *
  * Pure transforms from the canonical {@link McpSyncSpec} to each active
  * harness's native entry shape. File IO, path resolution, and merging live in
- * the `mcp-sync` command; this module only shapes objects so it stays testable.
+ * the `mcp sync` command; this module only shapes objects so it stays testable.
  */
 import {
   renderEnvRefs,

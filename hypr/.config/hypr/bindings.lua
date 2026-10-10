@@ -51,14 +51,14 @@ hl.unbind("CTRL + ALT + SHIFT + TAB")
 hl.unbind("SUPER + ALT + TAB")
 -- Unbind SUPER+CTRL+TAB (was: former workspace).
 hl.unbind("SUPER + CTRL + TAB")
-o.bind("SUPER + TAB", "Workspace relayout", "dot workspace-relayout")
-o.bind("SUPER + ALT + TAB", "Workspace relayout edit", "dot workspace-relayout --edit")
+o.bind("SUPER + TAB", "Workspace relayout", "dot workspace relayout")
+o.bind("SUPER + ALT + TAB", "Workspace relayout edit", "dot workspace relayout --edit")
 o.bind("SUPER + CTRL + TAB", "Workspace setup", "workspace-menu")
 o.bind("SUPER + CTRL + ALT + P", "Power Profile", "power-profile-menu")
 o.bind(
   "SUPER + CTRL + ALT + U",
   "Update",
-  [[dot herdr repo-open dotfiles "${DOTFILES_PUBLIC_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles}" Update update]]
+  [[dot herdr repo open dotfiles "${DOTFILES_PUBLIC_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles}" Update update]]
 )
 hl.unbind("SUPER + SHIFT + F")
 o.bind("SUPER + SHIFT + F", "Add floating application", "/usr/bin/float-app add")

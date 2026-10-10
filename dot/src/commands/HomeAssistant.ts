@@ -201,7 +201,7 @@ const statusRunArgs = (options: StatusRunOptions) => [
 ];
 
 /**
- * Run under `dot status-run` in the repository. Under Herdr, outside the
+ * Run under `dot status run` in the repository. Under Herdr, outside the
  * repository's workspace, it opens a tab there instead, as the shell functions
  * did.
  */
@@ -223,7 +223,7 @@ const launch = Effect.fn("HomeAssistant.launch")(function* (
       tabLabel: options.title,
       afterPrefix: prefix,
       noFocus,
-      command: ["dot", "status-run", ...statusRunArgs(options)]
+      command: ["dot", "status", "run", ...statusRunArgs(options)]
         .map(quote)
         .join(" "),
     });

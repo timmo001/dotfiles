@@ -166,12 +166,12 @@ export const commitGitRepoConfigEdit = Effect.fn("gitRepoConfig.commit")(
     }
 
     yield* executor
-      .run("dot", ["git-commit", "--help"], { cwd: edit.privateRoot })
+      .run("dot", ["git", "commit", "--help"], { cwd: edit.privateRoot })
       .pipe(
         Effect.mapError(
           () =>
             new GitRepoConfigError({
-              message: "dot git-commit is unavailable",
+              message: "dot git commit is unavailable",
             }),
         ),
       );
@@ -191,7 +191,7 @@ export const commitGitRepoConfigEdit = Effect.fn("gitRepoConfig.commit")(
 
     const exit = yield* executor.inherit(
       "dot",
-      ["git-commit", "--message", message, "--path", edit.configPath],
+      ["git", "commit", "--message", message, "--path", edit.configPath],
       { cwd: edit.privateRoot },
     );
 

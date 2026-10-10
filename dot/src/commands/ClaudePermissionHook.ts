@@ -1,5 +1,5 @@
 /**
- * @file `dot claude-permission-hook`: enforce OpenCode permissions in Claude Code.
+ * @file `dot agent permission hook`: enforce OpenCode permissions in Claude Code.
  *
  * Runs as a Claude Code `PreToolUse` hook. It maps the tool call onto the
  * matching OpenCode actions, evaluates the rules from the stowed OpenCode

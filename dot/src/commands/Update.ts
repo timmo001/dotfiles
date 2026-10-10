@@ -1284,7 +1284,7 @@ const haltOnLegacyHyprRepo = (config: ConfigService) =>
  * self-update, and the restarted run skips the final rebuild. Repositories
  * pulled earlier in the run are not fetched again by the scan.
  * Pull notifications fire only when a repo actually moved, while post-hooks
- * (agents-sync) run on every full update and the changed-dotfiles handoff.
+ * (agent sync) run on every full update and the changed-dotfiles handoff.
  * Ordinary flag-scoped runs skip them.
  */
 export const update = (updateOpts?: UpdateOptions) =>

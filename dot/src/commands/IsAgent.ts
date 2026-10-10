@@ -3,7 +3,7 @@ import { detectAgent } from "../lib/agent.js";
 
 /**
  * Print AI agent detection and exit 0 when an agent is detected, 1 otherwise,
- * so shell callers can branch with `if dot is-agent; then ...`.
+ * so shell callers can branch with `if dot agent detect; then ...`.
  */
 export function isAgentCommand(options: {
   readonly json: boolean;

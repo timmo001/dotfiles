@@ -18,7 +18,7 @@ export const pullRequestsOpenShell = Effect.fn("pullRequests.openShell")(
     ]);
     yield* executor.run("omarchy-shell", ["timmo.git", "pulls", repo ?? ""]);
   },
-  handleCommandError("dot git-pull-requests"),
+  handleCommandError("dot pr list"),
 );
 
 /** Read tracked PRs, returning JSON for the Git panel. */
@@ -48,4 +48,4 @@ export const pullRequestsQuery = Effect.fn("pullRequests.query")(function* (
     () =>
       new Promise<void>((resolve) => process.stdout.write("", () => resolve())),
   );
-}, handleCommandError("dot git-pull-requests"));
+}, handleCommandError("dot pr list"));

@@ -178,7 +178,7 @@ const openReview = Effect.fn("notifications.openReview")(function* (
 ) {
   const executor = yield* CommandExecutor;
 
-  const error = yield* executor.run("dot", ["git-web", "--url", url]).pipe(
+  const error = yield* executor.run("dot", ["git", "web", "--url", url]).pipe(
     Effect.match({
       onFailure: (error) => error.stderr || error.message,
       onSuccess: () => null,
@@ -475,5 +475,5 @@ export const notificationsDismiss = Effect.fn("notifications.dismiss")(
       );
     }),
   ),
-  handleCommandError("dot git-notifications dismiss"),
+  handleCommandError("dot git notifications dismiss"),
 );

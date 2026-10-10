@@ -12,7 +12,7 @@ import { handleCommandError, writeJsonLine, writeText } from "./rows.js";
 import { join } from "node:path";
 
 /** Handle DotDiffError by printing to stderr and exiting */
-const handleDiffError = handleCommandError("dot git-diff");
+const handleDiffError = handleCommandError("dot git diff");
 
 /** Machine output: status bar JSON. */
 export const diffBarJson = (opts?: DiffScanOptions) =>

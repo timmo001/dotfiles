@@ -142,7 +142,7 @@ export function generatedArtifactFromShell(
       "",
     );
     if (
-      normalized.startsWith("dot git-commit ") &&
+      normalized.startsWith("dot git commit ") &&
       /(?:^|\s)--path(?:=|\s)/.test(normalized) &&
       !/[<>|;]/.test(normalized)
     ) {

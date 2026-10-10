@@ -224,7 +224,7 @@ export const inductRepository = Effect.fn("repoInduct.run")(
     if (edit.config.repositories.some((repo) => repo.path === root)) {
       return yield* new GitRepoConfigError({
         message:
-          "Repository is already inducted; use dot agent-oxlint --opt-in to enable its agent pass",
+          "Repository is already inducted; use dot agent oxlint --opt-in to enable its agent pass",
       });
     }
 

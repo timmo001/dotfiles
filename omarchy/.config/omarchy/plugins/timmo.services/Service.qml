@@ -68,7 +68,7 @@ Item {
   function copyRunLogs(unit) {
     if (copyProcess.running) return
     copyProcess.unit = unit
-    copyProcess.command = ["bash", "-c", "set -o pipefail; dot services run-logs \"$1\" | wl-copy", "bash", unit]
+    copyProcess.command = ["bash", "-c", "set -o pipefail; dot services run logs \"$1\" | wl-copy", "bash", unit]
     copyProcess.running = true
   }
 

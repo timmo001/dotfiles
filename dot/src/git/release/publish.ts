@@ -662,7 +662,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
         ]),
     ...(changed.length
       ? [
-          `Commit only ${changed.map((file) => file.path).join(", ")}${extraGenerated.length ? `, plus ${extraGenerated.join(", ")} where the commands regenerate them,` : ""} as "Release ${tag}" through dot git-commit.`,
+          `Commit only ${changed.map((file) => file.path).join(", ")}${extraGenerated.length ? `, plus ${extraGenerated.join(", ")} where the commands regenerate them,` : ""} as "Release ${tag}" through dot git commit.`,
           `Atomically push that version commit to ${repo.github}:${settings.branch} and create tag ${tag}.`,
         ]
       : [
@@ -904,7 +904,8 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
         yield* run(
           "dot",
           [
-            "git-commit",
+            "git",
+            "commit",
             "-m",
             `Release ${tag}`,
             "--skip-agent-oxlint",

@@ -102,13 +102,13 @@ describe("shell mutations", () => {
     expect(
       generatedArtifactFromShell(
         root,
-        `dot git-commit -m "Regenerate OpenCode docs" --path ${generatedDocs}`,
+        `dot git commit -m "Regenerate OpenCode docs" --path ${generatedDocs}`,
       ),
     ).toBeUndefined();
     expect(
       generatedArtifactFromShell(
         root,
-        `dot git-commit -m "Regenerate OpenCode docs" --path ${generatedDocs} > ${generatedDocs}`,
+        `dot git commit -m "Regenerate OpenCode docs" --path ${generatedDocs} > ${generatedDocs}`,
       )?.path,
     ).toBe(generatedDocs);
     expect(

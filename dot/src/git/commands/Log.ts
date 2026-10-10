@@ -196,7 +196,7 @@ export const gitLog = Effect.fn("gitLog.print")(function* (
 
   // The CLI exits explicitly, so wait until the whole snapshot is flushed.
   yield* writeOutput(text);
-}, handleCommandError("dot git-log"));
+}, handleCommandError("dot git log"));
 
 /** Most patch lines returned in a commit's diff preview. */
 const PREVIEW_LINES = 120;
@@ -212,7 +212,7 @@ const writeOutput = (text: string) =>
       ),
   );
 
-/** Local changes `dot git-log show` can preview instead of a commit. */
+/** Local changes `dot git log show` can preview instead of a commit. */
 export type LogShowChanges = "uncommitted" | "unpushed" | "incoming";
 
 /**
@@ -345,4 +345,4 @@ export const gitLogShow = Effect.fn("gitLog.show")(function* (
       truncated: patch.length > PREVIEW_LINES,
     }) + "\n",
   );
-}, handleCommandError("dot git-log show"));
+}, handleCommandError("dot git log show"));

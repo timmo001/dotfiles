@@ -770,7 +770,7 @@ _repo_open() {
     return
   fi
 
-  dot herdr repo-open "$1" "$2"
+  dot herdr repo open "$1" "$2"
 }
 
 [[ -r "$HOME/.cache/dot/repo-shortcuts.zsh" ]] && source "$HOME/.cache/dot/repo-shortcuts.zsh"
@@ -796,7 +796,7 @@ alias fev="find-and-edit --visual"
 alias olw="omarchy-launch-webapp"
 alias ou="omarchy-update"
 alias ouf="omarchy-update-firmware"
-alias update="dot system-update"
+alias update="dot update system"
 
 # Home Assistant dev servers: shortcuts for dot homeassistant (dot ha), which
 # reads its repositories, daemons and URLs from ~/.config/dot/homeassistant.yml.

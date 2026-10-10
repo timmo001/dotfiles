@@ -806,7 +806,7 @@ test("delivery retries failures, serialises success, and preserves pending evide
     expect(calls).toHaveLength(2);
     expect(calls[1].command).toBe("omarchy");
     expect(calls[1].args.slice(0, 6)).toEqual(["notification", "send", "--app-name", "Git releases", "--urgency", "normal"]);
-    expect(calls[1].args.slice(-6)).toEqual(["--exec", "dot", "git-releases", "--open", "--repo", "example/project"]);
+    expect(calls[1].args.slice(-7)).toEqual(["--exec", "dot", "git", "releases", "--open", "--repo", "example/project"]);
     const saved = (await runP(readReleaseState(paths))).review;
     expect(saved.deliveredAt).toBe("2026-09-10T12:00:00.000Z");
     expect(saved.deliveryError).toBeNull();

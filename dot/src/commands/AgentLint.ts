@@ -53,7 +53,7 @@ export interface AgentLintResult {
   readonly command: readonly string[];
 }
 
-/** Report printed by `dot agent-lint --json`. */
+/** Report printed by `dot agent lint --json`. */
 export interface AgentLintReport {
   /** Whether the repository sets `agent_lint` in private dot-git.yml. */
   readonly configured: boolean;

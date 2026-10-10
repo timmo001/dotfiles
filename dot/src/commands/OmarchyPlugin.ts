@@ -409,7 +409,8 @@ function offerCommit(
     if (choice !== "Commit" && choice !== "Commit and push") return;
 
     const args = [
-      "git-commit",
+      "git",
+      "commit",
       "-m",
       `${action === "add" ? "Add" : "Remove"} ${id} Omarchy plugin`,
       "--path",

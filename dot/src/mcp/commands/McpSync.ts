@@ -1,5 +1,5 @@
 /**
- * @file `dot mcp-sync` native command handler.
+ * @file `dot mcp sync` native command handler.
  *
  * Reads the private canonical MCP spec (via {@link Config}) and regenerates each
  * file-based harness's native config in the stowed private source tree, then

@@ -68,7 +68,7 @@ poll() {
         GIT_POLL_TRACE="$fixture/poll.trace" \
         REAL_GIT="$real_git" \
         PATH="$fixture/bin:$PATH" \
-        "$dot_binary" git-diff --bar-json 2>>"$fixture/poll.stderr"
+        "$dot_binary" git diff --bar-json 2>>"$fixture/poll.stderr"
     )"
     jq -e 'type == "object"' <<<"$output" >/dev/null
   done
@@ -105,6 +105,6 @@ DOTFILES_PUBLIC_DIR="$fixture" \
   GIT_POLL_TRACE="$fixture/poll.trace" \
   REAL_GIT="$real_git" \
   PATH="$fixture/bin:$PATH" \
-  "$dot_binary" git-diff --bar-json | jq -e 'type == "object"' >/dev/null
+  "$dot_binary" git diff --bar-json | jq -e 'type == "object"' >/dev/null
 
 git -C "$fixture" merge-base --is-ancestor "$base_branch" HEAD

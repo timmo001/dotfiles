@@ -29,7 +29,7 @@ git fetch "$remote" "+refs/heads/$default_branch:$expected_ref" >&2
 section 'Verify local default ref'
 local_ref=$(git symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null || true)
 if [[ "$local_ref" != "$expected_ref" ]]; then
-  if dot is-agent --quiet >/dev/null 2>&1 || [[ ! -t 0 ]]; then
+  if dot agent detect --quiet >/dev/null 2>&1 || [[ ! -t 0 ]]; then
     echo "Refusing to use $remote/$default_branch: local $remote/HEAD is ${local_ref:-missing}" >&2
     exit 1
   fi

@@ -3,7 +3,7 @@ import { layer as ghLayer } from "@timmo001/effect-gh";
 import { Effect, Layer, Option } from "effect";
 import { CliConfig, CliError, Command } from "effect/cli";
 import { join } from "path";
-import { cliBuiltIns, dotCommand, getCliCommand } from "./cli/spec.js";
+import { cliBuiltIns, dotCommand, resolveCliCommand } from "./cli/spec.js";
 import {
   bootstrapGhRepoClone,
   bootstrapGitPullRebase,
@@ -41,7 +41,10 @@ const ownArgs =
     ? args.slice(0, args.indexOf("--"))
     : args;
 
-const invokedCommand = args.find((arg) => !arg.startsWith("-"));
+const resolvedCommand = resolveCliCommand(args);
+
+// Full command path, such as "git commit", or empty for bare `dot`.
+const commandPath = resolvedCommand.path.join(" ");
 
 const unsupportedNegation = ownArgs.find(
   (arg) =>
@@ -53,8 +56,8 @@ if (unsupportedNegation) {
   process.exit(1);
 }
 
-if (invokedCommand && !getCliCommand(invokedCommand)) {
-  console.error(`dot: unknown command '${invokedCommand}'`);
+if (commandPath === "" && resolvedCommand.rest !== undefined) {
+  console.error(`dot: unknown command '${resolvedCommand.rest}'`);
   console.error("Run 'dot --help' to see available commands.");
   process.exit(1);
 }
@@ -69,11 +72,11 @@ function optionValue(name: string): string | undefined {
 }
 
 function validateFloatingWebappWidth(): void {
-  if (args[0] !== "launch-floating-webapp") return;
+  if (commandPath !== "launch floating webapp") return;
   const width = optionValue("--width");
 
   if (width === undefined || /^\d+$/.test(width)) return;
-  console.error("launch-floating-webapp: WIDTH must be a non-negative integer");
+  console.error("launch floating webapp: WIDTH must be a non-negative integer");
   process.exit(2);
 }
 
@@ -168,47 +171,46 @@ const NATIVE_COMMAND_TIMEOUT_SECONDS = {
   install: 10 * 60,
   stow: 3 * 60,
   clean: 3 * 60,
-  "setup-private-repo": 10 * 60,
-  "setup-public-repo": 3 * 60,
-  "private-pkg-publish": 30 * 60,
+  "setup private repo": 10 * 60,
+  "setup public repo": 3 * 60,
+  "private pkg publish": 30 * 60,
   firewall: 3 * 60,
   skills: 2 * 60 * 60,
-  "agents-sync": 2 * 60,
-  "mcp-sync": 2 * 60,
-  "notes-capture-sync": 2 * 60,
-  "agent-oxlint": 10 * 60,
+  "agent sync": 2 * 60,
+  "mcp sync": 2 * 60,
+  "notes capture sync": 2 * 60,
+  "agent oxlint": 10 * 60,
   completions: 2 * 60,
 } satisfies Partial<Record<string, number>>;
 
 function commandLabel(command: string): string {
   return command
-    .split("-")
+    .split(/[\s-]/)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 }
 
 function withNativeCommandTimeout<E, R>(
-  command: string | undefined,
+  command: string,
   effect: Effect.Effect<void, E, R>,
 ): Effect.Effect<void, E, R | OutputLog> {
-  const seconds = command
-    ? Object.entries(NATIVE_COMMAND_TIMEOUT_SECONDS).find(
-        ([name]) => name === command,
-      )?.[1]
-    : undefined;
+  // A group's timeout also covers its subcommands, such as every `skills` command.
+  const seconds = Object.entries(NATIVE_COMMAND_TIMEOUT_SECONDS).find(
+    ([name]) => command === name || command.startsWith(`${name} `),
+  )?.[1];
 
   if (!seconds || !command) return effect;
 
   // The progress renderer would erase the induction questions during opt-in.
   if (
-    command === "agent-oxlint" &&
+    command === "agent oxlint" &&
     args.includes("--opt-in") &&
     process.stdin.isTTY === true &&
     process.stdout.isTTY === true
   )
     return effect;
 
-  if (command === "skills" && args.includes("--json")) {
+  if (command.startsWith("skills") && args.includes("--json")) {
     return Effect.gen(function* () {
       const completed = yield* withTimeoutOption(effect, seconds);
 
@@ -236,13 +238,11 @@ const commandProgram = Command.runWith(dotCommand, { version: "1.0.0" })(
   args.length === 0 ? ["--help"] : args,
 );
 
-const commandName = getCliCommand(invokedCommand ?? "")?.name;
-
-const timedProgram = withNativeCommandTimeout(commandName, commandProgram);
+const timedProgram = withNativeCommandTimeout(commandPath, commandProgram);
 
 // Update checks report available work through their exit code.
 const offersFailureAgent =
-  (commandName === "update" || commandName === "stow") &&
+  (commandPath === "update" || commandPath === "stow") &&
   !args.some((arg) => ["--check", "--check-all", "--help", "-h"].includes(arg));
 
 const program = (
@@ -260,8 +260,8 @@ const program = (
       if (!CliError.isCliError(error)) console.error(error);
       process.exitCode =
         CliError.isCliError(error) &&
-        (invokedCommand === "launch-floating-webapp" ||
-          invokedCommand === "herdr")
+        (commandPath.startsWith("launch") ||
+          resolvedCommand.path[0] === "herdr")
           ? 2
           : 1;
     }),

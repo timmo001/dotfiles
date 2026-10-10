@@ -412,7 +412,8 @@ export const publishDependencyGroup = Effect.fn("Dependencies.publishGroup")(
       "COMMIT",
       [
         "dot",
-        "git-commit",
+        "git",
+        "commit",
         "-m",
         `Update dependencies in ${group
           .replace(/[\p{Cc}\u2013\u2014]/gu, " ")

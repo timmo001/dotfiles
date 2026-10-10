@@ -4,7 +4,7 @@
  * Matches the hand-authored style of the MCP config files: 2-space indent,
  * non-empty objects always broken onto multiple lines, and arrays kept inline
  * while they fit within the print width, otherwise one element per line. This
- * keeps `dot mcp-sync` output diff-clean against the existing files without
+ * keeps `dot mcp sync` output diff-clean against the existing files without
  * bundling Prettier into the binary.
  */
 import { Schema } from "effect";

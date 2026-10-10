@@ -56,10 +56,10 @@ dot install [flags]
 
 Aliases: `dot up`
 
-Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update, --post-hook-repo and --started-at flags support the active self-update handoff; internal --summary-file lets system-update print the summary last.
+Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update, --post-hook-repo and --started-at flags support the active self-update handoff; internal --summary-file lets update system print the summary last.
 
 ```text
-dot update [flags]
+dot update <subcommand> [flags]
 ```
 
 A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, installs missing public Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs agents sync, backfills the init marker, and refreshes shell modules. The shell restarts only when its generated config or a deployed Omarchy plugin changed. It finishes with a summary of updated repositories and every completed or skipped step, in order.
@@ -95,12 +95,12 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 11  Legacy Hypr migration is required
 ```
 
-## `dot system-update`
+### `dot update system`
 
 Select and run Dotfiles, Omarchy, and Topgrade updates
 
 ```text
-dot system-update [flags]
+dot update system [flags]
 ```
 
 Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step. Cancelling the prompt exits without running updates.
@@ -115,8 +115,8 @@ Select maintenance steps interactively, then run them in order: Dotfiles, Omarch
 **Examples**
 
 ```bash
-dot system-update
-dot system-update --yes
+dot update system
+dot update system --yes
 ```
 
 ## `dot deps`
@@ -181,12 +181,26 @@ dot deps service
 dot deps service --no-cooldown
 ```
 
-### `dot deps import-renovate`
+### `dot deps import`
+
+Import dependency policy from other tools
+
+```text
+dot deps import <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot deps import renovate`
 
 Import Renovate policy into dot-deps.yml with an editor schema
 
 ```text
-dot deps import-renovate [flags] [<directory>]
+dot deps import renovate [flags] [<directory>]
 ```
 
 Create dot-deps.yml and its editor schema from a repository's JSON Renovate config, migrating an existing dot-deps.json policy. The first import resolves presets with an isolated, pinned Renovate runtime. Later imports replace explicit override sections, including edits within them, while preserving the native base policy and local check mappings. Unsupported settings are recorded as publication blockers. Importing creates no commits or PRs. Ordinary previews use the saved native policy without running Renovate or refreshing presets.
@@ -208,8 +222,8 @@ Create dot-deps.yml and its editor schema from a repository's JSON Renovate conf
 **Examples**
 
 ```bash
-dot deps import-renovate
-dot deps import-renovate /path/to/repository
+dot deps import renovate
+dot deps import renovate /path/to/repository
 ```
 
 ## `dot run`
@@ -252,12 +266,26 @@ Child exit code on completion
 dot run --timeout '5 minutes' -- opencode2 run --standalone 'Process this capture'
 ```
 
-## `dot http-forward`
+## `dot http`
+
+Local HTTP helpers
+
+```text
+dot http <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot http forward`
 
 Forward HTTP and websockets to another server without proxy headers
 
 ```text
-dot http-forward [flags]
+dot http forward [flags]
 ```
 
 Listens on 127.0.0.1 and forwards HTTP requests and websockets to the target origin, dropping Host and X-Forwarded-* headers so a server that doesn't trust this machine as a proxy accepts them. Use it behind a local HTTPS proxy, such as a pitchfork daemon, to reach a plain HTTP server from an HTTPS page.
@@ -273,15 +301,29 @@ Listens on 127.0.0.1 and forwards HTTP requests and websockets to the target ori
 **Examples**
 
 ```bash
-dot http-forward --port 8126 --target http://homeassistant.local:8123
+dot http forward --port 8126 --target http://homeassistant.local:8123
 ```
 
-## `dot status-run`
+## `dot status`
+
+Run work under a pinned terminal status header
+
+```text
+dot status <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot status run`
 
 Run a command or pitchfork daemon under a pinned status header
 
 ```text
-dot status-run [flags] [<command...>]
+dot status run [flags] [<command...>]
 ```
 
 Pins a header to the top of the terminal with the state (Setting up, Starting, Running, Done, Stopped or Failed), the URL and the elapsed time, and keeps the terminal title in step with a spinner while work is in progress. --setup runs in an interactive zsh first. With --pitchfork, an already running daemon prompts before restarting (--attach follows it instead), its logs are followed once it is ready, and Ctrl+C stops it. --background returns once the daemon is ready. Without a TTY, state changes print as lines.
@@ -309,8 +351,8 @@ Pins a header to the top of the terminal with the state (Setting up, Starting, R
 **Examples**
 
 ```bash
-dot status-run --title 'Lint' -- pnpm lint
-dot status-run --title 'Core' --url https://dev.example.localhost --setup 'script/bootstrap' --pitchfork core/dev
+dot status run --title 'Lint' -- pnpm lint
+dot status run --title 'Core' --url https://dev.example.localhost --setup 'script/bootstrap' --pitchfork core/dev
 ```
 
 ## `dot updates`
@@ -392,7 +434,7 @@ Monitor registered systemd user services and timers
 dot services <subcommand> [flags]
 ```
 
-Each job registers itself with a YAML descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour", counted from the latest of the last completed run, the last boot or resume, and one interval before the first calendar run due after those, so sleep, power off and gaps in the schedule are not missed runs), restartLimit ({ count, within }) for long-running services, notify, logs ({ dir, file }) for jobs that keep their own run logs, and repository (a GitHub owner/repo slug from dot-git.yml) naming the repository that logs and agents open in. A long-running service can add status ({ file }) pointing at a JSON file it writes with health ("ok", "warning", "degraded" or "failed"), summary and updated (epoch milliseconds); while systemd sees the service as healthy, a report from its current run replaces the health and summary. Without repository, the repository containing the unit's executable is used, falling back to the public dotfiles. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations retain the last completed outcome. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. A job can summarise each run by printing a line containing "[RESULT] " followed by a short outcome; the last such line per invocation becomes that run's summary in status, run logs, notifications and the timmo.services panel. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel. Timer services with ExecCondition=dot services on-schedule run only at their calendar times, not as catch-up runs after boot or resume; those runs show as skipped. dot services start always runs them.
+Each job registers itself with a YAML descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour", counted from the latest of the last completed run, the last boot or resume, and one interval before the first calendar run due after those, so sleep, power off and gaps in the schedule are not missed runs), restartLimit ({ count, within }) for long-running services, notify, logs ({ dir, file }) for jobs that keep their own run logs, and repository (a GitHub owner/repo slug from dot-git.yml) naming the repository that logs and agents open in. A long-running service can add status ({ file }) pointing at a JSON file it writes with health ("ok", "warning", "degraded" or "failed"), summary and updated (epoch milliseconds); while systemd sees the service as healthy, a report from its current run replaces the health and summary. Without repository, the repository containing the unit's executable is used, falling back to the public dotfiles. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations retain the last completed outcome. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. A job can summarise each run by printing a line containing "[RESULT] " followed by a short outcome; the last such line per invocation becomes that run's summary in status, run logs, notifications and the timmo.services panel. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel. Timer services with ExecCondition=dot services schedule check run only at their calendar times, not as catch-up runs after boot or resume; those runs show as skipped. dot services start always runs them.
 
 **Options**
 
@@ -507,12 +549,26 @@ dot services logs [flags] <unit>
 dot services logs notes-capture-daemon.service
 ```
 
-### `dot services run-logs`
+### `dot services run`
+
+Inspect a registered job's recent runs
+
+```text
+dot services run <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot services run logs`
 
 Print the journal output of a registered job's most recent runs, newest first, with its latest run log
 
 ```text
-dot services run-logs [flags] <unit>
+dot services run logs [flags] <unit>
 ```
 
 **Options**
@@ -531,8 +587,8 @@ dot services run-logs [flags] <unit>
 **Examples**
 
 ```bash
-dot services run-logs dot-deps.timer
-dot services run-logs skill-updates-agent.timer --count 5 | wl-copy
+dot services run logs dot-deps.timer
+dot services run logs skill-updates-agent.timer --count 5 | wl-copy
 ```
 
 ### `dot services investigate`
@@ -548,7 +604,7 @@ dot services investigate [flags] <unit>
 | Option | Description |
 | --- | --- |
 | `--agent` `<string>` | Installed launcher from dot herdr agents, such as opencode2 |
-| `--modifiers` `<integer>` | Qt keyboard modifier bitmask, as for dot herdr repo-open |
+| `--modifiers` `<integer>` | Qt keyboard modifier bitmask, as for dot herdr repo open |
 | `--print` | Print the investigation brief instead of opening the agent |
 | `--help` `-h` | Show help information |
 
@@ -590,12 +646,26 @@ dot services notify [flags] <unit>
 dot services notify dot-deps.service
 ```
 
-### `dot services on-schedule`
+### `dot services schedule`
+
+Timer schedule checks for registered jobs
+
+```text
+dot services schedule <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot services schedule check`
 
 Skip a timer's catch-up run after boot or resume (used by ExecCondition=)
 
 ```text
-dot services on-schedule [flags]
+dot services schedule check [flags]
 ```
 
 **Options**
@@ -607,7 +677,7 @@ dot services on-schedule [flags]
 **Examples**
 
 ```bash
-dot services on-schedule
+dot services schedule check
 ```
 
 ## `dot fans`
@@ -668,19 +738,33 @@ dot stow [flags]
 | `--private` | Stow private dotfiles only |
 | `--help` `-h` | Show help information |
 
-## `dot omarchy-plugin`
+## `dot omarchy`
+
+Manage Omarchy plugins and the shell layout
+
+```text
+dot omarchy <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot omarchy plugin`
 
 Manage Omarchy plugin submodules. The manage-omarchy-plugin compatibility wrapper may pass trailing 0/1 confirmation and commit-offer values to update and remove.
 
 ```text
-dot omarchy-plugin <subcommand> [flags]
+dot omarchy plugin <subcommand> [flags]
 ```
 
 Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.
 
 For a repository that keeps its plugin in a subfolder, pass add --path with that folder. The submodule holds the whole repository, and the registry's path entry tells stow and update which folder to validate and deploy.
 
-sync-components copies the shared panel components in omarchy/.config/omarchy/components into the plugin directories set by omarchy_components entries in the private dot-git.yml, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.
+sync components copies the shared panel components in omarchy/.config/omarchy/components into the plugin directories set by omarchy_components entries in the private dot-git.yml, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.
 
 **Options**
 
@@ -699,17 +783,17 @@ sync-components copies the shared panel components in omarchy/.config/omarchy/co
 **Examples**
 
 ```bash
-dot omarchy-plugin update timmo.clock --yes
-dot omarchy-plugin remove timmo.clock
-dot omarchy-plugin sync-components --check
+dot omarchy plugin update timmo.clock --yes
+dot omarchy plugin remove timmo.clock
+dot omarchy plugin sync components --check
 ```
 
-### `dot omarchy-plugin add`
+#### `dot omarchy plugin add`
 
 Import a validated plugin checkout
 
 ```text
-dot omarchy-plugin add [flags] <id> <url> <checkout>
+dot omarchy plugin add [flags] <id> <url> <checkout>
 ```
 
 **Options**
@@ -730,12 +814,12 @@ dot omarchy-plugin add [flags] <id> <url> <checkout>
 | `<url>` | Plugin Git remote |
 | `<checkout>` | Validated live plugin checkout |
 
-### `dot omarchy-plugin update`
+#### `dot omarchy plugin update`
 
 Update one or all managed plugins
 
 ```text
-dot omarchy-plugin update [flags] [<id>] [<confirm>]
+dot omarchy plugin update [flags] [<id>] [<confirm>]
 ```
 
 **Options**
@@ -752,12 +836,12 @@ dot omarchy-plugin update [flags] [<id>] [<confirm>]
 | `<id>` | Managed plugin ID |
 | `<confirm>` | Compatibility confirmation value |
 
-### `dot omarchy-plugin remove`
+#### `dot omarchy plugin remove`
 
 Remove a managed plugin
 
 ```text
-dot omarchy-plugin remove [flags] <id> [<confirm>] [<save>]
+dot omarchy plugin remove [flags] <id> [<confirm>] [<save>]
 ```
 
 **Options**
@@ -765,7 +849,7 @@ dot omarchy-plugin remove [flags] <id> [<confirm>] [<save>]
 | Option | Description |
 | --- | --- |
 | `--yes` | Remove without confirmation |
-| `--no-commit-offer` | Do not offer the optional git-commit handoff |
+| `--no-commit-offer` | Do not offer the optional git commit handoff |
 | `--help` `-h` | Show help information |
 
 **Arguments**
@@ -776,12 +860,26 @@ dot omarchy-plugin remove [flags] <id> [<confirm>] [<save>]
 | `<confirm>` | Compatibility confirmation value |
 | `<save>` | Compatibility commit-offer value |
 
-### `dot omarchy-plugin sync-components`
+#### `dot omarchy plugin sync`
+
+Sync shared files into plugin checkouts
+
+```text
+dot omarchy plugin sync <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot omarchy plugin sync components`
 
 Copy shared panel components into standalone plugin checkouts
 
 ```text
-dot omarchy-plugin sync-components [flags]
+dot omarchy plugin sync components [flags]
 ```
 
 **Options**
@@ -791,12 +889,62 @@ dot omarchy-plugin sync-components [flags]
 | `--check` | Report out-of-date copies without writing |
 | `--help` `-h` | Show help information |
 
-## `dot session-status`
+### `dot omarchy shell`
+
+Manage the Omarchy shell
+
+```text
+dot omarchy shell <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot omarchy shell config`
+
+Regenerate the Omarchy shell layout
+
+```text
+dot omarchy shell config [flags]
+```
+
+Regenerate ~/.config/omarchy/shell.json from Omarchy's shipped default and the host-specific dotfiles layout without running the full stow flow.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot omarchy shell config
+```
+
+## `dot session`
+
+Inspect agent sessions
+
+```text
+dot session <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot session status`
 
 Query an OpenCode 2 session's model, variant and context pressure
 
 ```text
-dot session-status [flags] <session-id>
+dot session status [flags] <session-id>
 ```
 
 Read-only OpenCode 2 session inspection through the configured launcher. Pass the exact session ID supplied in the agent's environment context; it is not inferred from the focused pane, working directory or a guessed shell variable. Reports the selected model and variant, supported variants, model limits, latest completed assistant token measurement, its age, the latest completed compaction, and separately labelled cumulative usage and cost. Context tokens include non-cached input, cache reads and writes, output and reasoning, matching OpenCode's display. Input usage includes non-cached and cached input. Pressure uses whichever percentage is higher: context-window usage or input-limit usage. Current usage is unknown after compaction without a new measurement, after a model/variant switch, or with a staged revert. Later tool results and messages are not counted. Looks back through at most 20 messages per type and marks incomplete lookups. --warn-at defaults to 70 percent: a workflow heuristic, not a proven cognitive degradation threshold. The command does not change models, compact or open sessions.
@@ -818,8 +966,8 @@ Read-only OpenCode 2 session inspection through the configured launcher. Pass th
 **Examples**
 
 ```bash
-dot session-status ses_example --json
-dot session-status ses_example --warn-at 80
+dot session status ses_example --json
+dot session status ses_example --warn-at 80
 ```
 
 ## `dot snapshot`
@@ -830,7 +978,7 @@ Save a CPU and memory snapshot with process rankings
 dot snapshot [flags]
 ```
 
-Print a Markdown CPU and memory summary with a usage-filtered process tree. --sort mem defaults to an 80 MiB measured subtree PSS cutoff; --sort cpu defaults to 1% of one core. Adjust these with --min-memory-mib and --min-cpu. Each tree row shows aligned memory and CPU totals beside the process name. Totals include hidden children, so small workers can qualify together; parent and child totals overlap. Expand the largest remaining qualifying branch until --limit visible processes are reached (default: 40, including ancestors). Zero-usage branches are omitted. The saved report adds CPU, memory and process-name rankings with the same cutoffs and per-table limit, plus pressure measurements. Interactive human runs open it in $EDITOR (vi if unset). The internal dot is-agent check automatically selects JSON. JSON retains all sampled processes and the complete processTree, and reportSelection identifies visible PIDs, cutoffs, the limit and omitted count. Missing measurements are null; unavailable parents are marked. CPU is sampled over approximately one second; 100% per process means one logical CPU. PSS divides shared pages between processes. Reports are saved in the system temporary directory ($TMPDIR, normally /tmp), named dot-snapshot-<timestamp>.md or .json. Existing output files are never overwritten.
+Print a Markdown CPU and memory summary with a usage-filtered process tree. --sort mem defaults to an 80 MiB measured subtree PSS cutoff; --sort cpu defaults to 1% of one core. Adjust these with --min-memory-mib and --min-cpu. Each tree row shows aligned memory and CPU totals beside the process name. Totals include hidden children, so small workers can qualify together; parent and child totals overlap. Expand the largest remaining qualifying branch until --limit visible processes are reached (default: 40, including ancestors). Zero-usage branches are omitted. The saved report adds CPU, memory and process-name rankings with the same cutoffs and per-table limit, plus pressure measurements. Interactive human runs open it in $EDITOR (vi if unset). The internal dot agent detect check automatically selects JSON. JSON retains all sampled processes and the complete processTree, and reportSelection identifies visible PIDs, cutoffs, the limit and omitted count. Missing measurements are null; unavailable parents are marked. CPU is sampled over approximately one second; 100% per process means one logical CPU. PSS divides shared pages between processes. Reports are saved in the system temporary directory ($TMPDIR, normally /tmp), named dot-snapshot-<timestamp>.md or .json. Existing output files are never overwritten.
 
 **Options**
 
@@ -849,28 +997,6 @@ dot snapshot
 dot snapshot --sort cpu
 dot snapshot --limit 40
 dot snapshot --min-memory-mib 50
-```
-
-## `dot omarchy-shell-config`
-
-Regenerate the Omarchy shell layout
-
-```text
-dot omarchy-shell-config [flags]
-```
-
-Regenerate ~/.config/omarchy/shell.json from Omarchy's shipped default and the host-specific dotfiles layout without running the full stow flow.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot omarchy-shell-config
 ```
 
 ## `dot firewall`
@@ -942,12 +1068,12 @@ dot clean [flags]
 | --- | --- |
 | `--help` `-h` | Show help information |
 
-## `dot agents-sync`
+## `dot agent`
 
-Mirror AGENTS.md to agent harness instruction files
+Agent harness tooling: instruction sync, linting and detection
 
 ```text
-dot agents-sync [flags]
+dot agent <subcommand> [flags]
 ```
 
 **Options**
@@ -956,12 +1082,163 @@ dot agents-sync [flags]
 | --- | --- |
 | `--help` `-h` | Show help information |
 
-## `dot claude-permission-hook`
+### `dot agent sync`
+
+Mirror AGENTS.md to agent harness instruction files
+
+```text
+dot agent sync [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot agent lint`
+
+Run the repository's agent_lint commands from private dot-git.yml on changed files
+
+```text
+dot agent lint [flags] [<path...>]
+```
+
+Collect files changed in the working tree against HEAD, plus untracked files that are not ignored, and run the configured agent_lint commands in parallel from the repository root under dot run --timeout, reporting results in config order. Deleted files and submodule changes are left out. Paths narrow the changed files. --all uses every tracked and untracked file that is not ignored instead, so commands run without changes. --only runs just the named commands and reports only those. A run argument of exactly {files} expands to the changed files matching the command's include globs; commands without it run as they are, but only when a changed file matches. Each result is passed, failed, timed-out or skipped, with the last lines of output for failures. Exits non-zero when any command fails or times out. Repositories without agent_lint print a notice and exit zero.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print one JSON report instead of log lines |
+| `--all` | Lint every file, not only changed ones |
+| `--only` `<string>` | Run only the command with this name; repeatable |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<path>` | path |
+
+**Examples**
+
+```bash
+dot agent lint
+dot agent lint --json
+dot agent lint src/one.ts src/two.ts --json
+dot agent lint --all --only Typecheck --json
+```
+
+### `dot agent oxlint`
+
+Run the advisory generic Oxlint pass on JavaScript and TypeScript changes in an opted-in repository. Repository-owned Oxlint takes precedence. Use --changed normally, explicit paths to lint whole files, or --all when explicitly requested. Pass --force to run despite those skips.
+
+```text
+dot agent oxlint [flags] [<path...>]
+```
+
+Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cache without changing the target repository. The current repository must set agent_oxlint: true in private dot-git.yml. Repositories with their own Oxlint config, dependency, script, or local binary are skipped because their local setup takes precedence. Pass --force to run anyway. Diagnostics are advisory and do not make these personal rules authoritative for the host repository. --changed compares the working tree and untracked files with HEAD, prints only findings on added or modified lines, and exits non-zero when any remain. Paths with --changed limit that comparison to those files or directories. dot git commit runs the same check on the files it commits.
+
+**Modes**
+
+```text
+--changed  Lint uncommitted changes, reporting only changed lines; add paths to narrow
+<path>...  Lint explicit files or directories in full
+--all      Lint the complete repository tree
+--force    Run even if opt-in or repository Oxlint would skip
+--opt-in   Enable and commit the existing config entry; add paths or --all to also lint
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--all` | Lint the complete repository tree |
+| `--changed` | Lint uncommitted changes and report only findings on changed lines; paths narrow the scope |
+| `--opt-in` | Enable the existing private config entry and commit the single-line change |
+| `--force` | Run even if the repository is not opted in or already has Oxlint |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<path>` | path |
+
+**Opt-in**
+
+```text
+--opt-in adds or sets only agent_oxlint: true in an existing private repository entry, preserving all other bytes. If the entry is missing, it offers the repo induct wizard with agent Oxlint prefilled as enabled. Without a terminal it prints induction instructions. The config must be tracked and clean. Active commit hooks are refused rather than bypassed so formatters cannot expand the change. Commits through dot git commit without pushing; unrelated staged files are excluded. An existing opt-in creates no commit.
+```
+
+**Examples**
+
+```bash
+dot agent oxlint --changed
+dot agent oxlint --changed src/example.ts
+dot agent oxlint src/example.ts
+dot agent oxlint src/one.ts src/two.ts
+dot agent oxlint --all
+dot agent oxlint --force src/example.ts
+dot agent oxlint --opt-in
+```
+
+### `dot agent detect`
+
+Detect whether an AI coding agent is running dot
+
+```text
+dot agent detect [flags]
+```
+
+Detect whether dot is running under an agent harness from agent environment variables, falling back to a Linux /proc process-ancestry check. Exits 0 when an agent is detected and 1 otherwise, so scripts can branch with `if dot agent detect`. Set DOT_AGENT=1 to force detection on or DOT_AGENT=0 to force it off.
+
+**Modes**
+
+```text
+(default)  Print the detected agent, or a no-agent message
+--quiet    Print only the provider id (nothing when no agent)
+--json     Print the detection result as JSON
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--quiet` `-q` |  |
+| `--json` | Print JSON |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot agent detect
+dot agent detect --quiet
+dot agent detect --json
+dot agent detect && echo running under an agent
+```
+
+### `dot agent permission`
+
+Apply OpenCode permissions to other agent harnesses
+
+```text
+dot agent permission <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot agent permission hook`
 
 Enforce OpenCode permission rules in Claude Code
 
 ```text
-dot claude-permission-hook [flags]
+dot agent permission hook [flags]
 ```
 
 Claude Code PreToolUse hook. Reads the hook event from stdin, maps the tool call onto OpenCode actions (shell, read, edit, external_directory, MCP server tools, webfetch, websearch, todowrite), and evaluates the permissions in ~/.config/opencode/opencode.json with OpenCode's semantics: the last matching rule wins and each part of a compound shell command is checked. Prints allow, ask or deny for Claude Code, or nothing when no rule decides so Claude Code's own prompting applies.
@@ -975,15 +1252,43 @@ Claude Code PreToolUse hook. Reads the hook event from stdin, maps the tool call
 **Examples**
 
 ```bash
-dot claude-permission-hook < event.json
+dot agent permission hook < event.json
 ```
 
-## `dot notes-capture-sync`
+## `dot notes`
+
+Integrate with the notes tool
+
+```text
+dot notes <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot notes capture`
+
+Manage the notes capture Worker
+
+```text
+dot notes capture <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot notes capture sync`
 
 Sync watched repositories to the notes capture picker
 
 ```text
-dot notes-capture-sync [flags]
+dot notes capture sync [flags]
 ```
 
 Regenerate the notes capture repository picker from repositories with GitHub notifications enabled in the private dot-git.yml configuration. Updates only CAPTURE_REPOSITORIES in the ignored capture/wrangler.local.jsonc file, creating it from the deploy template when needed. Mirrors non-secret settings from the active Worker, then deploys when the live picker differs.
@@ -997,15 +1302,43 @@ Regenerate the notes capture repository picker from repositories with GitHub not
 **Examples**
 
 ```bash
-dot notes-capture-sync
+dot notes capture sync
 ```
 
-## `dot setup-private-repo`
+## `dot setup`
+
+Set up pacman package repositories
+
+```text
+dot setup <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot setup private`
+
+Set up private package sources
+
+```text
+dot setup private <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot setup private repo`
 
 Sync and register the private pacman repository
 
 ```text
-dot setup-private-repo [flags]
+dot setup private repo [flags]
 ```
 
 Sync the private Arch package repo mirror, write the private pacman repo snippet, and add the Include line to /etc/pacman.conf when it is missing. This repairs Omarchy pacman.conf refreshes that remove local repository includes. Privileged writes prefer pkexec and fall back to sudo.
@@ -1019,15 +1352,29 @@ Sync the private Arch package repo mirror, write the private pacman repo snippet
 **Examples**
 
 ```bash
-dot setup-private-repo
+dot setup private repo
 ```
 
-## `dot setup-public-repo`
+### `dot setup public`
+
+Set up public package sources
+
+```text
+dot setup public <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot setup public repo`
 
 Trust and register the public timmo pacman repository
 
 ```text
-dot setup-public-repo [flags]
+dot setup public repo [flags]
 ```
 
 Download the public signing key, require its pinned full fingerprint, locally sign it in pacman's keyring, and register the signed [timmo] repository before the other package repositories. The command fails before changing trust or pacman configuration when the repository is unavailable or the downloaded fingerprint does not match.
@@ -1041,17 +1388,29 @@ Download the public signing key, require its pinned full fingerprint, locally si
 **Examples**
 
 ```bash
-dot setup-public-repo
+dot setup public repo
 ```
 
-## `dot git-diff`
+## `dot git`
 
-Aliases: `dot diff`
+Work across tracked Git repositories
+
+```text
+dot git <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot git diff`
 
 Show repository change state across all tracked repositories.
 
 ```text
-dot git-diff [flags]
+dot git diff [flags]
 ```
 
 **Modes**
@@ -1073,17 +1432,17 @@ dot git-diff [flags]
 **Examples**
 
 ```bash
-dot git-diff
-dot git-diff --bar-json
-dot git-diff --panel-json
+dot git diff
+dot git diff --bar-json
+dot git diff --panel-json
 ```
 
-## `dot git-log`
+### `dot git log`
 
 Show recent commits across managed repositories
 
 ```text
-dot git-log <subcommand> [flags]
+dot git log <subcommand> [flags]
 ```
 
 Lists the latest commits on each managed checkout's branch, including fetched upstream commits that are not pulled yet. Results are cached per repository and only re-read when HEAD or the upstream ref moves; --refresh re-reads everything.
@@ -1099,19 +1458,19 @@ Lists the latest commits on each managed checkout's branch, including fetched up
 **Examples**
 
 ```bash
-dot git-log
-dot git-log --panel-json
-dot git-log show --path ~/repos/example --sha abc1234
-dot git-log show --path ~/repos/example --from def5678 --sha abc1234
-dot git-log show --path ~/repos/example --changes uncommitted
+dot git log
+dot git log --panel-json
+dot git log show --path ~/repos/example --sha abc1234
+dot git log show --path ~/repos/example --from def5678 --sha abc1234
+dot git log show --path ~/repos/example --changes uncommitted
 ```
 
-### `dot git-log show`
+#### `dot git log show`
 
 Return changed files and a diff preview as JSON for the Git panel, for one commit, a commit range or a repository's local changes
 
 ```text
-dot git-log show [flags]
+dot git log show [flags]
 ```
 
 **Options**
@@ -1125,12 +1484,12 @@ dot git-log show [flags]
 | `--changes` `<choice>` | Preview uncommitted changes including untracked files, commits not pushed upstream, or fetched commits not pulled yet (choices: uncommitted, unpushed, incoming) |
 | `--help` `-h` | Show help information |
 
-## `dot git-web`
+### `dot git web`
 
 Open a Git web action using the repository's configured browser
 
 ```text
-dot git-web [flags]
+dot git web [flags]
 ```
 
 Resolves repository browser settings from dot-git.yml, including linked worktrees. URL-only actions use the GitHub repository in the URL. Named browsers are argument lists under browsers; each repository can select one with browser. Without a selection, uses the desktop default. --work-time selects the work browser during work hours outside calendar leave, otherwise the desktop default. --browser overrides the selection. The Git panel uses --work-time for web actions and --browser work for Alt+Enter and Alt+click.
@@ -1149,17 +1508,17 @@ Resolves repository browser settings from dot-git.yml, including linked worktree
 **Examples**
 
 ```bash
-dot git-web
-dot git-web --browser work
-dot git-web --url https://github.com/example/project/issues/1
+dot git web
+dot git web --browser work
+dot git web --url https://github.com/example/project/issues/1
 ```
 
-## `dot git-commit`
+### `dot git commit`
 
 Commit staged changes through the guarded gateway. Subjects must be one line, have no trailing full stop, and stay within the hard length limit. Explicit --path scopes never imply git add -A; --amend keeps the existing message unless --message is supplied.
 
 ```text
-dot git-commit [flags]
+dot git commit [flags]
 ```
 
 Create a commit through dot's guarded gateway instead of raw git commit. The subject is validated as a single line with no trailing full stop and a length limit, then the staged set (or an explicit --path scope) is committed. It never runs git add -A.
@@ -1211,20 +1570,20 @@ The exception requires owned origin fetch and push targets; global settings are 
 **Examples**
 
 ```bash
-dot git-commit -m "Add commit gateway"
-dot git-commit -m "Scope to one file" --path src/git/commands/Status.ts
-dot git-commit -m "Commit and push" --push
-dot git-commit --amend
-dot git-commit --amend -m "Reword the previous commit"
-dot git-commit -m "Preview only" --dry-run
+dot git commit -m "Add commit gateway"
+dot git commit -m "Scope to one file" --path src/git/commands/Status.ts
+dot git commit -m "Commit and push" --push
+dot git commit --amend
+dot git commit --amend -m "Reword the previous commit"
+dot git commit -m "Preview only" --dry-run
 ```
 
-## `dot git-notifications`
+### `dot git notifications`
 
 Open the authenticated GitHub notification inbox. Without output, query or action flags, this opens the Omarchy shell panel. --all and --participating return filtered bar JSON.
 
 ```text
-dot git-notifications <subcommand> [flags]
+dot git notifications <subcommand> [flags]
 ```
 
 **Modes**
@@ -1247,19 +1606,19 @@ dot git-notifications <subcommand> [flags]
 **Examples**
 
 ```bash
-dot git-notifications
-dot git-notifications --bar-json
-dot git-notifications --participating
-dot git-notifications dismiss --dry-run
-dot git-notifications --mark-read 12345
+dot git notifications
+dot git notifications --bar-json
+dot git notifications --participating
+dot git notifications dismiss --dry-run
+dot git notifications --mark-read 12345
 ```
 
-### `dot git-notifications dismiss`
+#### `dot git notifications dismiss`
 
 Show a coloured repository summary, then review merged dependencies followed by remaining unread notifications. Done queues work in the background while progress appears above the next choices. Every repository offers Done, Open on GitHub, Skip and Stop. Stop ends the questions and finishes queued work before a completion and issues summary. --repo selects a single notification stack. Bar hiding preferences do not restrict this inbox.
 
 ```text
-dot git-notifications dismiss <subcommand> [flags]
+dot git notifications dismiss <subcommand> [flags]
 ```
 
 **Options**
@@ -1273,19 +1632,19 @@ dot git-notifications dismiss <subcommand> [flags]
 **Examples**
 
 ```bash
-dot git-notifications dismiss
-dot git-notifications dismiss --repo owner/repository
-dot git-notifications dismiss --dry-run
-dot git-notifications dismiss dependencies --mode all
-dot git-notifications dismiss remaining
+dot git notifications dismiss
+dot git notifications dismiss --repo owner/repository
+dot git notifications dismiss --dry-run
+dot git notifications dismiss dependencies --mode all
+dot git notifications dismiss remaining
 ```
 
-#### `dot git-notifications dismiss dependencies`
+#### `dot git notifications dismiss dependencies`
 
 Review unread merged Renovate/Dependabot updates regardless of CI results. All-mode excludes unverifiable CI. Opening GitHub returns to the review without dismissing anything.
 
 ```text
-dot git-notifications dismiss dependencies [flags]
+dot git notifications dismiss dependencies [flags]
 ```
 
 **Options**
@@ -1297,12 +1656,12 @@ dot git-notifications dismiss dependencies [flags]
 | `--mode` `<choice>` | Mark all verified dependencies done, or prompt per repository; omit to choose (choices: all, repos) |
 | `--help` `-h` | Show help information |
 
-#### `dot git-notifications dismiss remaining`
+#### `dot git notifications dismiss remaining`
 
 Review all other unread notifications per repository, including PRs with unresolved CI and their reasons. This pass always requires a choice before dismissal.
 
 ```text
-dot git-notifications dismiss remaining [flags]
+dot git notifications dismiss remaining [flags]
 ```
 
 **Options**
@@ -1313,12 +1672,12 @@ dot git-notifications dismiss remaining [flags]
 | `--dry-run` | Print repository batches and reasons without changing notifications |
 | `--help` `-h` | Show help information |
 
-## `dot git-releases`
+### `dot git releases`
 
 Compare enabled repositories with their latest published stable release, explain impact and retain local reviews.
 
 ```text
-dot git-releases <subcommand> [flags]
+dot git releases <subcommand> [flags]
 ```
 
 Read the last local snapshot, collecting one on first use. --refresh fetches immutable release and branch refs immediately; --scheduled follows each repository's local-time cron and records attempted minutes. Draft and prerelease releases are excluded. Before the first stable release, the comparison covers the full history with the same quiet rules, and the first version is 0.1.0 (1.0.0 for a major impact), today's CalVer or the upstream fork base. Failed checks retain previous evidence marked stale. Quiet changes remain inspectable. Desktop notifications require --notify and honour configured minimum impact and cooldown. --open opens the release review, optionally selected by --repo, without fetching.
@@ -1355,23 +1714,23 @@ Notification enabled/minimum_impact/cooldown_minutes are stored for future expli
 **Examples**
 
 ```bash
-dot git-releases
-dot git-releases --refresh --panel-json
-dot git-releases --scheduled --notify --panel-json
-dot git-releases --open --repo example/project
-dot git-releases review --repo example/project --snapshot ID --finding FINDING --impact patch
-dot git-releases review --repo example/project --snapshot ID --finding ONE --finding TWO --impact none
-dot git-releases review --repo example/project --snapshot ID --impact auto
-dot git-releases publish --repo example/project --snapshot ID --notes-file notes.md
-dot git-releases publish --repo example/project --snapshot ID --notes-file notes.md --notes-mode replace --confirm PLAN
+dot git releases
+dot git releases --refresh --panel-json
+dot git releases --scheduled --notify --panel-json
+dot git releases --open --repo example/project
+dot git releases review --repo example/project --snapshot ID --finding FINDING --impact patch
+dot git releases review --repo example/project --snapshot ID --finding ONE --finding TWO --impact none
+dot git releases review --repo example/project --snapshot ID --impact auto
+dot git releases publish --repo example/project --snapshot ID --notes-file notes.md
+dot git releases publish --repo example/project --snapshot ID --notes-file notes.md --notes-mode replace --confirm PLAN
 ```
 
-### `dot git-releases review`
+#### `dot git releases review`
 
 Review exact local release evidence without publishing anything
 
 ```text
-dot git-releases review [flags]
+dot git releases review [flags]
 ```
 
 **Options**
@@ -1385,15 +1744,15 @@ dot git-releases review [flags]
 | `--impact` `<choice>` | Local release impact; auto clears the override (choices: none, patch, minor, major, auto) |
 | `--help` `-h` | Show help information |
 
-### `dot git-releases publish`
+#### `dot git releases publish`
 
 Preview version changes, validation, pushes and release notes. --interactive explains and confirms in the terminal; --confirm PLAN executes a reviewed plan with live progress. --notes-file supplies hand-written notes.
 
 ```text
-dot git-releases publish [flags]
+dot git releases publish [flags]
 ```
 
-Requires an explicit private releases.publish recipe. The preview is read-only. Confirmation binds the reviewed snapshot, version files, commands and target. Preparation runs in an isolated worktree. Only agreed version changes, plus any releases.publish.generated_files the commands regenerate (such as a lockfile), are committed through dot git-commit, then the version commit and tag are pushed atomically. GitHub release notes are generated from the previous stable release (or the full history for a first release), unless --notes-file supplies hand-written notes. The file must exist and not be empty; its text is shown in the preview and bound to the plan, so pass the same --notes-file on confirmation and an edited file needs a new preview. --notes-mode prepend (default) puts the file before the generated notes, editing the release straight after creation; replace uses only the file. Progress includes command output and a saved log. Release creation does not wait for GitHub publication jobs; follow the returned Actions URL. Failed preparation is retained for inspection. Refresh and preview again after resolving a failure.
+Requires an explicit private releases.publish recipe. The preview is read-only. Confirmation binds the reviewed snapshot, version files, commands and target. Preparation runs in an isolated worktree. Only agreed version changes, plus any releases.publish.generated_files the commands regenerate (such as a lockfile), are committed through dot git commit, then the version commit and tag are pushed atomically. GitHub release notes are generated from the previous stable release (or the full history for a first release), unless --notes-file supplies hand-written notes. The file must exist and not be empty; its text is shown in the preview and bound to the plan, so pass the same --notes-file on confirmation and an edited file needs a new preview. --notes-mode prepend (default) puts the file before the generated notes, editing the release straight after creation; replace uses only the file. Progress includes command output and a saved log. Release creation does not wait for GitHub publication jobs; follow the returned Actions URL. Failed preparation is retained for inspection. Refresh and preview again after resolving a failure.
 
 **Options**
 
@@ -1408,41 +1767,12 @@ Requires an explicit private releases.publish recipe. The preview is read-only. 
 | `--notes-mode` `<choice>` | Put --notes-file before the generated notes (prepend, default) or use it alone (replace) (choices: prepend, replace) |
 | `--help` `-h` | Show help information |
 
-## `dot git-pull-requests`
-
-Track open pull requests for enabled repositories, independently of GitHub notifications
-
-```text
-dot git-pull-requests [flags]
-```
-
-Opt in with pull_requests.enabled in private dot-git.yml. Open PRs include drafts and automation, ordered by latest update. Use --repo <repository> --ignore <number> to hide a PR locally from the panel and all PR counters. Successful refreshes remove ignored entries once they close, merge or disappear. A non-draft PR is ready when at least one CI check passes and none fail, remain pending or are cancelled; failed check names are shown in the panel. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and ignore entries, and report an error.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--repo` `<string>` | Select an enabled repository by name or GitHub slug |
-| `--refresh` | Fetch now instead of using the five-minute cache |
-| `--open` | Open the tracked pull request page in the Git panel |
-| `--ignore` `<integer>` | Hide a PR locally from the panel and counters; requires --repo |
-| `--panel-json` | Return enabled repositories and their open pull requests as JSON |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot git-pull-requests --panel-json
-dot git-pull-requests --refresh
-dot git-pull-requests --open
-```
-
-## `dot git-issues`
+### `dot git issues`
 
 Track open issues for enabled repositories, independently of GitHub notifications
 
 ```text
-dot git-issues [flags]
+dot git issues [flags]
 ```
 
 Opt in with issues.enabled in private dot-git.yml. Open issues exclude pull requests and are ordered by latest update. Rules under the top-level issues.exclude list hide matching issues, such as a Dependency Dashboard; each rule matches when every field it sets (title, author, label and optional repo) matches, case-insensitively. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and report an error.
@@ -1460,17 +1790,31 @@ Opt in with issues.enabled in private dot-git.yml. Open issues exclude pull requ
 **Examples**
 
 ```bash
-dot git-issues --panel-json
-dot git-issues --refresh
-dot git-issues --open
+dot git issues --panel-json
+dot git issues --refresh
+dot git issues --open
 ```
 
-## `dot mcp-sync`
+## `dot mcp`
+
+Manage agent MCP server configs
+
+```text
+dot mcp <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot mcp sync`
 
 Regenerate MCP configs for all harnesses from the spec
 
 ```text
-dot mcp-sync [flags]
+dot mcp sync [flags]
 ```
 
 Regenerate each active harness's native MCP config from the private spec (mcp.yml). Repository opencode_mcp lists in dot-git.yml opt into named servers using generated, Git-ignored .opencode/opencode.jsonc files; removing an opt-in removes its generated config. Existing unowned or tracked configs are preserved and reported as conflicts. Global configs are written into the stowed private source tree; run dot stow after. Claude Code's user scope is updated through the claude CLI instead of a file. Some agent harnesses are documented stubs and are not written.
@@ -1484,15 +1828,43 @@ Regenerate each active harness's native MCP config from the private spec (mcp.ym
 **Examples**
 
 ```bash
-dot mcp-sync
+dot mcp sync
 ```
 
-## `dot private-pkg-publish`
+## `dot private`
+
+Work with the private package repository
+
+```text
+dot private <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot private pkg`
+
+Manage private packages
+
+```text
+dot private pkg <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot private pkg publish`
 
 Build and publish a private package
 
 ```text
-dot private-pkg-publish [flags] <package-name>
+dot private pkg publish [flags] <package-name>
 ```
 
 Build and publish a mapped private package into the private pacman repo.
@@ -1515,8 +1887,8 @@ Build and publish a mapped private package into the private pacman repo.
 **Examples**
 
 ```bash
-dot private-pkg-publish my-package --install
-dot private-pkg-publish --skip-build --no-git my-package
+dot private pkg publish my-package --install
+dot private pkg publish --skip-build --no-git my-package
 ```
 
 ## `dot skills`
@@ -1575,7 +1947,7 @@ dot skills import [flags] <name>
 Check/apply imported skill updates
 
 ```text
-dot skills updates [flags]
+dot skills updates <subcommand> [flags]
 ```
 
 **Options**
@@ -1596,6 +1968,51 @@ dot skills updates [flags]
 dot skills updates --json
 dot skills updates --update --skill agentic-workflows --no-commit
 ```
+
+#### `dot skills updates agent`
+
+Run skill update automation
+
+```text
+dot skills updates agent <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot skills updates agent github`
+
+Run GitHub skill update automation
+
+```text
+dot skills updates agent github [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--skills-dir` `<path>` | Use this Skills checkout |
+| `--help` `-h` | Show help information |
+
+#### `dot skills updates agent device`
+
+Run local device skill update automation
+
+```text
+dot skills updates agent device [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--config` `<path>` | Use this YAML config |
+| `--run-id` `<string>` | Wait for this workflow run |
+| `--help` `-h` | Show help information |
 
 ### `dot skills check`
 
@@ -1619,51 +2036,6 @@ dot skills check [flags]
 ```bash
 dot skills check --skill agentic-workflows
 ```
-
-### `dot skills updates-agent`
-
-Run skill update automation
-
-```text
-dot skills updates-agent <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-#### `dot skills updates-agent github`
-
-Run GitHub skill update automation
-
-```text
-dot skills updates-agent github [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--skills-dir` `<path>` | Use this Skills checkout |
-| `--help` `-h` | Show help information |
-
-#### `dot skills updates-agent device`
-
-Run local device skill update automation
-
-```text
-dot skills updates-agent device [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--config` `<path>` | Use this YAML config |
-| `--run-id` `<string>` | Wait for this workflow run |
-| `--help` `-h` | Show help information |
 
 ### `dot skills consumers`
 
@@ -1766,41 +2138,6 @@ dot completions bash
 dot completions fish
 ```
 
-## `dot is-agent`
-
-Detect whether an AI coding agent is running dot
-
-```text
-dot is-agent [flags]
-```
-
-Detect whether dot is running under an agent harness from agent environment variables, falling back to a Linux /proc process-ancestry check. Exits 0 when an agent is detected and 1 otherwise, so scripts can branch with `if dot is-agent`. Set DOT_AGENT=1 to force detection on or DOT_AGENT=0 to force it off.
-
-**Modes**
-
-```text
-(default)  Print the detected agent, or a no-agent message
---quiet    Print only the provider id (nothing when no agent)
---json     Print the detection result as JSON
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--quiet` `-q` |  |
-| `--json` | Print JSON |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot is-agent
-dot is-agent --quiet
-dot is-agent --json
-dot is-agent && echo running under an agent
-```
-
 ## `dot repo`
 
 List and induct tracked repositories in private dot-git.yml
@@ -1890,7 +2227,7 @@ Induct a local repository into private dot git config with a preview before comm
 dot repo induct [flags] [<path>]
 ```
 
-The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity, including an optional release watching template from its release_templates. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git-commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use agent-oxlint --opt-in to enable their agent pass.
+The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity, including an optional release watching template from its release_templates. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use dot agent oxlint --opt-in to enable their agent pass.
 
 **Options**
 
@@ -1934,97 +2271,9 @@ dot repo induct ~/repos/example --noninteractive --preset normal --name Example 
 dot repo induct ~/repos/example --noninteractive --preset normal --name Example --aliases example --commit
 ```
 
-## `dot agent-oxlint`
-
-Run the advisory generic Oxlint pass on JavaScript and TypeScript changes in an opted-in repository. Repository-owned Oxlint takes precedence. Use --changed normally, explicit paths to lint whole files, or --all when explicitly requested. Pass --force to run despite those skips.
-
-```text
-dot agent-oxlint [flags] [<path...>]
-```
-
-Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cache without changing the target repository. The current repository must set agent_oxlint: true in private dot-git.yml. Repositories with their own Oxlint config, dependency, script, or local binary are skipped because their local setup takes precedence. Pass --force to run anyway. Diagnostics are advisory and do not make these personal rules authoritative for the host repository. --changed compares the working tree and untracked files with HEAD, prints only findings on added or modified lines, and exits non-zero when any remain. Paths with --changed limit that comparison to those files or directories. dot git-commit runs the same check on the files it commits.
-
-**Modes**
-
-```text
---changed  Lint uncommitted changes, reporting only changed lines; add paths to narrow
-<path>...  Lint explicit files or directories in full
---all      Lint the complete repository tree
---force    Run even if opt-in or repository Oxlint would skip
---opt-in   Enable and commit the existing config entry; add paths or --all to also lint
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--all` | Lint the complete repository tree |
-| `--changed` | Lint uncommitted changes and report only findings on changed lines; paths narrow the scope |
-| `--opt-in` | Enable the existing private config entry and commit the single-line change |
-| `--force` | Run even if the repository is not opted in or already has Oxlint |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<path>` | path |
-
-**Opt-in**
-
-```text
---opt-in adds or sets only agent_oxlint: true in an existing private repository entry, preserving all other bytes. If the entry is missing, it offers the repo induct wizard with agent Oxlint prefilled as enabled. Without a terminal it prints induction instructions. The config must be tracked and clean. Active commit hooks are refused rather than bypassed so formatters cannot expand the change. Commits through dot git-commit without pushing; unrelated staged files are excluded. An existing opt-in creates no commit.
-```
-
-**Examples**
-
-```bash
-dot agent-oxlint --changed
-dot agent-oxlint --changed src/example.ts
-dot agent-oxlint src/example.ts
-dot agent-oxlint src/one.ts src/two.ts
-dot agent-oxlint --all
-dot agent-oxlint --force src/example.ts
-dot agent-oxlint --opt-in
-```
-
-## `dot agent-lint`
-
-Run the repository's agent_lint commands from private dot-git.yml on changed files
-
-```text
-dot agent-lint [flags] [<path...>]
-```
-
-Collect files changed in the working tree against HEAD, plus untracked files that are not ignored, and run the configured agent_lint commands in parallel from the repository root under dot run --timeout, reporting results in config order. Deleted files and submodule changes are left out. Paths narrow the changed files. --all uses every tracked and untracked file that is not ignored instead, so commands run without changes. --only runs just the named commands and reports only those. A run argument of exactly {files} expands to the changed files matching the command's include globs; commands without it run as they are, but only when a changed file matches. Each result is passed, failed, timed-out or skipped, with the last lines of output for failures. Exits non-zero when any command fails or times out. Repositories without agent_lint print a notice and exit zero.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--json` | Print one JSON report instead of log lines |
-| `--all` | Lint every file, not only changed ones |
-| `--only` `<string>` | Run only the command with this name; repeatable |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<path>` | path |
-
-**Examples**
-
-```bash
-dot agent-lint
-dot agent-lint --json
-dot agent-lint src/one.ts src/two.ts --json
-dot agent-lint --all --only Typecheck --json
-```
-
 ## `dot pr`
 
-Watch, read reviews on and queue pull requests
+Watch, list, read reviews on and queue pull requests
 
 ```text
 dot pr <subcommand> [flags]
@@ -2147,12 +2396,69 @@ dot pr queue --only activity --since 2026-09-19
 dot pr queue --sort updated --since 3d --json
 ```
 
-## `dot launch-floating-webapp`
+### `dot pr list`
+
+Track open pull requests for enabled repositories, independently of GitHub notifications
+
+```text
+dot pr list [flags]
+```
+
+Opt in with pull_requests.enabled in private dot-git.yml. Open PRs include drafts and automation, ordered by latest update. Use --repo <repository> --ignore <number> to hide a PR locally from the panel and all PR counters. Successful refreshes remove ignored entries once they close, merge or disappear. A non-draft PR is ready when at least one CI check passes and none fail, remain pending or are cancelled; failed check names are shown in the panel. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and ignore entries, and report an error.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--repo` `<string>` | Select an enabled repository by name or GitHub slug |
+| `--refresh` | Fetch now instead of using the five-minute cache |
+| `--open` | Open the tracked pull request page in the Git panel |
+| `--ignore` `<integer>` | Hide a PR locally from the panel and counters; requires --repo |
+| `--panel-json` | Return enabled repositories and their open pull requests as JSON |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot pr list --panel-json
+dot pr list --refresh
+dot pr list --open
+```
+
+## `dot launch`
+
+Launch desktop apps
+
+```text
+dot launch <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot launch floating`
+
+Launch floating windows
+
+```text
+dot launch floating <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot launch floating webapp`
 
 Launch one Omarchy webapp and place its new window in the target monitor's bottom-right corner, or reposition an existing window with --address. Width and height must be positive integers; margins must be non-negative.
 
 ```text
-dot launch-floating-webapp [flags] [<url>]
+dot launch floating webapp [flags] [<url>]
 ```
 
 **Options**
@@ -2254,12 +2560,26 @@ dot herdr restart --check
 dot herdr restart
 ```
 
-### `dot herdr repo-open`
+### `dot herdr repo`
+
+Open repository workspaces
+
+```text
+dot herdr repo <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot herdr repo open`
 
 Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Use --agent to resolve the launcher, label and kind from dot herdr agents; it cannot be combined with a command or --agent-kind. With --agent opencode2, --model creates an OpenCode session on a uniquely matched model before launching the full TUI and sending any prompt. Agent launches wait for readiness and verify the selected kind before naming or prompting. --prompt-file reads the prompt from a file before anything is launched and cannot be combined with --prompt. --no-focus leaves the current view alone. --after-prefix places a newly created workspace after the last workspace whose label starts with the prefix, keeping related workspaces together. Without it, a new workspace whose label starts with a [tag] joins that tag's group, and one whose label extends an existing one by a whole word (Dotfiles Private after Dotfiles) joins that group. A herdr_after label in dot-git.yml takes priority: the workspace opens straight after the nearest open workspace in its herdr_after chain, or straight before the first open workspace that chains back to it. --json reports resource IDs, creation flags, agent details, model and whether the prompt was sent. Without a command or --agent, focus the workspace; an empty command opens a shell using the selected layout.
 
 ```text
-dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
+dot herdr repo open [flags] <label> <directory> [<tab-label>] [<command>]
 ```
 
 **Options**
@@ -2372,7 +2692,7 @@ Run Home Assistant Core and frontend dev servers
 dot homeassistant <subcommand> [flags]
 ```
 
-Runs the pitchfork daemons and frontend suites behind the Home Assistant dev setup, configured in $XDG_CONFIG_HOME/dot/homeassistant.yml. Interactive runs go through dot status-run and, under Herdr, open in the repository's workspace. Under an agent, commands skip setup, Herdr and prompts: they reuse a running daemon and fail with a message instead of stopping a conflicting one.
+Runs the pitchfork daemons and frontend suites behind the Home Assistant dev setup, configured in $XDG_CONFIG_HOME/dot/homeassistant.yml. Interactive runs go through dot status run and, under Herdr, open in the repository's workspace. Under an agent, commands skip setup, Herdr and prompts: they reuse a running daemon and fail with a message instead of stopping a conflicting one.
 
 **Options**
 
@@ -2606,12 +2926,26 @@ dot homeassistant frontend e2e [flags]
 dot ha f e2e --background
 ```
 
-#### `dot homeassistant frontend test-e2e`
+#### `dot homeassistant frontend test`
+
+Run frontend tests
+
+```text
+dot homeassistant frontend test <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot homeassistant frontend test e2e`
 
 Run the frontend e2e tests
 
 ```text
-dot homeassistant frontend test-e2e [flags] [<suite>]
+dot homeassistant frontend test e2e [flags] [<suite>]
 ```
 
 **Options**
@@ -2629,8 +2963,8 @@ dot homeassistant frontend test-e2e [flags] [<suite>]
 **Examples**
 
 ```bash
-dot ha f test-e2e
-dot ha f test-e2e app
+dot ha f test e2e
+dot ha f test e2e app
 ```
 
 ### `dot homeassistant dev`
@@ -2770,12 +3104,26 @@ dot reload shell
 dot reload shell updates
 ```
 
-## `dot workspace-setup`
+## `dot workspace`
+
+Set up and lay out desktop workspaces
+
+```text
+dot workspace <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot workspace setup`
 
 Launch or reuse desktop apps and rebuild the workspace layout
 
 ```text
-dot workspace-setup [flags]
+dot workspace setup [flags]
 ```
 
 **Options**
@@ -2789,17 +3137,17 @@ dot workspace-setup [flags]
 **Examples**
 
 ```bash
-dot workspace-setup
-dot workspace-setup --mode=work
-dot workspace-setup --mode=normal
+dot workspace setup
+dot workspace setup --mode=work
+dot workspace setup --mode=normal
 ```
 
-## `dot workspace-relayout`
+### `dot workspace relayout`
 
 Apply or capture a Hyprland workspace layout
 
 ```text
-dot workspace-relayout [flags]
+dot workspace relayout [flags]
 ```
 
 **Options**
@@ -2814,7 +3162,7 @@ dot workspace-relayout [flags]
 Show this help menu
 
 ```text
-dot help [flags] [<command>]
+dot help [flags] [<command...>]
 ```
 
 **Options**
@@ -2827,4 +3175,11 @@ dot help [flags] [<command>]
 
 | Argument | Description |
 | --- | --- |
-| `<command>` | Command to show help for |
+| `<command>` | Command path to show help for |
+
+**Examples**
+
+```bash
+dot help
+dot help git commit
+```

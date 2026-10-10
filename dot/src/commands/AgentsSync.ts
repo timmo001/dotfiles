@@ -49,11 +49,11 @@ const cursorTarget: HarnessTarget = {
   transform: (content, meta) =>
     [
       "---",
-      "description: Global agent instructions mirrored from AGENTS.md; refresh with dot agents-sync.",
+      "description: Global agent instructions mirrored from AGENTS.md; refresh with dot agent sync.",
       "alwaysApply: true",
       "---",
       "",
-      `<!-- dot agents-sync: source=${meta.source} synced=${meta.timestamp} -->`,
+      `<!-- dot agent sync: source=${meta.source} synced=${meta.timestamp} -->`,
       "",
       content,
     ].join("\n"),
@@ -64,7 +64,7 @@ const claudeTarget: HarnessTarget = {
   outputPath: () => join(HOME_DIR, ".claude", "CLAUDE.md"),
   transform: (content, meta) =>
     [
-      `<!-- dot agents-sync: source=${meta.source} synced=${meta.timestamp} -->`,
+      `<!-- dot agent sync: source=${meta.source} synced=${meta.timestamp} -->`,
       "",
       content,
     ].join("\n"),
