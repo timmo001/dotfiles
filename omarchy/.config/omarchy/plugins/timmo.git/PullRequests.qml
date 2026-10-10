@@ -19,6 +19,7 @@ Column {
   signal activated(var entry, int modifiers)
   signal refreshRequested()
   signal ignoreRequested(var entry)
+  signal agentRequested(var entry)
   signal toggleRequested(string id)
 
   spacing: Style.space(8)
@@ -111,7 +112,7 @@ Column {
             Row {
               id: row
               anchors.left: parent.left
-              anchors.right: ignoreButton.visible ? ignoreButton.left : parent.right
+              anchors.right: buttons.visible ? buttons.left : parent.right
               anchors.verticalCenter: parent.verticalCenter
               anchors.margins: Style.space(8)
               spacing: Style.space(10)
@@ -132,7 +133,7 @@ Column {
             }
             MouseArea {
               anchors.left: parent.left
-              anchors.right: ignoreButton.visible ? ignoreButton.left : parent.right
+              anchors.right: buttons.visible ? buttons.left : parent.right
               anchors.top: parent.top
               anchors.bottom: parent.bottom
               hoverEnabled: true
@@ -140,19 +141,30 @@ Column {
               onEntered: root.hovered(modelData.key)
               onClicked: function(mouse) { root.activated(modelData, mouse.modifiers) }
             }
-            PanelActionButton {
-              id: ignoreButton
+            Row {
+              id: buttons
+              visible: modelData.kind === "pull"
               anchors.right: parent.right
               anchors.rightMargin: Style.space(8)
               anchors.verticalCenter: parent.verticalCenter
-              visible: modelData.kind === "pull"
-              enabled: !root.refreshing
-              iconText: "󰈉"
-              tooltipText: "Ignore pull request"
-              foreground: root.foreground
-              fontFamily: root.fontFamily
-              onHovered: function(hovered) { if (hovered) root.hovered(modelData.key) }
-              onClicked: root.ignoreRequested(modelData)
+              spacing: Style.space(4)
+              PanelActionButton {
+                iconText: "󱚣"
+                tooltipText: "Open in agent"
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                onHovered: function(hovered) { if (hovered) root.hovered(modelData.key) }
+                onClicked: root.agentRequested(modelData)
+              }
+              PanelActionButton {
+                enabled: !root.refreshing
+                iconText: "󰈉"
+                tooltipText: "Ignore pull request"
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                onHovered: function(hovered) { if (hovered) root.hovered(modelData.key) }
+                onClicked: root.ignoreRequested(modelData)
+              }
             }
           }
         }

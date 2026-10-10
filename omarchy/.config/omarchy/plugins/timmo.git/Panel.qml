@@ -30,7 +30,8 @@ Panel {
   readonly property var filteredPullRequestRows: filterController.filteredModel.filter(function(row) { return row.section === "pulls" || row.section === "pulls-empty" })
   property string selectedIssueRepo: ""
   property string selectedIssueView: "overview"
-  property var selectedIssue: null
+  // The pull request or issue the agent picker opens, as { kind, repo, value }.
+  property var selectedAgentItem: null
   property string issueCursorKey: ""
   readonly property bool issueView: view === "issues" || view === "issue-repo"
   readonly property var selectedIssues: service ? service.issueRepositories.find(function(repo) { return repo.repo.toLowerCase() === selectedIssueRepo.toLowerCase() || repo.name.toLowerCase() === selectedIssueRepo.toLowerCase() }) || null : null
@@ -282,7 +283,7 @@ Panel {
       return rows.concat(issueRows())
     }
     if (view === "agent") {
-      rows.push(navigationRow(releaseAgentView ? "Back to release preparation" : (selectedAgentView === "overview" ? "Back to Git overview" : (selectedAgentView === "commit" ? "Back to commit" : (selectedAgentView === "issue-repo" ? "Back to issues" : "Back to repository")))))
+      rows.push(navigationRow(releaseAgentView ? "Back to release preparation" : (selectedAgentView === "overview" ? "Back to Git overview" : (selectedAgentView === "commit" ? "Back to commit" : (selectedAgentView === "issue-repo" ? "Back to issues" : (selectedAgentView === "pull-repo" ? "Back to pull requests" : "Back to repository"))))))
       var agents = service ? service.installedAgents : []
       for (var i = 0; i < agents.length; i++) {
         var agent = agents[i]
@@ -717,10 +718,11 @@ Panel {
     filterController.selectIndex(index)
   }
 
-  function showIssueAgentPicker(issue) {
-    if (!selectedIssues || !issue) return
-    selectedIssue = issue
-    showAgentPicker(selectedIssues)
+  // Picks an agent for one pull request or issue; kind is "pull" or "issue".
+  function showItemAgentPicker(kind, repo, value) {
+    if (!repo || !value) return
+    showAgentPicker(repo)
+    selectedAgentItem = { kind: kind, repo: repo, value: value }
   }
 
   function repoActions(repo) {
@@ -760,12 +762,14 @@ Panel {
     if (pulls) rows = rows.concat(trackedGroup("repo-pulls", "Pull requests…", "", pullRepositorySummary(pulls), pulls.pulls.map(function(pr) {
       var row = actionRow("repo-pull:" + pr.number, "#" + pr.number + " " + pr.title, "")
       row.secondaryText = pullRequestDetail(pr)
+      row.agentItem = { kind: "pull", repo: pulls, value: pr }
       return row
     }).concat([actionRow("repo-pulls-web", "Open pull requests on GitHub", "")])))
     var issues = trackedRepository(service ? service.issueRepositories : [], repo)
     if (issues) rows = rows.concat(trackedGroup("repo-issues", "Issues…", "", issueRepositorySummary(issues), issues.issues.map(function(issue) {
       var row = actionRow("repo-issue:" + issue.number, "#" + issue.number + " " + issue.title, "")
       row.secondaryText = issueDetail(issue)
+      row.agentItem = { kind: "issue", repo: issues, value: issue }
       return row
     }).concat([actionRow("repo-issues-web", "Open issues on GitHub", "")])))
     return rows
@@ -1010,7 +1014,7 @@ Panel {
     selectedPullRequestView = "overview"
     selectedIssueRepo = ""
     selectedIssueView = "overview"
-    selectedIssue = null
+    selectedAgentItem = null
     expandedGroups = ({})
     sectionOverrides = ({})
     var target = null
@@ -1177,6 +1181,7 @@ Panel {
   function showAgentPicker(repo) {
     selectedAgentView = view
     selectedRepo = repo
+    selectedAgentItem = null
     service.agentLaunchError = ""
     service.releaseActionError = ""
     showView("agent")
@@ -1254,7 +1259,8 @@ Panel {
     else if (action.indexOf("agent:") === 0 && selectedRepo) {
       if (releaseAgentView) service.prepareRelease(selectedRelease, findingGroups.map(function(group) { return { title: group.title, count: group.findings.length, summary: group.summary } }), action.slice(6), modifiers)
       else if (selectedAgentView === "commit" && selectedCommit) service.openCommitAgent(selectedCommit.repo, selectedCommit.commit, selectedCommitAgentTask, action.slice(6), modifiers)
-      else if (selectedAgentView === "issue-repo" && selectedIssue) service.openIssueAgent(selectedIssues, selectedIssue, action.slice(6), modifiers)
+      else if (selectedAgentItem && selectedAgentItem.kind === "issue") service.openIssueAgent(selectedAgentItem.repo, selectedAgentItem.value, action.slice(6), modifiers)
+      else if (selectedAgentItem && selectedAgentItem.kind === "pull") service.openPullRequestAgent(selectedAgentItem.repo, selectedAgentItem.value, action.slice(6), modifiers)
       else service.openAgent(selectedRepo, action.slice(6), "", modifiers)
     }
     else if (selectedRepo) {
@@ -1661,7 +1667,7 @@ Panel {
                 Row {
                   id: contextActionRow
                   anchors.left: parent.left
-                  anchors.right: parent.right
+                  anchors.right: contextAgentButton.visible ? contextAgentButton.left : parent.right
                   anchors.verticalCenter: parent.verticalCenter
                   anchors.margins: Style.space(8)
                   anchors.leftMargin: Style.space(modelData.child ? 28 : 8)
@@ -1694,6 +1700,20 @@ Panel {
                   }
                 }
                 Text { visible: !!modelData.quick; anchors.right: parent.right; anchors.rightMargin: Style.space(16); anchors.verticalCenter: parent.verticalCenter; text: modelData.chevron || ""; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
+                // Mouse only, like the pull request ignore button; the keyboard opens the row itself.
+                PanelActionButton {
+                  id: contextAgentButton
+                  visible: !!modelData.agentItem
+                  anchors.right: parent.right
+                  anchors.rightMargin: Style.space(8)
+                  anchors.verticalCenter: parent.verticalCenter
+                  iconText: "󱚣"
+                  tooltipText: "Open in agent"
+                  foreground: root.contentForeground
+                  fontFamily: root.contentFontFamily
+                  onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey(modelData.key) }
+                  onClicked: root.showItemAgentPicker(modelData.agentItem.kind, modelData.agentItem.repo, modelData.agentItem.value)
+                }
               }
             }
           }
@@ -1739,7 +1759,7 @@ Panel {
                 Row {
                   id: actionRow
                   anchors.left: parent.left
-                  anchors.right: parent.right
+                  anchors.right: actionAgentButton.visible ? actionAgentButton.left : parent.right
                   anchors.verticalCenter: parent.verticalCenter
                   anchors.leftMargin: Style.space(modelData.child ? 28 : 8)
                   anchors.rightMargin: Style.space(8)
@@ -1772,6 +1792,19 @@ Panel {
                   }
                 }
                 Text { visible: !!modelData.quick; anchors.right: parent.right; anchors.rightMargin: Style.space(16); anchors.verticalCenter: parent.verticalCenter; text: modelData.chevron || ""; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
+                PanelActionButton {
+                  id: actionAgentButton
+                  visible: !!modelData.agentItem
+                  anchors.right: parent.right
+                  anchors.rightMargin: Style.space(8)
+                  anchors.verticalCenter: parent.verticalCenter
+                  iconText: "󱚣"
+                  tooltipText: "Open in agent"
+                  foreground: root.contentForeground
+                  fontFamily: root.contentFontFamily
+                  onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey(modelData.key) }
+                  onClicked: root.showItemAgentPicker(modelData.agentItem.kind, modelData.agentItem.repo, modelData.agentItem.value)
+                }
               }
             }
           }
@@ -2202,6 +2235,7 @@ Panel {
             expanded: ({ pulls: root.sectionExpanded("pulls"), "pulls-empty": root.sectionExpanded("pulls-empty") })
             onToggleRequested: function(id) { root.toggleSection(id) }
             onIgnoreRequested: function(entry) { if (root.service) root.service.ignorePullRequest(root.selectedPullRequests, entry.value) }
+            onAgentRequested: function(entry) { root.showItemAgentPicker("pull", root.selectedPullRequests, entry.value) }
           }
 
           Issues {
@@ -2221,7 +2255,7 @@ Panel {
             sectionsCollapsible: root.sectionsCollapsible
             expanded: ({ issues: root.sectionExpanded("issues"), "issues-empty": root.sectionExpanded("issues-empty") })
             onToggleRequested: function(id) { root.toggleSection(id) }
-            onAgentRequested: function(entry) { root.showIssueAgentPicker(entry.value) }
+            onAgentRequested: function(entry) { root.showItemAgentPicker("issue", root.selectedIssues, entry.value) }
             onCopyRequested: function(entry) { if (root.service) root.service.copyIssueLink(entry.value) }
           }
 
