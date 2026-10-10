@@ -1,0 +1,13 @@
+{
+  "name": "timmo001-dotfiles",
+  "description": "Agent Skills coupled to the timmo001 dotfiles and the dot command",
+  "owner": { "name": "Aidan Timson", "url": "https://github.com/timmo001" },
+  "plugins": [
+    {
+      "name": "dot",
+      "description": "Skills for dot, stow, and the dotfiles workflow",
+      "source": "./dotfiles-skills/.agents/skills",
+      "skills": "./"
+    }
+  ]
+}

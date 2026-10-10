@@ -11,6 +11,7 @@
 --ignore=\.dot-public-packages
 --ignore=\.dot-gh-extensions
 --ignore=^/\.opencode
+--ignore=^/\.claude-plugin
 --ignore=renovate.json
 --ignore=omarchy-plugins.json
 --ignore=^/opencode.json
