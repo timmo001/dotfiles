@@ -71,7 +71,7 @@ Discovery alone needs no new session. Keep focused work in the current session.
    context; do not silently switch servers. For a new agent, let the opener find
    an idle shell or create a pane. Inspect live state when reusing an existing
    worker, and only reuse one that belongs to this assignment.
-2. Read `dot herdr repo-open --help`. Select the requested launcher with `--agent`
+2. Read `dot herdr repo open --help`. Select the requested launcher with `--agent`
    (for example `opencode2`); otherwise match the current runtime. Use
    `dot herdr agents` when the launcher identity is unknown. The opener resolves
    its executable, label and kind; do not repeat that discovery or substitute
@@ -80,7 +80,7 @@ Discovery alone needs no new session. Keep focused work in the current session.
    The one-command launch is:
 
    ```sh
-   dot herdr repo-open --agent "$launcher" --agent-name "$worker_name" \
+   dot herdr repo open --agent "$launcher" --agent-name "$worker_name" \
      --prompt-file "$brief_file" --json "$repo_label" "$repo_path"
    ```
 

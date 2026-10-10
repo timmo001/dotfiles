@@ -1,6 +1,6 @@
 ---
 name: dot-session-status
-description: Query an OpenCode 2 session's selected model, effort variant, context usage and limits with dot session-status. Use before preserving or changing model settings, when asked about context size or the dumb zone, or when context pressure could affect continuing, compacting or handing off work.
+description: Query an OpenCode 2 session's selected model, effort variant, context usage and limits with dot session status. Use before preserving or changing model settings, when asked about context size or the dumb zone, or when context pressure could affect continuing, compacting or handing off work.
 license: Apache-2.0
 compatibility: Requires the dot CLI and the host's configured OpenCode 2 launcher.
 ---
@@ -14,7 +14,7 @@ compatibility: Requires the dot CLI and the host's configured OpenCode 2 launche
    shell environment variable. Do not infer identity from the current directory,
    focused pane, latest session or transcript title. If the ID is unavailable,
    ask for it rather than inspecting an arbitrary session.
-2. Run `dot session-status <session-id> --json`. Use the same command with an
+2. Run `dot session status <session-id> --json`. Use the same command with an
    explicitly supplied ID for another session. Herdr's reported OpenCode session
    ID is also suitable when inspecting an already identified worker.
 3. Use `model` for the selected provider, model ID and optional variant;
@@ -64,6 +64,6 @@ compatibility: Requires the dot CLI and the host's configured OpenCode 2 launche
 - Querying is read-only. The report does not authorise compaction, model changes,
   new workers or closing the current session; follow the owning workflows.
 
-See `dot session-status --help` for flags. The command uses the OpenCode session,
+See `dot session status --help` for flags. The command uses the OpenCode session,
 filtered message and location-scoped model APIs; it returns usage metadata rather
 than dumping message text into the conversation.

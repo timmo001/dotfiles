@@ -1,7 +1,7 @@
 ---
 name: dot-agent-oxlint
 license: Apache-2.0
-compatibility: Requires the dot agent-oxlint command and its managed package cache. Running the advisory pass normally requires repository opt-in through private configuration.
+compatibility: Requires the dot agent oxlint command and its managed package cache. Running the advisory pass normally requires repository opt-in through private configuration.
 description: Run the advisory Oxlint pass on JavaScript or TypeScript changes in dot-managed repositories. Use after the repository's own lint workflow whenever a task changes JS or TS files; the command checks private opt-in and local Oxlint precedence and reports only findings on changed lines.
 ---
 
@@ -12,7 +12,7 @@ description: Run the advisory Oxlint pass on JavaScript or TypeScript changes in
 2. Run it once the change is ready, not after every edit:
 
    ```bash
-   dot agent-oxlint --changed
+   dot agent oxlint --changed
    ```
 
    It lints uncommitted and untracked changes against `HEAD` and prints only
@@ -20,8 +20,8 @@ description: Run the advisory Oxlint pass on JavaScript or TypeScript changes in
    files, or `--all` for a full-tree scan, only when the user requests or the
    task requires it.
    When the user explicitly asks to persist the opt-in, run
-   `dot agent-oxlint --opt-in`. It enables an existing private config entry
-   and commits the single-line change through `dot git-commit`, without pushing.
+   `dot agent oxlint --opt-in`. It enables an existing private config entry
+   and commits the single-line change through `dot git commit`, without pushing.
    Missing entries offer the `dot repo induct` wizard in a terminal.
    For agent use, run `dot repo induct <path> --noninteractive` with the chosen
    `--preset normal` (default) or `--preset home-assistant`, `--agent-oxlint`,
@@ -37,7 +37,7 @@ description: Run the advisory Oxlint pass on JavaScript or TypeScript changes in
    - the repository has its own Oxlint config, dependency, script, or binary.
 
    Do not bypass either gate or add files to make this pass run. Use
-   `dot agent-oxlint --force` only when the user explicitly requests it.
+   `dot agent oxlint --force` only when the user explicitly requests it.
 4. Fix the reported findings that belong to your change. Do not clean
    pre-existing findings elsewhere, and do not widen the diff to make the pass
    clean. If a fix would change behaviour or the design, report the finding
@@ -45,7 +45,7 @@ description: Run the advisory Oxlint pass on JavaScript or TypeScript changes in
 5. Report personal-pass findings separately from the repository's own lint
    result. The managed pass uses only the generic recommended rules.
 
-`dot git-commit` runs the same changed-lines check on the files it commits;
+`dot git commit` runs the same changed-lines check on the files it commits;
 `dot-git-commit` owns what to do when it refuses a commit.
 
 For a repository that should own these rules, load

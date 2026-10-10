@@ -13,7 +13,7 @@ Commands are thin routing prompts: they name an agent, declare required skills o
 | --- | --- | --- |
 | [`/code-review`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/commands/code-review.md) | Review current work or a pull request with the code-review skill in the read-only reviewer agent | `reviewer` |
 | [`/commit-push`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/commands/commit-push.md) | Split current changes into coherent commits and push | `default` |
-| [`/commit`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/commands/commit.md) | Split current changes into coherent commits via the dot git-commit gateway | `default` |
+| [`/commit`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/commands/commit.md) | Split current changes into coherent commits via the dot git commit gateway | `default` |
 | [`/grill`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/commands/grill.md) | Stress-test a plan, decision, or idea with light or full question rounds | `grill` |
 | [`/plan`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/commands/plan.md) | Manual entrypoint to native plan mode from the current conversation context | `plan` |
 | [`/research`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/commands/research.md) | Research a topic from primary sources and compare evidence where judgement is involved | `researcher` |

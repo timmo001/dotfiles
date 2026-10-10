@@ -5,7 +5,7 @@ sidebar:
   label: Overview
 ---
 
-`dot` is the compiled CLI for these dotfiles ([Bun](https://bun.sh) + [Effect](https://effect.website) v4), stowed to `~/.local/bin/dot`. It owns setup, sync, stow, health checks, desktop helpers, and the git tooling used day to day.
+`dot` is the compiled CLI for these dotfiles ([Bun](https://bun.sh) + [Effect](https://effect.website) v4), stowed to `~/.local/bin/dot`. It owns setup, sync, stow, health checks, desktop helpers, and the git tooling used day to day. Related commands are grouped under a shared first word, such as `dot git commit` and `dot agent lint`.
 
 ## Setup and maintenance
 
@@ -13,7 +13,7 @@ sidebar:
 | --- | --- |
 | `dot init` | First-use setup on a fresh machine |
 | `dot update` | Pull, refresh config, stow, rebuild |
-| `dot system-update` | Interactive Dotfiles, Omarchy, and Topgrade updates |
+| `dot update system` | Interactive Dotfiles, Omarchy, and Topgrade updates |
 | `dot deps` | Native grouped dependency discovery, validation, and publish |
 | `dot updates` | Watched package and Dotfiles status for the bar |
 | `dot services` | Monitor registered user services and timers |
@@ -21,8 +21,8 @@ sidebar:
 | `dot doctor` | Parallel health checks and a saved report |
 | `dot snapshot` | CPU and memory snapshot with a filtered process tree |
 | `dot firewall` | Reconcile managed ufw rules |
-| `dot setup-public-repo` | Trust and register the public timmo pacman repository |
-| `dot setup-private-repo` | Sync and register the private pacman repository |
+| `dot setup public repo` | Trust and register the public timmo pacman repository |
+| `dot setup private repo` | Sync and register the private pacman repository |
 | `dot clean` | Remove stowed links / reverse setup side effects |
 | `dot completions` | Regenerate shell completions |
 
@@ -30,15 +30,14 @@ sidebar:
 
 | Command | Purpose |
 | --- | --- |
-| `dot git-diff` | Dirty / ahead / behind state across managed repos |
-| `dot git-commit` | Guarded commits instead of raw `git commit` |
-| `dot git-notifications` | GitHub notification inbox for the shell and CLI |
-| `dot git-web` | Open GitHub URLs in the configured browser |
-| `dot git-releases` | Local release comparisons and reviews for managed repos |
-| `dot git-pull-requests` | Opt-in open PR tracking for the Git panel |
-| `dot git-issues` | Opt-in open issue tracking for the Git panel |
-| `dot git-log` | Cached recent commits across managed repos for the Git panel |
-| `dot pr` | Watch PR checks and reviews, print a PR's reviews, or list reviewable PRs and recent activity |
+| `dot git diff` | Dirty / ahead / behind state across managed repos |
+| `dot git commit` | Guarded commits instead of raw `git commit` |
+| `dot git notifications` | GitHub notification inbox for the shell and CLI |
+| `dot git web` | Open GitHub URLs in the configured browser |
+| `dot git releases` | Local release comparisons and reviews for managed repos |
+| `dot git issues` | Opt-in open issue tracking for the Git panel |
+| `dot git log` | Cached recent commits across managed repos for the Git panel |
+| `dot pr` | Watch PR checks and reviews, print a PR's reviews, list reviewable PRs and recent activity, or track open PRs for the Git panel |
 | `dot repo` | List or fuzzy-search tracked repos, or induct a local repo after a preview |
 
 Managed-repo lists, browser choices, and notification rules live in the private `dot-git.yml` overlay. Branch and stack context for agents come from the separate [context](https://context.timmo.dev) tool.
@@ -47,25 +46,25 @@ Managed-repo lists, browser choices, and notification rules live in the private 
 
 | Command | Purpose |
 | --- | --- |
-| `dot workspace-setup` | Launch or reuse apps and rebuild work/normal layouts |
-| `dot workspace-relayout` | Apply or capture a ratio-based layout on the active workspace |
-| `dot omarchy-shell-config` | Regenerate `shell.json` without a full stow |
-| `dot omarchy-plugin` | Add, update, or remove Omarchy bar plugins |
+| `dot workspace setup` | Launch or reuse apps and rebuild work/normal layouts |
+| `dot workspace relayout` | Apply or capture a ratio-based layout on the active workspace |
+| `dot omarchy shell config` | Regenerate `shell.json` without a full stow |
+| `dot omarchy plugin` | Add, update, or remove Omarchy bar plugins |
 | `dot herdr` | Shared Herdr server, repo workspaces, and attached context |
-| `dot launch-floating-webapp` | Open a floating webapp window |
+| `dot launch floating webapp` | Open a floating webapp window |
 
 ## Agents and tooling
 
 | Command | Purpose |
 | --- | --- |
-| `dot agents-sync` | Mirror global AGENTS into agent harness instruction files |
-| `dot mcp-sync` | Regenerate MCP configs from private `mcp.yml` |
+| `dot agent sync` | Mirror global AGENTS into agent harness instruction files |
+| `dot mcp sync` | Regenerate MCP configs from private `mcp.yml` |
 | `dot run` | Run a command with a deadline and process-group cleanup |
 | `dot skills` | Check and apply skill updates from the skills repo |
-| `dot notes-capture-sync` | Sync notes-capture repository wiring |
-| `dot private-pkg-publish` | Publish a package to the private pacman repo |
-| `dot is-agent` | Detect whether the current process is under an AI agent |
-| `dot agent-lint` | Run a repository's configured lint commands on changed files |
-| `dot agent-oxlint` | Optional advisory Oxlint pass on changed lines |
+| `dot notes capture sync` | Sync notes-capture repository wiring |
+| `dot private pkg publish` | Publish a package to the private pacman repo |
+| `dot agent detect` | Detect whether the current process is under an AI agent |
+| `dot agent lint` | Run a repository's configured lint commands on changed files |
+| `dot agent oxlint` | Optional advisory Oxlint pass on changed lines |
 
-Full flags and subcommands: [Command Reference](/dot/commands/) (generated from `dot/src/cli/spec.ts`) or `dot --help`.
+Full flags and subcommands: [Command Reference](/dot/commands/) (generated from `dot/src/cli/spec.ts`), `dot --help`, or `dot help <command>`.

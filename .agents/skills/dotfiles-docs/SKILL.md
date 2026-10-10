@@ -58,7 +58,7 @@ Short personal reference: what each major part of **these** dotfiles is, and why
 
 When documenting third-party Omarchy bar plugins:
 
-- Import via `omarchy plugin add` (backed by `dot omarchy-plugin`); they land as submodules under `omarchy/.config/omarchy/plugins/`.
+- Import via `omarchy plugin add` (backed by `dot omarchy plugin`); they land as submodules under `omarchy/.config/omarchy/plugins/`.
 - Placement and config live in `omarchy-plugins.json`.
 - A private overlay may extend that layout; say so broadly, without naming private plugins.
 

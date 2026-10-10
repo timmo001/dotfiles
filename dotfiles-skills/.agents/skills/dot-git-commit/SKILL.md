@@ -1,13 +1,13 @@
 ---
 name: dot-git-commit
 license: Apache-2.0
-compatibility: Requires Git and the dot git-commit gateway in a build-capable agent. Working-tree refresh uses the context CLI when injected commit context is unavailable or stale.
-description: Commit workflow using the dot git-commit gateway, splitting a reviewed changeset into coherent commits by default. Use only after the user explicitly requests a commit or push, including /commit or /commit-push. Never infer authorisation for later changes; never run raw git commit.
+compatibility: Requires Git and the dot git commit gateway in a build-capable agent. Working-tree refresh uses the context CLI when injected commit context is unavailable or stale.
+description: Commit workflow using the dot git commit gateway, splitting a reviewed changeset into coherent commits by default. Use only after the user explicitly requests a commit or push, including /commit or /commit-push. Never infer authorisation for later changes; never run raw git commit.
 ---
 
 # Git Commit
 
-Create commits through the `dot git-commit` gateway, never raw `git commit`. The
+Create commits through the `dot git commit` gateway, never raw `git commit`. The
 gateway enforces the maintainer's style guards; this skill covers scope,
 staging, and message authoring around it.
 
@@ -20,7 +20,7 @@ staging, and message authoring around it.
   It does not authorise a later change, a second changeset, or another push.
   Ask or stop unless the user explicitly requests that follow-up work.
 - Run in a build agent. Raw `git commit` is denied in the OpenCode permission
-  config; `dot git-commit` is the allowed path. If `dot git-commit` is denied,
+  config; `dot git commit` is the allowed path. If `dot git commit` is denied,
   stop and report that this needs a build agent, do not fall back to `git commit`.
 - Amend only when the user explicitly requests it and follow the guarded amend
   flow below. Never rebase or otherwise rewrite existing commits here. Never
@@ -36,7 +36,7 @@ staging, and message authoring around it.
   request and conversation determine which candidates belong to the changeset.
   A complete block means only that attribution collection succeeded.
 - When the block contains several `<repository-scope>` sections, treat each as
-  an independent changeset. Run its `dot git-commit` commands from the listed
+  an independent changeset. Run its `dot git commit` commands from the listed
   repository root, and push that repository only once on its final commit.
 - Refresh with `context git` in each repository when the block is absent,
   stale, partial, or does not cover an explicitly requested repository. Follow
@@ -82,11 +82,11 @@ staging, and message authoring around it.
 ## 5. Commit
 
 ```bash
-dot git-commit -m "<subject>"                 # commit the staged set
-dot git-commit -m "<subject>" --path src/x.ts # commit only these files
-dot git-commit --amend                        # fold staged changes into HEAD, keep its message
-dot git-commit --amend -m "<subject>"         # rewrite HEAD's subject (reword)
-dot git-commit -m "<subject>" --dry-run       # preview, change nothing
+dot git commit -m "<subject>"                 # commit the staged set
+dot git commit -m "<subject>" --path src/x.ts # commit only these files
+dot git commit --amend                        # fold staged changes into HEAD, keep its message
+dot git commit --amend -m "<subject>"         # rewrite HEAD's subject (reword)
+dot git commit -m "<subject>" --dry-run       # preview, change nothing
 ```
 
 - Skip `--dry-run` when you already know what is staged and are safe to commit;
@@ -124,7 +124,7 @@ dot git-commit -m "<subject>" --dry-run       # preview, change nothing
 ## 6. Push (only when asked)
 
 ```bash
-dot git-commit -m "<subject>" --push
+dot git commit -m "<subject>" --push
 ```
 
 - `--push` pulls with `--rebase` (autostashing local edits) before pushing so a

@@ -30,7 +30,7 @@ The short `hacdev`, `hafdev*` and `hadev*` functions in `.zshrc` just call `dot 
 | Demo | `dot ha frontend demo [--background]` | `hafdevdemo`, `hafdevdemobg` |
 | E2E test app | `dot ha frontend e2e [--background]` | `hafdeve2eapp`, `hafdeve2eappbg` |
 | Production build | `dot ha frontend build` | `hafbuild` |
-| E2E tests | `dot ha frontend test-e2e [app\|demo\|gallery]` | None |
+| E2E tests | `dot ha frontend test e2e [app\|demo\|gallery]` | None |
 | Core and frontend in Herdr tabs | `dot ha dev [--background]` | `hadev`, `hadevbg` |
 | Stop servers (all by default) | `dot ha stop [target...]` | `hadevstop`, `hacdevstop`, `hafdevstop`, `hafdevservestop`, `hafdevdesignstop`, `hafdevdemostop`, `hafdeve2eappstop`, `hafdevsuitesstop` |
 
@@ -46,7 +46,7 @@ Port 443 already reaches pitchfork's proxy (listening on 8443), so the URLs need
 
 ## How the commands behave
 
-- Interactive runs go through `dot status-run`, which pins a header with the state, URL and elapsed time, and keeps the terminal title in step.
+- Interactive runs go through `dot status run`, which pins a header with the state, URL and elapsed time, and keeps the terminal title in step.
 - Each runs its setup first: `dot ha core setup` for Core (Git, virtual environment, `script/bootstrap`), `script/bootstrap` for the frontend.
 - If the daemon is already running, it asks before restarting it. `dot ha dev`'s Frontend tab follows a running build instead.
 - `--background` starts the daemon and returns once it's ready; otherwise it follows the logs, and Ctrl+C stops it.
@@ -64,7 +64,7 @@ Serving against a remote Core also needs `https://serve.ha-frontend.localhost` i
 
 [![Open your Home Assistant instance and show your network configuration.](https://my.home-assistant.io/badges/network.svg)](https://my.home-assistant.io/redirect/network/)
 
-The browser blocks an HTTPS page from calling a plain HTTP Core, so the login works but the frontend can't connect afterwards. `ha-core/prod` fronts the prod instance on an HTTPS URL with `dot http-forward`, which drops the proxy's `X-Forwarded-*` headers so the remote Core accepts the requests without trusting this machine as a proxy. `dot ha f serve prod` starts it before `serve`.
+The browser blocks an HTTPS page from calling a plain HTTP Core, so the login works but the frontend can't connect afterwards. `ha-core/prod` fronts the prod instance on an HTTPS URL with `dot http forward`, which drops the proxy's `X-Forwarded-*` headers so the remote Core accepts the requests without trusting this machine as a proxy. `dot ha f serve prod` starts it before `serve`.
 
 Core only registers the frontend routes if `hass_frontend` exists when it starts, and a fresh build briefly removes it. `ha-core/dev` depends on `ha-frontend/build`, so starting Core starts the build too and waits for it to be ready.
 
@@ -106,7 +106,7 @@ retry = true
 stop_signal = { signal = "SIGTERM", timeout = "60s" }
 
 [daemons.prod]
-run = "exec dot http-forward --port 8126 --target http://homeassistant.local:8123"
+run = "exec dot http forward --port 8126 --target http://homeassistant.local:8123"
 port = 8126
 ready_port = 8126
 ```

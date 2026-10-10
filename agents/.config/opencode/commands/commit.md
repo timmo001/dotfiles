@@ -1,5 +1,5 @@
 ---
-description: Split current changes into coherent commits via the dot git-commit gateway
+description: Split current changes into coherent commits via the dot git commit gateway
 ---
 
 This authorises commits, but not pushes, for the current requested changeset.
