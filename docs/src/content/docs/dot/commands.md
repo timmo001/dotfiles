@@ -2640,6 +2640,55 @@ dot herdr model [flags] <target> <model>
 | `<target>` | Herdr agent name or pane ID |
 | `<model>` | OpenCode 2 model or unique name match, optionally with #variant |
 
+### `dot herdr pane`
+
+Move panes between tabs
+
+```text
+dot herdr pane <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot herdr pane move`
+
+Move a pane into another tab, beside a chosen pane
+
+```text
+dot herdr pane move [flags] [<pane>]
+```
+
+Moves the focused pane, or a pane ID or live agent name, into another tab or out into a new tab. On a terminal, anything the flags leave open is asked for: which pane when its tab has several, the destination tab (filterable across every workspace, current workspace first, each listing its panes and agents), which pane to split beside when the destination has several, and the split direction, offering first the one that suits that pane's shape. Without a terminal, or with --json, the focused panes are used, --split defaults to auto and --to is required. Moving into another workspace gives the pane a new ID, which the output reports; agent names follow the pane.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--to` `<string>` | Destination tab ID, tab number in the pane's workspace, tab label, or new |
+| `--target` `<string>` | Pane ID or agent name in the destination tab to split beside |
+| `--split` `<choice>` | Split direction; auto picks right for wide panes and down for tall ones (choices: auto, right, down) |
+| `--no-focus` | Leave focus where it is |
+| `--json` | Print the moved pane, tab and split as JSON |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<pane>` | Pane ID or agent name to move (default: the focused pane) |
+
+**Examples**
+
+```bash
+dot herdr pane move
+dot herdr pane move reviewer --to 2 --split auto
+dot herdr pane move --to new
+```
+
 ### `dot herdr context`
 
 Show context for a locally attached Herdr terminal

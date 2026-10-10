@@ -24,6 +24,7 @@ import {
 import { herdrModel, herdrRepoOpen } from "../commands/HerdrRepoOpen.js";
 import { installedHerdrAgents } from "../commands/HerdrAgents.js";
 import { herdrContext } from "../commands/HerdrContext.js";
+import { herdrPaneMove } from "../commands/HerdrPaneMove.js";
 import { herdrServerAction, herdrStart } from "../commands/HerdrServer.js";
 import { init } from "../commands/Init.js";
 import { install } from "../commands/Install.js";
@@ -2852,6 +2853,54 @@ const herdrModelCommand = describe(
   "Switch the model and variant of an existing Herdr OpenCode 2 agent. Validates the model with opencode2 models and any #variant or --variant against the project's model catalogue before updating the session through the API. Omitting the variant selects the model's default settings. Does not send a prompt or interrupt a request already in progress.",
 );
 
+const herdrPaneMoveCommand = describe(
+  Command.make(
+    "move",
+    {
+      pane: Argument.String("pane").pipe(
+        Argument.withDescription(
+          "Pane ID or agent name to move (default: the focused pane)",
+        ),
+        Argument.optional,
+      ),
+      to: text(
+        "to",
+        "Destination tab ID, tab number in the pane's workspace, tab label, or new",
+      ),
+      target: text(
+        "target",
+        "Pane ID or agent name in the destination tab to split beside",
+      ),
+      split: Flag.Literals("split", ["auto", "right", "down"]).pipe(
+        Flag.withDescription(
+          "Split direction; auto picks right for wide panes and down for tall ones",
+        ),
+        Flag.optional,
+      ),
+      noFocus: bool("no-focus", "Leave focus where it is"),
+      json: bool("json", "Print the moved pane, tab and split as JSON"),
+    },
+    ({ pane, to, target, split, ...input }) =>
+      herdrPaneMove({
+        ...input,
+        pane: optional(pane),
+        to: optional(to),
+        target: optional(target),
+        split: optional(split),
+      }),
+  ),
+  "Move a pane into another tab, beside a chosen pane",
+  [
+    "dot herdr pane move",
+    "dot herdr pane move reviewer --to 2 --split auto",
+    "dot herdr pane move --to new",
+  ],
+  {
+    description:
+      "Moves the focused pane, or a pane ID or live agent name, into another tab or out into a new tab. On a terminal, anything the flags leave open is asked for: which pane when its tab has several, the destination tab (filterable across every workspace, current workspace first, each listing its panes and agents), which pane to split beside when the destination has several, and the split direction, offering first the one that suits that pane's shape. Without a terminal, or with --json, the focused panes are used, --split defaults to auto and --to is required. Moving into another workspace gives the pane a new ID, which the output reports; agent names follow the pane.",
+  },
+);
+
 const herdrStartCommand = describe(
   Command.make("start", {}, () => herdrStart),
   "Start the default Herdr server with the desktop autostart launch context",
@@ -2890,6 +2939,12 @@ const herdr = describe(
         "Open repository workspaces",
       ),
       herdrModelCommand,
+      describe(
+        Command.make("pane").pipe(
+          Command.withSubcommands([herdrPaneMoveCommand]),
+        ),
+        "Move panes between tabs",
+      ),
       describe(
         Command.make(
           "context",
