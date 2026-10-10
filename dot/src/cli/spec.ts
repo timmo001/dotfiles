@@ -2867,6 +2867,10 @@ const herdrPaneMoveCommand = describe(
         "to",
         "Destination tab ID, tab number in the pane's workspace, tab label, or new",
       ),
+      workspace: text(
+        "workspace",
+        "Workspace ID or label for --to new (default: the pane's workspace)",
+      ),
       target: text(
         "target",
         "Pane ID or agent name in the destination tab to split beside",
@@ -2880,11 +2884,12 @@ const herdrPaneMoveCommand = describe(
       noFocus: bool("no-focus", "Leave focus where it is"),
       json: bool("json", "Print the moved pane, tab and split as JSON"),
     },
-    ({ pane, to, target, split, ...input }) =>
+    ({ pane, to, workspace, target, split, ...input }) =>
       herdrPaneMove({
         ...input,
         pane: optional(pane),
         to: optional(to),
+        workspace: optional(workspace),
         target: optional(target),
         split: optional(split),
       }),
@@ -2894,10 +2899,11 @@ const herdrPaneMoveCommand = describe(
     "dot herdr pane move",
     "dot herdr pane move reviewer --to 2 --split auto",
     "dot herdr pane move --to new",
+    "dot herdr pane move --to new --workspace Dotfiles",
   ],
   {
     description:
-      "Moves the focused pane, or a pane ID or live agent name, into another tab or out into a new tab. On a terminal, anything the flags leave open is asked for: which pane when its tab has several, the destination tab (filterable across every workspace, current workspace first, each listing its panes and agents), which pane to split beside when the destination has several, and the split direction, offering first the one that suits that pane's shape. Without a terminal, or with --json, the focused panes are used, --split defaults to auto and --to is required. Moving into another workspace gives the pane a new ID, which the output reports; agent names follow the pane.",
+      "Moves the focused pane, or a pane ID or live agent name, into another tab or out into a new tab. On a terminal, anything the flags leave open is asked for: which pane when its tab has several, the destination (filterable across every workspace, current workspace first: each workspace's tabs with their panes and agents, then a new tab there), which pane to split beside when the destination has several, and the split direction, offering first the one that suits that pane's shape. Without a terminal, or with --json, the focused panes are used, --split defaults to auto and --to is required. --to new opens a new tab in the pane's workspace, or in --workspace. Esc, Ctrl+C or Ctrl+D cancels. Moving into another workspace gives the pane a new ID, which the output reports; agent names follow the pane.",
   },
 );
 

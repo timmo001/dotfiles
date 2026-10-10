@@ -1,3 +1,4 @@
+import { NodeTerminal } from "@effect/platform-node";
 import {
   HerdrSdk,
   herdrSdkLayerFromOptions,
@@ -6,7 +7,15 @@ import {
   type Tab,
   type Workspace,
 } from "@timmo001/effect-herdr";
-import { Cause, Duration, Effect, Option, Schema } from "effect";
+import {
+  Cause,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  Schema,
+  Terminal,
+} from "effect";
 import { Prompt } from "effect/cli";
 import { ENV, envString } from "../lib/env.js";
 import { formatCause } from "../lib/schema.js";
@@ -21,6 +30,8 @@ export interface HerdrPaneMoveOptions {
   readonly pane?: string;
   /** Destination tab ID, number in the source workspace, label, or new. */
   readonly to?: string;
+  /** Workspace ID or label for --to new; defaults to the pane's workspace. */
+  readonly workspace?: string;
   /** Pane ID or agent name in the destination tab to split beside. */
   readonly target?: string;
   /** Split direction, or auto to choose from the target pane's shape. */
@@ -58,7 +69,8 @@ interface Snapshot {
 }
 
 type Destination =
-  { readonly type: "tab"; readonly tab: Tab } | { readonly type: "new_tab" };
+  | { readonly type: "tab"; readonly tab: Tab }
+  | { readonly type: "new_tab"; readonly workspace: Workspace };
 
 const usageError = (message: string) =>
   new HerdrPaneMoveError({ message, exitCode: 2 });
@@ -68,8 +80,19 @@ const canPrompt = (options: HerdrPaneMoveOptions) =>
   process.stdin.isTTY === true &&
   process.stdout.isTTY === true;
 
+// Esc cancels as well as Ctrl+C and Ctrl+D, so the Herdr popup can be dismissed.
+const cancellableTerminal = Layer.effect(
+  Terminal.Terminal,
+  NodeTerminal.make(
+    ({ key }) =>
+      key.name === "escape" ||
+      (key.ctrl && (key.name === "c" || key.name === "d")),
+  ),
+);
+
 const ask = <A>(prompt: Prompt.Prompt<A>) =>
   Prompt.run(prompt).pipe(
+    Effect.provide(cancellableTerminal),
     Effect.catchTag("QuitError", () => Effect.fail(new PromptCancelled())),
   );
 
@@ -126,6 +149,35 @@ function findPane(snapshot: Snapshot, value: string): Pane | undefined {
           agentFor(snapshot, pane)?.name ?? Option.none(),
         ) === value,
     )
+  );
+}
+
+/** Resolve --workspace as an ID, then an exact or unique partial label. */
+function findWorkspace(snapshot: Snapshot, value: string) {
+  const needle = value.toLowerCase();
+
+  const byId = snapshot.workspaces.find((workspace) => workspace.id === value);
+
+  const exact = snapshot.workspaces.filter(
+    (workspace) => workspace.label.toLowerCase() === needle,
+  );
+
+  const matches = byId
+    ? [byId]
+    : exact.length > 0
+      ? exact
+      : snapshot.workspaces.filter((workspace) =>
+          workspace.label.toLowerCase().includes(needle),
+        );
+
+  if (matches.length === 1 && matches[0]) return Effect.succeed(matches[0]);
+
+  return Effect.fail(
+    usageError(
+      matches.length > 1
+        ? `More than one workspace matches ${value}; use its ID`
+        : `No workspace matches ${value}`,
+    ),
   );
 }
 
@@ -232,10 +284,23 @@ const chooseDestination = Effect.fn("herdrPaneMove.destination")(function* (
 ) {
   const alone = panesIn(snapshot, { id: source.tabId }).length < 2;
 
-  if (options.to?.toLowerCase() === NEW_TAB) {
-    if (alone) return yield* usageError("The pane is already alone in its tab");
+  if (options.workspace && options.to?.toLowerCase() !== NEW_TAB)
+    return yield* usageError("--workspace only applies with --to new");
 
-    return { type: "new_tab" } satisfies Destination;
+  if (options.to?.toLowerCase() === NEW_TAB) {
+    const workspace = options.workspace
+      ? yield* findWorkspace(snapshot, options.workspace)
+      : snapshot.workspaces.find(
+          (workspace) => workspace.id === source.workspaceId,
+        );
+
+    if (!workspace)
+      return yield* usageError("Herdr did not report the pane's workspace");
+
+    if (alone && workspace.id === source.workspaceId)
+      return yield* usageError("The pane is already alone in its tab");
+
+    return { type: "new_tab", workspace } satisfies Destination;
   }
 
   if (options.to) {
@@ -250,39 +315,48 @@ const chooseDestination = Effect.fn("herdrPaneMove.destination")(function* (
   if (!canPrompt(options))
     return yield* usageError("Pass --to when not running in a terminal");
 
-  // Tabs in the source workspace first, then the rest in sidebar order.
-  const candidates = snapshot.tabs
-    .filter((tab) => tab.id !== source.tabId)
-    .toSorted(
-      (a, b) =>
-        Number(b.workspaceId === source.workspaceId) -
-        Number(a.workspaceId === source.workspaceId),
-    );
+  // The source workspace first, then the rest in sidebar order. Each
+  // workspace lists its tabs, then a new tab there.
+  const workspaces = snapshot.workspaces.toSorted(
+    (a, b) =>
+      Number(b.id === source.workspaceId) - Number(a.id === source.workspaceId),
+  );
 
-  if (candidates.length === 0 && alone)
-    return yield* usageError("There is no other tab to move the pane into");
+  const choices = workspaces.flatMap(
+    (workspace): Prompt.SelectChoice<Destination>[] => {
+      const current = workspace.id === source.workspaceId;
 
-  return yield* ask(
-    Prompt.AutoComplete<Destination>({
-      message: `Move ${describePane(snapshot, source)} into`,
-      choices: [
-        ...candidates.map((tab) => ({
+      const tabs = snapshot.tabs
+        .filter(
+          (tab) => tab.workspaceId === workspace.id && tab.id !== source.tabId,
+        )
+        .map((tab): Prompt.SelectChoice<Destination> => ({
           title: describeTab(snapshot, tab),
           description: panesIn(snapshot, tab)
             .map((pane) => describePane(snapshot, pane))
             .join(", "),
-          value: { type: "tab", tab } as const,
-        })),
-        ...(alone
-          ? []
-          : [
-              {
-                title: "New tab",
-                description: "Break the pane out into its own tab",
-                value: { type: "new_tab" } as const,
-              },
-            ]),
-      ],
+          value: { type: "tab", tab },
+        }));
+
+      const newTab: Prompt.SelectChoice<Destination> = {
+        title: `${workspace.label} › New tab`,
+        description: current
+          ? "Break the pane out into its own tab"
+          : "Open the pane in a new tab in this workspace",
+        value: { type: "new_tab", workspace },
+      };
+
+      return current && alone ? tabs : [...tabs, newTab];
+    },
+  );
+
+  if (choices.length === 0)
+    return yield* usageError("There is nowhere else to move the pane");
+
+  return yield* ask(
+    Prompt.AutoComplete<Destination>({
+      message: `Move ${describePane(snapshot, source)} into`,
+      choices,
     }),
   );
 });
@@ -350,16 +424,19 @@ const chooseSplit = Effect.fn("herdrPaneMove.split")(function* (
 
   const other = suggested === "right" ? "down" : "right";
 
+  const title = (split: "right" | "down") =>
+    split === "right" ? "Right" : "Down";
+
   return yield* ask(
     Prompt.Select<"right" | "down">({
       message: "Split",
       choices: [
         {
-          title: suggested,
+          title: title(suggested),
           description: "fits the pane's shape",
           value: suggested,
         },
-        { title: other, value: other },
+        { title: title(other), value: other },
       ],
     }),
   );
@@ -377,14 +454,17 @@ export const herdrPaneMove = Effect.fn("herdrPaneMove")(
 
     if (destination.type === "new_tab") {
       const result = yield* herdr.panes.move(source.id, {
-        destination: { type: "new_tab", workspaceId: source.workspaceId },
+        destination: {
+          type: "new_tab",
+          workspaceId: destination.workspace.id,
+        },
         focus,
       });
 
       process.stdout.write(
         options.json
           ? `${JSON.stringify({ pane: result.pane.id, previousPane: result.previousPaneId, tab: result.pane.tabId })}\n`
-          : `Moved ${sourceName} into a new tab\n`,
+          : `Moved ${sourceName} into a new tab in ${destination.workspace.label}\n`,
       );
 
       return;
