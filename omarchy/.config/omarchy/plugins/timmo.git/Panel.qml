@@ -139,6 +139,49 @@ Panel {
   // Long file lists and diff previews collapse to these heights until expanded.
   readonly property real filesCollapsedHeight: Style.space(160)
   readonly property real diffCollapsedHeight: Style.space(240)
+
+  // A diff preview that collapses to diffCollapsedHeight until expanded; the owner keeps the expanded state.
+  component DiffBody: Column {
+    id: diffBody
+    property string text: ""
+    property bool expanded: false
+    readonly property bool overflowing: diffText.implicitHeight > root.diffCollapsedHeight
+    signal toggleRequested()
+    width: parent.width
+    spacing: Style.space(8)
+    Item {
+      x: Style.space(16)
+      width: parent.width - Style.space(32)
+      height: diffBody.overflowing && !diffBody.expanded ? root.diffCollapsedHeight : diffText.implicitHeight
+      clip: true
+      Text {
+        id: diffText
+        width: parent.width
+        text: diffBody.text
+        textFormat: Text.RichText
+        wrapMode: Text.WrapAnywhere
+        color: root.contentForeground
+        font.family: root.contentFontFamily
+        font.pixelSize: Style.font.caption
+      }
+    }
+    Text {
+      visible: diffBody.overflowing
+      x: Style.space(16)
+      text: diffBody.expanded ? "Show less" : "Show more"
+      color: root.dimColor
+      font.family: root.contentFontFamily
+      font.pixelSize: Style.font.caption
+      font.underline: diffToggle.containsMouse
+      MouseArea {
+        id: diffToggle
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: diffBody.toggleRequested()
+      }
+    }
+  }
   property var expandedSections: ({})
 
   function toggleExpanded(key) {
@@ -182,20 +225,20 @@ Panel {
   function withSectionToggles(rows) {
     var changes = view === "overview" ? [] : changeSections
     var files = changes.map(function(section) { return toggleRow("files:" + section.target) })
-    var diffs = changes.filter(function(section) {
+    // Outside release views each diff sits under its files heading, so only release views have diff headings.
+    var diffs = releaseView ? changes.filter(function(section) {
       var detail = service ? service.changeDetail(section.path, section.target, section.files) : null
       return !!detail && !!detail.preview
-    }).map(function(section) { return toggleRow("diff:" + section.target) })
+    }).map(function(section) { return toggleRow("diff:" + section.target) }) : []
     var seen = {}
     var result = []
     rows.forEach(function(row) {
       var id = sectionId(row)
-      if (!releaseView && id === "log" && diffs.length) { result = result.concat(diffs); diffs = [] }
+      if (!releaseView && id === "log" && files.length) { result = result.concat(files); files = [] }
       if (id && !seen[id]) { seen[id] = true; result.push(toggleRow(id)) }
       result.push(row)
       if (row.kind !== "navigation") return
       if (releaseView && view !== "releases" && !seen.summary) { seen.summary = true; result.push(toggleRow("summary")) }
-      if (!releaseView) { result = result.concat(files); files = [] }
     })
     return result.concat(files, diffs)
   }
@@ -1073,7 +1116,7 @@ Panel {
   function sectionHeading(id) {
     if (id.indexOf("files:") === 0 || id.indexOf("diff:") === 0) {
       var target = id.slice(id.indexOf(":") + 1)
-      var repeaters = id.indexOf("files:") === 0 ? [filesRepeater, releaseFilesRepeater] : [diffRepeater, releaseDiffRepeater]
+      var repeaters = id.indexOf("files:") === 0 ? [filesRepeater, releaseFilesRepeater] : [releaseDiffRepeater]
       for (var r = 0; r < repeaters.length; r++)
         for (var i = 0; i < repeaters[r].count; i++) {
           var item = repeaters[r].itemAt(i)
@@ -1476,13 +1519,6 @@ Panel {
             onRefreshRequested: root.activateAction("context-refresh")
           }
 
-          // Release views show changes after their actions and findings; the other sections belong to different views.
-          Repeater {
-            id: filesRepeater
-            model: root.releaseView ? [] : root.changeSections
-            delegate: filesSectionDelegate
-          }
-
           Component {
             id: filesSectionDelegate
             Column {
@@ -1588,6 +1624,13 @@ Panel {
                   cursorShape: Qt.PointingHandCursor
                   onClicked: root.toggleExpanded(filesSection.expandKey)
                 }
+              }
+              DiffBody {
+                readonly property string expandKey: "diff:" + filesSection.modelData.path + "@" + filesSection.modelData.target + "#" + (filesSection.modelData.files || []).join("\n")
+                visible: !!filesSection.modelData.withDiff && filesSection.bodyShown && !!filesSection.detail && !!filesSection.detail.preview
+                text: visible ? root.changeDiffText(filesSection.detail) : ""
+                expanded: !!root.expandedSections[expandKey]
+                onToggleRequested: root.toggleExpanded(expandKey)
               }
             }
           }
@@ -1733,10 +1776,12 @@ Panel {
             }
           }
 
+          // Each change section lists its files then its diff, after the actions.
+          // Release views show changes after their findings, with a separate diff section.
           Repeater {
-            id: diffRepeater
-            model: root.releaseView ? [] : root.changeSections
-            delegate: diffSectionDelegate
+            id: filesRepeater
+            model: root.releaseView ? [] : root.changeSections.map(function(section) { return Object.assign({ withDiff: true }, section) })
+            delegate: filesSectionDelegate
           }
 
           Component {
@@ -1750,7 +1795,6 @@ Panel {
               readonly property var detail: root.service ? root.service.changeDetail(modelData.path, modelData.target, modelData.files) : null
               readonly property string expandKey: "diff:" + modelData.path + "@" + modelData.target + "#" + (modelData.files || []).join("\n")
               readonly property bool expanded: !!root.expandedSections[expandKey]
-              readonly property bool overflowing: diffText.implicitHeight > root.diffCollapsedHeight
               visible: !!detail && !!detail.preview
               width: contentColumn.width
               spacing: contentColumn.spacing
@@ -1766,38 +1810,11 @@ Panel {
                 onToggleHovered: filterController.cursorIndex = filterController.indexForKey("toggle:" + diffSection.sectionId)
                 onToggleRequested: root.toggleSection(diffSection.sectionId)
               }
-              Item {
+              DiffBody {
                 visible: diffSection.bodyShown
-                x: Style.space(16)
-                width: parent.width - Style.space(32)
-                height: diffSection.overflowing && !diffSection.expanded ? root.diffCollapsedHeight : diffText.implicitHeight
-                clip: true
-                Text {
-                  id: diffText
-                  width: parent.width
-                  text: root.changeDiffText(diffSection.detail)
-                  textFormat: Text.RichText
-                  wrapMode: Text.WrapAnywhere
-                  color: root.contentForeground
-                  font.family: root.contentFontFamily
-                  font.pixelSize: Style.font.caption
-                }
-              }
-              Text {
-                visible: diffSection.bodyShown && diffSection.overflowing
-                x: Style.space(16)
-                text: diffSection.expanded ? "Show less" : "Show more"
-                color: root.dimColor
-                font.family: root.contentFontFamily
-                font.pixelSize: Style.font.caption
-                font.underline: diffToggle.containsMouse
-                MouseArea {
-                  id: diffToggle
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: root.toggleExpanded(diffSection.expandKey)
-                }
+                text: root.changeDiffText(diffSection.detail)
+                expanded: diffSection.expanded
+                onToggleRequested: root.toggleExpanded(diffSection.expandKey)
               }
             }
           }
