@@ -1,6 +1,6 @@
 import { Effect, Match } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
-import { GitHub } from "../../git/services/GitHub.js";
+import { GitHub, viewerLogin } from "../../git/services/GitHub.js";
 import { githubWorkflowScope } from "../../lib/githubWorkflowScope.js";
 import type { CheckResult } from "../types.js";
 
@@ -88,11 +88,9 @@ export const checkDependencies = Effect.gen(function* () {
   const ghAvailable = yield* github.isAvailable;
 
   if (ghAvailable) {
-    const ghUser = yield* github
-      .api("user", { jq: ".login" })
+    const username = yield* github
+      .read("user", viewerLogin)
       .pipe(Effect.orElseSucceed(() => ""));
-
-    const username = ghUser.trim();
 
     if (username) {
       results.push({

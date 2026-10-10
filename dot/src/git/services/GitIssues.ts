@@ -17,7 +17,8 @@ import {
   type IssueExclusion,
 } from "../../services/GitConfig.js";
 import { formatCause } from "../../lib/schema.js";
-import { GitHub } from "./GitHub.js";
+import { Api } from "@timmo001/effect-gh";
+import { GitHub, viewerLogin } from "./GitHub.js";
 import { formatGhError } from "./record.js";
 
 const REFRESH_MS = 5 * 60 * 1000;
@@ -146,9 +147,7 @@ export class GitIssues extends Context.Service<GitIssues, GitIssuesService>()(
 
         const exclusions = config.gitConfig.issueExclusions;
 
-        const login = yield* Effect.cached(
-          github.api("user", { jq: ".login" }),
-        );
+        const login = yield* Effect.cached(github.read("user", viewerLogin));
 
         return yield* Effect.forEach(
           repositories,
@@ -230,22 +229,13 @@ export class GitIssues extends Context.Service<GitIssues, GitIssuesService>()(
                 ).pipe(
                   Effect.flatMap((endpoints) =>
                     Effect.forEach(endpoints, (url) =>
-                      github
-                        .json([
-                          "api",
-                          "--method",
-                          "GET",
-                          url,
-                          "--paginate",
-                          "--slurp",
-                        ])
-                        .pipe(
-                          Effect.flatMap(
-                            Schema.decodeUnknownEffect(
-                              Schema.Array(Schema.Array(RemoteIssue)),
-                            ),
-                          ),
+                      github.read(
+                        url,
+                        Api.pages(
+                          { endpoint: url, method: "GET" },
+                          Schema.Array(RemoteIssue),
                         ),
+                      ),
                     ),
                   ),
                   Effect.map((pages) =>

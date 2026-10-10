@@ -1,7 +1,8 @@
-import { Gh, PullRequest, type GhError } from "@timmo001/effect-gh";
+import { PullRequest, Workflow, type GhError } from "@timmo001/effect-gh";
 import { Clock, Duration, Effect, FileSystem, Option, Schema } from "effect";
 import { dirname, join } from "node:path";
 import { STATE_DIR, displayPath, expandHomePath } from "../lib/paths.js";
+import { formatCause } from "../lib/schema.js";
 import {
   GH_OPTIONS as GH,
   authorLogin as author,
@@ -46,34 +47,14 @@ const FAILED = new Set(["failure", "timed_out", "startup_failure"]);
 
 const EXIT = { passed: 0, failed: 1, stopped: 3, timedOut: 124 } as const;
 
-const Run = Schema.Struct({
-  databaseId: Schema.Int,
-  attempt: Schema.Int,
-  name: Schema.String,
-  workflowName: Schema.NullOr(Schema.String),
-  event: Schema.String,
-  status: Schema.String,
-  conclusion: Schema.NullOr(Schema.String),
-  url: Schema.String,
-});
+const workflowErrorMessage = (error: GhError | Workflow.InvalidOptions) =>
+  error instanceof Workflow.InvalidOptions
+    ? `invalid workflow options: ${formatCause(error.cause)}`
+    : ghErrorMessage(error);
 
-type Run = typeof Run.Type;
+type Run = Workflow.Run;
 
-const Job = Schema.Struct({
-  databaseId: Schema.Int,
-  name: Schema.String,
-  status: Schema.String,
-  conclusion: Schema.NullOr(Schema.String),
-  url: Schema.String,
-  steps: Schema.Array(
-    Schema.Struct({
-      name: Schema.String,
-      conclusion: Schema.NullOr(Schema.String),
-    }),
-  ),
-});
-
-type Job = typeof Job.Type;
+type Job = Workflow.Job;
 
 interface Target extends PullRequestRef {
   head: string;
@@ -137,8 +118,6 @@ function formatFailedLog(raw: string, limit: number): string {
 const watchPullRequests = Effect.fn("prWatch")(function* (
   options: PrWatchOptions,
 ) {
-  const gh = yield* Gh;
-
   const resolved = yield* Effect.forEach(
     options.prs.length > 0 ? options.prs : [undefined],
     (selector) => resolvePullRequest(selector, options.repo),
@@ -223,28 +202,20 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
       `FAILED ${runLabel(run)}: ${job.name}${steps.length > 0 ? ` (steps: ${steps.join(", ")})` : ""}`,
     );
 
-    const log = yield* gh
-      .execute(
-        [
-          "run",
-          "view",
-          String(run.databaseId),
-          "--repo",
-          target.repo,
-          "--job",
-          String(job.databaseId),
-          "--log-failed",
-        ],
-        GH,
-      )
-      .pipe(
-        Effect.map((output) =>
-          formatFailedLog(output.stdout, options.logLines),
-        ),
-        Effect.catch((error: GhError) =>
-          Effect.succeed(`Log unavailable: ${ghErrorMessage(error)}`),
-        ),
-      );
+    const log = yield* Workflow.logs(
+      {
+        repo: target.repo,
+        runId: run.databaseId,
+        job: job.databaseId,
+        failedOnly: true,
+      },
+      GH,
+    ).pipe(
+      Effect.map((output) => formatFailedLog(output, options.logLines)),
+      Effect.catch((error) =>
+        Effect.succeed(`Log unavailable: ${workflowErrorMessage(error)}`),
+      ),
+    );
 
     yield* write(
       `\n### Failed: #${target.number} ${runLabel(run)} / ${job.name}\n\n${job.url}\n\n\`\`\`text\n${log}\n\`\`\`\n`,
@@ -270,20 +241,8 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
     }
 
     const runs = latestRuns(
-      yield* gh.json(
-        [
-          "run",
-          "list",
-          "--repo",
-          target.repo,
-          "--commit",
-          target.head,
-          "--limit",
-          "100",
-          "--json",
-          "databaseId,attempt,name,workflowName,event,status,conclusion,url",
-        ],
-        Schema.Array(Run),
+      yield* Workflow.list(
+        { repo: target.repo, commit: target.head, limit: 100 },
         GH,
       ),
     );
@@ -308,17 +267,8 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
       target.runs.set(run.databaseId, key);
 
       if (done || run.status === "in_progress") {
-        const { jobs } = yield* gh.json(
-          [
-            "run",
-            "view",
-            String(run.databaseId),
-            "--repo",
-            target.repo,
-            "--json",
-            "jobs",
-          ],
-          Schema.Struct({ jobs: Schema.Array(Job) }),
+        const jobs = yield* Workflow.jobs(
+          { repo: target.repo, runId: run.databaseId },
           GH,
         );
 
@@ -416,10 +366,10 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
         targets,
         (target) =>
           pollTarget(target).pipe(
-            Effect.catch((error: GhError) =>
+            Effect.catch((error) =>
               say(
                 target,
-                `[WARN] Poll failed, retrying: ${ghErrorMessage(error)}`,
+                `[WARN] Poll failed, retrying: ${workflowErrorMessage(error)}`,
               ),
             ),
           ),

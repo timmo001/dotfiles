@@ -1,12 +1,12 @@
-import { Gh } from "@timmo001/effect-gh";
+import { Extension, type Gh } from "@timmo001/effect-gh";
 import { Effect } from "effect";
+import { toGitHubError } from "../git/services/GitHub.js";
 import { cliStyler } from "./ansi.js";
 import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { ENV, envString } from "./env.js";
-import { ghOutput } from "./gh.js";
 import { readListFile } from "./listFile.js";
 import type { ConfigService } from "../services/Config.js";
 
@@ -28,38 +28,24 @@ export function loadGhExtensions(filePath: string): readonly string[] {
 }
 
 /**
- * Parse `gh extension list` output into the set of installed extension repos,
- * lower-cased as `owner/repo` for case-insensitive matching. The repo column
- * is the only whitespace-separated field containing a slash.
+ * Installed gh extension repos, lower-cased as `owner/repo` for
+ * case-insensitive matching, or an empty set when `gh` cannot list them.
  */
-export function parseInstalledGhExtensions(
-  output: string,
-): ReadonlySet<string> {
-  const installed = new Set<string>();
-
-  for (const line of output.split("\n")) {
-    for (const field of line.trim().split(/\s+/)) {
-      if (field.includes("/")) installed.add(field.toLowerCase());
-    }
-  }
-
-  return installed;
-}
-
-/** Installed gh extension repos, or an empty set when `gh` cannot list them. */
 export const installedGhExtensions: Effect.Effect<
   ReadonlySet<string>,
   never,
   Gh
-> = Effect.gen(function* () {
-  const gh = yield* Gh;
-
-  const listed = yield* ghOutput(gh, ["extension", "list"]).pipe(
-    Effect.orElseSucceed(() => ""),
-  );
-
-  return parseInstalledGhExtensions(listed);
-});
+> = Extension.list().pipe(
+  Effect.map(
+    (extensions) =>
+      new Set(
+        extensions
+          .filter((extension) => extension.repository !== "")
+          .map((extension) => extension.repository.toLowerCase()),
+      ),
+  ),
+  Effect.orElseSucceed(() => new Set<string>()),
+);
 
 /**
  * Install any configured gh CLI extensions that are not already present.
@@ -106,14 +92,14 @@ export const installGhExtensions: Effect.Effect<
   for (const repo of missing) {
     yield* log.info(`Installing gh extension: ${repo}`);
 
-    const exitCode = yield* executor.inherit("gh", [
-      "extension",
-      "install",
-      repo,
-    ]);
+    yield* Extension.install(repo, { interactive: true, timeout: null }).pipe(
+      Effect.catch((error) => {
+        const failure = toGitHubError("gh extension install", error);
 
-    if (exitCode !== 0) {
-      yield* log.warn(`gh extension install ${repo} exited ${exitCode}`);
-    }
+        return log.warn(
+          `gh extension install ${repo} failed: ${failure.stderr || `exit ${failure.exitCode}`}`,
+        );
+      }),
+    );
   }
 });

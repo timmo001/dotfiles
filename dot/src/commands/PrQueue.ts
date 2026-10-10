@@ -1,4 +1,4 @@
-import { Gh } from "@timmo001/effect-gh";
+import { Repository } from "@timmo001/effect-gh";
 import { Clock, Effect, Schema } from "effect";
 import {
   GH_OPTIONS as GH,
@@ -548,7 +548,6 @@ function renderActivity(title: string, list: ActivityList): string[] {
 
 const run = Effect.fn("prQueue")(function* (options: PrQueueOptions) {
   const config = yield* Config;
-  const gh = yield* Gh;
   const executor = yield* CommandExecutor;
   const now = yield* Clock.currentTimeMillis;
   const since = parseSince(options.since, now);
@@ -576,21 +575,15 @@ const run = Effect.fn("prQueue")(function* (options: PrQueueOptions) {
   const repo =
     options.repo ??
     managed?.github ??
-    (yield* gh
-      .json(
-        ["repo", "view", "--json", "nameWithOwner"],
-        Schema.Struct({ nameWithOwner: Schema.String }),
-        GH,
-      )
-      .pipe(
-        Effect.map((result) => result.nameWithOwner),
-        Effect.mapError(
-          (error) =>
-            new PrQueueError({
-              message: `Could not resolve the repository; pass --repo: ${ghErrorMessage(error)}`,
-            }),
-        ),
-      ));
+    (yield* Repository.view(undefined, GH).pipe(
+      Effect.map((result) => result.nameWithOwner),
+      Effect.mapError(
+        (error) =>
+          new PrQueueError({
+            message: `Could not resolve the repository; pass --repo: ${ghErrorMessage(error)}`,
+          }),
+      ),
+    ));
 
   const configured =
     options.search ??

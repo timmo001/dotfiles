@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { Deferred, Effect, Queue, Stream } from "../../dot/node_modules/effect/dist/index.js";
 import { GitNotifications } from "../../dot/src/git/services/GitNotifications.js";
 import { GitHub } from "../../dot/src/git/services/GitHub.js";
+import { fakeGitHub } from "./fake-github.ts";
 import { CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
 import { Config } from "../../dot/src/services/Config.js";
 import { emptyDotGitConfig } from "../../dot/src/services/GitConfig.js";
@@ -40,10 +41,8 @@ function fixture(pages: ReturnType<typeof thread>[][]) {
     responses.set(`${ref}/status?per_page=100`, [{ state: "pending", total_count: 0, statuses: [] }]);
   }
 
-  const github = GitHub.of({
-    isAvailable: Effect.succeed(true),
-    api: () => Effect.die("Unexpected API call"),
-    json: (args) => Effect.sync(() => {
+  const github = fakeGitHub({
+    read: (args) => {
       reads.push([...args]);
       const endpoint = args.find((arg) => /^(\/?repos\/|notifications)/.test(arg))?.replace(/^\//, "");
 
@@ -52,13 +51,12 @@ function fixture(pages: ReturnType<typeof thread>[][]) {
       if (!endpoint || !responses.has(endpoint)) throw new Error(`Unexpected read: ${args.join(" ")}`);
 
       return responses.get(endpoint);
-    }),
-    run: (args, options) => Effect.sync(() => {
-      expect(options?.retries).toBe(0);
+    },
+    write: (args) => {
       writes.push([...args]);
 
       return "";
-    }),
+    },
   });
 
   const executor = CommandExecutor.of({ run: () => Effect.die("Unexpected command"), stream: () => Stream.empty,
@@ -139,7 +137,7 @@ test("revalidation leaves changed/read notifications and reports partial failure
   f.responses.set("notifications/threads/4", { message: "Not found" });
   const outcomes = await f.run(Effect.flatMap(GitNotifications, (service) => service.dismiss(entries, "dependencies")));
   expect(outcomes.map((outcome) => outcome.status)).toEqual(["skipped", "skipped", "skipped", "failed", "done"]);
-  expect(f.writes).toEqual([["api", "-X", "DELETE", "notifications/threads/5"]]);
+  expect(f.writes).toEqual([["api", "--method", "DELETE", "--", "notifications/threads/5"]]);
 });
 
 test("repo-scoped unread review uses the repository endpoint and prints evidence before any writes", async () => {

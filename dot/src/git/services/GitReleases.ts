@@ -18,6 +18,7 @@ import {
   type GitManagedRepo,
 } from "../../services/GitConfig.js";
 import { formatCause } from "../../lib/schema.js";
+import { Api } from "@timmo001/effect-gh";
 import { GitHub } from "./GitHub.js";
 import {
   latestStableRelease,
@@ -132,9 +133,7 @@ export interface GitReleasesService {
   ) => Effect.Effect<ReleasePublishResult, ReleaseError>;
 }
 
-const UpstreamTags = Schema.Array(
-  Schema.Array(Schema.Struct({ name: Schema.String })),
-);
+const UpstreamTagPage = Schema.Array(Schema.Struct({ name: Schema.String }));
 
 const UpstreamManifest = Schema.fromJsonString(
   Schema.Struct({ version: Schema.String }),
@@ -432,16 +431,12 @@ export class GitReleases extends Context.Service<
                   )).version;
                 }
 
-                const pages = yield* github
-                  .json([
-                    "api",
-                    `repos/${settings.fork.upstream}/tags?per_page=100`,
-                    "--paginate",
-                    "--slurp",
-                  ])
-                  .pipe(
-                    Effect.flatMap(Schema.decodeUnknownEffect(UpstreamTags)),
-                  );
+                const endpoint = `repos/${settings.fork.upstream}/tags?per_page=100`;
+
+                const pages = yield* github.read(
+                  endpoint,
+                  Api.pages({ endpoint, method: "GET" }, UpstreamTagPage),
+                );
 
                 const tags = yield* Effect.try({
                   try: () =>

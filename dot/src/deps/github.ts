@@ -830,7 +830,7 @@ export class DependencyGithub extends Context.Service<
         rawFile: Effect.fn("DependencyGithub.rawFile")(
           (repository, ref, path, timeout) =>
             read(
-              Api.raw({
+              Api.text({
                 endpoint: `repos/${repository}/contents/${path.split("/").map(encodeURIComponent).join("/")}`,
                 method: "GET",
                 query: { ref },
@@ -838,7 +838,7 @@ export class DependencyGithub extends Context.Service<
                 options: { timeout },
               }),
               "Read GitHub custom datasource",
-            ).pipe(Effect.map((result) => result.stdout)),
+            ),
         ),
       });
     }),

@@ -2,7 +2,7 @@ import { NodeServices } from "@effect/platform-node";
 import { join } from "node:path";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { acquireFileLock } from "../../lib/fileLock.js";
-import { Gh, PullRequest } from "@timmo001/effect-gh";
+import { Api, Gh, PullRequest } from "@timmo001/effect-gh";
 import {
   Clock,
   Context,
@@ -15,7 +15,7 @@ import {
 import { Config } from "../../services/Config.js";
 import { managedGitRepos } from "../../services/GitConfig.js";
 import { formatCause } from "../../lib/schema.js";
-import { GitHub } from "./GitHub.js";
+import { GitHub, viewerLogin } from "./GitHub.js";
 import { formatGhError } from "./record.js";
 
 const REFRESH_MS = 5 * 60 * 1000;
@@ -157,9 +157,7 @@ export class GitPullRequests extends Context.Service<
             message: "Select one enabled pull request repository with --repo",
           });
 
-        const login = yield* Effect.cached(
-          github.api("user", { jq: ".login" }),
-        );
+        const login = yield* Effect.cached(github.read("user", viewerLogin));
 
         return yield* Effect.forEach(
           repositories,
@@ -262,22 +260,13 @@ export class GitPullRequests extends Context.Service<
                 ).pipe(
                   Effect.flatMap((endpoints) =>
                     Effect.forEach(endpoints, (endpoint) =>
-                      github
-                        .json([
-                          "api",
-                          "--method",
-                          "GET",
-                          endpoint,
-                          "--paginate",
-                          "--slurp",
-                        ])
-                        .pipe(
-                          Effect.flatMap(
-                            Schema.decodeUnknownEffect(
-                              Schema.Array(Schema.Array(RemotePullRequest)),
-                            ),
-                          ),
+                      github.read(
+                        endpoint,
+                        Api.pages(
+                          { endpoint, method: "GET" },
+                          Schema.Array(RemotePullRequest),
                         ),
+                      ),
                     ),
                   ),
                   Effect.map((pages) =>

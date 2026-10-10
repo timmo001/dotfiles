@@ -1,3 +1,4 @@
+import { Api } from "@timmo001/effect-gh";
 import { Effect, Schema } from "effect";
 import type {
   GitNotificationReview,
@@ -82,21 +83,22 @@ export const inspectNotification = Effect.fn("notifications.inspect")(
           message: "Invalid notification subject URL",
         });
 
-      const payload = yield* github.json([
-        "api",
-        "--method",
-        "GET",
-        url.pathname,
-      ]);
+      const subject = { endpoint: url.pathname, method: "GET" } as const;
 
       if (thread.type === "Issue") {
-        const issue = yield* Schema.decodeUnknownEffect(Issue)(payload);
+        const issue = yield* github.read(
+          url.pathname,
+          Api.json(subject, Issue),
+        );
 
         return { ...base, detail: `Issue ${issue.state} · ${thread.reason}` };
       }
 
       if (thread.type === "WorkflowRun" || thread.type === "CheckSuite") {
-        const workflow = yield* Schema.decodeUnknownEffect(Workflow)(payload);
+        const workflow = yield* github.read(
+          url.pathname,
+          Api.json(subject, Workflow),
+        );
 
         return {
           ...base,
@@ -104,7 +106,10 @@ export const inspectNotification = Effect.fn("notifications.inspect")(
         };
       }
 
-      const pr = yield* Schema.decodeUnknownEffect(PullRequest)(payload);
+      const pr = yield* github.read(
+        url.pathname,
+        Api.json(subject, PullRequest),
+      );
 
       const dependency =
         pr.head.ref !== "renovate/configure" &&
@@ -131,34 +136,23 @@ export const inspectNotification = Effect.fn("notifications.inspect")(
 
         const [checkPages, statusPages] = yield* Effect.all(
           [
-            github
-              .json([
-                "api",
-                "--method",
-                "GET",
-                `${ref}/check-runs?filter=latest&per_page=100`,
-                "--paginate",
-                "--slurp",
-              ])
-              .pipe(
-                Effect.flatMap(
-                  Schema.decodeUnknownEffect(Schema.Array(CheckPage)),
-                ),
+            github.read(
+              `${ref}/check-runs`,
+              Api.pages(
+                {
+                  endpoint: `${ref}/check-runs?filter=latest&per_page=100`,
+                  method: "GET",
+                },
+                CheckPage,
               ),
-            github
-              .json([
-                "api",
-                "--method",
-                "GET",
-                `${ref}/status?per_page=100`,
-                "--paginate",
-                "--slurp",
-              ])
-              .pipe(
-                Effect.flatMap(
-                  Schema.decodeUnknownEffect(Schema.Array(StatusPage)),
-                ),
+            ),
+            github.read(
+              `${ref}/status`,
+              Api.pages(
+                { endpoint: `${ref}/status?per_page=100`, method: "GET" },
+                StatusPage,
               ),
+            ),
           ],
           { concurrency: 2 },
         );

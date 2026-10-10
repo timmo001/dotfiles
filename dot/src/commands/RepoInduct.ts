@@ -1,4 +1,6 @@
+import { Api } from "@timmo001/effect-gh";
 import { Effect, FileSystem, Schema } from "effect";
+import { viewerLogin } from "../git/services/GitHub.js";
 import { Prompt } from "effect/cli";
 import { basename, join, resolve } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -302,17 +304,19 @@ export const inductRepository = Effect.fn("repoInduct.run")(
       (preset.issues ?? false) &&
       github !== "" &&
       (yield* Effect.all([
-        executor.run("gh", [
-          "api",
-          `repos/${github}`,
-          "--jq",
-          '"\\(.has_issues) \\(.owner.login)"',
-        ]),
-        executor.run("gh", ["api", "user", "--jq", ".login"]),
+        Api.json(
+          { endpoint: `repos/${github}`, method: "GET" },
+          Schema.Struct({
+            has_issues: Schema.Boolean,
+            owner: Schema.Struct({ login: Schema.String }),
+          }),
+        ),
+        viewerLogin,
       ]).pipe(
         Effect.map(
           ([repo, login]) =>
-            repo.trim().toLowerCase() === `true ${login.trim().toLowerCase()}`,
+            repo.has_issues &&
+            repo.owner.login.toLowerCase() === login.toLowerCase(),
         ),
         Effect.orElseSucceed(() => false),
       ));

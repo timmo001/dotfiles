@@ -1,5 +1,5 @@
-import { Gh } from "@timmo001/effect-gh";
-import { Effect, Stream } from "effect";
+import { Auth } from "@timmo001/effect-gh";
+import { Effect } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import type { CheckResult } from "../types.js";
 
@@ -12,7 +12,6 @@ import type { CheckResult } from "../types.js";
  */
 export const checkGithubMcpAuth = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
-  const gh = yield* Gh;
   const results: CheckResult[] = [];
 
   if ((yield* executor.exitCode("which", ["gh"])) !== 0) {
@@ -26,9 +25,7 @@ export const checkGithubMcpAuth = Effect.gen(function* () {
     return results;
   }
 
-  if (
-    yield* gh.stream(["auth", "token"]).pipe(Stream.runDrain, Effect.isSuccess)
-  ) {
+  if (yield* Auth.hasToken().pipe(Effect.orElseSucceed(() => false))) {
     results.push({
       severity: "ok",
       message:

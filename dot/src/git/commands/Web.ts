@@ -1,7 +1,6 @@
-import { Gh } from "@timmo001/effect-gh";
+import { Repository } from "@timmo001/effect-gh";
 import { Effect, Schema } from "effect";
 import { dirname, resolve } from "node:path";
-import { ghOutput } from "../../lib/gh.js";
 import { expandHomePath } from "../../lib/paths.js";
 import { isWorkTime } from "../../lib/workTime.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
@@ -64,11 +63,7 @@ export const gitWeb = Effect.fn("gitWeb")(function* (options: {
     options.url ??
     (repo
       ? `https://github.com/${repo.github}`
-      : (yield* ghOutput(
-          yield* Gh,
-          ["repo", "view", "--json", "url", "--jq", ".url"],
-          { cwd },
-        )).trim());
+      : (yield* Repository.view(undefined, { cwd })).url);
 
   const parsed = yield* Effect.try({
     try: () => new URL(url),

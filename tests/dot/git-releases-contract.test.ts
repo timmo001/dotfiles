@@ -12,6 +12,7 @@ import { acceptReleaseSnapshot, applyReleaseReview, assertReleaseSelection, empt
 import { CommandError, CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
 import { deliverReleaseNotification } from "../../dot/src/git/services/GitReleases.js";
 import { GitHub } from "../../dot/src/git/services/GitHub.js";
+import { fakeGitHub } from "./fake-github.ts";
 import { nextReleaseTag, prepareReleaseVersion, publishRelease } from "../../dot/src/git/release/publish.js";
 import type { ReleaseFact, ReleaseReviewState, ReleaseSettings, ReleaseSnapshot } from "../../dot/src/git/release/types.js";
 
@@ -63,14 +64,12 @@ test("release confirmation binds the reviewed head and recipe before any write",
     exitCode: () => Effect.succeed(0), inherit: () => Effect.succeed(0),
   });
 
-  const github = GitHub.of({
-    isAvailable: Effect.succeed(true),
-    json: () => Effect.succeed({ tag_name: "1.0.0", draft: false, prerelease: false, published_at: "2026-09-01T00:00:00Z" }),
-    api: () => Effect.die("Unexpected API call"),
-    run: () => {
+  const github = fakeGitHub({
+    read: () => ({ tag_name: "1.0.0", draft: false, prerelease: false, published_at: "2026-09-01T00:00:00Z" }),
+    write: () => {
       writes.push("release");
 
-      return Effect.succeed("");
+      return "";
     },
   });
 
@@ -121,18 +120,16 @@ test("release notes files are bound to the plan and applied straight after creat
     exitCode: () => Effect.die("Unexpected process"), inherit: () => Effect.die("Unexpected process"),
   });
 
-  const github = GitHub.of({
-    isAvailable: Effect.succeed(true),
-    json: (args) => Effect.succeed(args[0] === "release" ? { body: "## What's Changed\n\n* Generated" } : { tag_name: "1.0.0", draft: false, prerelease: false, published_at: "2026-09-01T00:00:00Z" }),
-    api: () => Effect.die("Unexpected API call"),
-    run: (args) => {
+  const github = fakeGitHub({
+    read: (args) => args[0] === "release" ? { body: "## What's Changed\n\n* Generated" } : { tag_name: "1.0.0", draft: false, prerelease: false, published_at: "2026-09-01T00:00:00Z" },
+    write: (args) => {
       releaseCalls.push([...args]);
 
       if (args[1] === "create" && args.includes("--notes-file")) notesAtCreate = readFileSync(args[args.indexOf("--notes-file") + 1], "utf8");
 
       if (args[1] === "edit") notesAtCreate = readFileSync(args[args.indexOf("--notes-file") + 1], "utf8");
 
-      return Effect.succeed("https://github.com/example/project/releases/tag/1.0.1\n");
+      return "https://github.com/example/project/releases/tag/1.0.1\n";
     },
   });
 
@@ -245,10 +242,8 @@ test("UTC midnight invalidates the CalVer preview confirmation without writing",
     exitCode: () => Effect.die("Unexpected process"), inherit: () => Effect.die("Unexpected process"),
   });
 
-  const github = GitHub.of({
-    isAvailable: Effect.succeed(true),
-    json: () => Effect.succeed({ tag_name: current.releaseTag, draft: false, prerelease: false, published_at: "2026-09-01T00:00:00Z" }),
-    api: () => Effect.die("Unexpected API call"), run: () => Effect.die("Unexpected release"),
+  const github = fakeGitHub({
+    read: () => ({ tag_name: current.releaseTag, draft: false, prerelease: false, published_at: "2026-09-01T00:00:00Z" }),
   });
 
   const run = (confirmation?: string) => runP(Clock.clockWith((clock) => publishRelease(repository, config, current, confirmation, () => Effect.void).pipe(
@@ -320,6 +315,7 @@ test("prepared Python and JSON writes are exact and validation cannot widen the 
       import { NodeServices } from ${module("node_modules/@effect/platform-node/dist/index.js")};
       import { CommandExecutor } from ${module("src/services/CommandExecutor.ts")};
       import { GitHub } from ${module("src/git/services/GitHub.ts")};
+      import { fakeGitHub } from ${JSON.stringify(join(import.meta.dir, "fake-github.ts"))};
       import { publishRelease } from ${module("src/git/release/publish.ts")};
       const repo = ${JSON.stringify(repository)}, config = ${JSON.stringify(config)}, snapshot = ${JSON.stringify(current)};
       const original = ${JSON.stringify({ "package.json": '{\n  "nested": {"version":"1.0.0"},\n  "version": "1.0.0"\n}\n', "setup.py": 'setup(\n  name="example",\n  version="1.0.0",\n)\n' })};
@@ -353,10 +349,8 @@ test("prepared Python and JSON writes are exact and validation cannot widen the 
         })),
         exitCode: () => Effect.die("Unexpected process"), inherit: () => Effect.die("Unexpected process"),
       });
-      const github = GitHub.of({
-        isAvailable: Effect.succeed(true),
-        json: () => Effect.succeed({ tag_name: "1.0.0", draft: false, prerelease: false, published_at: "2026-09-01T00:00:00Z" }),
-        api: () => Effect.die("Unexpected API"), run: () => Effect.die("Unexpected release"),
+      const github = fakeGitHub({
+        read: () => ({ tag_name: "1.0.0", draft: false, prerelease: false, published_at: "2026-09-01T00:00:00Z" }),
       });
       const run = (confirmation) => Effect.runPromise(publishRelease(repo, config, snapshot, confirmation, () => Effect.void).pipe(Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github), Effect.provide(NodeServices.layer)));
       const preview = await run();
@@ -389,11 +383,10 @@ test("release query exposes the authoritative CalVer proposal and review can cle
       import { CommandExecutor } from ${module("src/services/CommandExecutor.ts")};
       import { parseDotGitConfigText } from ${module("src/services/GitConfig.ts")};
       import { GitHub } from ${module("src/git/services/GitHub.ts")};
+      import { fakeGitHub } from ${JSON.stringify(join(import.meta.dir, "fake-github.ts"))};
       import { GitReleases } from ${module("src/git/services/GitReleases.ts")};
-      const github = GitHub.of({
-        isAvailable: Effect.succeed(true),
-        json: () => Effect.succeed({ tag_name: "v20260910.2", draft: false, prerelease: false, published_at: "2026-09-10T00:00:00Z" }),
-        api: () => Effect.die("Unexpected API"), run: () => Effect.die("Unexpected release"),
+      const github = fakeGitHub({
+        read: () => ({ tag_name: "v20260910.2", draft: false, prerelease: false, published_at: "2026-09-10T00:00:00Z" }),
       });
       const program = Effect.gen(function* () {
         const live = yield* CommandExecutor;

@@ -1,4 +1,5 @@
 import { NodeServices } from "@effect/platform-node";
+import { Api } from "@timmo001/effect-gh";
 import { join } from "node:path";
 import {
   Clock,
@@ -146,11 +147,13 @@ export class GitNotifications extends Context.Service<
       const fetchNotificationPage = Effect.fn(
         "GitNotifications.fetchNotificationPage",
       )(function* (opts?: GitNotificationQueryOptions) {
-        const parsed = yield* github.json(notificationListArgs(opts));
-
-        const pages = yield* Schema.decodeUnknownEffect(
-          Schema.Array(Schema.Array(NotificationRecord)),
-        )(parsed);
+        const pages = yield* github.read(
+          "notifications",
+          Api.pages(
+            { endpoint: notificationEndpoint(opts), method: "GET" },
+            Schema.Array(NotificationRecord),
+          ),
+        );
 
         const seen = new Set<string>();
 
@@ -335,9 +338,11 @@ export class GitNotifications extends Context.Service<
       const runAction = Effect.fn("GitNotifications.runAction")(function* (
         action: GitNotificationAction,
         threadId: string,
-        args: readonly string[],
+        method: "PATCH" | "DELETE",
       ): Effect.fn.Return<GitNotificationActionResult, GitNotificationError> {
-        yield* github.run(args, { retries: 0 }).pipe(
+        const endpoint = threadEndpoint(threadId);
+
+        yield* github.write(endpoint, Api.empty({ endpoint, method })).pipe(
           Effect.mapError(
             (error) =>
               new GitNotificationError({
@@ -356,20 +361,10 @@ export class GitNotifications extends Context.Service<
       });
 
       const markRead = (threadId: string) =>
-        runAction("read", threadId, [
-          "api",
-          "-X",
-          "PATCH",
-          threadEndpoint(threadId),
-        ]);
+        runAction("read", threadId, "PATCH");
 
       const markDone = (threadId: string) =>
-        runAction("done", threadId, [
-          "api",
-          "-X",
-          "DELETE",
-          threadEndpoint(threadId),
-        ]);
+        runAction("done", threadId, "DELETE");
 
       const review = Effect.fn("GitNotifications.review")(
         function* (repos?: readonly string[]) {
@@ -418,17 +413,14 @@ export class GitNotifications extends Context.Service<
                   message: "Notification belongs to a different review pass",
                 };
 
+              const endpoint = threadEndpoint(entry.thread.id);
+
               const current = yield* github
-                .json([
-                  "api",
-                  "--method",
-                  "GET",
-                  threadEndpoint(entry.thread.id),
-                ])
+                .read(
+                  endpoint,
+                  Api.json({ endpoint, method: "GET" }, NotificationRecord),
+                )
                 .pipe(
-                  Effect.flatMap(
-                    Schema.decodeUnknownEffect(NotificationRecord),
-                  ),
                   Effect.map(toNotificationThread),
                   Effect.mapError(
                     (error) =>
@@ -487,19 +479,6 @@ export class GitNotifications extends Context.Service<
       };
     }),
   );
-}
-
-function notificationListArgs(
-  opts?: GitNotificationQueryOptions,
-): readonly string[] {
-  return [
-    "api",
-    "--method",
-    "GET",
-    notificationEndpoint(opts),
-    "--paginate",
-    "--slurp",
-  ];
 }
 
 function notificationEndpoint(opts?: GitNotificationQueryOptions): string {
@@ -566,28 +545,22 @@ function pullRequestThreadLooksBot(
 
   if (!endpoint) return Effect.succeed(threadLooksBot);
 
-  return github.json(["api", endpoint]).pipe(
-    Effect.map((value) => {
-      const decoded = Schema.decodeUnknownOption(
-        Schema.Record(Schema.String, Schema.Json),
-      )(value);
+  return github
+    .read(endpoint, Api.json({ endpoint, method: "GET" }, PullRequestActivity))
+    .pipe(
+      Effect.map((pull) => {
+        if (pull.draft === true) return false;
 
-      if (Option.isNone(decoded)) return threadLooksBot;
-      const user = recordValue(decoded.value.user);
-      const head = recordValue(decoded.value.head);
-
-      if (decoded.value.draft === true) return false;
-
-      return (
-        threadLooksBot ||
-        valuesLookLikeBotActivity([
-          stringValue(user.login),
-          stringValue(head.ref),
-        ])
-      );
-    }),
-    Effect.orElseSucceed(() => threadLooksBot),
-  );
+        return (
+          threadLooksBot ||
+          valuesLookLikeBotActivity([
+            pull.user?.login ?? "",
+            pull.head?.ref ?? "",
+          ])
+        );
+      }),
+      Effect.orElseSucceed(() => threadLooksBot),
+    );
 }
 
 function workflowNotificationThreadLooksBot(
@@ -598,27 +571,49 @@ function workflowNotificationThreadLooksBot(
 
   if (!endpoint) return Effect.succeed(false);
 
-  return github.json(["api", endpoint]).pipe(
-    Effect.map((value) => {
-      const decoded = Schema.decodeUnknownOption(
-        Schema.Record(Schema.String, Schema.Json),
-      )(value);
-
-      if (Option.isNone(decoded)) return false;
-      const actor = recordValue(decoded.value.actor);
-      const headCommit = recordValue(decoded.value.head_commit);
-      const author = recordValue(headCommit.author);
-
-      return valuesLookLikeBotActivity([
-        stringValue(actor.login),
-        nullableStringValue(decoded.value.head_branch),
-        stringValue(author.name),
-        stringValue(author.email),
-      ]);
-    }),
-    Effect.orElseSucceed(() => false),
-  );
+  return github
+    .read(endpoint, Api.json({ endpoint, method: "GET" }, WorkflowRunActivity))
+    .pipe(
+      Effect.map((run) =>
+        valuesLookLikeBotActivity([
+          run.actor?.login ?? "",
+          run.head_branch ?? null,
+          run.head_commit?.author?.name ?? "",
+          run.head_commit?.author?.email ?? "",
+        ]),
+      ),
+      Effect.orElseSucceed(() => false),
+    );
 }
+
+const Login = Schema.NullOr(Schema.Struct({ login: Schema.String }));
+
+/** Fields of a pull request that mark bot activity. */
+const PullRequestActivity = Schema.Struct({
+  draft: Schema.optionalKey(Schema.Boolean),
+  user: Schema.optionalKey(Login),
+  head: Schema.optionalKey(Schema.Struct({ ref: Schema.String })),
+});
+
+/** Fields of a workflow run that mark bot activity. */
+const WorkflowRunActivity = Schema.Struct({
+  actor: Schema.optionalKey(Login),
+  head_branch: Schema.optionalKey(Schema.NullOr(Schema.String)),
+  head_commit: Schema.optionalKey(
+    Schema.NullOr(
+      Schema.Struct({
+        author: Schema.optionalKey(
+          Schema.NullOr(
+            Schema.Struct({
+              name: Schema.optionalKey(Schema.String),
+              email: Schema.optionalKey(Schema.String),
+            }),
+          ),
+        ),
+      }),
+    ),
+  ),
+});
 
 function apiEndpointFromUrl(url: string | null): string | null {
   if (!url) return null;

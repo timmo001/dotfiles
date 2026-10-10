@@ -1,30 +1,15 @@
-import { Gh } from "@timmo001/effect-gh";
-import { Effect } from "effect";
+import { Auth } from "@timmo001/effect-gh";
+import { Effect, Option } from "effect";
 
 /** Check the active github.com credential's workflow scope without reading its token. */
 export const githubWorkflowScope = Effect.fn("GitHub.workflowScope")(
   function* () {
-    const gh = yield* Gh;
-
-    const response = yield* gh.execute(
-      [
-        "api",
-        "--hostname",
-        "github.com",
-        "--method",
-        "HEAD",
-        "--include",
-        "user",
-      ],
-      { timeout: 30000 },
-    );
-
-    const scopes = /^x-oauth-scopes:[ \t]*([^\r\n]*)/im.exec(response.stdout);
+    const scopes = yield* Auth.scopes("github.com", { timeout: 30000 });
 
     // Fine-grained and installation tokens do not expose classic OAuth scopes.
-    if (!scopes) return "unknown" as const;
+    if (Option.isNone(scopes)) return "unknown" as const;
 
-    return scopes[1].split(",").some((scope) => scope.trim() === "workflow")
+    return scopes.value.includes("workflow")
       ? ("granted" as const)
       : ("missing" as const);
   },

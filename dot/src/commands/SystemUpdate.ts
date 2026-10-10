@@ -1,3 +1,4 @@
+import { Extension } from "@timmo001/effect-gh";
 import { Effect, FileSystem, Scope } from "effect";
 import { Prompt } from "effect/cli";
 import { tmpdir } from "os";
@@ -134,10 +135,16 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
   if (selectedSet.has("github-cli")) {
     section("GitHub CLI Extensions");
 
-    const exitCode = yield* runChild(
-      "gh",
-      ["extension", "upgrade", "--all"],
-      baseEnv,
+    const exitCode = yield* Extension.upgradeAll({
+      interactive: true,
+      timeout: null,
+      env: baseEnv,
+    }).pipe(
+      Effect.as(0),
+      Effect.catchTag("GhCommandError", (error) =>
+        Effect.succeed(error.exitCode),
+      ),
+      Effect.orElseSucceed(() => 1),
     );
 
     if (exitCode !== 0) {

@@ -1,3 +1,4 @@
+import { Repository } from "@timmo001/effect-gh";
 import { Effect } from "effect";
 import { join } from "path";
 import { HOME_DIR } from "../lib/paths.js";
@@ -33,16 +34,7 @@ export const editSkillConsumer = Effect.fn("Skills.editConsumer")(function* (
   repo: string | undefined,
   args: readonly string[],
 ) {
-  const repository =
-    repo ??
-    (yield* (yield* CommandExecutor).run("gh", [
-      "repo",
-      "view",
-      "--json",
-      "nameWithOwner",
-      "--jq",
-      ".nameWithOwner",
-    ])).trim();
+  const repository = repo ?? (yield* Repository.view()).nameWithOwner;
 
   yield* runSkillsMaintenance([
     "consumers",

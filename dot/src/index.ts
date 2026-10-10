@@ -1,14 +1,18 @@
 import { NodeServices } from "@effect/platform-node";
-import { layer as ghLayer } from "@timmo001/effect-gh";
-import { Effect, Layer, Option } from "effect";
+import {
+  Auth,
+  GhCommandError,
+  Repository,
+  layer as ghLayer,
+} from "@timmo001/effect-gh";
+import { Effect, Layer, Option, Result } from "effect";
 import { CliConfig, CliError, Command } from "effect/cli";
 import { join } from "path";
 import { cliBuiltIns, dotCommand, resolveCliCommand } from "./cli/spec.js";
 import {
-  bootstrapGhRepoClone,
   bootstrapGitPullRebase,
   bootstrapGitRepoExists,
-  ghAuthenticated,
+  ensureBootstrapParent,
 } from "./lib/bootstrapGit.js";
 import { ENV, envString, setEnv, unsetEnv } from "./lib/env.js";
 import { isGvfsPath, writeMirroredLog } from "./lib/logMirror.js";
@@ -86,7 +90,7 @@ function appendBootstrapLog(message: string | Uint8Array): void {
   if (logFile) writeMirroredLog(logFile, message);
 }
 
-function prepareInit(): void {
+async function prepareInit(): Promise<void> {
   if (args[0] !== "init" || args.includes("--help") || args.includes("-h"))
     return;
 
@@ -125,7 +129,16 @@ function prepareInit(): void {
     return;
   }
 
-  if (!ghAuthenticated()) {
+  const bootstrapGh = ghLayer().pipe(Layer.provide(NodeServices.layer));
+
+  const authenticated = await Effect.runPromise(
+    Auth.status().pipe(
+      Effect.orElseSucceed(() => false),
+      Effect.provide(bootstrapGh),
+    ),
+  );
+
+  if (!authenticated) {
     const message =
       "[WARN] Skipping private dotfiles clone; run `gh auth login` before `dot init` if private dotfiles are wanted.\n";
 
@@ -137,18 +150,38 @@ function prepareInit(): void {
     return;
   }
 
-  const exitCode = bootstrapGhRepoClone(
-    PRIVATE_DOTFILES_REPO,
-    privatePath,
-    appendBootstrapLog,
+  ensureBootstrapParent(privatePath);
+  appendBootstrapLog(
+    `\n$ gh repo clone ${PRIVATE_DOTFILES_REPO} ${privatePath}\n`,
   );
 
-  if (exitCode !== 0) process.exit(exitCode);
+  const clone = await Effect.runPromise(
+    Repository.clone({
+      repository: PRIVATE_DOTFILES_REPO,
+      directory: privatePath,
+    }).pipe(Effect.result, Effect.provide(bootstrapGh)),
+  );
+
+  const output = Result.isSuccess(clone)
+    ? clone.success
+    : clone.failure instanceof GhCommandError
+      ? clone.failure
+      : { stdout: "", stderr: `${formatCause(clone.failure)}\n` };
+
+  process.stdout.write(output.stdout);
+  process.stderr.write(output.stderr);
+  appendBootstrapLog(output.stdout);
+  appendBootstrapLog(output.stderr);
+
+  if (Result.isFailure(clone))
+    process.exit(
+      clone.failure instanceof GhCommandError ? clone.failure.exitCode : 1,
+    );
 }
 
 validateFloatingWebappWidth();
 
-prepareInit();
+await prepareInit();
 
 const CliLayers = Launcher.layer.pipe(
   Layer.provideMerge(DotDiff.layer),

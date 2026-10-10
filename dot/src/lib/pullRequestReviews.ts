@@ -1,4 +1,4 @@
-import { Api, Gh, type GhError } from "@timmo001/effect-gh";
+import { Api, PullRequest, type GhError } from "@timmo001/effect-gh";
 import { Effect, Match, Predicate, Schema } from "effect";
 import { formatCause } from "./schema.js";
 
@@ -104,6 +104,7 @@ export const ghErrorMessage = (error: GhError) =>
     GhPlatformError: (error) => formatCause(error.cause),
     GhDecodeError: (error) =>
       `unexpected gh response: ${formatCause(error.cause)}`,
+    GhOutputLimitError: (error) => `gh output passed ${error.limitBytes} bytes`,
   });
 
 /** Run one GitHub GraphQL query through gh and decode the response. */
@@ -127,14 +128,6 @@ export const graphql = Effect.fn("graphql")(function* <
 
 /** Shortened commit SHA for display. */
 export const shortSha = (sha: string) => sha.slice(0, 9);
-
-const PullRequestInfo = Schema.Struct({
-  number: Schema.Int,
-  title: Schema.String,
-  url: Schema.String,
-  state: Schema.String,
-  headRefOid: Schema.String,
-});
 
 /** A pull request resolved to its repository and head commit. */
 export interface PullRequestRef {
@@ -165,18 +158,12 @@ export const viewPullRequest = Effect.fn("viewPullRequest")(function* (
   selector: number | undefined,
   repo: string | undefined,
 ) {
-  const gh = yield* Gh;
-
-  return yield* gh.json(
-    [
-      "pr",
-      "view",
-      ...(repo ? ["--repo", repo] : []),
-      "--json",
-      "number,title,url,state,headRefOid",
-      ...(selector === undefined ? [] : ["--", String(selector)]),
-    ],
-    PullRequestInfo,
+  return yield* PullRequest.get(
+    {
+      ...(selector !== undefined && { selector }),
+      ...(repo && { repository: repo }),
+      fields: ["number", "title", "url", "state", "headRefOid"],
+    },
     GH_OPTIONS,
   );
 });

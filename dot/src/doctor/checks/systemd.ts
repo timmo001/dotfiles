@@ -1,4 +1,5 @@
 import { NodeFileSystem } from "@effect/platform-node";
+import { Api } from "@timmo001/effect-gh";
 import { Effect } from "effect";
 import { join, resolve } from "path";
 import {
@@ -189,7 +190,14 @@ export const checkGitNotifications = Effect.gen(function* () {
     });
   } else {
     const notificationsAccess = yield* github
-      .api("notifications?per_page=1")
+      .read(
+        "notifications",
+        Api.empty({
+          endpoint: "notifications",
+          method: "GET",
+          query: { per_page: 1 },
+        }),
+      )
       .pipe(
         Effect.map(() => true),
         Effect.orElseSucceed(() => false),

@@ -10,6 +10,7 @@ import {
   type GitManagedRepo,
 } from "../../services/GitConfig.js";
 import { formatCause, isString } from "../../lib/schema.js";
+import { Api, Release } from "@timmo001/effect-gh";
 import { GitHub } from "../services/GitHub.js";
 import { evidenceId } from "./changes.js";
 import { releasePaths } from "./state.js";
@@ -220,10 +221,8 @@ const StableRelease = Schema.Struct({
   published_at: Schema.NullOr(Schema.String),
 });
 
-const ReleasePages = Schema.Array(
-  Schema.Array(
-    Schema.Struct({ draft: Schema.Boolean, prerelease: Schema.Boolean }),
-  ),
+const ReleasePage = Schema.Array(
+  Schema.Struct({ draft: Schema.Boolean, prerelease: Schema.Boolean }),
 );
 
 /** Read the latest stable release, or null when the repository has never published one. */
@@ -231,41 +230,33 @@ export const latestStableRelease = Effect.fn("releases.latestStable")(
   function* (repo: string) {
     const github = yield* GitHub;
 
+    const latestEndpoint = `repos/${repo}/releases/latest`;
+
     const latest = yield* github
-      .json(["api", `repos/${repo}/releases/latest`])
+      .read(
+        latestEndpoint,
+        Api.json({ endpoint: latestEndpoint, method: "GET" }, StableRelease),
+      )
       .pipe(
-        Effect.mapError((error) => new ReleaseError({ message: error.stderr })),
-        Effect.flatMap(Schema.decodeUnknownEffect(StableRelease)),
         Effect.catchIf(
-          (error) =>
-            error instanceof ReleaseError && /\(HTTP 404\)/.test(error.message),
+          (error) => /\(HTTP 404\)/.test(error.stderr),
           () => Effect.succeed(null),
         ),
-        Effect.mapError((error) =>
-          error instanceof ReleaseError
-            ? error
-            : new ReleaseError({ message: formatCause(error) }),
-        ),
+        Effect.mapError((error) => new ReleaseError({ message: error.stderr })),
       );
 
     if (latest) return latest;
 
     // GitHub also returns 404 when stable releases exist but none is marked latest.
+    const releasesEndpoint = `repos/${repo}/releases?per_page=100`;
+
     const pages = yield* github
-      .json([
-        "api",
-        `repos/${repo}/releases?per_page=100`,
-        "--paginate",
-        "--slurp",
-      ])
+      .read(
+        releasesEndpoint,
+        Api.pages({ endpoint: releasesEndpoint, method: "GET" }, ReleasePage),
+      )
       .pipe(
         Effect.mapError((error) => new ReleaseError({ message: error.stderr })),
-        Effect.flatMap(Schema.decodeUnknownEffect(ReleasePages)),
-        Effect.mapError((error) =>
-          error instanceof ReleaseError
-            ? error
-            : new ReleaseError({ message: formatCause(error) }),
-        ),
       );
 
     if (pages.flat().some((release) => !release.draft && !release.prerelease))
@@ -965,29 +956,26 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
 
     if (notes?.mode === "replace") yield* writeNotes(notes.text);
 
-    const url = (yield* github
-      .run(
-        [
-          "release",
-          "create",
+    const { url } = yield* github
+      .write(
+        `gh release create ${tag}`,
+        Release.create({
+          repo: repo.github,
           tag,
-          "--repo",
-          repo.github,
-          "--verify-tag",
+          verifyTag: true,
           ...(notes?.mode === "replace"
-            ? ["--notes-file", notesPath]
-            : [
-                "--generate-notes",
-                ...(snapshot.releaseTag === null
-                  ? []
-                  : ["--notes-start-tag", snapshot.releaseTag]),
-              ]),
-        ],
-        { retries: 0 },
+            ? { notesFile: notesPath }
+            : {
+                generateNotes: true,
+                ...(snapshot.releaseTag !== null && {
+                  notesStartTag: snapshot.releaseTag,
+                }),
+              }),
+        }),
       )
       .pipe(
         Effect.mapError((error) => new ReleaseError({ message: error.stderr })),
-      )).trim();
+      );
 
     if (notes?.mode === "prepend") {
       yield* progress(
@@ -995,37 +983,19 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
       );
 
       yield* Effect.gen(function* () {
-        const { body } = yield* github
-          .json([
-            "release",
-            "view",
-            tag,
-            "--repo",
-            repo.github,
-            "--json",
-            "body",
-          ])
-          .pipe(
-            Effect.flatMap(
-              Schema.decodeUnknownEffect(
-                Schema.Struct({ body: Schema.String }),
-              ),
-            ),
-          );
+        const { body } = yield* github.read(
+          `gh release view ${tag}`,
+          Release.view({ repo: repo.github, tag, fields: ["body"] }),
+        );
 
         yield* writeNotes(
           [notes.text, body.trim()].filter(Boolean).join("\n\n"),
         );
 
-        yield* github.run([
-          "release",
-          "edit",
-          tag,
-          "--repo",
-          repo.github,
-          "--notes-file",
-          notesPath,
-        ]);
+        yield* github.write(
+          `gh release edit ${tag}`,
+          Release.edit({ repo: repo.github, tag, notesFile: notesPath }),
+        );
       }).pipe(
         Effect.mapError(
           (error) =>

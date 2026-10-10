@@ -1,11 +1,11 @@
-import { Gh } from "@timmo001/effect-gh";
+import { Repository, type Gh, type GhError } from "@timmo001/effect-gh";
+import { toGitHubError } from "../git/services/GitHub.js";
 import { Duration, Effect, FileSystem, Schedule, Schema } from "effect";
 import { dirname, join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Launcher } from "../services/Launcher.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { displayPath } from "./paths.js";
-import { ghOutput } from "./gh.js";
 import { pathExists } from "./fsProbe.js";
 import { spawnCaptured } from "./spawnText.js";
 import type { CommandError } from "../services/CommandExecutor.js";
@@ -251,27 +251,26 @@ const ensureParentDirectory = Effect.fn("Git.ensureParentDirectory")(function* (
 export function ghRepoClone(
   remote: string,
   repoPath: string,
-): Effect.Effect<
-  void,
-  GitCommandError,
-  CommandExecutor | FileSystem.FileSystem
-> {
+): Effect.Effect<void, GitCommandError, Gh | FileSystem.FileSystem> {
   return Effect.gen(function* () {
     yield* ensureParentDirectory(repoPath);
-    const executor = yield* CommandExecutor;
 
-    const exitCode = yield* executor.inherit("gh", [
-      "repo",
-      "clone",
-      remote,
-      repoPath,
-    ]);
+    yield* Repository.cloneInteractive(
+      { repository: remote, directory: repoPath },
+      { timeout: null },
+    ).pipe(
+      Effect.mapError((error) =>
+        cloneError(`gh repo clone ${remote} ${displayPath(repoPath)}`, error),
+      ),
+    );
+  });
+}
 
-    if (exitCode !== 0) {
-      return yield* fail(
-        `gh repo clone ${remote} ${displayPath(repoPath)} exited ${exitCode}`,
-      );
-    }
+function cloneError(command: string, error: GhError): GitCommandError {
+  const failure = toGitHubError(command, error);
+
+  return new GitCommandError({
+    message: `${command} failed with exit ${failure.exitCode}${failure.stderr ? `: ${failure.stderr}` : ""}`,
   });
 }
 
@@ -291,25 +290,22 @@ export function ghRepoCloneCaptured(
 ): Effect.Effect<void, GitCommandError, Gh | FileSystem.FileSystem> {
   return Effect.gen(function* () {
     yield* ensureParentDirectory(repoPath);
-    const gh = yield* Gh;
 
-    const args = [
-      "repo",
-      "clone",
-      remote,
-      repoPath,
-      ...(gitArgs.length > 0 ? ["--", ...gitArgs] : []),
-    ];
-
-    yield* ghOutput(gh, args, {
-      env: {
-        GIT_TERMINAL_PROMPT: "0",
-        GIT_SSH_COMMAND:
-          "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new",
+    yield* Repository.clone(
+      { repository: remote, directory: repoPath, gitArgs },
+      {
+        env: {
+          GIT_TERMINAL_PROMPT: "0",
+          GIT_SSH_COMMAND:
+            "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new",
+        },
       },
-    }).pipe(
-      Effect.catchTag("CommandError", (error) =>
-        fail(commandFailureMessage("gh", args, error)),
+    ).pipe(
+      Effect.mapError((error) =>
+        cloneError(
+          ["gh repo clone", remote, repoPath, ...gitArgs].join(" "),
+          error,
+        ),
       ),
     );
   });
