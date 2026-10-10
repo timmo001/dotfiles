@@ -580,6 +580,11 @@ Panel {
     return preformatted(lines)
   }
 
+  // The overview hides work repositories outside work time; the workspace section and tracking pages still list them.
+  function overviewRepositories(repositories) {
+    return view === "overview" ? repositories.filter(function(repo) { return !repo.offSchedule }) : repositories.slice()
+  }
+
   function pullRequestRows() {
     var rows = [headerActionRow("pulls-refresh", "Refresh pull requests", "pulls")]
     if (view === "pull-repo") {
@@ -590,7 +595,7 @@ Panel {
       })
       return rows
     }
-    var repositories = service ? service.pullRequestRepositories.slice().sort(function(a, b) { return a.name.localeCompare(b.name) }) : []
+    var repositories = service ? overviewRepositories(service.pullRequestRepositories).sort(function(a, b) { return a.name.localeCompare(b.name) }) : []
     var withPulls = repositories.filter(function(repo) { return repo.pulls.length > 0 || (view === "pulls" && (repo.error || repo.checkedAt === null)) })
     var withoutPulls = view === "pulls" ? repositories.filter(function(repo) { return repo.pulls.length === 0 && !repo.error && repo.checkedAt !== null }) : []
     withPulls.concat(withoutPulls).forEach(function(repo) {
@@ -629,7 +634,7 @@ Panel {
   function pullRequestStatus() {
     if (!service || !service.pullRequestsLoaded) return "Loading pull requests"
     var messages = [service.pullRequestsError].filter(function(value) { return value !== "" })
-    var repositories = view === "pull-repo" ? (selectedPullRequests ? [selectedPullRequests] : []) : service.pullRequestRepositories
+    var repositories = view === "pull-repo" ? (selectedPullRequests ? [selectedPullRequests] : []) : overviewRepositories(service.pullRequestRepositories)
     repositories.forEach(function(repo) {
       if (repo.error) messages.push(repo.name + ": " + repo.error)
     })
@@ -667,7 +672,7 @@ Panel {
       })
       return rows
     }
-    var repositories = service ? service.issueRepositories.slice().sort(function(a, b) { return a.name.localeCompare(b.name) }) : []
+    var repositories = service ? overviewRepositories(service.issueRepositories).sort(function(a, b) { return a.name.localeCompare(b.name) }) : []
     var withIssues = repositories.filter(function(repo) { return repo.issues.length > 0 || (view === "issues" && (repo.error || repo.checkedAt === null)) })
     var withoutIssues = view === "issues" ? repositories.filter(function(repo) { return repo.issues.length === 0 && !repo.error && repo.checkedAt !== null }) : []
     withIssues.concat(withoutIssues).forEach(function(repo) {
@@ -699,7 +704,7 @@ Panel {
   function issueStatus() {
     if (!service || !service.issuesLoaded) return "Loading issues"
     var messages = [service.issuesError].filter(function(value) { return value !== "" })
-    var repositories = view === "issue-repo" ? (selectedIssues ? [selectedIssues] : []) : service.issueRepositories
+    var repositories = view === "issue-repo" ? (selectedIssues ? [selectedIssues] : []) : overviewRepositories(service.issueRepositories)
     repositories.forEach(function(repo) {
       if (repo.error) messages.push(repo.name + ": " + repo.error)
     })
