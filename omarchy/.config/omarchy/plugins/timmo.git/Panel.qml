@@ -1454,7 +1454,7 @@ Panel {
           // Release views show changes after their actions and findings; the other sections belong to different views.
           Repeater {
             id: filesRepeater
-            model: (root.releaseView ? [] : root.changeSections).concat(root.contextChangeSections)
+            model: root.releaseView ? [] : root.changeSections
             delegate: filesSectionDelegate
           }
 
@@ -1627,6 +1627,12 @@ Panel {
                 Text { visible: !!modelData.quick; anchors.right: parent.right; anchors.rightMargin: Style.space(16); anchors.verticalCenter: parent.verticalCenter; text: modelData.chevron || ""; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
               }
             }
+          }
+
+          // The workspace repository's local changes follow its actions.
+          Repeater {
+            model: root.contextChangeSections
+            delegate: filesSectionDelegate
           }
 
           SectionHeading {
