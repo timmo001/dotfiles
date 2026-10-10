@@ -6,6 +6,8 @@ Rectangle {
   id: root
 
   required property string title
+  // Optional glyph shown before the title.
+  property string icon: ""
   property color foreground: Color.foreground
   property string fontFamily: Style.font.family
   property bool refreshable: false
@@ -37,7 +39,7 @@ Rectangle {
     anchors.right: trailingLoader.item && trailingLoader.item.visible ? trailingLoader.left : (refreshButton.visible ? refreshButton.left : parent.right)
     anchors.rightMargin: Style.space(12)
     anchors.verticalCenter: parent.verticalCenter
-    text: (root.collapsible ? (root.expanded ? "󰅀 " : "󰅂 ") : "") + root.title.toUpperCase()
+    text: (root.collapsible ? (root.expanded ? "󰅀 " : "󰅂 ") : "") + (root.icon ? root.icon + "  " : "") + root.title.toUpperCase()
     textFormat: Text.PlainText
     elide: Text.ElideRight
     color: Qt.darker(root.foreground, 1.15)
