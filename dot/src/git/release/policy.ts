@@ -7,7 +7,7 @@ import type {
 } from "./types.js";
 
 /** Portable shipped-content boundaries; increment when classification semantics change. */
-export const RELEASE_POLICY_VERSION = 12;
+export const RELEASE_POLICY_VERSION = 13;
 
 const quietPaths = [
   "**/docs",
@@ -55,6 +55,14 @@ const quiet: ReleaseRule = {
   reason: "Documentation and development tooling are quiet",
 };
 
+const omarchyPluginPaths = ["**/omarchy-plugin", "**/omarchy-plugin/**"];
+
+const omarchyPlugin: ReleaseRule = {
+  paths: omarchyPluginPaths,
+  impact: "none",
+  reason: "Omarchy plugin is published separately and pinned by commit",
+};
+
 /** Build dependencies whose output is shipped by the application. */
 export const SYSTEM_BRIDGE_BUILD_DEPENDENCIES = [
   "vite",
@@ -71,11 +79,11 @@ export function separatelyPublishedPath(
   settings: ReleaseSettings,
 ): boolean {
   return (
-    quietPaths.some((pattern) => new Bun.Glob(pattern).match(path)) ||
+    [...quietPaths, ...omarchyPluginPaths].some((pattern) =>
+      new Bun.Glob(pattern).match(path),
+    ) ||
     (settings.policy === "system-bridge" &&
-      ["docs", "omarchy-plugin"].some(
-        (root) => path === root || path.startsWith(`${root}/`),
-      ))
+      (path === "docs" || path.startsWith("docs/")))
   );
 }
 
@@ -114,6 +122,7 @@ const dependencies: readonly ReleaseRule[] = [
 const presets: Record<ReleaseSettings["policy"], readonly ReleaseRule[]> = {
   application: [
     quiet,
+    omarchyPlugin,
     tests,
     ...dependencies,
     {
@@ -156,6 +165,7 @@ const presets: Record<ReleaseSettings["policy"], readonly ReleaseRule[]> = {
   ],
   "oxlint-rules": [
     quiet,
+    omarchyPlugin,
     tests,
     ...dependencies,
     {
@@ -200,10 +210,11 @@ const presets: Record<ReleaseSettings["policy"], readonly ReleaseRule[]> = {
   ],
   "system-bridge": [
     quiet,
+    omarchyPlugin,
     {
-      paths: ["docs/**", "omarchy-plugin/**"],
+      paths: ["docs/**"],
       impact: "none",
-      reason: "Separately deployed docs or independently published plugin",
+      reason: "Separately deployed docs",
     },
     tests,
     {
