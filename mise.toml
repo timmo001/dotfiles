@@ -2,7 +2,7 @@ min_version = "2026.10.6"
 
 [tools]
 node = "26.11.1"
-bun = "1.4.2"
+bun = "1.4.3"
 "npm:markdownlint-cli2" = "0.23.3"
 actionlint = "1.7.12"
 yamllint = "1.38.0"
