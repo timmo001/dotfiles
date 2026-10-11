@@ -21,7 +21,7 @@ const TAGS = {
   slack: `${TAG_PREFIX}ws1-slack`,
   discord: `${TAG_PREFIX}ws1-discord`,
   browser: `${TAG_PREFIX}ws1-browser-main`,
-  terminalTop: `${TAG_PREFIX}ws1-term-top`,
+  githubNotifications: `${TAG_PREFIX}ws1-github-notifications`,
   plannotator: `${TAG_PREFIX}ws1-plannotator`,
   workspace2Terminal: `${TAG_PREFIX}ws2-term`,
   workspace2Cursor: `${TAG_PREFIX}ws2-cursor`,
@@ -122,6 +122,8 @@ const PATTERN_DISCORD = "^chrome-discord\\.com__app";
 const PATTERN_CHROMIUM = "^chromium$";
 
 const PATTERN_PLANNOTATOR = "^chrome-plannotator\\.timmo\\.dev__";
+
+const PATTERN_GITHUB_NOTIFICATIONS = "^chrome-github\\.com__notifications";
 
 const PATTERN_GHOSTTY = "^com\\.mitchellh\\.ghostty$";
 
@@ -331,16 +333,6 @@ function closeFirst(name: string): WorkspaceSetupBlocker {
   return { name, message: `You must close ${name} first` };
 }
 
-function isOpenCodeTitle(client: Pick<WorkspaceSetupLayoutClient, "title">) {
-  return client.title.startsWith("OC |");
-}
-
-function isHomeGhostty(client: WorkspaceSetupLayoutClient) {
-  return (
-    fieldsMatch(client, PATTERN_GHOSTTY) && !fieldsMatch(client, PATTERN_HERDR)
-  );
-}
-
 function isWorkOnlyWindow(client: WorkspaceSetupLayoutClient) {
   return WORK_ONLY_PATTERNS.some((pattern) => fieldsMatch(client, pattern));
 }
@@ -377,6 +369,9 @@ function applicationName(client: WorkspaceSetupLayoutClient): string {
 
   if (fieldsMatch(client, PATTERN_PLANNOTATOR)) return "Plannotator";
 
+  if (fieldsMatch(client, PATTERN_GITHUB_NOTIFICATIONS))
+    return "GitHub notifications";
+
   if (fieldsMatch(client, PATTERN_CHROMIUM)) return "Chromium";
 
   return humanizeClassName(client.class || client.initialClass);
@@ -401,53 +396,37 @@ function leftoverWorkspace1Window(
   clients: readonly WorkspaceSetupLayoutClient[],
   workLayout: boolean,
 ): WorkspaceSetupLayoutClient | undefined {
-  let remainingSlots = workLayout ? 0 : 1;
-
-  for (const client of clients) {
-    if (client.workspace.id !== 1 || client.floating) continue;
-
-    if (fieldsMatch(client, PATTERN_HERDR)) continue;
-
-    if (fieldsMatch(client, PATTERN_CHROMIUM)) continue;
-
-    if (fieldsMatch(client, PATTERN_PLANNOTATOR)) continue;
-
-    if (workLayout && isWorkOnlyWindow(client)) continue;
-
-    if (
-      isHomeGhostty(client) &&
-      !isOpenCodeTitle(client) &&
-      remainingSlots > 0
-    ) {
-      remainingSlots -= 1;
-      continue;
-    }
-
-    return client;
-  }
-
-  return undefined;
+  return clients.find(
+    (client) =>
+      client.workspace.id === 1 &&
+      !client.floating &&
+      !fieldsMatch(client, PATTERN_HERDR) &&
+      !fieldsMatch(client, PATTERN_CHROMIUM) &&
+      !fieldsMatch(client, PATTERN_PLANNOTATOR) &&
+      (workLayout
+        ? !isWorkOnlyWindow(client)
+        : !fieldsMatch(client, PATTERN_GITHUB_NOTIFICATIONS)),
+  );
 }
 
 /**
  * First window that must be closed before the requested layout can run.
  *
- * Work-only apps block the normal layout. The extra workspace-1 top Ghostty
- * blocks the work layout. After claiming extras into the expected home-terminal
- * slot, leftover tiled windows on workspace 1 also block, including OpenCode
- * terminals that cannot fill a slot. Close-first copy is the window title and
- * application name.
+ * Work-only apps block the normal layout, and the normal-only GitHub
+ * notifications window blocks the work layout. Any other tiled window on
+ * workspace 1 that no slot uses also blocks. Close-first copy is the window
+ * title and application name.
  */
 export function findWorkspaceSetupBlocker(
   clients: readonly WorkspaceSetupLayoutClient[],
   workLayout: boolean,
 ): WorkspaceSetupBlocker | undefined {
   if (workLayout) {
-    const extraTop = clients.find((client) =>
-      client.tags.includes(TAGS.terminalTop),
+    const notifications = clients.find((client) =>
+      fieldsMatch(client, PATTERN_GITHUB_NOTIFICATIONS),
     );
 
-    if (extraTop) return closeFirstWindow(extraTop);
+    if (notifications) return closeFirstWindow(notifications);
   } else {
     for (const pattern of WORK_ONLY_PATTERNS) {
       const workOnly = clients.find((client) => fieldsMatch(client, pattern));
@@ -844,13 +823,12 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       false,
     );
 
-    const terminalTop = slot(
-      TAGS.terminalTop,
-      PATTERN_GHOSTTY,
-      `uwsm app -- ghostty-host-config --working-directory=${HOME_DIR}`,
+    const githubNotifications = slot(
+      TAGS.githubNotifications,
+      PATTERN_GITHUB_NOTIFICATIONS,
+      'uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory="Default" --force-device-scale-factor=0.8 --app=https://github.com/notifications',
       1,
-      true,
-      PATTERN_HERDR,
+      false,
     );
 
     const plannotator = slot(
@@ -874,7 +852,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
 
     if (workTime) {
       yield* logStep("Preparing workspace 1 work apps");
-      yield* clearTag(TAGS.terminalTop);
+      yield* clearTag(TAGS.githubNotifications);
 
       const slackAddress = yield* ensureSlot(
         slot(
@@ -972,10 +950,10 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       yield* clearTag(TAGS.slack);
       yield* clearTag(TAGS.discord);
       yield* ensureSlot(personalBrowser, startupBrowser);
-      yield* ensureSlot(terminalTop);
+      yield* ensureSlot(githubNotifications);
       yield* ensureSlot(plannotator);
 
-      const top = yield* addressByTag(TAGS.terminalTop);
+      const top = yield* addressByTag(TAGS.githubNotifications);
       const browser = yield* addressByTag(TAGS.browser);
       const review = yield* addressByTag(TAGS.plannotator);
 
@@ -1004,7 +982,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       }
 
       yield* logStep("Applying workspace 1 non-work layout sizes");
-      yield* resize(TAGS.terminalTop, 1294, 660);
+      yield* resize(TAGS.githubNotifications, 1294, 660);
       yield* resize(TAGS.plannotator, 1348, 240);
       yield* resize(TAGS.browser, 1348, 850);
 
