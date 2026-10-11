@@ -26,6 +26,7 @@ const TAGS = {
   workspace2Terminal: `${TAG_PREFIX}ws2-term`,
   workspace2Cursor: `${TAG_PREFIX}ws2-cursor`,
   workBrowser: `${TAG_PREFIX}ws3-browser`,
+  claude: `${TAG_PREFIX}ws3-claude`,
 } as const;
 
 const MANAGED_TAGS = Object.values(TAGS);
@@ -130,6 +131,8 @@ const PATTERN_GHOSTTY = "^com\\.mitchellh\\.ghostty$";
 const PATTERN_HERDR = "^herdr$";
 
 const PATTERN_WORK_BROWSER = "^(work-browser|google-chrome)$";
+
+const PATTERN_CLAUDE = "^com\\.anthropic\\.Claude$";
 
 const WorkspaceSchema = Schema.Struct({ id: Schema.Finite });
 
@@ -779,8 +782,11 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       Match.orElse(() => isWorkTime(logStep)),
     );
 
-    if (workTime && Bun.which("google-chrome-stable") === null) {
-      return fail("google-chrome-stable is not available");
+    if (workTime) {
+      for (const dependency of ["google-chrome-stable", "claude-desktop"]) {
+        if (Bun.which(dependency) === null)
+          return fail(`${dependency} is not available`);
+      }
     }
 
     yield* logStep(
@@ -943,6 +949,41 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
           false,
         ),
       );
+      yield* ensureSlot(
+        slot(
+          TAGS.claude,
+          PATTERN_CLAUDE,
+          "uwsm app -- claude-desktop",
+          3,
+          false,
+        ),
+      );
+
+      const workBrowser = yield* addressByTag(TAGS.workBrowser);
+      const claude = yield* addressByTag(TAGS.claude);
+
+      if (workBrowser && claude) {
+        yield* logStep("Rebuilding workspace 3 work tree");
+
+        for (const address of [workBrowser, claude]) {
+          yield* move(config.temporaryWorkspace, address);
+        }
+
+        yield* sleep(0.2);
+        yield* move(3, workBrowser);
+        yield* focus(workBrowser);
+        yield* preselect("r");
+        yield* sleep(0.1);
+        yield* move(3, claude);
+        yield* sleep(0.2);
+
+        yield* logStep("Applying workspace 3 work layout sizes");
+        yield* resize(TAGS.workBrowser, 1590, 1300);
+      } else {
+        yield* logStep(
+          "Skipping workspace 3 work tree rebuild (missing one or more windows)",
+        );
+      }
 
       yield* startPitchforkDaemon("ha-core/prod");
     } else {
