@@ -1,6 +1,7 @@
-import { Effect, FileSystem } from "effect";
+import { Effect, FileSystem, Option, Schema } from "effect";
 import { join } from "path";
 import { writeFileAtomic } from "../lib/atomicWrite.js";
+import { readTextOrNull } from "../lib/fsProbe.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
@@ -73,6 +74,126 @@ const claudeTarget: HarnessTarget = {
 const targets: readonly HarnessTarget[] = [cursorTarget, claudeTarget];
 
 // ---------------------------------------------------------------------------
+// Claude Code workspace trust
+// ---------------------------------------------------------------------------
+
+const CLAUDE_STATE = join(HOME_DIR, ".claude.json");
+
+// Unknown keys are kept so the rewrite preserves everything Claude Code stores.
+const OtherKeys = [Schema.Record(Schema.String, Schema.Json)] as const;
+
+const ClaudeProject = Schema.StructWithRest(
+  Schema.Struct({ hasTrustDialogAccepted: Schema.optional(Schema.Boolean) }),
+  OtherKeys,
+);
+
+const decodeClaudeState = Schema.decodeUnknownOption(
+  Schema.fromJsonString(
+    Schema.StructWithRest(
+      Schema.Struct({
+        projects: Schema.optional(Schema.Record(Schema.String, ClaudeProject)),
+      }),
+      OtherKeys,
+    ),
+  ),
+);
+
+const decodeTrustedManifest = Schema.decodeUnknownOption(
+  Schema.fromJsonString(Schema.Array(Schema.String)),
+);
+
+/**
+ * Trust each tracked repository in Claude Code once.
+ *
+ * Claude Code has no CLI for workspace trust, so this edits
+ * `projects.<path>.hasTrustDialogAccepted` in ~/.claude.json, keeping every
+ * other key. Handled repositories are remembered in a state manifest, so only
+ * newly tracked checkouts are trusted and a later manual untrust is respected.
+ */
+const trustClaudeRepositories = Effect.gen(function* () {
+  const { gitConfig, stateDir } = yield* Config;
+  const fs = yield* FileSystem.FileSystem;
+  const log = yield* OutputLog;
+
+  if (!gitConfig.valid) return;
+
+  const manifest = join(stateDir, "claude-trusted-repositories.json");
+
+  const handled = new Set(
+    Option.getOrElse(
+      decodeTrustedManifest((yield* readTextOrNull(manifest)) ?? ""),
+      () => [],
+    ),
+  );
+
+  const text = yield* readTextOrNull(CLAUDE_STATE);
+
+  if (text === null) return;
+
+  const state = Option.getOrUndefined(decodeClaudeState(text));
+
+  if (state === undefined) {
+    yield* log.warn(
+      `Skipped Claude trust (unreadable): ${displayPath(CLAUDE_STATE)}`,
+    );
+
+    return;
+  }
+
+  const projects = state.projects ?? {};
+  const untrusted: string[] = [];
+  const known = handled.size;
+
+  for (const repo of gitConfig.repositories) {
+    if (handled.has(repo.path)) continue;
+
+    // Checkouts that are not cloned yet are trusted once they exist.
+    if (!(yield* fs.exists(repo.path).pipe(Effect.orDie))) continue;
+
+    handled.add(repo.path);
+
+    if (projects[repo.path]?.hasTrustDialogAccepted !== true)
+      untrusted.push(repo.path);
+  }
+
+  const rememberHandled = Effect.sync(() =>
+    writeFileAtomic(manifest, JSON.stringify([...handled]), {
+      createDirectory: true,
+    }),
+  );
+
+  const trusted = untrusted.length;
+
+  if (trusted === 0) {
+    if (handled.size !== known) yield* rememberHandled;
+
+    return;
+  }
+
+  const updated = {
+    ...projects,
+    ...Object.fromEntries(
+      untrusted.map((path) => [
+        path,
+        { ...projects[path], hasTrustDialogAccepted: true },
+      ]),
+    ),
+  };
+
+  yield* Effect.sync(() =>
+    writeFileAtomic(
+      CLAUDE_STATE,
+      `${JSON.stringify({ ...state, projects: updated }, null, 2)}\n`,
+      { mode: 0o600 },
+    ),
+  );
+  yield* rememberHandled;
+  yield* log.success(
+    `${cliStyler().accent("claude")} trusted ${trusted} tracked ${trusted === 1 ? "repository" : "repositories"}`,
+  );
+});
+
+// ---------------------------------------------------------------------------
 // Orchestrator
 // ---------------------------------------------------------------------------
 
@@ -120,4 +241,6 @@ export const agentsSync = Effect.gen(function* () {
       `${cliStyler().accent(target.name)} ${cliStyler().dim(displayPath(dest))}`,
     );
   }
+
+  yield* trustClaudeRepositories;
 });
