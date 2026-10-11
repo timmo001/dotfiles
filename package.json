@@ -7,7 +7,7 @@
     "@oxlint/plugins": "1.87.0",
     "@timmo001/oxlint-rules": "0.6.2",
     "oxlint": "1.87.0",
-    "oxlint-tsgolint": "7.0.2003",
+    "oxlint-tsgolint": "7.0.2004",
     "typescript": "^7.0.0"
   }
 }
