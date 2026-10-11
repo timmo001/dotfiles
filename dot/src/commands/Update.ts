@@ -426,7 +426,14 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
           uniquePaths.length > 1,
         );
 
-        if (!range) return null;
+        // Required pulls fail rather than skip, so no range means no new commits.
+        if (!range) {
+          yield* log.success(
+            `${cliStyler().accent(name)} is already up to date`,
+          );
+
+          return null;
+        }
 
         return { name, repoPath, range };
       }).pipe(
