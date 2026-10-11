@@ -639,7 +639,9 @@ Panel {
 
                           PanelActionButton {
                             enabled: root.service && rowSurface.status.runs.length > 0
-                            iconText: root.service && root.service.copiedUnit === rowSurface.status.unit ? "" : ""
+                            // Nerd Font md-check and md-content_copy, escaped so the glyphs survive edits.
+                            iconText: root.service && root.service.copiedUnit === rowSurface.status.unit
+                              ? "󰄬" : "󰆏"
                             tooltipText: root.service && root.service.copiedUnit === rowSurface.status.unit
                               ? "Copied" : "Copy the last 3 run logs"
                             foreground: root.contentForeground
