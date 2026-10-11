@@ -54,8 +54,9 @@ Panel {
   readonly property var findingGroups: groupFindings()
   readonly property var selectedFindingGroup: findingGroups.find(function(group) { return group.id === selectedFindingGroupKey }) || null
   readonly property bool releaseAgentView: view === "agent" && selectedAgentView === "release-prepare"
-  readonly property bool releaseView: releaseAgentView || ["releases", "release", "release-prepare", "release-choice", "finding-group", "finding", "release-commits"].indexOf(view) >= 0
-  readonly property var filteredReleaseRows: filterController.filteredModel.filter(function(entry) { return ["release", "finding-group", "finding", "commit"].indexOf(entry.kind) >= 0 })
+  readonly property bool releaseView: releaseAgentView || ["releases", "release", "release-prepare", "release-choice", "finding-group", "finding"].indexOf(view) >= 0
+  readonly property var filteredReleaseRows: filterController.filteredModel.filter(function(entry) { return ["release", "finding-group", "finding"].indexOf(entry.kind) >= 0 })
+  readonly property var filteredReleaseCommitRows: filterController.filteredModel.filter(function(entry) { return entry.kind === "commit" && entry.section === "release-commits" })
   readonly property var releaseGeometry: ({ x: panel.cardOrigin.x, y: panel.cardOrigin.y, width: panel.contentWidth, height: panel.contentHeight, screen: panel.screen ? panel.screen.name : "" })
   readonly property string cursorKey: filterController.selectedEntry() ? filterController.selectedEntry().key : ""
   readonly property bool selectedRepoCanPull: service !== null && !!service.canPullRepo(selectedRepo)
@@ -223,7 +224,7 @@ Panel {
     if (row.kind === "toggle" || row.kind === "navigation") return ""
     if (row.kind === "action") return view === "overview" ? "repositories" : "actions"
     return ({ "release-summary": "summary", "pull-status": "pull-status", context: "context", repo: "repositories", thread: "notifications", footer: "notifications",
-      release: "releases", pulls: "pulls", "pulls-empty": "pulls-empty", issues: "issues", "issues-empty": "issues-empty", log: "log" })[row.section] || ""
+      release: "releases", "release-commits": "release-commits", pulls: "pulls", "pulls-empty": "pulls-empty", issues: "issues", "issues-empty": "issues-empty", log: "log" })[row.section] || ""
   }
 
   function toggleRow(id) {
@@ -318,13 +319,18 @@ Panel {
               releaseDiff.secondaryText = "git diff in a terminal"
               rows.push(releaseDiff)
             }
-            rows.push(actionRow("release-commits", "All commits · " + releaseSnapshot.commits.length, ""))
             for (var g = 0; g < findingGroups.length; g++) {
               var group = findingGroups[g]
               if (group.findings.length) rows.push(releaseRow("finding-group", group.id, group, group.title + " · " + group.findings.length + "  ›", group.summary))
             }
             if (releaseReviewable && releaseSnapshot.findings.length)
               rows.push(actionRow("release-choice-all", "Choose impact for all " + releaseSnapshot.findings.length + " findings", "󰓹"))
+            for (var c = 0; c < releaseSnapshot.commits.length; c++) {
+              var commit = releaseSnapshot.commits[c]
+              var commitRow = releaseRow("commit", (commit.submodule || "") + commit.id, commit, commit.subject, commit.id.slice(0, 12) + " · " + commit.date + (commit.submodule ? " · " + commit.submodule : ""))
+              commitRow.section = "release-commits"
+              rows.push(commitRow)
+            }
           }
         } else if (view === "release-prepare") {
           rows.push(actionRow("release-choice", "Choose overall impact", "󰓹"))
@@ -350,11 +356,6 @@ Panel {
                 rows.push(actionRow("impact:" + impacts[p], bulk
                   ? (impacts[p] === "auto" ? "Auto · reset local choices for all " + impactFindings.length : "Set all " + impactFindings.length + " to " + impacts[p])
                   : (impacts[p] === "auto" ? "Auto · reset local choice" : "Choose " + impacts[p]), "󰓹"))
-          }
-        } else if (releaseSnapshot && view === "release-commits") {
-          for (var c = 0; c < releaseSnapshot.commits.length; c++) {
-            var commit = releaseSnapshot.commits[c]
-            rows.push(releaseRow("commit", (commit.submodule || "") + commit.id, commit, commit.subject, commit.id.slice(0, 12) + " · " + commit.date + (commit.submodule ? " · " + commit.submodule : "")))
           }
         }
       }
@@ -539,6 +540,25 @@ Panel {
     }
     selectedCommit = entry
     commitReturnView = logRepoMode ? view : "repo"
+    showView("commit")
+  }
+
+  function releaseCommitKey(sha) {
+    var commit = releaseSnapshot ? releaseSnapshot.commits.find(function(entry) { return entry.id === sha }) : null
+    return commit ? "commit:" + (commit.submodule || "") + commit.id : ""
+  }
+
+  // Opens a release commit in the commit view; submodule commits use the submodule checkout.
+  function activateReleaseCommit(commit) {
+    var path = String(selectedRelease.path || "") + (commit.submodule ? "/" + commit.submodule : "")
+    var slug = commit.submodule ? (/github\.com\/([^/]+\/[^/]+)\/commit\//.exec(commit.url || "") || [])[1] || "" : selectedRelease.repo
+    var logRepo = service.logRepository(path)
+    var known = logRepo ? logRepo.commits.find(function(entry) { return entry.sha === commit.id }) : null
+    selectedRepo = service.changedRepos.concat(service.otherRepos).find(function(repo) { return String(repo.path || "") === path })
+      || { name: commit.submodule ? commit.submodule.split("/").pop() : selectedRelease.name, path: path, repo: slug, statusKnown: false }
+    selectedCommit = { repo: logRepo || { name: selectedRepo.name, path: path, repo: slug },
+      commit: known || { sha: commit.id, subject: commit.subject, author: "", date: commit.date, incoming: false } }
+    commitReturnView = "release"
     showView("commit")
   }
 
@@ -1166,7 +1186,8 @@ Panel {
       if (entry.action === "notifications-refresh" || entry.action === "notifications-dismiss") return notificationsHeading
       return releaseView && view !== "releases" ? comparisonHeading : releasesHeading
     }
-    if (["release", "finding-group", "finding", "commit"].indexOf(entry.kind) >= 0)
+    if (entry.kind === "commit") return releaseCommitRepeater.itemAt(filteredReleaseCommitRows.indexOf(entry))
+    if (["release", "finding-group", "finding"].indexOf(entry.kind) >= 0)
       return releaseRepeater.itemAt(filteredReleaseRows.indexOf(entry))
     var rows = entry.kind === "action" ? filteredActions
       : (entry.kind === "repo" ? filteredRepos
@@ -1191,7 +1212,7 @@ Panel {
     if (id.indexOf("pulls") === 0) return pullRequestsSection.itemForKey("toggle:" + id)
     if (id.indexOf("issues") === 0) return issuesSection.itemForKey("toggle:" + id)
     return ({ summary: comparisonHeading, "pull-status": pullStatusHeading, context: contextHeading, actions: actionsHeading, repositories: repositoriesHeading,
-      notifications: notificationsHeading, releases: releasesHeading, log: logHeading })[id] || null
+      notifications: notificationsHeading, releases: releasesHeading, "release-commits": releaseCommitsHeading, log: logHeading })[id] || null
   }
 
   function scrollCursorIntoView() {
@@ -1293,7 +1314,7 @@ Panel {
       selectedImpactScope = action === "release-choice-all" ? "all" : (action === "release-choice-group" ? "group" : "overall")
       showView("release-choice")
     }
-    else if (["release-prepare", "release-commits"].indexOf(action) >= 0) showView(action)
+    else if (action === "release-prepare") showView(action)
     else if (action === "release-evidence") service.openEvidence(view === "finding" ? findingUrl(selectedFinding) : (releaseSnapshot ? "https://github.com/" + releaseSnapshot.repo + (releaseSnapshot.releaseCommit ? "/compare/" + releaseSnapshot.releaseCommit + "...HEAD" : "/commits/" + releaseSnapshot.branch) : ""), selectedRelease, modifiers)
     else if (action === "release-diff" && selectedRelease) { close(); service.openReleaseDiff(selectedRelease, modifiers) }
     else if (action.indexOf("impact:") === 0) {
@@ -1306,7 +1327,7 @@ Panel {
     else if (action === "log-web") { close(); service.openCommitsWeb(selectedLogRepo, modifiers) }
     else if (action === "log-more") showAllCommits()
     else if (action === "back" && view === "commits") showView(logAllView, "action:log-more")
-    else if (action === "back" && view === "commit") showView(commitReturnView, selectedCommit ? commitKey(selectedCommit.repo, selectedCommit.commit) : "")
+    else if (action === "back" && view === "commit") showView(commitReturnView, !selectedCommit ? "" : (commitReturnView === "release" ? releaseCommitKey(selectedCommit.commit.sha) : commitKey(selectedCommit.repo, selectedCommit.commit)))
     else if (["commit-guide", "commit-review-patch", "commit-review-worktree"].indexOf(action) >= 0 && selectedCommit) { selectedCommitAgentTask = action.slice(7); showAgentPicker(selectedRepo) }
     else if (action.indexOf("commit-") === 0 && selectedCommit) { close(); service.openCommit(selectedCommit.repo, selectedCommit.commit, action.slice(7), modifiers) }
     else if (action === "back" && releaseView) showView(view === "releases" ? "overview" : (view === "release" ? selectedReleaseView : (view === "finding" && selectedFindingGroup ? "finding-group" : (view === "release-choice" ? selectedImpactView : "release"))))
@@ -1362,7 +1383,7 @@ Panel {
     else if (entry.kind === "release") { selectedReleaseView = view; selectedReleaseKey = entry.value.repo; showView("release") }
     else if (entry.kind === "finding-group") { selectedFindingGroupKey = entry.value.id; showView("finding-group") }
     else if (entry.kind === "finding") { selectedFindingId = entry.value.id; showView("finding") }
-    else if (entry.kind === "commit") service.openEvidence(entry.value.url || (entry.value.submodule ? "" : "https://github.com/" + selectedRelease.repo + "/commit/" + entry.value.id), selectedRelease, modifiers)
+    else if (entry.kind === "commit") activateReleaseCommit(entry.value)
   }
 
   function repoDetail(repo) {
@@ -1523,7 +1544,7 @@ Panel {
             onBackHovered: filterController.cursorIndex = filterController.indexForKey("action:back")
             onBackActivated: root.activateAction("back")
             title: root.view === "commit" ? (root.selectedCommit ? root.selectedCommit.commit.subject : "Commit") : root.pullRequestView ? (root.view === "pulls" ? "All tracked repositories" : (root.selectedPullRequests ? root.selectedPullRequests.name : "Pull requests")) : root.issueView ? (root.view === "issues" ? "All tracked repositories" : (root.selectedIssues ? root.selectedIssues.name : "Issues")) : root.releaseView ? (root.view === "releases" ? "All tracked repositories" : (root.selectedRelease ? root.selectedRelease.name : "Release review")) : (root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "commits" ? (root.logRepoMode && root.selectedRepo ? String(root.selectedRepo.name) : "Recent commits") : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other"))))))
-            meta: root.view === "commit" ? (root.selectedCommit ? root.selectedCommit.repo.name + " · " + root.selectedCommit.commit.sha.slice(0, 7) : "") : root.pullRequestView ? (root.view === "pull-repo" ? "Open pull requests · recently updated first" : "Pull request tracking") : root.issueView ? (root.view === "issue-repo" ? "Open issues · recently updated first" : "Issue tracking") : root.releaseView ? (root.view === "finding-group" && root.selectedFindingGroup ? root.selectedFindingGroup.title : (root.view === "finding" ? "Finding evidence" : (root.view === "release-commits" ? "All commits" : "Local release review"))) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "commits" ? "Last " + root.logWindowHours + " hours" + (root.logRepoMode ? "" : " · all repositories") : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories"))))))
+            meta: root.view === "commit" ? (root.selectedCommit ? root.selectedCommit.repo.name + " · " + root.selectedCommit.commit.sha.slice(0, 7) : "") : root.pullRequestView ? (root.view === "pull-repo" ? "Open pull requests · recently updated first" : "Pull request tracking") : root.issueView ? (root.view === "issue-repo" ? "Open issues · recently updated first" : "Issue tracking") : root.releaseView ? (root.view === "finding-group" && root.selectedFindingGroup ? root.selectedFindingGroup.title : (root.view === "finding" ? "Finding evidence" : "Local release review")) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "commits" ? "Last " + root.logWindowHours + " hours" + (root.logRepoMode ? "" : " · all repositories") : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories"))))))
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             iconComponent: Component {
@@ -2295,7 +2316,7 @@ Panel {
             icon: ""
             title: root.view === "overview" ? "Unreleased changes · " + root.unreleasedSummary(root.filteredReleaseRows)
               : root.view === "releases" ? "Tracked repositories · " + root.filteredReleaseRows.length + " of " + (root.service ? root.service.releases.length : 0)
-              : (root.view === "release-commits" ? "Commits" : (root.view === "release" ? "Finding groups" : "Findings")) + " · " + root.filteredReleaseRows.length
+              : (root.view === "release" ? "Finding groups" : "Findings") + " · " + root.filteredReleaseRows.length
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             refreshable: root.view === "overview" || root.view === "releases"
@@ -2338,6 +2359,50 @@ Panel {
                 accent: root.contentForeground
                 Column {
                   id: releaseColumn
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.margins: Style.space(8)
+                  spacing: Style.space(2)
+                  Text { width: parent.width; text: modelData.primaryText; textFormat: Text.PlainText; wrapMode: Text.WrapAnywhere; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
+                  Text { width: parent.width; text: modelData.secondaryText; textFormat: Text.PlainText; wrapMode: Text.WrapAnywhere; color: Qt.darker(root.contentForeground, 1.4); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption }
+                }
+                MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: function(mouse) { root.activateEntry(modelData, mouse.modifiers) } }
+              }
+            }
+          }
+
+          SectionHeading {
+            id: releaseCommitsHeading
+            visible: root.view === "release" && root.filteredReleaseCommitRows.length > 0
+            icon: ""
+            title: "Commits · " + root.filteredReleaseCommitRows.length
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+            collapsible: root.sectionsCollapsible
+            expanded: root.sectionExpanded("release-commits")
+            toggleHasCursor: root.cursorKey === "toggle:release-commits"
+            onToggleHovered: filterController.cursorIndex = filterController.indexForKey("toggle:release-commits")
+            onToggleRequested: root.toggleSection("release-commits")
+          }
+
+          Column {
+            visible: releaseCommitsHeading.visible && root.sectionExpanded("release-commits")
+            width: parent.width
+            spacing: Style.space(2)
+            Repeater {
+              id: releaseCommitRepeater
+              model: root.filteredReleaseCommitRows
+              CursorSurface {
+                required property var modelData
+                x: Style.space(8)
+                width: Math.max(0, contentColumn.width - Style.space(16))
+                implicitHeight: releaseCommitColumn.implicitHeight + Style.space(12)
+                hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
+                foreground: root.contentForeground
+                accent: root.contentForeground
+                Column {
+                  id: releaseCommitColumn
                   anchors.left: parent.left
                   anchors.right: parent.right
                   anchors.verticalCenter: parent.verticalCenter
