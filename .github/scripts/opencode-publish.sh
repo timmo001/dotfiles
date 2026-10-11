@@ -45,13 +45,16 @@ field() {
   ' "$file"
 }
 
-# Extract the # origin: URL from a skill's YAML frontmatter comment.
-origin() {
-  awk '
-    NR==1 && /^---/ { fm=1; next }
-    fm && /^---/ { exit }
-    fm && /^# origin:/ { sub(/^# origin: */, ""); print; exit }
-  ' "$1"
+# Read one field of a skill's import record from the skills repository's
+# skills.yml. skill-maintenance validate keeps that file in canonical form, so
+# each field sits at a fixed indentation under its skill key.
+import_field() {
+  local skill="$1" key="$2"
+  awk -v skill="  ${skill}:" -v key="      ${key}:" '
+    $0 == skill { found=1; next }
+    found && /^  [^ ]/ { exit }
+    found && index($0, key) == 1 { sub(/^[^:]*: */, ""); gsub(/"/, ""); print; exit }
+  ' "${SKILLS_DIR}/skills.yml"
 }
 
 # List hard dependencies (plugins and skills loaded before execution).
@@ -204,15 +207,15 @@ EOF
 
     for skill_dir in "${SKILLS_DIR}"/*/; do
       [[ -f "${skill_dir}SKILL.md" ]] || continue
-      local o
-      o="$(origin "${skill_dir}SKILL.md")"
-      [[ -z "$o" ]] && continue
-      local name deps optional origin_label adapted="No"
+      local name o
       name="$(basename "$skill_dir")"
+      o="$(import_field "$name" origin)"
+      [[ -z "$o" ]] && continue
+      local deps optional origin_label adapted="No"
       deps="$(requires "${skill_dir}SKILL.md")"
       optional="$(works_with "${skill_dir}SKILL.md")"
       origin_label="$(printf '%s' "$o" | sed -n 's|https://github.com/\([^/]*/[^/]*\)/.*|\1|p')"
-      grep -q '^# local-edits:' "${skill_dir}SKILL.md" 2>/dev/null && adapted="Yes"
+      [[ "$(import_field "$name" localEdits)" != "[]" ]] && adapted="Yes"
       printf '| `%s` | [%s](%s) | %s | %s | %s |\n' "$name" "${origin_label:-$o}" "$o" "$adapted" "$deps" "$optional"
     done | sort
 
@@ -300,7 +303,7 @@ lib/         Shared modules imported by plugins
 
 Each skill is a directory containing a \`SKILL.md\` with YAML frontmatter (\`name\`, \`description\`) and a Markdown body with checklists and guidance. Some skills include a \`references/\` subdirectory with supporting documents.
 
-Imported skills include \`# origin:\` and \`# upstream-sha:\` comments in their frontmatter for tracking upstream changes.
+Imported skills are tracked in the skills repository's [\`skills.yml\`](${SKILLS_SOURCE_URL}/skills.yml), which records each one's origin, reviewed upstream SHA and local edits.
 
 ## Importing
 

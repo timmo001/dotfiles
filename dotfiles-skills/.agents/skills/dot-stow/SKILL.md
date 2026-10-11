@@ -28,7 +28,7 @@ Use this skill for changes to user config managed by GNU Stow through the public
 - `~/.config/nvim/init.lua` -> `~/.config/dotfiles/neovim/.config/nvim/init.lua`
 - `~/.agents/skills/dot-stow` -> `~/.config/dotfiles/dotfiles-skills/.agents/skills/dot-stow`
 - Shared adapted skills -> `~/repos/skills/<name>`
-- Reviewed third-party snapshots -> `~/repos/skills/<name>` plus `imports.json`
+- Reviewed third-party snapshots -> `~/repos/skills/<name>` plus its `skills.yml` entry
 
 Do not run `dot clean` unless the user explicitly asks to remove stowed configuration. Preserve unrelated worktree changes and continue with public-safe work when the private overlay is unavailable.
 
