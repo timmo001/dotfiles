@@ -1772,6 +1772,11 @@ const simpleCommands = [
 const agentSyncCommand = describe(
   Command.make("sync", {}, () => agentsSync),
   "Mirror AGENTS.md to agent harness instruction files",
+  ["dot agent sync"],
+  {
+    description:
+      "Mirror ~/.config/opencode/AGENTS.md to each agent harness's instruction file, then trust each tracked repository from private dot-git.yml in Claude Code (~/.claude.json) so it opens without the workspace trust prompt. Each repository is trusted once, the first time its checkout exists; dot remembers it in its state directory, so untrusting it in Claude Code later sticks. Runs as part of dot update and dot init.",
+  },
 );
 
 const agentPermissionCommand = describe(
