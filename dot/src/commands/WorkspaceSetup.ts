@@ -22,7 +22,7 @@ const TAGS = {
   discord: `${TAG_PREFIX}ws1-discord`,
   browser: `${TAG_PREFIX}ws1-browser-main`,
   terminalTop: `${TAG_PREFIX}ws1-term-top`,
-  terminal: `${TAG_PREFIX}ws1-term`,
+  plannotator: `${TAG_PREFIX}ws1-plannotator`,
   workspace2Terminal: `${TAG_PREFIX}ws2-term`,
   workspace2Cursor: `${TAG_PREFIX}ws2-cursor`,
   workBrowser: `${TAG_PREFIX}ws3-browser`,
@@ -120,6 +120,8 @@ const PATTERN_SLACK = "^chrome-app\\.slack\\.com__client";
 const PATTERN_DISCORD = "^chrome-discord\\.com__app";
 
 const PATTERN_CHROMIUM = "^chromium$";
+
+const PATTERN_PLANNOTATOR = "^chrome-plannotator\\.timmo\\.dev__";
 
 const PATTERN_GHOSTTY = "^com\\.mitchellh\\.ghostty$";
 
@@ -373,6 +375,8 @@ function applicationName(client: WorkspaceSetupLayoutClient): string {
 
   if (fieldsMatch(client, PATTERN_GHOSTTY)) return "Ghostty";
 
+  if (fieldsMatch(client, PATTERN_PLANNOTATOR)) return "Plannotator";
+
   if (fieldsMatch(client, PATTERN_CHROMIUM)) return "Chromium";
 
   return humanizeClassName(client.class || client.initialClass);
@@ -397,7 +401,7 @@ function leftoverWorkspace1Window(
   clients: readonly WorkspaceSetupLayoutClient[],
   workLayout: boolean,
 ): WorkspaceSetupLayoutClient | undefined {
-  let remainingSlots = workLayout ? 1 : 2;
+  let remainingSlots = workLayout ? 0 : 1;
 
   for (const client of clients) {
     if (client.workspace.id !== 1 || client.floating) continue;
@@ -405,6 +409,8 @@ function leftoverWorkspace1Window(
     if (fieldsMatch(client, PATTERN_HERDR)) continue;
 
     if (fieldsMatch(client, PATTERN_CHROMIUM)) continue;
+
+    if (fieldsMatch(client, PATTERN_PLANNOTATOR)) continue;
 
     if (workLayout && isWorkOnlyWindow(client)) continue;
 
@@ -428,7 +434,7 @@ function leftoverWorkspace1Window(
  *
  * Work-only apps block the normal layout. The extra workspace-1 top Ghostty
  * blocks the work layout. After claiming extras into the expected home-terminal
- * slots, leftover tiled windows on workspace 1 also block, including OpenCode
+ * slot, leftover tiled windows on workspace 1 also block, including OpenCode
  * terminals that cannot fill a slot. Close-first copy is the window title and
  * application name.
  */
@@ -838,17 +844,22 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       false,
     );
 
-    const terminalCommand = `uwsm app -- ghostty-host-config --working-directory=${HOME_DIR}`;
+    const terminalTop = slot(
+      TAGS.terminalTop,
+      PATTERN_GHOSTTY,
+      `uwsm app -- ghostty-host-config --working-directory=${HOME_DIR}`,
+      1,
+      true,
+      PATTERN_HERDR,
+    );
 
-    const terminal = (tag: string, workspace: number) =>
-      slot(
-        tag,
-        PATTERN_GHOSTTY,
-        terminalCommand,
-        workspace,
-        true,
-        PATTERN_HERDR,
-      );
+    const plannotator = slot(
+      TAGS.plannotator,
+      PATTERN_PLANNOTATOR,
+      'uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory="Default" --force-device-scale-factor=0.8 --app=https://plannotator.timmo.dev',
+      1,
+      false,
+    );
 
     const herdr = slot(
       TAGS.workspace2Terminal,
@@ -883,7 +894,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
         yield* sleep(0.2);
       }
 
-      yield* ensureSlot(terminal(TAGS.terminal, 1));
+      yield* ensureSlot(plannotator);
 
       if (slackAddress) {
         yield* focus(slackAddress);
@@ -904,12 +915,12 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       const slack = yield* addressByTag(TAGS.slack);
       const discord = yield* addressByTag(TAGS.discord);
       const browser = yield* addressByTag(TAGS.browser);
-      const term = yield* addressByTag(TAGS.terminal);
+      const review = yield* addressByTag(TAGS.plannotator);
 
-      if (slack && discord && browser && term) {
+      if (slack && discord && browser && review) {
         yield* logStep("Rebuilding workspace 1 work tree");
 
-        for (const address of [slack, discord, browser, term]) {
+        for (const address of [slack, discord, browser, review]) {
           yield* move(config.temporaryWorkspace, address);
         }
 
@@ -922,7 +933,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
         yield* focus(browser);
         yield* preselect("d");
         yield* sleep(0.1);
-        yield* move(1, term);
+        yield* move(1, review);
         yield* focus(slack);
         yield* preselect("r");
         yield* sleep(0.1);
@@ -938,7 +949,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       yield* resize(TAGS.slack, 671, 660);
       yield* resize(TAGS.discord, 671, 660);
       yield* resize(TAGS.browser, 1348, 850);
-      yield* resize(TAGS.terminal, 1348, 850);
+      yield* resize(TAGS.plannotator, 1348, 850);
 
       if (activeAddress) yield* focus(activeAddress);
 
@@ -961,17 +972,17 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       yield* clearTag(TAGS.slack);
       yield* clearTag(TAGS.discord);
       yield* ensureSlot(personalBrowser, startupBrowser);
-      yield* ensureSlot(terminal(TAGS.terminalTop, 1));
-      yield* ensureSlot(terminal(TAGS.terminal, 1));
+      yield* ensureSlot(terminalTop);
+      yield* ensureSlot(plannotator);
 
       const top = yield* addressByTag(TAGS.terminalTop);
       const browser = yield* addressByTag(TAGS.browser);
-      const term = yield* addressByTag(TAGS.terminal);
+      const review = yield* addressByTag(TAGS.plannotator);
 
-      if (top && browser && term) {
+      if (top && browser && review) {
         yield* logStep("Rebuilding workspace 1 non-work tree");
 
-        for (const address of [top, browser, term]) {
+        for (const address of [top, browser, review]) {
           yield* move(config.temporaryWorkspace, address);
         }
 
@@ -984,7 +995,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
         yield* focus(browser);
         yield* preselect("d");
         yield* sleep(0.1);
-        yield* move(1, term);
+        yield* move(1, review);
         yield* sleep(0.2);
       } else {
         yield* logStep(
@@ -994,7 +1005,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
 
       yield* logStep("Applying workspace 1 non-work layout sizes");
       yield* resize(TAGS.terminalTop, 1294, 660);
-      yield* resize(TAGS.terminal, 1348, 240);
+      yield* resize(TAGS.plannotator, 1348, 240);
       yield* resize(TAGS.browser, 1348, 850);
 
       if (activeAddress) yield* focus(activeAddress);
