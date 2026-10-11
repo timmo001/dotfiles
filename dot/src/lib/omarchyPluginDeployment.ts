@@ -124,18 +124,18 @@ const sameFiles = Effect.fn("OmarchyPlugin.sameFiles")(function* (
   return Buffer.from(sourceBytes).equals(Buffer.from(targetBytes));
 });
 
-/** Copy and validate a plugin before replacing its live files, retaining a backup. */
-export const deployOmarchyPlugin = Effect.fn("deployOmarchyPlugin")(function* (
-  source: string,
-  target: string,
-  repo: string,
-) {
-  const executor = yield* CommandExecutor;
-  const fs = yield* FileSystem.FileSystem;
+/** A validated plugin copy staged beside the live plugin it replaces. */
+export interface StagedOmarchyPlugin {
+  /** Live plugin directory to replace. */
+  readonly target: string;
+  /** Hidden staging directory holding the validated copy. */
+  readonly stage: string;
+}
 
-  const filesystem = <A, R>(
-    action: Effect.Effect<A, PlatformError.PlatformError, R>,
-  ) =>
+/** Map a filesystem failure to a deployment error naming the plugin. */
+const deploymentError =
+  (target: string) =>
+  <A, R>(action: Effect.Effect<A, PlatformError.PlatformError, R>) =>
     action.pipe(
       Effect.mapError(
         (error) =>
@@ -145,6 +145,21 @@ export const deployOmarchyPlugin = Effect.fn("deployOmarchyPlugin")(function* (
           }),
       ),
     );
+
+/**
+ * Validate a plugin and, when it differs from the live copy, stage a
+ * validated copy beside it. The staging directory is hidden, so the shell's
+ * plugin watcher ignores it, and it is removed when the caller's scope closes.
+ *
+ * @returns The staged copy, or `null` when the live plugin is already current.
+ */
+export const stageOmarchyPlugin = Effect.fn("stageOmarchyPlugin")(function* (
+  source: string,
+  target: string,
+) {
+  const executor = yield* CommandExecutor;
+  const fs = yield* FileSystem.FileSystem;
+  const filesystem = deploymentError(target);
 
   // Validate even unchanged sources, and never copy development symlinks.
   yield* executor.run("omarchy-plugin-validate", [source]);
@@ -176,7 +191,17 @@ export const deployOmarchyPlugin = Effect.fn("deployOmarchyPlugin")(function* (
   );
   yield* executor.run("omarchy-plugin-validate", [stage]);
 
-  return yield* filesystem(
+  return { target, stage } satisfies StagedOmarchyPlugin;
+});
+
+/** Swap a staged plugin into place, moving the previous copy to a backup. */
+export const swapOmarchyPlugin = Effect.fn("swapOmarchyPlugin")(function* (
+  { target, stage }: StagedOmarchyPlugin,
+  repo: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  return yield* deploymentError(target)(
     Effect.gen(function* () {
       let backup: string | null = null;
 
@@ -206,4 +231,15 @@ export const deployOmarchyPlugin = Effect.fn("deployOmarchyPlugin")(function* (
       return { target, backup };
     }),
   );
+});
+
+/** Copy and validate a plugin before replacing its live files, retaining a backup. */
+export const deployOmarchyPlugin = Effect.fn("deployOmarchyPlugin")(function* (
+  source: string,
+  target: string,
+  repo: string,
+) {
+  const staged = yield* stageOmarchyPlugin(source, target);
+
+  return staged ? yield* swapOmarchyPlugin(staged, repo) : null;
 }, Effect.scoped);

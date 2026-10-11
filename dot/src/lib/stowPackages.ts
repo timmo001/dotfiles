@@ -13,9 +13,11 @@ import { displayPath, HOME_DIR } from "./paths.js";
 import { foldOpencodePluginFolders } from "./opencodePluginFolders.js";
 import { ensureHyprConfigLink, ensureHyprHostLink } from "./omarchyHost.js";
 import {
-  deployOmarchyPlugin,
   omarchyPluginSourcePaths,
   omarchyPluginSubmodules,
+  stageOmarchyPlugin,
+  swapOmarchyPlugin,
+  type StagedOmarchyPlugin,
 } from "./omarchyPluginDeployment.js";
 import {
   backupLegacyGhosttyRepo,
@@ -234,22 +236,37 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
           `--ignore='^\\.config/omarchy/plugins/${basename(source).replaceAll(".", "\\.")}($|/)'`,
       );
 
-      if (isHypr) {
-        // Never unstow hypr: Hyprland watches its live config and auto-reloads
-        // on change. Removing the symlinks (even briefly) drops Hyprland into
-        // emergency mode, and it may regenerate a stub real config file
-        // that then blocks the restow. Repair the link atomically instead and
-        // let the idempotent stow below fill in any missing files with no gap.
-        yield* ensureHyprConfigLink(repoDir, log);
-      } else {
-        yield* runStow(repoDir, scope, "unstow", folder, [
-          "-D",
-          folder,
-          ...pluginIgnores,
-        ]);
+      // Validate and stage changed plugins before touching the live tree, so
+      // the stow below and every plugin swap land together. The shell then
+      // reloads its plugins once instead of once per slow validation.
+      const staged: StagedOmarchyPlugin[] = [];
+
+      for (const checkout of plugins) {
+        const id = basename(checkout);
+
+        const plugin = yield* stageOmarchyPlugin(
+          join(checkout, pluginPaths.get(id) ?? ""),
+          join(HOME_DIR, ".config/omarchy/plugins", id),
+        );
+
+        if (plugin) staged.push(plugin);
       }
 
-      const flags: string[] = [...pluginIgnores, ...adoptFlags];
+      // Never unstow hypr: Hyprland watches its live config and auto-reloads
+      // on change. Removing the symlinks (even briefly) drops Hyprland into
+      // emergency mode, and it may regenerate a stub real config file
+      // that then blocks the restow. Repair the link atomically instead and
+      // let the idempotent stow below fill in any missing files with no gap.
+      if (isHypr) yield* ensureHyprConfigLink(repoDir, log);
+
+      // Other packages restow in one stow run, which cancels the removal of
+      // links it would recreate. Unchanged links stay untouched, so watchers
+      // such as the Omarchy shell's plugin reload only see real changes.
+      const flags: string[] = [
+        ...(isHypr ? [] : ["-R"]),
+        ...pluginIgnores,
+        ...adoptFlags,
+      ];
       let externalLinks: ExternalSymlink[] = [];
 
       // Some packages must stay real directories (not folded symlinks) so
@@ -293,26 +310,22 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
 
       if (folder === "agents") yield* foldOpencodePluginFolders(repoDir);
 
-      for (const checkout of plugins) {
-        const id = basename(checkout);
+      const deployed = [];
 
-        const deployed = yield* deployOmarchyPlugin(
-          join(checkout, pluginPaths.get(id) ?? ""),
-          join(HOME_DIR, ".config/omarchy/plugins", id),
-          repoDir,
+      for (const plugin of staged) {
+        deployed.push(yield* swapOmarchyPlugin(plugin, repoDir));
+      }
+
+      for (const { target, backup } of deployed) {
+        yield* log.success(
+          `Deployed Omarchy plugin ${style.dim(displayPath(target))}`,
         );
+        counts.deployed++;
 
-        if (deployed) {
-          yield* log.success(
-            `Deployed Omarchy plugin ${style.dim(displayPath(deployed.target))}`,
+        if (backup)
+          yield* log.info(
+            `  ${style.dim(`Previous plugin saved: ${displayPath(backup)}`)}`,
           );
-          counts.deployed++;
-
-          if (deployed.backup)
-            yield* log.info(
-              `  ${style.dim(`Previous plugin saved: ${displayPath(deployed.backup)}`)}`,
-            );
-        }
       }
 
       // Apply any added or changed config and clear any prior emergency state.
@@ -323,7 +336,7 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
           .stream("hyprctl reload", { cwd: repoDir })
           .pipe(Effect.catch(() => Effect.void));
       }
-    });
+    }).pipe(Effect.scoped);
 
   const batched = folders.filter((folder) => !UNBATCHED_FOLDERS.has(folder));
 

@@ -1056,56 +1056,6 @@ const refreshShellModules = Effect.gen(function* () {
   );
 });
 
-/**
- * Restart the running Omarchy shell after its generated `shell.json` or a
- * deployed plugin changed.
- *
- * Restarts the shell so it reloads the generated layout and discovers any new
- * plugins. Runs `omarchy` via the dispatcher and forces `QT_QPA_PLATFORM=wayland` on the
- * restart so the relaunched shell attaches its layer-shell bar even when
- * `dot update` is triggered from an environment that defaults to `xcb` (an SSH
- * session, a systemd unit, or an agent shell); launching the shell under XCB
- * silently drops the bar. `omarchy restart shell` refuses while the session is
- * locked, which is treated as a non-fatal skip. No-op when Omarchy is disabled.
- */
-const reloadOmarchyShell = Effect.gen(function* () {
-  const config = yield* Config;
-  const log = yield* OutputLog;
-  const executor = yield* CommandExecutor;
-
-  if (!config.omarchy.enabled)
-    return skip("Shell reload skipped (Omarchy disabled)");
-
-  yield* log.section("Reload Shell");
-
-  const exitCode = yield* executor.exitCode("omarchy", ["restart", "shell"], {
-    env: { QT_QPA_PLATFORM: "wayland" },
-  });
-
-  if (exitCode !== 0) {
-    yield* log.warn(
-      `Shell reload skipped or failed (exit ${exitCode}; session may be locked)`,
-    );
-
-    return warn(
-      `Shell reload skipped or failed (exit ${exitCode}; session may be locked)`,
-    );
-  }
-
-  yield* log.success("Reloaded Omarchy shell (shell components changed)");
-
-  return notable("Reloaded the Omarchy shell");
-});
-
-/** Restart the Omarchy shell only when stow changed its config or plugins. */
-export function reloadOmarchyShellIfChanged(
-  shellChanged: boolean,
-): Effect.Effect<RecapEntry, never, Config | OutputLog | CommandExecutor> {
-  return shellChanged
-    ? reloadOmarchyShell
-    : Effect.succeed(skip("Shell reload skipped (no shell changes)"));
-}
-
 /** Exit code from `dot update --check` when in-scope updates are available. */
 export const UPDATE_CHECK_AVAILABLE_EXIT = 10;
 
@@ -1717,14 +1667,10 @@ export const update = (updateOpts?: UpdateOptions) =>
       }
     }
 
-    if (opts?.reload === false) {
-      completedActions.push(skip("Shell reload skipped (--no-reload)"));
-    } else if (!doStow) {
-      completedActions.push(
-        skip("Shell reload skipped (stow phase not selected)"),
-      );
-    } else {
-      completedActions.push(yield* reloadOmarchyShellIfChanged(shellChanged));
+    // The running shell watches shell.json and its plugin directories and
+    // reloads what changed itself, so the update never restarts it.
+    if (shellChanged) {
+      completedActions.push(notable("Omarchy shell applied its changes live"));
     }
 
     if (doApp && !dotRebuilt) {

@@ -167,17 +167,9 @@ const shell = Effect.gen(function* () {
     );
   }
 
+  // The fresh shell scans its plugins on start; rescanning straight after
+  // reloaded every panel a second time.
   yield* log.success("Restarted Omarchy shell");
-
-  const rescanned = yield* executor.exitCode("omarchy", [
-    "shell",
-    "shell",
-    "rescanPlugins",
-  ]);
-
-  yield* rescanned === 0
-    ? log.success("Rescanned Omarchy shell plugins")
-    : log.warn(`Shell plugin rescan failed (exit ${rescanned})`);
 
   for (const target of REFRESHED_SHELL_MODULES) {
     yield* executor.exitCode("omarchy-shell", ["-q", target, "refresh"]);
