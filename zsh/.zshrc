@@ -584,7 +584,15 @@ alias gc="git commit -m"
 alias gca="git commit -a -m"
 alias gp="git push origin HEAD"
 alias gpf="git push --force-with-lease --force-if-includes origin HEAD"
-alias gpu="git pull origin"
+# Pull like the Git panel; dot offers git pull origin if the pull fails.
+function gpu {
+  local repo
+  if (( $# == 0 )) && (( $+commands[dot] )) && repo=$(git rev-parse --show-toplevel 2>/dev/null); then
+    dot update --repo "$repo"
+  else
+    git pull origin "$@"
+  fi
+}
 alias gst="git status"
 alias glog="git log --graph --topo-order --pretty='%w(100,0,6)%C(yellow)%h%C(bold)%C(black)%d %C(cyan)%ar %C(green)%an%n%C(bold)%C(white)%s %N' --abbrev-commit"
 alias gdiff="git diff"
