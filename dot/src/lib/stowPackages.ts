@@ -267,6 +267,7 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
         ...pluginIgnores,
         ...adoptFlags,
       ];
+
       let externalLinks: ExternalSymlink[] = [];
 
       // Some packages must stay real directories (not folded symlinks) so
