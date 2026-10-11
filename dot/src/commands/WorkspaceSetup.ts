@@ -116,9 +116,9 @@ interface Slot {
   readonly excludePattern?: string;
 }
 
-const PATTERN_SLACK = "^chrome-app\\.slack\\.com__client";
+const PATTERN_SLACK = "^[Ss]lack$";
 
-const PATTERN_DISCORD = "^chrome-discord\\.com__app";
+const PATTERN_DISCORD = "^discord$";
 
 const PATTERN_CHROMIUM = "^chromium$";
 
@@ -861,13 +861,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       yield* clearTag(TAGS.githubNotifications);
 
       const slackAddress = yield* ensureSlot(
-        slot(
-          TAGS.slack,
-          PATTERN_SLACK,
-          `${workChrome} --app=https://app.slack.com/client`,
-          1,
-          false,
-        ),
+        slot(TAGS.slack, PATTERN_SLACK, "uwsm app -- slack", 1, false),
       );
 
       const browserAddress = yield* ensureSlot(personalBrowser, startupBrowser);
@@ -887,13 +881,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       }
 
       yield* ensureSlot(
-        slot(
-          TAGS.discord,
-          PATTERN_DISCORD,
-          `${workChrome} --app=https://discord.com/app`,
-          1,
-          false,
-        ),
+        slot(TAGS.discord, PATTERN_DISCORD, "uwsm app -- discord", 1, false),
       );
 
       const slack = yield* addressByTag(TAGS.slack);

@@ -36,8 +36,8 @@ local file_manager = "uwsm app -- thunar"
 local browser_personal =
   [[uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory="Default" --force-device-scale-factor=0.8]]
 local browser_work = "launch-work-browser"
-local discord = "launch-work-discord"
-local slack = "launch-work-slack"
+local discord = "uwsm app -- discord"
+local slack = "uwsm app -- slack"
 
 -- Resume recovery
 o.bind("SUPER + SHIFT + R", "Reload UI", "dot reload --no-auto-open")
