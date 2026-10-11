@@ -32,7 +32,7 @@ Panel {
   readonly property var navigationRows: filterController.filteredModel.filter(function(row) {
     return row.kind === "toggle" || !row.section || sectionExpanded(row.section)
   })
-  readonly property var serviceSections: ["failing", "healthy"].filter(function(id) {
+  readonly property var serviceSections: ["running", "failing", "healthy"].filter(function(id) {
     return filterController.filteredModel.some(function(row) { return row.section === id && row.kind !== "toggle" })
   })
 
@@ -43,10 +43,14 @@ Panel {
         return actionRow("agent:" + agent.command, agent.label, "󱚣")
       }))
     }
-    var failing = service.services.filter(function(status) { return severity(status.health) === 2 })
-      .concat(service.services.filter(function(status) { return severity(status.health) === 1 }))
-    var healthy = service.services.filter(function(status) { return severity(status.health) === 0 })
+    // A job mid-run sits under Running, even when its earlier runs failed.
+    var running = service.services.filter(isRunning)
+    var idle = service.services.filter(function(status) { return !isRunning(status) })
+    var failing = idle.filter(function(status) { return severity(status.health) === 2 })
+      .concat(idle.filter(function(status) { return severity(status.health) === 1 }))
+    var healthy = idle.filter(function(status) { return severity(status.health) === 0 })
     var rows = []
+    if (running.length) rows = rows.concat([toggleRow("running")], running.map(function(status) { return serviceRow(status, "running") }))
     if (failing.length) rows = rows.concat([toggleRow("failing")], failing.map(function(status) { return serviceRow(status, "failing") }))
     if (healthy.length) rows = rows.concat([toggleRow("healthy")], healthy.map(function(status) { return serviceRow(status, "healthy") }))
     return rows
@@ -112,7 +116,12 @@ Panel {
   }
 
   function sectionTitle(id) {
-    return id === "failing" ? "Failing" : "Healthy"
+    return id === "running" ? "Running" : id === "failing" ? "Failing" : "Healthy"
+  }
+
+  // A timer or one-shot job with a run in progress. Long-lived services are always active.
+  function isRunning(status) {
+    return status.tags[0] !== "Service" && status.runs.length > 0 && status.runs[0].result === "running"
   }
 
   function healthColor(health) {
@@ -268,9 +277,7 @@ Panel {
 
   Timer {
     interval: 1000
-    running: root.opened && root.service && root.service.services.some(function(status) {
-      return status.tags[0] !== "Service" && status.runs.length > 0 && status.runs[0].result === "running"
-    })
+    running: root.opened && root.service && root.service.services.some(root.isRunning)
     repeat: true
     onTriggered: root.runtimeNow = Date.now()
   }
