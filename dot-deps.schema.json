@@ -178,7 +178,9 @@
                 "minLength": 1
               },
               "appId": {
-                "type": "integer"
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
               },
               "parallel": {
                 "type": "boolean",
@@ -800,6 +802,8 @@
         },
         "priority": {
           "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
           "description": "Higher values start first; a coordinated group uses its highest member priority. Ready groups may publish in any order."
         }
       },
