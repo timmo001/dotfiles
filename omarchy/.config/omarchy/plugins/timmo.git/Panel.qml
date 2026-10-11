@@ -59,6 +59,14 @@ Panel {
   readonly property var releaseGeometry: ({ x: panel.cardOrigin.x, y: panel.cardOrigin.y, width: panel.contentWidth, height: panel.contentHeight, screen: panel.screen ? panel.screen.name : "" })
   readonly property string cursorKey: filterController.selectedEntry() ? filterController.selectedEntry().key : ""
   readonly property bool selectedRepoCanPull: service !== null && !!service.canPullRepo(selectedRepo)
+  readonly property var pullRun: service ? service.pullRun : null
+  // Repository lists show the running or last pull. A repository's page shows a running pull, so a pull requested
+  // while another runs is not hidden, and a finished pull that included the repository.
+  readonly property bool pullStatusShown: pullRun !== null && (["overview", "changed", "other"].indexOf(view) >= 0
+    || (view === "repo" && (service.pulling || pullRun.repos.length === 0
+      || (!!selectedRepo && pullRun.repos.some(function(repo) { return repo.path === String(selectedRepo.path || "") })))))
+  readonly property var pullStatusRows: filterRows("pull-status-action")
+  property real pullNow: Date.now()
   readonly property int repoCount: service ? service.repos.length : 0
   readonly property int changedRepoCount: service ? service.changedRepos.length : 0
   readonly property int otherRepoCount: service ? service.otherRepos.length : 0
@@ -202,7 +210,7 @@ Panel {
     if (filterController.filterText) return true
     var key = view + ":" + id
     if (key in sectionOverrides) return sectionOverrides[key]
-    return !(view === "overview" && id !== "context")
+    return !(view === "overview" && id !== "context" && id !== "pull-status")
   }
 
   function toggleSection(id) {
@@ -214,7 +222,7 @@ Panel {
   function sectionId(row) {
     if (row.kind === "toggle" || row.kind === "navigation") return ""
     if (row.kind === "action") return view === "overview" ? "repositories" : "actions"
-    return ({ "release-summary": "summary", context: "context", repo: "repositories", thread: "notifications", footer: "notifications",
+    return ({ "release-summary": "summary", "pull-status": "pull-status", context: "context", repo: "repositories", thread: "notifications", footer: "notifications",
       release: "releases", pulls: "pulls", "pulls-empty": "pulls-empty", issues: "issues", "issues-empty": "issues-empty", log: "log" })[row.section] || ""
   }
 
@@ -353,6 +361,7 @@ Panel {
       return rows
     }
     if (view === "overview") {
+      rows = rows.concat(pullRows())
       if (workspaceContext && workspaceContext.repository) {
         rows.push(headerActionRow("context-refresh", "Refresh workspace", "context"))
         var current = workspaceContext.repository
@@ -368,13 +377,14 @@ Panel {
       }
     } else if (view === "repo") {
       rows.push(navigationRow("Back to repositories"))
-      rows = rows.concat(repoActions(selectedRepo))
+      rows = rows.concat(pullRows(), repoActions(selectedRepo))
       return rows.concat(logRows())
     } else if (view === "commits") {
       rows.push(navigationRow(logAllView === "repo" ? "Back to repository" : "Back to Git overview"))
       return rows.concat(logRows())
     } else {
       rows.push(navigationRow("Back to Git overview"))
+      rows = rows.concat(pullRows())
     }
     var repos = []
     if (view === "overview" || view === "changed")
@@ -730,9 +740,44 @@ Panel {
     selectedAgentItem = { kind: kind, repo: repo, value: value }
   }
 
+  // Follow-ups once a pull ends. A failed pull can retry here, or in a terminal whose dot update offers recovery.
+  function pullRows() {
+    if (!pullStatusShown || service.pulling) return []
+    var rows = []
+    if (pullRun.ok === false && pullRun.repos.length) {
+      rows.push(pullRow("pull-retry", "Retry pull", "󰑐", ""))
+      rows.push(pullRow("pull-terminal", "Retry in terminal", "", "Offers git pull origin or an agent if it fails again"))
+    }
+    rows.push(pullRow("pull-dismiss", "Dismiss", "󰅖", ""))
+    return rows
+  }
+
+  function pullRow(action, label, icon, detail) {
+    var row = actionRow(action, label, icon)
+    row.kind = "pull-status-action"
+    row.section = "pull-status"
+    row.secondaryText = detail
+    return row
+  }
+
+  function pullStatusTitle() {
+    if (!pullRun) return "Pull"
+    var state = service.pulling ? "Pulling" : (pullRun.ok === true ? "Pulled" : (pullRun.ok === false ? "Pull failed" : "Pull finished"))
+    var names = pullRun.repos.map(function(repo) { return repo.name })
+    return [state, names.length > 2 ? names.length + " repositories" : names.join(", ")].filter(Boolean).join(" · ")
+  }
+
+  function pullStatusDetail() {
+    if (!pullRun) return ""
+    var seconds = Math.max(0, Math.round(((pullRun.finishedAt || pullNow) - pullRun.startedAt) / 1000))
+    var lines = [pullRun.repos.length ? (service.pulling ? "Running for " : "Took ") + seconds + "s" : "Started before the shell reloaded"]
+    if (service.pullError) lines.push(service.pullError)
+    return lines.join("\n")
+  }
+
   function repoActions(repo) {
     var rows = []
-    if (service && service.canPullRepo(repo)) rows.push(actionRow("pull", "Pull", "󰜷"))
+    if (service && !service.pulling && service.canPullRepo(repo)) rows.push(actionRow("pull", "Pull", "󰜷"))
     rows.push(
       actionRow("lazygit", "Open in lazygit", ""),
       actionRow("plannotator-review", "Review changes in Plannotator", "󰈈"),
@@ -1044,6 +1089,8 @@ Panel {
     view = initialView
     selectedRepo = null
     if (target && service) openTarget(target)
+    var pulling = !!target && target.pull === true && view === "repo"
+    if (pulling && service) service.pullRepositories([selectedRepo], true)
     if (service) service.refreshHerdrContext()
     if (service) { service.notificationLaunchError = ""; service.refreshNotifications() }
     if ((releaseView || view === "overview") && service) service.refreshReleases("read")
@@ -1051,7 +1098,7 @@ Panel {
     if ((issueView || view === "overview" || view === "repo") && service) service.refreshIssues("read")
     if (service) service.refreshLog("read")
     filterController.reset()
-    if (target && view === "repo") expandedGroups = { review: true }
+    if (target && view === "repo" && !pulling) expandedGroups = { review: true }
     controller.show()
     Qt.callLater(function() {
       selectFirstRow()
@@ -1061,7 +1108,7 @@ Panel {
           index = filterController.indexForKey("action:repositories-refresh")
         filterController.selectIndex(index)
       }
-      if (target && view === "repo") filterController.selectIndex(filterController.indexForKey("action:plannotator-review"))
+      if (target && view === "repo" && !pulling) filterController.selectIndex(filterController.indexForKey("action:plannotator-review"))
       panelFlick.contentY = 0
       selectFirstPullRequest()
       selectFirstIssue()
@@ -1086,6 +1133,8 @@ Panel {
   }
 
   function close() { controller.hide() }
+  // A pull that did not fail is shown until the panel closes; a failure stays until it is retried or dismissed.
+  onOpenedChanged: if (!opened && service && pullRun && pullRun.ok !== false && !service.pulling) service.clearPull()
   function toggle() { if (opened) close(); else open() }
 
   function switchPanel(direction) {
@@ -1102,6 +1151,7 @@ Panel {
     if (entry.section === "pulls" || entry.section === "pulls-empty") return pullRequestsSection.itemForKey(entry.key)
     if (entry.section === "issues" || entry.section === "issues-empty") return issuesSection.itemForKey(entry.key)
     if (entry.kind === "release-action") return allReleasesAction
+    if (entry.kind === "pull-status-action") return pullStatusRepeater.itemAt(pullStatusRows.indexOf(entry))
     if (entry.kind === "context-action") return contextRepeater.itemAt(contextRows.indexOf(entry) + (entry.hidden ? 1 : 0))
     if (entry.section === "log") return entry.kind === "header-action" ? logHeading : logRepeater.itemAt(filteredLogRows.indexOf(entry))
     if (entry.kind === "header-action") {
@@ -1135,7 +1185,7 @@ Panel {
     }
     if (id.indexOf("pulls") === 0) return pullRequestsSection.itemForKey("toggle:" + id)
     if (id.indexOf("issues") === 0) return issuesSection.itemForKey("toggle:" + id)
-    return ({ summary: comparisonHeading, context: contextHeading, actions: actionsHeading, repositories: repositoriesHeading,
+    return ({ summary: comparisonHeading, "pull-status": pullStatusHeading, context: contextHeading, actions: actionsHeading, repositories: repositoriesHeading,
       notifications: notificationsHeading, releases: releasesHeading, log: logHeading })[id] || null
   }
 
@@ -1255,6 +1305,9 @@ Panel {
     else if (["commit-guide", "commit-review-patch", "commit-review-worktree"].indexOf(action) >= 0 && selectedCommit) { selectedCommitAgentTask = action.slice(7); showAgentPicker(selectedRepo) }
     else if (action.indexOf("commit-") === 0 && selectedCommit) { close(); service.openCommit(selectedCommit.repo, selectedCommit.commit, action.slice(7), modifiers) }
     else if (action === "back" && releaseView) showView(view === "releases" ? "overview" : (view === "release" ? selectedReleaseView : (view === "finding" && selectedFindingGroup ? "finding-group" : (view === "release-choice" ? selectedImpactView : "release"))))
+    else if (action === "pull-retry") service.pullRepositories(pullRun.repos, true)
+    else if (action === "pull-terminal") { close(); service.openPullTerminal(modifiers) }
+    else if (action === "pull-dismiss") service.clearPull()
     else if (action === "refresh") service.refresh()
     else if (action === "pull-changed") service.pullRepositories(service.changedRepos)
     else if (action === "changed" || action === "other") showView(action)
@@ -1286,7 +1339,7 @@ Panel {
 
   function activateEntry(entry, modifiers) {
     if (entry.kind === "toggle") toggleSection(entry.sectionId)
-    else if (entry.kind === "action" || entry.kind === "navigation" || entry.kind === "footer-action" || entry.kind === "header-action" || entry.kind === "release-action" || entry.kind === "pull-action" || entry.kind === "issue-action" || entry.kind === "log-action") activateAction(entry.action, modifiers)
+    else if (entry.kind === "action" || entry.kind === "navigation" || entry.kind === "footer-action" || entry.kind === "header-action" || entry.kind === "release-action" || entry.kind === "pull-action" || entry.kind === "issue-action" || entry.kind === "log-action" || entry.kind === "pull-status-action") activateAction(entry.action, modifiers)
     else if (entry.kind === "log") activateLog(entry.value)
     else if (entry.kind === "pull-repo") {
       if (entry.value.pulls.length === 0 && entry.value.checkedAt !== null && !entry.value.error) { close(); service.openPulls(entry.value, modifiers) }
@@ -1353,6 +1406,14 @@ Panel {
     var values = ["major", "minor", "patch"].filter(function(impact) { return counts[impact] }).map(function(impact) { return counts[impact] + " " + impact })
     if (stale) values.push(stale + " stale")
     return values.join(" · ") || rows.length + " of " + (service ? service.releases.length : 0)
+  }
+
+  Timer {
+    interval: 1000
+    running: root.opened && root.service !== null && root.service.pulling
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: root.pullNow = Date.now()
   }
 
   Shortcut {
@@ -1479,6 +1540,75 @@ Panel {
             color: root.contentForeground
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.caption
+          }
+
+          SectionHeading {
+            id: pullStatusHeading
+            visible: root.pullStatusShown
+            icon: "󰜷"
+            title: root.pullStatusTitle()
+            foreground: root.pullRun && root.pullRun.ok === false ? root.urgentColor : root.contentForeground
+            fontFamily: root.contentFontFamily
+            collapsible: root.sectionsCollapsible
+            expanded: root.sectionExpanded("pull-status")
+            toggleHasCursor: root.cursorKey === "toggle:pull-status"
+            onToggleHovered: filterController.cursorIndex = filterController.indexForKey("toggle:pull-status")
+            onToggleRequested: root.toggleSection("pull-status")
+          }
+
+          Column {
+            visible: root.pullStatusShown && root.sectionExpanded("pull-status")
+            width: parent.width
+            spacing: Style.space(8)
+            Text {
+              x: Style.space(16)
+              width: parent.width - Style.space(32)
+              text: root.pullStatusDetail()
+              textFormat: Text.PlainText
+              wrapMode: Text.WrapAnywhere
+              color: root.pullRun && root.pullRun.ok === false ? root.urgentColor : root.dimColor
+              font.family: root.contentFontFamily
+              font.pixelSize: Style.font.caption
+            }
+            // dot update's output, followed live while the pull runs.
+            OutputView {
+              x: Style.space(16)
+              width: parent.width - Style.space(32)
+              text: root.service && root.service.pullOutput.trim() ? root.service.pullOutput.trim() : (root.service && root.service.pulling ? "Waiting for output…" : "No output")
+              followTail: true
+              foreground: root.contentForeground
+              fontFamily: root.contentFontFamily
+            }
+            Repeater {
+              id: pullStatusRepeater
+              model: root.pullStatusRows
+              CursorSurface {
+                required property var modelData
+                x: Style.space(8)
+                width: Math.max(0, contentColumn.width - Style.space(16))
+                implicitHeight: pullStatusRow.implicitHeight + Style.space(12)
+                hasCursor: root.cursorKey === modelData.key
+                foreground: root.contentForeground
+                accent: root.contentForeground
+                MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: function(mouse) { root.activateAction(modelData.action, mouse.modifiers) } }
+                Row {
+                  id: pullStatusRow
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.leftMargin: Style.space(8)
+                  anchors.rightMargin: Style.space(8)
+                  spacing: Style.space(10)
+                  Text { width: Style.space(22); anchors.verticalCenter: parent.verticalCenter; text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
+                  Column {
+                    width: Math.max(0, pullStatusRow.width - Style.space(32))
+                    spacing: Style.space(2)
+                    Text { width: parent.width; text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
+                    Text { visible: !!modelData.secondaryText; width: parent.width; text: modelData.secondaryText; textFormat: Text.PlainText; color: Qt.darker(root.contentForeground, 1.25); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
+                  }
+                }
+              }
+            }
           }
 
           SectionHeading {
@@ -1955,17 +2085,6 @@ Panel {
                 onClicked: root.activateAction("pull-changed")
               }
             }
-          }
-
-          Text {
-            visible: ["overview", "changed", "other", "repo"].indexOf(root.view) >= 0 && root.service !== null && root.service.pullError !== ""
-            width: parent.width
-            text: root.service ? root.service.pullError : ""
-            textFormat: Text.PlainText
-            wrapMode: Text.WrapAnywhere
-            color: root.contentForeground
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.caption
           }
 
           Column {

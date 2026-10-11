@@ -150,6 +150,8 @@ BarWidget {
         function pulls(repo: string): void { root.open(JSON.stringify({ view: "pulls", repo: repo })) }
         function issues(repo: string): void { root.open(JSON.stringify({ view: "issues", repo: repo })) }
         function repo(path: string): void { root.open(JSON.stringify({ view: "repo", path: path })) }
+        // Opens the repository and pulls it, showing dot update's progress and result in the panel.
+        function pull(path: string): void { root.open(JSON.stringify({ view: "repo", path: path, pull: true })) }
         function commit(path: string, sha: string, subject: string, author: string, date: string): void {
           root.open(JSON.stringify({ view: "commit", path: path, sha: sha, subject: subject, author: author, date: date }))
         }

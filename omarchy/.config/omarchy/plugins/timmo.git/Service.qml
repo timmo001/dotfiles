@@ -96,6 +96,13 @@ Item {
   property bool panelLoaded: false
   property string panelError: ""
   property string pullError: ""
+  // The running or last pull as { repos, startedAt, finishedAt, ok }. ok is null while it runs,
+  // or when a pull started before the shell reloaded ends without an exit code.
+  property var pullRun: null
+  property string pullOutput: ""
+  // A pull outlives a shell reload in its unit; after one, the unit is followed until it stops.
+  property bool pullRecovering: false
+  readonly property string pullLogPath: Quickshell.env("XDG_RUNTIME_DIR") + "/timmo.git-pull.log"
   property bool panelRefreshPending: false
   property var installedAgents: []
   property string agentLaunchError: ""
@@ -169,7 +176,7 @@ Item {
   readonly property bool refreshing: diffProcess.running || panelProcess.running || notificationsProcess.running || pulling || releaseBusy || pullRequestsBusy || issuesBusy || logBusy
   readonly property bool repositoriesBusy: diffProcess.running || panelProcess.running || pulling
   readonly property bool notificationsBusy: notificationsProcess.running
-  readonly property bool pulling: pullProcess.running
+  readonly property bool pulling: pullProcess.running || pullRecovering
   readonly property var pullableRepos: changedRepos.filter(function(repo) { return root.canPullRepo(repo) })
   readonly property bool clear: diffLoaded && notificationsLoaded && pullRequestsLoaded
     && diffError === "" && notificationsError === ""
@@ -617,8 +624,7 @@ Item {
   function openRelease(entry, modifiers) {
     if (!entry || !entry.snapshot || !entry.path || releaseLaunching) return
     releaseActionError = ""
-    var command = ["dot", "git", "releases", "publish", "--interactive", "--repo", entry.repo, "--snapshot", entry.snapshot.id]
-      .map(function(arg) { return "'" + String(arg).replace(/'/g, "'\\''") + "'" }).join(" ")
+    var command = shellCommand(["dot", "git", "releases", "publish", "--interactive", "--repo", entry.repo, "--snapshot", entry.snapshot.id])
     releaseLaunchProcess.command = herdrCommand(entry, "Release", command, modifiers)
     releaseLaunchProcess.running = true
   }
@@ -719,20 +725,56 @@ Item {
     return repo && repo.path && Number(repo.behind || 0) > 0
   }
 
-  function pullRepositories(repositories) {
+  // force pulls repositories the last scan did not see behind, such as a pull requested from lazygit.
+  function pullRepositories(repositories, force) {
     if (pulling) return
-    var repos = repositories.filter(function(repo) { return root.canPullRepo(repo) })
+    var repos = repositories.filter(function(repo) { return force === true ? !!(repo && repo.path) : root.canPullRepo(repo) })
     if (repos.length === 0) return
     pullError = ""
+    pullOutput = ""
+    pullLogFile.setText("")
+    pullRun = {
+      repos: repos.map(function(repo) { return { name: String(repo.name || String(repo.path).split("/").pop()), path: String(repo.path) } }),
+      startedAt: Date.now(), finishedAt: 0, ok: null
+    }
     // Keep the update alive when pulled plugin files or stow reload the shell.
+    // Its output, stderr included, goes to a log the panel follows.
     var command = [
-      "systemd-run", "--user", "--wait", "--collect", "--service-type=exec",
-      "--unit=dot-panel-update", "--", "dot", "update", "--no-reload"
+      "systemd-run", "--user", "--wait", "--collect", "--quiet", "--service-type=exec",
+      "--unit=dot-panel-update", "--property=StandardOutput=truncate:" + pullLogPath,
+      "--", "dot", "update", "--no-reload"
     ]
     for (var i = 0; i < repos.length; i++)
       command.push("--repo", String(repos[i].path))
     pullProcess.command = command
     pullProcess.running = true
+  }
+
+  function finishPull(ok, error) {
+    pullLogFile.reload()
+    pullRun = Object.assign({}, pullRun, { finishedAt: Date.now(), ok: ok })
+    // --quiet leaves stderr to failures that stop the unit starting; dot's own errors are in the output.
+    if (ok === false) pullError = String(error || "").trim().slice(0, 500)
+    refresh("action")
+  }
+
+  function clearPull() {
+    if (pulling) return
+    pullRun = null
+    pullOutput = ""
+    pullError = ""
+  }
+
+  // dot update in a terminal offers to retry failed pulls with git pull origin or to open the log in an agent.
+  function openPullTerminal(modifiers) {
+    if (!pullRun || !pullRun.repos.length) return
+    var args = ["dot", "update"]
+    pullRun.repos.forEach(function(repo) { args.push("--repo", repo.path) })
+    Quickshell.execDetached(herdrCommand(pullRun.repos[0], "Pull", shellCommand(args), modifiers))
+  }
+
+  function shellCommand(args) {
+    return args.map(function(arg) { return "'" + String(arg).replace(/'/g, "'\\''") + "'" }).join(" ")
   }
 
   function openAgent(repo, command, prompt, modifiers) {
@@ -773,7 +815,7 @@ Item {
     var args = ["dot", "git", "notifications", "dismiss"]
     if (scope === "dependencies") args.push("dependencies")
     if (repo) args.push("--repo", String(repo.path))
-    var command = args.map(function(arg) { return "'" + String(arg).replace(/'/g, "'\\''") + "'" }).join(" ")
+    var command = shellCommand(args)
     notificationLaunchProcess.command = ["dot", "herdr", "repo", "open", "--layout", "tab",
       String(notificationWorkspace.name), String(notificationWorkspace.path), "Notifications", command]
     notificationLaunchProcess.running = true
@@ -985,13 +1027,45 @@ Item {
     id: pullProcess
     stdout: StdioCollector {}
     stderr: StdioCollector { id: pullStderr; waitForEnd: true }
+    onExited: function(exitCode) { root.finishPull(exitCode === 0, pullStderr.text) }
+  }
+
+  FileView {
+    id: pullLogFile
+    path: root.pullLogPath
+    atomicWrites: false
+    blockWrites: true
+    printErrors: false
+    onLoaded: if (root.pullRun) root.pullOutput = text()
+  }
+
+  Timer {
+    interval: 500
+    running: root.pulling
+    repeat: true
+    onTriggered: pullLogFile.reload()
+  }
+
+  Process {
+    id: pullUnitProcess
+    command: ["systemctl", "--user", "is-active", "--quiet", "dot-panel-update"]
+    running: true
     onExited: function(exitCode) {
-      if (exitCode !== 0) {
-        root.pullError = String(pullStderr.text || "Pull failed").trim().slice(0, 500)
-          + "\nSee journalctl --user -u dot-panel-update for details"
+      if (exitCode === 0) {
+        if (!root.pullRun) root.pullRun = { repos: [], startedAt: Date.now(), finishedAt: 0, ok: null }
+        root.pullRecovering = true
+        pullUnitTimer.restart()
+      } else if (root.pullRecovering) {
+        root.pullRecovering = false
+        root.finishPull(null, "")
       }
-      root.refresh("action")
     }
+  }
+
+  Timer {
+    id: pullUnitTimer
+    interval: 2000
+    onTriggered: pullUnitProcess.running = true
   }
 
   Process {
