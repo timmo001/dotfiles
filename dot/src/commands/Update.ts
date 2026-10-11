@@ -6,6 +6,11 @@ import { OutputLog } from "../services/OutputLog.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { DotDiff, recordUpstreamFetch } from "../git/services/DotDiff.js";
 import { stow as runStow } from "./Stow.js";
+import {
+  reloadAgents,
+  restartStalePitchforkDaemons,
+  updatePiExtensions,
+} from "../lib/agentRuntime.js";
 import { agentsSync } from "./AgentsSync.js";
 import { mcpSync } from "../mcp/commands/McpSync.js";
 import { syncNotesRemotes } from "../git/notesRemote.js";
@@ -113,6 +118,7 @@ const STEP_TIMEOUT_SECONDS = {
   pull: 8 * 60,
   stow: 3 * 60,
   miseInstall: 10 * 60,
+  agentRuntimes: 3 * 60,
   rebuild: 5 * 60,
   herdrPlugins: 5 * 60,
   postHooks: 2 * 60,
@@ -1690,6 +1696,25 @@ export const update = (updateOpts?: UpdateOptions) =>
         STEP_TIMEOUT_SECONDS.miseInstall,
         pruneRemovedMiseTools.pipe(Effect.map(recordMiseStep)),
       );
+
+      const refreshed = yield* withStepTimeout(
+        "Agent Runtimes",
+        STEP_TIMEOUT_SECONDS.agentRuntimes,
+        Effect.gen(function* () {
+          yield* log.section("Agent Runtimes");
+
+          completedActions.push(
+            ...(yield* Effect.all(
+              [restartStalePitchforkDaemons, updatePiExtensions],
+              { concurrency: "unbounded" },
+            )),
+          );
+        }),
+      );
+
+      if (!refreshed) {
+        completedActions.push(warn("Agent runtime refresh timed out"));
+      }
     }
 
     if (opts?.reload === false) {
@@ -1778,6 +1803,25 @@ export const update = (updateOpts?: UpdateOptions) =>
       completedActions.push(INIT_MARKER_RECAP[markerStatus]);
     } else {
       completedActions.push(skip("Init state check skipped (scoped update)"));
+    }
+
+    if (opts?.reload === false) {
+      completedActions.push(skip("Agent reload skipped (--no-reload)"));
+    } else if (!runsFullPhases) {
+      completedActions.push(skip("Agent reload skipped (scoped update)"));
+    } else {
+      const reloaded = yield* withStepTimeout(
+        "Reload Agents",
+        STEP_TIMEOUT_SECONDS.uiReload,
+        Effect.gen(function* () {
+          yield* log.section("Reload Agents");
+          completedActions.push(yield* reloadAgents);
+        }),
+      );
+
+      if (!reloaded) {
+        completedActions.push(warn("Agent reload timed out"));
+      }
     }
 
     if (opts?.reload === false) {

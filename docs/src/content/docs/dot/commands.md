@@ -62,11 +62,11 @@ Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: pass
 dot update <subcommand> [flags]
 ```
 
-A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, installs missing public Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs agents sync, backfills the init marker, and refreshes shell modules. The shell restarts only when its generated config or a deployed Omarchy plugin changed. It finishes with a summary of updated repositories and every completed or skipped step, in order.
+A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, installs missing public Arch/AUR packages, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and refreshes shell modules. The shell restarts only when its generated config or a deployed Omarchy plugin changed. It finishes with a summary of updated repositories and every completed or skipped step, in order.
 
 Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip full-update package reconciliation, agents sync, and init-marker backfill.
 
-Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands, skipping the dotfiles rebuild and stow. Herdr plugins are refreshed only inside Herdr. The Git panel uses --no-reload to skip shell reload and module refresh.
+Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands, skipping the dotfiles rebuild and stow. Herdr plugins are refreshed only inside Herdr. The Git panel uses --no-reload to skip shell reload, agent reload and module refresh.
 
 **Options**
 
@@ -3131,7 +3131,7 @@ Reload the desktop shell and services, or selected parts
 dot reload [flags] [<part...>]
 ```
 
-Reload parts of the desktop that can go stale after suspend or a change. With no parts, reloads everything. keyboard re-arms the keyboard backlight. upnext rechecks Up Next sources, restarting its service if the recheck fails; it runs alongside the other parts because the YouTube check takes several seconds. shell clears a workspace mutation lock left by a dot workspace command stuck on a shell menu, regenerates shell.json, restarts the Omarchy shell, rescans plugins and refreshes shell modules. updates refreshes available updates. doctor starts the dot doctor check.
+Reload parts of the desktop that can go stale after suspend or a change. With no parts, reloads everything except agents. agents reloads the OpenCode service's config and, through Herdr, types /reload-plugins into idle Claude Code sessions and /reload into idle Pi sessions; busy sessions are left alone, and dot update runs it after a full update. keyboard re-arms the keyboard backlight. upnext rechecks Up Next sources, restarting its service if the recheck fails; it runs alongside the other parts because the YouTube check takes several seconds. shell clears a workspace mutation lock left by a dot workspace command stuck on a shell menu, regenerates shell.json, restarts the Omarchy shell, rescans plugins and refreshes shell modules. updates refreshes available updates. doctor starts the dot doctor check.
 
 **Options**
 
@@ -3144,7 +3144,7 @@ Reload parts of the desktop that can go stale after suspend or a change. With no
 
 | Argument | Description |
 | --- | --- |
-| `<part>` | Parts to reload (default: all) |
+| `<part>` | Parts to reload (default: all but agents) |
 
 **Examples**
 
@@ -3153,6 +3153,7 @@ dot reload
 dot reload --no-auto-open
 dot reload shell
 dot reload shell updates
+dot reload agents
 ```
 
 ## `dot workspace`

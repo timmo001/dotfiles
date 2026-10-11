@@ -1,6 +1,7 @@
 import { resolveSocketPath, UpnextClient } from "@timmo001/effect-upnext";
 import { Effect, FileSystem, Option } from "effect";
 import { basename } from "path";
+import { reloadAgents } from "../lib/agentRuntime.js";
 import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
 import { WORKSPACE_MUTATION_LOCK_PATH } from "../lib/workspaceMutationLock.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -15,14 +16,18 @@ export const RELOAD_PARTS = [
   "shell",
   "updates",
   "doctor",
+  "agents",
 ] as const;
 
 /** One reloadable part of the desktop. */
 export type ReloadPart = (typeof RELOAD_PARTS)[number];
 
+// Typing into agent sessions is never part of a plain UI reload.
+const DEFAULT_RELOAD_PARTS = RELOAD_PARTS.filter((part) => part !== "agents");
+
 /** Options for {@link reload}. */
 export interface ReloadOptions {
-  /** Parts to reload; empty reloads every part. */
+  /** Parts to reload; empty reloads every part except agents. */
   readonly parts: readonly ReloadPart[];
   /** Skip opening auto-open live channels during the upnext recheck. */
   readonly noAutoOpen: boolean;
@@ -217,7 +222,11 @@ const doctor = Effect.gen(function* () {
  */
 export const reload = Effect.fn("reload")(function* (options: ReloadOptions) {
   const log = yield* OutputLog;
-  const selected = new Set(options.parts.length ? options.parts : RELOAD_PARTS);
+
+  const selected = new Set<ReloadPart>(
+    options.parts.length ? options.parts : DEFAULT_RELOAD_PARTS,
+  );
+
   const has = (part: ReloadPart) => selected.has(part);
 
   yield* log.section("Reload");
@@ -230,6 +239,8 @@ export const reload = Effect.fn("reload")(function* (options: ReloadOptions) {
     if (has("updates")) yield* updates;
 
     if (has("doctor")) yield* doctor;
+
+    if (has("agents")) yield* reloadAgents;
   });
 
   yield* Effect.all(
