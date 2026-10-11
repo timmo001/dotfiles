@@ -16,7 +16,7 @@ import {
   Schema,
 } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
-import { join, resolve } from "path";
+import { basename, dirname, join, resolve } from "path";
 import { ENV, envString } from "../lib/env.js";
 import { localHerdrAttachment } from "../lib/herdrAttachment.js";
 import { CACHE_DIR, CONFIG_DIR, HOME_DIR } from "../lib/paths.js";
@@ -611,10 +611,23 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
       const processes =
         (yield* herdr.panes.processInfo(targetPane)).foregroundProcesses ?? [];
 
+      // A node_modules/.bin shim execs into its package, replacing argv.
+      const installRoot =
+        basename(dirname(expectedExecutable)) === ".bin"
+          ? `${dirname(dirname(expectedExecutable))}/`
+          : undefined;
+
       if (
         !processes.some((process) =>
           Option.exists(process.argv, (argv) =>
-            argv.includes(expectedExecutable),
+            argv.some((arg) => {
+              const path = resolve(arg);
+
+              return (
+                path === expectedExecutable ||
+                (installRoot !== undefined && path.startsWith(installRoot))
+              );
+            }),
           ),
         )
       )
