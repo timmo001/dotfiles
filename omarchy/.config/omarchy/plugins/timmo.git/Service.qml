@@ -97,12 +97,19 @@ Item {
   property string panelError: ""
   property string pullError: ""
   // The running or last pull as { repos, startedAt, finishedAt, ok }. ok is null while it runs,
-  // or when a pull started before the shell reloaded ends without an exit code.
+  // or when a pull resumed after a shell reload ends without an exit code.
   property var pullRun: null
   property string pullOutput: ""
   // A pull outlives a shell reload in its unit; after one, the unit is followed until it stops.
   property bool pullRecovering: false
+  property bool pullPanelOpen: false
+  // Set when a pull resumes after a shell reload that closed the panel showing it; the bar widget reopens it.
+  property bool pullReopenPending: false
+  property bool pullExitPending: false
   readonly property string pullLogPath: Quickshell.env("XDG_RUNTIME_DIR") + "/timmo.git-pull.log"
+  // The running pull, kept so a reloaded shell can resume it, and the exit code its unit writes when it ends.
+  readonly property string pullStatePath: Quickshell.env("XDG_RUNTIME_DIR") + "/timmo.git-pull.json"
+  readonly property string pullExitPath: Quickshell.env("XDG_RUNTIME_DIR") + "/timmo.git-pull.exit"
   property bool panelRefreshPending: false
   property var installedAgents: []
   property string agentLaunchError: ""
@@ -737,12 +744,16 @@ Item {
       repos: repos.map(function(repo) { return { name: String(repo.name || String(repo.path).split("/").pop()), path: String(repo.path) } }),
       startedAt: Date.now(), finishedAt: 0, ok: null
     }
+    pullExitFile.setText("")
+    savePullState()
     // Keep the update alive when pulled plugin files or stow reload the shell.
-    // Its output, stderr included, goes to a log the panel follows.
+    // Its output, stderr included, goes to a log the panel follows, and its exit code to a file
+    // a reloaded shell reads.
     var command = [
       "systemd-run", "--user", "--wait", "--collect", "--quiet", "--service-type=exec",
       "--unit=dot-panel-update", "--property=StandardOutput=truncate:" + pullLogPath,
-      "--", "dot", "update", "--no-reload"
+      "--", "sh", "-c", 'exit_file=$1; shift; dot update "$@"; status=$?; echo "$status" > "$exit_file"; exit "$status"',
+      "sh", pullExitPath, "--no-reload"
     ]
     for (var i = 0; i < repos.length; i++)
       command.push("--repo", String(repos[i].path))
@@ -750,8 +761,40 @@ Item {
     pullProcess.running = true
   }
 
+  function savePullState() {
+    pullStateFile.setText(JSON.stringify({ repos: pullRun.repos, startedAt: pullRun.startedAt, panelOpen: pullPanelOpen }) + "\n")
+  }
+
+  // The panel reports whether it is open, so a pull it was showing reopens it after a shell reload.
+  function setPullPanelOpen(open) {
+    if (pullPanelOpen === open) return
+    pullPanelOpen = open
+    if (pulling && pullRun) savePullState()
+  }
+
+  // Picks up a pull a previous shell started, from its saved state.
+  function resumePull(raw) {
+    if (pullRun) return
+    var state = null
+    try { state = JSON.parse(String(raw || "")) } catch (error) {}
+    if (!state || !Array.isArray(state.repos) || !state.repos.length || typeof state.startedAt !== "number") return
+    pullRun = { repos: state.repos, startedAt: state.startedAt, finishedAt: 0, ok: null }
+    pullRecovering = true
+    pullReopenPending = state.panelOpen === true
+    pullUnitProcess.running = true
+  }
+
+  // A resumed pull's unit has stopped; its exit code is in the file the unit wrote, if it got that far.
+  function finishResumedPull(raw) {
+    pullExitPending = false
+    pullRecovering = false
+    var code = String(raw || "").trim()
+    finishPull(code === "" ? null : code === "0", "")
+  }
+
   function finishPull(ok, error) {
     pullLogFile.reload()
+    pullStateFile.setText("")
     pullRun = Object.assign({}, pullRun, { finishedAt: Date.now(), ok: ok })
     // --quiet leaves stderr to failures that stop the unit starting; dot's own errors are in the output.
     if (ok === false) pullError = String(error || "").trim().slice(0, 500)
@@ -1046,18 +1089,33 @@ Item {
     onTriggered: pullLogFile.reload()
   }
 
+  FileView {
+    id: pullStateFile
+    path: root.pullStatePath
+    atomicWrites: false
+    blockWrites: true
+    printErrors: false
+    onLoaded: root.resumePull(text())
+  }
+
+  FileView {
+    id: pullExitFile
+    path: root.pullExitPath
+    atomicWrites: false
+    blockWrites: true
+    printErrors: false
+    onLoaded: if (root.pullExitPending) root.finishResumedPull(text())
+    onLoadFailed: if (root.pullExitPending) root.finishResumedPull("")
+  }
+
   Process {
     id: pullUnitProcess
     command: ["systemctl", "--user", "is-active", "--quiet", "dot-panel-update"]
-    running: true
     onExited: function(exitCode) {
-      if (exitCode === 0) {
-        if (!root.pullRun) root.pullRun = { repos: [], startedAt: Date.now(), finishedAt: 0, ok: null }
-        root.pullRecovering = true
-        pullUnitTimer.restart()
-      } else if (root.pullRecovering) {
-        root.pullRecovering = false
-        root.finishPull(null, "")
+      if (exitCode === 0) pullUnitTimer.restart()
+      else if (root.pullRecovering && !root.pullExitPending) {
+        root.pullExitPending = true
+        pullExitFile.reload()
       }
     }
   }

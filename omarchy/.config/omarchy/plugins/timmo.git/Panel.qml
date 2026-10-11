@@ -63,7 +63,7 @@ Panel {
   // Repository lists show the running or last pull. A repository's page shows a running pull, so a pull requested
   // while another runs is not hidden, and a finished pull that included the repository.
   readonly property bool pullStatusShown: pullRun !== null && (["overview", "changed", "other"].indexOf(view) >= 0
-    || (view === "repo" && (service.pulling || pullRun.repos.length === 0
+    || (view === "repo" && (service.pulling
       || (!!selectedRepo && pullRun.repos.some(function(repo) { return repo.path === String(selectedRepo.path || "") })))))
   readonly property var pullStatusRows: filterRows("pull-status-action")
   property real pullNow: Date.now()
@@ -744,7 +744,7 @@ Panel {
   function pullRows() {
     if (!pullStatusShown || service.pulling) return []
     var rows = []
-    if (pullRun.ok === false && pullRun.repos.length) {
+    if (pullRun.ok === false) {
       rows.push(pullRow("pull-retry", "Retry pull", "󰑐", ""))
       rows.push(pullRow("pull-terminal", "Retry in terminal", "", "Offers git pull origin or an agent if it fails again"))
     }
@@ -770,7 +770,7 @@ Panel {
   function pullStatusDetail() {
     if (!pullRun) return ""
     var seconds = Math.max(0, Math.round(((pullRun.finishedAt || pullNow) - pullRun.startedAt) / 1000))
-    var lines = [pullRun.repos.length ? (service.pulling ? "Running for " : "Took ") + seconds + "s" : "Started before the shell reloaded"]
+    var lines = [(service.pulling ? "Running for " : "Took ") + seconds + "s"]
     if (service.pullError) lines.push(service.pullError)
     return lines.join("\n")
   }
@@ -1089,8 +1089,9 @@ Panel {
     view = initialView
     selectedRepo = null
     if (target && service) openTarget(target)
-    var pulling = !!target && target.pull === true && view === "repo"
-    if (pulling && service) service.pullRepositories([selectedRepo], true)
+    // pull starts a pull; resume reopens on one a shell reload interrupted.
+    var pulling = !!target && (target.pull === true || target.resume === true) && view === "repo"
+    if (pulling && target.pull === true && service) service.pullRepositories([selectedRepo], true)
     if (service) service.refreshHerdrContext()
     if (service) { service.notificationLaunchError = ""; service.refreshNotifications() }
     if ((releaseView || view === "overview") && service) service.refreshReleases("read")
@@ -1134,7 +1135,11 @@ Panel {
 
   function close() { controller.hide() }
   // A pull that did not fail is shown until the panel closes; a failure stays until it is retried or dismissed.
-  onOpenedChanged: if (!opened && service && pullRun && pullRun.ok !== false && !service.pulling) service.clearPull()
+  onOpenedChanged: {
+    if (!service) return
+    service.setPullPanelOpen(opened)
+    if (!opened && pullRun && pullRun.ok !== false && !service.pulling) service.clearPull()
+  }
   function toggle() { if (opened) close(); else open() }
 
   function switchPanel(direction) {

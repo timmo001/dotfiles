@@ -123,6 +123,23 @@ BarWidget {
     panel.service = root.git
   }
 
+  // Reopens the panel on a pull it was showing when a shell reload closed it, once the panel has its service.
+  readonly property bool pullReopenReady: activeInstance && !!git && git.pullReopenPending === true
+    && !!panelLoader.item && !!panelLoader.item.service
+
+  // The bar rebuilds its widgets while the shell starts, so this waits for the instance to settle;
+  // a replaced instance takes its timer with it and the surviving one reopens the panel.
+  Timer {
+    interval: 1500
+    running: root.pullReopenReady
+    onTriggered: {
+      if (!root.pullReopenReady) return
+      root.git.pullReopenPending = false
+      var repos = root.git.pullRun ? root.git.pullRun.repos : []
+      root.open(JSON.stringify(repos.length === 1 ? { view: "repo", path: repos[0].path, resume: true } : {}))
+    }
+  }
+
   visible: activeInstance
   implicitWidth: activeInstance ? button.implicitWidth : 0
   implicitHeight: button.implicitHeight
