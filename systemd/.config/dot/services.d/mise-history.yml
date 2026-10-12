@@ -1,0 +1,7 @@
+---
+unit: mise-history.service
+label: mise history
+restartLimit:
+  count: 3
+  within: 1 hour
+repository: jdx/mise

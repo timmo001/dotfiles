@@ -1,0 +1,12 @@
+# Trial of mise's dotfiles tracking on two low-risk files. Both are stow
+# links into this repo; this tests whether mise tracks and saves through a
+# symlink. History stays local (~/.local/state/mise/history); no origin is
+# set, sharing still happens through git and stow.
+[dotfiles]
+"~/.config/starship/starship.toml" = { mode = "track" }
+"~/.config/fastfetch/config.jsonc" = { mode = "track" }
+
+# Saves tracked files a couple of seconds after each edit. Installed by
+# `mise bootstrap` as a systemd user service.
+[bootstrap.services.mise-history]
+builtin = "history-watch"
