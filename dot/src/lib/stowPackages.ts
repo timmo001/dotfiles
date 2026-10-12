@@ -1,6 +1,12 @@
 import { Effect, type FileSystem } from "effect";
 import { basename, dirname, join, relative, resolve } from "path";
-import { lstatOrNull, readDirectoryOrNull, readLinkOrNull } from "./fsProbe.js";
+import {
+  lstatOrNull,
+  readDirectoryOrNull,
+  readLinkOrNull,
+  readTextOrNull,
+} from "./fsProbe.js";
+import { gitOutput } from "./git.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
@@ -23,6 +29,7 @@ import {
   backupLegacyGhosttyRepo,
   backupUnmanagedStowTargets,
   findExternalSkillSymlinks,
+  findRetiredStowLinks,
   formatBackupMove,
   removeExternalSymlinks,
   removeLegacyUwsmRepo,
@@ -30,6 +37,7 @@ import {
   removeRetiredPublicStowLinks,
   removeStaleSkillSymlinks,
   restoreExternalSymlinks,
+  writeRetiredStowFile,
   type ExternalSymlink,
 } from "./stowConflicts.js";
 import { cliStyler } from "./ansi.js";
@@ -105,6 +113,40 @@ const pluginTargets = Effect.fn("stow.pluginTargets")(function* (
 });
 
 /**
+ * Contents of a retired public stow file: the checkout's copy while it still
+ * exists, otherwise the version just before the commit that deleted it.
+ */
+const retiredStowFileContents = Effect.fn("stow.retiredFileContents")(
+  function* (repoDir: string, sourceRelative: string) {
+    const current = yield* readTextOrNull(join(repoDir, sourceRelative));
+
+    if (current !== null) return current;
+
+    const deletion = yield* gitOutput(
+      [
+        "log",
+        "-n",
+        "1",
+        "--format=%H",
+        "--diff-filter=D",
+        "--",
+        sourceRelative,
+      ],
+      { cwd: repoDir },
+    ).pipe(
+      Effect.map((output) => output.trim()),
+      Effect.orElseSucceed(() => ""),
+    );
+
+    if (!deletion) return null;
+
+    return yield* gitOutput(["show", `${deletion}^:${sourceRelative}`], {
+      cwd: repoDir,
+    }).pipe(Effect.orElseSucceed((): string | null => null));
+  },
+);
+
+/**
  * Remove or back up retired links and cloned repositories that would
  * otherwise conflict with stowing the public packages.
  */
@@ -126,6 +168,26 @@ export const removeRetiredStowState = Effect.fn("stow.removeRetiredState")(
           `${style.warn("Migrated")} crash hook to public stow ${style.dim(displayPath(removedPrivateCrashHook))}`,
         );
       }
+    }
+
+    for (const link of findRetiredStowLinks(config.publicDotfiles)) {
+      const contents = yield* retiredStowFileContents(
+        config.publicDotfiles,
+        link.sourceRelative,
+      );
+
+      if (contents === null) {
+        yield* log.warn(
+          `Could not recover ${displayPath(link.target)} from git history; restore it by hand`,
+        );
+        continue;
+      }
+
+      yield* Effect.sync(() => writeRetiredStowFile(link, contents));
+      yield* log.info(
+        `${style.warn("Replaced")} stow link with a regular file ${style.dim(displayPath(link.target))}`,
+      );
+      counts.removed++;
     }
 
     for (const path of removeRetiredPublicStowLinks(config.publicDotfiles)) {
