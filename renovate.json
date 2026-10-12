@@ -63,9 +63,9 @@
   ],
   "packageRules": [
     {
-      "description": "Keep the OpenCode plugin Effect version aligned with its pinned packages.",
+      "description": "Leave the OpenCode plugins' Effect packages to OpenCode bumps, which tests/opencode/plugin-effect-version.test.ts keeps aligned.",
       "matchFileNames": ["agents/.config/opencode/plugins/package.json"],
-      "matchPackageNames": ["effect"],
+      "matchPackageNames": ["effect", "@effect/**"],
       "enabled": false
     },
     {
