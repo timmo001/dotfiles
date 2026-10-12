@@ -17,7 +17,7 @@
         "name": "63% top",
         "tree": {
           "dir": "tb",
-          "ratio": 63,
+          "ratio": 62.95,
           "a": "w",
           "b": "w"
         }
@@ -27,7 +27,7 @@
         "name": "59% top",
         "tree": {
           "dir": "tb",
-          "ratio": 58.74,
+          "ratio": 58.69,
           "a": "w",
           "b": "w"
         }
@@ -109,7 +109,7 @@
         "name": "75% top",
         "tree": {
           "dir": "tb",
-          "ratio": 75.4,
+          "ratio": 75.11,
           "a": "w",
           "b": {
             "dir": "lr",
@@ -124,7 +124,7 @@
         "name": "62% top",
         "tree": {
           "dir": "tb",
-          "ratio": 62.41,
+          "ratio": 62.36,
           "a": "w",
           "b": {
             "dir": "lr",
@@ -187,7 +187,7 @@
           "ratio": 50,
           "a": {
             "dir": "tb",
-            "ratio": 46.34,
+            "ratio": 46.3,
             "a": "w",
             "b": "w"
           },
@@ -202,7 +202,7 @@
           "ratio": 33.29,
           "a": {
             "dir": "tb",
-            "ratio": 69.08,
+            "ratio": 69.03,
             "a": "w",
             "b": "w"
           },
@@ -293,7 +293,7 @@
           "a": "w",
           "b": {
             "dir": "tb",
-            "ratio": 57.32,
+            "ratio": 57.27,
             "a": "w",
             "b": "w"
           }
@@ -308,7 +308,7 @@
           "a": "w",
           "b": {
             "dir": "tb",
-            "ratio": 51.83,
+            "ratio": 51.79,
             "a": "w",
             "b": "w"
           }
@@ -322,7 +322,7 @@
           "ratio": 27.58,
           "a": {
             "dir": "tb",
-            "ratio": 73.7,
+            "ratio": 73.64,
             "a": "w",
             "b": "w"
           },
@@ -351,7 +351,7 @@
         "name": "75% top",
         "tree": {
           "dir": "tb",
-          "ratio": 75.4,
+          "ratio": 75.23,
           "a": "w",
           "b": {
             "dir": "lr",
@@ -371,7 +371,7 @@
         "name": "70% top",
         "tree": {
           "dir": "tb",
-          "ratio": 70,
+          "ratio": 69.94,
           "a": "w",
           "b": {
             "dir": "lr",
@@ -391,7 +391,7 @@
         "name": "57% top",
         "tree": {
           "dir": "tb",
-          "ratio": 57.44,
+          "ratio": 57.39,
           "a": "w",
           "b": {
             "dir": "lr",
@@ -460,7 +460,7 @@
           },
           "b": {
             "dir": "tb",
-            "ratio": 58.74,
+            "ratio": 58.69,
             "a": "w",
             "b": "w"
           }
@@ -474,7 +474,7 @@
           "ratio": 63.93,
           "a": {
             "dir": "tb",
-            "ratio": 74.83,
+            "ratio": 74.77,
             "a": {
               "dir": "lr",
               "ratio": 50,
@@ -491,15 +491,15 @@
         "name": "Desktop portrait",
         "tree": {
           "dir": "tb",
-          "ratio": 27.9,
+          "ratio": 27.88,
           "a": "w",
           "b": {
             "dir": "tb",
-            "ratio": 50.35,
+            "ratio": 50.29,
             "a": "w",
             "b": {
               "dir": "tb",
-              "ratio": 72.2,
+              "ratio": 72.04,
               "a": "w",
               "b": "w"
             }
@@ -513,7 +513,7 @@
         "name": "76% top",
         "tree": {
           "dir": "tb",
-          "ratio": 75.52,
+          "ratio": 75.46,
           "a": "w",
           "b": {
             "dir": "lr",
@@ -538,7 +538,7 @@
         "name": "56% top",
         "tree": {
           "dir": "tb",
-          "ratio": 55.86,
+          "ratio": 55.82,
           "a": "w",
           "b": {
             "dir": "lr",
@@ -570,7 +570,7 @@
             "a": "w",
             "b": {
               "dir": "tb",
-              "ratio": 50.12,
+              "ratio": 50.04,
               "a": "w",
               "b": "w"
             }
@@ -593,15 +593,15 @@
           "ratio": 27.02,
           "a": {
             "dir": "tb",
-            "ratio": 24.94,
+            "ratio": 24.92,
             "a": "w",
             "b": {
               "dir": "tb",
-              "ratio": 33.18,
+              "ratio": 33.14,
               "a": "w",
               "b": {
                 "dir": "tb",
-                "ratio": 50.12,
+                "ratio": 50.04,
                 "a": "w",
                 "b": "w"
               }
