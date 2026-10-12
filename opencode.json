@@ -323,6 +323,16 @@
       "effect": "allow"
     },
     {
+      "action": "read",
+      "resource": "~/.repos/**",
+      "effect": "allow"
+    },
+    {
+      "action": "write",
+      "resource": "~/.repos/**",
+      "effect": "allow"
+    },
+    {
       "action": "external_directory",
       "resource": "~/.agents/*",
       "effect": "allow"
