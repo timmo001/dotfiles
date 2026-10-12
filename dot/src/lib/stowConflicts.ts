@@ -10,6 +10,7 @@ import {
   rmSync,
   symlinkSync,
   unlinkSync,
+  writeFileSync,
 } from "fs";
 import { basename, dirname, join, relative, resolve, sep } from "path";
 import { displayPath, HOME_DIR } from "./paths.js";
@@ -128,6 +129,98 @@ export function backupFileIfUnmanaged(
 /** Format a backup move for user-facing logs. */
 export function formatBackupMove(move: BackupMove): string {
   return `${displayPath(move.source)} -> ${displayPath(move.destination)}`;
+}
+
+/**
+ * Retired public stow files that now live as regular files tracked by mise's
+ * dotfiles history (declared in the private overlay). `dot stow` turns the
+ * stow link a machine still has into a regular file once, so the file keeps
+ * its contents after the package is gone.
+ */
+const MISE_TRACKED_PUBLIC_STOW_PATHS = [
+  "starship/.config/starship/starship.toml",
+  "fastfetch/.config/fastfetch/config.jsonc",
+] as const;
+
+/** A live stow link that should become a regular file with the same contents. */
+export interface RetiredStowLink {
+  /** Package-relative source path, e.g. `starship/.config/starship/starship.toml`. */
+  readonly sourceRelative: string;
+  /** Live path that should end up as a regular file. */
+  readonly target: string;
+  /** The symlink stow created: the file itself or a folded ancestor directory. */
+  readonly link: string;
+}
+
+/**
+ * Find the symlink stow created for `target`: the path itself when stowed
+ * unfolded, or the nearest ancestor below `homeDir` that is a folded link into
+ * `packageDir`. A dangling folded link is found by walking past the missing
+ * file. Returns null when the path is a regular file, missing, or linked
+ * somewhere else.
+ */
+function findStowLinkIntoPackage(
+  target: string,
+  homeDir: string,
+  packageDir: string,
+): string | null {
+  for (
+    let path = target;
+    path !== homeDir && path !== dirname(path);
+    path = dirname(path)
+  ) {
+    try {
+      if (!lstatSync(path).isSymbolicLink()) continue;
+
+      const resolved = resolve(dirname(path), readlinkSync(path));
+
+      return resolved === packageDir || resolved.startsWith(packageDir + sep)
+        ? path
+        : null;
+    } catch {
+      // Missing below a dangling folded link: keep walking up.
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Find live links to retired public stow files that should become regular
+ * files. Covers both an unfolded file link and a folded directory link that
+ * points into the retired package, dangling or not.
+ */
+export function findRetiredStowLinks(
+  publicDotfiles: string,
+  homeDir = HOME_DIR,
+): RetiredStowLink[] {
+  const found: RetiredStowLink[] = [];
+
+  for (const sourceRelative of MISE_TRACKED_PUBLIC_STOW_PATHS) {
+    const packageSeparator = sourceRelative.indexOf("/");
+
+    const packageDir = join(
+      publicDotfiles,
+      sourceRelative.slice(0, packageSeparator),
+    );
+
+    const target = join(homeDir, sourceRelative.slice(packageSeparator + 1));
+    const link = findStowLinkIntoPackage(target, homeDir, packageDir);
+
+    if (link) found.push({ sourceRelative, target, link });
+  }
+
+  return found;
+}
+
+/** Replace a retired stow link with a regular file holding `contents`. */
+export function writeRetiredStowFile(
+  link: RetiredStowLink,
+  contents: string,
+): void {
+  unlinkSync(link.link);
+  mkdirSync(dirname(link.target), { recursive: true });
+  writeFileSync(link.target, contents);
 }
 
 /** Remove dangling live links for retired public stow files. */
