@@ -351,15 +351,15 @@
         "name": "75% top",
         "tree": {
           "dir": "tb",
-          "ratio": 75.23,
+          "ratio": 77.64,
           "a": "w",
           "b": {
             "dir": "lr",
-            "ratio": 24.23,
+            "ratio": 24.16,
             "a": "w",
             "b": {
               "dir": "lr",
-              "ratio": 31.95,
+              "ratio": 31.92,
               "a": "w",
               "b": "w"
             }
