@@ -218,7 +218,11 @@ run = "tooling-drift status"
 
 [tasks."tooling:update"]
 description = "Record a tool release as reviewed in tooling.yml after reviewing it"
-run = 'tooling-drift update {{arg(name="repo")}} {{arg(name="tag")}}'
+usage = '''
+arg "<repo>" help="Tool repository, e.g. cli/cli"
+arg "<tag>" help="Release tag, e.g. v2.102.0"
+'''
+run = "tooling-drift update $usage_repo $usage_tag"
 
 [tasks."tooling:publish"]
 description = "Open or refresh a review pull request for every tool behind its latest release"
