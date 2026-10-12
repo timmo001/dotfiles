@@ -1,4 +1,4 @@
-import { Clock, Effect, FileSystem, Option } from "effect";
+import { Clock, Effect, FileSystem, Option, Semaphore } from "effect";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -106,6 +106,10 @@ export const doctor = Effect.gen(function* () {
       yield* log.updateSpinner(runningLabel());
     });
 
+  // Checks finish concurrently, so serialise rendering to keep each section's
+  // heading and result lines together.
+  const renderLock = yield* Semaphore.make(1);
+
   // Retire a finished check from the spinner, then stream its heading and
   // result lines. Streamed live as each check completes (completion order);
   // the ordered summary follows below.
@@ -132,7 +136,7 @@ export const doctor = Effect.gen(function* () {
           yield* log.info(`  ${style.dim(result.detail)}`);
         }
       }
-    });
+    }).pipe(Semaphore.withPermit(renderLock));
 
   // Run checks in parallel behind a single spinner that shows the checks
   // still running, streaming each section's detail as it finishes.
