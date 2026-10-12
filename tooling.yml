@@ -1,11 +1,13 @@
 ---
-# Tool releases these dotfiles were last reviewed against.
-# .github/scripts/tooling-drift.sh (from the tooling-drift skill) compares
-# each with the latest release and opens a pull request for review when it
-# moves; its header documents this file. Version pins in the mise config are
-# Renovate's job: this records that the configuration, the custom plugins and
-# the dot code that drive each tool still fit its release.
+# Tool releases these dotfiles were last reviewed against. The tooling-drift
+# tool (mise run tooling:status / tooling:publish) compares each with the
+# latest release and opens a pull request for review when it moves; its
+# README documents this file. Version pins in the mise config are Renovate's
+# job: this records that the configuration, the custom plugins and the dot
+# code that drive each tool still fit its release.
 assignee: timmo001
+dispatch:
+  - lint.yml
 tools:
   - repo: herdrdev/herdr
     reviewed: v0.9.3
