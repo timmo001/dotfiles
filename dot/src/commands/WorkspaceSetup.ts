@@ -837,14 +837,6 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       false,
     );
 
-    const plannotator = slot(
-      TAGS.plannotator,
-      PATTERN_PLANNOTATOR,
-      'uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory="Default" --force-device-scale-factor=0.8 --app=https://plannotator.timmo.dev',
-      1,
-      false,
-    );
-
     const herdr = slot(
       TAGS.workspace2Terminal,
       PATTERN_HERDR,
@@ -855,6 +847,22 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
 
     const workChrome =
       "uwsm app -- google-chrome-stable --new-window --ozone-platform=wayland --force-device-scale-factor=0.8 --profile-directory=Profile\\ 1 --user-data-dir=$HOME/.config/google-chrome-work";
+
+    const plannotator = workTime
+      ? slot(
+          TAGS.plannotator,
+          `${PATTERN_PLANNOTATOR}-Profile_1$`,
+          `${workChrome} --app=https://plannotator.timmo.dev`,
+          1,
+          false,
+        )
+      : slot(
+          TAGS.plannotator,
+          `${PATTERN_PLANNOTATOR}-Default$`,
+          'uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory="Default" --force-device-scale-factor=0.8 --app=https://plannotator.timmo.dev',
+          1,
+          false,
+        );
 
     if (workTime) {
       yield* logStep("Preparing workspace 1 work apps");
