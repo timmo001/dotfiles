@@ -63,6 +63,7 @@ hl.config({
 })
 
 -- Don't let apps steal focus on activation requests (xdg-open, CDP bringToFront).
+-- `dot link open` focuses the browser window itself after opening a link.
 hl.config({
   misc = { focus_on_activate = false },
   cursor = { warp_on_change_workspace = 0 },

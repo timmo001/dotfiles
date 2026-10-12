@@ -1,5 +1,7 @@
-import { Effect, Schema } from "effect";
+import { Deferred, Effect, Exit, Option, Schema } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
+import { createConnection } from "node:net";
+import { CommandExecutor } from "../services/CommandExecutor.js";
 import {
   managedGitRepoForGitHub,
   type DotGitConfig,
@@ -78,6 +80,7 @@ export const launchBrowser = Effect.fn("launchBrowser")(function* (
     });
 
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+  const activation = yield* watchActivationRequest;
 
   yield* spawner
     .spawn(
@@ -93,4 +96,71 @@ export const launchBrowser = Effect.fn("launchBrowser")(function* (
       Effect.asVoid,
       Effect.scoped,
     );
-});
+
+  if (!activation) return;
+
+  const address = yield* Deferred.await(activation).pipe(
+    Effect.timeoutOption("3 seconds"),
+  );
+
+  if (Option.isNone(address) || !address.value) return;
+
+  const executor = yield* CommandExecutor;
+
+  yield* executor
+    .run("hyprctl", [
+      "dispatch",
+      `hl.dsp.focus({ window = "address:0x${address.value}" })`,
+    ])
+    .pipe(Effect.ignore);
+}, Effect.scoped);
+
+/**
+ * Hyprland declines activation requests (`misc.focus_on_activate = false`) so
+ * agents driving the browser can't steal focus. A link opened in a running
+ * browser makes the same request, so listen for the `urgent` event it raises
+ * and focus that window ourselves. A new window takes focus on its own and
+ * resolves with no address. Returns undefined outside Hyprland.
+ */
+const watchActivationRequest = Effect.gen(function* () {
+  const signature = process.env.HYPRLAND_INSTANCE_SIGNATURE;
+  const runtimeDir = process.env.XDG_RUNTIME_DIR;
+
+  if (!signature || !runtimeDir) return undefined;
+
+  const activation = yield* Deferred.make<string | undefined>();
+
+  const socket = yield* Effect.acquireRelease(
+    Effect.sync(() =>
+      createConnection(`${runtimeDir}/hypr/${signature}/.socket2.sock`),
+    ),
+    (socket) => Effect.sync(() => socket.destroy()),
+  );
+
+  let buffered = "";
+
+  socket.setEncoding("utf8");
+  socket.on("error", () =>
+    Deferred.doneUnsafe(activation, Exit.succeed(undefined)),
+  );
+  socket.on("data", (chunk: string) => {
+    const lines = (buffered + chunk).split("\n");
+    buffered = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const [event, data = ""] = line.split(">>", 2);
+
+      if (event === "urgent")
+        Deferred.doneUnsafe(activation, Exit.succeed(data));
+      else if (event === "openwindow")
+        Deferred.doneUnsafe(activation, Exit.succeed(undefined));
+    }
+  });
+
+  yield* Effect.callback<void>((resume) => {
+    socket.once("connect", () => resume(Effect.void));
+    socket.once("error", () => resume(Effect.void));
+  });
+
+  return activation;
+}).pipe(Effect.withSpan("watchActivationRequest"));
