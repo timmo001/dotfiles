@@ -5,7 +5,7 @@
 // loopback API (GET /api/inbox/threads?archived=exclude) and follows its event
 // stream (GET /api/inbox/events) so the bar count moves as soon as an agent
 // writes. The web app itself stays Plannotator's: opening the Inbox or a
-// thread runs launch-plannotator-inbox, which starts a stopped Inbox and opens
+// thread runs dot plannotator inbox, which starts a stopped Inbox and opens
 // it as an Omarchy web app.
 import QtQuick
 import Quickshell
@@ -139,7 +139,7 @@ Item {
   }
 
   function launchCommand(extra) {
-    var command = ["launch-plannotator-inbox"]
+    var command = ["dot", "plannotator", "inbox"]
     if (webappUrl !== "") command.push("--url", webappUrl)
     return command.concat(extra)
   }

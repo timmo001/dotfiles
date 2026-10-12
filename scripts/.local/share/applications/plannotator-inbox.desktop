@@ -2,7 +2,7 @@
 Version=1.0
 Name=Plannotator Inbox
 Comment=Messages, questions and guided reviews your agents left for you
-Exec=launch-plannotator-inbox
+Exec=dot plannotator inbox
 Icon=mail-unread
 Type=Application
 Categories=Development;

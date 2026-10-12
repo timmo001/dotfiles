@@ -2714,6 +2714,46 @@ dot launch floating webapp [flags] [<url>]
 2  Invalid arguments
 ```
 
+## `dot plannotator`
+
+Plannotator tooling
+
+```text
+dot plannotator <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot plannotator inbox`
+
+Open the Plannotator Inbox as an Omarchy web app, starting it first when it is stopped
+
+```text
+dot plannotator inbox [flags]
+```
+
+Runs plannotator inbox --background, which starts a stopped Inbox detached and prints the running one's loopback URL, then opens that address with omarchy-launch-or-focus-webapp so an existing app window is raised instead of duplicated. --url opens another base address, such as an HTTPS front in front of the Inbox; the Inbox is still started first. --thread opens one thread (the Inbox's #thread= fragment) in a new app window, because a focused window cannot be navigated. The timmo.plannotator-inbox bar plugin and the Plannotator Inbox desktop entry run this. Failures are also sent as a desktop notification.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--url` `<string>` | Base address the web app opens instead of the Inbox's own loopback URL |
+| `--thread` `<string>` | Open one thread by its id |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot plannotator inbox
+dot plannotator inbox --thread thr_01
+dot plannotator inbox --url https://inbox.plannotator.localhost
+```
+
 ## `dot herdr`
 
 Manage the shared Herdr server and repository workspaces
