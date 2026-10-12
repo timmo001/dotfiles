@@ -119,7 +119,7 @@ const latest = Effect.fn("sessionStatus.latest")(function* (
     });
 
     const page = yield* get(
-      `/api/session/${sessionId}/message?${query}`,
+      `/api/session/${sessionId}/message?${query.toString()}`,
       MessagePage,
       directory,
     );
