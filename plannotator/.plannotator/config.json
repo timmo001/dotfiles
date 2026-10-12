@@ -32,5 +32,8 @@
   "inboxTool": {
     "opencode": true,
     "pi": true
+  },
+  "inboxSound": {
+    "dialogShownFor": "0.28.16"
   }
 }
