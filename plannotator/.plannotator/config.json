@@ -34,6 +34,7 @@
     "pi": true
   },
   "inboxSound": {
-    "dialogShownFor": "0.28.16"
+    "dialogShownFor": "0.28.16",
+    "volume": 100
   }
 }
