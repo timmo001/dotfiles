@@ -14066,10 +14066,11 @@ policy:
     managers: {}
     rules:
       - description:
-          - "Keep the OpenCode plugin Effect version aligned with its pinned packages."
+          - "Leave the OpenCode plugins' Effect packages to OpenCode bumps, which tests/opencode/plugin-effect-version.test.ts keeps aligned."
         match:
           packages:
             - "effect"
+            - "@effect/**"
           files:
             - "agents/.config/opencode/plugins/package.json"
         set:
@@ -14705,7 +14706,7 @@ import:
   leaveToRenovate:
     - "arch/quickshell"
   resolverVersion: "44.126.1"
-  overrideHash: "8fc73a3df2e5af0e18cbc68b497defdd154330a8c5429dc59700310c7d1ab638"
+  overrideHash: "df2053d327798758bd37fe4bd4f5adf661b1a55faf53fa60e3d6403fa5558c6a"
   baseDiagnostics:
     - path: "presets.description"
       disposition: "ignored"
