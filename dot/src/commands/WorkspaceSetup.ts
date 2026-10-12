@@ -134,7 +134,23 @@ const PATTERN_WORK_BROWSER = "^(work-browser|google-chrome)$";
 
 const PATTERN_CLAUDE = "^com\\.anthropic\\.Claude$";
 
+/**
+ * Work-time workspace names. Normal mode restores each one to its
+ * `default_name` from the Hyprland workspace rules.
+ */
+const WORK_WORKSPACE_NAMES = [
+  { id: "1", name: "Comms" },
+  { id: "3", name: "Work Browser" },
+] as const;
+
 const WorkspaceSchema = Schema.Struct({ id: Schema.Finite });
+
+const WorkspaceRulesSchema = Schema.Array(
+  Schema.Struct({
+    workspaceString: Schema.String,
+    defaultName: Schema.optional(Schema.NullOr(Schema.String)),
+  }),
+);
 
 const ClientSchema = Schema.Struct({
   address: Schema.NonEmptyString,
@@ -260,6 +276,14 @@ function decodeClients(value: JsonValue): readonly HyprlandClient[] {
     }));
   } catch (error) {
     return fail(`Invalid Hyprland clients response: ${String(error)}`);
+  }
+}
+
+function decodeWorkspaceRules(value: JsonValue) {
+  try {
+    return Schema.decodeUnknownSync(WorkspaceRulesSchema)(value);
+  } catch (error) {
+    return fail(`Invalid Hyprland workspace rules response: ${String(error)}`);
   }
 }
 
@@ -517,6 +541,29 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       `hl.dsp.window.move({ workspace = ${quote(String(workspace))}, window = ${quote(`address:${address}`)}, follow = ${config.follow} })`,
     );
   });
+
+  const renameWorkspaces = Effect.fn("workspaceSetup.renameWorkspaces")(
+    function* (workTime: boolean) {
+      const rules = decodeWorkspaceRules(
+        parseJson(
+          yield* executor.run("hyprctl", ["-j", "workspacerules"]),
+          "hyprctl workspacerules",
+        ),
+      );
+
+      for (const { id, name: workName } of WORK_WORKSPACE_NAMES) {
+        const name = workTime
+          ? workName
+          : rules.find((rule) => rule.workspaceString === id)?.defaultName;
+
+        if (!name) continue;
+        yield* logStep(`Naming workspace ${id} '${name}'`);
+        yield* dispatch(
+          `hl.dsp.workspace.rename({ workspace = ${quote(id)}, name = ${quote(name)} })`,
+        );
+      }
+    },
+  );
 
   const focus = Effect.fn("workspaceSetup.focus")(function* (address: string) {
     if (!address) return false;
@@ -1017,6 +1064,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
     }
 
     yield* startPitchforkDaemon("plannotator/inbox");
+    yield* renameWorkspaces(workTime);
 
     yield* logStep("Switching to workspace 2");
     yield* dispatch('hl.dsp.focus({ workspace = "2" })');
