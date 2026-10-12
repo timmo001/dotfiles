@@ -1,0 +1,46 @@
+---
+name: Tooling drift
+
+# Compares the Herdr, Omarchy and gh releases recorded in tooling.yml with
+# each repository's latest release and opens one review pull request per tool
+# that moved, "Update <owner>/<repo> to <tag>". See the tooling-drift skill
+# and .github/scripts/tooling-drift.sh.
+
+on:
+  schedule:
+    - cron: "23 6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tooling-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    name: Open tooling drift pull requests
+    if: github.repository == 'timmo001/dotfiles'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    env:
+      # A fine-grained token with contents, pull requests and actions write
+      # access lets the pull requests trigger CI themselves; the default token
+      # cannot, so the lint workflow is dispatched on each branch instead.
+      GH_TOKEN: ${{ secrets.TOOLING_DRIFT_TOKEN || github.token }}
+      TOOLING_DRIFT_DISPATCH: ${{ secrets.TOOLING_DRIFT_TOKEN == '' && 'lint.yml' || '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          token: ${{ secrets.TOOLING_DRIFT_TOKEN || github.token }}
+
+      - name: Open or refresh pull requests
+        run: .github/scripts/tooling-drift.sh publish

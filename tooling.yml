@@ -1,0 +1,18 @@
+---
+# Tool releases these dotfiles were last reviewed against.
+# .github/scripts/tooling-drift.sh (from the tooling-drift skill) compares
+# each with the latest release and opens a pull request for review when it
+# moves; its header documents this file. Version pins in the mise config are
+# Renovate's job: this records that the configuration, the custom plugins and
+# the dot code that drive each tool still fit its release.
+assignee: timmo001
+tools:
+  - repo: herdrdev/herdr
+    reviewed: v0.9.3
+    review: Check herdr/.config/herdr, the Herdr plugins under scripts/.local/share/herdr-plugins (their min_herdr_version), and the dot commands, services and doctor checks that drive Herdr through @timmo001/effect-herdr.
+  - repo: basecamp/omarchy
+    reviewed: v4.0.4
+    review: Check the custom bar plugins under omarchy/.config/omarchy/plugins that replace or extend Omarchy's (omarchy-plugins.json), the generated shell.json in dot/src/lib/omarchyShellConfig.ts, and the Omarchy hooks, components and extensions.
+  - repo: cli/cli
+    reviewed: v2.102.0
+    review: Check the gh calls in dot through @timmo001/effect-gh and the GitHub credential command in mise/.config/mise/config.toml.
