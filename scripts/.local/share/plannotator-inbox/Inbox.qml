@@ -57,7 +57,13 @@ Window {
     url: root.baseUrl
 
     // Links that want a new window, such as review pages, open in the browser.
-    onNewWindowRequested: (request) => Qt.openUrlExternally(request.requestedUrl)
+    // Only web links: agents write the messages, and xdg-open would run any
+    // other scheme's handler outside the web sandbox.
+    onNewWindowRequested: (request) => {
+      var url = String(request.requestedUrl)
+      if (/^https?:\/\//i.test(url)) Qt.openUrlExternally(url)
+      else console.warn("Not opening a non-web link: " + url)
+    }
 
     // Passkeys on a security key, such as a YubiKey. Qt WebEngine leaves the
     // prompts to the app; passkeys in password managers or on phones aren't
