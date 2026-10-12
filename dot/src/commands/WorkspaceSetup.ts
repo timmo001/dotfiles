@@ -972,7 +972,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
         yield* sleep(0.2);
 
         yield* logStep("Applying workspace 3 work layout sizes");
-        yield* resize(TAGS.workBrowser, 1590, 1300);
+        yield* resize(TAGS.workBrowser, 1672, 1300);
       } else {
         yield* logStep(
           "Skipping workspace 3 work tree rebuild (missing one or more windows)",
