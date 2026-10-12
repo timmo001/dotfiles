@@ -303,6 +303,7 @@ Panel {
                     Text {
                       width: parent.width
                       text: modelData.primaryText
+                      textFormat: Text.PlainText
                       color: root.contentForeground
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.body
@@ -313,6 +314,7 @@ Panel {
                       width: parent.width
                       visible: text !== ""
                       text: modelData.secondaryText
+                      textFormat: Text.PlainText
                       color: root.mutedColor
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
@@ -417,6 +419,7 @@ Panel {
                         Text {
                           width: parent.width
                           text: rowSurface.modelData.primaryText
+                          textFormat: Text.PlainText
                           color: root.contentForeground
                           font.family: root.contentFontFamily
                           font.pixelSize: Style.font.body
@@ -427,6 +430,7 @@ Panel {
                         Text {
                           width: parent.width
                           text: root.metaText(rowSurface.thread)
+                          textFormat: Text.PlainText
                           color: root.mutedColor
                           font.family: root.contentFontFamily
                           font.pixelSize: Style.font.caption
@@ -437,6 +441,7 @@ Panel {
                           width: parent.width
                           visible: text !== ""
                           text: root.detailText(rowSurface.thread, rowSurface.modelData.section)
+                          textFormat: Text.PlainText
                           color: rowSurface.modelData.section === "sent" ? root.mutedColor
                             : root.sectionColor(rowSurface.modelData.section)
                           font.family: root.contentFontFamily
