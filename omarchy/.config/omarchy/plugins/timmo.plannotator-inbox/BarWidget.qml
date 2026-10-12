@@ -10,9 +10,6 @@ BarWidget {
 
   readonly property bool primaryOnly: setting("primaryOnly", false)
   readonly property string preferredOutput: setting("primaryOutput", "")
-  readonly property string webappUrl: setting("url", "")
-  readonly property int intervalMs: setting("interval", 60000)
-  readonly property bool live: setting("live", true)
   readonly property bool showWhenEmpty: setting("showWhenEmpty", true)
   readonly property string currentOutput: {
     var window = root.QsWindow ? root.QsWindow.window : null
@@ -115,9 +112,10 @@ BarWidget {
   // The service is shared, so the active instance's settings drive it.
   function injectSettings() {
     if (!root.monitor || !root.activeInstance) return
-    root.monitor.webappUrl = root.webappUrl
-    root.monitor.intervalMs = root.intervalMs
-    root.monitor.live = root.live
+    // Read settings directly: onSettingsChanged runs before bindings on settings update.
+    root.monitor.webappUrl = root.setting("url", "")
+    root.monitor.intervalMs = root.setting("interval", 60000)
+    root.monitor.live = root.setting("live", true)
   }
 
   visible: activeInstance && shown
