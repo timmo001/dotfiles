@@ -16,6 +16,7 @@ export interface HttpForwardOptions {
 
 interface SocketData {
   readonly url: string;
+  readonly headers: Record<string, string>;
   readonly protocols: readonly string[];
   readonly queue: (string | Uint8Array<ArrayBuffer>)[];
   upstream?: WebSocket;
@@ -35,6 +36,15 @@ const droppedRequestHeaders = new Set([
   "x-forwarded-port",
   "x-forwarded-proto",
   "x-real-ip",
+]);
+
+// The upstream websocket client negotiates its own handshake
+const droppedSocketHeaders = new Set([
+  ...droppedRequestHeaders,
+  "sec-websocket-extensions",
+  "sec-websocket-key",
+  "sec-websocket-protocol",
+  "sec-websocket-version",
 ]);
 
 const droppedResponseHeaders = new Set([
@@ -77,6 +87,8 @@ export const httpForward = Effect.fn("HttpForward")(function* (
           // Bun closes idle connections after 10 seconds by default, which cuts
           // off long-held responses such as Home Assistant's TTS streams
           idleTimeout: 0,
+          // Bodies stream through, so don't cap them at Bun's 128 MB default
+          maxRequestBodySize: Number.MAX_SAFE_INTEGER,
           async fetch(request, server) {
             const url = new URL(request.url);
             const path = url.pathname + url.search;
@@ -85,6 +97,13 @@ export const httpForward = Effect.fn("HttpForward")(function* (
               return server.upgrade(request, {
                 data: {
                   url: new URL(path, socketTarget).href,
+                  // Keep cookies so session-authenticated sockets, such as
+                  // Home Assistant ingress, still authenticate upstream
+                  headers: Object.fromEntries(
+                    [...request.headers].filter(
+                      ([name]) => !droppedSocketHeaders.has(name),
+                    ),
+                  ),
                   protocols:
                     request.headers
                       .get("sec-websocket-protocol")
@@ -108,10 +127,7 @@ export const httpForward = Effect.fn("HttpForward")(function* (
               const response = await fetch(new URL(path, target), {
                 method: request.method,
                 headers,
-                body:
-                  request.method === "GET" || request.method === "HEAD"
-                    ? undefined
-                    : await request.arrayBuffer(),
+                body: request.body,
                 redirect: "manual",
               });
 
@@ -134,9 +150,10 @@ export const httpForward = Effect.fn("HttpForward")(function* (
           },
           websocket: {
             open(socket) {
-              const upstream = new WebSocket(socket.data.url, [
-                ...socket.data.protocols,
-              ]);
+              const upstream = new WebSocket(socket.data.url, {
+                headers: socket.data.headers,
+                protocols: [...socket.data.protocols],
+              });
 
               upstream.binaryType = "arraybuffer";
               socket.data.upstream = upstream;
