@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect";
 import { join } from "path";
-import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
+import { runQuiet } from "./quietCommand.js";
 
 /** Failure while installing the shared OpenCode plugin dependencies. */
 export class OpencodePluginInstallError extends Schema.TaggedError<OpencodePluginInstallError>()(
@@ -17,7 +17,6 @@ export class OpencodePluginInstallError extends Schema.TaggedError<OpencodePlugi
  */
 export const installOpencodePluginDependencies = Effect.gen(function* () {
   const config = yield* Config;
-  const executor = yield* CommandExecutor;
 
   const source = join(
     config.publicDotfiles,
@@ -27,7 +26,7 @@ export const installOpencodePluginDependencies = Effect.gen(function* () {
     "plugins",
   );
 
-  const code = yield* executor.inherit(
+  const { exitCode: code } = yield* runQuiet(
     "bun",
     ["install", "--frozen-lockfile"],
     { cwd: source },

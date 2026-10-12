@@ -334,8 +334,11 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
       if (isHypr) {
         yield* ensureHyprHostLink(config, log);
         yield* launcher
-          .stream("hyprctl reload", { cwd: repoDir })
-          .pipe(Effect.catch(() => Effect.void));
+          .silent("hyprctl reload")
+          .pipe(
+            Effect.andThen(log.success("Reloaded Hyprland")),
+            Effect.ignore,
+          );
       }
     }).pipe(Effect.scoped);
 
