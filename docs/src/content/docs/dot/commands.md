@@ -1263,6 +1263,42 @@ Claude Code PreToolUse hook. Reads the hook event from stdin, maps the tool call
 dot agent permission hook < event.json
 ```
 
+### `dot agent review`
+
+Hold agent harnesses to the change review handoff
+
+```text
+dot agent review <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot agent review hook`
+
+Hold Claude Code to the change-review-handoff skill
+
+```text
+dot agent review hook [flags]
+```
+
+Claude Code Stop hook. Reads the hook event from stdin and the session transcript it names. When the current turn edited files outside /tmp and ~/.claude, and nothing after the last edit opened a Plannotator review, loaded change-review-handoff or messaged the Plannotator Inbox, it blocks the stop once and tells the agent to hand the change off or say why it does not apply. A repeated stop in the same turn always goes through.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot agent review hook < event.json
+```
+
 ## `dot notes`
 
 Integrate with the notes tool

@@ -1800,6 +1800,27 @@ const agentPermissionCommand = describe(
   "Apply OpenCode permissions to other agent harnesses",
 );
 
+const agentReviewCommand = describe(
+  Command.make("review").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make("hook", {}, () =>
+          Effect.promise(() => import("../commands/ClaudeReviewHook.js")).pipe(
+            Effect.flatMap((module) => module.claudeReviewHook),
+          ),
+        ),
+        "Hold Claude Code to the change-review-handoff skill",
+        ["dot agent review hook < event.json"],
+        {
+          description:
+            "Claude Code Stop hook. Reads the hook event from stdin and the session transcript it names. When the current turn edited files outside /tmp and ~/.claude, and nothing after the last edit opened a Plannotator review, loaded change-review-handoff or messaged the Plannotator Inbox, it blocks the stop once and tells the agent to hand the change off or say why it does not apply. A repeated stop in the same turn always goes through.",
+        },
+      ),
+    ]),
+  ),
+  "Hold agent harnesses to the change review handoff",
+);
+
 const notesCommand = describe(
   Command.make("notes").pipe(
     Command.withSubcommands([
@@ -2640,6 +2661,7 @@ const agentCommand = describe(
       agentOxlintCommand,
       isAgent,
       agentPermissionCommand,
+      agentReviewCommand,
     ]),
   ),
   "Agent harness tooling: instruction sync, linting and detection",
