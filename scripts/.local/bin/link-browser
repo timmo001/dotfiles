@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Default web browser for xdg-open and omarchy-launch-browser, which runs the
+# first word of the desktop entry's Exec line with browser arguments.
+exec dot link open -- "$@"

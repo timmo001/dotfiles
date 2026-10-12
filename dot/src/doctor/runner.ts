@@ -39,6 +39,7 @@ import {
 } from "./checks/packages.js";
 import { checkPacmanHooks } from "./checks/pacmanHooks.js";
 import { checkFileManager } from "./checks/fileManager.js";
+import { checkDefaultBrowser } from "./checks/defaultBrowser.js";
 import { checkRetiredApps } from "./checks/retiredApps.js";
 import { checkFirewall } from "./checks/firewall.js";
 import { checkSyncthing } from "./checks/syncthing.js";
@@ -116,6 +117,7 @@ const sections: readonly SectionDef[] = [
   },
   { name: "Pacman hooks", check: checkPacmanHooks },
   { name: "File manager", check: checkFileManager },
+  { name: "Default browser", check: checkDefaultBrowser },
   { name: "Retired apps", check: checkRetiredApps },
   { name: "Firewall rules", check: checkFirewall },
   { name: "Syncthing", check: checkSyncthing },

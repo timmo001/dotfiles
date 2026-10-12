@@ -17,6 +17,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 - Repository induction defaults live in optional private `dot-git-presets.yml`; shared code must not hardcode personal schedules or name prefixes.
 - Git web browser commands and per-repository selections live in private `dot-git.yml`; the Git panel passes repository context and browser overrides to the shared CLI resolver.
+- Link routing is opt-in through `links` in private `dot-git.yml`. The `link-browser.desktop` entry is the default web browser and runs `dot link open`, which shares its resolver with `dot git web`; `dot doctor` warns when the default drifts, for example after `omarchy default browser`.
 - Git panel PR tracking is opt-in through `pull_requests.enabled` in private `dot-git.yml`; `dot pr list` owns polling and cached open PRs.
 - Git panel issue tracking is opt-in through `issues.enabled` in private `dot-git.yml`, with top-level `issues.exclude` rules hiding noise such as Renovate dashboards; `dot git issues` owns polling and cached open issues.
 - Repository `opencode_mcp` lists in private `dot-git.yml` select MCP opt-ins. `dot mcp sync` owns the generated, Git-ignored `.opencode/opencode.jsonc` files in those checkouts.
