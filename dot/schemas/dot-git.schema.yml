@@ -22,6 +22,39 @@ properties:
       items:
         type: string
         pattern: "\\S"
+  links:
+    description: Browser routing for dot link open, the link-browser default browser entry.
+    type: object
+    additionalProperties: false
+    required:
+      - personal
+    properties:
+      personal:
+        description: Browser for links outside work time, and for anything that is not a single link.
+        type: string
+        minLength: 1
+      work:
+        description: Browser for links during work time; omitted keeps every link in the personal browser.
+        type: string
+        minLength: 1
+      sites:
+        description: Per-site overrides, checked in order before the work time rule.
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            - match
+            - browser
+          properties:
+            match:
+              description: Host with an optional path prefix, such as github.com/home-assistant; "*." matches subdomains.
+              type: string
+              pattern: "^(\\*\\.)?[A-Za-z0-9.-]+(:\\d+)?(/\\S*)?$"
+            browser:
+              description: Browser name from browsers.
+              type: string
+              minLength: 1
   schema_version:
     description: dot-git.yml schema version.
     const: 2

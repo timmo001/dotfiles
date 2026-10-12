@@ -1,12 +1,12 @@
 import { Repository } from "@timmo001/effect-gh";
 import { Effect, Schema } from "effect";
 import { dirname, resolve } from "node:path";
+import { launchBrowser, resolveLinkBrowser } from "../../lib/linkBrowser.js";
 import { expandHomePath } from "../../lib/paths.js";
 import { isWorkTime } from "../../lib/workTime.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import {
-  managedGitRepoForGitHub,
   managedGitRepoForPath,
   type GitManagedRepo,
 } from "../../services/GitConfig.js";
@@ -78,30 +78,16 @@ export const gitWeb = Effect.fn("gitWeb")(function* (options: {
   if (options.actions)
     parsed.pathname = `${parsed.pathname.replace(/\/$/, "")}/actions`;
 
-  if (!repo && parsed.hostname === "github.com")
-    repo = managedGitRepoForGitHub(
-      config.gitConfig,
-      parsed.pathname.split("/").slice(1, 3).join("/"),
-    );
-
   const browser =
     options.browser ??
-    (options.workTime
-      ? (yield* isWorkTime(() => Effect.void))
-        ? "work"
-        : undefined
-      : repo?.browser);
+    (yield* resolveLinkBrowser(config.gitConfig, parsed, repo?.browser)) ??
+    (options.workTime && (yield* isWorkTime(() => Effect.void))
+      ? "work"
+      : undefined);
 
-  const command =
-    browser && Object.hasOwn(config.gitConfig.browsers, browser)
-      ? config.gitConfig.browsers[browser]
-      : undefined;
+  const target = options.actions ? parsed.toString() : url;
 
-  if (browser && !command)
-    return yield* new GitWebError({ message: `Unknown browser: ${browser}` });
-  const [executable, ...args] = command ?? ["xdg-open"];
-  yield* executor.run(executable, [
-    ...args,
-    options.actions ? parsed.toString() : url,
-  ]);
+  if (browser) return yield* launchBrowser(config.gitConfig, browser, [target]);
+
+  yield* executor.run("xdg-open", [target]);
 }, handleCommandError("git-web"));

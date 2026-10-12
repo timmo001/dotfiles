@@ -21,6 +21,7 @@ const TOP_LEVEL_KEYS = new Set([
   "repositories",
   "shortcuts",
   "browsers",
+  "links",
   "issues",
 ]);
 
@@ -156,6 +157,32 @@ const IssueSettings = Schema.Struct({
   ),
 });
 
+/** Sends links for one site to a named browser, ahead of the work time rule. */
+export const LinkSiteRule = Schema.Struct({
+  /** Host with an optional path prefix, such as `github.com/home-assistant`; `*.` matches subdomains. */
+  match: Schema.String.check(
+    Schema.isPattern(/^(\*\.)?[a-z0-9.-]+(:\d+)?(\/\S*)?$/i),
+  ),
+  /** Browser name from `browsers`. */
+  browser: Schema.NonEmptyString,
+});
+
+/** Decoded {@link LinkSiteRule}. */
+export type LinkSiteRule = typeof LinkSiteRule.Type;
+
+/** Default browser routing for links opened through `dot link open`. */
+export const LinkSettings = Schema.Struct({
+  /** Browser for links outside work time, and for anything that is not a single link. */
+  personal: Schema.NonEmptyString,
+  /** Browser for links during work time; omitted keeps every link in the personal browser. */
+  work: Schema.optionalKey(Schema.NonEmptyString),
+  /** Per-site overrides, checked in order before the work time rule. */
+  sites: Schema.optionalKey(Schema.Array(LinkSiteRule)),
+});
+
+/** Decoded {@link LinkSettings}. */
+export type LinkSettings = typeof LinkSettings.Type;
+
 /** Git panel pull request or issue tracking for one repository. */
 const TrackingSettings = Schema.Struct({
   /** Include this repository in polling and panel pages. */
@@ -221,6 +248,8 @@ export interface DotGitConfig {
   readonly shortcuts: readonly GitRepoShortcut[];
   /** Named browser commands, with the URL appended as one argument. */
   readonly browsers: Readonly<Record<string, readonly string[]>>;
+  /** Link browser routing; omitted when links are not routed by dot. */
+  readonly links?: LinkSettings;
   /** Issues hidden from the Git panel across tracked repositories. */
   readonly issueExclusions: readonly IssueExclusion[];
   /** Validation diagnostics for missing or malformed config. */
@@ -229,6 +258,7 @@ export interface DotGitConfig {
 
 interface ParsedGitConfig {
   readonly browsers: Readonly<Record<string, readonly string[]>>;
+  readonly links?: LinkSettings;
   readonly issueExclusions: readonly IssueExclusion[];
   readonly repositories: readonly GitManagedRepo[];
   readonly shortcuts: readonly GitRepoShortcut[];
@@ -305,6 +335,8 @@ export function parseDotGitConfigText(
       repositories: result.diagnostics.length === 0 ? result.repositories : [],
       shortcuts: result.diagnostics.length === 0 ? result.shortcuts : [],
       browsers: result.diagnostics.length === 0 ? result.browsers : {},
+      ...(result.diagnostics.length === 0 &&
+        result.links && { links: result.links }),
       issueExclusions:
         result.diagnostics.length === 0 ? result.issueExclusions : [],
       diagnostics: result.diagnostics,
@@ -460,6 +492,32 @@ function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
       );
   }
 
+  let links: LinkSettings | undefined;
+
+  if (value.links !== undefined) {
+    try {
+      links = Schema.decodeUnknownSync(LinkSettings)(value.links, {
+        onExcessProperty: "error",
+      });
+
+      for (const [location, browser] of [
+        ["root.links.personal", links.personal],
+        ["root.links.work", links.work],
+        ...(links.sites ?? []).map(
+          (rule, index) =>
+            [`root.links.sites[${index}]`, rule.browser] as const,
+        ),
+      ] as const) {
+        if (browser !== undefined && !Object.hasOwn(browsers, browser))
+          diagnostics.push(
+            `${location} references unknown browser: ${browser}`,
+          );
+      }
+    } catch (error) {
+      diagnostics.push(`root.links: ${formatError(error)}`);
+    }
+  }
+
   let issueExclusions: readonly IssueExclusion[] = [];
 
   if (value.issues !== undefined) {
@@ -477,7 +535,14 @@ function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
   pushDuplicateDiagnostics(diagnostics, repositories, "github");
   pushDuplicateAliasDiagnostics(diagnostics, [...repositories, ...shortcuts]);
 
-  return { repositories, shortcuts, browsers, issueExclusions, diagnostics };
+  return {
+    repositories,
+    shortcuts,
+    browsers,
+    ...(links && { links }),
+    issueExclusions,
+    diagnostics,
+  };
 }
 
 function parseShortcuts(

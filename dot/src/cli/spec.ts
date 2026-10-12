@@ -30,6 +30,7 @@ import { init } from "../commands/Init.js";
 import { install } from "../commands/Install.js";
 import { isAgentCommand } from "../commands/IsAgent.js";
 import { launchFloatingWebapp } from "../commands/LaunchFloatingWebapp.js";
+import { linkOpen } from "../commands/LinkOpen.js";
 import { notesCaptureSync } from "../commands/NotesCaptureSync.js";
 import { syncOmarchyComponents } from "../commands/OmarchyComponents.js";
 import {
@@ -1078,8 +1079,39 @@ const gitWebCommand = describe(
   ],
   {
     description:
-      "Resolves repository browser settings from dot-git.yml, including linked worktrees. URL-only actions use the GitHub repository in the URL. Named browsers are argument lists under browsers; each repository can select one with browser. Without a selection, uses the desktop default. --work-time selects the work browser during work hours outside calendar leave, otherwise the desktop default. --browser overrides the selection. The Git panel uses --work-time for web actions and --browser work for Alt+Enter and Alt+click.",
+      "Resolves repository browser settings from dot-git.yml, including linked worktrees. URL-only actions use the GitHub repository in the URL. Named browsers are argument lists under browsers; each repository can select one with browser. When links is set, links.sites rules come first and unselected links follow the same routing as dot link open. Without links or a selection, uses the desktop default, and --work-time selects the work browser during work hours outside calendar leave. --browser overrides the selection. The Git panel uses --work-time for web actions and --browser work for Alt+Enter and Alt+click.",
   },
+);
+
+const linkCommand = describe(
+  Command.make("link").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "open",
+          {
+            args: Argument.String("args").pipe(
+              Argument.variadic(),
+              Argument.withDescription(
+                "One link, or browser arguments passed after --",
+              ),
+            ),
+          },
+          ({ args }) => linkOpen(args),
+        ),
+        "Open a link in the work or personal browser",
+        [
+          "dot link open https://github.com/home-assistant/frontend",
+          "dot link open -- --incognito",
+        ],
+        {
+          description:
+            "Routes a single HTTP or HTTPS link using links in dot-git.yml: the first matching links.sites rule, then the browser of the tracked repository a GitHub link belongs to, then links.work during work time outside calendar leave, otherwise links.personal. Anything else, including no arguments, goes to links.personal unchanged. The link-browser desktop entry runs this as the default web browser, so xdg-open and Omarchy's browser launcher use it. Failures are also sent as a desktop notification.",
+        },
+      ),
+    ]),
+  ),
+  "Route links to the work or personal browser",
 );
 
 const gitDiffCommand = describe(
@@ -3359,6 +3391,7 @@ export const dotCommand = describe(
       notesCommand,
       setupCommand,
       gitCommand,
+      linkCommand,
       describe(
         Command.make("mcp").pipe(
           Command.withSubcommands([
