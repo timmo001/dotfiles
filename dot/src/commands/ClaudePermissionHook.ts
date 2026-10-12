@@ -3,12 +3,13 @@
  *
  * Runs as a Claude Code `PreToolUse` hook. It maps the tool call onto the
  * matching OpenCode actions, evaluates the rules from the stowed OpenCode
- * config with OpenCode's own semantics, and answers allow, ask or deny. When
+ * config and any project `opencode.json` files above the session directory
+ * with OpenCode's own semantics, and answers allow, ask or deny. When
  * no rule decides, it prints nothing so Claude Code's own prompting applies.
  * Any failure also falls back to Claude Code's defaults rather than blocking.
  */
 import { Effect, Option, Schema } from "effect";
-import { join } from "path";
+import { dirname, join } from "path";
 import { readTextOrNull } from "../lib/fsProbe.js";
 import {
   evaluatePermissions,
@@ -17,7 +18,7 @@ import {
   splitShellCommands,
   type PermissionRequest,
 } from "../lib/opencodePermissions.js";
-import { CONFIG_DIR } from "../lib/paths.js";
+import { CONFIG_DIR, HOME_DIR } from "../lib/paths.js";
 import { isString } from "../lib/schema.js";
 
 const OPENCODE_CONFIG = join(CONFIG_DIR, "opencode", "opencode.json");
@@ -47,6 +48,20 @@ const decodeHookInput = Schema.decodeUnknownOption(
     }),
   ),
 );
+
+/**
+ * Config files in the order OpenCode V2 loads them: the global config, then
+ * each `opencode.json` from the outermost directory below home down to the
+ * session directory, so a workspace config applies to every project in it.
+ */
+function configPaths(cwd: string) {
+  const projects: string[] = [];
+
+  for (let dir = cwd; dir.startsWith(`${HOME_DIR}/`); dir = dirname(dir))
+    projects.unshift(join(dir, "opencode.json"));
+
+  return [OPENCODE_CONFIG, ...projects];
+}
 
 /**
  * Drop a leading `git -C <dir>` so the command matches the same rules as
@@ -153,10 +168,15 @@ export const claudePermissionHook = Effect.gen(function* () {
 
   if (Option.isNone(event)) return;
 
-  const config = decodeRules((yield* readTextOrNull(OPENCODE_CONFIG)) ?? "");
-  const rules = Option.isSome(config) ? (config.value.permissions ?? []) : [];
-
   const { cwd, tool_name, tool_input } = event.value;
+
+  const configs = yield* Effect.forEach(configPaths(cwd), readTextOrNull);
+
+  const rules = configs.flatMap((text) => {
+    const config = decodeRules(text ?? "");
+
+    return Option.isSome(config) ? (config.value.permissions ?? []) : [];
+  });
 
   const decision = evaluatePermissions(
     rules,

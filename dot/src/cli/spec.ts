@@ -1792,7 +1792,7 @@ const agentPermissionCommand = describe(
         ["dot agent permission hook < event.json"],
         {
           description:
-            "Claude Code PreToolUse hook. Reads the hook event from stdin, maps the tool call onto OpenCode actions (shell, read, edit, external_directory, MCP server tools, webfetch, websearch, todowrite), and evaluates the permissions in ~/.config/opencode/opencode.json with OpenCode's semantics: the last matching rule wins and each part of a compound shell command is checked. Prints allow, ask or deny for Claude Code, or nothing when no rule decides so Claude Code's own prompting applies.",
+            "Claude Code PreToolUse hook. Reads the hook event from stdin, maps the tool call onto OpenCode actions (shell, read, edit, external_directory, MCP server tools, webfetch, websearch, todowrite), and evaluates the permissions in ~/.config/opencode/opencode.json, followed by any opencode.json in the directories from below home down to the session directory, with OpenCode's semantics: the last matching rule wins and each part of a compound shell command is checked. Prints allow, ask or deny for Claude Code, or nothing when no rule decides so Claude Code's own prompting applies.",
         },
       ),
     ]),
