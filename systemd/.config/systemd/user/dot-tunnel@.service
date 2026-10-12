@@ -1,0 +1,17 @@
+[Unit]
+Description=Cloudflare tunnel %i, on one machine at a time
+Wants=network-online.target
+After=network-online.target
+OnFailure=dot-service-failed@%n.service
+
+[Service]
+Type=simple
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin
+ExecStart=%h/.local/bin/dot tunnel run %i
+Restart=always
+RestartSec=5s
+RestartSteps=6
+RestartMaxDelaySec=2min
+
+[Install]
+WantedBy=default.target
