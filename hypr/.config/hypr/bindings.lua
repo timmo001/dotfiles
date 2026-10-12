@@ -38,7 +38,8 @@ local browser_personal =
 local browser_work = "launch-work-browser"
 local discord =
   [[uwsm app -- google-chrome-stable --new-window --ozone-platform=wayland --force-device-scale-factor=0.8 --profile-directory="Profile 1" --user-data-dir="$HOME/.config/google-chrome-work" --app=https://discord.com/app]]
-local slack = "uwsm app -- slack"
+local slack =
+  [[uwsm app -- google-chrome-stable --new-window --ozone-platform=wayland --force-device-scale-factor=0.8 --profile-directory="Profile 1" --user-data-dir="$HOME/.config/google-chrome-work" --app=https://app.slack.com/client]]
 
 -- Resume recovery
 o.bind("SUPER + SHIFT + R", "Reload UI", "dot reload --no-auto-open")

@@ -116,7 +116,7 @@ interface Slot {
   readonly excludePattern?: string;
 }
 
-const PATTERN_SLACK = "^[Ss]lack$";
+const PATTERN_SLACK = "^chrome-app\\.slack\\.com__client";
 
 const PATTERN_DISCORD = "^chrome-discord\\.com__app";
 
@@ -861,7 +861,13 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       yield* clearTag(TAGS.githubNotifications);
 
       const slackAddress = yield* ensureSlot(
-        slot(TAGS.slack, PATTERN_SLACK, "uwsm app -- slack", 1, false),
+        slot(
+          TAGS.slack,
+          PATTERN_SLACK,
+          `${workChrome} --app=https://app.slack.com/client`,
+          1,
+          false,
+        ),
       );
 
       const browserAddress = yield* ensureSlot(personalBrowser, startupBrowser);

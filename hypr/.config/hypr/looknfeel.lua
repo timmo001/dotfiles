@@ -94,7 +94,7 @@ hl.window_rule({ name = "float-twitch-auth", match = { class = "^chrome-id\\.twi
 -- Shared workspace rules.
 hl.window_rule({ name = "workspace-slicers", match = { class = "^(BambuStudio|OrcaSlicer)$" }, workspace = "4" })
 hl.window_rule({ name = "workspace-discord", match = { class = "^(chrome-discord\\.com__app)" }, workspace = "1 silent" })
-hl.window_rule({ name = "workspace-slack", match = { class = "^([Ss]lack)$" }, workspace = "1 silent" })
+hl.window_rule({ name = "workspace-slack", match = { class = "^(chrome-app\\.slack\\.com__client)" }, workspace = "1 silent" })
 
 require("hypr.host.looknfeel")
 
