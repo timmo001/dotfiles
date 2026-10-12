@@ -44,7 +44,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - The package manager and runtime is **bun** for every JS/TS package (`dot/` and `docs/`). Do not use npm, pnpm, or yarn for install, lockfile, or script commands. Use `bun install`, `bun add`, `bun update`, `bun run`, and `bunx` (or the `mise run` task wrappers).
 - The tracked lockfile is `bun.lock` in each package (`dot/bun.lock`, `docs/bun.lock`); commit it after any dependency change. CI runs `bun install --frozen-lockfile` against it.
 - Keep Renovate update grouping limited to standard presets except for the coordinated Effect runtime and OpenCode 2 packages in `renovate.json`. Keep Effect compiler tooling outside the runtime group.
-- `tooling.yml` records the Herdr, Omarchy and gh releases the configuration, custom plugins and `dot` code were last reviewed against; the Tooling drift workflow opens a review pull request when one moves. After the review, move the pin with `mise run tooling:update <repo> <tag>`, never by hand; the `tooling-drift` skill has the steps.
+- `tooling.yml` records the Herdr, Omarchy, gh, OpenCode and Effect releases the configuration, custom plugins and `dot` code were last reviewed against; the Tooling drift workflow opens a review pull request when one moves. After the review, move the pin with `mise run tooling:update <repo> <tag>`, never by hand; the `tooling-drift` skill has the steps.
 
 ## OpenCode Assets
 
