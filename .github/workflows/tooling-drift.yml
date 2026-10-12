@@ -20,7 +20,7 @@ concurrency:
 jobs:
   drift:
     if: github.repository == 'timmo001/dotfiles'
-    uses: timmo001/workflows/.github/workflows/tooling-drift.yml@dc203e1f5a4d5757255bd47ee725c0af81621338 # tooling-drift
+    uses: timmo001/workflows/.github/workflows/tooling-drift.yml@4f1a00978f026f30e13bfae173fc174a3c2ddf5f # tooling-drift
     permissions:
       actions: write
       contents: write
