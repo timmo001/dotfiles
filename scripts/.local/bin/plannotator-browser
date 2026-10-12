@@ -1,9 +1,0 @@
-#!/bin/bash
-set -euo pipefail
-
-if [ "$#" -ne 1 ]; then
-  printf 'Usage: %s <url>\n' "$0" >&2
-  exit 2
-fi
-
-exec dot git web --work-time --url "$1"
