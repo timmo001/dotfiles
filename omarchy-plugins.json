@@ -141,6 +141,15 @@
         "desktop": { "primaryOutput": "HDMI-A-2" },
         "laptop": { "primaryOutput": "eDP-1" }
       }
+    },
+    {
+      "id": "timmo.plannotator-inbox",
+      "placement": { "section": "center", "after": "timmo.agent-checks" },
+      "settings": { "primaryOnly": true },
+      "hosts": {
+        "desktop": { "primaryOutput": "HDMI-A-2" },
+        "laptop": { "primaryOutput": "eDP-1" }
+      }
     }
   ]
 }

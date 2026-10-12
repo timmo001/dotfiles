@@ -30,10 +30,11 @@ Several centre/right widgets are primary-output only, with host-specific outputs
 | `timmo.clock` | Compact clock with calendar, year progress, and world clocks (replaces stock clock) |
 | `timmo.momentumctl` | Headset panel via `momentumctl`; panel-only in the public layout |
 | `nosignal.deckshift` | Desktop-only Gaming Mode panel, deployed from a subfolder of its repository |
+| `timmo.plannotator-inbox` | Threads waiting on you in the local [Plannotator](https://plannotator.ai) Inbox (bar + panel); opens the Inbox as an Omarchy web app rather than redrawing it |
 
 ## Sources
 
-Custom plugins live under `omarchy/.config/omarchy/plugins/`. Some are local QML in this repo (`workspaces`, `command`, `stream-command`, `git`, `services`, `workspace-context`, `workspace-relayout`, `popup-loading`); others are managed plugin checkouts (`clock`, `upnext`, `notes`, `system-bridge`, `momentumctl`, `sceny.devices`, `nosignal.deckshift`) with placement recorded in `omarchy-plugins.json`. `workspace-context` shares attached Herdr workspace changes with the bar; `workspace-relayout` and `popup-loading` are overlays rather than bar cells.
+Custom plugins live under `omarchy/.config/omarchy/plugins/`. Some are local QML in this repo (`workspaces`, `command`, `stream-command`, `git`, `services`, `plannotator-inbox`, `workspace-context`, `workspace-relayout`, `popup-loading`); others are managed plugin checkouts (`clock`, `upnext`, `notes`, `system-bridge`, `momentumctl`, `sceny.devices`, `nosignal.deckshift`) with placement recorded in `omarchy-plugins.json`. `workspace-context` shares attached Herdr workspace changes with the bar; `workspace-relayout` and `popup-loading` are overlays rather than bar cells.
 
 Third-party bar plugins can be imported the same way: [Omarchy](https://omarchy.org)'s `omarchy plugin add` (backed by `dot omarchy plugin`) checks them out as submodules. `dot stow` then copies those checkouts as real files, because Omarchy rejects plugin-directory symlinks. Placement and config live in `omarchy-plugins.json`. A private overlay can extend that layout the same way.
 

@@ -1,0 +1,86 @@
+#!/bin/bash
+
+# Open the Plannotator Inbox as an Omarchy web app, starting the Inbox first
+# when it is stopped. `plannotator inbox --background` prints the running
+# Inbox's loopback URL (starting it detached when needed) and exits, so the
+# window never waits on a server and never opens a second browser tab.
+#
+# Usage: launch-plannotator-inbox [--url <base-url>] [--thread <thread-id>]
+#   --url     Open this address instead of the Inbox's own loopback URL, for
+#             example an HTTPS front sitting in front of it.
+#   --thread  Open one thread (the Inbox's `#thread=<id>` fragment) in a new
+#             app window, since a focused window cannot be navigated.
+
+set -euo pipefail
+
+usage() {
+  echo "Usage: launch-plannotator-inbox [--url <base-url>] [--thread <thread-id>]"
+}
+
+notify() {
+  command -v notify-send >/dev/null 2>&1 && notify-send -a "Plannotator Inbox" "$1" "$2" || true
+}
+
+base=""
+thread=""
+while (($# > 0)); do
+  case $1 in
+  --url)
+    base=${2:-}
+    shift 2
+    ;;
+  --url=*)
+    base=${1#--url=}
+    shift
+    ;;
+  --thread)
+    thread=${2:-}
+    shift 2
+    ;;
+  --thread=*)
+    thread=${1#--thread=}
+    shift
+    ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *)
+    usage >&2
+    exit 1
+    ;;
+  esac
+done
+
+if ! command -v plannotator >/dev/null 2>&1; then
+  notify "Plannotator is not installed" "Install it from https://plannotator.ai, then run plannotator inbox once."
+  echo "plannotator not found on PATH" >&2
+  exit 127
+fi
+
+if ! url=$(plannotator inbox --background); then
+  notify "The Inbox did not start" "Read ~/.plannotator/inbox/inbox.log for the reason."
+  exit 1
+fi
+
+if [[ -n $base ]]; then
+  url=$base
+fi
+url=${url%/}/
+
+if [[ -n $thread ]]; then
+  exec omarchy-launch-webapp "${url}#thread=${thread}"
+fi
+
+# Chromium names an --app window after the URL's host and path
+# (chrome-<host>_<path>-Default, slashes as underscores), which is the
+# pattern omarchy-launch-or-focus matches before launching a new window.
+address=${url#*://}
+address=${address%%[?#]*}
+host=${address%%/*}
+path=${address:${#host}}
+host=${host##*@}
+host=${host%%:*}
+window_class=$(printf 'chrome-%s_%s-Default' "${host,,}" "${path:-/}" | sed 's|/|_|g')
+
+exec omarchy-launch-or-focus-webapp "$window_class" "$url"
