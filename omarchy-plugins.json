@@ -12,7 +12,12 @@
       "replace": "omarchy.workspaces",
       "inheritSettings": false,
       "placement": { "section": "left", "index": 1 },
-      "settings": { "activeOpacity": 1, "inactiveOpacity": 0.5 }
+      "settings": {
+        "activeOpacity": 1,
+        "inactiveOpacity": 0.5,
+        "labels": "focused",
+        "revealOnHover": true
+      }
     },
     {
       "id": "omarchy.indicators",
