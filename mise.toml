@@ -7,6 +7,8 @@ bun = "1.4.3"
 actionlint = "1.7.12"
 yamllint = "1.38.0"
 shellcheck = "0.11.0"
+# Approved for aube's package-age check while the package is under 30 days old.
+"npm:@timmo001/tooling-drift" = { version = "0.1.0", allow_low_downloads = true }
 
 [tasks.lint]
 description = "Run every lint check in parallel"
@@ -209,3 +211,15 @@ depends = ["docs:build"]
 [tasks.check]
 description = "Run every lint, check, test, and docs build in parallel"
 depends = ["lint", "dot:check", "tests", "docs:check"]
+
+[tasks."tooling:status"]
+description = "Compare the reviewed Herdr, Omarchy and gh releases in tooling.yml with the latest"
+run = "tooling-drift status"
+
+[tasks."tooling:update"]
+description = "Record a tool release as reviewed in tooling.yml after reviewing it"
+run = 'tooling-drift update {{arg(name="repo")}} {{arg(name="tag")}}'
+
+[tasks."tooling:publish"]
+description = "Open or refresh a review pull request for every tool behind its latest release"
+run = "tooling-drift publish"

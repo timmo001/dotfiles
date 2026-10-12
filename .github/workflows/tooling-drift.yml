@@ -1,0 +1,29 @@
+---
+name: Tooling drift
+
+# Opens one review pull request per Herdr, Omarchy or gh release newer than
+# the one recorded in tooling.yml, through the tooling-drift tool pinned in
+# mise.toml. See the tooling-drift skill.
+
+on:
+  schedule:
+    - cron: '23 6 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tooling-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    if: github.repository == 'timmo001/dotfiles'
+    uses: timmo001/workflows/.github/workflows/tooling-drift.yml@4684bb98d86ce0367028aa5d72fc8d178b102e63 # 20261012.0
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    secrets:
+      token: ${{ secrets.TOOLING_DRIFT_TOKEN }}
