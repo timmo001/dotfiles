@@ -15,6 +15,15 @@ tab_cmd='uwsm app -- google-chrome-stable --ozone-platform=wayland --force-devic
 window_cmd='uwsm app -- google-chrome-stable --new-window --ozone-platform=wayland --force-device-scale-factor=0.8 --profile-directory=Profile\ 1 --user-data-dir=$HOME/.config/google-chrome-work --class=work-browser'
 
 if [ "$tab" -eq 1 ]; then
+  # Chrome opens the link in the window it last saw focused. When that was one
+  # of its app windows (Slack, the Plannotator Inbox), it opens a new window
+  # instead of a tab, so focus the most recent main browser window first.
+  browser_window="$({ hyprctl clients -j | jq -r '[.[] | select(.class == "work-browser")] | sort_by(.focusHistoryID) | first | .address // empty'; } 2>/dev/null || true)"
+
+  if [ -n "$browser_window" ]; then
+    hyprctl dispatch "hl.dsp.focus({ window = $(jq -Rn --arg value "address:$browser_window" '$value') })" >/dev/null
+  fi
+
   cmd="$tab_cmd$suffix"
   hyprctl dispatch "hl.dsp.exec_cmd($(jq -Rn --arg value "$cmd" '$value'))"
   exit 0
