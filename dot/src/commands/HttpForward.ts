@@ -74,6 +74,9 @@ export const httpForward = Effect.fn("HttpForward")(function* (
         Bun.serve<SocketData>({
           hostname: "127.0.0.1",
           port: options.port,
+          // Bun closes idle connections after 10 seconds by default, which cuts
+          // off long-held responses such as Home Assistant's TTS streams
+          idleTimeout: 0,
           async fetch(request, server) {
             const url = new URL(request.url);
             const path = url.pathname + url.search;
