@@ -35,7 +35,6 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Readme: `README.md` (slim pointer; links to the docs site, which is the canonical human documentation)
 - OpenCode config source: `agents/.config/opencode/`
 - Skills source: [`timmo001/skills`](https://github.com/timmo001/skills), cloned by `dot` to `~/.local/share/dot/skills` (detached at the latest `main`) and linked into `~/.agents/skills/`
-- Published OpenCode config: [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config)
 
 ## Tooling
 

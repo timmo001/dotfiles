@@ -5,7 +5,7 @@
 // Run with: mise run docs:gen:opencode
 //
 // Do not edit the generated pages by hand. Change the source assets and re-run
-// this script (the opencode-publish workflow also regenerates them).
+// this script (the docs-drift workflow checks they are current).
 import { readFile, readdir, writeFile, mkdir, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -105,7 +105,7 @@ async function generateAgents(): Promise<void> {
     2,
   );
   lines.push(
-    'Agents set the execution posture (permissions, tool access, delegation) for OpenCode sessions. They are published to [`opencode-config`](https://github.com/timmo001/opencode-config) and loaded from `~/.config/opencode/agents/`.',
+    'Agents set the execution posture (permissions, tool access, delegation) for OpenCode sessions. They are loaded from `~/.config/opencode/agents/`.',
     '',
     '| Agent | Description |',
     '| --- | --- |',

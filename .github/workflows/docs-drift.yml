@@ -1,12 +1,27 @@
 ---
 name: Docs drift
 
-# Fails a pull request when the generated docs are stale: it regenerates the
-# command reference and OpenCode reference, then fails if the committed pages
-# differ. The push workflows apply the same drift check to direct pushes to the
-# default branch.
+# Fails a pull request or push to the default branch when the generated docs
+# are stale: it regenerates the command reference and OpenCode reference, then
+# fails if the committed pages differ.
 
 on:
+  push:
+    branches:
+      - distro/arch-omarchy-quattro
+    paths:
+      - 'mise.toml'
+      - '.github/actions/setup-mise/**'
+      - 'dot/src/cli/spec.ts'
+      - 'agents/.config/opencode/**'
+      - 'dotfiles-skills/.agents/skills/**'
+      - 'docs/scripts/generate-cli-reference.ts'
+      - 'docs/scripts/generate-opencode-reference.ts'
+      - 'docs/src/content/docs/dot/commands.md'
+      - 'docs/src/content/docs/agents/opencode/agents.md'
+      - 'docs/src/content/docs/agents/opencode/commands.md'
+      - 'docs/src/content/docs/agents/opencode/plugins.md'
+      - '.github/workflows/docs-drift.yml'
   pull_request:
     paths:
       - 'mise.toml'
