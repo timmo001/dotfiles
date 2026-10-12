@@ -157,13 +157,16 @@ const IssueSettings = Schema.Struct({
   ),
 });
 
-/** Sends links for one site to a named browser, ahead of the work time rule. */
+/** Browser name that resolves to `links.work` during work time, otherwise `links.personal`. */
+export const WORK_TIME_BROWSER = "work-time";
+
+/** Sends links for one site to a named browser, ahead of repository browsers. */
 export const LinkSiteRule = Schema.Struct({
   /** Host with an optional path prefix, such as `github.com/home-assistant`; `*.` matches subdomains. */
   match: Schema.String.check(
     Schema.isPattern(/^(\*\.)?[a-z0-9.-]+(:\d+)?(\/\S*)?$/i),
   ),
-  /** Browser name from `browsers`. */
+  /** Browser name from `browsers`, or `work-time` for `work` during work time and `personal` otherwise. */
   browser: Schema.NonEmptyString,
 });
 
@@ -172,11 +175,11 @@ export type LinkSiteRule = typeof LinkSiteRule.Type;
 
 /** Default browser routing for links opened through `dot link open`. */
 export const LinkSettings = Schema.Struct({
-  /** Browser for links outside work time, and for anything that is not a single link. */
+  /** Browser for links no site rule or repository selects, and for anything that is not a single link. */
   personal: Schema.NonEmptyString,
-  /** Browser for links during work time; omitted keeps every link in the personal browser. */
+  /** Browser that `work-time` selects during work time; required to use `work-time`. */
   work: Schema.optionalKey(Schema.NonEmptyString),
-  /** Per-site overrides, checked in order before the work time rule. */
+  /** Per-site overrides, checked in order before repository browsers. */
   sites: Schema.optionalKey(Schema.Array(LinkSiteRule)),
 });
 
@@ -485,12 +488,10 @@ function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
       }
   }
 
-  for (const repo of repositories) {
-    if (repo.browser && !Object.hasOwn(browsers, repo.browser))
-      diagnostics.push(
-        `Repository ${repo.name} references unknown browser: ${repo.browser}`,
-      );
-  }
+  if (Object.hasOwn(browsers, WORK_TIME_BROWSER))
+    diagnostics.push(
+      `root.browsers.${WORK_TIME_BROWSER} is reserved for work time routing`,
+    );
 
   let links: LinkSettings | undefined;
 
@@ -503,10 +504,6 @@ function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
       for (const [location, browser] of [
         ["root.links.personal", links.personal],
         ["root.links.work", links.work],
-        ...(links.sites ?? []).map(
-          (rule, index) =>
-            [`root.links.sites[${index}]`, rule.browser] as const,
-        ),
       ] as const) {
         if (browser !== undefined && !Object.hasOwn(browsers, browser))
           diagnostics.push(
@@ -516,6 +513,26 @@ function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
     } catch (error) {
       diagnostics.push(`root.links: ${formatError(error)}`);
     }
+  }
+
+  const selectable = (browser: string) =>
+    Object.hasOwn(browsers, browser) ||
+    (browser === WORK_TIME_BROWSER && links?.work !== undefined);
+
+  for (const [location, browser] of [
+    ...repositories.map(
+      (repo) => [`Repository ${repo.name}`, repo.browser] as const,
+    ),
+    ...(links?.sites ?? []).map(
+      (rule, index) => [`root.links.sites[${index}]`, rule.browser] as const,
+    ),
+  ]) {
+    if (browser !== undefined && !selectable(browser))
+      diagnostics.push(
+        browser === WORK_TIME_BROWSER
+          ? `${location} uses ${WORK_TIME_BROWSER}, which needs root.links.work`
+          : `${location} references unknown browser: ${browser}`,
+      );
   }
 
   let issueExclusions: readonly IssueExclusion[] = [];

@@ -4,6 +4,7 @@ import {
   managedGitRepoForGitHub,
   type DotGitConfig,
   type LinkSiteRule,
+  WORK_TIME_BROWSER,
 } from "../services/GitConfig.js";
 import { isWorkTime } from "./workTime.js";
 
@@ -29,7 +30,7 @@ function siteMatches(rule: LinkSiteRule, url: URL): boolean {
 
 /**
  * Choose the browser name for a link. Site rules come first, then the browser
- * of the tracked repository the link belongs to, then the work time rule.
+ * of the tracked repository the link belongs to, then `links.personal`.
  * Returns undefined when nothing applies and links are not routed by dot.
  */
 export const resolveLinkBrowser = Effect.fn("resolveLinkBrowser")(function* (
@@ -38,11 +39,9 @@ export const resolveLinkBrowser = Effect.fn("resolveLinkBrowser")(function* (
   repoBrowser?: string,
 ) {
   const { links } = gitConfig;
-  const site = links?.sites?.find((rule) => siteMatches(rule, url));
-
-  if (site) return site.browser;
 
   const browser =
+    links?.sites?.find((rule) => siteMatches(rule, url))?.browser ??
     repoBrowser ??
     (url.hostname === "github.com"
       ? managedGitRepoForGitHub(
@@ -51,7 +50,7 @@ export const resolveLinkBrowser = Effect.fn("resolveLinkBrowser")(function* (
         )?.browser
       : undefined);
 
-  if (browser) return browser;
+  if (browser !== WORK_TIME_BROWSER) return browser ?? links?.personal;
 
   if (!links) return undefined;
 

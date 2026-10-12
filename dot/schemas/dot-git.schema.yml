@@ -30,15 +30,15 @@ properties:
       - personal
     properties:
       personal:
-        description: Browser for links outside work time, and for anything that is not a single link.
+        description: Browser for links no site rule or repository selects, and for anything that is not a single link.
         type: string
         minLength: 1
       work:
-        description: Browser for links during work time; omitted keeps every link in the personal browser.
+        description: Browser that work-time selects during work time; required to use work-time.
         type: string
         minLength: 1
       sites:
-        description: Per-site overrides, checked in order before the work time rule.
+        description: Per-site overrides, checked in order before repository browsers.
         type: array
         items:
           type: object
@@ -52,7 +52,7 @@ properties:
               type: string
               pattern: "^(\\*\\.)?[A-Za-z0-9.-]+(:\\d+)?(/\\S*)?$"
             browser:
-              description: Browser name from browsers.
+              description: Browser name from browsers, or work-time for links.work during work time and links.personal otherwise.
               type: string
               minLength: 1
   schema_version:
@@ -211,7 +211,7 @@ $defs:
       browser:
         type: string
         pattern: "^[a-z][a-z0-9_-]*$"
-        description: Name from browsers for web actions. Omitted uses the desktop default.
+        description: Name from browsers for web actions, or work-time for links.work during work time and links.personal otherwise. Omitted uses the desktop default.
       review_search:
         type: string
         minLength: 1

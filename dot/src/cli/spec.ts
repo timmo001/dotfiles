@@ -1079,7 +1079,7 @@ const gitWebCommand = describe(
   ],
   {
     description:
-      "Resolves repository browser settings from dot-git.yml, including linked worktrees. URL-only actions use the GitHub repository in the URL. Named browsers are argument lists under browsers; each repository can select one with browser. When links is set, links.sites rules come first and unselected links follow the same routing as dot link open. Without links or a selection, uses the desktop default, and --work-time selects the work browser during work hours outside calendar leave. --browser overrides the selection. The Git panel uses --work-time for web actions and --browser work for Alt+Enter and Alt+click.",
+      "Resolves repository browser settings from dot-git.yml, including linked worktrees. URL-only actions use the GitHub repository in the URL. Named browsers are argument lists under browsers; each repository can select one with browser, or work-time for links.work during work hours and links.personal otherwise. When links is set, links.sites rules come first and unselected links follow the same routing as dot link open. Without links or a selection, uses the desktop default, and --work-time selects the work browser during work hours outside calendar leave. --browser overrides the selection. The Git panel uses --work-time for web actions and --browser work for Alt+Enter and Alt+click.",
   },
 );
 
@@ -1106,7 +1106,7 @@ const linkCommand = describe(
         ],
         {
           description:
-            "Routes a single HTTP or HTTPS link using links in dot-git.yml: the first matching links.sites rule, then the browser of the tracked repository a GitHub link belongs to, then links.work during work time outside calendar leave, otherwise links.personal. Anything else, including no arguments, goes to links.personal unchanged. The link-browser desktop entry runs this as the default web browser, so xdg-open and Omarchy's browser launcher use it. Failures are also sent as a desktop notification.",
+            "Routes a single HTTP or HTTPS link using links in dot-git.yml: the first matching links.sites rule, then the browser of the tracked repository a GitHub link belongs to, otherwise links.personal. A site rule or repository can select work-time, which opens links.work during work time outside calendar leave and links.personal otherwise. Anything else, including no arguments, goes to links.personal unchanged. The link-browser desktop entry runs this as the default web browser, so xdg-open and Omarchy's browser launcher use it. Failures are also sent as a desktop notification.",
         },
       ),
     ]),
