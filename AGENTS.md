@@ -79,7 +79,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Top-level docs for humans/agents must be ignored by stow.
 - The `docs/` site directory is ignored by stow (`--ignore=^/docs`); the repo root stows to `~/`, so any new root-level directory that should not be symlinked needs a matching `.stowrc` ignore.
 - Keep `.stowrc` ignore rules in sync when adding root-only files.
-- Starship and fastfetch config are retired stow packages. They live as regular files under `~/.config`, tracked by mise's dotfiles history through `conf.d/dotfiles-history.toml` in the private overlay's `mise` package. `MISE_TRACKED_PUBLIC_STOW_PATHS` in `dot/src/lib/stowConflicts.ts` lists them so `dot stow` turns a machine's old link into a regular file once; do not add them back as packages.
+- Starship and fastfetch config are retired stow packages. They live as regular files under `~/.config`, tracked by mise's dotfiles history through `mise/.config/mise/conf.d/dotfiles-history.toml` and synced between machines through a private mise origin repository set per machine with `mise dot origin set`. `MISE_TRACKED_PUBLIC_STOW_PATHS` in `dot/src/lib/stowConflicts.ts` lists them so `dot stow` turns a machine's old link into a regular file once; do not add them back as packages.
 - **Always run `dot stow`** (or `dot update`, which refreshes stow) to apply packages. Do **not** invoke GNU `stow` directly from the repo root: `dot` applies the correct adopt/no-folding flow and public-then-private ordering.
 
 ## Dot Command

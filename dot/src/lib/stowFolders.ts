@@ -31,8 +31,8 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  *   its stowed config.
  * - `.config/hypr`: the runtime `~/.config/hypr/host` symlink, omarchy shaders,
  *   and `~/.local/state` toggles live alongside the stowed config.
- * - `.config/mise`: the private overlay stows `conf.d/` files alongside the
- *   public global config.
+ * - `.config/mise`: mise writes per-machine files here, such as the dotfiles
+ *   history origin in `config.local.toml` and `mise.lock`.
  * - `.config/nvim`: `omarchy-nvim-setup` owns `~/.config/nvim` and writes into
  *   it (the `lua/plugins/theme.lua` symlink and its default plugin files).
  * - `.config/omarchy/plugins`: public and private user plugins share this

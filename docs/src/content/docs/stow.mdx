@@ -26,4 +26,4 @@ Everything below is applied with `dot stow`. Dedicated pages cover [Hyprland](/d
 
 Laptop-only overlays use the `--laptop` package suffix (`scripts--laptop`, `systemd--laptop`).
 
-Starship and fastfetch config are not stow packages: they are regular files under `~/.config` that mise's dotfiles history tracks, declared in the private overlay. `dot stow` turns the old links into regular files once.
+Starship and fastfetch config are not stow packages. They are regular files under `~/.config` that [mise's dotfiles history](https://mise.jdx.dev/dotfiles.html) tracks, declared in `mise/.config/mise/conf.d/dotfiles-history.toml`, and they sync between machines through a private mise origin repository. `dot stow` turns the old links into regular files once.
