@@ -56,6 +56,8 @@ export const syncNotesRepositoryDirectories = Effect.gen(function* () {
   const added = Object.keys(missing).length;
 
   if (added === 0) {
+    yield* log.info("Notes repository directories up to date");
+
     return skip("Notes repository directories already up to date");
   }
 

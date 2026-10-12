@@ -26,6 +26,7 @@ import { trustRepoMiseConfigs } from "../lib/miseTrust.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import { cliStyler } from "../lib/ansi.js";
 import { plural } from "../lib/runSummary.js";
+import { runQuiet } from "../lib/quietCommand.js";
 import {
   done,
   logRepoChanges,
@@ -50,6 +51,7 @@ import {
 } from "../lib/initState.js";
 import {
   gitHead,
+  gitOutput,
   gitPullFastForward,
   gitRefreshRemoteHead,
   gitRequired,
@@ -128,11 +130,26 @@ const STEP_TIMEOUT_SECONDS = {
 /** Upper bound for one repository post-update command. */
 const REPO_POST_UPDATE_TIMEOUT_SECONDS = 5 * 60;
 
-/** Restore every nested submodule to the exact revision committed by its parent. */
-export const updatePinnedSubmodules = (repoPath: string) =>
-  gitRequired(["submodule", "update", "--init", "--recursive"], {
-    cwd: repoPath,
-  });
+/**
+ * Restore every nested submodule to the exact revision committed by its
+ * parent. Returns whether any submodule needed restoring.
+ */
+export const updatePinnedSubmodules = Effect.fn("updatePinnedSubmodules")(
+  function* (repoPath: string) {
+    const status = yield* gitOutput(["submodule", "status", "--recursive"], {
+      cwd: repoPath,
+    });
+
+    // A leading `-`, `+` or `U` marks an uninitialised, moved or conflicted submodule.
+    if (!status.split("\n").some((line) => /^[-+U]/.test(line))) return false;
+
+    yield* gitRequired(["submodule", "update", "--init", "--recursive"], {
+      cwd: repoPath,
+    });
+
+    return true;
+  },
+);
 
 /** Options controlling which phases `dot update` runs. */
 export interface UpdateOptions {
@@ -633,15 +650,6 @@ function selfUpdateAndRestart(
   });
 }
 
-/** Run post-update hooks. */
-const postHooks = Effect.gen(function* () {
-  const log = yield* OutputLog;
-
-  yield* log.section("Post-Hooks");
-
-  yield* agentsSync;
-});
-
 const MiseToolVersions = Schema.fromJsonString(
   Schema.Record(
     Schema.String,
@@ -952,15 +960,31 @@ const restoreHerdrPlugins = Effect.gen(function* () {
     return warn("Herdr plugins skipped (Herdr Lazy binary is missing)");
   }
 
-  const exitCode = yield* executor.inherit(binary, ["restore"]);
+  const restore = yield* runQuiet(binary, ["restore"]);
 
-  if (exitCode !== 0) {
+  if (restore.exitCode !== 0) {
     return yield* new UpdateError({
-      message: `Herdr plugin restore exited ${exitCode}`,
+      message: `Herdr plugin restore exited ${restore.exitCode}`,
     });
   }
 
-  yield* log.success("Herdr plugins restored from lockfile");
+  const restoreLines = restore.output.split("\n").map((line) => line.trim());
+
+  // Unchanged plugins print `= owner/repo@sha`; surface anything else.
+  for (const line of restoreLines) {
+    if (line && !line.startsWith("= ") && !line.startsWith("summary:")) {
+      yield* log.info(`  ${line}`);
+    }
+  }
+
+  const summary = restoreLines
+    .find((line) => line.startsWith("summary:"))
+    ?.slice("summary:".length)
+    .trim();
+
+  yield* log.success(
+    `Herdr plugins restored from lockfile${summary ? ` ${cliStyler().dim(`(${summary})`)}` : ""}`,
+  );
 
   for (const plugin of LOCAL_HERDR_PLUGINS) {
     const pluginRoot = join(
@@ -972,21 +996,21 @@ const restoreHerdrPlugins = Effect.gen(function* () {
       plugin,
     );
 
-    const linkExitCode = yield* executor.inherit("herdr", [
+    const link = yield* runQuiet("herdr", [
       "plugin",
       "link",
       pluginRoot,
       "--enabled",
     ]);
 
-    if (linkExitCode !== 0) {
+    if (link.exitCode !== 0) {
       return yield* new UpdateError({
-        message: `Herdr local plugin ${plugin} link exited ${linkExitCode}`,
+        message: `Herdr local plugin ${plugin} link exited ${link.exitCode}`,
       });
     }
   }
 
-  const titleWatcherExitCode = yield* executor.inherit("herdr", [
+  const titleWatcher = yield* runQuiet("herdr", [
     "plugin",
     "action",
     "invoke",
@@ -995,13 +1019,15 @@ const restoreHerdrPlugins = Effect.gen(function* () {
     "dotfiles.terminal-title",
   ]);
 
-  if (titleWatcherExitCode !== 0) {
+  if (titleWatcher.exitCode !== 0) {
     return yield* new UpdateError({
-      message: `Herdr terminal title watcher exited ${titleWatcherExitCode}`,
+      message: `Herdr terminal title watcher exited ${titleWatcher.exitCode}`,
     });
   }
 
-  yield* log.success("Herdr local plugins linked");
+  yield* log.success(
+    `Herdr local plugins linked ${cliStyler().dim(`(${plural(LOCAL_HERDR_PLUGINS.length, "plugin")})`)}`,
+  );
 
   return done("Restored and linked Herdr plugins");
 });
@@ -1427,7 +1453,7 @@ export const update = (updateOpts?: UpdateOptions) =>
                   if (changed.some((r) => r.ahead > 0))
                     notes.push("ahead of upstream");
                   yield* log.warn(
-                    `${plural(changed.length, "repository", "repositories")} need attention: ${notes.join(", ")}`,
+                    `${plural(changed.length, "repository", "repositories")} ${changed.length === 1 ? "needs" : "need"} attention: ${notes.join(", ")}`,
                   );
 
                   for (const repo of changed) {
@@ -1453,7 +1479,7 @@ export const update = (updateOpts?: UpdateOptions) =>
                 }
               } else {
                 yield* log.info(
-                  `${plural(changed.length, "repository", "repositories")} need attention`,
+                  `${plural(changed.length, "repository", "repositories")} ${changed.length === 1 ? "needs" : "need"} attention`,
                 );
 
                 const pulled = yield* Effect.forEach(
@@ -1488,11 +1514,16 @@ export const update = (updateOpts?: UpdateOptions) =>
                 }
               }
 
-              yield* log.info("Updating pinned submodules");
-              yield* updatePinnedSubmodules(config.publicDotfiles);
+              const submodulesUpdated = [
+                yield* updatePinnedSubmodules(config.publicDotfiles),
+                config.privateDotfiles
+                  ? yield* updatePinnedSubmodules(config.privateDotfiles)
+                  : false,
+              ].some(Boolean);
 
-              if (config.privateDotfiles)
-                yield* updatePinnedSubmodules(config.privateDotfiles);
+              yield* submodulesUpdated
+                ? log.success("Updated pinned submodules")
+                : log.info("Pinned submodules up to date");
             }),
           );
 
@@ -1728,9 +1759,9 @@ export const update = (updateOpts?: UpdateOptions) =>
     // Full updates and the changed-dotfiles handoff sync agent instructions.
     if (runsFullPhases) {
       yield* requiredUpdateStep(
-        "Post-Hooks",
+        "Agents Rules Sync",
         STEP_TIMEOUT_SECONDS.postHooks,
-        postHooks,
+        agentsSync,
       );
       completedActions.push(done("Synced agent instructions"));
       completedActions.push(yield* syncNotesRepositoryDirectories);
@@ -1795,6 +1826,10 @@ export const update = (updateOpts?: UpdateOptions) =>
       "refresh",
       "--dot-only",
     ]);
+
+    yield* refreshExitCode === 0
+      ? log.success("Refreshed the update status")
+      : log.warn(`Update status refresh failed (exit ${refreshExitCode})`);
 
     completedActions.push(
       refreshExitCode === 0

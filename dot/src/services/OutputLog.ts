@@ -342,7 +342,7 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
           const finishedAt = yield* Clock.currentTimeMillis;
           yield* emit(
             "info",
-            `${label} ${cliStyler().dim(`(${formatDuration(finishedAt - startedAt)})`)}`,
+            `${label} done ${cliStyler().dim(`(${formatDuration(finishedAt - startedAt)})`)}`,
           );
 
           return result;
