@@ -12,8 +12,19 @@ import {
 import {
   assertDependencyPolicyReady,
   mergeDependencyPolicy,
+  overrideHash,
+  RenovateObject,
+  type DependencyConfig,
 } from "./config.js";
-import { readDependencyConfig } from "./policyFile.js";
+import {
+  dependencyPolicyFile,
+  dependencyPolicySchemaFile,
+  readDependencyConfig,
+  renderDependencyConfig,
+  renderDependencySchema,
+} from "./policyFile.js";
+import { replaceDependencyOverrides } from "./importRenovate.js";
+import type { Snapshot } from "./model.js";
 import { dependencyCheckRequirements } from "./checks.js";
 import { DependencyGithub } from "./github.js";
 import { extractDependencies } from "./extract.js";
@@ -34,6 +45,7 @@ import {
 import {
   applyDependencyGroup,
   dependencyCandidateTree,
+  dependencyWorkPath,
   prepareDependencyWorkspace,
   removeDependencyWorkspace,
   publishDependencyGroup,
@@ -85,6 +97,148 @@ const runnablePlan = Effect.fn("Dependencies.runnablePlan")(function* (
 
   return config;
 });
+
+/** Re-import changed Renovate overrides, validate and publish the policy before planning. */
+const repairDependencyOverrides = Effect.fn("Dependencies.repairOverrides")(
+  function* (
+    snapshot: Snapshot,
+    config: DependencyConfig,
+    paths: ReturnType<typeof dependencyRunPaths>,
+    identity: { readonly login: string; readonly id: number },
+    log: DependencyRunLog,
+    options: DependencyPlanOptions,
+    lease: DependencyLease,
+  ) {
+    const fs = yield* FileSystem.FileSystem;
+
+    const source = yield* Schema.decodeEffect(
+      Schema.fromJsonString(RenovateObject),
+    )(snapshot.files[config.import.source]).pipe(
+      Effect.mapError(
+        () =>
+          new DependencyRunError({
+            message: `Missing or invalid Renovate overrides in ${config.import.source} at ${snapshot.sha}`,
+          }),
+      ),
+    );
+
+    if (config.import.overrideHash === overrideHash(source)) return false;
+
+    if (snapshot.files[dependencyPolicyFile] === undefined)
+      return yield* new DependencyRunError({
+        message:
+          "Renovate overrides changed and the policy is still dot-deps.json; run dot deps import renovate to migrate it",
+      });
+
+    yield* log.event(
+      `[REPAIR] ${config.import.source} changed; re-importing ${dependencyPolicyFile}`,
+    );
+
+    const repaired = yield* replaceDependencyOverrides(config, source).pipe(
+      Effect.mapError(
+        (error) =>
+          new DependencyRunError({
+            message: `Could not re-import Renovate overrides: ${error.message}`,
+          }),
+      ),
+    );
+
+    const trust = yield* readDependencyTrust(snapshot.repository);
+
+    yield* dependencyCheckRequirements(
+      snapshot,
+      repaired,
+      trust.allowBypass,
+      options.timeout,
+    );
+
+    const workspace = yield* prepareDependencyWorkspace(
+      paths,
+      snapshot,
+      log,
+      options.timeout,
+      identity,
+    );
+
+    const allowed = [dependencyPolicyFile, dependencyPolicySchemaFile];
+    yield* fs.writeFileString(
+      yield* dependencyWorkPath(workspace.directory, dependencyPolicyFile),
+      renderDependencyConfig(repaired),
+    );
+    yield* fs.writeFileString(
+      yield* dependencyWorkPath(
+        workspace.directory,
+        dependencyPolicySchemaFile,
+      ),
+      renderDependencySchema(),
+    );
+
+    const candidate = yield* dependencyCandidateTree(
+      workspace.directory,
+      allowed,
+      snapshot.sha,
+      log,
+      options.timeout,
+    );
+
+    yield* validateDependencyGroup(
+      workspace.directory,
+      repaired,
+      log,
+      [],
+      options.concurrency,
+    );
+
+    if (
+      (yield* dependencyCandidateTree(
+        workspace.directory,
+        allowed,
+        snapshot.sha,
+        log,
+        options.timeout,
+      )) !== candidate
+    )
+      return yield* new DependencyRunError({
+        message:
+          "Setup or checks modified the re-imported policy; retained worktree needs inspection",
+      });
+
+    const result = yield* publishDependencyGroup(
+      workspace.directory,
+      snapshot,
+      "Renovate policy",
+      candidate,
+      allowed,
+      log,
+      options.timeout,
+      lease,
+      `Re-import Renovate policy from ${config.import.source}`,
+    );
+
+    if (result.status === "moved")
+      return yield* new DependencyRunError({
+        message:
+          "Target moved while re-importing Renovate overrides; the next run will retry",
+      });
+
+    yield* removeDependencyWorkspace(
+      paths,
+      workspace.directory,
+      result.commit,
+      log,
+      options.timeout,
+    ).pipe(
+      Effect.catch((error) =>
+        log.event(`[RETAINED] Published successfully; ${error.message}`),
+      ),
+    );
+    yield* log.event(
+      `[REPAIRED] https://github.com/${snapshot.repository}/commit/${result.commit}`,
+    );
+
+    return true;
+  },
+);
 
 const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
   group: string,
@@ -424,13 +578,42 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
   if (!lease) return;
 
   return yield* Effect.gen(function* () {
-    // Block unresolved policy before expensive metadata discovery or any repository command.
-    const snapshot = yield* github.snapshot(
+    const identity = yield* Api.json(
+      {
+        endpoint: "user",
+        method: "GET",
+        options: { timeout: options.timeout },
+      },
+      Schema.Struct({ login: Schema.String, id: Schema.Int }),
+    );
+
+    const pinned = yield* github.snapshot(
       repository.nameWithOwner,
       target,
       options.timeout,
       options.concurrency,
     );
+
+    // Renovate overrides are edited by hand; bring the imported policy back in line first.
+    const repaired = yield* repairDependencyOverrides(
+      pinned,
+      yield* readDependencyConfig(pinned.files),
+      paths,
+      identity,
+      log,
+      { ...options, target },
+      lease,
+    );
+
+    // Block unresolved policy before expensive metadata discovery or any repository command.
+    const snapshot = repaired
+      ? yield* github.snapshot(
+          repository.nameWithOwner,
+          target,
+          options.timeout,
+          options.concurrency,
+        )
+      : pinned;
 
     const config = yield* readDependencyConfig(snapshot.files);
 
@@ -447,15 +630,6 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
       dependencies: extracted.dependencies,
       files: snapshot.tree.map((entry) => entry.path),
     });
-
-    const identity = yield* Api.json(
-      {
-        endpoint: "user",
-        method: "GET",
-        options: { timeout: options.timeout },
-      },
-      Schema.Struct({ login: Schema.String, id: Schema.Int }),
-    );
 
     const initial = yield* planner.plan({ ...options, target });
     yield* runnablePlan(initial);

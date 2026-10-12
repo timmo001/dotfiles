@@ -394,6 +394,10 @@ export const publishDependencyGroup = Effect.fn("Dependencies.publishGroup")(
     log: DependencyRunLog,
     timeout: number,
     lease: DependencyLease,
+    message = `Update dependencies in ${group
+      .replace(/[\p{Cc}\u2013\u2014]/gu, " ")
+      .slice(0, 80)
+      .replace(/\.+$/, "")}`,
   ) {
     const git = dependencyGit(log, directory, timeout);
     const fs = yield* FileSystem.FileSystem;
@@ -415,10 +419,7 @@ export const publishDependencyGroup = Effect.fn("Dependencies.publishGroup")(
         "git",
         "commit",
         "-m",
-        `Update dependencies in ${group
-          .replace(/[\p{Cc}\u2013\u2014]/gu, " ")
-          .slice(0, 80)
-          .replace(/\.+$/, "")}`,
+        message,
         "--skip-agent-oxlint",
         ...allowed.flatMap((file) => ["--path", file]),
       ],
