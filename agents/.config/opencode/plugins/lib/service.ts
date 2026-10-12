@@ -7,7 +7,7 @@ import {
   FetchHttpClient,
   HttpClient,
   HttpClientRequest,
-} from "effect/unstable/http";
+} from "effect/http";
 
 export const discoverService = () =>
   Service.discover().pipe(

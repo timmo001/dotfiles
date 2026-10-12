@@ -5,7 +5,7 @@ import { Effect } from "effect";
 import {
   HttpClientRequest,
   HttpClientResponse,
-} from "effect/unstable/http";
+} from "effect/http";
 import { discoverService, executeHttp } from "./service";
 
 export interface ToastInput {
