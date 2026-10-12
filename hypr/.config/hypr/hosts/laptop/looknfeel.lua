@@ -22,3 +22,12 @@ hl.on("window.open", function(win)
   hl.dispatch(hl.dsp.window.move({ direction = "l", window = win }))
   hl.dispatch(hl.dsp.window.resize({ x = 280, y = win.size.y, window = win }))
 end)
+
+-- The same column for the Qt WebEngine Inbox window from dot plannotator inbox, told apart from other qml windows by its title
+hl.on("window.open", function(win)
+  if win.floating or win.class ~= "org.qt-project.qml" or win.title ~= "Plannotator Inbox" then
+    return
+  end
+  hl.dispatch(hl.dsp.window.move({ direction = "l", window = win }))
+  hl.dispatch(hl.dsp.window.resize({ x = 280, y = win.size.y, window = win }))
+end)
