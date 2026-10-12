@@ -7,7 +7,7 @@ Personal [Omarchy](https://omarchy.org) dotfiles, managed with [GNU Stow](https:
 **Docs:** <https://dotfiles.timmo.dev>
 
 > [!CAUTION]
-> This repository is for reference. The configs are tuned for Omarchy and my machines, with a private overlay that is not public, so installation is not recommended; borrow pieces rather than installing wholesale. The shared OpenCode config is the exception: [`opencode-config`](https://github.com/timmo001/opencode-config).
+> This repository is for reference. The configs are tuned for Omarchy and my machines, with a private overlay that is not public, so installation is not recommended. Have your agents borrow the pieces you want instead.
 
 ## Quick start
 
