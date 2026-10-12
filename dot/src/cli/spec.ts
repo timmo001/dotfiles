@@ -49,6 +49,7 @@ import {
   servicesStatus,
 } from "../commands/Services.js";
 import { fansRun } from "../commands/Fans.js";
+import { tunnelRun } from "../commands/Tunnel.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { prQueue } from "../commands/PrQueue.js";
 import { prReviews } from "../commands/PrReviews.js";
@@ -846,6 +847,34 @@ const fansCommand = describe(
   {
     description:
       "Reads ~/.config/dot/fans.yml: entity (a Home Assistant temperature sensor), device (a liquidctl --match string), channels (a list such as fan1 and fan2), ramp ({ from, to } in °C) and speed ({ min, max } in percent). Watches the entity through ha-bridge and ramps the channels linearly from speed.min at ramp.from to speed.max at ramp.to, in 5% steps. An unavailable or non-numeric reading, no reading within 30 seconds, or a stopped watcher sets speed.max until readings resume; the watcher restarts after 15 seconds. Health is written to $XDG_STATE_HOME/dot/fans/status.json for the status field of a dot services descriptor. Stopping hands the device back to motherboard control with liquidctl initialize.",
+  },
+);
+
+const tunnelCommand = describe(
+  Command.make("tunnel").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "run",
+          {
+            name: Argument.String("name").pipe(
+              Argument.withDescription(
+                "Tunnel name, matching ~/.config/dot/tunnels/<name>.token",
+              ),
+            ),
+          },
+          ({ name }) => tunnelRun(name),
+        ),
+        "Run a Cloudflare tunnel on one machine at a time (used by dot-tunnel@<name>.service)",
+        ["dot tunnel run plannotator"],
+      ),
+    ]),
+  ),
+  "Run shared Cloudflare tunnels on one machine at a time",
+  ["dot tunnel run plannotator"],
+  {
+    description:
+      "Runs cloudflared with the token in ~/.config/dot/tunnels/<name>.token, checking every 15 seconds which connectors the tunnel has, through the Cloudflare API with the token in ~/.config/dot/tunnels/cloudflare-api-token (Account > Cloudflare Tunnel > Read). The connector whose live connections opened first keeps the tunnel. A machine that finds another connector stops its own cloudflared and waits until none is left, so a laptop that wakes from sleep after another machine took over gives the tunnel back. Health is written to $XDG_STATE_HOME/dot/tunnels/<name>/status.json for the status field of a dot services descriptor: ok while serving, warning while another machine holds the tunnel or the API can't be checked. Without an answer from the API it never starts cloudflared, and keeps a running one going.",
   },
 );
 
@@ -3383,6 +3412,7 @@ export const dotCommand = describe(
       updatesCommand,
       servicesCommand,
       fansCommand,
+      tunnelCommand,
       stowCommand,
       omarchyCommand,
       sessionCommand,
