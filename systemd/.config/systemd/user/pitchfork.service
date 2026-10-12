@@ -4,6 +4,7 @@ After=default.target
 
 [Service]
 Type=simple
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin
 ExecStart=/home/aidan/.local/share/mise/installs/pitchfork/2.30.1/pitchfork supervisor run --boot
 Restart=on-failure
 RestartSec=10
