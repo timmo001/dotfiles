@@ -118,7 +118,7 @@ interface Slot {
 
 const PATTERN_SLACK = "^[Ss]lack$";
 
-const PATTERN_DISCORD = "^discord$";
+const PATTERN_DISCORD = "^chrome-discord\\.com__app";
 
 const PATTERN_CHROMIUM = "^chromium$";
 
@@ -881,7 +881,13 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       }
 
       yield* ensureSlot(
-        slot(TAGS.discord, PATTERN_DISCORD, "uwsm app -- discord", 1, false),
+        slot(
+          TAGS.discord,
+          PATTERN_DISCORD,
+          `${workChrome} --app=https://discord.com/app`,
+          1,
+          false,
+        ),
       );
 
       const slack = yield* addressByTag(TAGS.slack);

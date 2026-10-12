@@ -36,7 +36,8 @@ local file_manager = "uwsm app -- thunar"
 local browser_personal =
   [[uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory="Default" --force-device-scale-factor=0.8]]
 local browser_work = "launch-work-browser"
-local discord = "uwsm app -- discord"
+local discord =
+  [[uwsm app -- google-chrome-stable --new-window --ozone-platform=wayland --force-device-scale-factor=0.8 --profile-directory="Profile 1" --user-data-dir="$HOME/.config/google-chrome-work" --app=https://discord.com/app]]
 local slack = "uwsm app -- slack"
 
 -- Resume recovery
