@@ -1009,8 +1009,6 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
           false,
         ),
       );
-
-      yield* startPitchforkDaemon("ha-core/prod");
     } else {
       yield* logStep("Preparing workspace 1 non-work apps");
       yield* clearTag(TAGS.slack);
