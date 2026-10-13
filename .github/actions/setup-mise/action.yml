@@ -1,6 +1,6 @@
 ---
 name: Setup mise
-description: Install the mise version declared in mise.toml
+description: Install the mise version Omarchy ships
 
 inputs:
   install:
@@ -13,10 +13,11 @@ runs:
     - name: Read mise version
       id: version
       shell: bash
-      run: |
-        version=$(sed -nE 's/^min_version[[:space:]]*=[[:space:]]*"([^"]+)"[[:space:]]*$/\1/p' mise.toml)
-        test -n "$version"
-        printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+      env:
+        # Follows Omarchy's mise-bin package through Renovate. Kept out of
+        # mise.toml so local runs don't demand the newest patch.
+        MISE_VERSION: "2026.10.9"
+      run: printf 'version=%s\n' "$MISE_VERSION" >> "$GITHUB_OUTPUT"
 
     - name: Setup mise
       uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2

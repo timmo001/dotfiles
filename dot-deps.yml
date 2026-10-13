@@ -14117,9 +14117,9 @@ policy:
           allowedVersions: "<3.15"
     regexManagers:
       - files:
-          - "/^mise\\.toml$/"
+          - "/^\\.github/actions/setup-mise/action\\.yml$/"
         patterns:
-          - "^min_version\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+          - "MISE_VERSION:\\s*\"(?<currentValue>[^\"]+)\""
         templates:
           datasource: "custom.omarchy-mise"
           dependency: "omarchy/mise-bin"
