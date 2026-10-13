@@ -5,7 +5,8 @@ pre_sudo = false
 # The wrapper enables this only for runs containing privileged steps
 sudo_loop = false
 
-# mise manages topgrade; don't self-update over its install
+# TODO(ubuntu-server): decide how topgrade is installed on the server. Keep
+# self-update off until then so it does not fight the package manager.
 no_self_update = true
 
 # Disable specific steps
@@ -13,11 +14,10 @@ no_self_update = true
 # - pi/git_repos: not applicable
 # - go/deno/bun/bun_packages/pip3: managed by mise
 # - lensfun: broken (missing python module)
-# - system: skip OS package manager updates
-# - hyprpm: no plugins installed; it caches then drops sudo (sudo -k), which
-#   wipes the shared credential and forces omarchy update to re-auth
 # - github_cli_extensions: run natively by dot update system
-# - mise: handled by dot update and omarchy update
+# - mise: handled by dot update
+# The system step stays on here: it runs apt, and dot update system only
+# knows pacman so far.
 disable = [
   "github_cli_extensions",
   "mise",
@@ -33,8 +33,6 @@ disable = [
   "bun_packages",
   "pip3",
   "lensfun",
-  "system",
-  "hyprpm",
 ]
 
 # Run Yazi package upgrades after the other built-in steps
@@ -43,8 +41,8 @@ last = ["yazi"]
 # Cleanup temporary or old files after a run
 cleanup = false
 
-# Desktop notification only on failure
-notify_end = "on_failure"
+# No desktop to notify on a headless server
+# notify_end = "on_failure"
 
 
 # Commands to run before anything
@@ -56,8 +54,6 @@ notify_end = "on_failure"
 
 
 [linux]
-yay_arguments = "--noconfirm --cleanafter"
-show_arch_news = true
 
 
 [firmware]

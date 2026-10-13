@@ -1,5 +1,0 @@
-#!/bin/bash
-# Native messaging host for the dot links Chromium extension. Chromium runs one
-# executable with no arguments of ours, so this adds them. dot sits beside the
-# real file, which Chromium's PATH may not include.
-exec "$(dirname "$(readlink -f "$0")")/dot" link native-host "$@"

@@ -1,36 +1,51 @@
-# Public Arch packages managed by dot.
+# Public Ubuntu packages for the server.
 # One package per line, comments and blank lines are ignored.
+#
+# TODO(ubuntu-server): dot installs this list with pacman. It needs an apt path
+# before dot can use it here. Until then: xargs -a <(grep -v '^#' .dot-public-packages) sudo apt install
+# CLI tools such as fzf, ripgrep, jq, gh, lazygit and herdr come from the
+# global mise config, not this list.
 
 bmon
-catppuccin-cursors-mocha
+btop
+build-essential
 cmake
 cpio
-context-git
-float-app-git
-gcc
+curl
+fastfetch
 git
-ha-bridge-git
-home-assistant-tui-git
-momentum-git
-music-assistant-tui-git
-gtk4-layer-shell
 iperf3
-kdeconnect
-libva-utils
-mise-bin
-repo-notes-git
+neovim
 pkgconf
-python-gobject
-qt6-webengine
 smem
+stow
 stress-ng
 sysbench
 sysstat
 syncthing
-system-bridge-git
-thunar
-triage-git
-upnext-git
+tmux
+unzip
+yazi
 zsh
 zsh-autosuggestions
-zsh-fast-syntax-highlighting
+zsh-syntax-highlighting
+
+# TODO(ubuntu-server): these come from the AUR on the desktop and have no apt
+# package. Pick an install method on the server for the ones still wanted:
+# context-git
+# ha-bridge-git
+# home-assistant-tui-git
+# momentum-git
+# music-assistant-tui-git
+# repo-notes-git
+# system-bridge-git
+# topgrade-bin
+# triage-git
+# upnext-git
+#
+# TODO(ubuntu-server): fastfetch and yazi are only in newer Ubuntu releases.
+# Check against the server's release and move them to mise if needed.
+#
+# Desktop only, left out: catppuccin-cursors-mocha, float-app-git,
+# gtk4-layer-shell, kdeconnect, libva-utils, python-gobject, qt6-webengine,
+# thunar.
