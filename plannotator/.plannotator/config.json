@@ -33,11 +33,17 @@
     "opencode": true,
     "pi": true
   },
+  "inboxReminder": false,
   "inboxSound": {
     "dialogShownFor": "0.28.16",
     "volume": 100
   },
   "inboxAgentNotes": {
-    "offered": true
+    "offered": true,
+    "asked": [
+      "claude-code",
+      "pi",
+      "opencode"
+    ]
   }
 }
