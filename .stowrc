@@ -30,3 +30,4 @@
 --ignore=^/bun\.lock
 --ignore=^/oxlint\.config\.ts
 --ignore=^/tools
+--ignore=^/SERVER\.md

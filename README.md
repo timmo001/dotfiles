@@ -4,6 +4,9 @@
 
 Personal [Omarchy](https://omarchy.org) dotfiles, managed with [GNU Stow](https://www.gnu.org/software/stow/) and the `dot` command.
 
+> [!NOTE]
+> This is the `distro/ubuntu-server` branch: a headless Ubuntu server build with the terminal and service tooling only, and a Herdr server for remote clients. See [SERVER.md](SERVER.md) for what changed and what is still to do. The desktop setup lives on `distro/arch-omarchy-quattro`.
+
 **Docs:** <https://dotfiles.timmo.dev>
 
 > [!CAUTION]
@@ -52,5 +55,4 @@ Detail lives in code and `--help`. The site stays a short what-and-why reference
 - `dot/` — `dot` CLI source
 - `docs/` — docs site
 - `agents/` — OpenCode config
-- `hypr/`, `uwsm/`, `ghostty/` — desktop packages
 - Stow packages for shell, editor, and related tools

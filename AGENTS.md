@@ -4,6 +4,14 @@ Repository-specific instructions for coding agents working in this public dotfil
 
 Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGENTS.md`. This file should only describe this repo's source layout, stow workflow, repo-local commands, and validation expectations. Don't catalogue skills or commands here: skills self-document via their injected `description`, commands via their frontmatter and the generated docs reference. Keep only repo facts and routing those don't capture.
 
+## Ubuntu Server Branch
+
+- This is `distro/ubuntu-server`, a headless build for an Ubuntu server. It has no desktop packages: no Hyprland, UWSM, Ghostty or Omarchy.
+- Keep it terminal and service tooling only. Do not add packages that need a graphical session.
+- The server hosts Herdr for remote clients through `systemd/.config/systemd/user/herdr.service`.
+- `SERVER.md` tracks what changed and what is still unknown. Open items are also marked `TODO(ubuntu-server)` in place. Resolve them on the real server and tick them off.
+- `dot/` still assumes Omarchy and pacman. Sections below that mention Omarchy, Hypr or pacman describe that shared code, not packages on this branch.
+
 ## Scope
 
 - This repo is the public dotfiles source at `~/.config/dotfiles`.
@@ -60,17 +68,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 ## Omarchy Host Overrides
 
-- Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`), not a tracked Omarchy repo.
-- All custom Omarchy shell plugin IDs, directory names, QML `moduleName` values, and IPC targets use the `timmo.` prefix. Do not introduce personal or alternative namespaces such as `aidan.`.
-- Follow `omarchy-shell-quickshell` for plugin validation and the required post-edit restart.
-- UWSM custom environment values are stowed from `uwsm/.config/uwsm/env.d/90-dotfiles`; Quattro owns the defaults under `/usr/share`.
-- `ghostty` is a stowed package (`ghostty/.config/ghostty/`) with `config.$OMARCHY_HOST` overrides loaded by `ghostty-host-config`.
-- Hypr host-specific overrides live under `~/.config/hypr/hosts/$OMARCHY_HOST`, selected by the runtime `~/.config/hypr/host` symlink.
-- `dot stow` lays down the Hypr package with `--no-folding` and creates/repairs `~/.config/hypr/host`; `dot doctor` checks the host link and flags any leftover legacy `omarchy-hypr` clone.
-- The Hypr package alone is stowed non-destructively: `dot stow` and `dot install` skip the usual unstow-then-restow for `hypr` so its symlinks (notably `hyprland.lua`) never vanish mid-stow, then reload Hyprland afterwards. This stops Hyprland's live-config autoreload from catching a missing config and dropping into emergency mode. Keep this behaviour if you touch the stow loop in `dot/src/commands/{Stow,Install}.ts`.
-- A machine still on the retired `~/.config/hypr` `omarchy-hypr` clone halts `dot update` until the clone is backed up and re-stowed.
-- `dot stow` and `dot install` remove the retired `timmo001/omarchy-uwsm` checkout before the `uwsm` package takes ownership; Quattro-generated migration files are not copied into this repo.
-- If this host override layout changes, update `AGENTS.md` and any skill that owns the workflow. Do not expand the docs site to cover every host detail.
+Not used on this branch. The Hyprland, UWSM, Ghostty and Omarchy packages are removed. The `dot` code that handles them is unchanged so merges from the desktop branch stay simple.
 
 ## Stow Rules
 
