@@ -1,0 +1,78 @@
+[misc]
+# Let steps request sudo inline when needed (avoids prompting for user-only steps)
+pre_sudo = false
+
+# The wrapper enables this only for runs containing privileged steps
+sudo_loop = false
+
+# TODO(ubuntu-server): decide how topgrade is installed on the server. Keep
+# self-update off until then so it does not fight the package manager.
+no_self_update = true
+
+# Disable specific steps
+# - cursor/cursor_agent/node/pnpm: not used
+# - pi/git_repos: not applicable
+# - go/deno/bun/bun_packages/pip3: managed by mise
+# - lensfun: broken (missing python module)
+# - github_cli_extensions: run natively by dot update system
+# - mise: handled by dot update
+# The system step stays on here: it runs apt, and dot update system only
+# knows pacman so far.
+disable = [
+  "github_cli_extensions",
+  "mise",
+  "cursor",
+  "cursor_agent",
+  "node",
+  "pnpm",
+  "pi",
+  "git_repos",
+  "go",
+  "deno",
+  "bun",
+  "bun_packages",
+  "pip3",
+  "lensfun",
+]
+
+# Run Yazi package upgrades after the other built-in steps
+last = ["yazi"]
+
+# Cleanup temporary or old files after a run
+cleanup = false
+
+# No desktop to notify on a headless server
+# notify_end = "on_failure"
+
+
+# Commands to run before anything
+[pre_commands]
+
+
+# Custom commands (run as named steps, respect --only/--disable)
+[commands]
+
+
+[linux]
+
+
+[firmware]
+# Only show available updates, don't install
+upgrade = false
+
+
+[flatpak]
+
+
+[distrobox]
+# containers = ["archlinux-latest"]
+
+
+[vscode]
+# profile = ""
+
+
+[cargo]
+
+
+[rustup]
