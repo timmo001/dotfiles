@@ -9,6 +9,7 @@ interface RetiredApp {
   readonly name: string;
   readonly replacement: string;
   readonly packages: readonly string[];
+  readonly units: readonly string[];
   readonly paths: readonly string[];
 }
 
@@ -21,10 +22,21 @@ const RETIRED_APPS: readonly RetiredApp[] = [
       "twitch-notifications-bin",
       "twitch-notifications-git",
     ],
+    units: [],
     paths: [
       join(CONFIG_DIR, "twitch-notifications"),
       join(STATE_DIR, "twitch-notifications"),
       join(CONFIG_DIR, "omarchy", "plugins", "timmo.twitch"),
+    ],
+  },
+  {
+    name: "plannotator tunnel",
+    replacement: "the timmo tunnel",
+    packages: [],
+    units: ["dot-tunnel@plannotator.service"],
+    paths: [
+      join(CONFIG_DIR, "dot", "tunnels", "plannotator.token"),
+      join(STATE_DIR, "dot", "tunnels", "plannotator"),
     ],
   },
 ];
@@ -43,6 +55,26 @@ const checkRetiredApp = Effect.fn("doctor.checkRetiredApp")(function* (
     ),
   );
 
+  const units = yield* Effect.filter(app.units, (unit) =>
+    Effect.all(
+      [
+        executor.exitCode("systemctl", [
+          "--user",
+          "is-enabled",
+          "--quiet",
+          unit,
+        ]),
+        executor.exitCode("systemctl", [
+          "--user",
+          "is-active",
+          "--quiet",
+          unit,
+        ]),
+      ],
+      { concurrency: "unbounded" },
+    ).pipe(Effect.map((codes) => codes.includes(0))),
+  );
+
   const paths = yield* Effect.filter(app.paths, (path) => pathExists(path));
   const results: CheckResult[] = [];
 
@@ -51,6 +83,14 @@ const checkRetiredApp = Effect.fn("doctor.checkRetiredApp")(function* (
       severity: "warn",
       message: `${app.name} is still installed (replaced by ${app.replacement})`,
       detail: `Remove it: pkexec pacman -Rns ${packages.join(" ")}`,
+    });
+  }
+
+  if (units.length > 0) {
+    results.push({
+      severity: "warn",
+      message: `${app.name} is still enabled or running (replaced by ${app.replacement})`,
+      detail: `Disable it: systemctl --user disable --now ${units.join(" ")}`,
     });
   }
 
@@ -69,7 +109,7 @@ const checkRetiredApp = Effect.fn("doctor.checkRetiredApp")(function* (
   ] satisfies CheckResult[];
 });
 
-/** Flag apps that have been replaced but are still installed or left files behind. */
+/** Flag apps that have been replaced but are still installed, enabled or left files behind. */
 export const checkRetiredApps = Effect.forEach(RETIRED_APPS, checkRetiredApp, {
   concurrency: "unbounded",
 }).pipe(Effect.map((results): CheckResult[] => results.flat()));
