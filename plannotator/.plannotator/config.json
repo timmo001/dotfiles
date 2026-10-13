@@ -36,5 +36,8 @@
   "inboxSound": {
     "dialogShownFor": "0.28.16",
     "volume": 100
+  },
+  "inboxAgentNotes": {
+    "offered": true
   }
 }
