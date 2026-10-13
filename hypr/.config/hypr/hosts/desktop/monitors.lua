@@ -17,5 +17,5 @@ hl.workspace_rule({ workspace = "1", default_name = "Main", monitor = "DP-1", de
 hl.workspace_rule({ workspace = "2", default_name = "Terminal", monitor = "HDMI-A-2", default = true })
 hl.workspace_rule({ workspace = "3", default_name = "Browser", monitor = "HDMI-A-2" })
 hl.workspace_rule({ workspace = "4", default_name = "Apps", monitor = "HDMI-A-2" })
-hl.workspace_rule({ workspace = "5", default_name = "Spare", monitor = "HDMI-A-2" })
-hl.workspace_rule({ workspace = "6", default_name = "Spare 2", monitor = "HDMI-A-2" })
+hl.workspace_rule({ workspace = "5", monitor = "HDMI-A-2" })
+hl.workspace_rule({ workspace = "6", monitor = "HDMI-A-2" })
