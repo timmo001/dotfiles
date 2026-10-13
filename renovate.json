@@ -27,17 +27,6 @@
       "versioningTemplate": "semver"
     },
     {
-      "customType": "regex",
-      "description": "Update the OpenCode reference tag.",
-      "managerFilePatterns": ["/^opencode\\.json$/"],
-      "matchStrings": [
-        "\"opencode\"\\s*:\\s*\\{\\s*\"repository\"\\s*:\\s*\"anomalyco/opencode\",\\s*\"branch\"\\s*:\\s*\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""
-      ],
-      "depNameTemplate": "anomalyco/opencode",
-      "datasourceTemplate": "github-tags",
-      "versioningTemplate": "semver"
-    },
-    {
       "description": "Keep the QML syntax proxy in sync with Arch's stable quickshell package",
       "customType": "regex",
       "managerFilePatterns": ["/^\\.github/workflows/quickshell-lint\\.ya?ml$/"],
