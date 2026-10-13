@@ -69,6 +69,11 @@ hl.config({
   cursor = { warp_on_change_workspace = 0 },
 })
 
+-- Links clicked in work Chrome apps (Slack, Discord, the Inbox) open in the work
+-- browser without going through `dot link open`, so let it take focus itself.
+-- Agent-driven Chrome reports google-chrome and stays declined.
+hl.window_rule({ name = "focus-on-activate-work-browser", match = { class = "^(work-browser)$" }, focus_on_activate = true })
+
 -- Smart gaps
 hl.workspace_rule({ workspace = "w[tv1]", gaps_out = 0, gaps_in = 0 })
 hl.workspace_rule({ workspace = "f[1]", gaps_out = 0, gaps_in = 0 })
