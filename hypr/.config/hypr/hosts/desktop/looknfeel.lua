@@ -29,6 +29,5 @@ hl.window_rule({ name = "tile-steam-main", match = { class = "^(steam)$", title 
 
 -- Workspace rules.
 hl.window_rule({ name = "workspace-chromium", match = { class = "^(chromium)$" }, workspace = "1" })
--- On Wayland Chrome ignores --class, so work browser windows report google-chrome.
-hl.window_rule({ name = "tag-work-browser", match = { class = "^(work-browser|google-chrome)$" }, tag = "+chromium-based-browser" })
-hl.window_rule({ name = "workspace-work-browser", match = { class = "^(work-browser|google-chrome)$" }, workspace = "3" })
+hl.window_rule({ name = "tag-work-browser", match = { class = "^(work-browser)$" }, tag = "+chromium-based-browser" })
+hl.window_rule({ name = "workspace-work-browser", match = { class = "^(work-browser)$" }, workspace = "3" })

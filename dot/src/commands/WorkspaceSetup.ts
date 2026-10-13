@@ -892,8 +892,10 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       true,
     );
 
+    // Chrome takes its window class from whichever launch starts it, so every
+    // work Chrome launch passes --class, including app windows.
     const workChrome =
-      "uwsm app -- google-chrome-stable --new-window --ozone-platform=wayland --force-device-scale-factor=0.8 --profile-directory=Profile\\ 1 --user-data-dir=$HOME/.config/google-chrome-work";
+      "uwsm app -- google-chrome-stable --new-window --ozone-platform=wayland --force-device-scale-factor=0.8 --profile-directory=Profile\\ 1 --user-data-dir=$HOME/.config/google-chrome-work --class=work-browser";
 
     const plannotator = workTime
       ? slot(
@@ -996,13 +998,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       yield* clearTag(TAGS.workspace2Cursor);
       yield* ensureSlot(herdr);
       yield* ensureSlot(
-        slot(
-          TAGS.workBrowser,
-          PATTERN_WORK_BROWSER,
-          `${workChrome} --class=work-browser`,
-          3,
-          false,
-        ),
+        slot(TAGS.workBrowser, PATTERN_WORK_BROWSER, workChrome, 3, false),
       );
       yield* ensureSlot(
         slot(
