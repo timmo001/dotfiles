@@ -1,6 +1,3 @@
-export PATH="$PATH:$HOME/.local/share/omarchy/bin"
-export PATH="$PATH:$HOME/.config/hypr/bin"
-
 # ------------------------------
 # Source profile
 # ------------------------------
@@ -50,8 +47,11 @@ fi
 
 # ------------------------------
 # Zsh plugins
-# autosuggestions and fast-syntax-highlighting come from pacman via
-# .dot-public-packages; fzf-tab comes from the global mise config.
+# autosuggestions and fast-syntax-highlighting come from the system package
+# manager (see .dot-public-packages); fzf-tab comes from the global mise config.
+# Arch paths are checked first, then the Ubuntu ones.
+# TODO(ubuntu-server): Ubuntu does not package fast-syntax-highlighting. Pick
+# zsh-syntax-highlighting from apt or install it another way on the server.
 # fast-syntax-highlighting replaces zsh-syntax-highlighting; do not load both.
 # fzf-tab needs compinit first and must load before the widget-wrapping plugins.
 # ------------------------------
@@ -63,16 +63,20 @@ _fzf_tab_plugin="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}/ins
 [[ -r "$_fzf_tab_plugin" ]] && source "$_fzf_tab_plugin"
 unset _fzf_tab_plugin
 
-[[ -r /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && \
-  source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
-[[ -r /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh ]] && \
-  source /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh
+for _dot_zsh_plugin in \
+  /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh \
+  /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh; do
+  [[ -r "$_dot_zsh_plugin" ]] && source "$_dot_zsh_plugin" && break
+done
+for _dot_zsh_plugin in \
+  /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh \
+  /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
+  [[ -r "$_dot_zsh_plugin" ]] && source "$_dot_zsh_plugin" && break
+done
+unset _dot_zsh_plugin
 
 autoload -Uz _dot 2>/dev/null
 compdef _dot dot 2>/dev/null
-
-autoload -Uz _omarchy 2>/dev/null
-compdef _omarchy omarchy 2>/dev/null
 
 autoload -Uz _notes 2>/dev/null
 compdef _notes notes note handoffs handoff 2>/dev/null
@@ -230,14 +234,17 @@ export KEYMAP=uk
 # Editor
 # ------------------------------
 export EDITOR=nvim
-export VISUAL=cursor
-export REACT_EDITOR=cursor
+# The desktop uses Cursor here; the server has no GUI editor.
+export VISUAL=nvim
+export REACT_EDITOR=nvim
 
 # ------------------------------
 # Plannotator
 # ------------------------------
-# Reviews Plannotator opens by itself shouldn't take focus.
-export PLANNOTATOR_BROWSER="$HOME/.local/bin/link-open-background"
+# The desktop opens Plannotator reviews in a background browser tab. There is
+# no browser here, so Plannotator falls back to printing the review URL.
+# TODO(ubuntu-server): check how reviews reach a remote client (port forward,
+# or the TUI only).
 
 # ------------------------------
 # GPG
@@ -253,20 +260,7 @@ export PATH="$PATH:/usr/local/go/bin:$HOME/go/bin"
 # ------------------------------
 # Bun
 # ------------------------------
-export PATH="/home/aidan/.cache/.bun/bin:$PATH"
-
-# ------------------------------
-# Hyprland
-# ------------------------------
-export XDG_CURRENT_DESKTOP=Hyprland
-export XDG_SESSION_TYPE=wayland
-# Prefer the Wayland Qt platform (so layer-shell apps like the Omarchy
-# Quickshell bar attach correctly), falling back to XCB only if Wayland init
-# fails. A plain `xcb` here makes `omarchy restart shell` launch the bar under
-# XWayland, where it cannot attach and renders as a floating window.
-export QT_QPA_PLATFORM="wayland;xcb"
-export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
-export ELECTRON_OZONE_PLATFORM_HINT=wayland
+export PATH="$HOME/.cache/.bun/bin:$PATH"
 
 [ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
 
@@ -806,11 +800,9 @@ alias fev="find-and-edit --visual"
 # Cursor
 # alias cursor="/usr/bin/cursor $(grep -v '^#' ~/.config/cursor-flags.conf 2>/dev/null | tr '\n' ' ')"
 
-# Omarchy shorcuts
-alias olw="omarchy-launch-webapp"
-alias ou="omarchy-update"
-alias ouf="omarchy-update-firmware"
-alias update="dot up"
+# TODO(ubuntu-server): dot update system drives pacman and Omarchy. Point this
+# at the server's update path once dot has one.
+alias update="dot update system"
 
 # Home Assistant dev servers: shortcuts for dot homeassistant (dot ha), which
 # reads its repositories, daemons and URLs from ~/.config/dot/homeassistant.yml.
@@ -888,16 +880,20 @@ setopt HIST_IGNORE_SPACE    # ignore commands that start with a space
 setopt HIST_REDUCE_BLANKS   # tidy surplus whitespace
 
 # ------------------------------
-# Omarchy Part 2
+# Omarchy shell helpers
+# The desktop sources Omarchy's bash aliases, functions and envs. Omarchy is
+# not installed here, so these only load if a copy is present.
+# TODO(ubuntu-server): port the Omarchy aliases and functions still wanted on
+# the server (eza, zoxide, fzf helpers and so on) into this file.
 # ------------------------------
-# source ~/.local/share/omarchy/default/bash/shell
-source ~/.local/share/omarchy/default/bash/aliases
-source ~/.local/share/omarchy/default/bash/functions
-# source ~/.local/share/omarchy/default/bash/prompt
+for _dot_omarchy_bash in aliases functions envs; do
+  [[ -r ~/.local/share/omarchy/default/bash/$_dot_omarchy_bash ]] && \
+    source ~/.local/share/omarchy/default/bash/$_dot_omarchy_bash
+done
+unset _dot_omarchy_bash
 
 # ------------------------------
-# Omarchy Part 3 - Mise
-# Partically from ~/.local/share/omarchy/default/bash/init
+# Mise, zoxide and fzf
 # ------------------------------
 if command -v mise &> /dev/null; then
   eval "$(mise activate zsh)"
@@ -913,13 +909,7 @@ if command -v fzf &> /dev/null && [[ -t 0 ]]; then
 fi
 
 # ------------------------------
-# Omarchy Part 4
-# ------------------------------
-source ~/.local/share/omarchy/default/bash/envs
-# [[ $- == *i* ]] && bind -f ~/.local/share/omarchy/default/bash/inputrc
-
-# ------------------------------
-# Omarchy extras
+# Dotfiles extras
 # ------------------------------
 timmo-update-extras() {
   git-update ~/.config/dotfiles
@@ -1053,5 +1043,5 @@ bindkey "^[[4~" end-of-line        # End (vt variant)
 # ff
 
 # Added by LM Studio CLI (lms)
-export PATH="$PATH:/home/aidan/.lmstudio/bin"
+export PATH="$PATH:$HOME/.lmstudio/bin"
 # End of LM Studio CLI section
