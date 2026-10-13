@@ -174,3 +174,7 @@ This is a personal dotfiles repo. Do not aim for coverage, and do not add a test
 - OpenCode validation: check `opencode debug --help` and run supported checks relevant to the change. V2 exposes `config`, `paths`, and `agents`; skill discovery uses the Skills CLI. Use the configured launcher so checks target the same environment as the session.
 - MCP config sync: `dot mcp sync` regenerates each active agent harness's MCP config from the single private spec `dotfiles-private/mcp.yml`; some agent harnesses are documented stubs. Runs automatically in `dot update` before re-stow; run `dot stow` after a manual sync.
 - Herdr: `herdr/.config/herdr/` stows the main config and selected plugin configuration into the runtime-owned `~/.config/herdr/` directory; `dot doctor` warns when Herdr or the OpenCode integration is missing and prints the manual repair command.
+
+## After Committing
+
+- When a change only takes effect on this machine through `dot update` (a rebuilt `dot`, a submodule or plugin bump, agent or MCP sync, or anything else `dot update` regenerates), offer "Run `dot update`" in the next-steps question alongside commit and push. `dot update` pulls from the remote, so it needs the push first; say so when the user picks it without pushing.
