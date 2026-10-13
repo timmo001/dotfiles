@@ -22,7 +22,8 @@ if [ "$tab" -eq 1 ]; then
   # Tested 2026-10-12: Inbox focused gave a new window, the main browser
   # focused gave a tab. Without this focus step, links opened from the Inbox
   # or Slack (Plannotator reviews included) each get their own window.
-  browser_window="$({ hyprctl clients -j | jq -r '[.[] | select(.class == "work-browser")] | sort_by(.focusHistoryID) | first | .address // empty'; } 2>/dev/null || true)"
+  # On Wayland Chrome ignores --class, so its windows report google-chrome.
+  browser_window="$({ hyprctl clients -j | jq -r '[.[] | select(.class | test("^(work-browser|google-chrome)$"))] | sort_by(.focusHistoryID) | first | .address // empty'; } 2>/dev/null || true)"
 
   if [ -n "$browser_window" ]; then
     hyprctl dispatch "hl.dsp.focus({ window = $(jq -Rn --arg value "address:$browser_window" '$value') })" >/dev/null
