@@ -88,7 +88,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 - Always apply `effect` and `types-enforce-ts` when editing code under `dot/`.
 - All exported functions, classes, interfaces, types, and interface members need JSDoc. Use single-line JSDoc for simple members and multi-line for complex behaviour. Effect service tags reference the underlying service interface via `{@link}`.
-- Services use `Context.Service` with a static `layer` property. Domain failures use `Schema.TaggedErrorClass`.
+- Services use `Context.Service` with a static `layer` property. Domain failures use `Schema.TaggedError`.
 - Use `Effect.fn("Name")` for effectful functions with arguments, and `Effect.gen` with `Effect.withSpan("Name")` for named zero-argument effects.
 - Use `Clock.currentTimeMillis` for testable timestamps. Top-level execution uses `Effect.runPromise`.
 - Logging: section headings in Title Case, uppercase labels (`[INFO]`, `[WARN]`, `[ERROR]`), sentence-case messages.
