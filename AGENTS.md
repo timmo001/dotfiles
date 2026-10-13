@@ -4,6 +4,14 @@ Repository-specific instructions for coding agents working in this public dotfil
 
 Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGENTS.md`. This file should only describe this repo's source layout, stow workflow, repo-local commands, and validation expectations. Don't catalogue skills or commands here: skills self-document via their injected `description`, commands via their frontmatter and the generated docs reference. Keep only repo facts and routing those don't capture.
 
+## Ubuntu Server Branch
+
+- This is `distro/ubuntu-server`, a headless build for an Ubuntu server. It has no desktop packages: no Hyprland, UWSM, Ghostty or Omarchy.
+- Keep it terminal and service tooling only. Do not add packages that need a graphical session.
+- The server hosts Herdr for remote clients through `systemd/.config/systemd/user/herdr.service`.
+- `SERVER.md` tracks what changed and what is still unknown. Open items are also marked `TODO(ubuntu-server)` in place. Resolve them on the real server and tick them off.
+- `dot/` still assumes Omarchy and pacman. Sections below that mention Omarchy, Hypr or pacman describe that shared code, not packages on this branch.
+
 ## Scope
 
 - This repo is the public dotfiles source at `~/.config/dotfiles`.
@@ -15,8 +23,14 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 ## Private Repositories
 
-- Optional private config drives per-user behaviour; shared code must not hardcode it. `dot-git-presets.yml` holds induction defaults. `dot-git.yml` holds repositories, browser selections, opt-in `links`, `pull_requests` and `issues` tracking, and `opencode_mcp` per-repository MCP and `opencode_skills` skill on and off overrides (rendered by `dot mcp sync` into Git-ignored `.opencode/opencode.jsonc`).
-- `link-browser.desktop` is the default web browser and runs `dot link open`; `dot doctor` warns when it drifts.
+- Repository induction defaults live in optional private `dot-git-presets.yml`; shared code must not hardcode personal schedules or name prefixes.
+- Git web browser commands and per-repository selections live in private `dot-git.yml`; the Git panel passes repository context and browser overrides to the shared CLI resolver.
+- Link routing is opt-in through `links` in private `dot-git.yml`. The `link-browser.desktop` entry is the default web browser and runs `dot link open`, which shares its resolver with `dot git web`; `dot doctor` warns when the default drifts, for example after `omarchy default browser`.
+- Git panel PR tracking is opt-in through `pull_requests.enabled` in private `dot-git.yml`; `dot pr list` owns polling and cached open PRs.
+- Git panel issue tracking is opt-in through `issues.enabled` in private `dot-git.yml`, with top-level `issues.exclude` rules hiding noise such as Renovate dashboards; `dot git issues` owns polling and cached open issues.
+- Repository `opencode_mcp` lists in private `dot-git.yml` select MCP opt-ins. `dot mcp sync` owns the generated, Git-ignored `.opencode/opencode.jsonc` files in those checkouts.
+
+- The global "Private Repos And Files" policy governs the public/private split and the git-remote visibility check; this repo just consumes it, reading optional private config such as `dot-git.yml`, `.dot-browser-checks`, and private package config files.
 
 ## Key Paths
 
@@ -41,20 +55,20 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 ## OpenCode Assets
 
-- Prefer UK spelling in human-written command names and prose; keep upstream names unchanged.
-- `agents/.config/opencode/` is the shared OpenCode config source. Relative plugin imports from `lib/` must resolve before publication.
-- Shared skills come from `timmo001/skills` `main` (see Key Paths); `dot update` refreshes and relinks them. `.agents/skills/` holds this repo's own skills (also linked from `.claude/skills`), and `dotfiles-skills/.agents/skills/` holds global skills tied to dotfiles paths or commands. Public `SKILL.md` files must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules.
-- `herdr/.config/herdr/` stows the main Herdr config and selected plugin config; runtime state stays untracked.
-- `dot agent sync` mirrors the private global AGENTS source into harness instruction files; `dot update` and `dot init` run it.
-- Pin private OpenCode packages through the npm regex custom manager in `dotfiles-private/renovate.json`.
-- Only add a command when it must force an agent profile or carry explicit authorisation (`/commit`, `/commit-push`). Everything else is a skill.
+- For human-written command names and command/docs prose in this repo, prefer UK spelling. Keep upstream tool, API, or MCP names unchanged when they use US spelling.
+- `agents/.config/opencode/` contains the shared OpenCode config source published from this repo.
+- `agents/.config/opencode/lib/` contains shared plugin support modules. Relative plugin imports must resolve before publication.
+- Shared skills come from `timmo001/skills` `main`, not a submodule. `dot update` fetches the dot-owned checkout at `~/.local/share/dot/skills`, detaches it at `origin/main`, builds `skill-maintenance` from it, installs external imports and links each authored skill file into `~/.agents/skills/`. `dot stow` and `dot install` clone it when missing but do not fetch. Author shared skills and manage imports in the standalone checkout under `~/repos/skills`; `dot skills` runs there. Tool-owned skills live in `.agents/skills/` in their owning repository and are imported through `skills`. Never edit the managed checkout or `~/.agents/skills` directly.
+- `herdr/.config/herdr/` stows the main config and selected plugin configuration; runtime logs, sockets, generated files, and session state stay untracked in `~/.config/herdr/`.
+- `.agents/skills/` contains repo-local skills for this repo only and is registered through `skills.paths` in `opencode.json`. The tracked `.claude/skills` symlink points at it so Claude Code loads the same skills. Use `dotfiles-skills/.agents/skills/` only for global skills whose workflow is specifically coupled to dotfiles paths, commands, or private overlays. Shared cross-repository workflows belong in `~/repos/skills`; tool-owned skills belong in the tool repository and are tracked there as imports.
+- Public `SKILL.md` files must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules. The standalone skills repo validates its own skills; this repo validates its local `.agents/skills/` and `dotfiles-skills/` roots.
+- `dot agent sync` mirrors the global private AGENTS source into agent harness instruction files; full `dot update` and `dot init` run that sync automatically.
+- Pinned private OpenCode packages, including plugins in `dotfiles-private/agents/.config/opencode/{opencode,tui}.json`, should be managed by an npm regex custom manager in `dotfiles-private/renovate.json`.
+- Only add a command when it must force an agent profile or carry explicit authorisation (`/commit`, `/commit-push`). Everything else is a skill the model selects from its description.
 
 ## Omarchy Host Overrides
 
-- Hyprland config is the stowed `hypr/.config/hypr/` package, with host overrides under `hosts/$OMARCHY_HOST` selected by the `~/.config/hypr/host` symlink that `dot stow` maintains. Ghostty uses `config.$OMARCHY_HOST` the same way, and UWSM overrides live in `uwsm/.config/uwsm/env.d/90-dotfiles`.
-- `dot stow` and `dot install` never unstow `hypr` first, so its symlinks can't vanish mid-reload and drop Hyprland into emergency mode. Keep that in `dot/src/commands/{Stow,Install}.ts`.
-- Custom Omarchy shell plugin IDs, directories, QML `moduleName` values and IPC targets use the `timmo.` prefix. `omarchy-shell-quickshell` owns validation and restarts.
-- If this layout changes, update this file and the owning skill.
+Not used on this branch. The Hyprland, UWSM, Ghostty and Omarchy packages are removed. The `dot` code that handles them is unchanged so merges from the desktop branch stay simple.
 
 ## Stow Rules
 
@@ -110,17 +124,33 @@ dot/src/
 
 ## Documentation
 
-`docs/` is the Blume site at `dotfiles.timmo.dev`: a short reference for what each major part is and why. Default to no docs update; `dotfiles-docs` owns when a page changes, and `docs/AGENTS.md` owns generated catalogues. `README.md` stays a slim pointer.
+`docs/` is the Blume site at `dotfiles.timmo.dev`. It is a short personal reference: what each major part of the setup is, and why it exists. It is not a manual for every binding, flag, quirk, or script. Code, `--help`, and generated catalogues own the detail.
+
+- Default: no docs update. Ordinary behaviour changes do not need a hand-written page edit.
+- Hand-written pages stay short. Summarise and list. Do not document keybindings, close-first rules, edge cases, or runbooks that already live in source or CLI help.
+- Do not add a page for every new script, binding, layout, app, or one-off tool.
+- Update a hand-written page only when a whole section's purpose changes (a major area added, removed, or renamed), not when an implementation detail changes.
+- Generated catalogues stay generated. Follow `docs/AGENTS.md` for their source paths and regeneration commands; include affected output in the changeset. Skills are catalogued in the standalone skills repository.
+- `README.md` stays a slim pointer to the docs site.
 
 ## Script Configuration Policy
 
-- Non-trivial scripting goes in `dot/` (TypeScript and Effect), not Python or other languages. Plain shell is fine for simple wrappers.
-- New config files read by `dot` use YAML (`Bun.YAML.parse` plus Schema). Leave existing JSON formats alone unless migrating them.
-- Prefer explicit CLI flags over environment-variable toggles. Use environment variables only for standard process context, secrets, or existing compatibility shims.
+- Implement commands and non-trivial scripting in `dot/` using TypeScript and Effect. Do not add Python or other language implementations when the behaviour can live in `dot/`.
+- Shell/Bash is fine for simple wrappers and commands with little or no logic.
+- New config files read by `dot` use YAML, parsed with `Bun.YAML.parse` and decoded with Schema. Do not add new JSON configs; leave existing JSON formats alone unless the task is to migrate them.
+- For dotfiles and system scripts, prefer explicit CLI flags over environment-variable toggles for runtime behavior.
+- Use environment variables only for standard process context (`HOME`, `PATH`, `XDG_*`, etc.), secrets, or compatibility shims that already exist.
+- For test/simulation/force behaviors, implement documented flags first; if an env fallback is temporarily needed, treat it as deprecated and remove it in follow-up cleanup.
 
 ## Testing
 
-Personal dotfiles: don't aim for coverage. Default to no new tests; validate by building, typing, formatting and running the changed command, plus the regression suite under Validation. Add a narrow test under `tests/` only for a durable edge case or cross-cutting invariant that is easy to regress and hard to catch by hand (a known lock race, a ban on legacy syntax, a shared OpenCode contract). Don't grow `dot/tests` to mirror `dot/src` or invent happy-path coverage.
+This is a personal dotfiles repo. Do not aim for coverage, and do not add a test suite for every command, flag, layout, app, or behaviour change.
+
+- Default: no new tests. Validate by building, typing, formatting, and running the changed command or script, plus the existing regression suite listed under Validation.
+- Effect and the typed CLI already constrain most `dot/` behaviour; do not re-simulate whole workflows in Bun tests.
+- Add a test only for a durable edge case or a cross-cutting invariant that is easy to regress and hard to catch by hand (for example a known lock race, a ban on legacy dispatcher syntax, or a shared OpenCode contract).
+- Prefer immutable, narrow checks under `tests/`. Do not grow large `dot/tests` suites that mirror `dot/src`.
+- Never invent “representative” coverage, happy-path Effect walks, or per-app permutations when changing personal scripts or workspace layout.
 
 ## Validation
 
@@ -135,8 +165,13 @@ Personal dotfiles: don't aim for coverage. Default to no new tests; validate by 
   `tests:integration` builds `dot` itself. `dot:check` only runs `dot/tests`. The regression tests that import `dot/src` live in `tests/` and only run through `tests:integration`, the CI `regression-tests` job.
 - Run the changed command's relevant help or behaviour check. When command metadata changes, also add `tests:smoke` to the parallel run.
 - `hk.pkl` runs the lint, `dot:typecheck` and `dot:format:check` tasks for changed file types on pre-push (hk's global hooks, installed by `dot update`). Run them by hand with `hk check`.
-- Basic health check: `dot doctor`. `mise tasks` lists every task; aggregates (`check`, `tests`, `lint`) are for broad changes only.
-- MCP config sync: `dot mcp sync` renders every harness's MCP config from private `dotfiles-private/mcp.yml`; `dot update` runs it, and a manual sync needs `dot stow` after.
+- Basic health check: `dot doctor`
+- Aggregate tasks run their parts in parallel: `mise run check` runs every lint, dot check, test suite and the docs build, `mise run tests` runs every test suite, and `mise run lint` runs every linter. Use them for broad changes that genuinely touch all of those areas.
+- Dev tasks: `mise run <task>` from the repo root. `mise run lint:oxlint` checks owned TypeScript and JavaScript with `@timmo001/oxlint-rules`. Project tasks are namespaced: `dot:*` (`dot:build`, `dot:typecheck`, `dot:test`, `dot:format`, `dot:check`), `docs:*` (`docs:build`, `docs:dev`, `docs:gen`, `docs:check`), `serve:docs*` for the background docs server (see `docs/AGENTS.md`), and `tests:*` (`tests:integration`, `tests:smoke`); `mise tasks` lists them.
+- Skill frontmatter: the `lint.yml` `validate-skills` job validates public skills with the shared `lint-agent-skills` workflow.
+- OpenCode validation: check `opencode debug --help` and run supported checks relevant to the change. V2 exposes `config`, `paths`, and `agents`; skill discovery uses the Skills CLI. Use the configured launcher so checks target the same environment as the session.
+- MCP config sync: `dot mcp sync` regenerates each active agent harness's MCP config from the single private spec `dotfiles-private/mcp.yml`; some agent harnesses are documented stubs. Runs automatically in `dot update` before re-stow; run `dot stow` after a manual sync.
+- Herdr: `herdr/.config/herdr/` stows the main config and selected plugin configuration into the runtime-owned `~/.config/herdr/` directory; `dot doctor` warns when Herdr or the OpenCode integration is missing and prints the manual repair command.
 
 ## After Committing
 

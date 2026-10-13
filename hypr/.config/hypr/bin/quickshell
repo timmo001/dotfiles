@@ -1,7 +1,0 @@
-#!/bin/bash
-
-if [[ " $* " == *" -p $OMARCHY_PATH/shell "* ]]; then
-  export QT_SCALE_FACTOR=1
-fi
-
-exec /usr/bin/quickshell "$@"

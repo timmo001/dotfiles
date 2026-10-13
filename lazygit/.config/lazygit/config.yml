@@ -1,14 +1,11 @@
 ---
 customCommands:
-  # The Git panel shows the pull's progress and result without suspending
-  # lazygit, which refreshes when it regains focus. Without the Omarchy shell,
-  # the pull runs in the background and lazygit shows any failure.
+  # The desktop routes this through the Omarchy Git panel. There is no panel
+  # here, so the pull runs directly and lazygit shows any failure.
   - key: p
     context: global
-    command: >-
-      repo="$(git rev-parse --show-toplevel)";
-      omarchy-shell timmo.git pull "$repo" || dot update --pull --repo "$repo"
-    description: Pull in the Git panel with submodules and post-update hooks
+    command: dot update --pull --repo "$(git rev-parse --show-toplevel)"
+    description: Pull with submodules and post-update hooks
     loadingText: Pulling
   - key: <c-b>
     context: localBranches
@@ -20,15 +17,3 @@ customCommands:
     command: git-rebase-default
     description: Fetch and rebase onto remote default branch
     output: terminal
-  - key: X
-    context: commits, subCommits, commitFiles
-    command: >-
-      omarchy-shell timmo.git commit "$(git rev-parse --show-toplevel)"
-      {{.SelectedCommit.Hash | quote}} {{.SelectedCommit.Name | quote}}
-      {{.SelectedCommit.AuthorName | quote}}
-      "$(date -u -d @{{.SelectedCommit.UnixTimestamp}} +%FT%TZ)"
-    description: Open the selected commit in the Git panel
-  - key: X
-    context: global
-    command: omarchy-shell timmo.git repo "$(git rev-parse --show-toplevel)"
-    description: Open this repository in the Git panel

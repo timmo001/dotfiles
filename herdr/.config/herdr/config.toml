@@ -1,6 +1,14 @@
 onboarding = false
 # Managed by dotfiles. Herdr works without this file, but keeping the prefix
 # here makes the session layer reproducible.
+#
+# Ubuntu server: this machine hosts the Herdr server and has no terminal of
+# its own. The herdr systemd user service keeps it running, and clients attach
+# from another machine with herdr --remote <host>. Keys, theme and sidebar
+# match the desktop so a remote session feels the same.
+# TODO(ubuntu-server): check whether the desktop's own Herdr swallows the
+# alt+x prefix when this server is attached from inside it. If it does, give
+# the server a different prefix here.
 
 [keys]
 prefix = "alt+x"
@@ -58,6 +66,8 @@ type = "plugin_action"
 command = "herdr-lazy.manage"
 description = "manage Herdr plugins"
 
+# TODO(ubuntu-server): the Plannotator web review opens a browser on this
+# machine. Check it works from a remote client (port forward or the TUI only).
 [[keys.command]]
 key = "prefix+shift+v"
 type = "plugin_action"
@@ -279,8 +289,11 @@ delivery = "herdr"
 [ui.toast.herdr]
 position = "top-right"
 
+# No speakers on a headless server.
+# TODO(ubuntu-server): check whether Herdr plays sounds on the client when
+# attached remotely. If it does, turn this back on.
 [ui.sound]
-enabled = true
+enabled = false
 
 [advanced]
 scrollback_limit_bytes = 52428800
