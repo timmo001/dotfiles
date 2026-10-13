@@ -14125,14 +14125,6 @@ policy:
           dependency: "omarchy/mise-bin"
           versioning: "semver"
       - files:
-          - "/^opencode\\.json$/"
-        patterns:
-          - "\"opencode\"\\s*:\\s*\\{\\s*\"repository\"\\s*:\\s*\"anomalyco/opencode\",\\s*\"branch\"\\s*:\\s*\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""
-        templates:
-          datasource: "github-tags"
-          dependency: "anomalyco/opencode"
-          versioning: "semver"
-      - files:
           - "/^herdr\\/\\.config\\/herdr\\/plugins\\/config\\/herdr-lazy\\/plugins\\.list$/"
           - "/^herdr\\/\\.config\\/herdr\\/plugins\\/config\\/herdr-lazy\\/plugins\\.lock$/"
         patterns:
@@ -14706,7 +14698,7 @@ import:
   leaveToRenovate:
     - "arch/quickshell"
   resolverVersion: "44.126.1"
-  overrideHash: "95322db0da83d999e14f5670816b16650bf4e47ee898fe3a006a1ed75c2bb28a"
+  overrideHash: "68b78d2b973522fefa419f8c96804fb6e162f893277a7a5b88b6282fe6bab81c"
   baseDiagnostics:
     - path: "presets.description"
       disposition: "ignored"
@@ -17544,7 +17536,7 @@ import:
     - path: "renovate.json.$schema"
       disposition: "ignored"
       message: "Not used by the on-demand, no-PR workflow"
-    - path: "renovate.json.customManagers[2]"
+    - path: "renovate.json.customManagers[1]"
       disposition: "ignored"
       message: "Left to hosted Renovate by import.leaveToRenovate"
     - path: "renovate.json.customDatasources.arch-quickshell"
