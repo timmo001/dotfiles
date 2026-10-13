@@ -1,8 +1,12 @@
 [Unit]
-Description=Run dot doctor and notify on errors
-After=graphical-session.target
+Description=Run dot doctor after boot
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=%h/.local/bin/dot-doctor-notify
-Environment=DISPLAY=:0
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+# The desktop wraps this in dot-doctor-notify for a desktop notification. On
+# the server the result goes to the journal: journalctl --user -u dot-doctor
+# TODO(ubuntu-server): decide where doctor failures should surface instead.
+ExecStart=%h/.local/bin/dot doctor
