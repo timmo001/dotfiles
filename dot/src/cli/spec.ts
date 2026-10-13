@@ -866,12 +866,12 @@ const tunnelCommand = describe(
           ({ name }) => tunnelRun(name),
         ),
         "Run a Cloudflare tunnel on one machine at a time (used by dot-tunnel@<name>.service)",
-        ["dot tunnel run plannotator"],
+        ["dot tunnel run timmo"],
       ),
     ]),
   ),
   "Run shared Cloudflare tunnels on one machine at a time",
-  ["dot tunnel run plannotator"],
+  ["dot tunnel run timmo"],
   {
     description:
       "Runs cloudflared with the token in ~/.config/dot/tunnels/<name>.token, checking every 15 seconds which connectors the tunnel has, through the Cloudflare API with the token in ~/.config/dot/tunnels/cloudflare-api-token (Account > Cloudflare Tunnel > Read). The connector whose live connections opened first keeps the tunnel. A machine that finds another connector stops its own cloudflared and waits until none is left, so a laptop that wakes from sleep after another machine took over gives the tunnel back. Health is written to $XDG_STATE_HOME/dot/tunnels/<name>/status.json for the status field of a dot services descriptor: ok while serving, warning while another machine holds the tunnel or the API can't be checked. Without an answer from the API it never starts cloudflared, and keeps a running one going.",

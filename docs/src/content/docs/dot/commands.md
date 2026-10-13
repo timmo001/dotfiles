@@ -741,7 +741,7 @@ Runs cloudflared with the token in ~/.config/dot/tunnels/<name>.token, checking 
 **Examples**
 
 ```bash
-dot tunnel run plannotator
+dot tunnel run timmo
 ```
 
 ### `dot tunnel run`
@@ -767,7 +767,7 @@ dot tunnel run [flags] <name>
 **Examples**
 
 ```bash
-dot tunnel run plannotator
+dot tunnel run timmo
 ```
 
 ## `dot stow`
