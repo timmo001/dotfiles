@@ -1,4 +1,0 @@
-[submodule "omarchy/.config/omarchy/plugins/sceny.devices"]
-	path = omarchy/.config/omarchy/plugins/sceny.devices
-	url = https://github.com/timmo001/omarchy-devices.git
-	branch = main
