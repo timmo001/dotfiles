@@ -16,7 +16,7 @@ metadata:
 
 Read the owning sources before relying on remembered plugin or backend behaviour:
 
-- `$OMARCHY_PATH/docs/omarchy-shell.md` and `$OMARCHY_PATH/shell/README.md` for the shell and plugin contracts.
+- `docs/omarchy-shell.md` in the `omarchy` reference (the package does not install `docs/`) and `$OMARCHY_PATH/shell/README.md` for the shell and plugin contracts.
 - `$OMARCHY_PATH/default/agents/skills/omarchy/plugins.md` for current end-user operations.
 - `$OMARCHY_PATH/shell/services/PluginRegistry.qml` for manifest validation and discovery behaviour.
 - `$OMARCHY_PATH/shell/plugins/` for maintained manifest and QML patterns. Use built-ins as locations to inspect, not templates to copy verbatim.
@@ -79,7 +79,7 @@ Whenever an authorised push lands a change to a managed plugin, follow through t
 
 `dot reload shell` reloads only the shell: it clears a stuck workspace lock, regenerates `shell.json`, runs `omarchy restart shell`, rescans plugins and refreshes shell modules. Bare `dot reload` also rechecks upnext, refreshes updates and starts a doctor check; reload only the parts a change needs.
 
-Use `$OMARCHY_PATH/docs/omarchy-shell.md` for current IPC method names and return values. A full `omarchy restart shell` protects an active lock session, stops matching Quickshell instances, and asks Hyprland to launch the replacement with the canonical session environment.
+Use the reference's `docs/omarchy-shell.md` for current IPC method names and return values. A full `omarchy restart shell` protects an active lock session, stops matching Quickshell instances, and asks Hyprland to launch the replacement with the canonical session environment.
 
 ## Shell lifecycle
 
@@ -95,6 +95,6 @@ After every final QML edit, lint the touched files with the Qt 6 `qmllint`. In d
 ## Verify
 
 - Use the current `omarchy plugin` command help to confirm registration, enabled state, and validation behaviour. Validation rejects symlinked plugin folders, which is expected for stowed plugins.
-- Inspect `$OMARCHY_PATH/docs/omarchy-shell.md` and `$OMARCHY_PATH/shell/shell.qml` for available shell IPC diagnostics before invoking them.
+- Inspect the reference's `docs/omarchy-shell.md` and `$OMARCHY_PATH/shell/shell.qml` for available shell IPC diagnostics before invoking them.
 - Use compositor layer inspection and a targeted screenshot when visual geometry matters; confirm that the bar remains a layer-shell surface after any full restart.
 - After editing the generator: `mise run dot:check`.
