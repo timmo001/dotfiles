@@ -278,6 +278,21 @@ export const releasesQuery = Effect.fn("releases.query")(function* (
     ? writeJsonLine(decodeJson({ repositories }))
     : writeText(summary(repositories));
   yield* flushOutput;
+
+  // Retained evidence is still printed, but a refresh that kept it must not look successful.
+  const failed = options.refresh
+    ? repositories.filter((entry) => entry.stale)
+    : [];
+
+  if (failed.length)
+    return yield* new ReleaseError({
+      message: [
+        "Refresh failed; the output above keeps the previous evidence:",
+        ...failed.map(
+          (entry) => `${entry.repo}: ${entry.error ?? "comparison is stale"}`,
+        ),
+      ].join("\n"),
+    });
 }, handleCommandError("dot git releases"));
 
 /** Apply a snapshot-bound local impact review and return the new display. */
