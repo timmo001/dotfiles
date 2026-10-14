@@ -56,6 +56,7 @@ export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
  *   UDP (discovery) and TCP (transfer).
  * - Home Assistant serves its frontend on 8123 and its companion port 8124.
  * - LocalSend discovers and transfers over 53317 on both UDP and TCP.
+ * - System Bridge serves its API on 9170, which Home Assistant connects to.
  * - libvirt's default NAT network needs the host to accept guest DHCP (67) and
  *   DNS (53) on `virbr0` and to forward (route) guest traffic off `virbr0`,
  *   which ufw's default `deny (incoming)`/`deny (routed)` policy otherwise
@@ -76,6 +77,7 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
     port: "53317",
     protocols: ["udp", "tcp"],
   },
+  { kind: "port", label: "System Bridge", port: "9170", protocols: ["tcp"] },
   {
     kind: "port",
     label: "libvirt DHCP",
