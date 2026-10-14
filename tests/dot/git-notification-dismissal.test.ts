@@ -137,7 +137,7 @@ test("revalidation leaves changed/read notifications and reports partial failure
   f.responses.set("notifications/threads/4", { message: "Not found" });
   const outcomes = await f.run(Effect.flatMap(GitNotifications, (service) => service.dismiss(entries, "dependencies")));
   expect(outcomes.map((outcome) => outcome.status)).toEqual(["skipped", "skipped", "skipped", "failed", "done"]);
-  expect(f.writes).toEqual([["api", "--method", "DELETE", "--", "notifications/threads/5"]]);
+  expect(f.writes).toEqual([["api", "--method", "DELETE", "--allow-escape-sequences", "--", "notifications/threads/5"]]);
 });
 
 test("repo-scoped unread review uses the repository endpoint and prints evidence before any writes", async () => {

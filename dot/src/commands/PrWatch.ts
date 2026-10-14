@@ -1,8 +1,7 @@
-import { PullRequest, Workflow, type GhError } from "@timmo001/effect-gh";
+import { PullRequest, Workflow } from "@timmo001/effect-gh";
 import { Clock, Duration, Effect, FileSystem, Option, Schema } from "effect";
 import { dirname, join } from "node:path";
 import { STATE_DIR, displayPath, expandHomePath } from "../lib/paths.js";
-import { formatCause } from "../lib/schema.js";
 import {
   GH_OPTIONS as GH,
   authorLogin as author,
@@ -46,11 +45,6 @@ const BOT_REVIEW_GRACE_MS = 5 * 60 * 1000;
 const FAILED = new Set(["failure", "timed_out", "startup_failure"]);
 
 const EXIT = { passed: 0, failed: 1, stopped: 3, timedOut: 124 } as const;
-
-const workflowErrorMessage = (error: GhError | Workflow.InvalidOptions) =>
-  error instanceof Workflow.InvalidOptions
-    ? `invalid workflow options: ${formatCause(error.cause)}`
-    : ghErrorMessage(error);
 
 type Run = Workflow.Run;
 
@@ -213,7 +207,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
     ).pipe(
       Effect.map((output) => formatFailedLog(output, options.logLines)),
       Effect.catch((error) =>
-        Effect.succeed(`Log unavailable: ${workflowErrorMessage(error)}`),
+        Effect.succeed(`Log unavailable: ${ghErrorMessage(error)}`),
       ),
     );
 
@@ -369,7 +363,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
             Effect.catch((error) =>
               say(
                 target,
-                `[WARN] Poll failed, retrying: ${workflowErrorMessage(error)}`,
+                `[WARN] Poll failed, retrying: ${ghErrorMessage(error)}`,
               ),
             ),
           ),

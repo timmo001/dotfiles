@@ -105,6 +105,8 @@ export const ghErrorMessage = (error: GhError) =>
     GhDecodeError: (error) =>
       `unexpected gh response: ${formatCause(error.cause)}`,
     GhOutputLimitError: (error) => `gh output passed ${error.limitBytes} bytes`,
+    GhInvalidOptionsError: (error) =>
+      `invalid gh options: ${formatCause(error.cause)}`,
   });
 
 /** Run one GitHub GraphQL query through gh and decode the response. */
