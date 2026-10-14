@@ -4,7 +4,7 @@
     "fontFamily": "Fira Code",
     "fontSize": "14px",
     "hideWhitespace": true,
-    "defaultDiffType": "since-base",
+    "defaultDiffType": "uncommitted",
     "overflow": "wrap",
     "diffIndicators": "bars",
     "lineDiffType": "word-alt",
