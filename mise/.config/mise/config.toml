@@ -43,7 +43,7 @@ version = "2.0.29"
 allow_builds = ["@opencode/cli"]
 
 [tools."aqua:herdrdev/herdr"]
-version = "0.9.4"
+version = "0.9.5"
 minimum_release_age = "2h"
 
 [tools."aqua:earendil-works/pi"]
