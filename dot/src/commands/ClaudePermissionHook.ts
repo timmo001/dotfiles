@@ -64,11 +64,17 @@ function configPaths(cwd: string) {
 }
 
 /**
- * Drop a leading `git -C <dir>` so the command matches the same rules as
- * `git <subcommand>`, such as `git log *`.
+ * Spellings of a shell command to match: as written and, for `git -C <dir>`,
+ * without the directory, so it matches the same rules as `git <subcommand>`,
+ * such as `git log *`, while rules naming a directory still apply.
  */
-function withoutGitDirectory(command: string) {
-  return command.replace(/^git\s+-C\s+(?:'[^']*'|"[^"]*"|\S+)\s+/, "git ");
+function shellSpellings(command: string) {
+  const withoutDirectory = command.replace(
+    /^git\s+-C\s+(?:'[^']*'|"[^"]*"|\S+)\s+/,
+    "git ",
+  );
+
+  return withoutDirectory === command ? [command] : [command, withoutDirectory];
 }
 
 /** Requests for a tool that reads or writes a path. */
@@ -115,9 +121,7 @@ function toolRequests(
         : [
             {
               action: "shell",
-              resources: splitShellCommands(command).map((part) => [
-                withoutGitDirectory(part),
-              ]),
+              resources: splitShellCommands(command).map(shellSpellings),
             },
           ];
     }
