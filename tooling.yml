@@ -10,7 +10,7 @@ dispatch:
   - lint.yml
 tools:
   - repo: herdrdev/herdr
-    reviewed: v0.9.3
+    reviewed: v0.9.4
     review: Check herdr/.config/herdr, the Herdr plugins under scripts/.local/share/herdr-plugins (their min_herdr_version), and the dot commands, services and doctor checks that drive Herdr through @timmo001/effect-herdr.
   - repo: basecamp/omarchy
     reviewed: v4.0.4
