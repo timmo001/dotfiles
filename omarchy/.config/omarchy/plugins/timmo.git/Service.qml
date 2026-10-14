@@ -1133,7 +1133,8 @@ Item {
     stdout: StdioCollector { id: releaseOutput; waitForEnd: true }
     stderr: StdioCollector { id: releaseStderr; waitForEnd: true }
     onExited: function(exitCode) {
-      if (exitCode === 0) root.applyReleases(releaseOutput.text, false)
+      // A failed --refresh still prints entries, each marked stale with its error.
+      if (exitCode === 0 || String(releaseOutput.text || "").trim()) root.applyReleases(releaseOutput.text, false)
       else { root.releasesLoaded = true; root.releasesError = String(releaseStderr.text || "Release comparisons unavailable; refresh to retry").trim().slice(0, 500) }
       root.drainReleaseRefresh()
     }
