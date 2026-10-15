@@ -98,12 +98,16 @@ Window {
     }
 
     // Links that want a new window, such as review pages, open in the browser.
-    // Only web links: agents write the messages, and xdg-open would run any
-    // other scheme's handler outside the web sandbox.
+    // Only web links and the brief's Git panel links (dot://git/issue|pull/
+    // <owner>/<repo>/<n>, handled by dot link open): agents write the
+    // messages, and xdg-open would run any other scheme's handler outside the
+    // web sandbox.
     onNewWindowRequested: (request) => {
       var url = String(request.requestedUrl)
-      if (/^https?:\/\//i.test(url)) Qt.openUrlExternally(url)
-      else console.warn("Not opening a non-web link: " + url)
+      if (/^https?:\/\//i.test(url)
+          || /^dot:\/\/git\/(issue|pull)\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\d{1,9}\/?$/.test(url))
+        Qt.openUrlExternally(url)
+      else console.warn("Not opening a link: " + url)
     }
 
     // Passkeys on a security key, such as a YubiKey. Qt WebEngine leaves the
