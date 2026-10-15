@@ -40,8 +40,9 @@ Window {
     }
   }
 
-  // A prototype, because a profile only keeps cookies (the Cloudflare Access
-  // login) on disk when its storage is set before it is created.
+  // A prototype, because a profile only keeps cookies and local storage (the
+  // Inbox's settings and layout) on disk when its storage is set before it is
+  // created.
   WebEngineProfilePrototype {
     id: inboxProfile
 
@@ -49,12 +50,19 @@ Window {
     persistentCookiesPolicy: WebEngineProfile.ForcePersistentCookies
   }
 
+  // Set here rather than bound: a `profile: inboxProfile.instance()` binding is
+  // read before the prototype is ready, which leaves the view on the default
+  // off-the-record profile. The URL and the command poll wait for the profile.
+  Component.onCompleted: {
+    view.profile = inboxProfile.instance()
+    view.url = root.baseUrl
+    commandPoll.start()
+  }
+
   WebEngineView {
     id: view
 
     anchors.fill: parent
-    profile: inboxProfile.instance()
-    url: root.baseUrl
 
     // Links that want a new window, such as review pages, open in the browser.
     // Only web links: agents write the messages, and xdg-open would run any
@@ -207,8 +215,9 @@ Window {
   }
 
   Timer {
+    id: commandPoll
+
     interval: 250
-    running: true
     repeat: true
     triggeredOnStart: true
     onTriggered: root.applyCommand()
