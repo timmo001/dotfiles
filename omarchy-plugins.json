@@ -145,7 +145,7 @@
     {
       "id": "timmo.plannotator-inbox",
       "placement": { "section": "center", "after": "timmo.git" },
-      "settings": { "primaryOnly": true },
+      "settings": { "primaryOnly": true, "showWhenEmpty": false },
       "hosts": {
         "desktop": { "primaryOutput": "HDMI-A-2" },
         "laptop": { "primaryOutput": "eDP-1" }
