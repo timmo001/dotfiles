@@ -14,6 +14,17 @@ if git remote get-url upstream >/dev/null 2>&1; then
 fi
 printf 'Remote: %s\n' "$remote" >&2
 
+configured_branch=$(git config --get dot.defaultBranch || true)
+if [[ -n "$configured_branch" ]]; then
+  printf 'Configured default branch (dot.defaultBranch): %s\n' "$configured_branch" >&2
+  section 'Fetch default branch'
+  printf 'Updating %s/%s\n' "$remote" "$configured_branch" >&2
+  git fetch "$remote" "+refs/heads/$configured_branch:refs/remotes/$remote/$configured_branch" >&2
+  printf 'Using %s/%s\n' "$remote" "$configured_branch" >&2
+  printf '%s/%s\n' "$remote" "$configured_branch"
+  exit 0
+fi
+
 default_branch=$(git ls-remote --symref "$remote" HEAD | sed -n 's#^ref: refs/heads/\([^[:space:]]*\)[[:space:]]*HEAD$#\1#p')
 if [[ -z "$default_branch" ]]; then
   echo "Could not detect $remote's advertised default branch" >&2
