@@ -247,6 +247,18 @@ Window {
     }
   }
 
+  Shortcut {
+    sequences: ["F5", "Ctrl+R"]
+    context: Qt.WindowShortcut
+    onActivated: view.reload()
+  }
+
+  Shortcut {
+    sequences: ["Ctrl+F5", "Ctrl+Shift+R", "Shift+F5"]
+    context: Qt.WindowShortcut
+    onActivated: view.triggerWebAction(WebEngineView.ReloadAndBypassCache)
+  }
+
   Timer {
     id: commandPoll
 
