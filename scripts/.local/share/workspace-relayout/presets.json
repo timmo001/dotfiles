@@ -285,6 +285,21 @@
         }
       },
       {
+        "group": "Columns",
+        "name": "20% left / right",
+        "tree": {
+          "dir": "lr",
+          "ratio": 19.5,
+          "a": "w",
+          "b": {
+            "dir": "lr",
+            "ratio": 75.74,
+            "a": "w",
+            "b": "w"
+          }
+        }
+      },
+      {
         "group": "Left / right",
         "name": "1 left / 2 right",
         "tree": {
