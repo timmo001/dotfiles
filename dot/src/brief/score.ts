@@ -25,7 +25,7 @@ export const ScoredItem = Schema.Struct({
   needsMe: Schema.NullOr(Schema.Finite),
   /** Final score after rules, used for ordering. */
   score: Schema.Finite,
-  /** One-sentence reason it's worth looking at now. */
+  /** One-sentence summary of what's waiting on you. */
   why: Schema.NullOr(Schema.String),
   /** Model that wrote {@link why}. */
   whyModel: Schema.NullOr(Schema.String),
@@ -170,14 +170,12 @@ const explain = Effect.fn("brief.explain")(function* (
 ) {
   const executor = yield* CommandExecutor;
 
+  // Priorities only order the brief, so they stay out of the reason.
   const prompt = [
-    "You're helping me decide what to look at first today. Don't use any tools.",
-    config.priorities ? `My priorities:\n${config.priorities}` : "",
-    `The item, scored ${item.score.toFixed(2)}:\n${JSON.stringify(modelState(item), null, 2)}`,
-    "In one short sentence (25 words at most), say why this is worth my attention now. Use UK English and no dashes. Reply with the sentence only.",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+    "You're summarising one item in my daily GitHub brief. Don't use any tools.",
+    `The item:\n${JSON.stringify(modelState(item), null, 2)}`,
+    "In one short sentence (25 words at most), say what's waiting on me and what I'd need to do. Don't judge whether it can wait, and don't mention work, side projects or the time of day. Use UK English and no dashes. Reply with the sentence only.",
+  ].join("\n\n");
 
   for (const model of config.explainModels) {
     const reply = yield* executor

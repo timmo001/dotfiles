@@ -72,7 +72,7 @@ const BriefConfigSchema = Schema.Struct({
 export interface BriefConfig {
   /** Model that scores each item: Ollaya, or Workers AI for `@cf/` models. */
   readonly decisionModel: string;
-  /** Plain-language priorities given to the decision and reason models. */
+  /** Plain-language priorities given to the decision model for scoring. */
   readonly priorities: string;
   /** Rules applied after scoring, in order. */
   readonly rules: readonly BriefRule[];
