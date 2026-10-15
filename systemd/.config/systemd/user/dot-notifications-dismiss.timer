@@ -1,8 +1,8 @@
 [Unit]
-Description=Mark merged dependency notifications done hourly
+Description=Mark merged dependency notifications done every 15 minutes
 
 [Timer]
-OnCalendar=hourly
+OnCalendar=*:0/15
 RandomizedDelaySec=2min
 Unit=dot-notifications-dismiss.service
 

@@ -1600,7 +1600,7 @@ const notificationDismissCommand = describe(
               mode: optional(mode),
             }),
         ),
-        "Review unread merged Renovate/Dependabot updates regardless of CI results. All-mode excludes unverifiable CI and exits 2 when some notifications could not be inspected but nothing failed. Opening GitHub returns to the review without dismissing anything. The dot-notifications-dismiss.timer user timer runs all-mode hourly; dot services start dot-notifications-dismiss.timer runs it now.",
+        "Review unread merged Renovate/Dependabot updates regardless of CI results. All-mode excludes unverifiable CI and exits 2 when some notifications could not be inspected but nothing failed. Opening GitHub returns to the review without dismissing anything. The dot-notifications-dismiss.timer user timer runs all-mode every 15 minutes; dot services start dot-notifications-dismiss.timer runs it now.",
       ),
       describe(
         Command.make("remaining", notificationReviewFlags, ({ repo, dryRun }) =>
