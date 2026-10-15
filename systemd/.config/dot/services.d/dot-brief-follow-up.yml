@@ -1,0 +1,5 @@
+---
+unit: dot-brief-follow-up.timer
+label: Daily brief follow-ups
+failAfter: 3
+staleAfter: 30 minutes

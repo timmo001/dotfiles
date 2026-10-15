@@ -1,0 +1,13 @@
+[Unit]
+Description=Post the daily brief to the Plannotator Inbox
+After=network-online.target
+Wants=network-online.target
+OnFailure=dot-service-failed@%n.service
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin
+ExecStart=%h/.local/bin/mise exec -- %h/.local/bin/dot brief run
+TimeoutStartSec=30min
+TimeoutStopSec=30s
+KillMode=control-group

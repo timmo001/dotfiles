@@ -1,0 +1,4 @@
+---
+unit: dot-brief.timer
+label: Daily brief
+failAfter: 2

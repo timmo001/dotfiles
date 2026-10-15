@@ -1,0 +1,10 @@
+[Unit]
+Description=Post the daily brief after the morning dependency cleanup
+
+[Timer]
+OnCalendar=*-*-* 08:10
+Persistent=true
+Unit=dot-brief.service
+
+[Install]
+WantedBy=timers.target
