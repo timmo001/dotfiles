@@ -246,16 +246,6 @@ Panel {
                 font.pixelSize: Style.font.display
               }
             }
-            trailingControl: Component {
-              PanelActionButton {
-                enabled: root.service !== null && !root.service.refreshing
-                iconText: "󰑐"
-                tooltipText: "Refresh"
-                foreground: root.contentForeground
-                fontFamily: root.contentFontFamily
-                onClicked: if (root.service) root.service.refresh()
-              }
-            }
           }
 
           Column {
@@ -354,11 +344,15 @@ Panel {
                 return null
               }
 
+              // Refresh sits on whichever section is shown first.
               PanelComponents.SectionHeading {
                 title: root.sectionTitle(threadSection.modelData) + " · " + threadSection.entries.length
                 icon: root.sectionIcon(threadSection.modelData)
                 foreground: root.contentForeground
                 fontFamily: root.contentFontFamily
+                refreshable: threadSection.index === 0
+                refreshing: root.service ? root.service.refreshing : false
+                onRefreshRequested: if (root.service) root.service.refresh()
               }
 
               Column {
