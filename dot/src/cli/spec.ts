@@ -1129,14 +1129,15 @@ const linkCommand = describe(
           },
           ({ args }) => linkOpen(args),
         ),
-        "Open a link in the work or personal browser",
+        "Open a link in the work or personal browser, or a dot:// link in the Git panel",
         [
           "dot link open https://github.com/home-assistant/frontend",
+          "dot link open dot://git/issue/timmo001/dotfiles/1076",
           "dot link open -- --incognito",
         ],
         {
           description:
-            "Routes a single HTTP or HTTPS link using links in dot-git.yml: the first matching links.sites rule, then the browser of the tracked repository a GitHub link belongs to, otherwise links.personal. A site rule or repository can select work-time, which opens links.work during work time outside calendar leave and links.personal otherwise. Anything else, including no arguments, goes to links.personal unchanged. The link-browser desktop entry runs this as the default web browser, so xdg-open and Omarchy's browser launcher use it. Failures are also sent as a desktop notification.",
+            "Routes a single HTTP or HTTPS link using links in dot-git.yml: the first matching links.sites rule, then the browser of the tracked repository a GitHub link belongs to, otherwise links.personal. A site rule or repository can select work-time, which opens links.work during work time outside calendar leave and links.personal otherwise. Anything else, including no arguments, goes to links.personal unchanged. The link-browser desktop entry runs this as the default web browser, so xdg-open and Omarchy's browser launcher use it. A dot://git/issue/<owner>/<repo>/<number> or dot://git/pull/... link opens that item in the Git panel when the panel lists it, and its GitHub page through the same routing otherwise; the dot-link desktop entry handles the dot:// scheme. Failures are also sent as a desktop notification.",
         },
       ),
     ]),

@@ -4,6 +4,11 @@ import {
   handleCommandError,
 } from "../git/commands/rows.js";
 import {
+  gitItemGitHubUrl,
+  openGitItemInPanel,
+  parseGitItemLink,
+} from "../git/itemLinks.js";
+import {
   launchBrowser,
   LinkBrowserError,
   resolveLinkBrowser,
@@ -15,10 +20,24 @@ import { Config } from "../services/Config.js";
  * Open a link in the browser chosen by `links` in dot-git.yml. Anything other
  * than a single HTTP or HTTPS link, such as no arguments or `--incognito`, goes
  * to the personal browser unchanged, so this can stand in as the desktop's
- * default browser.
+ * default browser. A `dot://git/...` link opens its item in the Git panel when
+ * the panel lists it, and its GitHub page otherwise.
  */
 export const linkOpen = Effect.fn("linkOpen")(
   function* (args: readonly string[]) {
+    const [link] = args;
+
+    const deepLink = args.length === 1 && link && /^dot:/i.test(link);
+
+    const item = deepLink ? parseGitItemLink(link) : undefined;
+
+    if (deepLink && !item)
+      return yield* new LinkBrowserError({
+        message: `Unsupported dot link: ${link}`,
+      });
+
+    if (item && (yield* openGitItemInPanel(item))) return;
+
     const { gitConfig } = yield* Config;
 
     if (!gitConfig.links)
@@ -28,18 +47,20 @@ export const linkOpen = Effect.fn("linkOpen")(
           : `dot-git.yml is invalid: ${gitConfig.diagnostics.join("; ")}`,
       });
 
-    const [link] = args;
+    const target = item ? [gitItemGitHubUrl(item)] : args;
+
+    const [first] = target;
 
     const url =
-      args.length === 1 && link && /^https?:\/\//i.test(link)
-        ? URL.parse(link)
+      target.length === 1 && first && /^https?:\/\//i.test(first)
+        ? URL.parse(first)
         : null;
 
     const browser =
       (url && (yield* resolveLinkBrowser(gitConfig, url))) ??
       gitConfig.links.personal;
 
-    yield* launchBrowser(gitConfig, browser, args);
+    yield* launchBrowser(gitConfig, browser, target);
   },
   // Links usually open from other apps, where nobody sees stderr.
   Effect.tapError((error) =>

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=dot links
+Comment=Open dot:// links in the Git panel
+Exec=dot link open %u
+Icon=git
+Type=Application
+MimeType=x-scheme-handler/dot;
+NoDisplay=true
+Terminal=false
+StartupNotify=false
