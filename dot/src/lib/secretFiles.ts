@@ -88,7 +88,11 @@ const fillIn = Effect.fn("SecretFiles.fillIn")(function* (template: string) {
       .run("op", ["read", "--no-newline", ref], { sameProcessGroup: true })
       .pipe(
         Effect.mapError(
-          (cause) => new SecretFileError({ message: cause.message }),
+          (cause) =>
+            new SecretFileError({
+              message:
+                cause.stderr || `${cause.command} exited ${cause.exitCode}`,
+            }),
         ),
       );
 
@@ -103,13 +107,14 @@ const systemctl = Effect.fn("SecretFiles.systemctl")(function* (
 ) {
   const executor = yield* CommandExecutor;
 
-  yield* executor
-    .run("systemctl", ["--user", ...args])
-    .pipe(
-      Effect.mapError(
-        (cause) => new SecretFileError({ message: cause.message }),
-      ),
-    );
+  yield* executor.run("systemctl", ["--user", ...args]).pipe(
+    Effect.mapError(
+      (cause) =>
+        new SecretFileError({
+          message: cause.stderr || `${cause.command} exited ${cause.exitCode}`,
+        }),
+    ),
+  );
 });
 
 /** Enable the file's units, restarting them so they read a rewritten file. */
