@@ -4,7 +4,7 @@
   "name": "Plannotator Inbox",
   "version": "1.0.0",
   "author": "Aidan Timson",
-  "description": "Threads waiting on you in the local Plannotator Inbox, opened as an Omarchy web app",
+  "description": "Threads waiting on you in the local Plannotator Inbox, opened in its own window",
   "kinds": ["service", "bar-widget"],
   "keepLoaded": true,
   "entryPoints": {
@@ -13,7 +13,7 @@
   },
   "barWidget": {
     "displayName": "Plannotator Inbox",
-    "description": "Counts the Inbox threads that wait on you and lists them in a panel. Left click opens the panel, right click opens the Inbox web app, middle click refreshes.",
+    "description": "Counts the Inbox threads that wait on you and lists them in a panel. Left click opens the panel, right click opens the Inbox window, middle click refreshes.",
     "category": "Info",
     "allowMultiple": false,
     "defaultSection": "center",
@@ -42,9 +42,9 @@
       {
         "key": "url",
         "type": "string",
-        "label": "Web app address",
+        "label": "Inbox address",
         "defaultValue": "",
-        "description": "Address the web app opens. Empty uses the Inbox's own loopback URL, which needs no login."
+        "description": "Address the Inbox window opens. Empty uses the Inbox's own loopback URL, which needs no login."
       },
       {
         "key": "interval",

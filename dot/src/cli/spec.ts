@@ -2860,7 +2860,7 @@ const plannotatorCommand = describe(
           {
             url: text(
               "url",
-              "Base address the web app opens instead of the Inbox's own loopback URL",
+              "Base address the Inbox window opens instead of the Inbox's own loopback URL",
             ),
             thread: text("thread", "Open one thread by its id"),
           },
@@ -2870,7 +2870,7 @@ const plannotatorCommand = describe(
               thread: optional(input.thread),
             }),
         ),
-        "Open the Plannotator Inbox as an Omarchy web app, starting it first when it is stopped",
+        "Open the Plannotator Inbox in its own window, starting it first when it is stopped",
         [
           "dot plannotator inbox",
           "dot plannotator inbox --thread thr_01",
@@ -2878,7 +2878,7 @@ const plannotatorCommand = describe(
         ],
         {
           description:
-            "Runs plannotator inbox --background, which starts a stopped Inbox detached and prints the running one's loopback URL, then opens that address in a Qt WebEngine window (~/.local/share/plannotator-inbox/Inbox.qml, run by the qml runtime). A running window is raised instead of duplicated. --url opens another base address, such as an HTTPS front in front of the Inbox; without it, the window opens the Inbox's own loopback URL, which needs no login. The Inbox is still started first. --thread shows one thread (the Inbox's #thread= fragment), in the running window when there is one. The timmo.plannotator-inbox bar plugin and the Plannotator Inbox desktop entry run this. Failures are also sent as a desktop notification.",
+            "Runs plannotator inbox --background, which starts a stopped Inbox detached and prints the running one's loopback URL, then opens that address in a Qt WebEngine window (~/.local/share/plannotator-inbox/Inbox.qml, run by the qml runtime). A running window is raised instead of duplicated. --url opens another base address, such as an HTTPS front in front of the Inbox; without it, the window opens the Inbox's own loopback URL, which needs no login. The Inbox is still started first. --thread shows one thread (the Inbox's #thread= fragment), in the running window when there is one. The timmo.plannotator-inbox bar plugin, dot workspace setup and the Plannotator Inbox desktop entry run this. Failures are also sent as a desktop notification.",
         },
       ),
     ]),

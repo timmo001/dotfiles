@@ -113,7 +113,7 @@ BarWidget {
   function injectSettings() {
     if (!root.monitor || !root.activeInstance) return
     // Read settings directly: onSettingsChanged runs before bindings on settings update.
-    root.monitor.webappUrl = root.setting("url", "")
+    root.monitor.inboxUrl = root.setting("url", "")
     root.monitor.intervalMs = root.setting("interval", 60000)
     root.monitor.live = root.setting("live", true)
   }

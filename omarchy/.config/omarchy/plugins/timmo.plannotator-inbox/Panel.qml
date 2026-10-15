@@ -5,7 +5,7 @@ import qs.Ui
 import "../../components" as PanelComponents
 
 // The Inbox at a glance: the threads that wait on you, by the Inbox's own
-// sections. Reading and answering stays in the web app, which a row opens.
+// sections. Reading and answering stays in the Inbox window, which a row opens.
 Panel {
   id: root
   moduleName: "timmo.plannotator-inbox"
@@ -32,9 +32,9 @@ Panel {
     if (!service) return []
     var rows = []
     if (!service.installed)
-      rows.push(actionRow("open", "Set up the Inbox", "󰐊", "Starts it and opens it as a web app"))
+      rows.push(actionRow("open", "Set up the Inbox", "󰐊", "Starts it and opens it in its own window"))
     else if (!service.running)
-      rows.push(actionRow("open", "Start the Inbox", "󰐊", "Starts it and opens it as a web app"))
+      rows.push(actionRow("open", "Start the Inbox", "󰐊", "Starts it and opens it in its own window"))
     else
       rows.push(actionRow("open", "Open the Inbox", "󰖟", ""))
     for (var i = 0; i < sectionOrder.length; i++) {

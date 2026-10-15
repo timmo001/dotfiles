@@ -39,7 +39,7 @@ const HyprlandClients = Schema.fromJsonString(
 
 /** Options accepted by `dot plannotator inbox`. */
 export interface PlannotatorInboxOptions {
-  /** Base address the web app opens instead of the Inbox's own loopback URL. */
+  /** Base address the Inbox window opens instead of the Inbox's own loopback URL. */
   readonly url?: string;
   /** Thread to open, as the Inbox's `#thread=<id>` fragment. */
   readonly thread?: string;

@@ -4,9 +4,9 @@
 // under PLANNOTATOR_DATA_DIR), lists the running Inbox's threads over its
 // loopback API (GET /api/inbox/threads?archived=exclude) and follows its event
 // stream (GET /api/inbox/events) so the bar count moves as soon as an agent
-// writes. The web app itself stays Plannotator's: opening the Inbox or a
+// writes. The Inbox itself stays Plannotator's: opening the Inbox or a
 // thread runs dot plannotator inbox, which starts a stopped Inbox and opens
-// it as an Omarchy web app. The Inbox window can't show the Inbox's
+// it in its own Qt WebEngine window. That window can't show the Inbox's
 // notifications itself, so it writes them to a file this service shows.
 import QtQuick
 import Quickshell
@@ -18,7 +18,7 @@ Item {
   property var shell: null
 
   // Settings handed over by the bar widget (the service is a singleton).
-  property string webappUrl: ""
+  property string inboxUrl: ""
   property int intervalMs: 60000
   property bool live: true
 
@@ -152,7 +152,7 @@ Item {
 
   function launchCommand(extra) {
     var command = ["dot", "plannotator", "inbox"]
-    if (webappUrl !== "") command.push("--url", webappUrl)
+    if (inboxUrl !== "") command.push("--url", inboxUrl)
     return command.concat(extra)
   }
 
