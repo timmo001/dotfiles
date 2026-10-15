@@ -95,6 +95,17 @@ BarWidget {
     if (panelLoader.item) panelLoader.item.open("other")
   }
 
+  // Opens a repository's issues or pull requests with one selected; kind is "issue" or "pull".
+  // Returns selected, pending while the list loads, or missing when the panel doesn't list it.
+  function openItem(kind, repo, number) {
+    root.open(JSON.stringify({ view: kind === "issue" ? "issues" : "pulls", repo: repo, number: number }))
+    if (!root.git || !(kind === "issue" ? root.git.issuesLoaded : root.git.pullRequestsLoaded)) return "pending"
+    var entry = (kind === "issue" ? root.git.issueRepositories : root.git.pullRequestRepositories)
+      .find(function(candidate) { return candidate.repo.toLowerCase() === repo.toLowerCase() })
+    var items = entry ? (kind === "issue" ? entry.issues : entry.pulls) : []
+    return items.some(function(item) { return item.number === number }) ? "selected" : "missing"
+  }
+
   function close() {
     var widget = activeWidget()
     if (widget && widget !== root) { widget.close(); return }
@@ -166,6 +177,8 @@ BarWidget {
         function release(repo: string): void { root.open(JSON.stringify({ view: "releases", repo: repo })) }
         function pulls(repo: string): void { root.open(JSON.stringify({ view: "pulls", repo: repo })) }
         function issues(repo: string): void { root.open(JSON.stringify({ view: "issues", repo: repo })) }
+        function issue(repo: string, number: int): string { return root.openItem("issue", repo, number) }
+        function pullRequest(repo: string, number: int): string { return root.openItem("pull", repo, number) }
         function repo(path: string): void { root.open(JSON.stringify({ view: "repo", path: path })) }
         // Opens the repository and pulls it, showing dot update's progress and result in the panel.
         function pull(path: string): void { root.open(JSON.stringify({ view: "repo", path: path, pull: true })) }

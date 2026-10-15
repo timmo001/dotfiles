@@ -33,6 +33,9 @@ Panel {
   // The pull request or issue the agent picker opens, as { kind, repo, value }.
   property var selectedAgentItem: null
   property string issueCursorKey: ""
+  // A pull request or issue a deep link asked for; selected once its row exists.
+  property string targetItemKind: ""
+  property int targetItemNumber: 0
   readonly property bool issueView: view === "issues" || view === "issue-repo"
   readonly property var selectedIssues: service ? service.issueRepositories.find(function(repo) { return repo.repo.toLowerCase() === selectedIssueRepo.toLowerCase() || repo.name.toLowerCase() === selectedIssueRepo.toLowerCase() }) || null : null
   readonly property var filteredIssueRows: filterController.filteredModel.filter(function(row) { return row.section === "issues" || row.section === "issues-empty" })
@@ -682,8 +685,23 @@ Panel {
     if (index >= 0) filterController.selectIndex(index)
   }
 
+  // Selects the deep-linked row and drops the target once found, or once its list has loaded without it.
+  function selectTargetItem(kind, repo) {
+    if (targetItemKind !== kind || !repo || !service) return false
+    var key = kind + ":" + repo.repo + ":" + targetItemNumber
+    var index = filterController.indexForKey(key)
+    if (index < 0 && !(kind === "issue" ? service.issuesLoaded : service.pullRequestsLoaded)) return false
+    targetItemKind = ""
+    if (index < 0) return false
+    filterController.selectIndex(index)
+    revealTimer.requestedKey = key
+    revealTimer.restart()
+    return true
+  }
+
   function selectFirstPullRequest() {
     if (view !== "pull-repo") return
+    if (selectTargetItem("pull", selectedPullRequests)) return
     var index = filterController.navigationEntries.findIndex(function(entry) { return entry.kind === "pull" })
     if (index < 0) index = filterController.indexForKey("action:pulls-web")
     filterController.selectIndex(index)
@@ -748,6 +766,7 @@ Panel {
 
   function selectFirstIssue() {
     if (view !== "issue-repo") return
+    if (selectTargetItem("issue", selectedIssues)) return
     var index = filterController.navigationEntries.findIndex(function(entry) { return entry.kind === "issue" })
     if (index < 0) index = filterController.indexForKey("action:issues-web")
     filterController.selectIndex(index)
@@ -1085,20 +1104,24 @@ Panel {
     selectedIssueRepo = ""
     selectedIssueView = "overview"
     selectedAgentItem = null
+    targetItemKind = ""
     expandedGroups = ({})
     sectionOverrides = ({})
     var target = null
     try {
       var payload = JSON.parse(String(payloadJson || "{}"))
+      var number = Number(payload.number || 0)
       if (payload.view === "notifications") initialView = payload.view
       if ((payload.view === "repo" || payload.view === "commit") && String(payload.path || "").charAt(0) === "/") target = payload
       if (payload.view === "pulls") {
         selectedPullRequestRepo = String(payload.repo || "")
         initialView = selectedPullRequestRepo ? "pull-repo" : "pulls"
+        if (selectedPullRequestRepo && Number.isInteger(number) && number > 0) { targetItemKind = "pull"; targetItemNumber = number }
       }
       if (payload.view === "issues") {
         selectedIssueRepo = String(payload.repo || "")
         initialView = selectedIssueRepo ? "issue-repo" : "issues"
+        if (selectedIssueRepo && Number.isInteger(number) && number > 0) { targetItemKind = "issue"; targetItemNumber = number }
       }
       if (payload.view === "releases") {
         selectedReleaseKey = String(payload.repo || "")
@@ -1233,6 +1256,7 @@ Panel {
 
   function showView(nextView, focusKey) {
     revealTimer.stop()
+    targetItemKind = ""
     expandedGroups = ({})
     view = nextView
     filterController.reset()
@@ -1465,6 +1489,7 @@ Panel {
     function onPullRequestsUpdating() { root.pullRequestCursorKey = root.cursorKey }
     function onPullRequestsUpdated() {
       Qt.callLater(function() {
+        if (root.view === "pull-repo" && root.selectTargetItem("pull", root.selectedPullRequests)) return
         var index = filterController.indexForKey(root.pullRequestCursorKey)
         if (index >= 0) filterController.selectIndex(index)
         else root.selectFirstPullRequest()
@@ -1473,6 +1498,7 @@ Panel {
     function onIssuesUpdating() { root.issueCursorKey = root.cursorKey }
     function onIssuesUpdated() {
       Qt.callLater(function() {
+        if (root.view === "issue-repo" && root.selectTargetItem("issue", root.selectedIssues)) return
         var index = filterController.indexForKey(root.issueCursorKey)
         if (index >= 0) filterController.selectIndex(index)
         else root.selectFirstIssue()
