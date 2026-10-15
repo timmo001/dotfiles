@@ -9,9 +9,17 @@ import {
   graphql,
   isOpenThread,
   quote,
-  reviewThreadFields,
   threadLocation,
 } from "../lib/pullRequestReviews.js";
+import {
+  PullRequestNode,
+  checkContexts,
+  checkName,
+  isFailedCheck,
+  isPendingCheck,
+  pullRequestFields,
+  searchResponse,
+} from "../lib/pullRequestSearch.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import {
@@ -50,10 +58,6 @@ const MEDIUM_LINES = 400;
 
 const ACTIVITY_LIMIT = 500;
 
-const FAILED_RUNS = new Set(["FAILURE", "TIMED_OUT", "STARTUP_FAILURE"]);
-
-const FAILED_STATUSES = new Set(["FAILURE", "ERROR"]);
-
 const HOURS = new Map([
   ["h", 1],
   ["d", 24],
@@ -62,70 +66,7 @@ const HOURS = new Map([
 
 const FIRST_TIMERS = new Set(["FIRST_TIMER", "FIRST_TIME_CONTRIBUTOR"]);
 
-const PageInfo = Schema.Struct({
-  hasNextPage: Schema.Boolean,
-  endCursor: Schema.NullOr(Schema.String),
-});
-
-const Context = Schema.Struct({
-  __typename: Schema.String,
-  name: Schema.optionalKey(Schema.String),
-  status: Schema.optionalKey(Schema.String),
-  conclusion: Schema.optionalKey(Schema.NullOr(Schema.String)),
-  context: Schema.optionalKey(Schema.String),
-  state: Schema.optionalKey(Schema.String),
-});
-
-type Context = typeof Context.Type;
-
-const QueueNode = Schema.Struct({
-  number: Schema.Int,
-  title: Schema.String,
-  body: Schema.optionalKey(Schema.String),
-  url: Schema.String,
-  createdAt: Schema.String,
-  updatedAt: Schema.String,
-  additions: Schema.Int,
-  deletions: Schema.Int,
-  changedFiles: Schema.Int,
-  reviewDecision: Schema.NullOr(Schema.String),
-  authorAssociation: Schema.String,
-  author: Login,
-  labels: Schema.Struct({
-    nodes: Schema.Array(Schema.Struct({ name: Schema.String })),
-  }),
-  comments: Schema.Struct({
-    totalCount: Schema.Int,
-    nodes: Schema.optionalKey(
-      Schema.Array(
-        Schema.Struct({
-          body: Schema.String,
-          url: Schema.String,
-          author: Login,
-        }),
-      ),
-    ),
-  }),
-  reviewThreads: Schema.Struct({ nodes: Schema.Array(ReviewThread) }),
-  latestReviews: Schema.Struct({
-    nodes: Schema.Array(Schema.Struct({ author: Login, state: Schema.String })),
-  }),
-  commits: Schema.Struct({
-    nodes: Schema.Array(
-      Schema.Struct({
-        commit: Schema.Struct({
-          statusCheckRollup: Schema.NullOr(
-            Schema.Struct({
-              contexts: Schema.Struct({ nodes: Schema.Array(Context) }),
-            }),
-          ),
-        }),
-      }),
-    ),
-  }),
-});
-
-type QueueNode = typeof QueueNode.Type;
+type QueueNode = PullRequestNode;
 
 const ActivityNode = Schema.Struct({
   number: Schema.Int,
@@ -147,18 +88,7 @@ const ActivityNode = Schema.Struct({
 
 type ActivityNode = typeof ActivityNode.Type;
 
-const searchResponse = <S extends Schema.Top>(node: S) =>
-  Schema.Struct({
-    data: Schema.Struct({
-      search: Schema.Struct({
-        issueCount: Schema.Int,
-        pageInfo: PageInfo,
-        nodes: Schema.Array(node),
-      }),
-    }),
-  });
-
-const QueueResponse = searchResponse(QueueNode);
+const QueueResponse = searchResponse(PullRequestNode);
 
 const ActivityResponse = searchResponse(ActivityNode);
 
@@ -174,32 +104,7 @@ const QUEUE_QUERY = `query($q: String!, $first: Int!, $cursor: String, $bodies: 
     pageInfo { hasNextPage endCursor }
     nodes {
       ... on PullRequest {
-        number title body @include(if: $bodies) url createdAt updatedAt additions deletions changedFiles reviewDecision authorAssociation
-        author { login }
-        labels(first: 30) { nodes { name } }
-        comments(last: 10) {
-          totalCount
-          nodes @include(if: $bodies) { body url author { login } }
-        }
-        reviewThreads(first: 100) {
-          nodes { ${reviewThreadFields({ comments: 20, bodies: "$bodies" })} }
-        }
-        latestReviews(first: 20) { nodes { author { login } state } }
-        commits(last: 1) {
-          nodes {
-            commit {
-              statusCheckRollup {
-                contexts(first: 100) {
-                  nodes {
-                    __typename
-                    ... on CheckRun { name status conclusion }
-                    ... on StatusContext { context state }
-                  }
-                }
-              }
-            }
-          }
-        }
+        ${pullRequestFields}
       }
     }
   }
@@ -321,31 +226,12 @@ function parseSince(value: string, now: number): number | undefined {
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
-function contextName(context: Context): string {
-  return context.name ?? context.context ?? context.__typename;
-}
-
 function classify(node: QueueNode, since: number): QueueItem {
-  const contexts =
-    node.commits.nodes[0]?.commit.statusCheckRollup?.contexts.nodes ?? [];
+  const contexts = checkContexts(node);
 
-  const failing = [
-    ...new Set(
-      contexts
-        .filter((context) =>
-          context.__typename === "CheckRun"
-            ? FAILED_RUNS.has(context.conclusion ?? "")
-            : FAILED_STATUSES.has(context.state ?? ""),
-        )
-        .map(contextName),
-    ),
-  ];
+  const failing = [...new Set(contexts.filter(isFailedCheck).map(checkName))];
 
-  const pending = contexts.filter((context) =>
-    context.__typename === "CheckRun"
-      ? context.status !== "COMPLETED"
-      : context.state === "PENDING" || context.state === "EXPECTED",
-  ).length;
+  const pending = contexts.filter(isPendingCheck).length;
 
   const lines = node.additions + node.deletions;
 
