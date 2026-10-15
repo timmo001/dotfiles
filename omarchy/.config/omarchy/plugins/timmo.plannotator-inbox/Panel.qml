@@ -260,10 +260,25 @@ Panel {
                 required property var modelData
                 x: Style.space(8)
                 width: Math.max(0, contentColumn.width - Style.space(16))
-                implicitHeight: actionColumn.implicitHeight + Style.space(12)
+                // At least two lines tall, so a row without a description
+                // matches the rest.
+                implicitHeight: Math.max(actionColumn.implicitHeight,
+                  bodyMetrics.height + captionMetrics.height + actionColumn.spacing) + Style.space(12)
                 hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
                 foreground: root.contentForeground
                 accent: root.contentForeground
+
+                FontMetrics {
+                  id: bodyMetrics
+                  font.family: root.contentFontFamily
+                  font.pixelSize: Style.font.body
+                }
+
+                FontMetrics {
+                  id: captionMetrics
+                  font.family: root.contentFontFamily
+                  font.pixelSize: Style.font.caption
+                }
 
                 Row {
                   id: actionRow
