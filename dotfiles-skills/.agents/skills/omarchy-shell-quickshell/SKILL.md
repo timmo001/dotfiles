@@ -10,7 +10,7 @@ metadata:
 ## Upstream contract
 
 - The Omarchy shell is one long-running Quickshell process that hosts the bar, panels, overlays, menus, notifications, lock surface, and shell services as plugins.
-- This work targets the `quattro` branch of `basecamp/omarchy`. Use the advertised `omarchy` reference for current source and compare its revision with `origin/quattro` when recency matters.
+- This work targets the `quattro` branch of `omacom/omarchy`. Use the advertised `omarchy` reference for current source and compare its revision with `origin/quattro` when recency matters.
 - `$OMARCHY_PATH` owns the installed Omarchy source, normally `/usr/share/omarchy`. Treat it as read-only because package updates replace it.
 - Use the advertised `quickshell` reference for backend implementation details and compare its revision with upstream `master` when recency matters. The installed runtime version and revision are reported by `qs --version`.
 

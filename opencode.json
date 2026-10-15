@@ -8,7 +8,7 @@
       "description": "Use for Effect v4 APIs when working in dot/"
     },
     "omarchy": {
-      "repository": "basecamp/omarchy",
+      "repository": "omacom/omarchy",
       "branch": "quattro",
       "description": "Use for Omarchy desktop, Hyprland, and Quickshell shell customisation details"
     },

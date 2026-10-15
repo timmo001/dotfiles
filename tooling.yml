@@ -12,7 +12,7 @@ tools:
   - repo: herdrdev/herdr
     reviewed: v0.9.5
     review: Check herdr/.config/herdr, the Herdr plugins under scripts/.local/share/herdr-plugins (their min_herdr_version), and the dot commands, services and doctor checks that drive Herdr through @timmo001/effect-herdr.
-  - repo: basecamp/omarchy
+  - repo: omacom/omarchy
     reviewed: v4.0.4
     review: Check the custom bar plugins under omarchy/.config/omarchy/plugins that replace or extend Omarchy's (omarchy-plugins.json), the generated shell.json in dot/src/lib/omarchyShellConfig.ts, and the Omarchy hooks, components and extensions. Recheck the omarchy-shell-quickshell skill's file paths, lifecycle and plugin workflow against the release.
   - repo: quickshell-mirror/quickshell
