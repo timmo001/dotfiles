@@ -5,17 +5,8 @@ import {
   formatCommandError,
   handleCommandError,
 } from "../git/commands/rows.js";
-import {
-  CACHE_DIR,
-  CONFIG_DIR,
-  DATA_DIR,
-  displayPath,
-  HOME_DIR,
-} from "../lib/paths.js";
+import { CACHE_DIR, CONFIG_DIR, DATA_DIR } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
-
-/** Plannotator's own settings, stowed from plannotator/.plannotator. */
-const PLANNOTATOR_CONFIG = join(HOME_DIR, ".plannotator", "config.json");
 
 /** The Qt WebEngine window, stowed from scripts/.local/share. */
 const WINDOW_QML = join(DATA_DIR, "plannotator-inbox", "Inbox.qml");
@@ -37,14 +28,6 @@ const HyprlandClients = Schema.fromJsonString(
       title: Schema.String,
     }),
   ),
-);
-
-const PlannotatorConfig = Schema.fromJsonString(
-  Schema.Struct({
-    inboxNotifications: Schema.optional(
-      Schema.Struct({ allowedOrigin: Schema.optional(Schema.String) }),
-    ),
-  }),
 );
 
 /** Options accepted by `dot plannotator inbox`. */
@@ -79,28 +62,6 @@ const chromiumScale = Effect.gen(function* () {
     /^--force-device-scale-factor=(\d+(?:\.\d+)?)\s*$/m.exec(flags)?.[1] ?? "1"
   );
 }).pipe(Effect.withSpan("PlannotatorInbox.chromiumScale"));
-
-/**
- * The origin Plannotator lets show Inbox notifications, which is where the
- * Inbox is opened from, or undefined when it isn't set.
- */
-const configuredUrl = Effect.gen(function* () {
-  const fs = yield* FileSystem.FileSystem;
-
-  if (!(yield* fs.exists(PLANNOTATOR_CONFIG))) return undefined;
-
-  const config = yield* fs.readFileString(PLANNOTATOR_CONFIG).pipe(
-    Effect.flatMap(Schema.decodeUnknownEffect(PlannotatorConfig)),
-    Effect.mapError(
-      (cause) =>
-        new PlannotatorInboxError({
-          message: `read ${displayPath(PLANNOTATOR_CONFIG)}: ${cause.message}`,
-        }),
-    ),
-  );
-
-  return config.inboxNotifications?.allowedOrigin;
-}).pipe(Effect.withSpan("PlannotatorInbox.configuredUrl"));
 
 /**
  * The address the web app opens: the override when given, otherwise the URL
@@ -163,10 +124,7 @@ export const plannotatorInbox = Effect.fn("plannotatorInbox")(
         ),
       );
 
-    const base = yield* inboxBaseUrl(
-      printed,
-      options.url ?? (yield* configuredUrl),
-    );
+    const base = yield* inboxBaseUrl(printed, options.url);
 
     // Written every time, with a timestamp, so a thread opens again even when
     // it was the last one asked for, and a new window doesn't replay an old one.

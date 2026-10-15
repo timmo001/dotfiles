@@ -44,7 +44,7 @@
         "type": "string",
         "label": "Web app address",
         "defaultValue": "",
-        "description": "Address the web app opens. Empty uses Plannotator's inboxNotifications.allowedOrigin from ~/.plannotator/config.json, then the Inbox's own loopback URL."
+        "description": "Address the web app opens. Empty uses the Inbox's own loopback URL, which needs no login."
       },
       {
         "key": "interval",
