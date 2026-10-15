@@ -13,7 +13,7 @@ import {
 const OPENCODE = join(HOME_DIR, ".local", "bin", "opencode2");
 
 /** Report sections, in display order. */
-export const SECTIONS = ["Crossover", "Focus", "Later"] as const;
+export const SECTIONS = ["Focus", "Crossover", "Later"] as const;
 
 /** A brief item with its score, section and written reason. */
 export const ScoredItem = Schema.Struct({
@@ -278,11 +278,13 @@ export const scoreBrief = Effect.fn("brief.score")(function* (
     { concurrency: 4 },
   );
 
+  const kept = [...scored]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, config.limit);
+
   const ordered = SECTIONS.flatMap((section) =>
-    scored
-      .filter((item) => item.section === section)
-      .sort((a, b) => b.score - a.score),
-  ).slice(0, config.limit);
+    kept.filter((item) => item.section === section),
+  );
 
   const top = [...ordered]
     .sort((a, b) => b.score - a.score)
