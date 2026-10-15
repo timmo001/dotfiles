@@ -15,6 +15,12 @@ import { readBriefThread, sendBrief } from "../brief/inbox.js";
 import { SECTIONS, scoreBrief, type ScoredItem } from "../brief/score.js";
 import { trackedCheckouts, type TrackedCheckout } from "../brief/repos.js";
 import {
+  gitItemFromGitHubUrl,
+  gitItemKey,
+  gitItemLink,
+  listedGitItems,
+} from "../git/itemLinks.js";
+import {
   briefStateDir,
   readLastReport,
   readResolutions,
@@ -67,6 +73,7 @@ function renderItem(
   number: string,
   item: ScoredItem,
   names: RepoNames,
+  listed: ReadonlySet<string>,
   showModel: boolean,
 ): string[] {
   const facts = [
@@ -77,8 +84,15 @@ function renderItem(
 
   const ref = issueNumber(item);
 
+  const gitItem = gitItemFromGitHubUrl(item.url);
+
+  const panel =
+    gitItem && listed.has(gitItemKey(gitItem))
+      ? ` · [panel](${gitItemLink(gitItem)})`
+      : "";
+
   return [
-    `- **${number}.** ${icon(item)} **${escapeMarkdown(repoName(item, names))}** · [${escapeMarkdown(`${ref ? `#${ref} ` : ""}${item.title}`)}](${item.url}) · ${facts.join(" · ")}`,
+    `- **${number}.** ${icon(item)} **${escapeMarkdown(repoName(item, names))}** · [${escapeMarkdown(`${ref ? `#${ref} ` : ""}${item.title}`)}](${item.url})${panel} · ${facts.join(" · ")}`,
     ...(item.why
       ? [`  - ${item.why}${showModel ? ` _(${item.whyModel})_` : ""}`]
       : []),
@@ -99,6 +113,7 @@ function renderItem(
 function renderReport(
   items: readonly ScoredItem[],
   names: RepoNames,
+  listed: ReadonlySet<string>,
   workTime: boolean,
   model: string,
 ) {
@@ -124,7 +139,7 @@ function renderReport(
           `## ${section}`,
           "",
           ...inSection.flatMap(([number, item]) =>
-            renderItem(number, item, names, reasonModels.length > 1),
+            renderItem(number, item, names, listed, reasonModels.length > 1),
           ),
           "",
         ]
@@ -247,9 +262,18 @@ const run = Effect.fn("brief.run")(function* (options: {
 
   const names = yield* trackedCheckouts(scored.map((item) => item.repo));
 
+  const listed = yield* listedGitItems(
+    scored.flatMap((item) => {
+      const gitItem = gitItemFromGitHubUrl(item.url);
+
+      return gitItem ? [gitItem] : [];
+    }),
+  );
+
   const { body, numbered } = renderReport(
     scored,
     names,
+    listed,
     workTime,
     brief.decisionModel,
   );
