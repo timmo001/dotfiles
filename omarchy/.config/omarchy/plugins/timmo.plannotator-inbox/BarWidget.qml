@@ -34,7 +34,7 @@ BarWidget {
   readonly property color mutedColor: "#9b9b9b"
   readonly property bool ready: !!monitor && monitor.loaded
   readonly property bool shown: !ready || !monitor.installed || !monitor.running
-    || showWhenEmpty || monitor.attentionCount > 0
+    || showWhenEmpty || monitor.attentionCount > 0 || opened
   readonly property color displayColor: {
     if (!ready || !monitor.installed || !monitor.running || monitor.errorText !== "") return mutedColor
     if (monitor.stoppedCount > 0) return bar ? bar.urgent : Color.urgent
