@@ -9,6 +9,54 @@
     "label": "Topgrade",
     "action": "omarchy-launch-floating-terminal-with-presentation topgrade"
   },
+  // System menu. New entries always land after Omarchy's own, so its entries
+  // are hidden and copied below in the order wanted. Keep the copies in step
+  // with $OMARCHY_PATH/default/omarchy/omarchy-menu.jsonc.
+  "system.screensaver": { "when": "false" },
+  "system.lock": { "when": "false" },
+  "system.suspend": { "when": "false" },
+  "system.hibernate": { "when": "false" },
+  "system.logout": { "when": "false" },
+  "system.reboot": { "when": "false" },
+  "system.shutdown": { "when": "false" },
+  // Delayed so releasing the key that picked it doesn't wake the screen.
+  "system.screen-off": {
+    "icon": "󰶐",
+    "label": "Screen Off",
+    "action": "sleep 0.5 && hyprctl dispatch 'hl.dsp.dpms({ action = \"disable\" })'"
+  },
+  "system.screensaver-ordered": {
+    "icon": "󱄄",
+    "label": "Screensaver",
+    "action": "omarchy-launch-screensaver force"
+  },
+  "system.lock-ordered": {
+    "icon": "\uf023",
+    "label": "Lock",
+    "action": "omarchy-system-lock"
+  },
+  "system.suspend-ordered": {
+    "icon": "󰒲",
+    "label": "Suspend",
+    "when": "! omarchy-toggle-enabled suspend-off",
+    "action": "systemctl suspend"
+  },
+  "system.hibernate-ordered": {
+    "icon": "󰤁",
+    "label": "Hibernate",
+    "when": "omarchy-hibernation-available",
+    "action": "systemctl hibernate"
+  },
+  "system.logout-ordered": {
+    "icon": "󰍃",
+    "label": "Logout",
+    "action": "omarchy-system-logout"
+  },
+  "system.reboot-ordered": {
+    "icon": "󰜉",
+    "label": "Reboot",
+    "action": "omarchy-system-reboot"
+  },
   // reboot-to sets the next boot with sudo, so it runs in a terminal for the
   // password. Each entry only shows on machines with that boot entry.
   "system.reboot-to": {
@@ -33,20 +81,9 @@
     "when": "[[ -d /sys/firmware/efi ]]",
     "action": "omarchy-launch-floating-terminal-with-presentation 'reboot-to uefi'"
   },
-  // The menu adds new entries after Omarchy's own, so Shutdown is hidden and
-  // re-added here to keep Reboot To next to Reboot.
-  "system.shutdown": {
-    "when": "false"
-  },
-  "system.shutdown-last": {
+  "system.shutdown-ordered": {
     "icon": "󰐥",
     "label": "Shutdown",
     "action": "omarchy-system-shutdown"
-  },
-  // Delayed so releasing the key that picked it doesn't wake the screen.
-  "system.screen-off": {
-    "icon": "󰶐",
-    "label": "Screen Off",
-    "action": "sleep 0.5 && hyprctl dispatch 'hl.dsp.dpms({ action = \"disable\" })'"
   }
 }
