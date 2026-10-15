@@ -122,7 +122,8 @@ const PATTERN_DISCORD = "^chrome-discord\\.com__app";
 
 const PATTERN_CHROMIUM = "^chromium$";
 
-const PATTERN_PLANNOTATOR = "^chrome-plannotator\\.timmo\\.dev__";
+// The Qt WebEngine window from dot plannotator inbox, by its title.
+const PATTERN_PLANNOTATOR = "^Plannotator Inbox$";
 
 const PATTERN_GITHUB_NOTIFICATIONS = "^chrome-github\\.com__notifications";
 
@@ -897,21 +898,17 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
     const workChrome =
       "uwsm app -- google-chrome-stable --new-window --ozone-platform=wayland --force-device-scale-factor=0.8 --profile-directory=Profile\\ 1 --user-data-dir=$HOME/.config/google-chrome-work --class=work-browser";
 
-    const plannotator = workTime
-      ? slot(
-          TAGS.plannotator,
-          `${PATTERN_PLANNOTATOR}-Profile_1$`,
-          `${workChrome} --app=https://plannotator.timmo.dev`,
-          1,
-          false,
-        )
-      : slot(
-          TAGS.plannotator,
-          `${PATTERN_PLANNOTATOR}-Default$`,
-          'uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory="Default" --force-device-scale-factor=0.8 --app=https://plannotator.timmo.dev',
-          1,
-          false,
-        );
+    const plannotator = slot(
+      TAGS.plannotator,
+      PATTERN_PLANNOTATOR,
+      "dot plannotator inbox",
+      1,
+      false,
+    );
+
+    // Before the Inbox window, so it finds pitchfork's Inbox running rather
+    // than starting one of its own.
+    yield* startPitchforkDaemon("plannotator/inbox");
 
     if (workTime) {
       yield* logStep("Preparing workspace 1 work apps");
@@ -1057,7 +1054,6 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       yield* ensureSlot(herdr);
     }
 
-    yield* startPitchforkDaemon("plannotator/inbox");
     yield* renameWorkspaces(workTime);
 
     yield* logStep("Switching to workspace 2");
