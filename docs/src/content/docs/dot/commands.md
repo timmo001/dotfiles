@@ -2560,6 +2560,94 @@ dot pr list --refresh
 dot pr list --open
 ```
 
+## `dot brief`
+
+Daily brief of GitHub work in the Plannotator Inbox
+
+```text
+dot brief <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot brief run`
+
+Build the daily brief and post it to the Plannotator Inbox
+
+```text
+dot brief run [flags]
+```
+
+Collect open PRs and issues you're involved in, unread notifications and failing CI, score each with the decision model in brief.yml, apply its rules, write reasons for the top few with opencode2, then post the report to the "Daily brief" Inbox thread. Items ticked in the last report stay hidden until they have new activity. During work time work items come first; outside it they're left out, except crossover items.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--dry-run` | Print the report instead of posting it or saving state |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot brief run
+dot brief run --dry-run
+```
+
+### `dot brief dismiss`
+
+Hide a brief item until it has new activity
+
+```text
+dot brief dismiss [flags] <id>
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<id>` | Item id from the report, such as pr:owner/repo#12 |
+
+**Examples**
+
+```bash
+dot brief dismiss pr:timmo001/dotfiles#12
+```
+
+### `dot brief follow-up`
+
+Start agents for notes left on the daily brief
+
+```text
+dot brief follow-up [flags]
+```
+
+Read the brief's Inbox thread for new replies with notes. Each note starts an OpenCode agent through dot herdr repo open, in the checkout of the item it names by B number, or the dotfiles checkout otherwise, with the note and the item's context as its prompt.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--dry-run` | Print each prompt instead of starting agents |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot brief follow-up
+dot brief follow-up --dry-run
+```
+
 ## `dot launch`
 
 Launch desktop apps
