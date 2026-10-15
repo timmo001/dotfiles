@@ -167,6 +167,46 @@ Item {
     Quickshell.execDetached(launchCommand(["--thread", String(threadId)]))
   }
 
+  // The Inbox's own rule for its row "Mark read": a thread that waits on you
+  // and isn't archived, or is back from the archive.
+  function canMarkRead(thread) {
+    if (!thread || !(thread.resolved_at === null || thread.back_from_archive === true)) return false
+    var section = String(thread.section || "")
+    return section === "stopped" || section === "holding" || section === "waiting"
+      || (section === "new" && (thread.unseen > 0 || thread.answered_not_sent === true))
+  }
+
+  function canArchive(thread) {
+    return !!thread && thread.resolved_at === null
+  }
+
+  function markRead(threadId) {
+    if (!validThreadId(threadId)) return
+    threadAction("/api/inbox/threads/" + threadId + "/read", {}, "The thread wasn't marked read")
+  }
+
+  // Archiving resolves the thread through any of its messages; a thread's id is its first message's.
+  function archive(threadId) {
+    if (!validThreadId(threadId)) return
+    threadAction("/api/inbox/messages/" + threadId + "/resolve", { resolved: true },
+      "The thread wasn't archived")
+  }
+
+  function validThreadId(threadId) {
+    return /^[A-Za-z0-9_-]+$/.test(String(threadId || ""))
+  }
+
+  function threadAction(path, body, failure) {
+    if (apiBase === "" || actionProcess.running) return
+    actionProcess.failure = failure
+    actionProcess.command = ["curl", "-sf", "--max-time", "5", "-X", "POST",
+      "-H", "Content-Type: application/json", "-H", "Accept: application/json",
+      "--data", JSON.stringify(body), apiBase + path]
+    actionProcess.running = true
+  }
+
+  readonly property bool acting: actionProcess.running
+
   // Shows a notification from the Inbox window. Clicking it raises the window.
   function showNotification(text) {
     var notice
@@ -217,6 +257,17 @@ Item {
       if (exitCode === 0) root.applyList(listOutput.text)
       else root.markStopped()
       root.currentTime = Date.now()
+    }
+  }
+
+  // Mark read or archive. The event stream refreshes the list too; this
+  // refresh covers a stream that is down.
+  Process {
+    id: actionProcess
+    property string failure: ""
+    onExited: function(exitCode) {
+      if (exitCode === 0) refreshSoon.restart()
+      else root.errorText = failure
     }
   }
 

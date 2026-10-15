@@ -123,6 +123,14 @@ Panel {
     return parts.join(" · ")
   }
 
+  function markReadTooltip(thread) {
+    var who = service ? service.agentName(thread.author) : "the agent"
+    var text = "Mark read: out of the top until " + who + " writes again"
+    var questions = thread.questions || {}
+    if ((questions.open || 0) + (questions.picked || 0) > 0) text += ". Its waiting questions close unanswered"
+    return text
+  }
+
   function heroMeta() {
     if (!service || !service.loaded) return "Loading the Inbox"
     if (!service.installed) return "Not run yet on this machine"
@@ -299,17 +307,53 @@ Panel {
                     accent: root.sectionColor(modelData.section)
 
                     MouseArea {
-                      anchors.fill: parent
+                      anchors.left: parent.left
+                      anchors.right: rowButtons.visible ? rowButtons.left : parent.right
+                      anchors.top: parent.top
+                      anchors.bottom: parent.bottom
                       hoverEnabled: true
                       cursorShape: Qt.PointingHandCursor
                       onEntered: filterController.cursorIndex = filterController.indexForKey(rowSurface.modelData.key)
                       onClicked: root.activateEntry(rowSurface.modelData)
                     }
 
+                    Row {
+                      id: rowButtons
+                      readonly property bool canMarkRead: root.service !== null && root.service.canMarkRead(rowSurface.thread)
+                      readonly property bool canArchive: root.service !== null && root.service.canArchive(rowSurface.thread)
+                      visible: canMarkRead || canArchive
+                      anchors.right: parent.right
+                      anchors.rightMargin: Style.space(8)
+                      anchors.verticalCenter: parent.verticalCenter
+                      spacing: Style.space(4)
+
+                      PanelActionButton {
+                        visible: rowButtons.canMarkRead
+                        enabled: root.service !== null && !root.service.acting
+                        iconText: "󰇯"
+                        tooltipText: root.markReadTooltip(rowSurface.thread)
+                        foreground: root.contentForeground
+                        fontFamily: root.contentFontFamily
+                        onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey(rowSurface.modelData.key) }
+                        onClicked: root.service.markRead(rowSurface.thread.thread_id)
+                      }
+
+                      PanelActionButton {
+                        visible: rowButtons.canArchive
+                        enabled: root.service !== null && !root.service.acting
+                        iconText: "󰀼"
+                        tooltipText: "Archive: the thread ends; the next message starts a new one"
+                        foreground: root.contentForeground
+                        fontFamily: root.contentFontFamily
+                        onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey(rowSurface.modelData.key) }
+                        onClicked: root.service.archive(rowSurface.thread.thread_id)
+                      }
+                    }
+
                     Item {
                       id: rowColumn
                       anchors.left: parent.left
-                      anchors.right: parent.right
+                      anchors.right: rowButtons.visible ? rowButtons.left : parent.right
                       anchors.verticalCenter: parent.verticalCenter
                       anchors.leftMargin: Style.space(8)
                       anchors.rightMargin: Style.space(8)
