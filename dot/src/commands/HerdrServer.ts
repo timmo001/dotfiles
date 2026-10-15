@@ -192,6 +192,20 @@ function descendants(pid: number, processes: ReadonlyMap<number, Process>) {
   return found;
 }
 
+// Detached daemons such as the OpenCode service keep the shell's session but
+// have no terminal on stdio, so closing the pane leaves them running.
+const usesTerminal = Effect.fn("HerdrServer.usesTerminal")(function* (
+  pid: number,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  const targets = yield* Effect.forEach([0, 1, 2], (fd) =>
+    fs.readLink(`/proc/${pid}/fd/${fd}`).pipe(Effect.orElseSucceed(() => "")),
+  );
+
+  return targets.some((target) => /^\/dev\/(pts\/|tty)/.test(target));
+});
+
 const checkPanes = Effect.fn("HerdrServer.checkPanes")(function* (
   pid: number,
   socket: string,
@@ -281,7 +295,9 @@ const checkPanes = Effect.fn("HerdrServer.checkPanes")(function* (
       for (const [child, job] of processes) {
         if (
           child !== shell &&
-          (children.has(child) || job.session === processInfo.session)
+          (children.has(child) ||
+            (job.session === processInfo.session &&
+              (yield* usesTerminal(child))))
         ) {
           blockers.push(`${label}: job: ${job.name} (PID ${child})`);
         }
