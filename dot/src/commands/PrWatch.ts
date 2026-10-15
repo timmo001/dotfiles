@@ -12,9 +12,12 @@ import {
   renderReviews,
   resolvePullRequest,
   shortSha as short,
+  threadLocation,
   viewPullRequest,
   type PullRequestRef,
+  type Review,
   type ReviewState,
+  type ReviewThread,
 } from "../lib/pullRequestReviews.js";
 
 /** Early-stop triggers for {@link prWatch}. */
@@ -56,6 +59,7 @@ interface Target extends PullRequestRef {
   readonly jobs: Set<number>;
   readonly checks: Map<string, string>;
   readonly seenReviews: Set<string>;
+  readonly seenThreads: Set<string>;
   baseline: boolean;
   pending: string[];
   failures: number;
@@ -72,6 +76,33 @@ const runLabel = (run: Run) =>
   run.workflowName && run.workflowName !== run.name
     ? `${run.workflowName} / ${run.name}`
     : run.name;
+
+const DECISIONS = new Set(["APPROVED", "CHANGES_REQUESTED"]);
+
+/** Each author's latest approval or change request, oldest first. */
+function latestDecisions(reviews: readonly Review[]): Review[] {
+  const latest = new Map<string, Review>();
+
+  for (const review of reviews) {
+    if (!review.submittedAt) continue;
+
+    const key = author(review.author);
+    const current = latest.get(key);
+
+    if (!current?.submittedAt || review.submittedAt > current.submittedAt)
+      latest.set(key, review);
+  }
+
+  return [...latest.values()]
+    .filter((review) => DECISIONS.has(review.state))
+    .sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""));
+}
+
+const threadLine = (thread: ReviewThread) => {
+  const [first] = thread.comments.nodes;
+
+  return `${threadLocation(thread)} by ${author(first?.author ?? null)}${first ? ` ${first.url}` : ""}`;
+};
 
 /** Keep only the newest run per workflow and event; older same-commit runs are superseded. */
 function latestRuns(runs: readonly Run[]): Run[] {
@@ -127,6 +158,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
     jobs: new Set(),
     checks: new Map(),
     seenReviews: new Set(),
+    seenThreads: new Set(),
     baseline: true,
     pending: [],
     failures: 0,
@@ -344,6 +376,26 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
         stopReason ??= "review";
     }
 
+    if (target.baseline) {
+      for (const review of latestDecisions(target.reviews.reviews))
+        yield* say(
+          target,
+          `Review ${review.state.toLowerCase()} by ${author(review.author)}${review.commit?.oid === target.head ? "" : " (older commit)"} ${review.url}`,
+        );
+
+      if (target.reviews.botRequests.length > 0)
+        yield* say(
+          target,
+          `Waiting for review from ${target.reviews.botRequests.join(", ")}`,
+        );
+    }
+
+    for (const thread of target.reviews.threads) {
+      if (!isOpenThread(thread) || target.seenThreads.has(thread.id)) continue;
+      target.seenThreads.add(thread.id);
+      yield* say(target, `Open thread ${threadLine(thread)}`);
+    }
+
     if (alreadyDone > 0)
       yield* say(target, `${alreadyDone} already finished without failing`);
 
@@ -406,7 +458,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
     yield* write(`${renderReviews(target, target.reviews)}\n`);
   }
 
-  const summary = targets.map((target) => {
+  const summarise = (target: Target) => {
     const openThreads = target.reviews.threads.filter(isOpenThread).length;
 
     const waiting = [
@@ -415,7 +467,12 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
     ];
 
     return `#${target.number}: ${target.failures} failed, ${openThreads} open review thread${openThreads === 1 ? "" : "s"}${waiting.length > 0 ? `, still pending: ${waiting.join(", ")}` : ""}`;
-  });
+  };
+
+  const openThreads = targets.reduce(
+    (sum, target) => sum + target.reviews.threads.filter(isOpenThread).length,
+    0,
+  );
 
   const outcome = timedOut
     ? "Timed out"
@@ -425,14 +482,23 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
         ? "Stopped early on a new review"
         : failures > 0
           ? "Finished with failures"
-          : "Finished, all passed";
+          : openThreads > 0
+            ? `Finished, CI passed with ${openThreads} open review thread${openThreads === 1 ? "" : "s"}`
+            : "Finished, all passed";
 
   yield* write(
-    `## Summary\n\n${outcome}\n\n${summary.map((line) => `- ${line}`).join("\n")}\n`,
+    `## Summary\n\n${outcome}\n\n${targets.map((target) => `- ${summarise(target)}`).join("\n")}\n`,
   );
   yield* say(undefined, outcome);
 
-  for (const line of summary) process.stdout.write(`  ${line}\n`);
+  for (const target of targets) {
+    process.stdout.write(`  ${summarise(target)}\n`);
+
+    for (const thread of target.reviews.threads)
+      if (isOpenThread(thread))
+        process.stdout.write(`    Open thread ${threadLine(thread)}\n`);
+  }
+
   process.stdout.write(`Full report: ${displayPath(report)}\n`);
 
   const stillPending = targets.some(
