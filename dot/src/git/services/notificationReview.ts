@@ -73,6 +73,13 @@ export const inspectNotification = Effect.fn("notifications.inspect")(
       )
         return base;
 
+      // GitHub sends CI notifications without a subject URL; there is nothing to inspect.
+      if (
+        (thread.type === "WorkflowRun" || thread.type === "CheckSuite") &&
+        !thread.subjectApiUrl
+      )
+        return base;
+
       const url = yield* Effect.try(() => new URL(thread.subjectApiUrl ?? ""));
 
       if (
