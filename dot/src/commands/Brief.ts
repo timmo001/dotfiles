@@ -67,6 +67,7 @@ function renderItem(
   number: string,
   item: ScoredItem,
   names: RepoNames,
+  showModel: boolean,
 ): string[] {
   const facts = [
     words(item.reason),
@@ -78,7 +79,9 @@ function renderItem(
 
   return [
     `- **${number}.** ${icon(item)} **${escapeMarkdown(repoName(item, names))}** · [${escapeMarkdown(`${ref ? `#${ref} ` : ""}${item.title}`)}](${item.url}) · ${facts.join(" · ")}`,
-    ...(item.why ? [`  - ${item.why} _(${item.whyModel})_`] : []),
+    ...(item.why
+      ? [`  - ${item.why}${showModel ? ` _(${item.whyModel})_` : ""}`]
+      : []),
     ...(item.failing.length > 0
       ? [
           `  - Failing: ${item.failing
@@ -101,7 +104,11 @@ function renderReport(
 ) {
   const numbered = items.map((item, index) => [`B${index + 1}`, item] as const);
 
-  const header = `**${workTime ? "Work time" : "Outside work time"}** · ${items.length} item${items.length === 1 ? "" : "s"} · scored by ${model}${workTime ? "" : " · work items left out"}`;
+  const reasonModels = [
+    ...new Set(items.flatMap((item) => (item.whyModel ? [item.whyModel] : []))),
+  ];
+
+  const header = `**${workTime ? "Work time" : "Outside work time"}** · ${items.length} item${items.length === 1 ? "" : "s"} · scored by ${model}${reasonModels.length === 1 ? ` · reasons by ${reasonModels[0]}` : ""}${workTime ? "" : " · work items left out"}`;
 
   const legend =
     "🔀 PR · 📝 draft PR · ⭕ issue · ❌ failing CI · 🔔 notification";
@@ -117,7 +124,7 @@ function renderReport(
           `## ${section}`,
           "",
           ...inSection.flatMap(([number, item]) =>
-            renderItem(number, item, names),
+            renderItem(number, item, names, reasonModels.length > 1),
           ),
           "",
         ]
