@@ -8,5 +8,11 @@
     "icon": "",
     "label": "Topgrade",
     "action": "omarchy-launch-floating-terminal-with-presentation topgrade"
+  },
+  // Delayed so releasing the key that picked it doesn't wake the screen.
+  "system.screen-off": {
+    "icon": "󰶐",
+    "label": "Screen Off",
+    "action": "sleep 0.5 && hyprctl dispatch 'hl.dsp.dpms({ action = \"disable\" })'"
   }
 }
