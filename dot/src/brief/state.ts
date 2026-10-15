@@ -1,7 +1,9 @@
 import { Effect, FileSystem, Schema } from "effect";
+import { hostname } from "node:os";
 import { join } from "node:path";
 import { writeFileAtomic } from "../lib/atomicWrite.js";
 import { pathExists } from "../lib/fsProbe.js";
+import { DATA_DIR } from "../lib/paths.js";
 import { Config } from "../services/Config.js";
 import { ScoredItem } from "./score.js";
 
@@ -73,14 +75,71 @@ const writeJson = Effect.fn("brief.writeState")(function* (
   );
 });
 
-/** Item resolutions, empty when none are saved. */
-export const readResolutions = readJson("resolutions.json", Resolutions).pipe(
-  Effect.map((value): Resolutions => value ?? {}),
+/**
+ * Resolutions are synced between machines, so they live under the data root.
+ * Each machine writes only its own file, which keeps Syncthing free of
+ * conflicts, and reads every machine's.
+ */
+const RESOLUTIONS_DIR = join(DATA_DIR, "dot", "brief", "resolutions");
+
+const LEGACY_RESOLUTIONS = "resolutions.json";
+
+const ownResolutions = () => join(RESOLUTIONS_DIR, `${hostname()}.json`);
+
+const decodeResolutions = Schema.decodeEffect(
+  Schema.fromJsonString(Resolutions),
 );
 
-/** Save item resolutions. */
-export const writeResolutions = (value: Resolutions) =>
-  writeJson("resolutions.json", JSON.stringify(value, null, 2));
+/** Every machine's item resolutions merged, newest first, empty when none are saved. */
+export const readResolutions = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const own = ownResolutions();
+
+  const others = (yield* pathExists(RESOLUTIONS_DIR))
+    ? (yield* fs.readDirectory(RESOLUTIONS_DIR))
+        .filter((name) => name.endsWith(".json"))
+        .map((name) => join(RESOLUTIONS_DIR, name))
+        .filter((path) => path !== own)
+    : [];
+
+  const files = [
+    (yield* readJson(LEGACY_RESOLUTIONS, Resolutions)) ?? {},
+    (yield* pathExists(own))
+      ? yield* fs.readFileString(own).pipe(Effect.flatMap(decodeResolutions))
+      : {},
+    // Another machine's file may be mid-sync, so skip it rather than fail.
+    ...(yield* Effect.forEach(others, (path) =>
+      fs.readFileString(path).pipe(
+        Effect.flatMap(decodeResolutions),
+        Effect.orElseSucceed((): Resolutions => ({})),
+      ),
+    )),
+  ];
+
+  const merged: Record<string, Resolutions[string]> = {};
+
+  for (const file of files)
+    for (const [id, resolution] of Object.entries(file))
+      if (!merged[id] || merged[id].at < resolution.at) merged[id] = resolution;
+
+  return merged;
+}).pipe(Effect.withSpan("brief.readResolutions"));
+
+/** Save this machine's item resolutions. */
+export const writeResolutions = Effect.fn("brief.writeResolutions")(function* (
+  value: Resolutions,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const legacy = join(yield* briefStateDir, LEGACY_RESOLUTIONS);
+
+  yield* Effect.try(() =>
+    writeFileAtomic(ownResolutions(), `${JSON.stringify(value, null, 2)}\n`, {
+      createDirectory: true,
+    }),
+  );
+
+  if (yield* pathExists(legacy)) yield* fs.remove(legacy);
+});
 
 /** The last posted report, if any. */
 export const readLastReport = readJson("last.json", LastReport);
