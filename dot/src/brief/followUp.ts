@@ -1,5 +1,6 @@
-import { Effect, FileSystem, Schedule, Schema, Stream } from "effect";
+import { Clock, Effect, FileSystem, Schedule, Schema, Stream } from "effect";
 import { dirname, join } from "node:path";
+import { acquireFileLock } from "../lib/fileLock.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -7,6 +8,7 @@ import type { BriefConfig } from "./config.js";
 import {
   openInboxSession,
   readBriefThread,
+  replyToBrief,
   waitForBriefReply,
   type InboxThread,
 } from "./inbox.js";
@@ -16,7 +18,9 @@ import {
   briefStateDir,
   readFollowUps,
   readLastReport,
+  readResolutions,
   writeFollowUps,
+  writeResolutions,
   type LastReport,
 } from "./state.js";
 
@@ -38,6 +42,70 @@ const answerNotes = (thread: InboxThread, replyId: string) =>
         : [],
     ),
   );
+
+/** Items the person ticked to dismiss in answers sent with a reply. */
+const tickedItems = (
+  thread: InboxThread,
+  replyId: string,
+  items: Readonly<Record<string, ScoredItem>>,
+) =>
+  [
+    ...new Set(
+      thread.messages.flatMap((message) =>
+        (message.questions ?? []).flatMap((question) =>
+          question.sent_reply_id === replyId
+            ? (question.answer?.selected ?? []).flatMap(
+                (label) => /^B\d+\b/.exec(label)?.[0] ?? [],
+              )
+            : [],
+        ),
+      ),
+    ),
+  ].flatMap((number) => {
+    const item = items[number];
+
+    return item ? [[number, item] as const] : [];
+  });
+
+/** "B1, B3 and B4" */
+const listNumbers = (numbers: readonly string[]) =>
+  numbers.length > 1
+    ? `${numbers.slice(0, -1).join(", ")} and ${numbers.at(-1)}`
+    : (numbers[0] ?? "");
+
+/** Hide ticked items straight away, rather than at the next run, and say so in the thread. */
+const dismissTicked = Effect.fn("brief.followUp.dismiss")(function* (
+  projectPath: string,
+  replyId: string,
+  ticked: readonly (readonly [string, ScoredItem])[],
+) {
+  const now = new Date(yield* Clock.currentTimeMillis).toISOString();
+
+  // A run in progress saves resolutions when it ends, so wait for it rather than lose these.
+  yield* Effect.gen(function* () {
+    yield* acquireFileLock(join(yield* briefStateDir, "run.lock"), {
+      wait: "20 minutes",
+    });
+
+    const resolutions = yield* readResolutions;
+
+    yield* writeResolutions({
+      ...resolutions,
+      ...Object.fromEntries(
+        ticked.map(([, item]) => [
+          item.id,
+          { state: "dismissed" as const, at: now, updatedAt: item.updatedAt },
+        ]),
+      ),
+    });
+  }).pipe(Effect.scoped);
+
+  yield* replyToBrief({
+    projectPath,
+    replyTo: replyId,
+    body: `Hidden ${listNumbers(ticked.map(([number]) => number))} until they change.`,
+  });
+});
 
 const itemSummary = (number: string, item: ScoredItem) =>
   [
@@ -65,7 +133,7 @@ const reportFor = (
     .filter((report) => report.postedAt <= createdAt)
     .sort((a, b) => b.postedAt.localeCompare(a.postedAt))[0];
 
-/** Start agents for notes left on the brief since the last check. */
+/** Hide items ticked in replies and start agents for notes left on the brief since the last check. */
 export const briefFollowUp = Effect.fn("brief.followUp")(function* (
   brief: BriefConfig,
   options: { readonly dryRun: boolean },
@@ -98,18 +166,37 @@ export const briefFollowUp = Effect.fn("brief.followUp")(function* (
   );
 
   for (const message of notes) {
-    const words = [
-      replyText(message.body),
-      ...answerNotes(thread, message.id),
-    ].filter(Boolean);
-
-    if (words.length === 0 || (message.set_aside?.length ?? 0) > 0) {
+    if ((message.set_aside?.length ?? 0) > 0) {
       handled.push(message.id);
       continue;
     }
 
     const report = reportFor(last, message.reply_to, message.created_at);
     const items = report?.items ?? {};
+    const ticked = tickedItems(thread, message.id, items);
+
+    if (ticked.length > 0) {
+      if (options.dryRun)
+        yield* output.info(
+          `Reply ${message.id} hides ${listNumbers(ticked.map(([number]) => number))}`,
+        );
+      else {
+        yield* dismissTicked(config.publicDotfiles, message.id, ticked);
+        yield* output.info(
+          `Hid ${ticked.length} item${ticked.length === 1 ? "" : "s"} for reply ${message.id}`,
+        );
+      }
+    }
+
+    const words = [
+      replyText(message.body),
+      ...answerNotes(thread, message.id),
+    ].filter(Boolean);
+
+    if (words.length === 0) {
+      handled.push(message.id);
+      continue;
+    }
 
     const named = [
       ...new Set(

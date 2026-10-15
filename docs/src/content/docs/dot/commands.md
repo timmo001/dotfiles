@@ -2626,19 +2626,19 @@ dot brief dismiss pr:timmo001/dotfiles#12
 
 ### `dot brief follow-up`
 
-Start agents for notes left on the daily brief
+Hide ticked items and start agents for notes left on the daily brief
 
 ```text
 dot brief follow-up [flags]
 ```
 
-Read the brief's Inbox thread for new replies with notes. Each note starts an OpenCode agent through dot herdr repo open, in the checkout of the item it names by B number, or the dotfiles checkout otherwise, with the note and the item's context as its prompt. --watch holds one Inbox connection open and waits for replies instead of checking once; the dot-brief-follow-up user service runs it.
+Read the brief's Inbox thread for new replies. Items ticked in a reply are hidden straight away, with a reply confirming it. Each note starts an OpenCode agent through dot herdr repo open, in the checkout of the item it names by B number, or the dotfiles checkout otherwise, with the note and the item's context as its prompt. --watch holds one Inbox connection open and waits for replies instead of checking once; the dot-brief-follow-up user service runs it.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-| `--dry-run` | Print each prompt instead of starting agents |
+| `--dry-run` | Print what would be hidden and each prompt, without changing anything |
 | `--watch` | Keep running and start agents as soon as a reply lands |
 | `--help` `-h` | Show help information |
 

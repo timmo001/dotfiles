@@ -2674,7 +2674,7 @@ const briefCommand = describe(
           {
             dryRun: bool(
               "dry-run",
-              "Print each prompt instead of starting agents",
+              "Print what would be hidden and each prompt, without changing anything",
             ),
             watch: bool(
               "watch",
@@ -2683,7 +2683,7 @@ const briefCommand = describe(
           },
           briefFollowUp,
         ),
-        "Start agents for notes left on the daily brief",
+        "Hide ticked items and start agents for notes left on the daily brief",
         [
           "dot brief follow-up",
           "dot brief follow-up --dry-run",
@@ -2691,7 +2691,7 @@ const briefCommand = describe(
         ],
         {
           description:
-            "Read the brief's Inbox thread for new replies with notes. Each note starts an OpenCode agent through dot herdr repo open, in the checkout of the item it names by B number, or the dotfiles checkout otherwise, with the note and the item's context as its prompt. --watch holds one Inbox connection open and waits for replies instead of checking once; the dot-brief-follow-up user service runs it.",
+            "Read the brief's Inbox thread for new replies. Items ticked in a reply are hidden straight away, with a reply confirming it. Each note starts an OpenCode agent through dot herdr repo open, in the checkout of the item it names by B number, or the dotfiles checkout otherwise, with the note and the item's context as its prompt. --watch holds one Inbox connection open and waits for replies instead of checking once; the dot-brief-follow-up user service runs it.",
         },
       ),
     ]),

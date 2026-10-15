@@ -88,7 +88,8 @@ export type InboxThread = typeof ThreadResult.Type.thread;
 /** Arguments of the Inbox's `send_message` tool used by the brief. */
 interface SendArguments {
   readonly project_path: string;
-  readonly thread: string;
+  readonly thread?: string;
+  readonly reply_to?: string;
   readonly body: string;
   readonly idempotency_key: string;
   readonly supersedes?: readonly string[];
@@ -271,6 +272,23 @@ export const sendBrief = Effect.fn("brief.inbox.send")(function* (options: {
         }),
     ),
   );
+});
+
+/** Answer one of the person's messages in the brief's thread. */
+export const replyToBrief = Effect.fn("brief.inbox.reply")(function* (options: {
+  readonly projectPath: string;
+  readonly replyTo: string;
+  readonly body: string;
+}) {
+  yield* callTool({
+    name: "send_message",
+    arguments: {
+      project_path: options.projectPath,
+      reply_to: options.replyTo,
+      body: options.body,
+      idempotency_key: `brief-reply-${options.replyTo}`,
+    },
+  });
 });
 
 /** Read a whole Inbox thread, every message with its questions and answers. */
