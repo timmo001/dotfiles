@@ -57,6 +57,12 @@ o.bind("SUPER + TAB", "Workspace relayout", "dot workspace relayout")
 o.bind("SUPER + ALT + TAB", "Workspace relayout edit", "dot workspace relayout --edit")
 o.bind("SUPER + CTRL + TAB", "Workspace setup", "workspace-menu")
 o.bind("SUPER + CTRL + ALT + P", "Power Profile", "power-profile-menu")
+-- Delayed so releasing the chord doesn't wake the screen; any key or mouse move wakes it.
+o.bind("SUPER + CTRL + ALT + O", "Screen off", function()
+  hl.timer(function()
+    hl.dispatch(hl.dsp.dpms({ action = "disable" }))
+  end, { timeout = 500, type = "oneshot" })
+end)
 o.bind(
   "SUPER + CTRL + ALT + U",
   "Update",
