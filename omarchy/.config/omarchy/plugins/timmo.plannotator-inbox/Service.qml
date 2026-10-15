@@ -130,7 +130,9 @@ Item {
       errorText = "Invalid Inbox response"
     }
     loaded = true
-    if (live && running && !eventsProcess.running) eventsProcess.running = true
+    // After a drop, eventsRestart owns the reconnect, so a stream that keeps
+    // closing at once is retried every 15 s rather than on every refresh.
+    if (live && running && !eventsProcess.running && !eventsRestart.running) eventsProcess.running = true
   }
 
   function markStopped() {
