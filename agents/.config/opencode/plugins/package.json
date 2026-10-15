@@ -7,7 +7,7 @@
   },
   "devDependencies": {
     "@effect/platform-node": "4.0.1",
-    "@opencode/client": "2.0.29",
+    "@opencode/client": "2.0.30",
     "@opencode/plugin": "2.0.29",
     "@opencode/schema": "2.0.29",
     "@opencode/theme": "2.0.30",
