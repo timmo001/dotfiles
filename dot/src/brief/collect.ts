@@ -192,6 +192,10 @@ const search = Effect.fn("brief.search")(function* (
   return { viewer, nodes };
 });
 
+/** A comment's author, marked when it's me so prompts can tell my replies apart. */
+const commenter = (author: typeof Login.Type, me: string) =>
+  `${authorLogin(author)}${author?.login === me ? " (me)" : ""}`;
+
 function pullRequestItem(
   node: PullRequestResult,
   me: string,
@@ -272,14 +276,14 @@ function pullRequestItem(
     ...openThreads.flatMap((thread) => [
       `Open review thread at ${threadLocation(thread)} (${thread.comments.nodes[0]?.url ?? ""}):`,
       ...thread.comments.nodes.flatMap((comment) => [
-        `**${authorLogin(comment.author)}**:`,
+        `**${commenter(comment.author, me)}**:`,
         quote(excerpt(comment.body ?? "")),
       ]),
       "",
     ]),
     ...(comments.length > 0 ? ["Recent comments:"] : []),
     ...comments.flatMap((comment) => [
-      `**${authorLogin(comment.author)}** (${comment.createdAt}, ${comment.url}):`,
+      `**${commenter(comment.author, me)}** (${comment.createdAt}, ${comment.url}):`,
       quote(excerpt(comment.body)),
     ]),
   ].join("\n");
@@ -343,7 +347,7 @@ function issueItem(
     failing: [],
     detail: comments
       .flatMap((comment) => [
-        `**${authorLogin(comment.author)}** (${comment.createdAt}, ${comment.url}):`,
+        `**${commenter(comment.author, me)}** (${comment.createdAt}, ${comment.url}):`,
         quote(excerpt(comment.body)),
       ])
       .join("\n"),

@@ -25,7 +25,7 @@ export const ScoredItem = Schema.Struct({
   needsMe: Schema.NullOr(Schema.Finite),
   /** Final score after rules, used for ordering. */
   score: Schema.Finite,
-  /** One-sentence summary of what's waiting on you. */
+  /** What other people's comments ask of you, written at work time only. */
   why: Schema.NullOr(Schema.String),
   /** Model that wrote {@link why}. */
   whyModel: Schema.NullOr(Schema.String),
@@ -162,7 +162,7 @@ const workersAiFor = Effect.fn("brief.workersAi")(function* (
   );
 });
 
-/** Ask each configured model in turn for a one-sentence reason. */
+/** Summarise what people are asking of me, from an item's comments, threads and failing checks. */
 const explain = Effect.fn("brief.explain")(function* (
   config: BriefConfig,
   item: ScoredItem,
@@ -174,7 +174,8 @@ const explain = Effect.fn("brief.explain")(function* (
   const prompt = [
     "You're summarising one item in my daily GitHub brief. Don't use any tools.",
     `The item:\n${JSON.stringify(modelState(item), null, 2)}`,
-    "In one short sentence (25 words at most), say what's waiting on me and what I'd need to do. Don't judge whether it can wait, and don't mention work, side projects or the time of day. Use UK English and no dashes. Reply with the sentence only.",
+    `Its open review threads, recent comments and failing checks. Comments marked (me) are mine:\n${item.detail}`,
+    "In one sentence (30 words at most), say specifically what the latest comments or threads from other people ask of me, naming who asked, or what is failing. Don't restate the item's status, give advice, or judge whether it can wait. If nobody else is asking anything, reply with NONE. Use UK English and no dashes. Reply with the sentence only.",
   ].join("\n\n");
 
   for (const model of config.explainModels) {
@@ -216,13 +217,15 @@ const explain = Effect.fn("brief.explain")(function* (
         Effect.orElseSucceed(() => undefined),
       );
 
+    if (reply && /^NONE\b/.test(reply)) break;
+
     if (reply) return { why: reply, whyModel: model };
   }
 
   return { why: null, whyModel: null };
 });
 
-/** Score, section and order items, then write reasons for the top few. */
+/** Score, section and order items, then, at work, summarise the comments on the top few. */
 export const scoreBrief = Effect.fn("brief.score")(function* (
   config: BriefConfig,
   items: readonly BriefItem[],
@@ -284,9 +287,13 @@ export const scoreBrief = Effect.fn("brief.score")(function* (
     kept.filter((item) => item.section === section),
   );
 
-  const top = [...ordered]
-    .sort((a, b) => b.score - a.score)
-    .slice(0, config.explainTop);
+  // Reasons only help at work, and only when there's something to read.
+  const top = workTime
+    ? [...ordered]
+        .filter((item) => item.detail.trim() !== "")
+        .sort((a, b) => b.score - a.score)
+        .slice(0, config.explainTop)
+    : [];
 
   const reasons = yield* Effect.forEach(
     top,

@@ -2650,7 +2650,7 @@ const briefCommand = describe(
         ["dot brief run", "dot brief run --dry-run"],
         {
           description:
-            "Collect open PRs and issues you're involved in, unread notifications and failing CI, score each with the decision model in brief.yml, apply its rules, write reasons for the top few with opencode2, then post the report to the \"Daily brief\" Inbox thread. Items ticked in the last report stay hidden until they have new activity. During work time work items come first; outside it they're left out, except crossover items.",
+            "Collect open PRs and issues you're involved in, unread notifications and failing CI, score each with the decision model in brief.yml, apply its rules, during work time summarise what people's comments ask of you on the top few with opencode2, then post the report to the \"Daily brief\" Inbox thread. Items ticked in the last report stay hidden until they have new activity. During work time work items come first; outside it they're left out, except crossover items.",
         },
       ),
       describe(
