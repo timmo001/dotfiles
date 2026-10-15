@@ -142,6 +142,7 @@ o.bind("CTRL + ALT + Y", "Up Next: YouTube", "omarchy-shell timmo.upnext youtube
 o.bind("CTRL + ALT + F", "Agent Checks: CI", [[omarchy-shell timmo.agent-checks ci "" ""]])
 o.bind("CTRL + ALT + L", "Agent Checks: lint", [[omarchy-shell timmo.agent-checks lint "" ""]])
 o.bind("CTRL + ALT + PERIOD", "Devices panel", "omarchy-shell shell toggle sceny.devices")
+o.bind("CTRL + ALT + I", "Plannotator Inbox panel", "omarchy-shell timmo.plannotator-inbox toggle")
 
 -- Local automations
 o.bind("SUPER + CTRL + SHIFT + C", nil, "timmo-run-command ha-bridge input_boolean toggle input_boolean.in_a_call")

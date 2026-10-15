@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "timmo.plannotator-inbox",
+  "name": "Plannotator Inbox",
+  "version": "1.0.0",
+  "author": "Aidan Timson",
+  "description": "Threads waiting on you in the local Plannotator Inbox, opened in its own window",
+  "kinds": ["service", "bar-widget"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Plannotator Inbox",
+    "description": "Counts the Inbox threads that wait on you and lists them in a panel. Left click opens the panel, right click opens the Inbox window, middle click refreshes.",
+    "category": "Info",
+    "allowMultiple": false,
+    "defaultSection": "center",
+    "defaults": {
+      "primaryOnly": false,
+      "primaryOutput": "",
+      "url": "",
+      "interval": 60000,
+      "live": true,
+      "showWhenEmpty": true
+    },
+    "schema": [
+      {
+        "key": "primaryOnly",
+        "type": "boolean",
+        "label": "Primary output only",
+        "defaultValue": false
+      },
+      {
+        "key": "primaryOutput",
+        "type": "string",
+        "label": "Primary output",
+        "defaultValue": "",
+        "description": "Optional output name used when primary output only is enabled."
+      },
+      {
+        "key": "url",
+        "type": "string",
+        "label": "Inbox address",
+        "defaultValue": "",
+        "description": "Address the Inbox window opens. Empty uses the Inbox's own loopback URL, which needs no login."
+      },
+      {
+        "key": "interval",
+        "type": "number",
+        "label": "Poll interval (ms)",
+        "defaultValue": 60000,
+        "description": "How often the thread list is re-read when the live event stream is off or dropped."
+      },
+      {
+        "key": "live",
+        "type": "boolean",
+        "label": "Live updates",
+        "defaultValue": true,
+        "description": "Follow the Inbox's event stream so the count changes as soon as an agent writes."
+      },
+      {
+        "key": "showWhenEmpty",
+        "type": "boolean",
+        "label": "Show when nothing waits",
+        "defaultValue": true,
+        "description": "Keep the icon in the bar while no thread waits on you."
+      }
+    ]
+  }
+}

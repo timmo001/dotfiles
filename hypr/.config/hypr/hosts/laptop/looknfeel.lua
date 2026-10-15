@@ -14,9 +14,10 @@ hl.config({
 -- Smaller floating terminal for SUPER+SHIFT+Q launcher
 hl.window_rule({ name = "floating-terminal-size", match = { class = "^org\\.omarchy\\.terminal$" }, size = "760 500" })
 
--- Plannotator Inbox webapp opens as a narrow tiled column on the left (size rules only apply to floating windows)
+-- The Qt WebEngine Inbox window from dot plannotator inbox opens as a narrow tiled column on the left (size rules only apply to
+-- floating windows), told apart from other qml windows by its title
 hl.on("window.open", function(win)
-  if win.floating or win.class ~= "chrome-plannotator.timmo.dev__-Default" then
+  if win.floating or win.class ~= "org.qt-project.qml" or win.title ~= "Plannotator Inbox" then
     return
   end
   hl.dispatch(hl.dsp.window.move({ direction = "l", window = win }))

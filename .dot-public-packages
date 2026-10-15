@@ -21,6 +21,7 @@ mise-bin
 repo-notes-git
 pkgconf
 python-gobject
+qt6-webengine
 smem
 stress-ng
 sysbench

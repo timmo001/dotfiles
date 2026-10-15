@@ -31,6 +31,7 @@ import { install } from "../commands/Install.js";
 import { isAgentCommand } from "../commands/IsAgent.js";
 import { launchFloatingWebapp } from "../commands/LaunchFloatingWebapp.js";
 import { linkOpen } from "../commands/LinkOpen.js";
+import { plannotatorInbox } from "../commands/PlannotatorInbox.js";
 import { notesCaptureSync } from "../commands/NotesCaptureSync.js";
 import { syncOmarchyComponents } from "../commands/OmarchyComponents.js";
 import {
@@ -2850,6 +2851,41 @@ const launchCommand = describe(
   "Launch desktop apps",
 );
 
+const plannotatorCommand = describe(
+  Command.make("plannotator").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "inbox",
+          {
+            url: text(
+              "url",
+              "Base address the Inbox window opens instead of the Inbox's own loopback URL",
+            ),
+            thread: text("thread", "Open one thread by its id"),
+          },
+          (input) =>
+            plannotatorInbox({
+              url: optional(input.url),
+              thread: optional(input.thread),
+            }),
+        ),
+        "Open the Plannotator Inbox in its own window, starting it first when it is stopped",
+        [
+          "dot plannotator inbox",
+          "dot plannotator inbox --thread thr_01",
+          "dot plannotator inbox --url https://inbox.plannotator.localhost",
+        ],
+        {
+          description:
+            "Runs plannotator inbox --background, which starts a stopped Inbox detached and prints the running one's loopback URL, then opens that address in a Qt WebEngine window (~/.local/share/plannotator-inbox/Inbox.qml, run by the qml runtime). A running window is raised instead of duplicated. --url opens another base address, such as an HTTPS front in front of the Inbox; without it, the window opens the Inbox's own loopback URL, which needs no login. The Inbox is still started first. --thread shows one thread (the Inbox's #thread= fragment), in the running window when there is one. The timmo.plannotator-inbox bar plugin, dot workspace setup and the Plannotator Inbox desktop entry run this. Failures are also sent as a desktop notification.",
+        },
+      ),
+    ]),
+  ),
+  "Plannotator tooling",
+);
+
 const herdrRepoOpenCommand = describe(
   Command.make(
     "open",
@@ -3518,6 +3554,7 @@ export const dotCommand = describe(
       prCommand,
       briefCommand,
       launchCommand,
+      plannotatorCommand,
       herdr,
       homeAssistantCommand,
       reloadCommand,
