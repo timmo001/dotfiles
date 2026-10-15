@@ -2925,7 +2925,7 @@ Runs setup, then starts the Core pitchfork daemon, which starts the frontend bui
 | Option | Description |
 | --- | --- |
 | `--latest` | Rebase dev onto upstream/dev and push it during setup |
-| `--background` | Return once it is ready, leaving it running |
+| `--background` | Return once it is ready, leaving it running. Under Herdr, it runs in a pane split off this one, which closes once it succeeds |
 | `--help` `-h` | Show help information |
 
 **Examples**
@@ -2988,7 +2988,7 @@ dot homeassistant frontend dev [flags]
 
 | Option | Description |
 | --- | --- |
-| `--background` | Return once it is ready, leaving it running |
+| `--background` | Return once it is ready, leaving it running. Under Herdr, it runs in a pane split off this one, which closes once it succeeds |
 | `--attach` | Follow an already running build instead of asking to restart it |
 | `--help` `-h` | Show help information |
 
@@ -3013,7 +3013,7 @@ Writes the Core URL for the serve daemon, starts the target's own daemon when it
 
 | Option | Description |
 | --- | --- |
-| `--background` | Return once it is ready, leaving it running |
+| `--background` | Return once it is ready, leaving it running. Under Herdr, it runs in a pane split off this one, which closes once it succeeds |
 | `--help` `-h` | Show help information |
 
 **Arguments**
@@ -3061,7 +3061,7 @@ dot homeassistant frontend gallery [flags]
 
 | Option | Description |
 | --- | --- |
-| `--background` | Return once it is ready, leaving it running |
+| `--background` | Return once it is ready, leaving it running. Under Herdr, it runs in a pane split off this one, which closes once it succeeds |
 | `--help` `-h` | Show help information |
 
 **Examples**
@@ -3082,7 +3082,7 @@ dot homeassistant frontend demo [flags]
 
 | Option | Description |
 | --- | --- |
-| `--background` | Return once it is ready, leaving it running |
+| `--background` | Return once it is ready, leaving it running. Under Herdr, it runs in a pane split off this one, which closes once it succeeds |
 | `--help` `-h` | Show help information |
 
 **Examples**
@@ -3103,7 +3103,7 @@ dot homeassistant frontend e2e [flags]
 
 | Option | Description |
 | --- | --- |
-| `--background` | Return once it is ready, leaving it running |
+| `--background` | Return once it is ready, leaving it running. Under Herdr, it runs in a pane split off this one, which closes once it succeeds |
 | `--help` `-h` | Show help information |
 
 **Examples**
@@ -3165,7 +3165,7 @@ dot homeassistant dev [flags]
 
 | Option | Description |
 | --- | --- |
-| `--background` | Return once it is ready, leaving it running |
+| `--background` | Return once it is ready, leaving it running. Under Herdr, it runs in a pane split off this one, which closes once it succeeds |
 | `--help` `-h` | Show help information |
 
 **Examples**

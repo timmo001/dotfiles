@@ -1,11 +1,17 @@
 import { join } from "node:path";
-import { Console, Effect, FileSystem, Schema } from "effect";
+import {
+  HerdrSdk,
+  herdrSdkLayerFromOptions,
+  PaneId,
+} from "@timmo001/effect-herdr";
+import { Console, Duration, Effect, FileSystem, Schema } from "effect";
 import { isAgent } from "../lib/agent.js";
 import { writeFileAtomic } from "../lib/atomicWrite.js";
 import { ENV, envString } from "../lib/env.js";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "../lib/paths.js";
+import { formatCause } from "../lib/schema.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
-import { herdrRepoOpen } from "./HerdrRepoOpen.js";
+import { DEFAULT_SOCKET_PATH, herdrRepoOpen } from "./HerdrRepoOpen.js";
 import { type StatusRunOptions, statusOf, statusRun } from "./StatusRun.js";
 
 /** Home Assistant dev command failure. */
@@ -200,38 +206,92 @@ const statusRunArgs = (options: StatusRunOptions) => [
   ...(options.command.length > 0 ? ["--", ...options.command] : []),
 ];
 
+/** Where a background run opens: a pane split off `from`, or the calling pane. */
+interface Split {
+  readonly from?: PaneId;
+  readonly direction: "right" | "down";
+}
+
 /**
- * Run under `dot status run` in the repository. Under Herdr, outside the
- * repository's workspace, it opens a tab there instead, as the shell functions
- * did.
+ * Run under `dot status run` in a new pane split off another, leaving focus
+ * where it is. The pane's shell exits once the run succeeds, closing it, and
+ * stays open on failure.
+ */
+const launchSplit = Effect.fn("HomeAssistant.launchSplit")(
+  function* (repository: Repository, options: StatusRunOptions, split: Split) {
+    const herdr = yield* HerdrSdk;
+
+    const from =
+      split.from ??
+      (yield* Schema.decodeUnknownEffect(PaneId)(envString(ENV.HERDR_PANE_ID)));
+
+    const pane = yield* herdr.panes.split(from, {
+      direction: split.direction,
+      cwd: repository.directory,
+      focus: false,
+    });
+
+    yield* herdr.panes.rename(pane.id, options.title);
+
+    yield* herdr.panes.sendInput(pane.id, {
+      text: `${["dot", "status", "run", ...statusRunArgs(options)].map(quote).join(" ")} && exit`,
+      keys: ["enter"],
+    });
+
+    return pane.id;
+  },
+  Effect.provide(
+    herdrSdkLayerFromOptions({
+      socketPath: envString(ENV.HERDR_SOCKET_PATH) ?? DEFAULT_SOCKET_PATH,
+      requestTimeout: Duration.seconds(5),
+    }),
+  ),
+  Effect.mapError((error) =>
+    fail(`Could not open a Herdr pane: ${formatCause(error)}`),
+  ),
+);
+
+/**
+ * Run under `dot status run` in the repository. Under Herdr, a split runs in
+ * its own pane in the current workspace; otherwise, outside the repository's
+ * workspace, it opens a tab there instead, as the shell functions did.
+ *
+ * @returns The split pane, when one was opened.
  */
 const launch = Effect.fn("HomeAssistant.launch")(function* (
   repository: Repository,
   options: StatusRunOptions,
-  noFocus = false,
+  placement: { readonly noFocus?: boolean; readonly split?: Split } = {},
 ) {
+  if (envString(ENV.HERDR_ENV) === "1" && placement.split)
+    return yield* launchSplit(repository, options, placement.split);
+
   if (
     envString(ENV.HERDR_ENV) === "1" &&
     !(yield* inWorkspace(repository.workspace))
   ) {
     const prefix = /^\[[^\]]+\]/.exec(repository.workspace)?.[0];
 
-    return yield* herdrRepoOpen({
+    yield* herdrRepoOpen({
       layout: "tab",
       label: repository.workspace,
       directory: repository.directory,
       tabLabel: options.title,
       afterPrefix: prefix,
-      noFocus,
+      noFocus: placement.noFocus,
       command: ["dot", "status", "run", ...statusRunArgs(options)]
         .map(quote)
         .join(" "),
     });
+
+    return undefined;
   }
 
   process.chdir(repository.directory);
 
-  return yield* statusRun(options);
+  yield* statusRun(options);
+
+  return undefined;
 });
 
 /**
@@ -417,11 +477,16 @@ export const coreSetup = Effect.fn("HomeAssistant.coreSetup")(
   },
 );
 
+/** A background run splits off the calling pane unless told otherwise. */
+const backgroundSplit = (background: boolean, split?: Split) =>
+  split ?? (background ? { direction: "right" as const } : undefined);
+
 /** Start Core serving the local frontend build. */
 export const coreDev = Effect.fn("HomeAssistant.coreDev")(function* (options: {
   readonly latest: boolean;
   readonly background: boolean;
   readonly noFocus?: boolean;
+  readonly split?: Split;
 }) {
   const config = yield* loadConfig;
   const { core } = config;
@@ -429,8 +494,11 @@ export const coreDev = Effect.fn("HomeAssistant.coreDev")(function* (options: {
 
   yield* ensureNoRunningSuites(core.daemon);
 
-  if (isAgent())
-    return yield* startDaemonAsAgent(core.daemon, core.url, conflicts);
+  if (isAgent()) {
+    yield* startDaemonAsAgent(core.daemon, core.url, conflicts);
+
+    return undefined;
+  }
 
   return yield* launch(
     core,
@@ -444,7 +512,10 @@ export const coreDev = Effect.fn("HomeAssistant.coreDev")(function* (options: {
       background: options.background,
       command: [],
     },
-    options.noFocus,
+    {
+      noFocus: options.noFocus,
+      split: backgroundSplit(options.background, options.split),
+    },
   );
 });
 
@@ -453,6 +524,7 @@ export const frontendDev = Effect.fn("HomeAssistant.frontendDev")(
   function* (options: {
     readonly background: boolean;
     readonly attach: boolean;
+    readonly split?: Split;
   }) {
     const config = yield* loadConfig;
     const { frontend } = config;
@@ -467,17 +539,21 @@ export const frontendDev = Effect.fn("HomeAssistant.frontendDev")(
         conflicts,
       );
 
-    return yield* launch(frontend, {
-      title: "HA Frontend Dev",
-      url: config.core.url,
-      via: "HA Core",
-      setup: "script/bootstrap",
-      pitchfork: frontend.build,
-      conflicts,
-      attach: options.attach,
-      background: options.background,
-      command: [],
-    });
+    yield* launch(
+      frontend,
+      {
+        title: "HA Frontend Dev",
+        url: config.core.url,
+        via: "HA Core",
+        setup: "script/bootstrap",
+        pitchfork: frontend.build,
+        conflicts,
+        attach: options.attach,
+        background: options.background,
+        command: [],
+      },
+      { split: backgroundSplit(options.background, options.split) },
+    );
   },
 );
 
@@ -541,18 +617,22 @@ export const frontendServe = Effect.fn("HomeAssistant.frontendServe")(
     if (isAgent())
       return yield* startDaemonAsAgent(serve.daemon, serve.url, conflicts);
 
-    return yield* launch(frontend, {
-      title: target
-        ? `HA Frontend Serve (${target.title})`
-        : "HA Frontend Serve",
-      url: serve.url,
-      setup: "script/bootstrap",
-      pitchfork: serve.daemon,
-      conflicts,
-      attach: false,
-      background: options.background,
-      command: [],
-    });
+    yield* launch(
+      frontend,
+      {
+        title: target
+          ? `HA Frontend Serve (${target.title})`
+          : "HA Frontend Serve",
+        url: serve.url,
+        setup: "script/bootstrap",
+        pitchfork: serve.daemon,
+        conflicts,
+        attach: false,
+        background: options.background,
+        command: [],
+      },
+      { split: backgroundSplit(options.background) },
+    );
   },
 );
 
@@ -565,6 +645,7 @@ const frontendLocked = Effect.fn("HomeAssistant.frontendLocked")(function* (
   command: readonly string[],
   setup: boolean,
   suite?: FrontendSuite,
+  background = false,
 ) {
   const config = yield* loadConfig;
   const { frontend } = config;
@@ -578,14 +659,18 @@ const frontendLocked = Effect.fn("HomeAssistant.frontendLocked")(function* (
     return yield* runAsAgent(frontend.directory, command);
   }
 
-  return yield* launch(frontend, {
-    title,
-    setup: setup ? "script/bootstrap" : undefined,
-    conflicts,
-    attach: false,
-    background: false,
-    command,
-  });
+  yield* launch(
+    frontend,
+    {
+      title,
+      setup: setup ? "script/bootstrap" : undefined,
+      conflicts,
+      attach: false,
+      background: false,
+      command,
+    },
+    { split: backgroundSplit(background) },
+  );
 });
 
 /** Start a frontend suite dev server: the gallery, demo or e2e app. */
@@ -603,6 +688,7 @@ export const frontendSuite = Effect.fn("HomeAssistant.frontendSuite")(
       ],
       true,
       suite,
+      options.background,
     );
   },
 );
@@ -625,15 +711,23 @@ export const frontendTestE2e = Effect.fn("HomeAssistant.frontendTestE2e")(
   },
 );
 
-/** Start Core and the frontend build in their own Herdr tabs. */
+/**
+ * Start Core and the frontend build in their own Herdr tabs, or with
+ * `background`, in panes split off the calling one: Core to the right and
+ * the frontend below it.
+ */
 export const homeAssistantDev = Effect.fn("HomeAssistant.dev")(
   function* (options: { readonly background: boolean }) {
-    if (isAgent()) return yield* coreDev({ latest: false, background: true });
+    if (isAgent()) {
+      yield* coreDev({ latest: false, background: true });
+
+      return;
+    }
 
     if (envString(ENV.HERDR_ENV) !== "1")
       return yield* fail("dot homeassistant dev requires Herdr");
 
-    yield* coreDev({
+    const corePane = yield* coreDev({
       latest: true,
       background: options.background,
       noFocus: true,
@@ -642,6 +736,7 @@ export const homeAssistantDev = Effect.fn("HomeAssistant.dev")(
     return yield* frontendDev({
       background: options.background,
       attach: true,
+      split: corePane ? { from: corePane, direction: "down" } : undefined,
     });
   },
 );

@@ -3085,7 +3085,7 @@ const herdr = describe(
 
 const homeAssistantBackground = bool(
   "background",
-  "Return once it is ready, leaving it running",
+  "Return once it is ready, leaving it running. Under Herdr, it runs in a pane split off this one, which closes once it succeeds",
 );
 
 const homeAssistantCoreCommand = describe(
