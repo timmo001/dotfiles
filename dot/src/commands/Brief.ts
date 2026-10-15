@@ -30,10 +30,10 @@ const KEPT_REPORTS = 7;
 const DONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 const KIND_ICONS: Record<ScoredItem["kind"], string> = {
-  pr: "🔀",
-  issue: "⭕",
-  notification: "🔔",
-  ci: "❌",
+  pr: "🟣",
+  issue: "🟢",
+  notification: "🔵",
+  ci: "🔴",
 };
 
 const DISMISS_PROMPT =
@@ -43,7 +43,7 @@ const words = (value: string) => value.replaceAll("_", " ");
 
 const escapeMarkdown = (text: string) => text.replace(/([[\]\\*_`])/g, "\\$1");
 
-const icon = (item: ScoredItem) => (item.draft ? "📝" : KIND_ICONS[item.kind]);
+const icon = (item: ScoredItem) => (item.draft ? "⚪" : KIND_ICONS[item.kind]);
 
 const issueNumber = (item: ScoredItem) => /#(\d+)$/.exec(item.id)?.[1];
 
@@ -111,7 +111,7 @@ function renderReport(
   const header = `**${workTime ? "Work time" : "Outside work time"}** · ${items.length} item${items.length === 1 ? "" : "s"} · scored by ${model}${reasonModels.length === 1 ? ` · reasons by ${reasonModels[0]}` : ""}${workTime ? "" : " · work items left out"}`;
 
   const legend =
-    "🔀 PR · 📝 draft PR · ⭕ issue · ❌ failing CI · 🔔 notification";
+    "🟣 PR · ⚪ draft PR · 🟢 issue · 🔴 failing CI · 🔵 notification";
 
   if (items.length === 0)
     return { body: `${header}\n\nNothing needs you right now.`, numbered };
