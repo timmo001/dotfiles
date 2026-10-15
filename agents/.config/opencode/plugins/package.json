@@ -10,7 +10,7 @@
     "@opencode/client": "2.0.29",
     "@opencode/plugin": "2.0.29",
     "@opencode/schema": "2.0.29",
-    "@opencode/theme": "2.0.29",
+    "@opencode/theme": "2.0.30",
     "@opentui/core": "0.6.6",
     "@opentui/solid": "0.6.6",
     "@types/bun": "^1.3.14",
