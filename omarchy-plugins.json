@@ -144,7 +144,7 @@
     },
     {
       "id": "timmo.plannotator-inbox",
-      "placement": { "section": "center", "after": "timmo.agent-checks" },
+      "placement": { "section": "center", "after": "timmo.git" },
       "settings": { "primaryOnly": true },
       "hosts": {
         "desktop": { "primaryOutput": "HDMI-A-2" },
