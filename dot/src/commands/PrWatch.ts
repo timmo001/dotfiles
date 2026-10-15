@@ -1,5 +1,13 @@
 import { PullRequest, Workflow } from "@timmo001/effect-gh";
-import { Clock, Duration, Effect, FileSystem, Option, Schema } from "effect";
+import {
+  Clock,
+  Deferred,
+  Duration,
+  Effect,
+  FileSystem,
+  Option,
+  Schema,
+} from "effect";
 import { dirname, join } from "node:path";
 import { STATE_DIR, displayPath, expandHomePath } from "../lib/paths.js";
 import {
@@ -47,6 +55,8 @@ const BOT_REVIEW_GRACE_MS = 5 * 60 * 1000;
 
 const FAILED = new Set(["failure", "timed_out", "startup_failure"]);
 
+const PASSED = new Set(["success", "skipped", "neutral"]);
+
 const EXIT = { passed: 0, failed: 1, stopped: 3, timedOut: 124 } as const;
 
 type Run = Workflow.Run;
@@ -61,6 +71,7 @@ interface Target extends PullRequestRef {
   readonly seenReviews: Set<string>;
   readonly seenThreads: Set<string>;
   baseline: boolean;
+  reviewsRead: boolean;
   pending: string[];
   failures: number;
   reviews: ReviewState;
@@ -160,7 +171,8 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
     seenReviews: new Set(),
     seenThreads: new Set(),
     baseline: true,
-    pending: [],
+    reviewsRead: false,
+    pending: ["CI not checked yet"],
     failures: 0,
     reviews: { reviews: [], threads: [], botRequests: [] },
   }));
@@ -212,6 +224,14 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
     );
 
   let stopReason: PrWatchStopOn | undefined;
+  const stopped = yield* Deferred.make<void>();
+
+  const stop = (reason: PrWatchStopOn) =>
+    Effect.suspend(() => {
+      stopReason ??= reason;
+
+      return Deferred.succeed(stopped, undefined);
+    });
 
   const reportFailedJob = Effect.fn("prWatch.reportFailedJob")(function* (
     target: Target,
@@ -247,12 +267,10 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
       `\n### Failed: #${target.number} ${runLabel(run)} / ${job.name}\n\n${job.url}\n\n\`\`\`text\n${log}\n\`\`\`\n`,
     );
 
-    if (options.stopOn.includes("failure")) stopReason ??= "failure";
+    if (options.stopOn.includes("failure")) yield* stop("failure");
   });
 
-  const pollTarget = Effect.fn("prWatch.pollTarget")(function* (
-    target: Target,
-  ) {
+  const pollCi = Effect.fn("prWatch.pollCi")(function* (target: Target) {
     const pr = yield* viewPullRequest(target.number, options.repo);
 
     if (pr.headRefOid !== target.head) {
@@ -292,7 +310,10 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
 
       target.runs.set(run.databaseId, key);
 
-      if (done || run.status === "in_progress") {
+      if (
+        run.status === "in_progress" ||
+        (done && !PASSED.has(run.conclusion ?? ""))
+      ) {
         const jobs = yield* Workflow.jobs(
           { repo: target.repo, runId: run.databaseId },
           GH,
@@ -348,11 +369,21 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
           `\n### Failed check: #${target.number} ${check.name}\n\n${check.link ?? ""}\n`,
         );
 
-        if (options.stopOn.includes("failure")) stopReason ??= "failure";
+        if (options.stopOn.includes("failure")) yield* stop("failure");
       }
     }
 
+    if (alreadyDone > 0)
+      yield* say(target, `${alreadyDone} already finished without failing`);
+
+    target.pending = pending;
+  });
+
+  const pollReviews = Effect.fn("prWatch.pollReviews")(function* (
+    target: Target,
+  ) {
     target.reviews = yield* fetchReviews(target);
+    target.reviewsRead = true;
 
     for (const review of target.reviews.reviews) {
       if (review.state === "PENDING" || target.seenReviews.has(review.id))
@@ -372,8 +403,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
         `Review ${review.state.toLowerCase()} by ${author(review.author)}: ${open} open thread${open === 1 ? "" : "s"}`,
       );
 
-      if (options.stopOn.includes("review") && open > 0)
-        stopReason ??= "review";
+      if (options.stopOn.includes("review") && open > 0) yield* stop("review");
     }
 
     if (target.baseline) {
@@ -396,31 +426,51 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
       yield* say(target, `Open thread ${threadLine(thread)}`);
     }
 
-    if (alreadyDone > 0)
-      yield* say(target, `${alreadyDone} already finished without failing`);
-
-    target.baseline = false;
-    target.pending = pending;
+    // Threads that predate the watch only stop it while nobody has answered
+    // them, so a watch started after pushing fixes still follows CI.
+    if (
+      target.baseline &&
+      options.stopOn.includes("review") &&
+      target.reviews.threads.some(
+        (thread) =>
+          isOpenThread(thread) &&
+          !thread.isOutdated &&
+          thread.comments.totalCount === 1,
+      )
+    )
+      yield* stop("review");
   });
+
+  const pollTarget = (target: Target) =>
+    Effect.forEach(
+      [pollCi, pollReviews],
+      (poll) =>
+        poll(target).pipe(
+          Effect.catch((error) =>
+            say(
+              target,
+              `[WARN] Poll failed, retrying: ${ghErrorMessage(error)}`,
+            ),
+          ),
+        ),
+      { concurrency: "unbounded", discard: true },
+    ).pipe(
+      Effect.tap(() =>
+        Effect.sync(() => {
+          target.baseline = false;
+        }),
+      ),
+    );
 
   const watch = Effect.gen(function* () {
     let stablePolls = 0;
     let settledAt: number | undefined;
 
     for (;;) {
-      yield* Effect.forEach(
-        targets,
-        (target) =>
-          pollTarget(target).pipe(
-            Effect.catch((error) =>
-              say(
-                target,
-                `[WARN] Poll failed, retrying: ${ghErrorMessage(error)}`,
-              ),
-            ),
-          ),
-        { concurrency: "unbounded", discard: true },
-      );
+      yield* Effect.forEach(targets, pollTarget, {
+        concurrency: "unbounded",
+        discard: true,
+      });
 
       if (stopReason) return;
 
@@ -446,6 +496,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
   }).pipe(Effect.withSpan("prWatch.watch"));
 
   const completed = yield* watch.pipe(
+    Effect.raceFirst(Deferred.await(stopped)),
     Effect.timeoutOption(Duration.millis(options.timeout)),
   );
 
@@ -466,7 +517,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
       ...target.reviews.botRequests.map((login) => `review from ${login}`),
     ];
 
-    return `#${target.number}: ${target.failures} failed, ${openThreads} open review thread${openThreads === 1 ? "" : "s"}${waiting.length > 0 ? `, still pending: ${waiting.join(", ")}` : ""}`;
+    return `#${target.number}: ${target.failures} failed, ${target.reviewsRead ? `${openThreads} open review thread${openThreads === 1 ? "" : "s"}` : "reviews not checked yet"}${waiting.length > 0 ? `, still pending: ${waiting.join(", ")}` : ""}`;
   };
 
   const openThreads = targets.reduce(
@@ -479,7 +530,7 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
     : stopReason === "failure"
       ? "Stopped early on a failure"
       : stopReason === "review"
-        ? "Stopped early on a new review"
+        ? "Stopped early on open review threads"
         : failures > 0
           ? "Finished with failures"
           : openThreads > 0

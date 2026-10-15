@@ -2464,7 +2464,7 @@ const prWatchCommand = describe(
       stopOn: Flag.Literals("stop-on", ["failure", "review"]).pipe(
         Flag.atLeast(0),
         Flag.withDescription(
-          "Stop early on a failed job or check, or a new review with open threads; repeatable",
+          "Stop early on a failed job or check, or open review threads: a new review's, or unanswered ones already there at the start; repeatable",
         ),
       ),
       timeout: runDuration(
