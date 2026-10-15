@@ -1,4 +1,13 @@
-import { Duration, Effect, Option, Predicate, Schema, Stream } from "effect";
+import {
+  Duration,
+  Effect,
+  Option,
+  Predicate,
+  Queue,
+  Ref,
+  Schema,
+  Stream,
+} from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 /** The Plannotator Inbox could not be reached or refused a request. */
@@ -10,9 +19,8 @@ export class BriefInboxError extends Schema.TaggedError<BriefInboxError>()(
 /** Name of the Inbox thread every report joins. */
 export const BRIEF_THREAD = "Daily brief";
 
-const CALL_ID = 2;
-
-const CALL_TIMEOUT = Duration.seconds(60);
+/** Longer than a `wait_for_reply` hold, so a wait isn't cut short. */
+const CALL_TIMEOUT = Duration.seconds(90);
 
 const RpcResponse = Schema.Struct({
   id: Schema.optionalKey(Schema.Unknown),
@@ -29,6 +37,8 @@ const RpcResponse = Schema.Struct({
   ),
   error: Schema.optionalKey(Schema.Struct({ message: Schema.String })),
 });
+
+type RpcResponse = typeof RpcResponse.Type;
 
 const SentMessage = Schema.Struct({
   message_id: Schema.String,
@@ -57,6 +67,8 @@ const Message = Schema.Struct({
   body: Schema.String,
   created_at: Schema.String,
   questions: Schema.optionalKey(Schema.Array(Question)),
+  /** Questions closed unanswered by "Mark read"; the Inbox writes this message, not the person. */
+  set_aside: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
 /** Decoded Inbox message. */
@@ -90,89 +102,146 @@ interface ReadArguments {
   readonly include_resolved: boolean;
 }
 
+/** Arguments of the Inbox's `wait_for_reply` tool used by the brief. */
+interface WaitArguments {
+  readonly project_path: string;
+  readonly thread_id: string;
+  readonly cursor?: number;
+  readonly timeout_seconds: number;
+}
+
 /** One Inbox tool call. */
 type ToolCall =
   | { readonly name: "send_message"; readonly arguments: SendArguments }
-  | { readonly name: "read_thread"; readonly arguments: ReadArguments };
+  | { readonly name: "read_thread"; readonly arguments: ReadArguments }
+  | { readonly name: "wait_for_reply"; readonly arguments: WaitArguments };
+
+const WaitResult = Schema.Struct({
+  status: Schema.String,
+  cursor: Schema.optionalKey(Schema.Finite),
+});
+
+/** How long one `wait_for_reply` holds before handing back a cursor. */
+const WAIT_SECONDS = 50;
+
+/** Parameters of the MCP `initialize` request. */
+interface InitializeParams {
+  readonly protocolVersion: string;
+  readonly capabilities: Readonly<Record<string, never>>;
+  readonly clientInfo: { readonly name: string; readonly version: string };
+}
+
+type RpcParams = InitializeParams | ToolCall;
+
+/** A JSON-RPC request or notification sent to the Inbox server. */
+interface RpcMessage {
+  readonly jsonrpc: "2.0";
+  readonly id?: number;
+  readonly method: string;
+  readonly params?: RpcParams;
+}
 
 const encoder = new TextEncoder();
 
+/** An open connection to `plannotator inbox mcp`. */
+export interface InboxSession {
+  /** Call one Inbox tool and return its structured result. */
+  readonly call: (call: ToolCall) => Effect.Effect<unknown, BriefInboxError>;
+}
+
+const inboxError = (error: { readonly message: string }) =>
+  new BriefInboxError({
+    message: Predicate.isTagged(error, "BriefInboxError")
+      ? error.message
+      : `Plannotator Inbox unavailable: ${error.message}`,
+  });
+
 /**
- * Call one tool on `plannotator inbox mcp` over newline-delimited JSON-RPC.
- * Each call starts its own server: initialise, call, read the reply, close.
+ * Start `plannotator inbox mcp` for the life of the scope and initialise it.
+ * Requests go out over stdin as newline-delimited JSON-RPC, one at a time.
  */
-const callTool = Effect.fn("brief.inbox.call")(
-  function* (call: ToolCall) {
-    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+export const openInboxSession = Effect.gen(function* () {
+  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+  const requests = yield* Queue.unbounded<Uint8Array>();
+  const responses = yield* Queue.unbounded<RpcResponse, BriefInboxError>();
+  const ids = yield* Ref.make(1);
 
-    const input = [
-      {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "initialize",
-        params: {
-          protocolVersion: "2025-06-18",
-          capabilities: {},
-          clientInfo: { name: "dot-brief", version: "1.0.0" },
-        },
-      },
-      { jsonrpc: "2.0", method: "notifications/initialized" },
-      {
-        jsonrpc: "2.0",
-        id: CALL_ID,
-        method: "tools/call",
-        params: call,
-      },
-    ]
-      .map((message) => `${JSON.stringify(message)}\n`)
-      .join("");
+  const handle = yield* spawner.spawn(
+    ChildProcess.make("plannotator", ["inbox", "mcp"], {
+      stdin: { stream: Stream.fromQueue(requests) },
+      stdout: "pipe",
+      stderr: "ignore",
+    }),
+  );
 
-    const handle = yield* spawner.spawn(
-      ChildProcess.make("plannotator", ["inbox", "mcp"], {
-        // Keep stdin open until the reply arrives; closing it stops the server.
-        stdin: { stream: Stream.make(encoder.encode(input)), endOnDone: false },
-        stdout: "pipe",
-        stderr: "ignore",
-      }),
-    );
-
-    const reply = yield* handle.stdout.pipe(
-      Stream.decodeText(),
-      Stream.splitLines,
-      Stream.map((line) =>
-        Schema.decodeOption(Schema.fromJsonString(RpcResponse))(line),
+  yield* handle.stdout.pipe(
+    Stream.decodeText(),
+    Stream.splitLines,
+    Stream.map((line) =>
+      Schema.decodeOption(Schema.fromJsonString(RpcResponse))(line),
+    ),
+    Stream.filter(Option.isSome),
+    Stream.runForEach((response) => Queue.offer(responses, response.value)),
+    Effect.exit,
+    Effect.andThen(
+      Queue.fail(
+        responses,
+        new BriefInboxError({ message: "plannotator inbox mcp closed" }),
       ),
-      Stream.filter(Option.isSome),
-      Stream.map((response) => response.value),
-      Stream.filter((response) => response.id === CALL_ID),
-      Stream.runHead,
-    );
+    ),
+    Effect.forkScoped,
+  );
 
-    if (Option.isNone(reply))
-      return yield* new BriefInboxError({
-        message: `plannotator inbox mcp closed before answering ${call.name}`,
-      });
+  const send = (message: RpcMessage) =>
+    Queue.offer(requests, encoder.encode(`${JSON.stringify(message)}\n`));
 
-    const { result, error } = reply.value;
+  const request = Effect.fn("brief.inbox.request")(function* (
+    method: string,
+    params: RpcParams,
+  ) {
+    const id = yield* Ref.getAndUpdate(ids, (next) => next + 1);
 
-    if (error || !result || result.isError)
-      return yield* new BriefInboxError({
-        message: `${call.name} failed: ${error?.message ?? result?.content?.map((part) => part.text ?? "").join(" ") ?? "no result"}`,
-      });
+    yield* send({ jsonrpc: "2.0", id, method, params });
 
-    return result.structuredContent;
-  },
-  Effect.scoped,
-  Effect.timeout(CALL_TIMEOUT),
-  Effect.mapError(
-    (error) =>
-      new BriefInboxError({
-        message: Predicate.isTagged(error, "BriefInboxError")
-          ? error.message
-          : `Plannotator Inbox unavailable: ${error.message}`,
-      }),
-  ),
-);
+    for (;;) {
+      const response = yield* Queue.take(responses);
+
+      if (response.id === id) return response;
+    }
+  });
+
+  yield* request("initialize", {
+    protocolVersion: "2025-06-18",
+    capabilities: {},
+    clientInfo: { name: "dot-brief", version: "1.0.0" },
+  }).pipe(Effect.timeout(CALL_TIMEOUT));
+
+  yield* send({ jsonrpc: "2.0", method: "notifications/initialized" });
+
+  const call = Effect.fn("brief.inbox.call")(
+    function* (tool: ToolCall) {
+      const { result, error } = yield* request("tools/call", tool);
+
+      if (error || !result || result.isError)
+        return yield* new BriefInboxError({
+          message: `${tool.name} failed: ${error?.message ?? result?.content?.map((part) => part.text ?? "").join(" ") ?? "no result"}`,
+        });
+
+      return result.structuredContent;
+    },
+    Effect.timeout(CALL_TIMEOUT),
+    Effect.mapError(inboxError),
+  );
+
+  return { call } satisfies InboxSession;
+}).pipe(Effect.mapError(inboxError));
+
+/** Call one tool on a session of its own, closed straight after. */
+const callTool = (tool: ToolCall) =>
+  openInboxSession.pipe(
+    Effect.flatMap((session) => session.call(tool)),
+    Effect.scoped,
+  );
 
 /** Post a message to the brief's Inbox thread. */
 export const sendBrief = Effect.fn("brief.inbox.send")(function* (options: {
@@ -225,6 +294,39 @@ export const readBriefThread = Effect.fn("brief.inbox.read")(function* (
       (error) =>
         new BriefInboxError({
           message: `Unexpected read_thread reply: ${error.message}`,
+        }),
+    ),
+  );
+});
+
+/**
+ * Hold until the person replies in the thread, or about 50 seconds pass.
+ * `status` is `replied`, `waiting` or `resolved`; pass `cursor` to the next
+ * wait so nothing in between is missed.
+ */
+export const waitForBriefReply = Effect.fn("brief.inbox.wait")(function* (
+  session: InboxSession,
+  options: {
+    readonly projectPath: string;
+    readonly threadId: string;
+    readonly cursor: number | undefined;
+  },
+) {
+  const content = yield* session.call({
+    name: "wait_for_reply",
+    arguments: {
+      project_path: options.projectPath,
+      thread_id: options.threadId,
+      timeout_seconds: WAIT_SECONDS,
+      ...(options.cursor !== undefined && { cursor: options.cursor }),
+    },
+  });
+
+  return yield* Schema.decodeUnknownEffect(WaitResult)(content).pipe(
+    Effect.mapError(
+      (error) =>
+        new BriefInboxError({
+          message: `Unexpected wait_for_reply reply: ${error.message}`,
         }),
     ),
   );

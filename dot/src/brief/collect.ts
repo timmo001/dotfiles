@@ -46,6 +46,8 @@ export const BriefItem = Schema.Struct({
   kind: Schema.Literals(["pr", "issue", "notification", "ci"]),
   repo: Schema.String,
   title: Schema.String,
+  /** Whether it's a draft pull request. */
+  draft: Schema.optionalKey(Schema.Boolean),
   url: Schema.String,
   /** Why it involves me: `review_requested`, `ci_failed`, `author`, `assigned`, a notification reason or `involves`. */
   reason: Schema.String,
@@ -286,7 +288,8 @@ function pullRequestItem(
     id: `pr:${repo}#${node.number}`,
     kind: failing.length > 0 ? "ci" : "pr",
     repo,
-    title: `${node.isDraft ? "[draft] " : ""}${node.title}`,
+    title: node.title,
+    draft: node.isDraft,
     url: node.url,
     reason: reviewRequested
       ? "review_requested"

@@ -69,6 +69,7 @@ const modelState = (item: BriefItem) => ({
   kind: item.kind,
   repo: item.repo,
   title: item.title,
+  draft: item.draft ?? false,
   reason: item.reason,
   feedback: item.feedback,
   updated: item.updatedAt,

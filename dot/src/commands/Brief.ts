@@ -7,9 +7,13 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { collectBrief } from "../brief/collect.js";
 import { readBriefConfig } from "../brief/config.js";
-import { briefFollowUp as followUp } from "../brief/followUp.js";
+import {
+  briefFollowUp as followUp,
+  watchFollowUps,
+} from "../brief/followUp.js";
 import { readBriefThread, sendBrief } from "../brief/inbox.js";
 import { SECTIONS, scoreBrief, type ScoredItem } from "../brief/score.js";
+import { trackedCheckouts, type TrackedCheckout } from "../brief/repos.js";
 import {
   briefStateDir,
   readLastReport,
@@ -25,11 +29,11 @@ const KEPT_REPORTS = 7;
 /** Resolutions of items that dropped off are forgotten after this long. */
 const DONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
-const KIND_LABELS: Record<ScoredItem["kind"], string> = {
-  pr: "PR",
-  issue: "Issue",
-  notification: "Notification",
-  ci: "CI",
+const KIND_ICONS: Record<ScoredItem["kind"], string> = {
+  pr: "🔀",
+  issue: "⭕",
+  notification: "🔔",
+  ci: "❌",
 };
 
 const DISMISS_PROMPT =
@@ -37,39 +41,51 @@ const DISMISS_PROMPT =
 
 const words = (value: string) => value.replaceAll("_", " ");
 
-const escapeLink = (text: string) => text.replace(/([[\]\\])/g, "\\$1");
+const escapeMarkdown = (text: string) => text.replace(/([[\]\\*_`])/g, "\\$1");
 
-const issueRef = (item: ScoredItem) => {
-  const number = /#(\d+)$/.exec(item.id)?.[1];
+const icon = (item: ScoredItem) => (item.draft ? "📝" : KIND_ICONS[item.kind]);
 
-  return number ? `${item.repo}#${number}` : item.repo;
-};
+const issueNumber = (item: ScoredItem) => /#(\d+)$/.exec(item.id)?.[1];
 
-/** Dismiss option label: the item id first, so it maps back even when titles repeat. */
-const choiceLabel = (item: ScoredItem) =>
-  `${item.id} ${item.title}`
+/** Tracked names for the items' repositories, such as `[HA] Core`. */
+type RepoNames = ReadonlyMap<string, TrackedCheckout>;
+
+const repoName = (item: ScoredItem, names: RepoNames) =>
+  names.get(item.repo.toLowerCase())?.name ?? item.repo;
+
+/**
+ * Dismiss option label. It leads with the B number so it stays unique, and
+ * leaves out `owner/repo#n`, which the Inbox would turn into a reference chip.
+ */
+const choiceLabel = (number: string, item: ScoredItem, names: RepoNames) =>
+  `${number} ${icon(item)} ${repoName(item, names)}: ${item.title}`
     .replace(/\s*[—–]\s*/g, ", ")
     .replace(/\s+/g, " ")
     .slice(0, 100);
 
-function renderItem(number: string, item: ScoredItem): string[] {
+function renderItem(
+  number: string,
+  item: ScoredItem,
+  names: RepoNames,
+): string[] {
   const facts = [
-    KIND_LABELS[item.kind],
     words(item.reason),
     ...item.feedback.filter((signal) => signal !== item.reason).map(words),
     item.unread ? "unread" : "",
   ].filter(Boolean);
 
+  const ref = issueNumber(item);
+
   return [
-    `- **${number}.** [${escapeLink(`${issueRef(item)}: ${item.title}`)}](${item.url}) · ${facts.join(" · ")}`,
+    `- **${number}.** ${icon(item)} **${escapeMarkdown(repoName(item, names))}** · [${escapeMarkdown(`${ref ? `#${ref} ` : ""}${item.title}`)}](${item.url}) · ${facts.join(" · ")}`,
     ...(item.why ? [`  - ${item.why} _(${item.whyModel})_`] : []),
     ...(item.failing.length > 0
       ? [
           `  - Failing: ${item.failing
             .map((check) =>
               check.url
-                ? `[${escapeLink(check.name)}](${check.url})`
-                : check.name,
+                ? `[${escapeMarkdown(check.name)}](${check.url})`
+                : escapeMarkdown(check.name),
             )
             .join(", ")}`,
         ]
@@ -79,12 +95,16 @@ function renderItem(number: string, item: ScoredItem): string[] {
 
 function renderReport(
   items: readonly ScoredItem[],
+  names: RepoNames,
   workTime: boolean,
   model: string,
 ) {
   const numbered = items.map((item, index) => [`B${index + 1}`, item] as const);
 
   const header = `**${workTime ? "Work time" : "Outside work time"}** · ${items.length} item${items.length === 1 ? "" : "s"} · scored by ${model}${workTime ? "" : " · work items left out"}`;
+
+  const legend =
+    "🔀 PR · 📝 draft PR · ⭕ issue · ❌ failing CI · 🔔 notification";
 
   if (items.length === 0)
     return { body: `${header}\n\nNothing needs you right now.`, numbered };
@@ -96,7 +116,9 @@ function renderReport(
       ? [
           `## ${section}`,
           "",
-          ...inSection.flatMap(([number, item]) => renderItem(number, item)),
+          ...inSection.flatMap(([number, item]) =>
+            renderItem(number, item, names),
+          ),
           "",
         ]
       : [];
@@ -108,12 +130,14 @@ function renderReport(
     "",
     "Ticked items stay hidden until they change. Reply with a note naming a B number to start an agent on it.",
     "",
-    ...numbered.map(([, item]) => `- [ ] ${choiceLabel(item)}`),
+    ...numbered.map(
+      ([number, item]) => `- [ ] ${choiceLabel(number, item, names)}`,
+    ),
     ":::",
   ];
 
   return {
-    body: [header, "", ...sections, ...question].join("\n"),
+    body: [header, "", legend, "", ...sections, ...question].join("\n"),
     numbered,
   };
 }
@@ -214,8 +238,11 @@ const run = Effect.fn("brief.run")(function* (options: {
     scoreBrief(brief, visible, workTime, stateDir),
   );
 
+  const names = yield* trackedCheckouts(scored.map((item) => item.repo));
+
   const { body, numbered } = renderReport(
     scored,
+    names,
     workTime,
     brief.decisionModel,
   );
@@ -249,7 +276,10 @@ const run = Effect.fn("brief.run")(function* (options: {
     threadId: sent.thread_id,
     messageId: sent.message_id,
     choices: Object.fromEntries(
-      numbered.map(([, item]) => [choiceLabel(item), item.id]),
+      numbered.map(([number, item]) => [
+        choiceLabel(number, item, names),
+        item.id,
+      ]),
     ),
     reports,
   });
@@ -296,8 +326,13 @@ export const briefDismiss = (id: string) =>
   );
 
 /** `dot brief follow-up`: start agents for new notes on the brief. */
-export const briefFollowUp = (options: { readonly dryRun: boolean }) =>
+export const briefFollowUp = (options: {
+  readonly dryRun: boolean;
+  readonly watch: boolean;
+}) =>
   readBriefConfig().pipe(
-    Effect.flatMap((brief) => followUp(brief, options)),
+    Effect.flatMap((brief) =>
+      options.watch ? watchFollowUps(brief) : followUp(brief, options),
+    ),
     Effect.catch(reportFailure("follow-up")),
   );

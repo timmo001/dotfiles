@@ -2632,13 +2632,14 @@ Start agents for notes left on the daily brief
 dot brief follow-up [flags]
 ```
 
-Read the brief's Inbox thread for new replies with notes. Each note starts an OpenCode agent through dot herdr repo open, in the checkout of the item it names by B number, or the dotfiles checkout otherwise, with the note and the item's context as its prompt.
+Read the brief's Inbox thread for new replies with notes. Each note starts an OpenCode agent through dot herdr repo open, in the checkout of the item it names by B number, or the dotfiles checkout otherwise, with the note and the item's context as its prompt. --watch holds one Inbox connection open and waits for replies instead of checking once; the dot-brief-follow-up user service runs it.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
 | `--dry-run` | Print each prompt instead of starting agents |
+| `--watch` | Keep running and start agents as soon as a reply lands |
 | `--help` `-h` | Show help information |
 
 **Examples**
@@ -2646,6 +2647,7 @@ Read the brief's Inbox thread for new replies with notes. Each note starts an Op
 ```bash
 dot brief follow-up
 dot brief follow-up --dry-run
+dot brief follow-up --watch
 ```
 
 ## `dot launch`

@@ -1,5 +1,6 @@
 ---
-unit: dot-brief-follow-up.timer
+unit: dot-brief-follow-up.service
 label: Daily brief follow-ups
-failAfter: 3
-staleAfter: 30 minutes
+restartLimit:
+  count: 3
+  within: 1 hour

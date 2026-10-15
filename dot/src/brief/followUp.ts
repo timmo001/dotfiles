@@ -1,10 +1,16 @@
-import { Effect, FileSystem, Schema } from "effect";
+import { Effect, FileSystem, Schedule, Schema, Stream } from "effect";
 import { dirname, join } from "node:path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import type { BriefConfig } from "./config.js";
-import { readBriefThread, type InboxThread } from "./inbox.js";
+import {
+  openInboxSession,
+  readBriefThread,
+  waitForBriefReply,
+  type InboxThread,
+} from "./inbox.js";
+import { trackedCheckouts } from "./repos.js";
 import type { ScoredItem } from "./score.js";
 import {
   briefStateDir,
@@ -13,15 +19,6 @@ import {
   writeFollowUps,
   type LastReport,
 } from "./state.js";
-
-const TrackedRepo = Schema.Array(
-  Schema.Struct({
-    name: Schema.String,
-    path: Schema.String,
-    github: Schema.optionalKey(Schema.NullOr(Schema.String)),
-    exists: Schema.Boolean,
-  }),
-);
 
 const OpenResult = Schema.Struct({ promptSent: Schema.Boolean });
 
@@ -47,7 +44,7 @@ const itemSummary = (number: string, item: ScoredItem) =>
     `### ${number}: [${item.title}](${item.url})`,
     "",
     `- Repository: ${item.repo}`,
-    `- Kind: ${item.kind}, ${item.work ? "work" : "side project"}${item.crossover ? " (crossover)" : ""}`,
+    `- Kind: ${item.draft ? "draft " : ""}${item.kind}, ${item.work ? "work" : "side project"}${item.crossover ? " (crossover)" : ""}`,
     `- Why it's involved: ${item.reason.replaceAll("_", " ")}`,
     `- Feedback waiting: ${item.feedback.map((signal) => signal.replaceAll("_", " ")).join(", ") || "none"}`,
     `- Score: ${item.score.toFixed(2)}${item.why ? `; reason: ${item.why} (${item.whyModel})` : ""}`,
@@ -106,7 +103,7 @@ export const briefFollowUp = Effect.fn("brief.followUp")(function* (
       ...answerNotes(thread, message.id),
     ].filter(Boolean);
 
-    if (words.length === 0) {
+    if (words.length === 0 || (message.set_aside?.length ?? 0) > 0) {
       handled.push(message.id);
       continue;
     }
@@ -130,19 +127,7 @@ export const briefFollowUp = Effect.fn("brief.followUp")(function* (
 
     const tracked =
       repos.length === 1 && repos[0]
-        ? yield* executor.run("dot", ["repo", "list", repos[0], "--json"]).pipe(
-            Effect.flatMap(
-              Schema.decodeEffect(Schema.fromJsonString(TrackedRepo)),
-            ),
-            Effect.map((entries) =>
-              entries.find(
-                (entry) =>
-                  entry.exists &&
-                  entry.github?.toLowerCase() === repos[0]?.toLowerCase(),
-              ),
-            ),
-            Effect.orElseSucceed(() => undefined),
-          )
+        ? (yield* trackedCheckouts(repos)).get(repos[0].toLowerCase())
         : undefined;
 
     const target = tracked ?? {
@@ -233,4 +218,78 @@ export const briefFollowUp = Effect.fn("brief.followUp")(function* (
   }
 
   if (!options.dryRun) yield* writeFollowUps(handled);
+});
+
+/** Resolves when `dot brief run` saves a new report. */
+const nextReport = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const dir = yield* briefStateDir;
+
+  yield* fs.makeDirectory(dir, { recursive: true });
+
+  yield* fs.watch(dir).pipe(
+    Stream.filter((event) => event.path.endsWith("last.json")),
+    Stream.runHead,
+  );
+});
+
+/**
+ * Wait for replies on the brief and start agents as soon as one lands. Holds
+ * one Inbox connection open with `wait_for_reply`, moves to a new thread when
+ * a brief starts one, and sleeps on the state directory while there's no open
+ * thread. The connection is reopened after a failure.
+ */
+export const watchFollowUps = Effect.fn("brief.followUp.watch")(function* (
+  brief: BriefConfig,
+) {
+  const config = yield* Config;
+  const output = yield* OutputLog;
+
+  const handleNotes = briefFollowUp(brief, { dryRun: false }).pipe(
+    Effect.catch((error) =>
+      output.warn(`Could not follow up the brief: ${error.message}`),
+    ),
+  );
+
+  const watch = Effect.gen(function* () {
+    const session = yield* openInboxSession;
+    let threadId: string | undefined;
+    let cursor: number | undefined;
+
+    yield* output.info("Waiting for replies on the daily brief");
+
+    for (;;) {
+      const last = yield* readLastReport;
+
+      if (!last) {
+        yield* nextReport;
+        continue;
+      }
+
+      if (last.threadId !== threadId) {
+        threadId = last.threadId;
+        cursor = undefined;
+        // Catch up on anything sent while nothing was waiting.
+        yield* handleNotes;
+      }
+
+      const result = yield* waitForBriefReply(session, {
+        projectPath: config.publicDotfiles,
+        threadId,
+        cursor,
+      });
+
+      cursor = result.cursor ?? cursor;
+
+      if (result.status === "replied") yield* handleNotes;
+      else if (result.status === "resolved") yield* nextReport;
+    }
+  }).pipe(Effect.scoped);
+
+  return yield* watch.pipe(
+    Effect.tapError((error) =>
+      output.warn(`Brief follow-up watch stopped: ${error.message}; retrying`),
+    ),
+    Effect.retry(Schedule.spaced("30 seconds")),
+  );
 });
