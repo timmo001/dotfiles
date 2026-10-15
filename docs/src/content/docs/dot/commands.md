@@ -1733,7 +1733,7 @@ dot git notifications dismiss remaining
 
 #### `dot git notifications dismiss dependencies`
 
-Review unread merged Renovate/Dependabot updates regardless of CI results. All-mode excludes unverifiable CI. Opening GitHub returns to the review without dismissing anything.
+Review unread merged Renovate/Dependabot updates regardless of CI results. All-mode excludes unverifiable CI and exits 2 when some notifications could not be inspected but nothing failed. Opening GitHub returns to the review without dismissing anything. The dot-notifications-dismiss.timer user timer runs all-mode hourly; dot services start dot-notifications-dismiss.timer runs it now.
 
 ```text
 dot git notifications dismiss dependencies [flags]

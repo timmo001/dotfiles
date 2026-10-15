@@ -456,6 +456,28 @@ export const notificationsDismiss = Effect.fn("notifications.dismiss")(
       (outcome) => outcome.status === "failed",
     ).length;
 
+    if (options.mode === "all") {
+      const done = progress.outcomes.filter(
+        (outcome) => outcome.status === "done",
+      ).length;
+
+      yield* writeText(
+        `[RESULT] ${[
+          `${done} marked done`,
+          failed && `${failed} failed`,
+          unavailable && `${unavailable} not inspected`,
+        ]
+          .filter(Boolean)
+          .join(" · ")}\n`,
+      );
+
+      // Unattended runs treat notifications that could not be inspected as a warning.
+      if (failed) process.exitCode = 1;
+      else if (unavailable) process.exitCode = 2;
+
+      return;
+    }
+
     if (failed || unavailable || opened.some((link) => link.error))
       process.exitCode = 1;
   },
