@@ -1,8 +1,10 @@
 // The Plannotator Inbox in its own Qt WebEngine window, run by
 // `dot plannotator inbox` through the qml runtime. Arguments after `--` are
-// the Inbox base URL and a command file. dot writes {"thread", "at"} to that
-// file to open a thread in this window, since nothing outside a browser can
-// navigate one of its windows.
+// the Inbox base URL, a command file and a notification file. dot writes
+// {"thread", "at"} to the command file to open a thread in this window, since
+// nothing outside a browser can navigate one of its windows. The window writes
+// the Inbox's notifications to the notification file, since the qml runtime
+// can't show them, and the timmo.plannotator-inbox bar service shows them.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -13,8 +15,9 @@ Window {
   id: root
 
   readonly property var args: Qt.application.arguments
-  readonly property string baseUrl: args[args.length - 2]
-  readonly property string commandFile: args[args.length - 1]
+  readonly property string baseUrl: args[args.length - 3]
+  readonly property string commandFile: args[args.length - 2]
+  readonly property string notificationFile: args[args.length - 1]
   property string lastCommand: ""
 
   width: 1100
@@ -40,6 +43,26 @@ Window {
     }
   }
 
+  // Origins compared without a trailing slash, which a URL's origin lacks.
+  function sameOrigin(url) {
+    return String(url).replace(/\/+$/, "") === root.baseUrl.replace(/\/+$/, "")
+  }
+
+  // Hands one of the Inbox's notifications to the bar service through the
+  // notification file. Plannotator decides what notifies and when.
+  function forwardNotification(notification) {
+    if (!sameOrigin(notification.origin)) return
+    notification.show()
+
+    var request = new XMLHttpRequest()
+    request.open("PUT", "file://" + root.notificationFile)
+    request.send(JSON.stringify({
+      title: String(notification.title),
+      message: String(notification.message),
+      at: Date.now()
+    }))
+  }
+
   // A prototype, because a profile only keeps cookies and local storage (the
   // Inbox's settings and layout) on disk when its storage is set before it is
   // created.
@@ -54,7 +77,9 @@ Window {
   // read before the prototype is ready, which leaves the view on the default
   // off-the-record profile. The URL and the command poll wait for the profile.
   Component.onCompleted: {
-    view.profile = inboxProfile.instance()
+    var profile = inboxProfile.instance()
+    profile.presentNotification.connect(root.forwardNotification)
+    view.profile = profile
     view.url = root.baseUrl
     commandPoll.start()
   }
@@ -63,6 +88,14 @@ Window {
     id: view
 
     anchors.fill: parent
+
+    // The Inbox's "Turn on" for desktop notices, granted only to its own
+    // origin. Other requests are left unanswered, as before.
+    onPermissionRequested: (permission) => {
+      if (permission.permissionType === WebEnginePermission.PermissionType.Notifications
+          && root.sameOrigin(permission.origin))
+        permission.grant()
+    }
 
     // Links that want a new window, such as review pages, open in the browser.
     // Only web links: agents write the messages, and xdg-open would run any

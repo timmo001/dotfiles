@@ -14,6 +14,13 @@ const WINDOW_QML = join(DATA_DIR, "plannotator-inbox", "Inbox.qml");
 /** File the window polls for the thread to show. */
 const COMMAND_FILE = join(CACHE_DIR, "dot", "plannotator-inbox.json");
 
+/** File the window writes the Inbox's notifications to, for the bar to show. */
+const NOTIFICATION_FILE = join(
+  CACHE_DIR,
+  "dot",
+  "plannotator-inbox-notification.json",
+);
+
 /** Wayland app id the Qt 6 qml runtime gives its windows. */
 const WINDOW_CLASS = "org.qt-project.qml";
 
@@ -163,10 +170,19 @@ export const plannotatorInbox = Effect.fn("plannotatorInbox")(
       .spawn(
         ChildProcess.make(
           "uwsm-app",
-          ["--", "qml6", WINDOW_QML, "--", base.href, COMMAND_FILE],
+          [
+            "--",
+            "qml6",
+            WINDOW_QML,
+            "--",
+            base.href,
+            COMMAND_FILE,
+            NOTIFICATION_FILE,
+          ],
           {
             env: {
               QML_XHR_ALLOW_FILE_READ: "1",
+              QML_XHR_ALLOW_FILE_WRITE: "1",
               // Hyprland already scales the window, so a session-wide Qt
               // factor would double it; match Chromium's own scale instead.
               // TODO: make the scale a setting of its own.
