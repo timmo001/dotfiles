@@ -31,16 +31,17 @@ Panel {
   function buildPanelRows() {
     if (!service) return []
     var rows = []
+    for (var i = 0; i < sectionOrder.length; i++) {
+      var threads = service.sectionThreads(sectionOrder[i])
+      for (var j = 0; j < threads.length; j++) rows.push(threadRow(threads[j], sectionOrder[i]))
+    }
+    // Last, so the cursor starts on the first thread when there is one.
     if (!service.installed)
       rows.push(actionRow("open", "Set up the Inbox", "󰐊", "Starts it and opens it in its own window"))
     else if (!service.running)
       rows.push(actionRow("open", "Start the Inbox", "󰐊", "Starts it and opens it in its own window"))
     else
       rows.push(actionRow("open", "Open the Inbox", "󰖟", ""))
-    for (var i = 0; i < sectionOrder.length; i++) {
-      var threads = service.sectionThreads(sectionOrder[i])
-      for (var j = 0; j < threads.length; j++) rows.push(threadRow(threads[j], sectionOrder[i]))
-    }
     return rows
   }
 
@@ -248,97 +249,6 @@ Panel {
             }
           }
 
-          Column {
-            width: parent.width
-            spacing: Style.space(2)
-
-            Repeater {
-              id: actionRepeater
-              model: root.actionRows
-
-              CursorSurface {
-                required property var modelData
-                x: Style.space(8)
-                width: Math.max(0, contentColumn.width - Style.space(16))
-                // At least two lines tall, so a row without a description
-                // matches the rest.
-                implicitHeight: Math.max(actionColumn.implicitHeight,
-                  bodyMetrics.height + captionMetrics.height + actionColumn.spacing) + Style.space(12)
-                hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
-                foreground: root.contentForeground
-                accent: root.contentForeground
-
-                FontMetrics {
-                  id: bodyMetrics
-                  font.family: root.contentFontFamily
-                  font.pixelSize: Style.font.body
-                }
-
-                FontMetrics {
-                  id: captionMetrics
-                  font.family: root.contentFontFamily
-                  font.pixelSize: Style.font.caption
-                }
-
-                Row {
-                  id: actionRow
-                  anchors.left: parent.left
-                  anchors.right: parent.right
-                  anchors.verticalCenter: parent.verticalCenter
-                  anchors.leftMargin: Style.space(8)
-                  anchors.rightMargin: Style.space(8)
-                  spacing: Style.space(10)
-
-                  Text {
-                    width: Style.space(22)
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: modelData.icon
-                    color: root.contentForeground
-                    font.family: root.contentFontFamily
-                    font.pixelSize: Style.font.icon
-                    horizontalAlignment: Text.AlignHCenter
-                  }
-
-                  Column {
-                    id: actionColumn
-                    width: Math.max(0, actionRow.width - Style.space(32))
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: Style.space(2)
-
-                    Text {
-                      width: parent.width
-                      text: modelData.primaryText
-                      textFormat: Text.PlainText
-                      color: root.contentForeground
-                      font.family: root.contentFontFamily
-                      font.pixelSize: Style.font.body
-                      elide: Text.ElideRight
-                    }
-
-                    Text {
-                      width: parent.width
-                      visible: text !== ""
-                      text: modelData.secondaryText
-                      textFormat: Text.PlainText
-                      color: root.mutedColor
-                      font.family: root.contentFontFamily
-                      font.pixelSize: Style.font.caption
-                      elide: Text.ElideRight
-                    }
-                  }
-                }
-
-                MouseArea {
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key)
-                  onClicked: root.activateEntry(modelData)
-                }
-              }
-            }
-          }
-
           Repeater {
             id: sectionRepeater
             model: root.threadSections
@@ -477,6 +387,114 @@ Panel {
             color: root.mutedColor
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.caption
+          }
+
+          Column {
+            visible: root.actionRows.length > 0
+            width: parent.width
+            spacing: Style.space(12)
+
+            // Refresh moves here when no thread section is shown.
+            PanelComponents.SectionHeading {
+              title: "Other actions"
+              icon: ""
+              foreground: root.contentForeground
+              fontFamily: root.contentFontFamily
+              refreshable: root.threadSections.length === 0
+              refreshing: root.service ? root.service.refreshing : false
+              onRefreshRequested: if (root.service) root.service.refresh()
+            }
+
+            Column {
+              width: parent.width
+              spacing: Style.space(2)
+
+              Repeater {
+                id: actionRepeater
+                model: root.actionRows
+
+                CursorSurface {
+                  required property var modelData
+                  x: Style.space(8)
+                  width: Math.max(0, contentColumn.width - Style.space(16))
+                  // At least two lines tall, so a row without a description
+                  // matches the rest.
+                  implicitHeight: Math.max(actionColumn.implicitHeight,
+                    bodyMetrics.height + captionMetrics.height + actionColumn.spacing) + Style.space(12)
+                  hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
+                  foreground: root.contentForeground
+                  accent: root.contentForeground
+
+                  FontMetrics {
+                    id: bodyMetrics
+                    font.family: root.contentFontFamily
+                    font.pixelSize: Style.font.body
+                  }
+
+                  FontMetrics {
+                    id: captionMetrics
+                    font.family: root.contentFontFamily
+                    font.pixelSize: Style.font.caption
+                  }
+
+                  Row {
+                    id: actionRow
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: Style.space(8)
+                    anchors.rightMargin: Style.space(8)
+                    spacing: Style.space(10)
+
+                    Text {
+                      width: Style.space(22)
+                      anchors.verticalCenter: parent.verticalCenter
+                      text: modelData.icon
+                      color: root.contentForeground
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.icon
+                      horizontalAlignment: Text.AlignHCenter
+                    }
+
+                    Column {
+                      id: actionColumn
+                      width: Math.max(0, actionRow.width - Style.space(32))
+                      anchors.verticalCenter: parent.verticalCenter
+                      spacing: Style.space(2)
+
+                      Text {
+                        width: parent.width
+                        text: modelData.primaryText
+                        textFormat: Text.PlainText
+                        color: root.contentForeground
+                        font.family: root.contentFontFamily
+                        font.pixelSize: Style.font.body
+                        elide: Text.ElideRight
+                      }
+
+                      Text {
+                        width: parent.width
+                        visible: text !== ""
+                        text: modelData.secondaryText
+                        textFormat: Text.PlainText
+                        color: root.mutedColor
+                        font.family: root.contentFontFamily
+                        font.pixelSize: Style.font.caption
+                        elide: Text.ElideRight
+                      }
+                    }
+                  }
+
+                  MouseArea {
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key)
+                    onClicked: root.activateEntry(modelData)
+                  }
+                }
+              }
+            }
           }
 
           Text {
