@@ -1,0 +1,10 @@
+[Unit]
+Description=Mark merged dependency notifications done hourly
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=2min
+Unit=dot-notifications-dismiss.service
+
+[Install]
+WantedBy=timers.target

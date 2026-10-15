@@ -1,0 +1,7 @@
+---
+unit: dot-notifications-dismiss.timer
+label: Dependency notifications cleanup
+failAfter: 2
+exitStatuses:
+  "2": warning
+staleAfter: 2 hours
