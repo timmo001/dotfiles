@@ -1,6 +1,7 @@
 import { Duration, Effect, FileSystem, Schema } from "effect";
 import { join } from "node:path";
 import { pathExists } from "../lib/fsProbe.js";
+import { currentOmarchyHost } from "../lib/omarchyHost.js";
 import { CONFIG_DIR } from "../lib/paths.js";
 
 /** Failure to read or decode `brief.yml`. */
@@ -57,11 +58,19 @@ const BriefConfigSchema = Schema.Struct({
   follow_up: Schema.optionalKey(
     Schema.Struct({ model: Schema.optionalKey(Schema.NonEmptyString) }),
   ),
+  hosts: Schema.optionalKey(
+    Schema.Record(
+      Schema.String,
+      Schema.Struct({
+        decision_model: Schema.optionalKey(Schema.NonEmptyString),
+      }),
+    ),
+  ),
 });
 
 /** Settings for `dot brief`, with defaults filled in. */
 export interface BriefConfig {
-  /** Ollaya model that scores each item. */
+  /** Model that scores each item: Ollaya, or Workers AI for `@cf/` models. */
   readonly decisionModel: string;
   /** Plain-language priorities given to the decision and reason models. */
   readonly priorities: string;
@@ -81,6 +90,14 @@ export interface BriefConfig {
 
 /** Path of the private brief settings, stowed from the private overlay. */
 export const BRIEF_CONFIG_PATH = join(CONFIG_DIR, "dot", "brief.yml");
+
+/** Workers AI account and token for `@cf/` decision models, written by a secret file. */
+export const WORKERS_AI_PATH = join(
+  CONFIG_DIR,
+  "dot",
+  "brief",
+  "workers-ai.yml",
+);
 
 /** Read `brief.yml`, falling back to defaults when it is missing. */
 export const readBriefConfig = Effect.fn("brief.readConfig")(function* () {
@@ -103,8 +120,13 @@ export const readBriefConfig = Effect.fn("brief.readConfig")(function* () {
       )
     : {};
 
+  const host = currentOmarchyHost();
+
   return {
-    decisionModel: raw.decision_model ?? "winnow:e4b",
+    decisionModel:
+      (host ? raw.hosts?.[host]?.decision_model : undefined) ??
+      raw.decision_model ??
+      "winnow:e4b",
     priorities: raw.priorities?.trim() ?? "",
     rules: raw.rules ?? [],
     explainTop: raw.explain?.top ?? 5,

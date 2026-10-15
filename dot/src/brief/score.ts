@@ -1,9 +1,14 @@
-import { Duration, Effect, Option, Schema } from "effect";
+import { Duration, Effect, FileSystem, Option, Schema } from "effect";
+import { FetchHttpClient, HttpBody, HttpClient } from "effect/http";
 import { join } from "node:path";
 import { HOME_DIR } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { BriefItem, ruleMatches } from "./collect.js";
-import type { BriefConfig } from "./config.js";
+import {
+  BriefConfigError,
+  WORKERS_AI_PATH,
+  type BriefConfig,
+} from "./config.js";
 
 const OPENCODE = join(HOME_DIR, ".local", "bin", "opencode2");
 
@@ -29,7 +34,7 @@ export const ScoredItem = Schema.Struct({
 /** Decoded {@link ScoredItem}. */
 export type ScoredItem = typeof ScoredItem.Type;
 
-const QUESTIONS = JSON.stringify({
+const QUESTIONS = {
   urgency: {
     type: "score",
     instructions: "How urgent is `item` for me, given `priorities`?",
@@ -39,7 +44,7 @@ const QUESTIONS = JSON.stringify({
     type: "noul",
     instructions: "Is `item` waiting on me to act?",
   },
-});
+};
 
 const Decision = Schema.Struct({
   answers: Schema.Struct({
@@ -47,6 +52,17 @@ const Decision = Schema.Struct({
     needs_me: Schema.Struct({ noul: Schema.Finite }),
   }),
 });
+
+const WorkersAiDecision = Schema.Struct({ result: Decision });
+
+/** Credentials for decision models hosted on Workers AI. */
+const WorkersAi = Schema.Struct({
+  account_id: Schema.NonEmptyString,
+  token: Schema.NonEmptyString,
+});
+
+/** Decoded {@link WorkersAi}. */
+interface WorkersAi extends Schema.Schema.Type<typeof WorkersAi> {}
 
 const Event = Schema.Struct({
   type: Schema.String,
@@ -80,30 +96,70 @@ const modelState = (item: BriefItem) => ({
 const decide = Effect.fn("brief.decide")(function* (
   config: BriefConfig,
   item: BriefItem,
+  workersAi: WorkersAi | undefined,
 ) {
-  const executor = yield* CommandExecutor;
+  const state = { priorities: config.priorities, item: modelState(item) };
 
-  const output = yield* executor
-    .run("ollaya", [
-      "run",
-      config.decisionModel,
-      "--format",
-      "json",
-      "--questions",
-      QUESTIONS,
-      "--state-json",
-      JSON.stringify({ priorities: config.priorities, item: modelState(item) }),
-    ])
-    .pipe(Effect.timeout(DECISION_TIMEOUT));
-
-  const decision = yield* Schema.decodeEffect(Schema.fromJsonString(Decision))(
-    output,
-  );
+  const decision = workersAi
+    ? yield* HttpClient.HttpClient.pipe(
+        Effect.flatMap((http) =>
+          http.post(
+            `https://api.cloudflare.com/client/v4/accounts/${workersAi.account_id}/ai/run`,
+            {
+              headers: { authorization: `Bearer ${workersAi.token}` },
+              body: HttpBody.jsonUnsafe({
+                model: config.decisionModel,
+                input: { state, questions: QUESTIONS },
+              }),
+            },
+          ),
+        ),
+        Effect.flatMap((response) => response.json),
+        Effect.timeout(DECISION_TIMEOUT),
+        Effect.flatMap(Schema.decodeUnknownEffect(WorkersAiDecision)),
+        Effect.map((body) => body.result),
+      )
+    : yield* CommandExecutor.pipe(
+        Effect.flatMap((executor) =>
+          executor.run("ollaya", [
+            "run",
+            config.decisionModel,
+            "--format",
+            "json",
+            "--questions",
+            JSON.stringify(QUESTIONS),
+            "--state-json",
+            JSON.stringify(state),
+          ]),
+        ),
+        Effect.timeout(DECISION_TIMEOUT),
+        Effect.flatMap(Schema.decodeEffect(Schema.fromJsonString(Decision))),
+      );
 
   return {
     urgency: decision.answers.urgency.score,
     needsMe: decision.answers.needs_me.noul,
   };
+});
+
+/** Read the Workers AI account and token when the decision model is hosted there. */
+const workersAiFor = Effect.fn("brief.workersAi")(function* (
+  config: BriefConfig,
+) {
+  if (!config.decisionModel.startsWith("@cf/")) return undefined;
+
+  const fs = yield* FileSystem.FileSystem;
+
+  return yield* fs.readFileString(WORKERS_AI_PATH).pipe(
+    Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
+    Effect.flatMap(Schema.decodeUnknownEffect(WorkersAi)),
+    Effect.mapError(
+      () =>
+        new BriefConfigError({
+          message: `${config.decisionModel} needs a Workers AI account_id and token in ${WORKERS_AI_PATH}`,
+        }),
+    ),
+  );
 });
 
 /** Ask each configured model in turn for a one-sentence reason. */
@@ -179,10 +235,12 @@ export const scoreBrief = Effect.fn("brief.score")(function* (
     (item) => workTime || !item.work || item.crossover,
   );
 
+  const workersAi = yield* workersAiFor(config);
+
   const scored = yield* Effect.forEach(
     included,
     (item) =>
-      decide(config, item).pipe(
+      decide(config, item, workersAi).pipe(
         Effect.orElseSucceed(() => ({ urgency: null, needsMe: null })),
         Effect.map(({ urgency, needsMe }): ScoredItem => {
           const needs = Math.max(
@@ -239,4 +297,4 @@ export const scoreBrief = Effect.fn("brief.score")(function* (
   const byId = new Map(top.map((item, index) => [item.id, reasons[index]]));
 
   return ordered.map((item) => ({ ...item, ...byId.get(item.id) }));
-});
+}, Effect.provide(FetchHttpClient.layer));
