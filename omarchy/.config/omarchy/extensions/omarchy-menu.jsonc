@@ -9,6 +9,40 @@
     "label": "Topgrade",
     "action": "omarchy-launch-floating-terminal-with-presentation topgrade"
   },
+  // reboot-to sets the next boot with sudo, so it runs in a terminal for the
+  // password. Each entry only shows on machines with that boot entry.
+  "system.reboot-to": {
+    "icon": "󰜉",
+    "label": "Reboot To"
+  },
+  "system.reboot-to.windows": {
+    "icon": "󰖳",
+    "label": "Windows",
+    "when": "efibootmgr | grep -qi 'Windows Boot Manager'",
+    "action": "omarchy-launch-floating-terminal-with-presentation 'reboot-to windows'"
+  },
+  "system.reboot-to.bazzite": {
+    "icon": "󰊴",
+    "label": "Bazzite",
+    "when": "efibootmgr | grep -qi 'Bazzite'",
+    "action": "omarchy-launch-floating-terminal-with-presentation 'reboot-to bazzite'"
+  },
+  "system.reboot-to.uefi": {
+    "icon": "󰘚",
+    "label": "UEFI Firmware",
+    "when": "[[ -d /sys/firmware/efi ]]",
+    "action": "omarchy-launch-floating-terminal-with-presentation 'reboot-to uefi'"
+  },
+  // The menu adds new entries after Omarchy's own, so Shutdown is hidden and
+  // re-added here to keep Reboot To next to Reboot.
+  "system.shutdown": {
+    "when": "false"
+  },
+  "system.shutdown-last": {
+    "icon": "󰐥",
+    "label": "Shutdown",
+    "action": "omarchy-system-shutdown"
+  },
   // Delayed so releasing the key that picked it doesn't wake the screen.
   "system.screen-off": {
     "icon": "󰶐",
