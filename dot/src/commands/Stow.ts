@@ -16,6 +16,7 @@ import { installOpencodePluginDependencies } from "../lib/opencodePlugins.js";
 import { syncSkills } from "../lib/externalSkills.js";
 import { applySyncthingConfig } from "../lib/syncthing.js";
 import { applySecretFiles } from "../lib/secretFiles.js";
+import { enableDefaultTimers } from "../lib/userTimers.js";
 import {
   backupUnmanagedTargets,
   emptyStowCounts,
@@ -139,6 +140,8 @@ export const stow = (opts?: {
           ? notable("Regenerated Omarchy shell config")
           : skip("Omarchy shell config unchanged"),
       );
+
+      actions.push(...(yield* enableDefaultTimers));
     }
 
     if (runPrivate) {
