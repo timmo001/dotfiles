@@ -104,7 +104,7 @@ dot git commit -m "<subject>" --dry-run       # preview, change nothing
   make the changeset differ from what the user reviewed, so do not fix them
   silently or retry with `--skip-agent-oxlint` on your own. Stop, explain each
   error in chat (file and line, what the rule objects to, the likely fix, and
-  your recommendation), then use the question tool to ask whether to fix them
+  your recommendation), then ask (see `asking-questions`) whether to fix them
   first, commit anyway with `--skip-agent-oxlint`, or stop. If they choose a
   fix, show it and retry the commit only once they confirm it.
 - The gateway refuses to commit to the base branch of a repo you do not own

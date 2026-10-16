@@ -36,7 +36,7 @@ that needs system integration.
    - `dot init` installs the stowed mise tools, then the public and available
      private package lists. Prefer this managed flow over a one-off package
      command when the tool should remain managed.
-5. When multiple viable sources exist, use the question tool to show the
+5. When multiple viable sources exist, ask (see `asking-questions`) with the
    concrete choices and recommend one. Recommend mise by default. Recommend an
    Arch package for desktop applications, system services, drivers, and tools
    that genuinely need system integration.

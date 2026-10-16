@@ -56,7 +56,7 @@ Managed plugins are submodules listed in `.gitmodules` under `omarchy/.config/om
 Whenever an authorised push lands a change to a managed plugin, follow through to dotfiles. This usually starts from the plugin's source repository, so check before pushing there:
 
 1. Map the pushed repo to its plugin ID by matching the publish target (or the repo itself) against the submodule URLs in dotfiles' `.gitmodules`. Stop if it is not a managed plugin.
-2. Settle permission for the dotfiles bump in the same turn as the source push, before waiting. It is granted when the user's request already covers it (for example "push and bump dotfiles" or "ship it to the bar"). Otherwise ask once with the question tool: commit, commit and push, or leave the bump unstaged. A push to the source repo alone does not authorise a dotfiles commit.
+2. Settle permission for the dotfiles bump in the same turn as the source push, before waiting. It is granted when the user's request already covers it (for example "push and bump dotfiles" or "ship it to the bar"). Otherwise ask once (see `asking-questions`): commit, commit and push, or leave the bump unstaged. A push to the source repo alone does not authorise a dotfiles commit.
 3. For published plugins, check the pushed commits touched the workflow's `paths` on its publish branch; if not, nothing is published, so stop. Otherwise wait for the run in a background shell and carry on with other work:
 
    ```bash

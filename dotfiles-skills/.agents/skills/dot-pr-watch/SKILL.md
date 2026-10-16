@@ -55,4 +55,4 @@ Account for every open thread with a link or thread ID, a short description, and
 
 For a valid concern, describe the remaining fix and apply it only if the user asked for fixes. Where a reply is still needed, draft it in the user's voice (apply `writing-style`), including explanations of completed fixes or invalid/won't-fix feedback. Do not repeat an existing answer unless new information needs a response. Keep pending CI separate from thread follow-up, so passing checks do not imply the discussion is finished.
 
-Never post comments, replies or reviews, and never resolve, minimize or react to threads or re-request reviews. When fixes are in place, use the question tool to ask whether any threads should be resolved, and act only on an explicit yes for those specific threads.
+Never post comments, replies or reviews, and never resolve, minimize or react to threads or re-request reviews. When fixes are in place, ask (see `asking-questions`) whether any threads should be resolved, and act only on an explicit yes for those specific threads.

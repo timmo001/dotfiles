@@ -18,7 +18,7 @@ metadata:
 
 ## Ask how to present it
 
-Unless the request already makes it clear, use the question tool once before presenting. Offer:
+Unless the request already makes it clear, ask once before presenting (see `asking-questions`). Offer:
 
 - **Ranked for review (recommended when the user wants to review):** small, medium, large and not ready, with a short note per pull request and quick wins called out.
 - **What happened:** merged, closed and opened in the window, grouped by theme or area, for catch-up questions.
