@@ -1,0 +1,4 @@
+#!/bin/bash
+# Open links that tools open by themselves without taking focus. Set as
+# PLANNOTATOR_BROWSER, which runs one executable with the URL.
+exec dot link open --background "$@"

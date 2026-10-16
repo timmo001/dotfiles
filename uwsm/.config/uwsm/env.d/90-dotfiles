@@ -6,3 +6,6 @@ export PATH="$HOME/.config/hypr/bin:$PATH"
 # Enable OpenCode's LSP tool and long-running background subtasks.
 export OPENCODE_EXPERIMENTAL_LSP_TOOL=true
 export OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true
+
+# Reviews Plannotator opens by itself shouldn't take focus.
+export PLANNOTATOR_BROWSER="$HOME/.local/bin/link-open-background"

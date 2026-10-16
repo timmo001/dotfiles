@@ -234,6 +234,12 @@ export VISUAL=cursor
 export REACT_EDITOR=cursor
 
 # ------------------------------
+# Plannotator
+# ------------------------------
+# Reviews Plannotator opens by itself shouldn't take focus.
+export PLANNOTATOR_BROWSER="$HOME/.local/bin/link-open-background"
+
+# ------------------------------
 # GPG
 # ------------------------------
 export GPG_TTY="$(tty)"

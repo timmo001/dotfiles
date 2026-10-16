@@ -25,7 +25,7 @@ import { Config } from "../services/Config.js";
  * the panel lists it, and its GitHub page otherwise.
  */
 export const linkOpen = Effect.fn("linkOpen")(
-  function* (args: readonly string[]) {
+  function* (args: readonly string[], background = false) {
     const [link] = args;
 
     const deepLink = args.length === 1 && link && /^dot:/i.test(link);
@@ -61,12 +61,10 @@ export const linkOpen = Effect.fn("linkOpen")(
       (url && (yield* resolveLinkBrowser(gitConfig, url))) ??
       gitConfig.links.personal;
 
-    yield* launchBrowser(
-      gitConfig,
-      browser,
-      target,
-      url ? linkSiteRule(gitConfig, url)?.workspace : undefined,
-    );
+    yield* launchBrowser(gitConfig, browser, target, {
+      workspace: url ? linkSiteRule(gitConfig, url)?.workspace : undefined,
+      background,
+    });
   },
   // Links usually open from other apps, where nobody sees stderr.
   Effect.tapError((error) =>

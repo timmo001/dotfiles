@@ -1909,12 +1909,13 @@ Open a link in the work or personal browser, or a dot:// link in the Git panel
 dot link open [flags] [<args...>]
 ```
 
-Routes a single HTTP or HTTPS link using links in dot-git.yml: the first matching links.sites rule, then the browser of the tracked repository a GitHub link belongs to, otherwise links.personal. A site rule or repository can select work-time, which opens links.work during work time outside calendar leave and links.personal otherwise. A site rule can be limited to some OMARCHY_HOST values with hosts, and can set a Hyprland workspace: the link opens in the browser's window there that was focused last, found by its links.window_classes pattern, or in a new window moved there. Anything else, including no arguments, goes to links.personal unchanged. The link-browser desktop entry runs this as the default web browser, so xdg-open and Omarchy's browser launcher use it. A dot://git/issue/<owner>/<repo>/<number> or dot://git/pull/... link opens that item in the Git panel when the panel lists it, and its GitHub page through the same routing otherwise; the dot-link desktop entry handles the dot:// scheme. Failures are also sent as a desktop notification.
+Routes a single HTTP or HTTPS link using links in dot-git.yml: the first matching links.sites rule, then the browser of the tracked repository a GitHub link belongs to, otherwise links.personal. A site rule or repository can select work-time, which opens links.work during work time outside calendar leave and links.personal otherwise. A site rule can be limited to some OMARCHY_HOST values with hosts, and can set a Hyprland workspace: the link opens in the browser's window there that was focused last, found by its links.window_classes pattern, or in a new window moved there. With --background, a link placed on a workspace leaves focus and the cursor where they were; link-open-background runs this for PLANNOTATOR_BROWSER, so reviews Plannotator opens by itself don't pull focus. Anything else, including no arguments, goes to links.personal unchanged. The link-browser desktop entry runs this as the default web browser, so xdg-open and Omarchy's browser launcher use it. A dot://git/issue/<owner>/<repo>/<number> or dot://git/pull/... link opens that item in the Git panel when the panel lists it, and its GitHub page through the same routing otherwise; the dot-link desktop entry handles the dot:// scheme. Failures are also sent as a desktop notification.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
+| `--background` | Leave focus and the cursor where they are, for links opened by tools rather than by you |
 | `--help` `-h` | Show help information |
 
 **Arguments**
@@ -1927,6 +1928,7 @@ Routes a single HTTP or HTTPS link using links in dot-git.yml: the first matchin
 
 ```bash
 dot link open https://github.com/home-assistant/frontend
+dot link open --background http://localhost:38080/
 dot link open dot://git/issue/timmo001/dotfiles/1076
 dot link open -- --incognito
 ```

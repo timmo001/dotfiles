@@ -108,18 +108,40 @@ const HyprlandClients = Schema.fromJsonString(
   ),
 );
 
+/** The focused Hyprland window, as `hyprctl activewindow -j` reports it. */
+const HyprlandActiveWindow = Schema.fromJsonString(
+  Schema.Struct({
+    address: Schema.optional(Schema.String),
+    class: Schema.optional(Schema.String),
+  }),
+);
+
+/** The cursor position, as `hyprctl cursorpos -j` reports it. */
+const HyprlandCursor = Schema.fromJsonString(
+  Schema.Struct({ x: Schema.Finite, y: Schema.Finite }),
+);
+
+/** Where and how {@link launchBrowser} opens a link. */
+export interface LaunchBrowserOptions {
+  /** Hyprland workspace to open the link on. */
+  readonly workspace?: number;
+  /** Hand focus and the cursor back once the link has opened on the workspace. */
+  readonly background?: boolean;
+}
+
 /**
  * Start a named browser with extra arguments, detached so the caller returns
  * straight away. With a workspace, the link opens there: in the browser's
  * window on it that was focused last, or else in a new window moved to it.
  * Placement needs the browser's `links.window_classes` pattern and Hyprland;
- * without either, the browser opens the link wherever it would anyway.
+ * without either, the browser opens the link wherever it would anyway. In the
+ * background, a placed link leaves focus and the cursor where they were.
  */
 export const launchBrowser = Effect.fn("launchBrowser")(function* (
   gitConfig: DotGitConfig,
   browser: string,
   args: readonly string[],
-  workspace?: number,
+  { workspace, background = false }: LaunchBrowserOptions = {},
 ) {
   const [executable, ...browserArgs] = Object.hasOwn(
     gitConfig.browsers,
@@ -143,36 +165,58 @@ export const launchBrowser = Effect.fn("launchBrowser")(function* (
           Effect.map((clients) => {
             const windowClass = new RegExp(windowClasses[browser]);
 
+            const windows = clients
+              .filter((client) => windowClass.test(client.class))
+              .sort((a, b) => a.focusHistoryID - b.focusHistoryID);
+
             return {
               workspace,
               windowClass,
               known: new Set(clients.map((client) => client.address)),
-              window: clients
-                .filter(
-                  (client) =>
-                    client.workspace.id === workspace &&
-                    windowClass.test(client.class),
-                )
-                .sort((a, b) => a.focusHistoryID - b.focusHistoryID)[0],
+              focused: clients.find((client) => client.focusHistoryID === 0)
+                ?.address,
+              window: windows.find(
+                (client) => client.workspace.id === workspace,
+              )?.address,
+              last: windows[0]?.address,
             };
           }),
           Effect.orElseSucceed(() => undefined),
         )
       : undefined;
 
+  const cursor =
+    background && placement
+      ? yield* executor
+          .run("hyprctl", ["cursorpos", "-j"])
+          .pipe(
+            Effect.flatMap(Schema.decodeUnknownEffect(HyprlandCursor)),
+            Effect.option,
+          )
+      : Option.none();
+
   // A browser puts a link in its window that was focused last, so focus the
-  // one on the workspace first. With none there, ask for a new window.
-  if (placement?.window)
+  // one on the workspace first. In the background that is only needed when
+  // another of its windows was used since. With none there, ask for a new
+  // window.
+  if (placement?.window && (!background || placement.window !== placement.last))
     yield* executor
       .run("hyprctl", [
         "dispatch",
-        `hl.dsp.focus({ window = "address:${placement.window.address}" })`,
+        `hl.dsp.focus({ window = "address:${placement.window}" })`,
       ])
       .pipe(Effect.ignore);
 
   const newWindow = placement !== undefined && !placement.window;
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-  const activation = yield* watchActivationRequest(placement?.windowClass);
+
+  const activation =
+    background && !placement
+      ? undefined
+      : yield* watchActivationRequest(
+          placement?.windowClass,
+          background ? placement?.window : undefined,
+        );
 
   yield* spawner
     .spawn(
@@ -200,20 +244,58 @@ export const launchBrowser = Effect.fn("launchBrowser")(function* (
     Effect.timeoutOption(newWindow ? "10 seconds" : "3 seconds"),
   );
 
-  if (Option.isNone(address) || !address.value) return;
+  const window =
+    Option.isSome(address) && address.value ? `0x${address.value}` : undefined;
 
-  const window = `0x${address.value}`;
+  // The browser, or a launcher script in front of it, may have taken focus.
+  // Hand it back unless you have moved on to another window since.
+  const active =
+    background && placement?.focused
+      ? yield* executor.run("hyprctl", ["activewindow", "-j"]).pipe(
+          Effect.flatMap(Schema.decodeUnknownEffect(HyprlandActiveWindow)),
+          Effect.orElseSucceed(() => undefined),
+        )
+      : undefined;
 
   // A new window asks for focus before Hyprland reports it open, so tell new
   // windows apart by the ones that were there before the launch.
+  if (window && placement && !placement.known.has(window))
+    yield* executor
+      .run("hyprctl", [
+        "dispatch",
+        `hl.dsp.window.move({ workspace = "${placement.workspace}", window = "address:${window}", follow = ${!background} })`,
+      ])
+      .pipe(Effect.ignore);
+  else if (window && !background)
+    yield* executor
+      .run("hyprctl", [
+        "dispatch",
+        `hl.dsp.focus({ window = "address:${window}" })`,
+      ])
+      .pipe(Effect.ignore);
+
+  if (
+    !placement?.focused ||
+    !active?.address ||
+    active.address === placement.focused ||
+    !placement.windowClass.test(active.class ?? "")
+  )
+    return;
+
   yield* executor
     .run("hyprctl", [
       "dispatch",
-      placement && !placement.known.has(window)
-        ? `hl.dsp.window.move({ workspace = "${placement.workspace}", window = "address:${window}", follow = true })`
-        : `hl.dsp.focus({ window = "address:${window}" })`,
+      `hl.dsp.focus({ window = "address:${placement.focused}" })`,
     ])
     .pipe(Effect.ignore);
+
+  if (Option.isSome(cursor))
+    yield* executor
+      .run("hyprctl", [
+        "dispatch",
+        `hl.dsp.cursor.move({ x = ${cursor.value.x}, y = ${cursor.value.y} })`,
+      ])
+      .pipe(Effect.ignore);
 }, Effect.scoped);
 
 /**
@@ -223,10 +305,13 @@ export const launchBrowser = Effect.fn("launchBrowser")(function* (
  * and resolve with that window's address, without its `0x` prefix. A new
  * window takes focus on its own and resolves with no address, unless a window
  * class is given: then a new window of that class resolves with its address,
- * so it can be moved. Returns undefined outside Hyprland.
+ * so it can be moved. A focused window makes no request, so a title change in
+ * `titleWindow` also resolves, with no address, as its new tab opens. Returns
+ * undefined outside Hyprland.
  */
 const watchActivationRequest = Effect.fn("watchActivationRequest")(function* (
   windowClass?: RegExp,
+  titleWindow?: string,
 ) {
   const signature = process.env.HYPRLAND_INSTANCE_SIGNATURE;
   const runtimeDir = process.env.XDG_RUNTIME_DIR;
@@ -257,6 +342,12 @@ const watchActivationRequest = Effect.fn("watchActivationRequest")(function* (
 
       if (event === "urgent")
         Deferred.doneUnsafe(activation, Exit.succeed(data));
+      else if (
+        event === "windowtitlev2" &&
+        titleWindow &&
+        data.startsWith(`${titleWindow.replace(/^0x/, "")},`)
+      )
+        Deferred.doneUnsafe(activation, Exit.succeed(undefined));
       else if (event === "openwindow") {
         // ADDRESS,WORKSPACENAME,CLASS,TITLE
         const [address = "", , className = ""] = data.split(",");
