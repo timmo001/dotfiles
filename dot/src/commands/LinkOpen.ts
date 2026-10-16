@@ -11,6 +11,7 @@ import {
 import {
   launchBrowser,
   LinkBrowserError,
+  linkSiteRule,
   resolveLinkBrowser,
 } from "../lib/linkBrowser.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -60,7 +61,12 @@ export const linkOpen = Effect.fn("linkOpen")(
       (url && (yield* resolveLinkBrowser(gitConfig, url))) ??
       gitConfig.links.personal;
 
-    yield* launchBrowser(gitConfig, browser, target);
+    yield* launchBrowser(
+      gitConfig,
+      browser,
+      target,
+      url ? linkSiteRule(gitConfig, url)?.workspace : undefined,
+    );
   },
   // Links usually open from other apps, where nobody sees stderr.
   Effect.tapError((error) =>

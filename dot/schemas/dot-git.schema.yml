@@ -55,6 +55,23 @@ properties:
               description: Browser name from browsers, or work-time for links.work during work time and links.personal otherwise.
               type: string
               minLength: 1
+            workspace:
+              description: Hyprland workspace the link opens on, in the browser's window there that was focused last, or a new window moved there. Needs links.window_classes for the browser.
+              type: integer
+              minimum: 1
+            hosts:
+              description: OMARCHY_HOST values the rule applies on; omitted applies on every host.
+              type: array
+              minItems: 1
+              items:
+                type: string
+                minLength: 1
+      window_classes:
+        description: Window class pattern (a regular expression) for each browser name, used to find its windows on a site rule's workspace.
+        type: object
+        additionalProperties:
+          type: string
+          minLength: 1
   schema_version:
     description: dot-git.yml schema version.
     const: 2
