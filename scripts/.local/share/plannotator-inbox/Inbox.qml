@@ -118,6 +118,100 @@ Window {
       pinField.text = ""
       authDialog.open()
     }
+
+    onFindTextFinished: (result) => {
+      findBar.matches = result.numberOfMatches
+      findBar.activeMatch = result.activeMatch
+    }
+  }
+
+  // Ctrl+F finds text in the page, as a browser would. Enter and F3 go to the
+  // next match, with Shift for the previous one; Escape closes the bar.
+  function find(backward) {
+    view.findText(findField.text, backward ? WebEngineView.FindBackward : 0)
+  }
+
+  function closeFind() {
+    findBar.visible = false
+    view.findText("")
+    findBar.matches = 0
+    view.forceActiveFocus()
+  }
+
+  Pane {
+    id: findBar
+
+    property int matches: 0
+    property int activeMatch: 0
+
+    anchors.top: parent.top
+    anchors.right: parent.right
+    anchors.margins: 8
+    visible: false
+    padding: 6
+
+    RowLayout {
+      spacing: 6
+
+      TextField {
+        id: findField
+
+        Layout.preferredWidth: 240
+        placeholderText: "Find in page"
+        onTextEdited: root.find(false)
+        Keys.onReturnPressed: (event) => root.find(event.modifiers & Qt.ShiftModifier)
+        Keys.onEnterPressed: (event) => root.find(event.modifiers & Qt.ShiftModifier)
+        Keys.onEscapePressed: root.closeFind()
+      }
+
+      Label {
+        text: findField.text === "" ? ""
+          : findBar.matches === 0 ? "No matches"
+          : findBar.activeMatch + " of " + findBar.matches
+      }
+
+      ToolButton {
+        text: "▲"
+        enabled: findBar.matches > 0
+        onClicked: root.find(true)
+      }
+
+      ToolButton {
+        text: "▼"
+        enabled: findBar.matches > 0
+        onClicked: root.find(false)
+      }
+
+      ToolButton {
+        text: "✕"
+        onClicked: root.closeFind()
+      }
+    }
+  }
+
+  Shortcut {
+    sequence: StandardKey.Find
+    context: Qt.WindowShortcut
+    onActivated: {
+      findBar.visible = true
+      findField.forceActiveFocus()
+      findField.selectAll()
+      if (findField.text !== "") root.find(false)
+    }
+  }
+
+  Shortcut {
+    sequences: ["F3", "Ctrl+G"]
+    context: Qt.WindowShortcut
+    enabled: findBar.visible
+    onActivated: root.find(false)
+  }
+
+  Shortcut {
+    sequences: ["Shift+F3", "Ctrl+Shift+G"]
+    context: Qt.WindowShortcut
+    enabled: findBar.visible
+    onActivated: root.find(true)
   }
 
   property var authRequest: null
