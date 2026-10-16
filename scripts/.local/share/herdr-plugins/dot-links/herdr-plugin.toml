@@ -1,9 +1,15 @@
 id = "dotfiles.dot-links"
 name = "Dot Links"
-version = "0.1.0"
-min_herdr_version = "0.7.0"
-description = "Open dot:// links with dot link open on Ctrl+click"
+version = "0.2.0"
+min_herdr_version = "0.9.0"
+description = "Open dot:// links with dot link open and file:// links in nvim on Ctrl+click"
 platforms = ["linux"]
+
+[[panes]]
+id = "editor"
+title = "nvim"
+placement = "split"
+command = ["sh", "-c", "exec nvim \"+$DOT_LINKS_LINE\" \"$DOT_LINKS_FILE\""]
 
 [[actions]]
 id = "open"
@@ -11,8 +17,20 @@ title = "Open dot:// link"
 contexts = ["pane"]
 command = ["sh", "-c", "exec dot link open \"$HERDR_PLUGIN_CLICKED_URL\""]
 
+[[actions]]
+id = "open-file"
+title = "Open file:// link in nvim"
+contexts = ["pane"]
+command = ["sh", "open-file.sh"]
+
 [[link_handlers]]
 id = "dot"
 title = "Open with dot link open"
 pattern = "^dot://"
 action = "open"
+
+[[link_handlers]]
+id = "file"
+title = "Open in nvim"
+pattern = "^file://"
+action = "open-file"
