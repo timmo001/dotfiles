@@ -161,6 +161,8 @@ function toolRequests(
       return [{ action: "websearch", resources: [[text("query") ?? "*"]] }];
     case "TodoWrite":
       return [{ action: "todowrite", resources: [["*"]] }];
+    case "AskUserQuestion":
+      return [{ action: "question", resources: [["*"]] }];
     default:
       return [];
   }
