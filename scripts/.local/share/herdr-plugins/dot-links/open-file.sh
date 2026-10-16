@@ -14,10 +14,20 @@ line="${parsed%%
 file="${parsed#*
 }"
 
-exec "${HERDR_BIN_PATH:-herdr}" plugin pane open \
+herdr="${HERDR_BIN_PATH:-herdr}"
+opened="$("$herdr" plugin pane open \
   --plugin dotfiles.dot-links \
   --entrypoint editor \
   --placement split \
   --cwd "$(dirname "$file")" \
   --env "DOT_LINKS_FILE=$file" \
-  --env "DOT_LINKS_LINE=${line:-1}"
+  --env "DOT_LINKS_LINE=${line:-1}" \
+  --focus)"
+pane_id="$(printf '%s' "$opened" | node -e '
+  const input = require("node:fs").readFileSync(0, "utf8");
+  process.stdout.write(JSON.parse(input).result.plugin_pane.pane.pane_id);
+')"
+
+# Focus returns to the clicked pane after a Ctrl+click opens the split, so refocus nvim.
+sleep 0.3
+"$herdr" plugin pane focus "$pane_id" >/dev/null
