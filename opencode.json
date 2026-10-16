@@ -14,7 +14,7 @@
     },
     "opencode": {
       "repository": "anomalyco/opencode",
-      "branch": "v2.0.30",
+      "branch": "v2.0.31",
       "description": "Use for OpenCode config, agents, commands, skills, and plugin behaviour"
     },
     "skills": {
