@@ -8,7 +8,7 @@ permission:
   grep: allow
   list: allow
   skill: allow
-  question: allow
+  question: deny
   task:
     "*": deny
     explore: allow

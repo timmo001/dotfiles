@@ -9,7 +9,7 @@ permission:
   grep: allow
   list: allow
   skill: allow
-  question: allow
+  question: deny
   todowrite: allow
   task: allow
   subagent: allow

@@ -3,7 +3,7 @@ description: Refactor code while preserving behavior and following local command
 mode: primary
 color: "#2563eb"
 permission:
-  question: allow
+  question: deny
   plan_enter: allow
 ---
 

@@ -7,7 +7,7 @@ permission:
   glob: allow
   grep: allow
   list: allow
-  question: allow
+  question: deny
   plan_enter: allow
   edit: ask
   write: ask

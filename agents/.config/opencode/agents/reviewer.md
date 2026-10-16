@@ -3,7 +3,7 @@ description: Reviews code for quality, bugs, security, and best practices
 mode: primary
 color: "#b91c1c"
 permission:
-  question: allow
+  question: deny
   read: allow
   glob: allow
   grep: allow
