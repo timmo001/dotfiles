@@ -419,7 +419,8 @@ export function mergeOmarchyShellConfig(
     host === "laptop"
       ? { screensaver: 150, lock: 300 }
       : { screensaver: 1800, lock: 3600 };
-  base.bar.position = host === "laptop" ? "bottom" : "top";
+  base.bar.position =
+    host === "laptop" || host === "desktop" ? "bottom" : "top";
 
   for (const entries of [
     base.bar.layout.left,
