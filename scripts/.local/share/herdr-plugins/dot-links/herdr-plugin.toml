@@ -1,0 +1,18 @@
+id = "dotfiles.dot-links"
+name = "Dot Links"
+version = "0.1.0"
+min_herdr_version = "0.7.0"
+description = "Open dot:// links with dot link open on Ctrl+click"
+platforms = ["linux"]
+
+[[actions]]
+id = "open"
+title = "Open dot:// link"
+contexts = ["pane"]
+command = ["sh", "-c", "exec dot link open \"$HERDR_PLUGIN_CLICKED_URL\""]
+
+[[link_handlers]]
+id = "dot"
+title = "Open with dot link open"
+pattern = "^dot://"
+action = "open"

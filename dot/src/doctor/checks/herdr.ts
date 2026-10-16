@@ -13,6 +13,7 @@ const REQUIRED_LOCAL_PLUGINS = [
   "dotfiles.repository-picker",
   "dotfiles.mise-task-runner",
   "dotfiles.plannotator",
+  "dotfiles.dot-links",
 ] as const;
 
 const HerdrPluginList = Schema.Struct({

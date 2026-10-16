@@ -100,6 +100,7 @@ const LOCAL_HERDR_PLUGINS = [
   "repository-picker",
   "mise-task-runner",
   "plannotator",
+  "dot-links",
 ] as const;
 
 /**
