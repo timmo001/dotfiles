@@ -17,7 +17,7 @@ import { trackedCheckouts, type TrackedCheckout } from "../brief/repos.js";
 import {
   gitItemFromGitHubUrl,
   gitItemKey,
-  gitItemLink,
+  gitItemPanelMarkdown,
   listedGitItems,
 } from "../git/itemLinks.js";
 import {
@@ -88,7 +88,7 @@ function renderItem(
 
   const panel =
     gitItem && listed.has(gitItemKey(gitItem))
-      ? ` · [panel](${gitItemLink(gitItem)})`
+      ? ` ${gitItemPanelMarkdown(gitItem)}`
       : "";
 
   return [
