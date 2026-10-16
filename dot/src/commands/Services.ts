@@ -195,6 +195,7 @@ const MESSAGE = {
   succeeded: "7ad2d189f7e94e70a38c781354912448",
   skipped: "0e4284a0caca4bfc81c0bb6786972673",
   restart: "5eb03494b6584870a536b337290809b3",
+  consumed: "ae8f7b866b0347b9af31fe1c80b127c0",
 } as const;
 
 const RESUMED_MESSAGE = "8811e6df2a8e40f58a94cea26f8ebf14";
@@ -629,6 +630,15 @@ function buildRuns(
           (run.result === "failed" && !run.restarted)
         ) {
           run.result = "stopped";
+          run.finished = time;
+        }
+
+        break;
+      // Logged whenever a unit deactivates, so it closes runs from before a
+      // change of Type, which the current Type's messages leave open.
+      case MESSAGE.consumed:
+        if (run.result === "running") {
+          run.result = "success";
           run.finished = time;
         }
 
