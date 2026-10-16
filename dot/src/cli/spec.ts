@@ -30,6 +30,7 @@ import { init } from "../commands/Init.js";
 import { install } from "../commands/Install.js";
 import { isAgentCommand } from "../commands/IsAgent.js";
 import { launchFloatingWebapp } from "../commands/LaunchFloatingWebapp.js";
+import { linkGit } from "../commands/LinkGit.js";
 import { linkOpen } from "../commands/LinkOpen.js";
 import { plannotatorInbox } from "../commands/PlannotatorInbox.js";
 import { notesCaptureSync } from "../commands/NotesCaptureSync.js";
@@ -1141,9 +1142,31 @@ const linkCommand = describe(
             "Routes a single HTTP or HTTPS link using links in dot-git.yml: the first matching links.sites rule, then the browser of the tracked repository a GitHub link belongs to, otherwise links.personal. A site rule or repository can select work-time, which opens links.work during work time outside calendar leave and links.personal otherwise. Anything else, including no arguments, goes to links.personal unchanged. The link-browser desktop entry runs this as the default web browser, so xdg-open and Omarchy's browser launcher use it. A dot://git/issue/<owner>/<repo>/<number> or dot://git/pull/... link opens that item in the Git panel when the panel lists it, and its GitHub page through the same routing otherwise; the dot-link desktop entry handles the dot:// scheme. Failures are also sent as a desktop notification.",
         },
       ),
+      describe(
+        Command.make(
+          "git",
+          {
+            urls: Argument.String("urls").pipe(
+              Argument.variadic({ min: 1 }),
+              Argument.withDescription("GitHub issue or pull request URLs"),
+            ),
+            json: bool("json", "Print JSON (the default under an AI agent)"),
+          },
+          ({ urls, json }) => linkGit({ urls, json }),
+        ),
+        "Print the dot:// links that open GitHub issues and pull requests in the Git panel",
+        [
+          "dot link git https://github.com/timmo001/dotfiles/issues/1079",
+          "dot link git https://github.com/timmo001/dotfiles/pull/1080 --json",
+        ],
+        {
+          description:
+            "Read-only. For each URL, reports the dot://git/<issue|pull>/<owner>/<repo>/<number> link (null when the URL isn't a GitHub issue or pull request), whether the Git panel lists the item, read from the panel's cache, and, when it does, a Markdown icon link to put after the GitHub link. Agents add that icon link wherever they share GitHub issue and pull request links. Prints JSON with --json or when run under an AI agent, otherwise one line per URL.",
+        },
+      ),
     ]),
   ),
-  "Route links to the work or personal browser",
+  "Route links to the work or personal browser, or to the Git panel",
 );
 
 const gitDiffCommand = describe(

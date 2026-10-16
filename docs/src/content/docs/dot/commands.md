@@ -1889,7 +1889,7 @@ dot git issues --open
 
 ## `dot link`
 
-Route links to the work or personal browser
+Route links to the work or personal browser, or to the Git panel
 
 ```text
 dot link <subcommand> [flags]
@@ -1929,6 +1929,36 @@ Routes a single HTTP or HTTPS link using links in dot-git.yml: the first matchin
 dot link open https://github.com/home-assistant/frontend
 dot link open dot://git/issue/timmo001/dotfiles/1076
 dot link open -- --incognito
+```
+
+### `dot link git`
+
+Print the dot:// links that open GitHub issues and pull requests in the Git panel
+
+```text
+dot link git [flags] <urls...>
+```
+
+Read-only. For each URL, reports the dot://git/<issue|pull>/<owner>/<repo>/<number> link (null when the URL isn't a GitHub issue or pull request), whether the Git panel lists the item, read from the panel's cache, and, when it does, a Markdown icon link to put after the GitHub link. Agents add that icon link wherever they share GitHub issue and pull request links. Prints JSON with --json or when run under an AI agent, otherwise one line per URL.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print JSON (the default under an AI agent) |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<urls>` | GitHub issue or pull request URLs |
+
+**Examples**
+
+```bash
+dot link git https://github.com/timmo001/dotfiles/issues/1079
+dot link git https://github.com/timmo001/dotfiles/pull/1080 --json
 ```
 
 ## `dot mcp`

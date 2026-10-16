@@ -51,6 +51,13 @@ export function gitItemFromGitHubUrl(link: string): GitItem | undefined {
 export const gitItemLink = (item: GitItem) =>
   `dot://git/${item.kind}/${item.repo}/${item.number}`;
 
+/** Icon for the link that opens an item in the Git panel, shown after its GitHub link. */
+export const GIT_PANEL_ICON = "🖥️";
+
+/** Markdown icon link that opens an item in the Git panel. */
+export const gitItemPanelMarkdown = (item: GitItem) =>
+  `[${GIT_PANEL_ICON}](${gitItemLink(item)})`;
+
 /** The item's GitHub page. */
 export const gitItemGitHubUrl = (item: GitItem) =>
   `https://github.com/${item.repo}/${item.kind === "issue" ? "issues" : "pull"}/${item.number}`;
