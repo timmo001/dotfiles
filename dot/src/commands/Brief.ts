@@ -287,7 +287,7 @@ const run = Effect.fn("brief.run")(function* (options: {
   const sent = yield* sendBrief({
     projectPath: config.publicDotfiles,
     body,
-    idempotencyKey: `brief-${hostname()}-${now.slice(0, 10)}-${Bun.hash(body).toString(36)}`,
+    idempotencyKey: `brief-${hostname()}-${now}`,
     supersedes,
   });
 
