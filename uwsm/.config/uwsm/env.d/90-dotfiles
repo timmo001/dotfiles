@@ -9,3 +9,7 @@ export OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true
 
 # Reviews Plannotator opens by itself shouldn't take focus.
 export PLANNOTATOR_BROWSER="$HOME/.local/bin/link-open-background"
+
+# WebKitGTK apps (such as the Epic Games Launcher) crash with Wayland protocol
+# error 71 on NVIDIA when the DMA-BUF renderer is enabled.
+export WEBKIT_DISABLE_DMABUF_RENDERER=1
