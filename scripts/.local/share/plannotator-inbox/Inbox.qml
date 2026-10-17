@@ -98,7 +98,7 @@ Window {
     }
 
     // Links that want a new window, such as review pages, open in the browser.
-    // Only web links and the brief's Git panel links (dot://git/issue|pull/
+    // Only web links and Git panel links (dot://git/issue|pull/
     // <owner>/<repo>/<n>, handled by dot link open): agents write the
     // messages, and xdg-open would run any other scheme's handler outside the
     // web sandbox.
