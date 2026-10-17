@@ -1577,7 +1577,7 @@ Panel {
             iconComponent: Component {
               Text {
                 text: ""
-                color: root.hostWidget ? root.hostWidget.displayColor : root.contentForeground
+                color: root.contentForeground
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.display
               }
@@ -2155,7 +2155,7 @@ Panel {
                 implicitHeight: repoColumn.implicitHeight + Style.space(12)
                 hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
                 foreground: root.contentForeground
-                accent: root.hostWidget ? root.hostWidget.displayColor : root.contentForeground
+                accent: root.contentForeground
                 Column {
                   id: repoColumn
                   anchors.left: parent.left
