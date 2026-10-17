@@ -382,11 +382,26 @@ function aurPackageVersion(packageName: string) {
   });
 }
 
-/** Return an outdated-package warning using pacman repositories before optional AUR fallback. */
+/** Packages pacman is told to skip on upgrade, from every IgnorePkg line. */
+const ignoredPackages = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+
+  const output = yield* executor
+    .run("pacman-conf", ["IgnorePkg"])
+    .pipe(Effect.orElseSucceed(() => ""));
+
+  return new Set(output.split("\n").filter(Boolean));
+});
+
+/**
+ * Return an outdated-package result using pacman repositories before optional
+ * AUR fallback. Packages held by IgnorePkg report as held rather than a warning.
+ */
 export function packageUpdateResult(
   packageName: string,
   repository: string,
   sourceFallback: boolean,
+  ignored: ReadonlySet<string>,
 ) {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
@@ -417,12 +432,17 @@ export function packageUpdateResult(
       .run("vercmp", [installedVersion, latestVersion])
       .pipe(Effect.orElseSucceed(() => "0"));
 
-    return isInstalledVersionOlder(comparison)
+    if (!isInstalledVersionOlder(comparison)) return null;
+
+    return ignored.has(packageName)
       ? {
+          severity: "ok" as const,
+          message: `${packageName} is held by IgnorePkg (${installedVersion} installed, ${latestVersion} available in ${source})`,
+        }
+      : {
           severity: "warn" as const,
           message: `${packageName} is older than ${source} (${installedVersion} installed, ${latestVersion} available)`,
-        }
-      : null;
+        };
   });
 }
 
@@ -487,7 +507,8 @@ function packageListResults<R>(
 
       if (update) {
         results.push(update);
-        updates.push(pkg);
+
+        if (update.severity !== "ok") updates.push(pkg);
       }
     }
 
@@ -525,9 +546,10 @@ export const checkPublicPackages = Effect.gen(function* () {
   }
 
   const hasYay = (yield* executor.exitCode("which", ["yay"])) === 0;
+  const ignored = yield* ignoredPackages;
 
   return yield* packageListResults(packages, (pkg) =>
-    packageUpdateResult(pkg, PUBLIC_PACKAGE_REPOSITORY, hasYay),
+    packageUpdateResult(pkg, PUBLIC_PACKAGE_REPOSITORY, hasYay, ignored),
   );
 });
 
@@ -634,10 +656,11 @@ export const checkPrivatePackages = Effect.gen(function* () {
   }
 
   const repository = (yield* loadPrivatePackageRepoConfig(config))?.name;
+  const ignored = yield* ignoredPackages;
 
   return yield* packageListResults(packages, (pkg) =>
     repository
-      ? packageUpdateResult(pkg, repository, false)
+      ? packageUpdateResult(pkg, repository, false, ignored)
       : Effect.succeed(null),
   );
 });
