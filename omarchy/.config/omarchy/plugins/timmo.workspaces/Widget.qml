@@ -24,6 +24,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell.Hyprland
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 BarWidget {
@@ -36,7 +37,7 @@ BarWidget {
     ? "all"
     : setting("labels", "number")
   readonly property bool revealOnHover: setting("revealOnHover", false)
-  readonly property color nameColor: setting("nameColor", Color.accent)
+  readonly property color nameColor: setting("nameColor", Commons.Color.accent)
 
   function label(id, focused) {
     var number = id === 10 ? "0" : String(id)

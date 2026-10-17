@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 BarWidget {
@@ -32,7 +33,7 @@ BarWidget {
   readonly property color warningColor: "#e5c07b"
   readonly property color displayColor: {
     if (!monitor || !monitor.loaded || monitor.errorText !== "") return "#9b9b9b"
-    if (monitor.failedCount > 0) return bar ? bar.urgent : Color.urgent
+    if (monitor.failedCount > 0) return bar ? bar.urgent : Commons.Color.urgent
     if (monitor.attentionCount > 0) return warningColor
     return "#9b9b9b"
   }

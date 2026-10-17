@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 BarWidget {
@@ -37,7 +38,7 @@ BarWidget {
     || showWhenEmpty || monitor.attentionCount > 0 || opened
   readonly property color displayColor: {
     if (!ready || !monitor.installed || !monitor.running || monitor.errorText !== "") return mutedColor
-    if (monitor.stoppedCount > 0) return bar ? bar.urgent : Color.urgent
+    if (monitor.stoppedCount > 0) return bar ? bar.urgent : Commons.Color.urgent
     if (monitor.attentionCount > 0) return warningColor
     return mutedColor
   }

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 
 // Read-only monospace output, such as a log or command result, that scrolls
 // on its own once it passes `maxHeight` and keeps its text selectable.
@@ -9,7 +10,7 @@ Rectangle {
 
   property string text: ""
   property real maxHeight: Style.space(240)
-  property color foreground: Color.foreground
+  property color foreground: Commons.Color.foreground
   property string fontFamily: "monospace"
   // Keeps the newest output in view as text arrives, such as while following a running command.
   property bool followTail: false

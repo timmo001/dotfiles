@@ -8,6 +8,7 @@ import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 Item {
@@ -99,8 +100,8 @@ Item {
       width: card.borderLeft + root.pad + root.contentWidth + root.pad + card.borderRight
       height: card.borderTop + root.pad + root.contentHeight + root.pad + card.borderBottom
       anchors.centerIn: parent
-      color: Color.popups.background
-      borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
+      color: Commons.Color.popups.background
+      borderSpec: Border.surfaceSpec("popups", "border", Commons.Color.popups.border, Math.max(1, Style.space(2)))
       radius: Style.cornerRadius
       opacity: root.opened ? 1 : 0
 
@@ -121,7 +122,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: "󰦖"
             font: iconMetrics.font
-            color: Color.popups.text
+            color: Commons.Color.popups.text
             transformOrigin: Item.Center
 
             RotationAnimator on rotation {
@@ -141,7 +142,7 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           text: root.message
           font: messageMetrics.font
-          color: Color.popups.text
+          color: Commons.Color.popups.text
           wrapMode: Text.Wrap
           maximumLineCount: 3
           elide: Text.ElideRight

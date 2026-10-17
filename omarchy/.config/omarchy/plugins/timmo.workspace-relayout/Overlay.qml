@@ -7,6 +7,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 Item {
@@ -30,14 +31,14 @@ Item {
   property int selectedIndex: 0
   property bool cursorActive: true
 
-  property color background: Color.menu.background
-  property color foreground: Color.menu.text
-  property color border: Color.menu.border
+  property color background: Commons.Color.menu.background
+  property color foreground: Commons.Color.menu.text
+  property color border: Commons.Color.menu.border
   property var borderSpec: Border.surfaceSpec("menu", "border", border, Math.max(1, Style.space(2)))
-  property color scrim: Color.menu.scrim
-  property color selectedBackground: Color.menu.selectedBackground
-  property color selectedText: Color.menu.selectedText
-  property color selectedBorder: Color.menu.selectedBorder
+  property color scrim: Commons.Color.menu.scrim
+  property color selectedBackground: Commons.Color.menu.selectedBackground
+  property color selectedText: Commons.Color.menu.selectedText
+  property color selectedBorder: Commons.Color.menu.selectedBorder
   property var selectedBorderSpec: Border.surfaceSpec("menu", "selected-border", selectedBorder, 0)
   readonly property real rowReservedBorderLeft: Border.left(selectedBorderSpec)
   readonly property real rowReservedBorderRight: Border.right(selectedBorderSpec)

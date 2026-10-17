@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "../../components"
 
@@ -12,12 +13,12 @@ Panel {
   property var hostWidget: null
   property var service: null
   readonly property var barIdentity: hostWidget || root
-  readonly property color contentForeground: bar ? bar.foreground : Color.foreground
+  readonly property color contentForeground: bar ? bar.foreground : Commons.Color.foreground
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property color successColor: "#98c379"
   readonly property color warningColor: "#e5c07b"
   readonly property color hunkColor: "#56b6c2"
-  readonly property color urgentColor: bar ? bar.urgent : Color.urgent
+  readonly property color urgentColor: bar ? bar.urgent : Commons.Color.urgent
   readonly property color dimColor: Qt.darker(contentForeground, 1.4)
   property string view: "overview"
   property var selectedRepo: null

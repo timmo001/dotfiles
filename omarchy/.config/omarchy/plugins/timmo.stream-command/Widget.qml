@@ -21,6 +21,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 BarWidget {
@@ -100,7 +101,7 @@ BarWidget {
 
   function colorForClass(cls) {
     if (cls && root.classColors && root.classColors[cls]) return root.classColors[cls]
-    return root.bar ? root.bar.barForeground : Color.foreground
+    return root.bar ? root.bar.barForeground : Commons.Color.foreground
   }
 
   visible: root.shown
