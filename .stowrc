@@ -25,6 +25,7 @@
 --ignore=^/dot
 --ignore=^/dot-migration
 --ignore=^/docs
+--ignore=^/chromium-extension
 --ignore=^/package\.json
 --ignore=(^|/)node_modules(/|$)
 --ignore=^/bun\.lock

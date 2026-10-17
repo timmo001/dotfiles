@@ -5,6 +5,7 @@ import { resolvedOmarchyHost } from "./omarchyHost.js";
 
 /** Top-level repo directories that are not active stow packages. */
 export const INTERNAL_STOW_FOLDERS = [
+  "chromium-extension",
   "dot",
   "dot-migration",
   "docs",

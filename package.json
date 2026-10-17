@@ -2,10 +2,11 @@
   "name": "dotfiles-root-lsp",
   "private": true,
   "type": "module",
-  "description": "Root tooling and managed dependency versions for repository linting, OpenCode's TypeScript LSP, and the dot CLI.",
+  "description": "Root tooling and managed dependency versions for repository linting, OpenCode's TypeScript LSP, the dot CLI, and the dot links Chromium extension.",
   "devDependencies": {
     "@oxlint/plugins": "1.88.0",
     "@timmo001/oxlint-rules": "0.6.3",
+    "@types/chrome": "0.3.5",
     "oxlint": "1.88.0",
     "oxlint-tsgolint": "7.0.2004",
     "typescript": "^7.0.0"

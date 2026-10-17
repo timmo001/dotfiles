@@ -72,6 +72,19 @@ properties:
         additionalProperties:
           type: string
           minLength: 1
+      extension:
+        description: The dot links Chromium extension.
+        type: object
+        additionalProperties: false
+        required:
+          - user_data_dirs
+        properties:
+          user_data_dirs:
+            description: Browser user data directories, such as ~/.config/chromium, whose NativeMessagingHosts directory gets the extension's native messaging host.
+            type: array
+            items:
+              type: string
+              minLength: 1
   schema_version:
     description: dot-git.yml schema version.
     const: 2

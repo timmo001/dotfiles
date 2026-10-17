@@ -202,6 +202,13 @@ export const LinkSettings = Schema.Struct({
       ),
     ),
   ),
+  /** The dot links Chromium extension. */
+  extension: Schema.optionalKey(
+    Schema.Struct({
+      /** Browser user data directories, such as `~/.config/chromium`, that get the extension's native messaging host. */
+      user_data_dirs: Schema.Array(Schema.NonEmptyString),
+    }),
+  ),
 });
 
 /** Decoded {@link LinkSettings}. */

@@ -16,6 +16,7 @@ import { installOpencodePluginDependencies } from "../lib/opencodePlugins.js";
 import { syncSkills } from "../lib/externalSkills.js";
 import { applySyncthingConfig } from "../lib/syncthing.js";
 import { applySecretFiles } from "../lib/secretFiles.js";
+import { applyDotLinksExtension } from "../lib/dotLinksExtension.js";
 import { enableDefaultTimers } from "../lib/userTimers.js";
 import {
   backupUnmanagedTargets,
@@ -154,6 +155,7 @@ export const stow = (opts?: {
         );
         actions.push(...(yield* applySyncthingConfig));
         actions.push(...(yield* applySecretFiles));
+        actions.push(...(yield* applyDotLinksExtension));
       } else {
         yield* log.warn(
           "Skipping private stow (private dotfiles not available)",
