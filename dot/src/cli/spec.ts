@@ -31,6 +31,7 @@ import { install } from "../commands/Install.js";
 import { isAgentCommand } from "../commands/IsAgent.js";
 import { launchFloatingWebapp } from "../commands/LaunchFloatingWebapp.js";
 import { linkGit } from "../commands/LinkGit.js";
+import { linkNativeHost } from "../commands/LinkNativeHost.js";
 import { linkOpen } from "../commands/LinkOpen.js";
 import { plannotatorInbox } from "../commands/PlannotatorInbox.js";
 import { notesCaptureSync } from "../commands/NotesCaptureSync.js";
@@ -1167,6 +1168,26 @@ const linkCommand = describe(
         {
           description:
             "Read-only. For each URL, reports the dot://git/<issue|pull>/<owner>/<repo>/<number> link (null when the URL isn't a GitHub issue or pull request), whether the Git panel lists the item, read from the panel's cache, and, when it does, a Markdown icon link to put after the GitHub link. Agents add that icon link wherever they share GitHub issue and pull request links. Prints JSON with --json or when run under an AI agent, otherwise one line per URL.",
+        },
+      ),
+      describe(
+        Command.make(
+          "native-host",
+          {
+            origin: Argument.String("origin").pipe(
+              Argument.variadic(),
+              Argument.withDescription(
+                "The calling extension's origin, which Chromium passes and this ignores",
+              ),
+            ),
+          },
+          () => linkNativeHost,
+        ),
+        "Native messaging host for the dot links Chromium extension",
+        [],
+        {
+          description:
+            "Chromium runs this through the link-native-host wrapper; it isn't for running by hand. Reads one length-prefixed JSON request on stdin: resolve {url} replies with the page's dot:// link and whether the Git panel lists it, open {url} opens it in the Git panel and fails rather than opening the browser when the panel doesn't list it. dot stow builds the extension in chromium-extension/ and writes the host manifest into each browser in links.extension.user_data_dirs in dot-git.yml.",
         },
       ),
     ]),

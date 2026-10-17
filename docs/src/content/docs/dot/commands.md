@@ -1963,6 +1963,28 @@ dot link git https://github.com/timmo001/dotfiles/issues/1079
 dot link git https://github.com/timmo001/dotfiles/pull/1080 --json
 ```
 
+### `dot link native-host`
+
+Native messaging host for the dot links Chromium extension
+
+```text
+dot link native-host [flags] [<origin...>]
+```
+
+Chromium runs this through the link-native-host wrapper; it isn't for running by hand. Reads one length-prefixed JSON request on stdin: resolve {url} replies with the page's dot:// link and whether the Git panel lists it, open {url} opens it in the Git panel and fails rather than opening the browser when the panel doesn't list it. dot stow builds the extension in chromium-extension/ and writes the host manifest into each browser in links.extension.user_data_dirs in dot-git.yml.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<origin>` | The calling extension's origin, which Chromium passes and this ignores |
+
 ## `dot mcp`
 
 Manage agent MCP server configs
