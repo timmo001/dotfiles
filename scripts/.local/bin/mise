@@ -50,6 +50,15 @@ esac
 if [[ $redirect_global_write == true ]]; then
   export MISE_GLOBAL_CONFIG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/mise/omarchy-config.toml"
   mkdir -p "$(dirname "$MISE_GLOBAL_CONFIG_FILE")"
+
+  # Omarchy's ~/.local/bin wrappers run `mise use -g --quiet <tool>` on every
+  # launch. With the redirect, that re-locks every tool without a GitHub token
+  # and takes close to a minute, so skip it once the tool is configured. `mise x`
+  # in the wrapper still installs it if missing; `mise up` handles upgrades.
+  if [[ $# -eq 4 && $1 == use && $2 == -g && $3 == --quiet ]] &&
+    grep -Eq "^\"?${4//[^[:alnum:]]/.}\"? =" "$MISE_GLOBAL_CONFIG_FILE" 2>/dev/null; then
+    exit 0
+  fi
 fi
 
 exec "$real_mise" "$@"
