@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { acquireFileLock } from "../../lib/fileLock.js";
 import {
-  Array as Arr,
   Clock,
   Context,
   Effect,
@@ -17,7 +16,6 @@ import {
   managedGitRepos,
   type GitManagedRepo,
 } from "../../services/GitConfig.js";
-import { graphql } from "../../lib/pullRequestReviews.js";
 import {
   CheckContext,
   checkName,
@@ -26,12 +24,13 @@ import {
 } from "../../lib/pullRequestSearch.js";
 import { formatCause } from "../../lib/schema.js";
 import { GitHub } from "./GitHub.js";
-import { formatGhError } from "./record.js";
+import {
+  searchRepositories,
+  SearchAuthor,
+  authorLogin,
+} from "./repositorySearch.js";
 
 const REFRESH_MS = 5 * 60 * 1000;
-
-// Repositories searched per GraphQL request; each needs one or two aliases.
-const SEARCH_BATCH = 10;
 
 const CheckStatus = Schema.Literals([
   "pass",
@@ -82,7 +81,7 @@ const RemotePullRequest = Schema.Struct({
   url: Schema.String,
   isDraft: Schema.Boolean,
   updatedAt: Schema.String,
-  author: Schema.NullOr(Schema.Struct({ login: Schema.String })),
+  author: Schema.NullOr(SearchAuthor),
   commits: Schema.Struct({
     nodes: Schema.Array(
       Schema.Struct({
@@ -100,16 +99,9 @@ const RemotePullRequest = Schema.Struct({
 
 type RemotePullRequest = typeof RemotePullRequest.Type;
 
-const SearchResponse = Schema.Struct({
-  data: Schema.Record(
-    Schema.String,
-    Schema.Struct({ nodes: Schema.Array(RemotePullRequest) }),
-  ),
-});
-
 const PULL_REQUEST_FIELDS = `... on PullRequest {
   number title url isDraft updatedAt
-  author { login }
+  author { __typename login }
   commits(last: 1) {
     nodes {
       commit {
@@ -126,14 +118,6 @@ const PULL_REQUEST_FIELDS = `... on PullRequest {
     }
   }
 }`;
-
-const searchQuery = (count: number) => {
-  const indexes = Arr.makeBy(count, (index) => index);
-
-  return `query(${indexes.map((index) => `$q${index}: String!`).join(", ")}) {
-${indexes.map((index) => `s${index}: search(type: ISSUE, query: $q${index}, first: 100) { nodes { ${PULL_REQUEST_FIELDS} } }`).join("\n")}
-}`;
-};
 
 // Re-runs leave superseded contexts in the rollup; keep the latest per check, as gh pr checks does.
 const latestChecks = (contexts: readonly RollupContext[]) => {
@@ -278,74 +262,6 @@ export class GitPullRequests extends Context.Service<
           ),
         );
 
-      // One GraphQL search per repository (two for the `mine` scope), batched into few requests.
-      const fetchOpen = Effect.fn("GitPullRequests.fetchOpen")(function* (
-        repositories: readonly GitManagedRepo[],
-      ) {
-        const batches = yield* Effect.forEach(
-          Arr.chunksOf(repositories, SEARCH_BATCH),
-          (batch) => {
-            const searches = batch.flatMap((repo, index) =>
-              (repo.pullRequests?.scope === "mine"
-                ? ["author:@me", "assignee:@me"]
-                : [""]
-              ).map((filter) => ({
-                index,
-                query: `repo:${repo.github} is:pr is:open ${filter} sort:updated-desc`,
-              })),
-            );
-
-            return github
-              .read(
-                "pull request search",
-                graphql(
-                  searchQuery(searches.length),
-                  Object.fromEntries(
-                    searches.map((search, index) => [
-                      `q${index}`,
-                      search.query,
-                    ]),
-                  ),
-                  SearchResponse,
-                ),
-                { checkRateLimit: false },
-              )
-              .pipe(
-                Effect.timeout("45 seconds"),
-                Effect.result,
-                Effect.map((result) =>
-                  batch.map((repo, index) => {
-                    if (Result.isFailure(result))
-                      return [
-                        repo.github,
-                        Result.fail(
-                          formatGhError(result.failure) ||
-                            "Could not fetch open pull requests",
-                        ),
-                      ] as const;
-
-                    return [
-                      repo.github,
-                      Result.succeed(
-                        searches.flatMap((search, alias) =>
-                          search.index === index
-                            ? (result.success.data[`s${alias}`]?.nodes ?? [])
-                            : [],
-                        ),
-                      ),
-                    ] as const;
-                  }),
-                ),
-              );
-          },
-          { concurrency: 3 },
-        );
-
-        return new Map<string, Result.Result<RemotePullRequest[], string>>(
-          batches.flat(),
-        );
-      });
-
       const query = Effect.fn("GitPullRequests.query")(function* (
         options: PullRequestQuery,
       ) {
@@ -398,7 +314,19 @@ export class GitPullRequests extends Context.Service<
               );
 
         const fetched = due.length
-          ? yield* fetchOpen(due)
+          ? yield* searchRepositories(
+              github,
+              due.map((repo) => ({
+                repo: repo.github,
+                mine: repo.pullRequests?.scope === "mine",
+              })),
+              {
+                qualifiers: "is:pr is:open",
+                fields: PULL_REQUEST_FIELDS,
+                node: RemotePullRequest,
+                failure: "Could not fetch open pull requests",
+              },
+            )
           : new Map<string, Result.Result<RemotePullRequest[], string>>();
 
         return yield* Effect.forEach(
@@ -477,7 +405,7 @@ export class GitPullRequests extends Context.Service<
                         number: pr.number,
                         title: pr.title,
                         url: pr.url,
-                        author: pr.author?.login ?? "Deleted user",
+                        author: authorLogin(pr.author),
                         draft: pr.isDraft,
                         checks: checkStatus(checks),
                         failingChecks: [

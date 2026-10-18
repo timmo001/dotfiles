@@ -14,12 +14,16 @@ import {
 import { Config } from "../../services/Config.js";
 import {
   managedGitRepos,
+  type GitManagedRepo,
   type IssueExclusion,
 } from "../../services/GitConfig.js";
 import { formatCause } from "../../lib/schema.js";
-import { Api } from "@timmo001/effect-gh";
-import { GitHub, viewerLogin } from "./GitHub.js";
-import { formatGhError } from "./record.js";
+import { GitHub } from "./GitHub.js";
+import {
+  searchRepositories,
+  SearchAuthor,
+  authorLogin,
+} from "./repositorySearch.js";
 
 const REFRESH_MS = 5 * 60 * 1000;
 
@@ -42,14 +46,23 @@ const IssueState = Schema.Struct({
 const RemoteIssue = Schema.Struct({
   number: Schema.Int,
   title: Schema.String,
-  html_url: Schema.String,
-  user: Schema.NullOr(Schema.Struct({ login: Schema.String })),
-  labels: Schema.Array(Schema.Struct({ name: Schema.String })),
-  comments: Schema.Int,
-  updated_at: Schema.String,
-  // The issues API also lists pull requests; they carry this key.
-  pull_request: Schema.optionalKey(Schema.Unknown),
+  url: Schema.String,
+  updatedAt: Schema.String,
+  author: Schema.NullOr(SearchAuthor),
+  labels: Schema.Struct({
+    nodes: Schema.Array(Schema.Struct({ name: Schema.String })),
+  }),
+  comments: Schema.Struct({ totalCount: Schema.Int }),
 });
+
+type RemoteIssue = typeof RemoteIssue.Type;
+
+const ISSUE_FIELDS = `... on Issue {
+  number title url updatedAt
+  author { __typename login }
+  labels(first: 20) { nodes { name } }
+  comments { totalCount }
+}`;
 
 /** Failure to load or persist tracked issues. */
 export class IssuesError extends Schema.TaggedError<IssuesError>()(
@@ -123,6 +136,41 @@ export class GitIssues extends Context.Service<GitIssues, GitIssuesService>()(
       const github = yield* GitHub;
       const fs = yield* FileSystem.FileSystem;
 
+      const stateDirectory = (repo: GitManagedRepo) =>
+        join(
+          config.stateDir,
+          "git-issues",
+          encodeURIComponent(repo.github.toLowerCase()),
+        );
+
+      const io = <A>(operation: () => A) =>
+        Effect.try({
+          try: operation,
+          catch: (error) => new IssuesError({ message: formatCause(error) }),
+        });
+
+      const readState = (file: string) =>
+        fs.exists(file).pipe(
+          Effect.flatMap((exists) =>
+            exists
+              ? fs
+                  .readFileString(file)
+                  .pipe(
+                    Effect.flatMap((text) =>
+                      io(() =>
+                        Schema.decodeUnknownSync(IssueState)(JSON.parse(text)),
+                      ),
+                    ),
+                  )
+              : Effect.succeed(emptyState()),
+          ),
+          Effect.mapError((error) =>
+            error instanceof IssuesError
+              ? error
+              : new IssuesError({ message: formatCause(error) }),
+          ),
+        );
+
       const query = Effect.fn("GitIssues.query")(function* (
         options: IssueQuery,
       ) {
@@ -147,26 +195,43 @@ export class GitIssues extends Context.Service<GitIssues, GitIssuesService>()(
 
         const exclusions = config.gitConfig.issueExclusions;
 
-        const login = yield* Effect.cached(github.read("user", viewerLogin));
+        const now = yield* Clock.currentTimeMillis;
+
+        const due = yield* Effect.filter(repositories, (repo) =>
+          readState(join(stateDirectory(repo), "state.json")).pipe(
+            Effect.map(
+              (state) =>
+                options.refresh === true ||
+                state.attemptedAt === null ||
+                now < state.attemptedAt ||
+                now - state.attemptedAt >= REFRESH_MS,
+            ),
+            Effect.orElseSucceed(() => true),
+          ),
+        );
+
+        const fetched = due.length
+          ? yield* searchRepositories(
+              github,
+              due.map((repo) => ({
+                repo: repo.github,
+                mine: repo.issues?.scope === "mine",
+              })),
+              {
+                qualifiers: "is:issue is:open",
+                fields: ISSUE_FIELDS,
+                node: RemoteIssue,
+                failure: "Could not fetch open issues",
+              },
+            )
+          : new Map<string, Result.Result<RemoteIssue[], string>>();
 
         return yield* Effect.forEach(
           repositories,
           (repo) =>
             Effect.gen(function* () {
-              const directory = join(
-                config.stateDir,
-                "git-issues",
-                encodeURIComponent(repo.github.toLowerCase()),
-              );
-
+              const directory = stateDirectory(repo);
               const file = join(directory, "state.json");
-
-              const io = <A>(operation: () => A) =>
-                Effect.try({
-                  try: operation,
-                  catch: (error) =>
-                    new IssuesError({ message: formatCause(error) }),
-                });
 
               yield* acquireFileLock(join(directory, "write.lock"), {
                 wait: "1 minute",
@@ -183,84 +248,18 @@ export class GitIssues extends Context.Service<GitIssues, GitIssuesService>()(
                 ),
               );
 
-              let state = yield* fs.exists(file).pipe(
-                Effect.flatMap((exists) =>
-                  exists
-                    ? fs
-                        .readFileString(file)
-                        .pipe(
-                          Effect.flatMap((text) =>
-                            io(() =>
-                              Schema.decodeUnknownSync(IssueState)(
-                                JSON.parse(text),
-                              ),
-                            ),
-                          ),
-                        )
-                    : Effect.succeed(emptyState()),
-                ),
-                Effect.mapError((error) =>
-                  error instanceof IssuesError
-                    ? error
-                    : new IssuesError({ message: formatCause(error) }),
-                ),
-              );
+              let state = yield* readState(file);
+              const result = fetched.get(repo.github);
 
-              const now = yield* Clock.currentTimeMillis;
-
-              if (
-                options.refresh ||
-                state.attemptedAt === null ||
-                now < state.attemptedAt ||
-                now - state.attemptedAt >= REFRESH_MS
-              ) {
-                const endpoint = `repos/${repo.github}/issues?state=open&sort=updated&direction=desc&per_page=100`;
-
-                const result = yield* (
-                  repo.issues?.scope === "mine"
-                    ? login.pipe(
-                        Effect.map((user) =>
-                          ["creator", "assignee"].map(
-                            (filter) => `${endpoint}&${filter}=${user}`,
-                          ),
-                        ),
-                      )
-                    : Effect.succeed([endpoint])
-                ).pipe(
-                  Effect.flatMap((endpoints) =>
-                    Effect.forEach(endpoints, (url) =>
-                      github.read(
-                        url,
-                        Api.pages(
-                          { endpoint: url, method: "GET" },
-                          Schema.Array(RemoteIssue),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Effect.map((pages) =>
-                    pages
-                      .flat(2)
-                      .toSorted((a, b) =>
-                        b.updated_at.localeCompare(a.updated_at),
-                      ),
-                  ),
-                  Effect.timeout("45 seconds"),
-                  Effect.result,
-                );
-
+              if (result) {
                 if (Result.isFailure(result))
-                  state = {
-                    ...state,
-                    attemptedAt: now,
-                    error:
-                      formatGhError(result.failure) ||
-                      "Could not fetch open issues",
-                  };
+                  state = { ...state, attemptedAt: now, error: result.failure };
                 else {
                   const unique = new Map(
                     result.success
-                      .filter((issue) => issue.pull_request === undefined)
+                      .toSorted((a, b) =>
+                        b.updatedAt.localeCompare(a.updatedAt),
+                      )
                       .map((issue) => [issue.number, issue]),
                   );
 
@@ -268,14 +267,17 @@ export class GitIssues extends Context.Service<GitIssues, GitIssuesService>()(
                     checkedAt: now,
                     attemptedAt: now,
                     error: null,
-                    issues: [...unique.values()].map((issue) => ({
-                      number: issue.number,
-                      title: issue.title,
-                      url: issue.html_url,
-                      author: issue.user?.login ?? "Deleted user",
-                      labels: issue.labels.map((label) => label.name),
-                      comments: issue.comments,
-                    })),
+                    issues: unique
+                      .values()
+                      .map((issue) => ({
+                        number: issue.number,
+                        title: issue.title,
+                        url: issue.url,
+                        author: authorLogin(issue.author),
+                        labels: issue.labels.nodes.map((label) => label.name),
+                        comments: issue.comments.totalCount,
+                      }))
+                      .toArray(),
                   };
                 }
 
