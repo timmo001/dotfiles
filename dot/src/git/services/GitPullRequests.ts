@@ -2,8 +2,8 @@ import { NodeServices } from "@effect/platform-node";
 import { join } from "node:path";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { acquireFileLock } from "../../lib/fileLock.js";
-import { Api, Gh, PullRequest } from "@timmo001/effect-gh";
 import {
+  Array as Arr,
   Clock,
   Context,
   Effect,
@@ -13,12 +13,25 @@ import {
   Schema,
 } from "effect";
 import { Config } from "../../services/Config.js";
-import { managedGitRepos } from "../../services/GitConfig.js";
+import {
+  managedGitRepos,
+  type GitManagedRepo,
+} from "../../services/GitConfig.js";
+import { graphql } from "../../lib/pullRequestReviews.js";
+import {
+  CheckContext,
+  checkName,
+  isFailedCheck,
+  isPendingCheck,
+} from "../../lib/pullRequestSearch.js";
 import { formatCause } from "../../lib/schema.js";
-import { GitHub, viewerLogin } from "./GitHub.js";
+import { GitHub } from "./GitHub.js";
 import { formatGhError } from "./record.js";
 
 const REFRESH_MS = 5 * 60 * 1000;
+
+// Repositories searched per GraphQL request; each needs one or two aliases.
+const SEARCH_BATCH = 10;
 
 const CheckStatus = Schema.Literals([
   "pass",
@@ -48,16 +61,120 @@ const PullRequestState = Schema.Struct({
   ignored: Schema.optionalKey(Schema.Array(Schema.Int)),
 });
 
+const RollupContext = Schema.Struct({
+  ...CheckContext.fields,
+  startedAt: Schema.optionalKey(Schema.NullOr(Schema.String)),
+  createdAt: Schema.optionalKey(Schema.String),
+  checkSuite: Schema.optionalKey(
+    Schema.Struct({
+      workflowRun: Schema.NullOr(
+        Schema.Struct({ workflow: Schema.Struct({ name: Schema.String }) }),
+      ),
+    }),
+  ),
+});
+
+type RollupContext = typeof RollupContext.Type;
+
 const RemotePullRequest = Schema.Struct({
   number: Schema.Int,
   title: Schema.String,
-  html_url: Schema.String,
-  user: Schema.NullOr(Schema.Struct({ login: Schema.String })),
-  // The issues API, used for the `mine` scope, also lists issues with no draft state.
-  draft: Schema.optionalKey(Schema.NullOr(Schema.Boolean)),
-  updated_at: Schema.String,
-  pull_request: Schema.optionalKey(Schema.Unknown),
+  url: Schema.String,
+  isDraft: Schema.Boolean,
+  updatedAt: Schema.String,
+  author: Schema.NullOr(Schema.Struct({ login: Schema.String })),
+  commits: Schema.Struct({
+    nodes: Schema.Array(
+      Schema.Struct({
+        commit: Schema.Struct({
+          statusCheckRollup: Schema.NullOr(
+            Schema.Struct({
+              contexts: Schema.Struct({ nodes: Schema.Array(RollupContext) }),
+            }),
+          ),
+        }),
+      }),
+    ),
+  }),
 });
+
+type RemotePullRequest = typeof RemotePullRequest.Type;
+
+const SearchResponse = Schema.Struct({
+  data: Schema.Record(
+    Schema.String,
+    Schema.Struct({ nodes: Schema.Array(RemotePullRequest) }),
+  ),
+});
+
+const PULL_REQUEST_FIELDS = `... on PullRequest {
+  number title url isDraft updatedAt
+  author { login }
+  commits(last: 1) {
+    nodes {
+      commit {
+        statusCheckRollup {
+          contexts(first: 100) {
+            nodes {
+              __typename
+              ... on CheckRun { name status conclusion startedAt checkSuite { workflowRun { workflow { name } } } }
+              ... on StatusContext { context state createdAt }
+            }
+          }
+        }
+      }
+    }
+  }
+}`;
+
+const searchQuery = (count: number) => {
+  const indexes = Arr.makeBy(count, (index) => index);
+
+  return `query(${indexes.map((index) => `$q${index}: String!`).join(", ")}) {
+${indexes.map((index) => `s${index}: search(type: ISSUE, query: $q${index}, first: 100) { nodes { ${PULL_REQUEST_FIELDS} } }`).join("\n")}
+}`;
+};
+
+// Re-runs leave superseded contexts in the rollup; keep the latest per check, as gh pr checks does.
+const latestChecks = (contexts: readonly RollupContext[]) => {
+  const latest = new Map<string, RollupContext>();
+
+  for (const context of contexts) {
+    const key = `${context.checkSuite?.workflowRun?.workflow.name ?? ""}\0${context.name ?? context.context ?? ""}`;
+    const previous = latest.get(key);
+
+    if (
+      !previous ||
+      (context.startedAt ?? context.createdAt ?? "") >
+        (previous.startedAt ?? previous.createdAt ?? "")
+    )
+      latest.set(key, context);
+  }
+
+  return [...latest.values()];
+};
+
+const checkStatus = (
+  contexts: readonly RollupContext[],
+): typeof CheckStatus.Type => {
+  if (contexts.some(isFailedCheck)) return "fail";
+
+  if (contexts.some(isPendingCheck)) return "pending";
+
+  if (contexts.some((context) => context.conclusion === "CANCELLED"))
+    return "cancelled";
+
+  if (
+    contexts.some((context) =>
+      ["SUCCESS", "NEUTRAL"].includes(
+        context.conclusion ?? context.state ?? "",
+      ),
+    )
+  )
+    return "pass";
+
+  return "none";
+};
 
 /** Failure to load or persist tracked pull requests. */
 export class PullRequestsError extends Schema.TaggedError<PullRequestsError>()(
@@ -121,8 +238,113 @@ export class GitPullRequests extends Context.Service<
     Effect.gen(function* () {
       const config = yield* Config;
       const github = yield* GitHub;
-      const gh = yield* Gh;
       const fs = yield* FileSystem.FileSystem;
+
+      const stateDirectory = (repo: GitManagedRepo) =>
+        join(
+          config.stateDir,
+          "git-pull-requests",
+          encodeURIComponent(repo.github.toLowerCase()),
+        );
+
+      const io = <A>(operation: () => A) =>
+        Effect.try({
+          try: operation,
+          catch: (error) =>
+            new PullRequestsError({ message: formatCause(error) }),
+        });
+
+      const readState = (file: string) =>
+        fs.exists(file).pipe(
+          Effect.flatMap((exists) =>
+            exists
+              ? fs
+                  .readFileString(file)
+                  .pipe(
+                    Effect.flatMap((text) =>
+                      io(() =>
+                        Schema.decodeUnknownSync(PullRequestState)(
+                          JSON.parse(text),
+                        ),
+                      ),
+                    ),
+                  )
+              : Effect.succeed(emptyState()),
+          ),
+          Effect.mapError((error) =>
+            error instanceof PullRequestsError
+              ? error
+              : new PullRequestsError({ message: formatCause(error) }),
+          ),
+        );
+
+      // One GraphQL search per repository (two for the `mine` scope), batched into few requests.
+      const fetchOpen = Effect.fn("GitPullRequests.fetchOpen")(function* (
+        repositories: readonly GitManagedRepo[],
+      ) {
+        const batches = yield* Effect.forEach(
+          Arr.chunksOf(repositories, SEARCH_BATCH),
+          (batch) => {
+            const searches = batch.flatMap((repo, index) =>
+              (repo.pullRequests?.scope === "mine"
+                ? ["author:@me", "assignee:@me"]
+                : [""]
+              ).map((filter) => ({
+                index,
+                query: `repo:${repo.github} is:pr is:open ${filter} sort:updated-desc`,
+              })),
+            );
+
+            return github
+              .read(
+                "pull request search",
+                graphql(
+                  searchQuery(searches.length),
+                  Object.fromEntries(
+                    searches.map((search, index) => [
+                      `q${index}`,
+                      search.query,
+                    ]),
+                  ),
+                  SearchResponse,
+                ),
+                { checkRateLimit: false },
+              )
+              .pipe(
+                Effect.timeout("45 seconds"),
+                Effect.result,
+                Effect.map((result) =>
+                  batch.map((repo, index) => {
+                    if (Result.isFailure(result))
+                      return [
+                        repo.github,
+                        Result.fail(
+                          formatGhError(result.failure) ||
+                            "Could not fetch open pull requests",
+                        ),
+                      ] as const;
+
+                    return [
+                      repo.github,
+                      Result.succeed(
+                        searches.flatMap((search, alias) =>
+                          search.index === index
+                            ? (result.success.data[`s${alias}`]?.nodes ?? [])
+                            : [],
+                        ),
+                      ),
+                    ] as const;
+                  }),
+                ),
+              );
+          },
+          { concurrency: 3 },
+        );
+
+        return new Map<string, Result.Result<RemotePullRequest[], string>>(
+          batches.flat(),
+        );
+      });
 
       const query = Effect.fn("GitPullRequests.query")(function* (
         options: PullRequestQuery,
@@ -157,26 +379,34 @@ export class GitPullRequests extends Context.Service<
             message: "Select one enabled pull request repository with --repo",
           });
 
-        const login = yield* Effect.cached(github.read("user", viewerLogin));
+        const now = yield* Clock.currentTimeMillis;
+
+        const due =
+          options.ignore !== undefined
+            ? []
+            : yield* Effect.filter(repositories, (repo) =>
+                readState(join(stateDirectory(repo), "state.json")).pipe(
+                  Effect.map(
+                    (state) =>
+                      options.refresh === true ||
+                      state.attemptedAt === null ||
+                      now < state.attemptedAt ||
+                      now - state.attemptedAt >= REFRESH_MS,
+                  ),
+                  Effect.orElseSucceed(() => true),
+                ),
+              );
+
+        const fetched = due.length
+          ? yield* fetchOpen(due)
+          : new Map<string, Result.Result<RemotePullRequest[], string>>();
 
         return yield* Effect.forEach(
           repositories,
           (repo) =>
             Effect.gen(function* () {
-              const directory = join(
-                config.stateDir,
-                "git-pull-requests",
-                encodeURIComponent(repo.github.toLowerCase()),
-              );
-
+              const directory = stateDirectory(repo);
               const file = join(directory, "state.json");
-
-              const io = <A>(operation: () => A) =>
-                Effect.try({
-                  try: operation,
-                  catch: (error) =>
-                    new PullRequestsError({ message: formatCause(error) }),
-                });
 
               yield* acquireFileLock(join(directory, "write.lock"), {
                 wait: "1 minute",
@@ -193,30 +423,8 @@ export class GitPullRequests extends Context.Service<
                 ),
               );
 
-              let state = yield* fs.exists(file).pipe(
-                Effect.flatMap((exists) =>
-                  exists
-                    ? fs
-                        .readFileString(file)
-                        .pipe(
-                          Effect.flatMap((text) =>
-                            io(() =>
-                              Schema.decodeUnknownSync(PullRequestState)(
-                                JSON.parse(text),
-                              ),
-                            ),
-                          ),
-                        )
-                    : Effect.succeed(emptyState()),
-                ),
-                Effect.mapError((error) =>
-                  error instanceof PullRequestsError
-                    ? error
-                    : new PullRequestsError({ message: formatCause(error) }),
-                ),
-              );
-
-              const now = yield* Clock.currentTimeMillis;
+              let state = yield* readState(file);
+              const result = fetched.get(repo.github);
               let changed = false;
 
               if (options.ignore !== undefined) {
@@ -236,134 +444,53 @@ export class GitPullRequests extends Context.Service<
                   ],
                 };
                 changed = true;
-              } else if (
-                options.refresh ||
-                state.attemptedAt === null ||
-                now < state.attemptedAt ||
-                now - state.attemptedAt >= REFRESH_MS
-              ) {
-                const mine = repo.pullRequests?.scope === "mine";
-
-                const result = yield* (
-                  mine
-                    ? login.pipe(
-                        Effect.map((user) =>
-                          ["creator", "assignee"].map(
-                            (filter) =>
-                              `repos/${repo.github}/issues?state=open&sort=updated&direction=desc&per_page=100&${filter}=${user}`,
-                          ),
-                        ),
-                      )
-                    : Effect.succeed([
-                        `repos/${repo.github}/pulls?state=open&sort=updated&direction=desc&per_page=100`,
-                      ])
-                ).pipe(
-                  Effect.flatMap((endpoints) =>
-                    Effect.forEach(endpoints, (endpoint) =>
-                      github.read(
-                        endpoint,
-                        Api.pages(
-                          { endpoint, method: "GET" },
-                          Schema.Array(RemotePullRequest),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Effect.map((pages) =>
-                    pages
-                      .flat(2)
-                      .filter((pr) => !mine || pr.pull_request !== undefined)
-                      .toSorted((a, b) =>
-                        b.updated_at.localeCompare(a.updated_at),
-                      ),
-                  ),
-                  Effect.timeout("45 seconds"),
-                  Effect.result,
+              } else if (result && Result.isFailure(result)) {
+                state = { ...state, attemptedAt: now, error: result.failure };
+                changed = true;
+              } else if (result) {
+                const unique = new Map(
+                  result.success
+                    .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+                    .map((pr) => [pr.number, pr]),
                 );
 
-                if (Result.isFailure(result))
-                  state = {
-                    ...state,
-                    attemptedAt: now,
-                    error:
-                      formatGhError(result.failure) ||
-                      "Could not fetch open pull requests",
-                  };
-                else {
-                  const unique = new Map(
-                    result.success.map((pr) => [pr.number, pr]),
-                  );
+                const ignored = (state.ignored ?? []).filter((number) =>
+                  unique.has(number),
+                );
 
-                  const ignored = (state.ignored ?? []).filter((number) =>
-                    unique.has(number),
-                  );
+                state = {
+                  ...state,
+                  checkedAt: now,
+                  attemptedAt: now,
+                  error: null,
+                  ignored,
+                  pulls: unique
+                    .values()
+                    .filter((pr) => !ignored.includes(pr.number))
+                    .map((pr) => {
+                      const checks = latestChecks(
+                        pr.commits.nodes[0]?.commit.statusCheckRollup?.contexts
+                          .nodes ?? [],
+                      );
 
-                  state = {
-                    ...state,
-                    checkedAt: now,
-                    attemptedAt: now,
-                    error: null,
-                    ignored,
-                    pulls: yield* Effect.forEach(
-                      [...unique.values()].filter(
-                        (pr) => !ignored.includes(pr.number),
-                      ),
-                      (pr) =>
-                        Effect.gen(function* () {
-                          const result = yield* PullRequest.checks(pr.number, {
-                            repository: repo.github,
-                          }).pipe(
-                            Effect.provideService(Gh, gh),
-                            Effect.timeout("20 seconds"),
-                            Effect.result,
-                          );
-
-                          const checks = Result.isSuccess(result)
-                            ? result.success.checks
-                            : [];
-
-                          const failingChecks = [
-                            ...new Set(
-                              checks
-                                .filter((check) => check.bucket === "fail")
-                                .map((check) => check.name),
+                      return {
+                        number: pr.number,
+                        title: pr.title,
+                        url: pr.url,
+                        author: pr.author?.login ?? "Deleted user",
+                        draft: pr.isDraft,
+                        checks: checkStatus(checks),
+                        failingChecks: [
+                          ...new Set(
+                            checks.flatMap((check) =>
+                              isFailedCheck(check) ? [checkName(check)] : [],
                             ),
-                          ];
-
-                          let checkStatus: typeof CheckStatus.Type = "unknown";
-
-                          if (Result.isSuccess(result)) {
-                            if (failingChecks.length) checkStatus = "fail";
-                            else if (
-                              checks.some((check) => check.bucket === "pending")
-                            )
-                              checkStatus = "pending";
-                            else if (
-                              checks.some((check) => check.bucket === "cancel")
-                            )
-                              checkStatus = "cancelled";
-                            else if (
-                              checks.some((check) => check.bucket === "pass")
-                            )
-                              checkStatus = "pass";
-                            else checkStatus = "none";
-                          }
-
-                          return {
-                            number: pr.number,
-                            title: pr.title,
-                            url: pr.html_url,
-                            author: pr.user?.login ?? "Deleted user",
-                            draft: pr.draft === true,
-                            checks: checkStatus,
-                            failingChecks,
-                          };
-                        }),
-                      { concurrency: 4 },
-                    ),
-                  };
-                }
-
+                          ),
+                        ],
+                      };
+                    })
+                    .toArray(),
+                };
                 changed = true;
               }
 
