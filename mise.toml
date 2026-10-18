@@ -8,12 +8,19 @@ shellcheck = "0.11.0"
 # Approved for aube's package-age check while the package is under 30 days old.
 "npm:@timmo001/tooling-drift" = { version = "0.1.4", allow_low_downloads = true }
 
+[tasks.install]
+description = "Install root lint and extension dependencies"
+run = "bun install"
+sources = ["package.json", "bun.lock"]
+outputs = ["node_modules/.bin"]
+
 [tasks.lint]
 description = "Run every lint check in parallel"
 depends = ["lint:oxlint", "lint:actions", "lint:json", "lint:yaml", "lint:markdown", "lint:shell"]
 
 [tasks."lint:oxlint"]
 description = "Lint owned TypeScript and JavaScript with Oxlint"
+depends = ["install"]
 run = "bunx oxlint --disable-nested-config"
 
 [tasks."lint:actions"]
@@ -106,6 +113,7 @@ run = "bun build src/background.ts --target=browser --format=iife --outdir=dist"
 
 [tasks."extension:typecheck"]
 description = "Type-check the dot links Chromium extension"
+depends = ["install"]
 run = "bunx tsc -p chromium-extension"
 
 [tasks."tests:integration"]
