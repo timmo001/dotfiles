@@ -35,6 +35,7 @@ Repo paths below are relative to the dotfiles checkout at `~/.config/dotfiles`.
 
 - Confirm the current manifest contract in `PluginRegistry.qml` and inspect the nearest built-in under `$OMARCHY_PATH/shell/plugins/` before creating or changing a plugin.
 - Keep third-party ids namespaced outside the reserved `omarchy.*` namespace.
+- Reach the palette through `import qs.Commons as Commons` and `Commons.Color`, including `Connections.target`. Since Qt 6.12, QtQuick's own `Color` type shadows a bare `Color` reference, which breaks the plugin. Keep the plain `qs.Commons` import for `Style`, `Util` and `Border`.
 - Prefer Omarchy's `omarchy plugin` and `omarchy bar` commands when they cover the operation. They own validation, enabled state, placement, and persisted layout.
 - For a new manually installed plugin, run `dot stow`, rescan plugins, then enable the plugin. Rescanning discovers code but does not enable it.
 - Omarchy watches user-plugin files, but dotfiles requires an explicit restart after edits to verify the final stowed state.
