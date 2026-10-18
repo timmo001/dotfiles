@@ -42,6 +42,7 @@
     "offered": true,
     "asked": [
       "claude-code",
+      "codex",
       "pi",
       "opencode"
     ]
