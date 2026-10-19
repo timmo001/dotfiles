@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Fiber, Option } from "effect";
 import {
   formatCommandError,
   handleCommandError,
@@ -18,6 +18,47 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 
 /**
+ * Show an "Opening link" notification until the scope closes, which is once
+ * the browser has the link. The notification is shown without waiting for it,
+ * and expires on its own if closing it fails.
+ */
+const showOpeningLink = Effect.fn("showOpeningLink")(function* (link: string) {
+  const executor = yield* CommandExecutor;
+  const site = URL.parse(link)?.hostname;
+
+  yield* Effect.acquireRelease(
+    executor
+      .run("notify-send", [
+        "--print-id",
+        "--app-name=dot",
+        "--expire-time=10000",
+        "--hint=boolean:transient:true",
+        "Opening link",
+        site || link,
+      ])
+      .pipe(Effect.option, Effect.forkChild),
+    (notification) =>
+      Fiber.join(notification).pipe(
+        Effect.flatMap(
+          Option.match({
+            onNone: () => Effect.void,
+            onSome: (id) =>
+              executor.run("gdbus", [
+                "call",
+                "--session",
+                "--dest=org.freedesktop.Notifications",
+                "--object-path=/org/freedesktop/Notifications",
+                "--method=org.freedesktop.Notifications.CloseNotification",
+                id.trim(),
+              ]),
+          }),
+        ),
+        Effect.ignore,
+      ),
+  );
+});
+
+/**
  * Open a link in the browser chosen by `links` in dot-git.yml. Anything other
  * than a single HTTP or HTTPS link, such as no arguments or `--incognito`, goes
  * to the personal browser unchanged, so this can stand in as the desktop's
@@ -29,6 +70,14 @@ export const linkOpen = Effect.fn("linkOpen")(
     const [link] = args;
 
     const deepLink = args.length === 1 && link && /^dot:/i.test(link);
+
+    if (
+      !background &&
+      args.length === 1 &&
+      link &&
+      /^(dot|https?):/i.test(link)
+    )
+      yield* showOpeningLink(link);
 
     const item = deepLink ? parseGitItemLink(link) : undefined;
 
@@ -66,6 +115,7 @@ export const linkOpen = Effect.fn("linkOpen")(
       background,
     });
   },
+  Effect.scoped,
   // Links usually open from other apps, where nobody sees stderr.
   Effect.tapError((error) =>
     Effect.gen(function* () {
