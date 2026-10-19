@@ -34,6 +34,12 @@ const CalendarConfig = Schema.Struct({
   ),
 });
 
+const CALENDAR_LEAVE_TTL_MS = 10 * 60 * 1000;
+
+const CalendarLeaveCache = Schema.fromJsonString(
+  Schema.Struct({ checkedAt: Schema.Finite, leave: Schema.Boolean }),
+);
+
 // All-day events use ISO dates; timed events use date-times.
 const isDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
 
@@ -134,19 +140,42 @@ export const isWorkTime = Effect.fn("isWorkTime")(function* (
   )
     return false;
 
-  const leave = yield* resolveSocketPath(Option.none()).pipe(
-    Effect.flatMap((socketPath) =>
-      calendarLeave(schedule).pipe(
-        Effect.provide(BridgeClient.layer(socketPath)),
-      ),
+  // Home Assistant takes a few hundred milliseconds to list calendar events,
+  // which links opened in the work-time browser would wait on every time.
+  const cachePath = join(config.cacheDir, "work-calendar-leave.json");
+  const checkedAt = now.getTime();
+
+  const cached = yield* fs.readFileString(cachePath).pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(CalendarLeaveCache)),
+    Effect.map((cache) =>
+      checkedAt >= cache.checkedAt &&
+      checkedAt - cache.checkedAt < CALENDAR_LEAVE_TTL_MS
+        ? cache.leave
+        : undefined,
     ),
-    Effect.timeout("5 seconds"),
-    Effect.catch(() =>
-      log("Calendar check unavailable; using work hours").pipe(
-        Effect.as(false),
-      ),
-    ),
+    Effect.orElseSucceed(() => undefined),
   );
+
+  const leave =
+    cached ??
+    (yield* resolveSocketPath(Option.none()).pipe(
+      Effect.flatMap((socketPath) =>
+        calendarLeave(schedule).pipe(
+          Effect.provide(BridgeClient.layer(socketPath)),
+        ),
+      ),
+      Effect.timeout("5 seconds"),
+      Effect.tap((leave) =>
+        fs
+          .writeFileString(cachePath, JSON.stringify({ checkedAt, leave }))
+          .pipe(Effect.ignore),
+      ),
+      Effect.catch(() =>
+        log("Calendar check unavailable; using work hours").pipe(
+          Effect.as(false),
+        ),
+      ),
+    ));
 
   if (leave) yield* log("Calendar leave is active; work schedule is inactive");
 
