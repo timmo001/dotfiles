@@ -5,6 +5,8 @@ import type { CheckResult } from "../types.js";
 
 const BROWSER_DESKTOP = "link-browser.desktop";
 
+const OMARCHY_BROWSER_DESKTOP = "omarchy-browser.desktop";
+
 const LINK_TYPES = ["x-scheme-handler/http", "x-scheme-handler/https"];
 
 /** Check links reach `dot link open` when dot-git.yml routes them. */
@@ -17,14 +19,27 @@ export const checkDefaultBrowser = Effect.gen(function* () {
       { severity: "ok", message: "Link routing is not configured" },
     ] satisfies CheckResult[];
 
-  const handlers = yield* Effect.forEach(LINK_TYPES, (type) =>
-    executor.run("xdg-mime", ["query", "default", type]).pipe(
+  const query = (command: string, args: ReadonlyArray<string>) =>
+    executor.run(command, args).pipe(
       Effect.map((output) => output.trim()),
       Effect.orElseSucceed(() => ""),
-    ),
+    );
+
+  const handlers = yield* Effect.forEach(LINK_TYPES, (type) =>
+    query("xdg-mime", ["query", "default", type]),
   );
 
-  const other = handlers.find((handler) => handler !== BROWSER_DESKTOP);
+  // Omarchy's Hyprland list sends links to omarchy-browser.desktop, which hands
+  // them on to the default browser it resolves from the lists after it.
+  const omarchyBrowser = handlers.includes(OMARCHY_BROWSER_DESKTOP)
+    ? yield* query("omarchy-cmd-default-browser", [])
+    : "";
+
+  const other = handlers
+    .map((handler) =>
+      handler === OMARCHY_BROWSER_DESKTOP ? omarchyBrowser : handler,
+    )
+    .find((handler) => handler !== BROWSER_DESKTOP);
 
   return [
     other === undefined
