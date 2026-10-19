@@ -24,7 +24,14 @@ import { Config } from "../services/Config.js";
  */
 const showOpeningLink = Effect.fn("showOpeningLink")(function* (link: string) {
   const executor = yield* CommandExecutor;
-  const site = URL.parse(link)?.hostname;
+
+  // The notification body is markup, so escape the link's `&`, `<` and `>`.
+  // Zero-width spaces let a long link wrap rather than being cut off.
+  const body = link
+    .replace(/([/?&])(?!\/)/g, "$1\u200B")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 
   yield* Effect.acquireRelease(
     executor
@@ -34,7 +41,7 @@ const showOpeningLink = Effect.fn("showOpeningLink")(function* (link: string) {
         "--expire-time=10000",
         "--hint=boolean:transient:true",
         "Opening link",
-        site || link,
+        body,
       ])
       .pipe(Effect.option, Effect.forkChild),
     (notification) =>
