@@ -1170,16 +1170,15 @@ export const servicesStop = Effect.fn("Services.stop")(function* (
   ]);
 });
 
-/** How long after a scheduled calendar time a timer run still counts as on schedule. */
-const ON_SCHEDULE_GRACE = Duration.minutes(5);
-
 /**
- * Fail when a timer started this service outside its calendar schedule, so an
- * `ExecCondition=` skips the catch-up run systemd makes after boot or resume.
- * Runs started through `dot services start` always pass: systemd can still
- * report the timer as the trigger of a manual start.
+ * Fail when a timer started this service more than `graceMillis` after its
+ * last calendar time, so an `ExecCondition=` skips the catch-up run systemd
+ * makes after boot or resume. Runs started through `dot services start` always
+ * pass: systemd can still report the timer as the trigger of a manual start.
  */
-export const servicesOnSchedule = Effect.gen(function* () {
+export const servicesOnSchedule = Effect.fn("Services.onSchedule")(function* (
+  graceMillis: number,
+) {
   const trigger = envString(ENV.TRIGGER_UNIT);
 
   if (!trigger?.endsWith(".timer")) return;
@@ -1201,11 +1200,7 @@ export const servicesOnSchedule = Effect.gen(function* () {
 
   const now = yield* Clock.currentTimeMillis;
 
-  const [due] = yield* calendarElapses(
-    calendar,
-    1,
-    now - Duration.toMillis(ON_SCHEDULE_GRACE),
-  );
+  const [due] = yield* calendarElapses(calendar, 1, now - graceMillis);
 
   if (due === undefined || due <= now) return;
 
@@ -1214,7 +1209,7 @@ export const servicesOnSchedule = Effect.gen(function* () {
   );
 
   process.exitCode = 1;
-}).pipe(Effect.withSpan("Services.onSchedule"));
+});
 
 /** Open a registered job's logs in a new tab of its repository's Herdr workspace. */
 export const servicesLogs = Effect.fn("Services.logs")(function* (
