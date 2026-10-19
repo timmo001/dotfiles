@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Effect, Match, Schema } from "effect";
 import type { GitNotificationThread } from "../types.js";
 import { siteMatches, linkBrowserName } from "../lib/linkBrowser.js";
 import {
@@ -232,8 +232,12 @@ const search = Effect.fn("brief.search")(function* (
 });
 
 /** `open`, `closed` or `merged` from GitHub's upper-case state. */
-const itemState = (state: string) =>
-  state === "MERGED" ? "merged" : state === "CLOSED" ? "closed" : "open";
+const itemState = (state: string): "merged" | "closed" | "open" =>
+  Match.value(state).pipe(
+    Match.when("MERGED", () => "merged" as const),
+    Match.when("CLOSED", () => "closed" as const),
+    Match.orElse(() => "open" as const),
+  );
 
 const labelNames = (labels: { readonly nodes: readonly { name: string }[] }) =>
   labels.nodes.map((label) => label.name);
@@ -653,9 +657,11 @@ export const collectBrief = Effect.fn("brief.collect")(function* (
     work.exclude.some((match) => siteMatches({ match }, new URL(item.url)));
 
   const workItems = (nodes: readonly (typeof SearchResult.Type)[]) =>
-    nodes
-      .map((node) => classify(toItem(node)))
-      .filter((item) => item.work && !excluded(item));
+    nodes.flatMap((node) => {
+      const item = classify(toItem(node));
+
+      return item.work && !excluded(item) ? [item] : [];
+    });
 
   const followSince = isoDate(now - work.followDays * DAY_MS);
 

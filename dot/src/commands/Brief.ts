@@ -190,6 +190,7 @@ function workSections(
     (item.labels ?? []).includes("no-stale") && item.updatedAt < work.since;
 
   const tasks = take(work.tasks.filter((item) => !quiet(item))).picked;
+
   const quietCount = work.tasks.filter(
     (item) => quiet(item) && !seen.has(item.id),
   ).length;
