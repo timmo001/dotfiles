@@ -103,13 +103,16 @@ Select and run Dotfiles, Omarchy, and Topgrade updates
 dot update system [flags]
 ```
 
-Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step. Cancelling the prompt exits without running updates.
+Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
+
+Under Herdr, when Omarchy and other steps are selected, this pane first pulls the public and private dotfiles and rebuilds dot when Dotfiles is selected. The other steps then run in a pane split off to the right, which stays open when they finish, while this pane runs the Omarchy update, so both can ask for authentication straight away.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
 | `--yes` | Select every update without prompting |
+| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, omarchy, github-cli, yazi, protonplus, firmware, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
 | `--help` `-h` | Show help information |
 
 **Examples**
@@ -117,6 +120,7 @@ Select maintenance steps interactively, then run them in order: Dotfiles, Omarch
 ```bash
 dot update system
 dot update system --yes
+dot update system --step dotfiles --step github-cli
 ```
 
 ## `dot deps`

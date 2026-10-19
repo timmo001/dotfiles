@@ -86,7 +86,7 @@ import { recapMessage } from "../lib/updateSummary.js";
 import { snapshot } from "../commands/Snapshot.js";
 import { sessionStatus } from "../commands/SessionStatus.js";
 import { repos, searchRepos } from "../commands/Repos.js";
-import { systemUpdate } from "../commands/SystemUpdate.js";
+import { systemUpdate, UPDATE_STEPS } from "../commands/SystemUpdate.js";
 import { update, updateCheck, updateRepositories } from "../commands/Update.js";
 import { workspaceRelayout } from "../commands/WorkspaceRelayout.js";
 import { RELOAD_PARTS, reload } from "../commands/Reload.js";
@@ -234,14 +234,26 @@ const installCommand = describe(
 const systemUpdateCommand = describe(
   Command.make(
     "system",
-    { yes: bool("yes", "Select every update without prompting") },
-    (input) => systemUpdate(input),
+    {
+      yes: bool("yes", "Select every update without prompting"),
+      step: Flag.Literals("step", UPDATE_STEPS).pipe(
+        Flag.atLeast(0),
+        Flag.withDescription(
+          "Run only this step without prompting; repeat for several",
+        ),
+      ),
+    },
+    ({ yes, step }) => systemUpdate({ yes, steps: step }),
   ),
   "Select and run Dotfiles, Omarchy, and Topgrade updates",
-  ["dot update system", "dot update system --yes"],
+  [
+    "dot update system",
+    "dot update system --yes",
+    "dot update system --step dotfiles --step github-cli",
+  ],
   {
     description:
-      "Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step. Cancelling the prompt exits without running updates.",
+      "Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.\n\nUnder Herdr, when Omarchy and other steps are selected, this pane first pulls the public and private dotfiles and rebuilds dot when Dotfiles is selected. The other steps then run in a pane split off to the right, which stays open when they finish, while this pane runs the Omarchy update, so both can ask for authentication straight away.",
   },
 );
 
