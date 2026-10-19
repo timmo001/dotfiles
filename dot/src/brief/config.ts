@@ -148,14 +148,6 @@ export interface BriefConfig {
 /** Path of the private brief settings, stowed from the private overlay. */
 export const BRIEF_CONFIG_PATH = join(CONFIG_DIR, "dot", "brief.yml");
 
-/** Workers AI account and token for `@cf/` decision models, written by a secret file. */
-export const WORKERS_AI_PATH = join(
-  CONFIG_DIR,
-  "dot",
-  "brief",
-  "workers-ai.yml",
-);
-
 /** Read `brief.yml`, falling back to defaults when it is missing. */
 export const readBriefConfig = Effect.fn("brief.readConfig")(function* () {
   const fs = yield* FileSystem.FileSystem;

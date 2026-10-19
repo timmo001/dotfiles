@@ -1,16 +1,14 @@
-import { Duration, Effect, FileSystem, Option, Schema } from "effect";
-import { FetchHttpClient, HttpBody, HttpClient } from "effect/http";
-import { join } from "node:path";
-import { HOME_DIR } from "../lib/paths.js";
-import { CommandExecutor } from "../services/CommandExecutor.js";
-import { BriefItem, ruleMatches } from "./collect.js";
+import { Duration, Effect, Option, Schema } from "effect";
+import { FetchHttpClient } from "effect/http";
 import {
-  BriefConfigError,
-  WORKERS_AI_PATH,
-  type BriefConfig,
-} from "./config.js";
-
-const OPENCODE = join(HOME_DIR, ".local", "bin", "opencode2");
+  decide as decideWith,
+  workersAiFor,
+  type DecisionQuestion,
+  type WorkersAi,
+} from "../lib/decisionModel.js";
+import { opencodeText, withoutDashes } from "../lib/opencodeText.js";
+import { BriefItem, ruleMatches } from "./collect.js";
+import { BriefConfigError, type BriefConfig } from "./config.js";
 
 /** Report sections, in display order. */
 export const SECTIONS = ["Focus", "Crossover", "Later"] as const;
@@ -46,31 +44,11 @@ const QUESTIONS = {
     type: "noul",
     instructions: "Is `item` waiting on me to act?",
   },
-};
+} satisfies Record<string, DecisionQuestion>;
 
-const Decision = Schema.Struct({
-  answers: Schema.Struct({
-    urgency: Schema.Struct({ score: Schema.Finite }),
-    needs_me: Schema.Struct({ noul: Schema.Finite }),
-  }),
-});
-
-const WorkersAiDecision = Schema.Struct({ result: Decision });
-
-/** Credentials for decision models hosted on Workers AI. */
-const WorkersAi = Schema.Struct({
-  account_id: Schema.NonEmptyString,
-  token: Schema.NonEmptyString,
-});
-
-/** Decoded {@link WorkersAi}. */
-interface WorkersAi extends Schema.Schema.Type<typeof WorkersAi> {}
-
-const Event = Schema.Struct({
-  type: Schema.String,
-  part: Schema.optionalKey(
-    Schema.Struct({ text: Schema.optionalKey(Schema.String) }),
-  ),
+const Answers = Schema.Struct({
+  urgency: Schema.Struct({ score: Schema.Finite }),
+  needs_me: Schema.Struct({ noul: Schema.Finite }),
 });
 
 /** Built-in boosts: a pending review comes first, then other feedback. */
@@ -80,8 +58,6 @@ const FEEDBACK_BOOST = new Map([
   ["open_threads", 0.5],
   ["new_comments", 0.5],
 ]);
-
-const DECISION_TIMEOUT = Duration.seconds(60);
 
 const modelState = (item: BriefItem) => ({
   kind: item.kind,
@@ -100,68 +76,17 @@ const decide = Effect.fn("brief.decide")(function* (
   item: BriefItem,
   workersAi: WorkersAi | undefined,
 ) {
-  const state = { priorities: config.priorities, item: modelState(item) };
-
-  const decision = workersAi
-    ? yield* HttpClient.HttpClient.pipe(
-        Effect.flatMap((http) =>
-          http.post(
-            `https://api.cloudflare.com/client/v4/accounts/${workersAi.account_id}/ai/run`,
-            {
-              headers: { authorization: `Bearer ${workersAi.token}` },
-              body: HttpBody.jsonUnsafe({
-                model: config.decisionModel,
-                input: { state, questions: QUESTIONS },
-              }),
-            },
-          ),
-        ),
-        Effect.flatMap((response) => response.json),
-        Effect.timeout(DECISION_TIMEOUT),
-        Effect.flatMap(Schema.decodeUnknownEffect(WorkersAiDecision)),
-        Effect.map((body) => body.result),
-      )
-    : yield* CommandExecutor.pipe(
-        Effect.flatMap((executor) =>
-          executor.run("ollaya", [
-            "run",
-            config.decisionModel,
-            "--format",
-            "json",
-            "--questions",
-            JSON.stringify(QUESTIONS),
-            "--state-json",
-            JSON.stringify(state),
-          ]),
-        ),
-        Effect.timeout(DECISION_TIMEOUT),
-        Effect.flatMap(Schema.decodeEffect(Schema.fromJsonString(Decision))),
-      );
+  const answers = yield* decideWith({
+    model: config.decisionModel,
+    questions: QUESTIONS,
+    state: { priorities: config.priorities, item: modelState(item) },
+    workersAi,
+  }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Answers)));
 
   return {
-    urgency: decision.answers.urgency.score,
-    needsMe: decision.answers.needs_me.noul,
+    urgency: answers.urgency.score,
+    needsMe: answers.needs_me.noul,
   };
-});
-
-/** Read the Workers AI account and token when the decision model is hosted there. */
-const workersAiFor = Effect.fn("brief.workersAi")(function* (
-  config: BriefConfig,
-) {
-  if (!config.decisionModel.startsWith("@cf/")) return undefined;
-
-  const fs = yield* FileSystem.FileSystem;
-
-  return yield* fs.readFileString(WORKERS_AI_PATH).pipe(
-    Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
-    Effect.flatMap(Schema.decodeUnknownEffect(WorkersAi)),
-    Effect.mapError(
-      () =>
-        new BriefConfigError({
-          message: `${config.decisionModel} needs a Workers AI account_id and token in ${WORKERS_AI_PATH}`,
-        }),
-    ),
-  );
 });
 
 /** Summarise what people are asking of me, from an item's comments, threads and failing checks. */
@@ -170,8 +95,6 @@ const explain = Effect.fn("brief.explain")(function* (
   item: ScoredItem,
   cwd: string,
 ) {
-  const executor = yield* CommandExecutor;
-
   // Priorities only order the brief, so they stay out of the reason.
   const prompt = [
     "You're summarising one item in my daily GitHub brief. Don't use any tools.",
@@ -181,43 +104,15 @@ const explain = Effect.fn("brief.explain")(function* (
   ].join("\n\n");
 
   for (const model of config.explainModels) {
-    const reply = yield* executor
-      .run(
-        OPENCODE,
-        [
-          "run",
-          "--format",
-          "json",
-          "--title",
-          "Daily brief reason",
-          "-m",
-          model,
-          prompt,
-        ],
-        { cwd },
-      )
-      .pipe(
-        Effect.timeout(config.explainTimeout),
-        Effect.map((output) =>
-          output
-            .split("\n")
-            .flatMap((line) => {
-              const event = Schema.decodeOption(Schema.fromJsonString(Event))(
-                line,
-              );
+    const text = yield* opencodeText({
+      model,
+      prompt,
+      title: "Daily brief reason",
+      cwd,
+      timeout: config.explainTimeout,
+    });
 
-              return Option.isSome(event) &&
-                event.value.type === "text" &&
-                event.value.part?.text
-                ? [event.value.part.text]
-                : [];
-            })
-            .at(-1)
-            ?.trim()
-            .replace(/\s*[—–]\s*/g, ", "),
-        ),
-        Effect.orElseSucceed(() => undefined),
-      );
+    const reply = text && withoutDashes(text);
 
     if (reply && /^NONE\b/.test(reply)) break;
 
@@ -255,8 +150,6 @@ export const tagAreas = Effect.fn("brief.tagAreas")(function* (
 
   if (!model || items.length === 0) return empty;
 
-  const executor = yield* CommandExecutor;
-
   const prompt = [
     "You're tagging items in my daily GitHub brief for work on Home Assistant. Don't use any tools.",
     "Tag each item with the area it belongs to, as an emoji and a short name in sentence case, such as 📊 Dashboards. Use one tag, or two when it clearly spans areas. Reuse a tag from this list when one fits:",
@@ -266,42 +159,13 @@ export const tagAreas = Effect.fn("brief.tagAreas")(function* (
     'Reply with JSON only, no code fence: {"items": {"<id>": ["📊 Dashboards"]}, "sections": {"<name>": "🛒"}}',
   ].join("\n\n");
 
-  const text = yield* executor
-    .run(
-      OPENCODE,
-      [
-        "run",
-        "--format",
-        "json",
-        "--title",
-        "Daily brief areas",
-        "-m",
-        model,
-        prompt,
-      ],
-      { cwd },
-    )
-    .pipe(
-      Effect.timeout(Duration.times(config.explainTimeout, 3)),
-      Effect.map((output) =>
-        output
-          .split("\n")
-          .flatMap((line) => {
-            const event = Schema.decodeOption(Schema.fromJsonString(Event))(
-              line,
-            );
-
-            return Option.isSome(event) &&
-              event.value.type === "text" &&
-              event.value.part?.text
-              ? [event.value.part.text]
-              : [];
-          })
-          .at(-1)
-          ?.trim(),
-      ),
-      Effect.orElseSucceed(() => undefined),
-    );
+  const text = yield* opencodeText({
+    model,
+    prompt,
+    title: "Daily brief areas",
+    cwd,
+    timeout: Duration.times(config.explainTimeout, 3),
+  });
 
   const json = text?.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
 
@@ -315,7 +179,7 @@ export const tagAreas = Effect.fn("brief.tagAreas")(function* (
     items: new Map(
       Object.entries(decoded.value.items).map(([id, tags]) => [
         id,
-        tags.slice(0, 2).map((tag) => tag.replace(/\s*[—–]\s*/g, ", ")),
+        tags.slice(0, 2).map(withoutDashes),
       ]),
     ),
     sections: new Map(Object.entries(decoded.value.sections)),
@@ -333,7 +197,11 @@ export const scoreBrief = Effect.fn("brief.score")(function* (
     (item) => workTime || !item.work || item.crossover,
   );
 
-  const workersAi = yield* workersAiFor(config);
+  const workersAi = yield* workersAiFor(config.decisionModel).pipe(
+    Effect.mapError(
+      (error) => new BriefConfigError({ message: error.message }),
+    ),
+  );
 
   const scored = yield* Effect.forEach(
     included,
