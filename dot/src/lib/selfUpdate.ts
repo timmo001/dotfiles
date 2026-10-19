@@ -86,7 +86,15 @@ export const rebuild = Effect.gen(function* () {
     BINARY_COMPILE_TIMEOUT_SECONDS,
     executor.run(
       "bun",
-      ["build", "src/index.ts", "--compile", "--outfile", tmpPath],
+      [
+        "build",
+        "src/index.ts",
+        "--compile",
+        "--bytecode",
+        "--format=esm",
+        "--outfile",
+        tmpPath,
+      ],
       { cwd: dotSrc },
     ),
   );
