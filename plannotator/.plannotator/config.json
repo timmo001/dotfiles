@@ -36,7 +36,7 @@
   "inboxReminder": false,
   "inboxSound": {
     "dialogShownFor": "0.28.16",
-    "volume": 100
+    "volume": 50
   },
   "inboxAgentNotes": {
     "offered": true,
