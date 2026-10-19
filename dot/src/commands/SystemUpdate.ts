@@ -111,6 +111,7 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
   automatic: boolean,
   baseEnv: Readonly<Record<string, string>>,
   summaryFile: string,
+  selfUpdate: boolean,
 ) {
   const fs = yield* FileSystem.FileSystem;
 
@@ -119,7 +120,12 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
 
     const exitCode = yield* runChild(
       "dot",
-      ["update", "--summary-file", summaryFile],
+      [
+        "update",
+        ...(selfUpdate ? [] : ["--no-self-update"]),
+        "--summary-file",
+        summaryFile,
+      ],
       baseEnv,
     );
 
@@ -212,7 +218,11 @@ const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
  * leaving focus here. The pane stays open once the run finishes.
  */
 const splitPane = Effect.fn("SystemUpdate.splitPane")(
-  function* (steps: readonly UpdateChoice[], automatic: boolean) {
+  function* (
+    steps: readonly UpdateChoice[],
+    automatic: boolean,
+    selfUpdate: boolean,
+  ) {
     const herdr = yield* HerdrSdk;
 
     const from = yield* Schema.decodeUnknownEffect(PaneId)(
@@ -234,6 +244,7 @@ const splitPane = Effect.fn("SystemUpdate.splitPane")(
         "system",
         ...steps.flatMap((step) => ["--step", step]),
         ...(automatic ? ["--yes"] : []),
+        ...(selfUpdate ? [] : ["--no-self-update"]),
       ]
         .map(quote)
         .join(" "),
@@ -297,11 +308,13 @@ const pullDotfiles = Effect.fn("SystemUpdate.pullDotfiles")(function* () {
  * Under Herdr, pull the dotfiles first, then hand every step but Omarchy to a
  * split pane so both run, and prompt for authentication, at once.
  *
- * @returns The steps left for this pane, or none when the pull failed.
+ * @returns The steps left for this pane, none when the pull failed, and
+ *   whether dot update still needs its self-update pull.
  */
 const splitOffOmarchy = Effect.fn("SystemUpdate.splitOffOmarchy")(function* (
   selected: readonly UpdateChoice[],
   automatic: boolean,
+  selfUpdate: boolean,
 ) {
   const others = selected.filter((step) => step !== "omarchy");
 
@@ -311,19 +324,22 @@ const splitOffOmarchy = Effect.fn("SystemUpdate.splitOffOmarchy")(function* (
     !selected.includes("omarchy") ||
     others.length === 0
   )
-    return selected;
+    return { steps: selected, selfUpdate };
 
-  if (others.includes("dotfiles") && !(yield* pullDotfiles())) return [];
+  const prePull = selfUpdate && others.includes("dotfiles");
+  const childSelfUpdate = selfUpdate && !prePull;
 
-  return yield* splitPane(others, automatic).pipe(
-    Effect.as(["omarchy"] as const),
+  if (prePull && !(yield* pullDotfiles())) return { steps: [], selfUpdate };
+
+  return yield* splitPane(others, automatic, childSelfUpdate).pipe(
+    Effect.as({ steps: ["omarchy"] as const, selfUpdate: childSelfUpdate }),
     Effect.catch((error) =>
       Effect.sync(() => {
         process.stderr.write(
           `[WARN] Could not open a Herdr pane, running every update here: ${formatCause(error)}\n`,
         );
 
-        return selected;
+        return { steps: selected, selfUpdate: childSelfUpdate };
       }),
     ),
   );
@@ -333,6 +349,7 @@ const splitOffOmarchy = Effect.fn("SystemUpdate.splitOffOmarchy")(function* (
 export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
   readonly yes: boolean;
   readonly steps: readonly UpdateChoice[];
+  readonly selfUpdate: boolean;
 }) {
   const automatic =
     options.yes ||
@@ -358,7 +375,12 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
   if (selected.length === 0) return;
 
   const fs = yield* FileSystem.FileSystem;
-  const steps = yield* splitOffOmarchy(selected, automatic);
+
+  const { steps, selfUpdate } = yield* splitOffOmarchy(
+    selected,
+    automatic,
+    options.selfUpdate,
+  );
 
   if (steps.length === 0) return;
 
@@ -380,7 +402,11 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
     Effect.ignore,
   );
 
-  yield* runSteps(selectedSet, automatic, baseEnv, summaryFile).pipe(
-    Effect.ensuring(printSummary),
-  );
+  yield* runSteps(
+    selectedSet,
+    automatic,
+    baseEnv,
+    summaryFile,
+    selfUpdate,
+  ).pipe(Effect.ensuring(printSummary));
 }, Effect.scoped);

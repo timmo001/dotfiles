@@ -78,7 +78,7 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--app` | Install Bun dependencies and rebuild the dot binary only |
 | `--check` | Report dotfiles pulls, pending pins and stow changes, skipping local work |
 | `--check-all` | Also check development repos for pulls, skipping local work |
-| `--no-self-update` | Skip the internal self-update phase |
+| `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
 | `--summary-file` `<string>` | Internal: write the final summary to this file instead of printing it |
@@ -105,7 +105,7 @@ dot update system [flags]
 
 Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
 
-Under Herdr, when Omarchy and other steps are selected, this pane first pulls the public and private dotfiles and rebuilds dot when Dotfiles is selected. The other steps then run in a pane split off to the right, which stays open when they finish, while this pane runs the Omarchy update, so both can ask for authentication straight away.
+Under Herdr, when Omarchy and other steps are selected, this pane first pulls the public and private dotfiles and rebuilds dot when Dotfiles is selected. The other steps then run in a pane split off to the right, which stays open when they finish and doesn't pull the dotfiles again, while this pane runs the Omarchy update, so both can ask for authentication straight away.
 
 **Options**
 
@@ -113,6 +113,7 @@ Under Herdr, when Omarchy and other steps are selected, this pane first pulls th
 | --- | --- |
 | `--yes` | Select every update without prompting |
 | `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, omarchy, github-cli, yazi, protonplus, firmware, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
+| `--no-self-update` | Internal: the dotfiles are already pulled, so dot update skips its self-update |
 | `--help` `-h` | Show help information |
 
 **Examples**

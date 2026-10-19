@@ -242,8 +242,13 @@ const systemUpdateCommand = describe(
           "Run only this step without prompting; repeat for several",
         ),
       ),
+      noSelfUpdate: bool(
+        "no-self-update",
+        "Internal: the dotfiles are already pulled, so dot update skips its self-update",
+      ),
     },
-    ({ yes, step }) => systemUpdate({ yes, steps: step }),
+    ({ yes, step, noSelfUpdate }) =>
+      systemUpdate({ yes, steps: step, selfUpdate: !noSelfUpdate }),
   ),
   "Select and run Dotfiles, Omarchy, and Topgrade updates",
   [
@@ -253,7 +258,7 @@ const systemUpdateCommand = describe(
   ],
   {
     description:
-      "Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.\n\nUnder Herdr, when Omarchy and other steps are selected, this pane first pulls the public and private dotfiles and rebuilds dot when Dotfiles is selected. The other steps then run in a pane split off to the right, which stays open when they finish, while this pane runs the Omarchy update, so both can ask for authentication straight away.",
+      "Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.\n\nUnder Herdr, when Omarchy and other steps are selected, this pane first pulls the public and private dotfiles and rebuilds dot when Dotfiles is selected. The other steps then run in a pane split off to the right, which stays open when they finish and doesn't pull the dotfiles again, while this pane runs the Omarchy update, so both can ask for authentication straight away.",
   },
 );
 
@@ -286,7 +291,7 @@ const updateCommand = describe(
       ),
       noSelfUpdate: bool(
         "no-self-update",
-        "Skip the internal self-update phase",
+        "Skip the internal self-update phase, which pulls the public and private dotfiles",
       ),
       noReload: bool("no-reload", "Skip agent reload and module refresh"),
       postHookRepo: Flag.String("post-hook-repo").pipe(

@@ -1318,6 +1318,8 @@ export const update = (updateOpts?: UpdateOptions) =>
     if (!isFullUpdate) {
       completedActions.push(skip("Self-update skipped (scoped update)"));
     } else if (opts?.selfUpdate === false) {
+      // Whatever skipped the self-update has already pulled both dotfiles.
+      privatePulled = true;
       completedActions.push(
         opts.postHookRepos?.length
           ? notable(`Pulled ${opts.postHookRepos.join(", ")} and restarted`)
