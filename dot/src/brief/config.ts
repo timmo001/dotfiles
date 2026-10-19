@@ -10,14 +10,15 @@ export class BriefConfigError extends Schema.TaggedError<BriefConfigError>()(
   { message: Schema.String },
 ) {}
 
+/** Site pattern matched against an item's URL, as in `links.sites`. */
+const SitePattern = Schema.String.check(
+  Schema.isPattern(/^(\*\.)?[a-z0-9.-]+(:\d+)?(\/\S*)?$/i),
+);
+
 /** A priority rule applied after the decision model scores an item. */
 const BriefRule = Schema.Struct({
   /** Site pattern matched against the item's URL, as in `links.sites`. */
-  match: Schema.optionalKey(
-    Schema.String.check(
-      Schema.isPattern(/^(\*\.)?[a-z0-9.-]+(:\d+)?(\/\S*)?$/i),
-    ),
-  ),
+  match: Schema.optionalKey(SitePattern),
   /** Item reason, such as `subscribed` or `review_requested`. */
   reason: Schema.optionalKey(Schema.NonEmptyString),
   /** Feedback signal, such as `changes_requested`. */
@@ -38,6 +39,59 @@ const BriefRule = Schema.Struct({
 
 /** Decoded {@link BriefRule}. */
 export type BriefRule = typeof BriefRule.Type;
+
+const PositiveInt = Schema.Int.check(Schema.isGreaterThan(0));
+
+/** A work-time section filled from GitHub searches. */
+const WorkScope = Schema.Struct({
+  name: Schema.NonEmptyString,
+  /** GitHub searches; `{since}` becomes the window's ISO date. */
+  queries: Schema.Array(Schema.NonEmptyString),
+  limit: Schema.optionalKey(PositiveInt),
+});
+
+const WorkConfig = Schema.Struct({
+  /** Home Assistant calendar shown as the day's meetings. */
+  calendar: Schema.optionalKey(
+    Schema.String.check(Schema.isPattern(/^calendar\.[a-z0-9_]+$/)),
+  ),
+  /** Left out of the work-time sections. */
+  exclude: Schema.optionalKey(Schema.Array(SitePattern)),
+  scopes: Schema.optionalKey(Schema.Array(WorkScope)),
+  follow: Schema.optionalKey(
+    Schema.Struct({
+      days: Schema.optionalKey(PositiveInt),
+      areas: Schema.optionalKey(Schema.Int.check(Schema.isGreaterThan(-1))),
+      limit: Schema.optionalKey(PositiveInt),
+      /** Labels that say nothing about an area; a trailing `*` matches a prefix. */
+      ignore_labels: Schema.optionalKey(Schema.Array(Schema.NonEmptyString)),
+    }),
+  ),
+  lookback_days: Schema.optionalKey(PositiveInt),
+});
+
+/** A work-time scope with defaults filled in. */
+export interface BriefWorkScope {
+  readonly name: string;
+  readonly queries: readonly string[];
+  readonly limit: number;
+}
+
+/** Work-time additions to the brief, with defaults filled in. */
+export interface BriefWork {
+  readonly calendar: string | undefined;
+  readonly exclude: readonly string[];
+  readonly scopes: readonly BriefWorkScope[];
+  /** Days of my own PRs and reviews used to find the areas I work in. */
+  readonly followDays: number;
+  /** How many of those areas get a section. */
+  readonly followAreas: number;
+  /** Items listed per followed area. */
+  readonly followLimit: number;
+  readonly ignoreLabels: readonly string[];
+  /** Longest lookback window, in days. */
+  readonly lookbackDays: number;
+}
 
 const BriefConfigSchema = Schema.Struct({
   decision_model: Schema.optionalKey(Schema.NonEmptyString),
@@ -66,6 +120,7 @@ const BriefConfigSchema = Schema.Struct({
       }),
     ),
   ),
+  work: Schema.optionalKey(WorkConfig),
 });
 
 /** Settings for `dot brief`, with defaults filled in. */
@@ -86,6 +141,8 @@ export interface BriefConfig {
   readonly limit: number;
   /** OpenCode model for follow-up agents; OpenCode's default when unset. */
   readonly followUpModel: string | undefined;
+  /** What the brief adds at work time. */
+  readonly work: BriefWork;
 }
 
 /** Path of the private brief settings, stowed from the private overlay. */
@@ -134,5 +191,19 @@ export const readBriefConfig = Effect.fn("brief.readConfig")(function* () {
     explainModels: raw.explain?.models ?? [],
     limit: raw.report?.limit ?? 25,
     followUpModel: raw.follow_up?.model,
+    work: {
+      calendar: raw.work?.calendar,
+      exclude: raw.work?.exclude ?? [],
+      scopes: (raw.work?.scopes ?? []).map((scope) => ({
+        name: scope.name,
+        queries: scope.queries,
+        limit: scope.limit ?? 10,
+      })),
+      followDays: raw.work?.follow?.days ?? 30,
+      followAreas: raw.work?.follow?.areas ?? 4,
+      followLimit: raw.work?.follow?.limit ?? 5,
+      ignoreLabels: raw.work?.follow?.ignore_labels ?? [],
+      lookbackDays: raw.work?.lookback_days ?? 14,
+    },
   } satisfies BriefConfig;
 });

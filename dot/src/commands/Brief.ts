@@ -2,17 +2,28 @@ import { Clock, Effect } from "effect";
 import { hostname } from "node:os";
 import { join } from "node:path";
 import { acquireFileLock } from "../lib/fileLock.js";
-import { isWorkTime } from "../lib/workTime.js";
+import { isWorkTime, readWorkSchedule } from "../lib/workTime.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
-import { collectBrief } from "../brief/collect.js";
+import {
+  collectBrief,
+  type BriefItem,
+  type BriefWorkLists,
+} from "../brief/collect.js";
+import { workDayEvents, type WorkDay } from "../brief/calendar.js";
 import { readBriefConfig } from "../brief/config.js";
 import {
   briefFollowUp as followUp,
   watchFollowUps,
 } from "../brief/followUp.js";
 import { readBriefThread, sendBrief } from "../brief/inbox.js";
-import { SECTIONS, scoreBrief, type ScoredItem } from "../brief/score.js";
+import {
+  SECTIONS,
+  scoreBrief,
+  tagAreas,
+  type AreaTags,
+  type ScoredItem,
+} from "../brief/score.js";
 import { trackedCheckouts, type TrackedCheckout } from "../brief/repos.js";
 import {
   gitItemFromGitHubUrl,
@@ -35,6 +46,17 @@ const KEPT_REPORTS = 7;
 /** Resolutions of items that dropped off are forgotten after this long. */
 const DONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Work days and area tags remembered between reports. */
+const KEPT_WORK_DAYS = 14;
+
+const KEPT_AREA_TAGS = 40;
+
+const NO_TAGS: AreaTags = { items: new Map(), sections: new Map() };
+
+const localDate = (ms: number) => new Date(ms).toLocaleDateString("en-CA");
+
 const KIND_ICONS: Record<ScoredItem["kind"], string> = {
   pr: "🟣",
   issue: "🟢",
@@ -49,14 +71,14 @@ const words = (value: string) => value.replaceAll("_", " ");
 
 const escapeMarkdown = (text: string) => text.replace(/([[\]\\*_`])/g, "\\$1");
 
-const icon = (item: ScoredItem) => (item.draft ? "⚪" : KIND_ICONS[item.kind]);
+const icon = (item: BriefItem) => (item.draft ? "⚪" : KIND_ICONS[item.kind]);
 
-const issueNumber = (item: ScoredItem) => /#(\d+)$/.exec(item.id)?.[1];
+const issueNumber = (item: BriefItem) => /#(\d+)$/.exec(item.id)?.[1];
 
 /** Tracked names for the items' repositories, such as `[HA] Core`. */
 type RepoNames = ReadonlyMap<string, TrackedCheckout>;
 
-const repoName = (item: ScoredItem, names: RepoNames) =>
+const repoName = (item: BriefItem, names: RepoNames) =>
   names.get(item.repo.toLowerCase())?.name ?? item.repo;
 
 /**
@@ -69,19 +91,12 @@ const choiceLabel = (number: string, item: ScoredItem, names: RepoNames) =>
     .replace(/\s+/g, " ")
     .slice(0, 100);
 
-function renderItem(
-  number: string,
-  item: ScoredItem,
+/** Icon, repository and linked title, shared by numbered and work-time lines. */
+function itemTitle(
+  item: BriefItem,
   names: RepoNames,
   listed: ReadonlySet<string>,
-  showModel: boolean,
-): string[] {
-  const facts = [
-    words(item.reason),
-    ...item.feedback.filter((signal) => signal !== item.reason).map(words),
-    item.unread ? "unread" : "",
-  ].filter(Boolean);
-
+) {
   const ref = issueNumber(item);
 
   const gitItem = gitItemFromGitHubUrl(item.url);
@@ -91,8 +106,26 @@ function renderItem(
       ? ` ${gitItemPanelMarkdown(gitItem)}`
       : "";
 
+  return `${icon(item)} **${escapeMarkdown(repoName(item, names))}** · [${escapeMarkdown(`${ref ? `#${ref} ` : ""}${item.title}`)}](${item.url})${panel}`;
+}
+
+function renderItem(
+  number: string,
+  item: ScoredItem,
+  names: RepoNames,
+  listed: ReadonlySet<string>,
+  showModel: boolean,
+): string[] {
+  const facts = [
+    ...(item.areas ?? []),
+    words(item.reason),
+    ...item.feedback.filter((signal) => signal !== item.reason).map(words),
+    item.unread ? "unread" : "",
+    ...(item.context ?? []),
+  ].filter(Boolean);
+
   return [
-    `- **${number}.** ${icon(item)} **${escapeMarkdown(repoName(item, names))}** · [${escapeMarkdown(`${ref ? `#${ref} ` : ""}${item.title}`)}](${item.url})${panel} · ${facts.join(" · ")}`,
+    `- **${number}.** ${itemTitle(item, names, listed)} · ${facts.join(" · ")}`,
     ...(item.why
       ? [`  - ${item.why}${showModel ? ` _(${item.whyModel})_` : ""}`]
       : []),
@@ -110,12 +143,130 @@ function renderItem(
   ];
 }
 
+/** A work-time section after Later, with lines but no B numbers. */
+interface WorkSection {
+  readonly name: string;
+  /** Whether the heading gets an emoji from the area tags. */
+  readonly tagged: boolean;
+  readonly lines: readonly {
+    readonly item: BriefItem;
+    readonly facts: readonly string[];
+  }[];
+  /** Markdown appended as the last line, such as "and N more". */
+  readonly footer: string | undefined;
+}
+
+const formatDay = (date: string) =>
+  new Date(`${date}T12:00:00`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+
+const stateFacts = (item: BriefItem) => [
+  item.state === "open" ? "open" : "",
+  ...(item.context ?? []),
+];
+
+/** The work-time sections, each leaving out items shown earlier in the report. */
+function workSections(
+  work: BriefWorkLists,
+  shown: ReadonlySet<string>,
+): WorkSection[] {
+  const seen = new Set(shown);
+
+  const take = (items: readonly BriefItem[], limit = Infinity) => {
+    const fresh = items.filter((item) => !seen.has(item.id));
+    const picked = fresh.slice(0, limit);
+
+    for (const item of picked) seen.add(item.id);
+
+    return { picked, duplicates: items.length - fresh.length };
+  };
+
+  const resolved = take(work.closed).picked;
+
+  const quiet = (item: BriefItem) =>
+    (item.labels ?? []).includes("no-stale") && item.updatedAt < work.since;
+
+  const tasks = take(work.tasks.filter((item) => !quiet(item))).picked;
+  const quietCount = work.tasks.filter(
+    (item) => quiet(item) && !seen.has(item.id),
+  ).length;
+
+  const lists = [...work.areas, ...work.scopes].map((list): WorkSection => {
+    const { picked, duplicates } = take(list.items, list.limit);
+    const more = list.total - picked.length - duplicates;
+
+    return {
+      name: list.name,
+      tagged: true,
+      lines: picked.map((item) => ({ item, facts: stateFacts(item) })),
+      footer: more > 0 ? `- [and ${more} more](${list.url})` : undefined,
+    };
+  });
+
+  return [
+    {
+      name: "Resolved",
+      tagged: false,
+      lines: resolved.map((item) => ({ item, facts: stateFacts(item) })),
+      footer: undefined,
+    },
+    {
+      name: "Your tasks",
+      tagged: false,
+      lines: tasks.map((item) => ({
+        item,
+        facts: [words(item.reason), ...(item.context ?? [])],
+      })),
+      footer:
+        quietCount > 0
+          ? `- [${quietCount} older no-stale issue${quietCount === 1 ? "" : "s"}](https://github.com/issues?q=${encodeURIComponent("is:issue is:open label:no-stale (author:@me OR assignee:@me)")})`
+          : undefined,
+    },
+    ...lists,
+  ].filter((section) => section.lines.length > 0 || section.footer);
+}
+
+function renderWorkSection(
+  section: WorkSection,
+  tags: AreaTags,
+  names: RepoNames,
+  listed: ReadonlySet<string>,
+) {
+  const emoji = section.tagged ? tags.sections.get(section.name) : undefined;
+
+  return [
+    `## ${emoji ? `${emoji} ` : ""}${section.name}`,
+    "",
+    ...section.lines.map(({ item, facts }) => {
+      const extra = [
+        ...(tags.items.get(item.id) ?? []).filter(
+          (tag) => !emoji || !tag.startsWith(emoji),
+        ),
+        ...facts,
+      ].filter(Boolean);
+
+      return `- ${itemTitle(item, names, listed)}${extra.map((fact) => ` · ${fact}`).join("")}`;
+    }),
+    ...(section.footer ? [section.footer] : []),
+    "",
+  ];
+}
+
 function renderReport(
   items: readonly ScoredItem[],
   names: RepoNames,
   listed: ReadonlySet<string>,
   workTime: boolean,
   model: string,
+  work?: {
+    readonly since: string;
+    readonly days: readonly WorkDay[];
+    readonly sections: readonly WorkSection[];
+    readonly tags: AreaTags;
+  },
 ) {
   const numbered = items.map((item, index) => [`B${index + 1}`, item] as const);
 
@@ -123,13 +274,39 @@ function renderReport(
     ...new Set(items.flatMap((item) => (item.whyModel ? [item.whyModel] : []))),
   ];
 
-  const header = `**${workTime ? "Work time" : "Outside work time"}** · ${items.length} item${items.length === 1 ? "" : "s"} · scored by ${model}${reasonModels.length === 1 ? ` · reasons by ${reasonModels[0]}` : ""}${workTime ? "" : " · work items left out"}`;
+  const header = [
+    `**${workTime ? "Work time" : "Outside work time"}**${work ? ` · since ${formatDay(work.since)}` : ""} · ${items.length} item${items.length === 1 ? "" : "s"} · scored by ${model}${reasonModels.length === 1 ? ` · reasons by ${reasonModels[0]}` : ""}${workTime ? "" : " · work items left out"}`,
+    ...(work?.days ?? []).flatMap((day) => [
+      "",
+      `**${day.label}:** ${day.events.map((event) => `${event.time} ${escapeMarkdown(event.summary)}`).join(" · ")}`,
+    ]),
+  ].join("\n");
 
   const legend =
     "🟣 PR · ⚪ draft PR · 🟢 issue · 🔴 failing CI · 🔵 notification";
 
+  const extra = (work?.sections ?? []).flatMap((section) =>
+    renderWorkSection(section, work?.tags ?? NO_TAGS, names, listed),
+  );
+
   if (items.length === 0)
-    return { body: `${header}\n\nNothing needs you right now.`, numbered };
+    return {
+      body:
+        extra.length > 0
+          ? [
+              header,
+              "",
+              "Nothing needs you right now.",
+              "",
+              legend,
+              "",
+              ...extra,
+            ]
+              .join("\n")
+              .trimEnd()
+          : `${header}\n\nNothing needs you right now.`,
+      numbered,
+    };
 
   const sections = SECTIONS.flatMap((section) => {
     const inSection = numbered.filter(([, item]) => item.section === section);
@@ -159,7 +336,9 @@ function renderReport(
   ];
 
   return {
-    body: [header, "", legend, "", ...sections, ...question].join("\n"),
+    body: [header, "", legend, "", ...sections, ...extra, ...question].join(
+      "\n",
+    ),
     numbered,
   };
 }
@@ -225,7 +404,32 @@ const run = Effect.fn("brief.run")(function* (options: {
     }
   }
 
-  const collected = yield* collectBrief(brief, nowMs);
+  const workTime = yield* isWorkTime(() => Effect.void);
+  const today = localDate(nowMs);
+  const earliest = localDate(nowMs - brief.work.lookbackDays * DAY_MS);
+
+  const workDays = workTime
+    ? ((yield* readWorkSchedule(() => Effect.void))?.work_hours.days ?? [])
+    : [];
+
+  // Before any work day is saved, start at the previous day in the schedule.
+  const lastWorkDay =
+    last?.workDays?.find((day) => day < today) ??
+    localDate(
+      nowMs -
+        ([1, 2, 3, 4, 5, 6, 7].find((offset) =>
+          workDays.includes(new Date(nowMs - offset * DAY_MS).getDay() || 7),
+        ) ?? 1) *
+          DAY_MS,
+    );
+
+  const since = workTime
+    ? lastWorkDay > earliest
+      ? lastWorkDay
+      : earliest
+    : undefined;
+
+  const { items: collected, work } = yield* collectBrief(brief, nowMs, since);
   const current = new Set(collected.map((item) => item.id));
 
   for (const [id, resolution] of resolutions) {
@@ -253,17 +457,57 @@ const run = Effect.fn("brief.run")(function* (options: {
     return true;
   });
 
-  const workTime = yield* isWorkTime(() => Effect.void);
-
-  const scored = yield* output.withSpinner(
+  const scoredItems = yield* output.withSpinner(
     `Scoring ${visible.length} items`,
     scoreBrief(brief, visible, workTime, stateDir),
   );
 
-  const names = yield* trackedCheckouts(scored.map((item) => item.repo));
+  const sections = work
+    ? workSections(work, new Set(scoredItems.map((item) => item.id)))
+    : [];
+
+  const [tags, days] = work
+    ? yield* Effect.all(
+        [
+          output.withSpinner(
+            "Tagging areas",
+            tagAreas(
+              brief,
+              [
+                ...scoredItems,
+                ...sections.flatMap((section) =>
+                  section.lines.map((line) => line.item),
+                ),
+              ],
+              sections
+                .filter((section) => section.tagged)
+                .map((section) => section.name),
+              last?.areaTags ?? [],
+              stateDir,
+            ),
+          ),
+          workDayEvents(brief.work.calendar, nowMs),
+        ],
+        { concurrency: "unbounded" },
+      )
+    : [NO_TAGS, []];
+
+  const scored = work
+    ? scoredItems.map((item) => ({
+        ...item,
+        areas: tags.items.get(item.id) ?? [],
+      }))
+    : scoredItems;
+
+  const allItems = [
+    ...scored,
+    ...sections.flatMap((section) => section.lines.map((line) => line.item)),
+  ];
+
+  const names = yield* trackedCheckouts(allItems.map((item) => item.repo));
 
   const listed = yield* listedGitItems(
-    scored.flatMap((item) => {
+    allItems.flatMap((item) => {
       const gitItem = gitItemFromGitHubUrl(item.url);
 
       return gitItem ? [gitItem] : [];
@@ -276,6 +520,7 @@ const run = Effect.fn("brief.run")(function* (options: {
     listed,
     workTime,
     brief.decisionModel,
+    work && { since: work.since, days, sections, tags },
   );
 
   if (options.dryRun) {
@@ -313,6 +558,23 @@ const run = Effect.fn("brief.run")(function* (options: {
       ]),
     ),
     reports,
+    ...(work
+      ? {
+          workDays: [
+            today,
+            ...(last?.workDays ?? []).filter((day) => day !== today),
+          ].slice(0, KEPT_WORK_DAYS),
+          areaTags: [
+            ...new Set([
+              ...[...tags.items.values()].flat(),
+              ...(last?.areaTags ?? []),
+            ]),
+          ].slice(0, KEPT_AREA_TAGS),
+        }
+      : {
+          ...(last?.workDays && { workDays: last.workDays }),
+          ...(last?.areaTags && { areaTags: last.areaTags }),
+        }),
   });
 
   yield* writeResolutions(Object.fromEntries(resolutions));

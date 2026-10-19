@@ -2642,7 +2642,7 @@ Build the daily brief and post it to the Plannotator Inbox
 dot brief run [flags]
 ```
 
-Collect open PRs and issues you're involved in, unread notifications and failing CI, score each with the decision model in brief.yml, apply its rules, during work time summarise what people's comments ask of you on the top few with opencode2, then post the report to the "Daily brief" Inbox thread. Items ticked in the last report stay hidden until they have new activity. During work time work items come first; outside it they're left out, except crossover items.
+Collect open PRs and issues you're involved in, unread notifications and failing CI, score each with the decision model in brief.yml, apply its rules, during work time summarise what people's comments ask of you on the top few with opencode2, then post the report to the "Daily brief" Inbox thread. Items ticked in the last report stay hidden until they have new activity. During work time work items come first; outside it they're left out, except crossover items. At work time the report also shows the window since the last work day, today's and the next work day's meetings from the work.calendar in brief.yml, an area tag in emoji form on each item, and context such as merged or stale, followed by Resolved, Your tasks, sections for the areas you work in (from the labels on your recent PRs and reviews) and the work.scopes searches.
 
 **Options**
 

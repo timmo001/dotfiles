@@ -29,6 +29,8 @@ export const ScoredItem = Schema.Struct({
   why: Schema.NullOr(Schema.String),
   /** Model that wrote {@link why}. */
   whyModel: Schema.NullOr(Schema.String),
+  /** Area tags in emoji form, such as `📊 Dashboards`, written at work time only. */
+  areas: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
 /** Decoded {@link ScoredItem}. */
@@ -223,6 +225,101 @@ const explain = Effect.fn("brief.explain")(function* (
   }
 
   return { why: null, whyModel: null };
+});
+
+const AreaTagsReply = Schema.Struct({
+  items: Schema.Record(Schema.String, Schema.Array(Schema.String)),
+  sections: Schema.Record(Schema.String, Schema.String),
+});
+
+/** Item and section tags, empty when the model fails. */
+export interface AreaTags {
+  readonly items: ReadonlyMap<string, readonly string[]>;
+  readonly sections: ReadonlyMap<string, string>;
+}
+
+/**
+ * Ask the first reasons model, in one call, for each item's area tags in
+ * emoji form and an emoji for each section name. `vocabulary` holds recent
+ * tags so names stay steady between reports.
+ */
+export const tagAreas = Effect.fn("brief.tagAreas")(function* (
+  config: BriefConfig,
+  items: readonly BriefItem[],
+  sections: readonly string[],
+  vocabulary: readonly string[],
+  cwd: string,
+) {
+  const empty: AreaTags = { items: new Map(), sections: new Map() };
+  const model = config.explainModels[0];
+
+  if (!model || items.length === 0) return empty;
+
+  const executor = yield* CommandExecutor;
+
+  const prompt = [
+    "You're tagging items in my daily GitHub brief for work on Home Assistant. Don't use any tools.",
+    "Tag each item with the area it belongs to, as an emoji and a short name in sentence case, such as 📊 Dashboards. Use one tag, or two when it clearly spans areas. Reuse a tag from this list when one fits:",
+    JSON.stringify(vocabulary),
+    `The items:\n${JSON.stringify(items.map(({ id, repo, title, labels }) => ({ id, repo, title, labels: labels ?? [] })))}`,
+    `Also pick one emoji for each of these section names:\n${JSON.stringify(sections)}`,
+    'Reply with JSON only, no code fence: {"items": {"<id>": ["📊 Dashboards"]}, "sections": {"<name>": "🛒"}}',
+  ].join("\n\n");
+
+  const text = yield* executor
+    .run(
+      OPENCODE,
+      [
+        "run",
+        "--format",
+        "json",
+        "--title",
+        "Daily brief areas",
+        "-m",
+        model,
+        prompt,
+      ],
+      { cwd },
+    )
+    .pipe(
+      Effect.timeout(Duration.times(config.explainTimeout, 3)),
+      Effect.map((output) =>
+        output
+          .split("\n")
+          .flatMap((line) => {
+            const event = Schema.decodeOption(Schema.fromJsonString(Event))(
+              line,
+            );
+
+            return Option.isSome(event) &&
+              event.value.type === "text" &&
+              event.value.part?.text
+              ? [event.value.part.text]
+              : [];
+          })
+          .at(-1)
+          ?.trim(),
+      ),
+      Effect.orElseSucceed(() => undefined),
+    );
+
+  const json = text?.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
+
+  const decoded = json
+    ? Schema.decodeOption(Schema.fromJsonString(AreaTagsReply))(json)
+    : Option.none();
+
+  if (Option.isNone(decoded)) return empty;
+
+  return {
+    items: new Map(
+      Object.entries(decoded.value.items).map(([id, tags]) => [
+        id,
+        tags.slice(0, 2).map((tag) => tag.replace(/\s*[—–]\s*/g, ", ")),
+      ]),
+    ),
+    sections: new Map(Object.entries(decoded.value.sections)),
+  } satisfies AreaTags;
 });
 
 /** Score, section and order items, then, at work, summarise the comments on the top few. */

@@ -34,6 +34,8 @@ export const PullRequestNode = Schema.Struct({
   url: Schema.String,
   createdAt: Schema.String,
   updatedAt: Schema.String,
+  /** `OPEN`, `CLOSED` or `MERGED`. */
+  state: Schema.String,
   isDraft: Schema.Boolean,
   additions: Schema.Int,
   deletions: Schema.Int,
@@ -72,6 +74,7 @@ export const PullRequestNode = Schema.Struct({
     nodes: Schema.Array(
       Schema.Struct({
         commit: Schema.Struct({
+          committedDate: Schema.String,
           statusCheckRollup: Schema.NullOr(
             Schema.Struct({
               contexts: Schema.Struct({ nodes: Schema.Array(CheckContext) }),
@@ -90,7 +93,7 @@ export type PullRequestNode = typeof PullRequestNode.Type;
  * GraphQL selection for a `PullRequest` matching {@link PullRequestNode}. The
  * query must declare a `$bodies: Boolean!` variable gating comment bodies.
  */
-export const pullRequestFields = `number title body @include(if: $bodies) url createdAt updatedAt isDraft additions deletions changedFiles reviewDecision authorAssociation
+export const pullRequestFields = `number title body @include(if: $bodies) url createdAt updatedAt state isDraft additions deletions changedFiles reviewDecision authorAssociation
 author { login }
 repository { nameWithOwner }
 labels(first: 30) { nodes { name } }
@@ -105,6 +108,7 @@ latestReviews(first: 20) { nodes { author { login } state submittedAt } }
 commits(last: 1) {
   nodes {
     commit {
+      committedDate
       statusCheckRollup {
         contexts(first: 100) {
           nodes {

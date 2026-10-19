@@ -36,6 +36,10 @@ const LastReport = Schema.Struct({
   choices: Schema.Record(Schema.String, Schema.String),
   /** Recent reports by message id. */
   reports: Schema.Record(Schema.String, Report),
+  /** Local dates with a work-time report, newest first, for the lookback window. */
+  workDays: Schema.optionalKey(Schema.Array(Schema.String)),
+  /** Recent area tags, newest first, so the model keeps reusing them. */
+  areaTags: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
 /** Decoded state of the last posted report. */

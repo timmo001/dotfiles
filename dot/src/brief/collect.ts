@@ -61,6 +61,10 @@ export const BriefItem = Schema.Struct({
   failing: Schema.Array(FailingCheck),
   /** Markdown with open review threads and recent comments, for follow-up prompts. */
   detail: Schema.String,
+  labels: Schema.optionalKey(Schema.Array(Schema.String)),
+  state: Schema.optionalKey(Schema.Literals(["open", "closed", "merged"])),
+  /** Facts shown at work time, such as `stale`; they never change the score. */
+  context: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
 /** Decoded {@link BriefItem}. */
@@ -92,8 +96,12 @@ const IssueResult = Schema.Struct({
   url: Schema.String,
   createdAt: Schema.String,
   updatedAt: Schema.String,
+  state: Schema.String,
   author: Login,
   repository: Schema.Struct({ nameWithOwner: Schema.String }),
+  labels: Schema.Struct({
+    nodes: Schema.Array(Schema.Struct({ name: Schema.String })),
+  }),
   assignees: Schema.Struct({ nodes: Schema.Array(Login) }),
   comments: Schema.Struct({
     totalCount: Schema.Int,
@@ -111,11 +119,38 @@ const BriefResponse = Schema.Struct({
   data: Schema.Struct({
     viewer: Schema.Struct({ login: Schema.String }),
     search: Schema.Struct({
+      issueCount: Schema.Int,
       pageInfo: PageInfo,
       nodes: Schema.Array(SearchResult),
     }),
   }),
 });
+
+const ActivityResponse = Schema.Struct({
+  data: Schema.Struct({
+    search: Schema.Struct({
+      nodes: Schema.Array(
+        Schema.Struct({
+          repository: Schema.Struct({ nameWithOwner: Schema.String }),
+          labels: Schema.Struct({
+            nodes: Schema.Array(Schema.Struct({ name: Schema.String })),
+          }),
+        }),
+      ),
+    }),
+  }),
+});
+
+const ACTIVITY_QUERY = `query($q: String!) {
+  search(query: $q, type: ISSUE, first: 100) {
+    nodes {
+      ... on PullRequest {
+        repository { nameWithOwner }
+        labels(first: 30) { nodes { name } }
+      }
+    }
+  }
+}`;
 
 const BRIEF_QUERY = `query($q: String!, $first: Int!, $cursor: String, $bodies: Boolean!) {
   viewer { login }
@@ -128,9 +163,10 @@ const BRIEF_QUERY = `query($q: String!, $first: Int!, $cursor: String, $bodies: 
         ${pullRequestFields}
       }
       ... on Issue {
-        number title url createdAt updatedAt
+        number title url createdAt updatedAt state
         author { login }
         repository { nameWithOwner }
+        labels(first: 20) { nodes { name } }
         assignees(first: 10) { nodes { login } }
         comments(last: 10) {
           totalCount
@@ -165,9 +201,11 @@ const latest = (times: readonly (string | null | undefined)[]) =>
 const search = Effect.fn("brief.search")(function* (
   query: string,
   limit: number,
+  bodies = true,
 ) {
   const nodes: (typeof SearchResult.Type)[] = [];
   let viewer = "";
+  let total = 0;
   let cursor: string | null = null;
 
   do {
@@ -177,20 +215,36 @@ const search = Effect.fn("brief.search")(function* (
         q: query,
         first: Math.min(PAGE_SIZE, limit - nodes.length),
         cursor,
-        bodies: true,
+        bodies,
       },
       BriefResponse,
     );
 
     viewer = response.data.viewer.login;
+    total = response.data.search.issueCount;
     nodes.push(...response.data.search.nodes);
     cursor = response.data.search.pageInfo.hasNextPage
       ? response.data.search.pageInfo.endCursor
       : null;
   } while (cursor !== null && nodes.length < limit);
 
-  return { viewer, nodes };
+  return { viewer, nodes, total };
 });
+
+/** `open`, `closed` or `merged` from GitHub's upper-case state. */
+const itemState = (state: string) =>
+  state === "MERGED" ? "merged" : state === "CLOSED" ? "closed" : "open";
+
+const labelNames = (labels: { readonly nodes: readonly { name: string }[] }) =>
+  labels.nodes.map((label) => label.name);
+
+/** Facts shared by PRs and issues. */
+const commonContext = (state: string, labels: readonly string[]) => [
+  state === "open" ? "" : state,
+  labels.includes("stale") && !labels.includes("no-stale")
+    ? "stale, the bot will close it"
+    : "",
+];
 
 /** A comment's author, marked when it's me so prompts can tell my replies apart. */
 const commenter = (author: typeof Login.Type, me: string) =>
@@ -244,15 +298,16 @@ function pullRequestItem(
       .map((c) => c.createdAt),
   ]);
 
-  const failing = mine
-    ? checkContexts(node)
-        .filter(isFailedCheck)
-        .map((context) => {
-          const url = checkUrl(context);
+  const failing =
+    mine && node.state === "OPEN"
+      ? checkContexts(node)
+          .filter(isFailedCheck)
+          .map((context) => {
+            const url = checkUrl(context);
 
-          return { name: checkName(context), ...(url && { url }) };
-        })
-    : [];
+            return { name: checkName(context), ...(url && { url }) };
+          })
+      : [];
 
   const feedback = [
     reviewRequested ? "review_requested" : "",
@@ -288,6 +343,37 @@ function pullRequestItem(
     ]),
   ].join("\n");
 
+  const state = itemState(node.state);
+  const labels = labelNames(node.labels);
+  const pushedAt = node.commits.nodes[0]?.commit.committedDate ?? "";
+
+  const changesRequested = node.latestReviews.nodes.filter(
+    (review) => review.state === "CHANGES_REQUESTED",
+  );
+
+  const threadStarters = openThreads.map(
+    (thread) => thread.comments.nodes[0]?.author ?? null,
+  );
+
+  const context = [
+    ...commonContext(state, labels),
+    threadStarters.length > 0 && !threadStarters.some(isPerson)
+      ? threadStarters.every((login) => /copilot/i.test(login?.login ?? ""))
+        ? "Copilot threads only"
+        : "bot threads only"
+      : "",
+    feedback.includes("changes_requested") &&
+    changesRequested.length > 0 &&
+    changesRequested.every(
+      (review) =>
+        !isPerson(review.author) &&
+        review.submittedAt !== null &&
+        review.submittedAt < pushedAt,
+    )
+      ? "bot review, pushed since"
+      : "",
+  ].filter(Boolean);
+
   return {
     id: `pr:${repo}#${node.number}`,
     kind: failing.length > 0 ? "ci" : "pr",
@@ -307,6 +393,9 @@ function pullRequestItem(
     unread: false,
     failing,
     detail,
+    labels,
+    state,
+    context,
   };
 }
 
@@ -330,6 +419,20 @@ function issueItem(
       .map((c) => c.createdAt),
   );
 
+  const state = itemState(node.state);
+  const labels = labelNames(node.labels);
+
+  const others = node.assignees.nodes.flatMap((login) =>
+    login && !byMe(login) ? [`@${login.login}`] : [],
+  );
+
+  const context = [
+    ...commonContext(state, labels),
+    others.length > 0 && !node.assignees.nodes.some(byMe)
+      ? `assigned to ${others.join(", ")}`
+      : "",
+  ].filter(Boolean);
+
   return {
     id: `issue:${repo}#${node.number}`,
     kind: "issue",
@@ -351,6 +454,9 @@ function issueItem(
         quote(excerpt(comment.body)),
       ])
       .join("\n"),
+    labels,
+    state,
+    context,
   };
 }
 
@@ -387,17 +493,72 @@ const mergedDependencyUpdate = Effect.fn("brief.mergedDependencyUpdate")(
   },
 );
 
-/** Gather open PRs and issues I'm involved in, plus unread notifications. */
+/** A work-time section of other items, from one or more GitHub searches. */
+export interface BriefList {
+  readonly name: string;
+  readonly items: readonly BriefItem[];
+  /** Items to show, after leaving out those shown earlier. */
+  readonly limit: number;
+  /** Estimated matches across the searches, for "and N more". */
+  readonly total: number;
+  /** GitHub search page for the rest. */
+  readonly url: string;
+}
+
+/** What the brief adds at work time. */
+export interface BriefWorkLists {
+  /** ISO date the window starts on. */
+  readonly since: string;
+  /** My work PRs merged or closed in the window. */
+  readonly closed: readonly BriefItem[];
+  /** My open authored and assigned work issues. */
+  readonly tasks: readonly BriefItem[];
+  /** Other people's PRs in the areas I work in. */
+  readonly areas: readonly BriefList[];
+  /** The interest scopes from `brief.yml`. */
+  readonly scopes: readonly BriefList[];
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const isoDate = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+/** GitHub web search for a query. */
+export const searchUrl = (query: string) =>
+  `https://github.com/search?type=${/\bis:issue\b/.test(query) ? "issues" : "pullrequests"}&q=${encodeURIComponent(query)}`;
+
+const labelIgnored = (ignore: readonly string[], label: string) =>
+  ignore.some((pattern) =>
+    pattern.endsWith("*")
+      ? label.toLowerCase().startsWith(pattern.slice(0, -1).toLowerCase())
+      : label.toLowerCase() === pattern.toLowerCase(),
+  );
+
+/** A label as a section name, such as `System bridge` for `integration: system_bridge`. */
+const areaName = (label: string) => {
+  const name = label.replace(/^integration:\s*/i, "").replaceAll("_", " ");
+
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)}`;
+};
+
+const searchFailed = (error: Parameters<typeof ghErrorMessage>[0]) =>
+  new BriefCollectError({
+    message: `GitHub search failed: ${ghErrorMessage(error)}`,
+  });
+
+/**
+ * Gather open PRs and issues I'm involved in, plus unread notifications. With
+ * `workSince`, also gather the work-time sections from that ISO date.
+ */
 export const collectBrief = Effect.fn("brief.collect")(function* (
   brief: BriefConfig,
   now: number,
+  workSince?: string,
 ) {
   const config = yield* Config;
   const notifications = yield* GitNotifications;
 
-  const since = new Date(now - INVOLVED_DAYS * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
+  const since = isoDate(now - INVOLVED_DAYS * DAY_MS);
 
   const [involved, requested, inbox] = yield* Effect.all(
     [
@@ -409,28 +570,21 @@ export const collectBrief = Effect.fn("brief.collect")(function* (
       notifications.query({ barFilter: true }),
     ],
     { concurrency: "unbounded" },
-  ).pipe(
-    Effect.mapError(
-      (error) =>
-        new BriefCollectError({
-          message: `GitHub search failed: ${ghErrorMessage(error)}`,
-        }),
-    ),
-  );
+  ).pipe(Effect.mapError(searchFailed));
 
   const me = involved.viewer || requested.viewer;
   const requestedUrls = new Set(requested.nodes.map((node) => node.url));
   const items = new Map<string, Omit<BriefItem, "work" | "crossover">>();
 
+  const toItem = (node: typeof SearchResult.Type, reviewRequested = false) =>
+    node.__typename === "PullRequest"
+      ? pullRequestItem(node, me, reviewRequested)
+      : issueItem(node, me);
+
   for (const node of [...requested.nodes, ...involved.nodes]) {
     if (items.has(node.url)) continue;
 
-    items.set(
-      node.url,
-      node.__typename === "PullRequest"
-        ? pullRequestItem(node, me, requestedUrls.has(node.url))
-        : issueItem(node, me),
-    );
+    items.set(node.url, toItem(node, requestedUrls.has(node.url)));
   }
 
   const dependencyUpdates = yield* Effect.forEach(
@@ -459,7 +613,7 @@ export const collectBrief = Effect.fn("brief.collect")(function* (
 
   const links = config.gitConfig.links;
 
-  return [...items.values()].map((item): BriefItem => {
+  const classify = (item: Omit<BriefItem, "work" | "crossover">): BriefItem => {
     const browser = linkBrowserName(config.gitConfig, new URL(item.url));
 
     const linked = {
@@ -483,5 +637,196 @@ export const collectBrief = Effect.fn("brief.collect")(function* (
           : current,
       linked,
     );
-  });
+  };
+
+  if (workSince === undefined)
+    return {
+      items: [...items.values()].map((item) =>
+        classify({ ...item, context: [] }),
+      ),
+      work: undefined,
+    };
+
+  const work = brief.work;
+
+  const excluded = (item: BriefItem) =>
+    work.exclude.some((match) => siteMatches({ match }, new URL(item.url)));
+
+  const workItems = (nodes: readonly (typeof SearchResult.Type)[]) =>
+    nodes
+      .map((node) => classify(toItem(node)))
+      .filter((item) => item.work && !excluded(item));
+
+  const followSince = isoDate(now - work.followDays * DAY_MS);
+
+  const activity = (query: string) =>
+    graphql(ACTIVITY_QUERY, { q: query }, ActivityResponse).pipe(
+      Effect.map((response) => response.data.search.nodes),
+    );
+
+  const [closed, authoredIssues, assignedIssues, authored, reviewed] =
+    yield* Effect.all(
+      [
+        search(`is:pr author:@me closed:>=${workSince}`, 30, false),
+        search("is:issue is:open author:@me archived:false", 50, false),
+        search("is:issue is:open assignee:@me archived:false", 50, false),
+        activity(`is:pr author:@me updated:>=${followSince}`),
+        activity(`is:pr reviewed-by:@me -author:@me updated:>=${followSince}`),
+      ],
+      { concurrency: "unbounded" },
+    ).pipe(Effect.mapError(searchFailed));
+
+  const closedItems = workItems(closed.nodes);
+
+  const tasks = [
+    ...new Map(
+      workItems([...assignedIssues.nodes, ...authoredIssues.nodes]).map(
+        (item) => [item.id, item],
+      ),
+    ).values(),
+  ].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+  const scopeLabels = work.scopes
+    .flatMap((scope) => scope.queries)
+    .join(" ")
+    .toLowerCase();
+
+  const workRepo = (repo: string) =>
+    classify({
+      id: repo,
+      kind: "pr",
+      repo,
+      title: "",
+      url: `https://github.com/${repo}`,
+      reason: "",
+      feedback: [],
+      updatedAt: "",
+      unread: false,
+      failing: [],
+      detail: "",
+    }).work;
+
+  const counts = new Map<
+    string,
+    { repo: string; label: string; count: number }
+  >();
+
+  for (const [nodes, weight] of [
+    [authored, 2],
+    [reviewed, 1],
+  ] as const)
+    for (const node of nodes) {
+      const repo = node.repository.nameWithOwner;
+
+      for (const { name: label } of node.labels.nodes) {
+        const key = `${repo}\n${label}`;
+
+        if (labelIgnored(work.ignoreLabels, label)) continue;
+
+        counts.set(key, {
+          repo,
+          label,
+          count: (counts.get(key)?.count ?? 0) + weight,
+        });
+      }
+    }
+
+  const followed = [...counts.values()]
+    .filter(
+      ({ repo, label }) =>
+        workRepo(repo) &&
+        !scopeLabels.includes(`label:${label.toLowerCase()}`) &&
+        !scopeLabels.includes(`label:"${label.toLowerCase()}"`),
+    )
+    .sort((a, b) => b.count - a.count)
+    .slice(0, work.followAreas);
+
+  const listSearch = (
+    name: string,
+    queries: readonly string[],
+    limit: number,
+  ) =>
+    Effect.forEach(
+      queries,
+      (query) =>
+        search(query, Math.min(limit + 10, 50), false).pipe(
+          Effect.map((result) => ({ query, ...result })),
+        ),
+      { concurrency: "unbounded" },
+    ).pipe(
+      Effect.map((results): BriefList => {
+        const fetched = results.flatMap((result) => workItems(result.nodes));
+        const unique = new Map(fetched.map((item) => [item.id, item]));
+        const fullest = results.toSorted((a, b) => b.total - a.total)[0];
+
+        return {
+          name,
+          items: [...unique.values()].sort((a, b) =>
+            b.updatedAt.localeCompare(a.updatedAt),
+          ),
+          limit,
+          total: Math.max(
+            unique.size,
+            results.reduce((sum, result) => sum + result.total, 0) -
+              (fetched.length - unique.size),
+          ),
+          url: searchUrl(fullest?.query ?? queries[0] ?? ""),
+        };
+      }),
+    );
+
+  const [areas, scopes] = yield* Effect.all(
+    [
+      Effect.forEach(
+        followed,
+        ({ repo, label }) =>
+          listSearch(
+            areaName(label),
+            [
+              `repo:${repo} is:pr label:"${label}" updated:>=${workSince} -author:@me -author:app/renovate`,
+            ],
+            work.followLimit,
+          ),
+        { concurrency: "unbounded" },
+      ),
+      Effect.forEach(
+        work.scopes,
+        (scope) =>
+          listSearch(
+            scope.name,
+            scope.queries.map((query) =>
+              query.replaceAll("{since}", workSince),
+            ),
+            scope.limit,
+          ),
+        { concurrency: "unbounded" },
+      ),
+    ],
+    { concurrency: "unbounded" },
+  ).pipe(Effect.mapError(searchFailed));
+
+  const closedByUrl = new Map(closedItems.map((item) => [item.url, item]));
+
+  return {
+    items: [...items.values()].map((item) => {
+      const done = item.state === undefined && closedByUrl.get(item.url);
+
+      return classify(
+        done && done.state
+          ? {
+              ...item,
+              state: done.state,
+              context: [done.state, ...(item.context ?? [])],
+            }
+          : item,
+      );
+    }),
+    work: {
+      since: workSince,
+      closed: closedItems,
+      tasks,
+      areas,
+      scopes,
+    } satisfies BriefWorkLists,
+  };
 });

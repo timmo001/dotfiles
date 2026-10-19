@@ -105,24 +105,33 @@ const calendarLeave = Effect.fn("workTime.calendarLeave")(function* (
   return false;
 });
 
+/** Private work hours and leave calendars, or `null` when unset or invalid. */
+export const readWorkSchedule = Effect.fn("readWorkSchedule")(function* (
+  log: (message: string) => Effect.Effect<void>,
+) {
+  const config = yield* Config;
+
+  if (!config.privateDotfiles) return null;
+  const configPath = join(config.privateDotfiles, "workspace-calendar.yml");
+
+  if (!(yield* pathExists(configPath))) return null;
+
+  const fs = yield* FileSystem.FileSystem;
+
+  return yield* fs.readFileString(configPath).pipe(
+    Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
+    Effect.flatMap(Schema.decodeUnknownEffect(CalendarConfig)),
+    Effect.catch(() => log("Work schedule unavailable").pipe(Effect.as(null))),
+  );
+});
+
 /** Check private work hours with calendar leave exclusions. */
 export const isWorkTime = Effect.fn("isWorkTime")(function* (
   log: (message: string) => Effect.Effect<void>,
 ) {
   const config = yield* Config;
-
-  if (!config.privateDotfiles) return false;
-  const configPath = join(config.privateDotfiles, "workspace-calendar.yml");
-
-  if (!(yield* pathExists(configPath))) return false;
-
   const fs = yield* FileSystem.FileSystem;
-
-  const schedule = yield* fs.readFileString(configPath).pipe(
-    Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
-    Effect.flatMap(Schema.decodeUnknownEffect(CalendarConfig)),
-    Effect.catch(() => log("Work schedule unavailable").pipe(Effect.as(null))),
-  );
+  const schedule = yield* readWorkSchedule(log);
 
   if (!schedule) return false;
 
