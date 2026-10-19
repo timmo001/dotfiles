@@ -26,7 +26,6 @@ const TAGS = {
   workspace2Terminal: `${TAG_PREFIX}ws2-term`,
   workspace2Cursor: `${TAG_PREFIX}ws2-cursor`,
   workBrowser: `${TAG_PREFIX}ws3-browser`,
-  claude: `${TAG_PREFIX}ws4-claude`,
 } as const;
 
 const MANAGED_TAGS = Object.values(TAGS);
@@ -132,8 +131,6 @@ const PATTERN_GHOSTTY = "^com\\.mitchellh\\.ghostty$";
 const PATTERN_HERDR = "^herdr$";
 
 const PATTERN_WORK_BROWSER = "^(work-browser|google-chrome)$";
-
-const PATTERN_CLAUDE = "^com\\.anthropic\\.Claude$";
 
 /**
  * Work-time workspace names. Normal mode restores each one to its
@@ -830,11 +827,8 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       Match.orElse(() => isWorkTime(logStep)),
     );
 
-    if (workTime) {
-      for (const dependency of ["google-chrome-stable", "claude-desktop"]) {
-        if (Bun.which(dependency) === null)
-          return fail(`${dependency} is not available`);
-      }
+    if (workTime && Bun.which("google-chrome-stable") === null) {
+      return fail("google-chrome-stable is not available");
     }
 
     yield* logStep(
@@ -996,15 +990,6 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       yield* ensureSlot(herdr);
       yield* ensureSlot(
         slot(TAGS.workBrowser, PATTERN_WORK_BROWSER, workChrome, 3, false),
-      );
-      yield* ensureSlot(
-        slot(
-          TAGS.claude,
-          PATTERN_CLAUDE,
-          "uwsm app -- claude-desktop",
-          4,
-          false,
-        ),
       );
     } else {
       yield* logStep("Preparing workspace 1 non-work apps");
