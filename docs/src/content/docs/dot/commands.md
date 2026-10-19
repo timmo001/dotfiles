@@ -2710,6 +2710,70 @@ dot brief follow-up --dry-run
 dot brief follow-up --watch
 ```
 
+## `dot report`
+
+Configurable reports from code scans, GitHub searches and file checks
+
+```text
+dot report <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot report run`
+
+Run a report and post it to the Plannotator Inbox
+
+```text
+dot report run [flags] <name>
+```
+
+Read ~/.config/dot/reports/<name>.yml and run its sections in order. A code section keeps a shallow clone of a GitHub repository under the dot cache, tests each included file against named regexes, puts it in the first bucket whose patterns match, and counts per-file metrics. A github section runs a GitHub issue or pull request search, with {since} set to the last run's date, and can drop results the decision model in models.decision finds irrelevant. A checks section tests whether a file still matches a pattern and shows each finding while it holds. The run is compared with the last one, an optional OpenCode model in models.summary writes a short paragraph about what changed, and the page is saved under ~/.local/state/dot/reports/<name>/ and attached to a message in the report's Inbox thread. The message ends with a question so it waits in the Inbox, and the next run withdraws it if it's still open. With work_time_only, a real run outside work time (days off, out of hours or calendar leave) posts nothing and exits 3.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--dry-run` | Print the Inbox message and write the page without posting or saving state |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<name>` | Report file name in ~/.config/dot/reports, without .yml |
+
+**Examples**
+
+```bash
+dot report run hass-removal
+dot report run hass-removal --dry-run
+```
+
+### `dot report list`
+
+List report files and whether they're valid
+
+```text
+dot report list [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot report list
+```
+
 ## `dot launch`
 
 Launch desktop apps
