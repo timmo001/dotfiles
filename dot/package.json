@@ -15,7 +15,7 @@
     "@effect/platform-node": "4.0.5",
     "@timmo001/effect-gh": "0.7.0",
     "@timmo001/effect-ha-bridge": "1.4.1",
-    "@timmo001/effect-herdr": "0.9.0-timmo001.1",
+    "@timmo001/effect-herdr": "0.9.0-timmo001.2",
     "@timmo001/effect-upnext": "2.1.1",
     "effect": "4.0.5",
     "fast-xml-parser": "^5.11.1",
