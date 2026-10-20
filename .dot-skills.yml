@@ -1,10 +1,10 @@
 ---
 # Authored skills from timmo001/skills that dot does not link on this server,
 # because they need a desktop session or cover work done elsewhere. Links
-# already made for them are removed on the next sync. The cloud branch keeps
-# the Home Assistant frontend skills, for sessions on those repositories.
+# already made for them are removed on the next sync. The cloud branch only
+# excludes pkexec-root and change-review-handoff: a cloud VM runs as root, has
+# Chromium and Playwright but no Plannotator, and its sessions work on Home
+# Assistant frontend repositories.
 exclude:
-  - browser-access
   - change-review-handoff
   - pkexec-root
-  - show-me

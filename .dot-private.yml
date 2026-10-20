@@ -45,9 +45,6 @@ syncthing:
     - nas01-music
     - nas01-pictures
 
-# repos: this machine clones, pulls and checks the repositories in the
-# private dot-git.yml whose machines list includes machine. With shallow,
-# missing ones are cloned with --depth=1.
-repos:
-  machine: server
-  shallow: true
+# repos: the cloud branch drops the server's machine filter, so a cloud
+# session can look up every repository in the private dot-git.yml. It never
+# clones or pulls them.
