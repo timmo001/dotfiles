@@ -1,0 +1,17 @@
+[Unit]
+Description=System Bridge
+Documentation=https://system-bridge.timmo.dev
+After=network-online.target
+Wants=network-online.target
+OnFailure=dot-service-failed@%n.service
+
+[Service]
+# Replaces the hand-written system unit; the deb ships no unit of its own.
+# The web client is on port 9170.
+Type=simple
+ExecStart=/usr/bin/system-bridge backend
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
