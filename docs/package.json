@@ -16,7 +16,10 @@
     "gen:opencode": "bun scripts/generate-opencode-reference.ts",
     "gen:distro-diff": "bun scripts/generate-distro-diff.ts",
     "gen": "bun run gen:cli && bun run gen:opencode",
-    "predev": "bun run gen"
+    "predev": "bun run gen && bun run gen:distro-diff",
+    "prebuild": "bun run gen:distro-diff",
+    "precheck": "bun run gen:distro-diff",
+    "prevalidate": "bun run gen:distro-diff"
   },
   "dependencies": {
     "@astrojs/cloudflare": "14.4.3",
