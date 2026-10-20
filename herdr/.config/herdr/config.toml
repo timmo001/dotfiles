@@ -65,6 +65,7 @@ description = "manage Herdr plugins"
 
 # TODO(ubuntu-server): the Plannotator web review opens a browser on this
 # machine. Check it works from a remote client (port forward or the TUI only).
+# Needs research: https://github.com/timmo001/dotfiles/issues/1133
 [[keys.command]]
 key = "prefix+shift+v"
 type = "plugin_action"
@@ -259,9 +260,7 @@ delivery = "herdr"
 [ui.toast.herdr]
 position = "top-right"
 
-# No speakers on a headless server.
-# TODO(ubuntu-server): check whether Herdr plays sounds on the client when
-# attached remotely. If it does, turn this back on.
+# No speakers on a headless server. Remote clients play their own sounds.
 [ui.sound]
 enabled = false
 
