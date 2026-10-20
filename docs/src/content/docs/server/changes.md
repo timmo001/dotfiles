@@ -207,7 +207,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-37 files only on this branch.
+38 files only on this branch.
 
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-private.yml)
 - [`.dot-public-deb-releases.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-public-deb-releases.yml)
@@ -246,3 +246,4 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`systemd/.config/systemd/user/ollaya.service`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/ollaya.service)
 - [`systemd/.config/systemd/user/system-bridge.service`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/system-bridge.service)
 - [`systemd/.config/systemd/user/triage-agent.service`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/triage-agent.service)
+- [`zsh/.zshenv`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/zsh/.zshenv)
