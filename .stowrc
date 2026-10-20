@@ -16,7 +16,6 @@
 --ignore=^/\.opencode
 --ignore=^/\.claude-plugin
 --ignore=renovate.json
---ignore=omarchy-plugins.json
 --ignore=^/opencode.json
 --ignore=^/mise\.toml
 --ignore=^/mise\.lock

@@ -49,10 +49,9 @@ The branch rebases onto `origin/distro/arch-omarchy-quattro`. Look ahead before 
 ## Private Repositories
 
 - Repository induction defaults live in optional private `dot-git-presets.yml`; shared code must not hardcode personal schedules or name prefixes.
-- Git web browser commands and per-repository selections live in private `dot-git.yml`; the Git panel passes repository context and browser overrides to the shared CLI resolver.
-- Link routing is opt-in through `links` in private `dot-git.yml`. The `link-browser.desktop` entry is the default web browser and runs `dot link open`, which shares its resolver with `dot git web`; `dot doctor` warns when the default drifts, for example after `omarchy default browser`.
-- Git panel PR tracking is opt-in through `pull_requests.enabled` in private `dot-git.yml`; `dot pr list` owns polling and cached open PRs.
-- Git panel issue tracking is opt-in through `issues.enabled` in private `dot-git.yml`, with top-level `issues.exclude` rules hiding noise such as Renovate dashboards; `dot git issues` owns polling and cached open issues.
+- Per-repository selections live in private `dot-git.yml`.
+- PR tracking is opt-in through `pull_requests.enabled` in private `dot-git.yml`; `dot pr list` owns polling and cached open PRs.
+- Issue tracking is opt-in through `issues.enabled` in private `dot-git.yml`, with top-level `issues.exclude` rules hiding noise such as Renovate dashboards; `dot git issues` owns polling and cached open issues.
 - Repository `opencode_mcp` lists in private `dot-git.yml` select MCP opt-ins. `dot mcp sync` owns the generated, Git-ignored `.opencode/opencode.jsonc` files in those checkouts.
 
 - The global "Private Repos And Files" policy governs the public/private split and the git-remote visibility check; this repo just consumes it, reading optional private config such as `dot-git.yml`, `.dot-browser-checks`, and private package config files.
@@ -76,7 +75,7 @@ The branch rebases onto `origin/distro/arch-omarchy-quattro`. Look ahead before 
 - The package manager and runtime is **bun** for every JS/TS package (`dot/` and `docs/`). Do not use npm, pnpm, or yarn for install, lockfile, or script commands. Use `bun install`, `bun add`, `bun update`, `bun run`, and `bunx` (or the `mise run` task wrappers).
 - The tracked lockfile is `bun.lock` in each package (`dot/bun.lock`, `docs/bun.lock`); commit it after any dependency change. CI runs `bun install --frozen-lockfile` against it.
 - Keep Renovate update grouping limited to standard presets except for the coordinated Effect runtime and OpenCode 2 packages in `renovate.json`. Keep Effect compiler tooling outside the runtime group.
-- `tooling.yml` records the Herdr, Omarchy, gh, OpenCode and Effect releases the configuration, custom plugins and `dot` code were last reviewed against; the Tooling drift workflow opens a review pull request when one moves. After the review, move the pin with `mise run tooling:update <repo> <tag>`, never by hand; the `tooling-drift` skill has the steps.
+- `tooling.yml` records the Herdr, gh, OpenCode and Effect releases the configuration, custom plugins and `dot` code were last reviewed against; the Tooling drift workflow opens a review pull request when one moves. After the review, move the pin with `mise run tooling:update <repo> <tag>`, never by hand; the `tooling-drift` skill has the steps.
 
 ## OpenCode Assets
 
@@ -90,10 +89,6 @@ The branch rebases onto `origin/distro/arch-omarchy-quattro`. Look ahead before 
 - `dot agent sync` mirrors the global private AGENTS source into agent harness instruction files; full `dot update` and `dot init` run that sync automatically.
 - Pinned private OpenCode packages, including plugins in `dotfiles-private/agents/.config/opencode/{opencode,tui}.json`, should be managed by an npm regex custom manager in `dotfiles-private/renovate.json`.
 - Only add a command when it must force an agent profile or carry explicit authorisation (`/commit`, `/commit-push`). Everything else is a skill the model selects from its description.
-
-## Omarchy Host Overrides
-
-Not used on this branch. The Hyprland, UWSM, Ghostty and Omarchy packages and the `dot` code that handled them are removed. See "Updating From The Desktop Branch" for keeping them out on each rebase.
 
 ## Stow Rules
 
@@ -141,11 +136,6 @@ dot/src/
 - Bounded external jobs use `ProcessRunner` through `dot run --timeout <duration> -- <command> [args...]`. Keep caller-specific arguments and permissions in the caller; the runner owns the deadline, signals, and process-group cleanup.
 - Keep command and flag metadata in `dot/src/cli/spec.ts`; help and completion generation consume that registry.
 - Generated `dot` and `skill-maintenance` completions are ignored by Git. Public `dot stow`, `dot install` (including `dot init`), and `dot update` generate them before stowing. Keep hand-written completions tracked; use package-provided completions for external tools such as `context`.
-- The Omarchy bar `shell.json` is generated by `dot/src/lib/omarchyShellConfig.ts`. Preserve `dot update`'s changed-file restart condition; `omarchy-shell-quickshell` owns lifecycle details.
-- `dot deps service` runs separately from `dot update`, through the `dot-deps` user service and timer. Its repository list lives in optional private `dot-config/.config/dot/dependency-service.yml`; policies must be published before enabling the timer. Dedicated `dot-deps-state` branches hold cross-machine ownership and interval state.
-- Third-party Omarchy plugins managed through `omarchy plugin add` are Git submodules under `omarchy/.config/omarchy/plugins/`; `omarchy-plugins.json` owns their persistent bar placement. Add, update, and remove leave ordinary unstaged changes for review.
-- A registry `path` deploys a plugin from a subfolder of its submodule (`dot omarchy plugin add --path`); `onlyHosts` limits an entry to the listed hosts in the generated layout.
-- `dot stow` deploys those plugin submodules as validated real-file copies because Omarchy rejects symlinks inside plugin directories. Build any required ignored executable in the source first. Changed live directories are backed up under the owning repo's `backup/omarchy-plugins/`; unchanged deployments are left in place.
 
 ## Documentation
 

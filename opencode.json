@@ -7,11 +7,6 @@
       "repository": "Effect-TS/effect",
       "description": "Use for Effect v4 APIs when working in dot/"
     },
-    "omarchy": {
-      "repository": "omacom/omarchy",
-      "branch": "quattro",
-      "description": "Use for Omarchy desktop, Hyprland, and Quickshell shell customisation details"
-    },
     "opencode": {
       "repository": "anomalyco/opencode",
       "branch": "v2.1.4",
@@ -20,10 +15,6 @@
     "skills": {
       "path": "~/repos/skills",
       "description": "Use for portable agent skills linked into this repo"
-    },
-    "quickshell": {
-      "repository": "quickshell-mirror/quickshell",
-      "description": "Use for upstream Quickshell QML types, WlrLayershell/layer-shell, IpcHandler, reloadable config, and the qs CLI when customising the Omarchy shell bar widgets"
     }
   },
   "permissions": [
@@ -159,16 +150,6 @@
     },
     {
       "action": "read",
-      "resource": "~/.local/share/omarchy",
-      "effect": "allow"
-    },
-    {
-      "action": "read",
-      "resource": "~/.local/share/omarchy/bin/**",
-      "effect": "allow"
-    },
-    {
-      "action": "read",
       "resource": "~/.local/share/opencode/repos/**",
       "effect": "allow"
     },
@@ -295,11 +276,6 @@
     {
       "action": "edit",
       "resource": "~/.local/share/bash-completion/completions/**",
-      "effect": "deny"
-    },
-    {
-      "action": "edit",
-      "resource": "~/.local/share/omarchy/bin/**",
       "effect": "deny"
     },
     {
@@ -459,22 +435,7 @@
     },
     {
       "action": "external_directory",
-      "resource": "~/.local/share/omarchy/*",
-      "effect": "allow"
-    },
-    {
-      "action": "external_directory",
-      "resource": "~/.local/share/omarchy/bin/**",
-      "effect": "allow"
-    },
-    {
-      "action": "external_directory",
       "resource": "~/.local/share/opencode/repos/github.com/anomalyco/opencode/**",
-      "effect": "allow"
-    },
-    {
-      "action": "external_directory",
-      "resource": "~/.local/share/omarchy/**",
       "effect": "allow"
     },
     {

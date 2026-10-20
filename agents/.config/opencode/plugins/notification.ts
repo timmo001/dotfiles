@@ -1,5 +1,5 @@
 /**
- * @file Sends contextual desktop notifications and terminal attention for agent events.
+ * @file Rings the terminal bell and plays a sound when an agent finishes or needs permission.
  */
 
 import { Plugin } from "@opencode/plugin/effect";
@@ -8,149 +8,53 @@ import { runText } from "./lib/process";
 
 const SOUND_PATH = "/usr/share/sounds/freedesktop/stereo/message.oga";
 
-const sanitizeNotificationText = (value: string, fallback: string) => {
-  const sanitized = Array.from(value)
-    .map((character) => {
-      const codePoint = character.codePointAt(0) ?? 0;
-
-      return codePoint < 32 ||
-        (codePoint >= 127 && codePoint <= 159) ||
-        character === ";"
-        ? " "
-        : character;
-    })
-    .join("")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 160);
-
-  return sanitized || fallback;
-};
-
-const createDesktopNotifier = Effect.gen(function* () {
-  const originWindowAddress = yield* runText("sh", [
-    "-c",
-    "hyprctl activewindow -j | jq -r .address",
-  ]).pipe(
-    Effect.map((address) => address.trim()),
-    Effect.catch(() => Effect.succeed("")),
-  );
-
-  const originHerdrTabID = process.env.HERDR_TAB_ID ?? "";
-  let canNotify: boolean | undefined;
-
-  return (glyph: string, title: string, body: string) =>
-    Effect.gen(function* () {
-      if (canNotify === undefined) {
-        canNotify = yield* runText("sh", [
-          "-lc",
-          "command -v omarchy >/dev/null 2>&1",
-        ]).pipe(
-          Effect.as(true),
-          Effect.catch(() => Effect.succeed(false)),
-        );
-      }
-
-      if (!canNotify) return;
-
-      const focusCommand = /^0x[0-9a-f]+$/i.test(originWindowAddress)
-        ? `hyprctl dispatch 'hl.dsp.focus({ window = "address:${originWindowAddress}" })'${
-            /^[a-z0-9_:-]+$/i.test(originHerdrTabID)
-              ? ` && herdr tab focus ${originHerdrTabID}`
-              : ""
-          }`
-        : "";
-
-      yield* runText("omarchy", [
-        "notification",
-        "send",
-        "-g",
-        glyph,
-        "--app-name",
-        "OpenCode",
-        title,
-        body,
-        ...(focusCommand ? ["--exec", focusCommand] : []),
-      ]).pipe(Effect.ignore, Effect.forkScoped);
-    });
-});
-
 export default Plugin.define({
   id: "notification",
   effect: (context) =>
     Effect.gen(function* () {
-      const isHerdrSession = process.env.HERDR_ENV === "1";
-      const sendDesktopNotification = yield* createDesktopNotifier;
+      // Herdr shows agent attention itself.
+      if (process.env.HERDR_ENV === "1") return;
+
       let canPlaySound: boolean | undefined;
 
-      const playSound = () =>
-        Effect.gen(function* () {
-          if (canPlaySound === undefined) {
-            canPlaySound = yield* runText("sh", [
-              "-lc",
-              "command -v paplay >/dev/null 2>&1",
-            ]).pipe(
-              Effect.as(true),
-              Effect.catch(() => Effect.succeed(false)),
-            );
-          }
-
-          if (!canPlaySound) return;
-
-          yield* runText("paplay", [SOUND_PATH]).pipe(Effect.ignore);
+      const notify = Effect.gen(function* () {
+        yield* Effect.sync(() => {
+          try {
+            process.stdout.write("\u0007");
+          } catch {}
         });
 
-      const notify = (glyph: string, title: string, body: string) =>
-        Effect.gen(function* () {
-          const safeTitle = sanitizeNotificationText(title, "OpenCode");
-          const safeBody = sanitizeNotificationText(body, "Attention required");
+        if (canPlaySound === undefined) {
+          canPlaySound = yield* runText("sh", [
+            "-lc",
+            "command -v paplay >/dev/null 2>&1",
+          ]).pipe(
+            Effect.as(true),
+            Effect.catch(() => Effect.succeed(false)),
+          );
+        }
 
-          if (!isHerdrSession) {
-            yield* Effect.sync(() => {
-              try {
-                process.stdout.write("\u0007");
-              } catch {}
-            });
-          }
+        if (!canPlaySound) return;
 
-          yield* sendDesktopNotification(glyph, safeTitle, safeBody);
-
-          if (!isHerdrSession) yield* playSound();
-        });
-
-      const getSession = (
-        sessionID: Parameters<typeof context.session.get>[0]["sessionID"],
-      ) =>
-        context.session
-          .get({ sessionID })
-          .pipe(Effect.catch(() => Effect.succeed(undefined)));
+        yield* runText("paplay", [SOUND_PATH]).pipe(Effect.ignore);
+      });
 
       yield* context.event.subscribe().pipe(
         Stream.runForEach((event) =>
           Effect.gen(function* () {
             if (event.type === "session.idle") {
-              const session = yield* getSession(event.data.sessionID);
+              const session = yield* context.session
+                .get({ sessionID: event.data.sessionID })
+                .pipe(Effect.catch(() => Effect.succeed(undefined)));
 
               if (session?.parentID) return;
 
-              yield* notify(
-                "✓",
-                "OpenCode: Task complete",
-                session?.title ?? "OpenCode session",
-              );
+              yield* notify;
 
               return;
             }
 
-            if (event.type === "permission.asked") {
-              const session = yield* getSession(event.data.sessionID);
-              const sessionTitle = session?.title ?? "OpenCode session";
-              yield* notify(
-                "🔒",
-                "OpenCode: Permission required",
-                `${sessionTitle} needs permission: ${event.data.action}`,
-              );
-            }
+            if (event.type === "permission.asked") yield* notify;
           }),
         ),
         Effect.orDie,
