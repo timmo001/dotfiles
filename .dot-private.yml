@@ -21,3 +21,11 @@ stow:
 mcp:
   exclude:
     - chrome-devtools
+
+# repos: the repositories from the private dot-git.yml this machine clones,
+# pulls and checks. The list itself is private: list names an entry in the
+# private dot-repo-lists.yml, and a missing list keeps none. With shallow,
+# missing ones are cloned with --depth=1.
+repos:
+  list: server
+  shallow: true
