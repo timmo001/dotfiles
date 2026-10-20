@@ -119,6 +119,19 @@
       "settings": { "format": "HH:mm d MMM" }
     },
     {
+      "id": "omarchy.elsewhen",
+      "placement": { "section": "right", "after": "timmo.clock" },
+      "settings": {
+        "cities": [
+          { "name": "London", "zone": "Europe/London" },
+          { "name": "Los Angeles", "zone": "America/Los_Angeles" },
+          { "name": "Denver", "zone": "America/Denver" },
+          { "name": "Chicago", "zone": "America/Chicago" },
+          { "name": "New York", "zone": "America/New_York" }
+        ]
+      }
+    },
+    {
       "id": "sceny.devices",
       "managed": true,
       "placement": { "section": "right", "before": "omarchy.bluetooth" },
