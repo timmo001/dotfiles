@@ -1,9 +1,11 @@
 import { join } from "node:path";
 import { Effect, FileSystem, Schedule, Schema } from "effect";
 import { CommandExecutor } from "../services/CommandExecutor.js";
+import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { cliStyler } from "./ansi.js";
 import { CONFIG_DIR, displayPath, expandHomePath } from "./paths.js";
+import { readPrivateSelection } from "./privateSelection.js";
 import { plural } from "./runSummary.js";
 import { notable, skip, warn } from "./updateSummary.js";
 import type { RecapEntry } from "./updateSummary.js";
@@ -50,9 +52,19 @@ export class SyncthingError extends Schema.TaggedError<SyncthingError>()(
   { message: Schema.String },
 ) {}
 
-/** Read the desired setup, or `null` when this machine has none. */
+/** {@link SyncthingConfig} narrowed to this machine by `.dot-private.yml`. */
+export interface MachineSyncthingConfig extends SyncthingConfig {
+  /** Folder IDs `syncthing.exclude` keeps off this machine. */
+  readonly excluded: ReadonlySet<string>;
+}
+
+/**
+ * Read the desired setup, or `null` when this machine has none. Folders listed
+ * in `.dot-private.yml` `syncthing.exclude` are left out.
+ */
 export const readSyncthingConfig = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
+  const { publicDotfiles } = yield* Config;
 
   if (!(yield* fs.exists(SYNCTHING_CONFIG_PATH))) return null;
 
@@ -74,7 +86,17 @@ export const readSyncthingConfig = Effect.gen(function* () {
           message: `Folder ${id} lists unknown device ${device}`,
         });
 
-  return config;
+  const excluded =
+    (yield* readPrivateSelection(publicDotfiles))?.syncthingExclude ??
+    new Set<string>();
+
+  return {
+    devices: config.devices,
+    folders: Object.fromEntries(
+      Object.entries(config.folders).filter(([id]) => !excluded.has(id)),
+    ),
+    excluded,
+  } satisfies MachineSyncthingConfig;
 }).pipe(Effect.withSpan("Syncthing.readConfig"));
 
 const cli = Effect.fn("Syncthing.cli")(function* (args: readonly string[]) {
@@ -136,8 +158,9 @@ const ensureServiceRunning = Effect.gen(function* () {
  * Apply the private Syncthing setup through `syncthing cli`.
  *
  * Enables the user service, then adds missing devices, folders and folder
- * shares, and turns off usage reporting. It never removes anything, so devices
- * and folders added in the Syncthing UI are kept. Syncthing keeps owning its
+ * shares, and turns off usage reporting. Folders `.dot-private.yml` excludes
+ * are removed from Syncthing (their files stay on disk); nothing else is
+ * removed, so devices and folders added in the Syncthing UI are kept. Syncthing keeps owning its
  * own `config.xml`, keys and API key.
  *
  * @returns Recap entries for the stow summary. Failures become a warning so a
@@ -204,6 +227,16 @@ export const applySyncthingConfig = Effect.gen(function* () {
     yield* cli(["options", "uraccepted", "set", "--", "-1"]);
 
   const folders = yield* listKeys(["folders"]);
+
+  for (const id of config.excluded) {
+    if (!folders.has(id)) continue;
+
+    yield* cli(["folders", id, "delete"]);
+    yield* log.success(
+      `Removed excluded folder ${style.accent(id)} ${style.dim("(files kept)")}`,
+    );
+    added++;
+  }
 
   for (const [id, folder] of Object.entries(config.folders)) {
     const path = expandHomePath(folder.path);
