@@ -7,7 +7,7 @@ import type { CodeFile, CodeResult } from "./result.js";
 const OTHER_GROUP = "Other";
 
 /** Files under `cwd` matching any `include` glob and no `exclude` glob, sorted. */
-const globFiles = (
+export const globFiles = (
   cwd: string,
   include: readonly string[],
   exclude: readonly string[],

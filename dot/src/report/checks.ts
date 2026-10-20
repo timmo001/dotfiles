@@ -34,6 +34,8 @@ export const runChecksSection = Effect.fn("report.checks")(function* (
         file: check.file,
         finding: check.finding,
         state,
+        verdict: check.verdict,
+        tone: check.tone,
       };
     }),
   );

@@ -14,9 +14,10 @@ import {
 import { runChecksSection } from "../report/checks.js";
 import { runCodeSection } from "../report/code.js";
 import { listReports, readReportConfig } from "../report/config.js";
+import { runDependenciesSection } from "../report/dependencies.js";
 import { runGithubSection } from "../report/github.js";
 import { headline, renderHtml, renderMarkdown } from "../report/render.js";
-import type { GithubResult } from "../report/result.js";
+import type { GithubResult, SectionResult } from "../report/result.js";
 import {
   compareRuns,
   readLastRun,
@@ -106,7 +107,7 @@ const run = Effect.fn("report.run")(function* (options: {
 
   const repositories = new Map(
     config.sections.flatMap((section) =>
-      section.type === "github"
+      section.type === "github" || section.type === "dependencies"
         ? []
         : [
             [
@@ -155,8 +156,10 @@ const run = Effect.fn("report.run")(function* (options: {
       ? Effect.die(new Error(`report ${config.name}: no ${what}`))
       : Effect.succeed(value);
 
-  const results = yield* Effect.forEach(config.sections, (section) =>
+  const scanned = yield* Effect.forEach(config.sections, (section) =>
     Effect.gen(function* () {
+      if (section.type === "dependencies") return undefined;
+
       if (section.type === "github")
         return yield* found(
           githubById.get(section.id),
@@ -178,6 +181,32 @@ const run = Effect.fn("report.run")(function* (options: {
             ),
           )
         : yield* runChecksSection(section, checkout);
+    }),
+  );
+
+  const codeById = new Map(
+    scanned.flatMap((result) =>
+      result?.type === "code" ? [[result.section.id, result] as const] : [],
+    ),
+  );
+
+  // Dependencies read their code section's files, so they run once those are scanned.
+  const results = yield* Effect.forEach(config.sections, (section, index) =>
+    Effect.gen(function* () {
+      if (section.type !== "dependencies")
+        return yield* found(scanned[index], `result for ${section.id}`);
+
+      const code = yield* found(
+        codeById.get(section.of),
+        `code section ${section.of}`,
+      );
+
+      const result: SectionResult = yield* output.withSpinner(
+        `Tracing ${section.title}`,
+        runDependenciesSection(section, code),
+      );
+
+      return result;
     }),
   );
 

@@ -55,6 +55,12 @@ th { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; colo
 .card a.title { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
 .pill { font-size: 0.74rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--chip); color: var(--muted); white-space: nowrap; }
 .pill.good { color: var(--good); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); } .pill.accent { color: var(--accent); }
+td .pill { display: inline-block; margin: 0 4px 4px 0; }
+tfoot th { border-top: 2px solid var(--line); border-bottom: none; color: var(--fg); }
+.steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 14px; }
+.steps p { margin: 4px 0 6px; color: var(--muted); }
+.steps div { display: flex; flex-wrap: wrap; gap: 6px; }
+code { font-family: var(--font-mono); font-size: 0.85em; background: var(--chip); padding: 1px 5px; border-radius: 5px; }
 .changes { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
 .changes ul { margin: 4px 0 0; padding-left: 18px; color: var(--muted); font-size: 0.9rem; }
 details.group { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }

@@ -112,6 +112,9 @@ const Check = Schema.Struct({
   pattern: Schema.NonEmptyString,
   expect: Schema.Literals(["match", "no-match"]),
   finding: Schema.NonEmptyString,
+  /** Short call on what to do while the finding holds, such as `Bindings first`. */
+  verdict: Schema.optionalKey(Schema.NonEmptyString),
+  tone: Schema.optionalKey(Tone),
 });
 
 /** Decoded {@link Check}. */
@@ -131,7 +134,111 @@ const ChecksSection = Schema.Struct({
 /** Decoded {@link ChecksSection}. */
 export type ChecksSection = typeof ChecksSection.Type;
 
-const Section = Schema.Union([CodeSection, GithubSection, ChecksSection]);
+/** What stops a file dropping a property, worked out from its code. */
+export const DEPENDENCY_CATEGORIES = [
+  "ready",
+  "unused",
+  "helper",
+  "child",
+  "other",
+  "pr",
+  "container",
+] as const;
+
+/** One of {@link DEPENDENCY_CATEGORIES}. */
+export type DependencyCategory = (typeof DEPENDENCY_CATEGORIES)[number];
+
+const Category = Schema.Literals(DEPENDENCY_CATEGORIES);
+
+/** A label shown on files whose text matches `pattern`. */
+const DependencyNote = Schema.Struct({
+  id: Id,
+  label: Schema.NonEmptyString,
+  pattern: Schema.NonEmptyString,
+  tone: Schema.optionalKey(Tone),
+});
+
+/**
+ * A hand-written next step. Its numbers come from the run: the files it
+ * unblocks (`blockers`), the bindings it removes (`bindings`), the files in a
+ * category (`category`) or the files carrying a note (`note`).
+ */
+const Prerequisite = Schema.Struct({
+  title: Schema.NonEmptyString,
+  text: Schema.NonEmptyString,
+  /** Child element tags or helper names that block files. */
+  blockers: Schema.optionalKey(Schema.Array(Schema.NonEmptyString)),
+  /** Child element tags whose property bindings are counted across the repository. */
+  bindings: Schema.optionalKey(Schema.Array(Schema.NonEmptyString)),
+  category: Schema.optionalKey(Category),
+  note: Schema.optionalKey(Id),
+});
+
+/** Prerequisite as decoded. */
+export type Prerequisite = typeof Prerequisite.Type;
+
+/** A list of candidate files narrowed by category, path, reads and notes. */
+const DependencyList = Schema.Struct({
+  title: Schema.NonEmptyString,
+  description: Schema.optionalKey(Schema.String),
+  categories: Schema.NonEmptyArray(Category),
+  prefixes: Schema.optionalKey(Schema.Array(Schema.String)),
+  exclude_prefixes: Schema.optionalKey(Schema.Array(Schema.String)),
+  /** Most property reads a file may have. */
+  max_reads: Schema.optionalKey(Schema.Int),
+  /** Leave out files carrying any of these notes. */
+  exclude_notes: Schema.optionalKey(Schema.Array(Id)),
+  /** Show the files in collapsible groups instead of one table. */
+  grouped: Schema.optionalKey(Schema.Boolean),
+});
+
+/** Decoded {@link DependencyList}. */
+export type DependencyList = typeof DependencyList.Type;
+
+/**
+ * What blocks each file of a code section from replacing a Lit property, such
+ * as `hass`, with contexts: the members it reads, the helpers it hands the
+ * property to and the child elements it binds it on.
+ */
+const DependenciesSection = Schema.Struct({
+  id: Id,
+  type: Schema.Literal("dependencies"),
+  title: Schema.NonEmptyString,
+  description: Schema.optionalKey(Schema.String),
+  /** Code section whose files are checked; its checkout, groups and pull requests are reused. */
+  of: Id,
+  /** Buckets of that section whose files still hold the property. */
+  buckets: Schema.NonEmptyArray(Id),
+  property: Schema.String.check(Schema.isPattern(/^[A-Za-z_$][\w$]*$/)),
+  /** The broad type helpers take the property as, such as `HomeAssistant`. */
+  broad_type: Schema.NonEmptyString,
+  /** Context name to the property members it covers. */
+  contexts: Schema.Record(Schema.String, Schema.Array(Schema.NonEmptyString)),
+  /** Helpers typed `type` can be narrowed when they read only these contexts and don't pass the property on. */
+  narrowable: Schema.Array(Schema.NonEmptyString),
+  /** Function names that never block, such as ones that take the property on purpose. */
+  ignore_helpers: Schema.optionalKey(Schema.Array(Schema.NonEmptyString)),
+  /** Files expected to keep the property, besides the code section's `allowed`. */
+  containers: Schema.optionalKey(
+    Schema.Struct({
+      paths: Schema.optionalKey(Schema.Array(Schema.NonEmptyString)),
+      patterns: Schema.optionalKey(Schema.Array(Schema.NonEmptyString)),
+    }),
+  ),
+  notes: Schema.optionalKey(Schema.Array(DependencyNote)),
+  prerequisites: Schema.optionalKey(Schema.Array(Prerequisite)),
+  lists: Schema.optionalKey(Schema.Array(DependencyList)),
+});
+
+/** Decoded {@link DependenciesSection}. */
+export type DependenciesSection = typeof DependenciesSection.Type;
+
+const Section = Schema.Union([
+  CodeSection,
+  GithubSection,
+  ChecksSection,
+  DependenciesSection,
+]);
 
 /** Decoded report section. */
 export type Section = typeof Section.Type;
@@ -253,6 +360,44 @@ function problems(file: typeof ReportFile.Type): string[] {
       for (const check of section.checks)
         if (!compiles(check.pattern))
           found.push(`${section.id}: "${check.title}" is not a valid regex`);
+
+    if (section.type === "dependencies") {
+      const code = file.sections.find(
+        (candidate) => candidate.type === "code" && candidate.id === section.of,
+      );
+
+      if (code?.type !== "code")
+        found.push(`${section.id}: of names no code section ${section.of}`);
+      else
+        for (const bucket of section.buckets)
+          if (!code.buckets.some((candidate) => candidate.id === bucket))
+            found.push(`${section.id}: unknown bucket ${bucket} in ${code.id}`);
+
+      const notes = new Set((section.notes ?? []).map((note) => note.id));
+
+      for (const note of section.notes ?? [])
+        if (!compiles(note.pattern))
+          found.push(`${section.id}: note ${note.id} is not a valid regex`);
+
+      for (const pattern of section.containers?.patterns ?? [])
+        if (!compiles(pattern))
+          found.push(
+            `${section.id}: container pattern ${pattern} is not a valid regex`,
+          );
+
+      for (const step of section.prerequisites ?? [])
+        if (step.note && !notes.has(step.note))
+          found.push(
+            `${section.id}: "${step.title}" uses unknown note ${step.note}`,
+          );
+
+      for (const list of section.lists ?? [])
+        for (const note of list.exclude_notes ?? [])
+          if (!notes.has(note))
+            found.push(
+              `${section.id}: list "${list.title}" uses unknown note ${note}`,
+            );
+    }
   }
 
   return found;

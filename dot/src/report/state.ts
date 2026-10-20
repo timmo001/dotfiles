@@ -105,6 +105,13 @@ export function sectionSnapshot(result: SectionResult): SectionSnapshot {
           result.checks.map((check) => [check.title, check.state]),
         ),
       };
+    case "dependencies":
+      return {
+        counts: result.counts,
+        items: Object.fromEntries(
+          result.files.map((file) => [file.path, file.category]),
+        ),
+      };
   }
 }
 
