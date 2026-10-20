@@ -207,7 +207,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-38 files only on this branch.
+39 files only on this branch.
 
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-private.yml)
 - [`.dot-public-deb-releases.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-public-deb-releases.yml)
@@ -221,6 +221,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`dot/src/lib/privateSelection.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/privateSelection.ts)
 - [`dot/src/server/api.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/api.ts)
 - [`dot/src/server/Serve.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/Serve.ts)
+- [`pitchfork/.config/pitchfork/config.toml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/pitchfork/.config/pitchfork/config.toml)
 - [`SERVER.md`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/SERVER.md)
 - [`server/bun.lock`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/bun.lock)
 - [`server/index.html`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/index.html)
