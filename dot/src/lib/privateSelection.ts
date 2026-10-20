@@ -7,6 +7,9 @@ const PrivateSelectionFile = Schema.Struct({
   mcp: Schema.optionalKey(
     Schema.Struct({ exclude: Schema.Array(Schema.String) }),
   ),
+  syncthing: Schema.optionalKey(
+    Schema.Struct({ exclude: Schema.Array(Schema.String) }),
+  ),
   repos: Schema.optionalKey(
     Schema.Struct({
       machine: Schema.NonEmptyString,
@@ -29,6 +32,8 @@ export interface PrivateSelection {
   readonly stow: ReadonlySet<string> | null;
   /** MCP servers from the private spec this machine keeps disabled. */
   readonly mcpExclude: ReadonlySet<string>;
+  /** Syncthing folder IDs from the private config this machine leaves out. */
+  readonly syncthingExclude: ReadonlySet<string>;
   /** Tracked repositories to keep, or `null` to keep them all. */
   readonly repos: RepoSelection | null;
 }
@@ -48,9 +53,10 @@ export const readPrivateSelection = Effect.fn("PrivateSelection.read")(
 
     return yield* Effect.try(() => Bun.YAML.parse(text)).pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(PrivateSelectionFile)),
-      Effect.map(({ stow, mcp, repos }): PrivateSelection => ({
+      Effect.map(({ stow, mcp, syncthing, repos }): PrivateSelection => ({
         stow: stow === undefined ? null : new Set(stow),
         mcpExclude: new Set(mcp?.exclude),
+        syncthingExclude: new Set(syncthing?.exclude),
         repos:
           repos === undefined
             ? null
@@ -59,6 +65,7 @@ export const readPrivateSelection = Effect.fn("PrivateSelection.read")(
       Effect.orElseSucceed((): PrivateSelection => ({
         stow: new Set(),
         mcpExclude: new Set(),
+        syncthingExclude: new Set(),
         repos: { machine: "", shallow: true },
       })),
     );

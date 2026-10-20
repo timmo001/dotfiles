@@ -22,6 +22,16 @@ mcp:
   exclude:
     - chrome-devtools
 
+# syncthing.exclude: folder IDs from the private syncthing.yml kept off this
+# machine. dot stow removes them from Syncthing if they were added before, and
+# leaves their files on disk. The NAS media folders are already shared by the
+# Syncthing container in nas-containers.
+syncthing:
+  exclude:
+    - nas01-documents
+    - nas01-music
+    - nas01-pictures
+
 # repos: this machine clones, pulls and checks the repositories in the
 # private dot-git.yml whose machines list includes machine. With shallow,
 # missing ones are cloned with --depth=1.
