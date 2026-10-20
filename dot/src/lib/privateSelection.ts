@@ -9,21 +9,16 @@ const PrivateSelectionFile = Schema.Struct({
   ),
   repos: Schema.optionalKey(
     Schema.Struct({
-      list: Schema.NonEmptyString,
+      machine: Schema.NonEmptyString,
       shallow: Schema.optionalKey(Schema.Boolean),
     }),
   ),
 });
 
-const RepoListsFile = Schema.Record(Schema.String, Schema.Array(Schema.String));
-
-/** Private file holding named lists of tracked repositories by GitHub slug. */
-export const REPO_LISTS_FILE = "dot-repo-lists.yml";
-
 /** Tracked repositories this machine clones and checks. */
 export interface RepoSelection {
-  /** Name of the list in the private {@link REPO_LISTS_FILE}. */
-  readonly list: string;
+  /** Machine name a repository's `machines` in `dot-git.yml` must list. */
+  readonly machine: string;
   /** Clone missing repositories with `--depth=1`. */
   readonly shallow: boolean;
 }
@@ -59,36 +54,13 @@ export const readPrivateSelection = Effect.fn("PrivateSelection.read")(
         repos:
           repos === undefined
             ? null
-            : { list: repos.list, shallow: repos.shallow ?? false },
+            : { machine: repos.machine, shallow: repos.shallow ?? false },
       })),
       Effect.orElseSucceed((): PrivateSelection => ({
         stow: new Set(),
         mcpExclude: new Set(),
-        repos: { list: "", shallow: true },
+        repos: { machine: "", shallow: true },
       })),
-    );
-  },
-);
-
-/**
- * Read a named list of lowercase GitHub slugs from the private
- * {@link REPO_LISTS_FILE}, or `null` when the file or list is missing or
- * invalid.
- */
-export const readRepoList = Effect.fn("PrivateSelection.readRepoList")(
-  function* (privateDotfiles: string, list: string) {
-    const text = yield* readTextOrNull(join(privateDotfiles, REPO_LISTS_FILE));
-
-    if (text === null) return null;
-
-    return yield* Effect.try(() => Bun.YAML.parse(text)).pipe(
-      Effect.flatMap(Schema.decodeUnknownEffect(RepoListsFile)),
-      Effect.map((lists): ReadonlySet<string> | null =>
-        Object.hasOwn(lists, list)
-          ? new Set(lists[list].map((slug) => slug.toLowerCase()))
-          : null,
-      ),
-      Effect.orElseSucceed(() => null),
     );
   },
 );
