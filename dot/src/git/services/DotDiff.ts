@@ -14,12 +14,7 @@ import type { DiffRepo, Repo, RepoCategory } from "../../types.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { OutputLog } from "../../services/OutputLog.js";
-import {
-  gitCurrentBranch,
-  gitRemoteOutput,
-  isGitRepo,
-  isRemoteTimeout,
-} from "../../lib/git.js";
+import { gitRemoteOutput, isGitRepo, isRemoteTimeout } from "../../lib/git.js";
 import { CACHE_DIR, displayPath } from "../../lib/paths.js";
 import { ENV, envInt, envString } from "../../lib/env.js";
 import { isWorkTime } from "../../lib/workTime.js";
@@ -175,54 +170,6 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       const exists = (path: string) =>
         fs.exists(path).pipe(Effect.orElseSucceed(() => false));
 
-      /** Discover all omarchy repo targets (including worktrees) */
-      const discoverOmarchyRepos = Effect.fn("DotDiff.discoverOmarchyRepos")(
-        function* () {
-          if (!config.omarchy.enabled) return [];
-
-          const targets: Array<{
-            name: string;
-            path: string;
-            category: RepoCategory;
-          }> = [];
-
-          const { repoBase, diffRepos, worktreeRepos, worktreeBranches } =
-            config.omarchy;
-
-          for (const repoName of diffRepos) {
-            const repoPath = join(repoBase, repoName);
-            targets.push({
-              name: `omarchy:${repoName}`,
-              path: repoPath,
-              category: "omarchy",
-            });
-
-            // Check for worktree branches
-            if (!worktreeRepos.includes(repoName)) continue;
-
-            if (!(yield* isGitRepo(repoPath).pipe(Effect.provide(platform))))
-              continue;
-
-            // Get current branch to skip it in worktree enumeration
-            const currentBranch = yield* gitCurrentBranch(repoPath).pipe(
-              Effect.provide(platform),
-            );
-
-            for (const branch of worktreeBranches) {
-              if (branch === currentBranch) continue;
-              const worktreePath = join(repoBase, `${repoName}-${branch}`);
-              targets.push({
-                name: `omarchy:${repoName}-${branch}`,
-                path: worktreePath,
-                category: "omarchy",
-              });
-            }
-          }
-
-          return targets;
-        },
-      );
-
       /** Build the full list of tracked repos */
       const buildRepoList = Effect.fn("DotDiff.buildRepoList")(function* (
         scheduledOnly = false,
@@ -285,15 +232,6 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
             path: config.notesDir,
             category: "notes",
           });
-        }
-
-        // Omarchy repos
-        const omarchyTargets = yield* discoverOmarchyRepos();
-
-        for (const target of omarchyTargets) {
-          if (yield* exists(target.path)) {
-            addRepo(target);
-          }
         }
 
         // Private git config activity repos, sorted alphabetically

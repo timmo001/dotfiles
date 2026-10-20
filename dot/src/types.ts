@@ -13,15 +13,14 @@ export interface Repo {
  * `dot update --check` to core/system repos.
  *
  * - `dotfiles`: public or private dotfiles repositories
- * - `omarchy`: Omarchy system repositories
  * - `notes`: the notes vault repository
  * - `private`: schedule-gated activity repos from `dot-git.yml`
  */
-export type RepoCategory = "dotfiles" | "omarchy" | "notes" | "private";
+export type RepoCategory = "dotfiles" | "notes" | "private";
 
 /** Enriched repository state with git status counts for diff modes */
 export interface DiffRepo {
-  /** Short display name (e.g. "dotfiles", "omarchy:hypr") */
+  /** Short display name (e.g. "dotfiles", "notes") */
   readonly name: string;
   /** Absolute filesystem path to the repository root */
   readonly path: string;

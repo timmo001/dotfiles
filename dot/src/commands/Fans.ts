@@ -226,7 +226,6 @@ export const fansRun = Effect.gen(function* () {
             `[ERROR] Could not restore motherboard fan control (liquidctl exit ${restored})`,
           );
       yield* fs.remove(STATUS_FILE, { force: true }).pipe(Effect.ignore);
-      yield* refreshServicesDaemon;
     }),
   );
 
@@ -253,13 +252,8 @@ export const fansRun = Effect.gen(function* () {
     );
     yield* Ref.set(lastReport, Option.some(status));
 
-    const line = `[${health.toUpperCase()}] ${logLine}`;
-
-    if ((yield* Ref.getAndSet(lastLogged, line)) !== line)
-      yield* Console.log(line);
-
-    if (Option.getOrUndefined(previous)?.health !== health)
-      yield* refreshServicesDaemon;
+    if (Option.getOrUndefined(previous)?.summary !== summary)
+      yield* Console.log(`[${health.toUpperCase()}] ${summary}`);
   });
 
   /** Set every channel, returning those liquidctl rejected. */

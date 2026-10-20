@@ -2,9 +2,6 @@ import { Effect } from "effect";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { displayPath } from "../lib/paths.js";
-import { ensureNvimThemeLink } from "../lib/omarchyNvim.js";
-import { disableOmarchyCrashCapture } from "../lib/omarchyCrashCapture.js";
-import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
 import {
   writeCaptureRepositoryOptions,
   writeRepoPicker,
@@ -20,7 +17,6 @@ import { syncSkills } from "../lib/externalSkills.js";
 import { applySyncthingConfig } from "../lib/syncthing.js";
 import { syncSystemBridgeProvider } from "../lib/systemBridgeProvider.js";
 import { applySecretFiles } from "../lib/secretFiles.js";
-import { applyDotLinksExtension } from "../lib/dotLinksExtension.js";
 import { disableRetiredUnits, enableDefaultUnits } from "../lib/userUnits.js";
 import {
   backupUnmanagedTargets,
@@ -30,13 +26,11 @@ import {
 } from "../lib/stowPackages.js";
 import { cliStyler } from "../lib/ansi.js";
 import { plural } from "../lib/runSummary.js";
-import { done, notable, skip, warn } from "../lib/updateSummary.js";
+import { done, notable, warn } from "../lib/updateSummary.js";
 import type { RecapEntry } from "../lib/updateSummary.js";
 
 /** Result of a stow run. */
 export interface StowResult {
-  /** Whether the generated `shell.json` or a deployed Omarchy plugin changed. */
-  readonly shellChanged: boolean;
   /** Actions taken or skipped in order, for a closing summary. */
   readonly actions: readonly RecapEntry[];
 }
@@ -47,9 +41,7 @@ export interface StowResult {
  * Matches legacy behaviour: enumerates stow package directories, logs each one,
  * and applies per-folder stow with appropriate flags.
  *
- * @returns Whether the generated Omarchy `shell.json` or a deployed plugin
- *   changed, so the caller can restart the running shell, and the actions
- *   taken or skipped for a summary.
+ * @returns The actions taken or skipped, for a summary.
  */
 export const stow = (opts?: {
   readonly publicOnly?: boolean;
@@ -63,7 +55,6 @@ export const stow = (opts?: {
     const runPublic = !opts?.privateOnly;
     const runPrivate = !opts?.publicOnly;
 
-    let shellConfigChanged = false;
     const actions: RecapEntry[] = [];
     const counts = emptyStowCounts();
 
@@ -140,22 +131,6 @@ export const stow = (opts?: {
       yield* backupUnmanagedTargets(config.publicDotfiles, counts);
       yield* stowRepo(config.publicDotfiles, "public", counts);
       actions.push(done(`Stowed ${plural(counts.public, "public package")}`));
-
-      yield* log.section("Omarchy Neovim Theme");
-      yield* ensureNvimThemeLink(log);
-
-      yield* log.section("Omarchy Crash Notifications");
-      actions.push(...(yield* disableOmarchyCrashCapture));
-
-      yield* log.section("Omarchy Shell Config");
-      shellConfigChanged = yield* applyOmarchyShellConfig;
-
-      actions.push(
-        shellConfigChanged
-          ? notable("Regenerated Omarchy shell config")
-          : skip("Omarchy shell config unchanged"),
-      );
-
       actions.push(...(yield* enableDefaultUnits));
       actions.push(yield* syncSystemBridgeProvider);
     }
@@ -170,7 +145,6 @@ export const stow = (opts?: {
         );
         actions.push(...(yield* applySyncthingConfig));
         actions.push(...(yield* applySecretFiles));
-        actions.push(...(yield* applyDotLinksExtension));
       } else {
         yield* log.warn(
           "Skipping private stow (private dotfiles not available)",
@@ -183,11 +157,6 @@ export const stow = (opts?: {
 
     if (runPublic) actions.push(...(yield* syncSkills));
 
-    if (counts.deployed > 0)
-      actions.push(
-        notable(`Deployed ${plural(counts.deployed, "Omarchy plugin")}`),
-      );
-
     if (counts.backedUp > 0)
       actions.push(
         notable(`Backed up ${plural(counts.backedUp, "unmanaged target")}`),
@@ -198,8 +167,5 @@ export const stow = (opts?: {
         notable(`Removed ${plural(counts.removed, "retired link")}`),
       );
 
-    return {
-      shellChanged: shellConfigChanged || counts.deployed > 0,
-      actions,
-    } satisfies StowResult;
+    return { actions } satisfies StowResult;
   });

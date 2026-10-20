@@ -32,6 +32,7 @@ import {
   expandHomePath,
 } from "../lib/paths.js";
 import { hasManualStart, writeManualStart } from "../lib/manualStart.js";
+import { notify } from "../lib/notify.js";
 import { ENV, envString } from "../lib/env.js";
 
 /** Registered unit is unknown or its descriptor cannot be used. */
@@ -359,7 +360,7 @@ export interface ServiceStatus {
   readonly restartLimit?: { readonly count: number; readonly within: number };
   /** Staleness window in milliseconds, when configured. */
   readonly staleAfter?: number;
-  /** Whether failures raise desktop notifications. */
+  /** Whether failures are recorded as notifications in the journal. */
   readonly notify: boolean;
   /** Newest run log, when the job keeps its own logs. */
   readonly latestLog?: { readonly path: string; readonly modified: number };
@@ -2520,43 +2521,29 @@ export const servicesInvestigate = Effect.fn("Services.investigate")(function* (
   });
 });
 
-/** Notify about a failed registered job and have the dot daemon check again. */
+/** Notify about a failed registered job. */
 export const servicesNotify = Effect.fn("Services.notify")(function* (
   unit: string,
 ) {
   const registered = yield* findRegistered(unit);
   const [status] = yield* collectServiceStatus([registered]);
 
-  yield* refreshServicesDaemon;
-
   if (!status?.notify || status.health !== "failed") return;
 
   yield* sendFailureNotification(status);
 });
 
-/** Raise the desktop notification for an item that has failed. */
+/** Record a failed item in the journal as a notification. */
 const sendFailureNotification = Effect.fn("Services.sendFailureNotification")(
   function* (status: ServiceStatus) {
-    const executor = yield* CommandExecutor;
     const lastFailure = status.runs.find((run) => run.result === "failed");
 
-    yield* executor.run("omarchy", [
-      "notification",
-      "send",
-      "--app-name",
-      "dot services",
-      "-g",
-      "󰀦",
-      "-u",
-      "critical",
+    yield* notify(
       `${status.label} failed`,
       [status.summary, lastFailure?.summary ?? lastFailure?.detail]
         .filter(Boolean)
         .join(" · "),
-      // A check has no journal for the logs tab to follow.
-      ...(status.kind === "check"
-        ? []
-        : ["--exec", "dot", "services", "logs", status.unit]),
-    ]);
+      "critical",
+    );
   },
 );
