@@ -74,7 +74,11 @@ o.bind("SUPER + SHIFT + F", "Add floating application", "/usr/bin/float-app add"
 -- Workspaces numbered across all monitors, as before Omarchy gave each monitor
 -- its own 1-10 (omacom/omarchy#15655). The no-op reconcile stops Omarchy
 -- renumbering workspaces into per-monitor blocks on reloads and hotplugs.
+-- The plain focus keeps omarchy-hyprland-window-close-all on workspace 1.
 o.workspaces.reconcile = function() end
+o.workspaces.focus = function(slot)
+  return hl.dsp.focus({ workspace = tostring(slot) })
+end
 for workspace = 1, 10 do
   local key = "code:" .. tostring(workspace + 9)
   local id = tostring(workspace)
