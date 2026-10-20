@@ -28,6 +28,7 @@
 --ignore=^/dot-migration
 --ignore=^/docs
 --ignore=^/server
+--ignore=^/cloud
 --ignore=^/chromium-extension
 --ignore=^/package\.json
 --ignore=(^|/)node_modules(/|$)
