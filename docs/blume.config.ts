@@ -31,6 +31,12 @@ export default defineConfig(
           ],
         },
         {
+          label: 'Cloud',
+          items: [
+            '/cloud/overview',
+          ],
+        },
+        {
           label: 'Server',
           items: [
             '/server/overview',
