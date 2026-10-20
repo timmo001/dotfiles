@@ -411,6 +411,44 @@ dot server serve
 dot server serve --host 0.0.0.0
 ```
 
+## `dot cloud`
+
+Cloud session VM helpers
+
+```text
+dot cloud <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot cloud setup`
+
+Prepare Claude Code in a cloud session VM
+
+```text
+dot cloud setup [flags]
+```
+
+Links ~/.claude/settings.json to cloud/claude/settings.json, writes ~/.claude/CLAUDE.md from cloud/claude/CLAUDE.md followed by the private global AGENTS.md when the private dotfiles are present, and links the shared skills into ~/.claude/skills. cloud/setup.sh runs it as the cloud environment's setup script, after installing mise and building dot. It refuses to run unless CLAUDE_CODE_REMOTE is true, since it replaces the user-level Claude Code settings and instructions.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--force` | Set up Claude Code outside a Claude Code cloud session |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot cloud setup
+dot cloud setup --force
+```
+
 ## `dot status`
 
 Run work under a pinned terminal status header

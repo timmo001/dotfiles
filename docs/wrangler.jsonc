@@ -1,12 +1,12 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "dotfiles-docs-ubuntu-server",
+  "name": "dotfiles-docs-cloud",
   "compatibility_date": "2026-07-17",
   "workers_dev": true,
   "preview_urls": true,
   "routes": [
     {
-      "pattern": "ubuntu-server.dotfiles.timmo.dev",
+      "pattern": "cloud.dotfiles.timmo.dev",
       "custom_domain": true
     }
   ],
