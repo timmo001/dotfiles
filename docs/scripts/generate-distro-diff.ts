@@ -111,10 +111,10 @@ push('title: Changes from the desktop');
 push(`description: What the ${current.label} branch removed, changed and added compared with ${base.branch}.`);
 push('---');
 push();
-push('<!-- Generated from git by `mise run docs:gen:distro-diff` before every docs build. Not committed. -->');
+push('<!-- Generated from git by `mise run docs:gen:distro-diff`. Do not edit by hand. -->');
 push();
 push(
-  `This page compares ${code(current.branch)} with the default branch, ${code(base.branch)} ([${base.label}](https://${base.site}/)), from the commit they last shared: ${code(mergeBase.slice(0, 7))}. It is rebuilt with the site, so it moves when this branch changes or is rebased onto the default branch, not on every desktop commit.`,
+  `This page compares ${code(current.branch)} with the default branch, ${code(base.branch)} ([${base.label}](https://${base.site}/)), from the commit they last shared: ${code(mergeBase.slice(0, 7))}. It moves when this branch changes or is rebased onto the default branch, not on every desktop commit.`,
 );
 push();
 
