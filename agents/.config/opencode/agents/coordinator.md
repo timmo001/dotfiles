@@ -18,6 +18,7 @@ permission:
   external_directory:
     "*": ask
     "/tmp/opencode/**": allow
+    "~/.cache/agent-scratch/**": allow
   bash:
     "*": ask
     "context git*": allow
