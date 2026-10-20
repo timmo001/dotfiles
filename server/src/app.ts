@@ -24,7 +24,17 @@ class App extends UIElement {
       <div class="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 p-6">
         <header class="flex items-baseline justify-between">
           <h1 class="text-xl font-semibold">${location.hostname}</h1>
-          <span class="text-muted-foreground text-sm">dot server</span>
+          <div class="flex items-baseline gap-4">
+            <span class="text-muted-foreground text-sm">dot server</span>
+            <form method="post" action="/logout">
+              <button
+                type="submit"
+                class="text-muted-foreground hover:text-foreground text-sm underline"
+              >
+                Log out
+              </button>
+            </form>
+          </div>
         </header>
         <main>${this.router.outlet()}</main>
       </div>
