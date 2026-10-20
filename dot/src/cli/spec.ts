@@ -29,17 +29,7 @@ import { herdrServerAction, herdrStart } from "../commands/HerdrServer.js";
 import { init } from "../commands/Init.js";
 import { install } from "../commands/Install.js";
 import { isAgentCommand } from "../commands/IsAgent.js";
-import { launchFloatingWebapp } from "../commands/LaunchFloatingWebapp.js";
-import { linkGit } from "../commands/LinkGit.js";
-import { linkNativeHost } from "../commands/LinkNativeHost.js";
-import { linkOpen } from "../commands/LinkOpen.js";
-import { plannotatorInbox } from "../commands/PlannotatorInbox.js";
 import { notesCaptureSync } from "../commands/NotesCaptureSync.js";
-import { syncOmarchyComponents } from "../commands/OmarchyComponents.js";
-import {
-  omarchyPlugin,
-  OmarchyPluginInput,
-} from "../commands/OmarchyPlugin.js";
 import { updatesRefresh, updatesStatus } from "../commands/Updates.js";
 import {
   servicesInvestigate,
@@ -53,14 +43,11 @@ import {
 } from "../commands/Services.js";
 import { fansRun } from "../commands/Fans.js";
 import { tunnelRun } from "../commands/Tunnel.js";
-import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { prQueue } from "../commands/PrQueue.js";
 import { briefDismiss, briefFollowUp, briefRun } from "../commands/Brief.js";
 import { reportList, reportRun } from "../commands/Report.js";
 import { prReviews } from "../commands/PrReviews.js";
 import { prWatch } from "../commands/PrWatch.js";
-import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
-import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
 import { editSkillConsumer, runSkillsMaintenance } from "../commands/Skills.js";
 import { runCommand } from "../commands/Run.js";
 import { httpForward } from "../commands/HttpForward.js";
@@ -94,30 +81,21 @@ import {
 import { repos, searchRepos } from "../commands/Repos.js";
 import { systemUpdate, UPDATE_STEPS } from "../commands/SystemUpdate.js";
 import { update, updateCheck, updateRepositories } from "../commands/Update.js";
-import { workspaceRelayout } from "../commands/WorkspaceRelayout.js";
 import { RELOAD_PARTS, reload } from "../commands/Reload.js";
-import { workspaceSetup } from "../commands/WorkspaceSetup.js";
 import { configureFirewallRules } from "../lib/firewallSetup.js";
-import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
 import { diffBarJson, diffPanelJson, diffRaw } from "../git/commands/Diff.js";
 import { gitCommitRaw } from "../git/commands/Commit.js";
-import { gitWeb } from "../git/commands/Web.js";
 import { gitLog, gitLogShow } from "../git/commands/Log.js";
-import {
-  pullRequestsOpenShell,
-  pullRequestsQuery,
-} from "../git/commands/PullRequests.js";
-import { issuesOpenShell, issuesQuery } from "../git/commands/Issues.js";
+import { pullRequestsQuery } from "../git/commands/PullRequests.js";
+import { issuesQuery } from "../git/commands/Issues.js";
 import {
   releasesAction,
   releasesPublish,
   releasesQuery,
-  releasesOpenShell,
 } from "../git/commands/Releases.js";
 import {
   notificationsBarJson,
   notificationsMarkRead,
-  notificationsOpenShell,
 } from "../git/commands/Notifications.js";
 import { notificationsDismiss } from "../git/commands/NotificationDismiss.js";
 import type { GitNotificationQueryOptions } from "../types.js";
@@ -197,34 +175,20 @@ const initCommand = describe(
   Command.make(
     "init",
     {
-      noninteractive: bool(
-        "noninteractive",
-        "Skip the Hypr host questionnaire for this run",
-      ),
-      interactive: bool(
-        "interactive",
-        "Enable the Hypr host questionnaire when no host is selected",
-      ),
       force: bool("force", "Re-run init even if the machine looks initialised"),
-      host: text("host", "Hypr host to link before stow"),
       log: pathFlag(
         "log",
         "Init log path (default: ~/.local/state/dot/init.log)",
         "file",
       ),
     },
-    (input) =>
-      init({ ...input, host: optional(input.host), log: optional(input.log) }),
+    (input) => init({ force: input.force, log: optional(input.log) }),
   ),
   "Run one-time first-use machine setup",
-  [
-    "dot init --noninteractive",
-    "dot init --host laptop --noninteractive",
-    "dot init --force --noninteractive",
-  ],
+  ["dot init", "dot init --force"],
   {
     description:
-      "Run the one-time first-use setup workflow for a fresh machine. Init prepares repos, stow links, mise tools, packages, and machine hooks, and trusts mise configs in tracked repos. After init completes, reboot so the Omarchy session picks up host env, then run dot doctor. Before the bounded workflow starts, init updates or clones the optional private overlay according to DOT_ALLOW_PRIVATE. Use dot update for ongoing maintenance.",
+      "Run the one-time first-use setup workflow for a fresh machine. Init prepares repos, stow links, mise tools, apt packages, the firewall and the login shell, and trusts mise configs in tracked repos. After init completes, enable lingering so user services run without a login, log in again, then run dot doctor. Before the bounded workflow starts, init updates or clones the optional private overlay according to DOT_ALLOW_PRIVATE. Use dot update for ongoing maintenance.",
   },
 );
 
@@ -250,13 +214,13 @@ const systemUpdateCommand = describe(
       ),
       noSelfUpdate: bool(
         "no-self-update",
-        "Internal: the dotfiles are already pulled, so dot update skips its self-update",
+        "Skip dot update's self-update pull when the dotfiles are already pulled",
       ),
     },
     ({ yes, step, noSelfUpdate }) =>
       systemUpdate({ yes, steps: step, selfUpdate: !noSelfUpdate }),
   ),
-  "Select and run Dotfiles, Omarchy, and Topgrade updates",
+  "Select and run Dotfiles, apt, and Topgrade updates",
   [
     "dot update system",
     "dot update system --yes",
@@ -264,7 +228,7 @@ const systemUpdateCommand = describe(
   ],
   {
     description:
-      "Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.\n\nUnder Herdr, when Omarchy and other steps are selected, this pane first pulls the public and private dotfiles and rebuilds dot when Dotfiles is selected. The other steps then run in a pane split off to the right, which stays open when they finish and doesn't pull the dotfiles again, while this pane runs the Omarchy update, so both can ask for authentication straight away.",
+      "Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, apt packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.",
   },
 );
 
@@ -369,7 +333,7 @@ const updateCommand = describe(
   [],
   {
     description:
-      "A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, installs missing public Arch/AUR packages, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and refreshes shell modules. It never restarts the shell: the running shell applies a changed generated config or deployed Omarchy plugin itself. It finishes with a summary of updated repositories and every completed or skipped step, in order.\n\nPhase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip full-update package reconciliation, agents sync, and init-marker backfill.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands, skipping the dotfiles rebuild and stow. Herdr plugins are refreshed only inside Herdr. The Git panel uses --no-reload to skip agent reload and module refresh.",
+      "A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and starts the doctor check. It finishes with a summary of updated repositories and every completed or skipped step, in order.\n\nPhase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip agents sync and init-marker backfill.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands, skipping the dotfiles rebuild and stow. Herdr plugins are refreshed only inside Herdr. --no-reload skips the agent reload and doctor check.",
     sections: [
       {
         title: "Exit codes",
@@ -378,7 +342,6 @@ const updateCommand = describe(
           "1   Fatal workflow failure",
           "2   Update check could not finish",
           "10  Update check found pulls, pending pins or stow changes",
-          "11  Legacy Hypr migration is required",
         ],
       },
     ],
@@ -716,7 +679,6 @@ const updatesCommand = describe(
           "refresh",
           {
             ...updateRefreshFlags,
-            scheduled: bool("scheduled", "Respect the AUR request backoff"),
             dotOnly: bool(
               "dot-only",
               "Refresh only Dotfiles status, keeping cached package status",
@@ -729,20 +691,19 @@ const updatesCommand = describe(
                 packageFile: optional(input.packageFile),
                 cacheDir: optional(input.cacheDir),
               },
-              input.scheduled,
               input.dotOnly,
             ),
         ),
-        "Refresh package, Dotfiles and skills status and notify the shell",
+        "Refresh package, Dotfiles and skills status",
         ["dot updates refresh", "dot updates refresh --dot-only"],
       ),
     ]),
   ),
-  "Check watched package, Dotfiles and skills updates for the status bar",
+  "Check watched package, Dotfiles and skills updates",
   ["dot updates status", "dot updates refresh"],
   {
     description:
-      "Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched repository/AUR packages, all dot-managed repositories and whether the managed skills checkout is behind timmo001/skills main, writes the cache atomically under a shared lock, and notifies the Omarchy shell. status --json prints the cached sections and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --package-file, --cache-dir and --timeout to override defaults.",
+      "Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched apt packages, all dot-managed repositories and whether the managed skills checkout is behind timmo001/skills main, and writes the cache atomically under a shared lock. status --json prints the cached sections and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Use --package-file, --cache-dir and --timeout to override defaults.",
   },
 );
 
@@ -959,294 +920,6 @@ const stowCommand = describe(
   "Re-stow public/private dotfiles",
 );
 
-const pluginAdd = describe(
-  Command.make(
-    "add",
-    {
-      id: Argument.String("id").pipe(Argument.withDescription("Plugin ID")),
-      url: Argument.String("url").pipe(
-        Argument.withDescription("Plugin Git remote"),
-      ),
-      checkout: Argument.Path("checkout").pipe(
-        Argument.withDescription("Validated live plugin checkout"),
-      ),
-      path: text(
-        "path",
-        "Plugin directory inside the checkout, for repositories that keep the plugin in a subfolder",
-      ),
-      section: Flag.Literals("section", ["left", "center", "right"]).pipe(
-        Flag.optional,
-      ),
-      before: text("before", "Place before this plugin"),
-      after: text("after", "Place after this plugin"),
-    },
-    (input) =>
-      omarchyPlugin(
-        OmarchyPluginInput.add({
-          ...input,
-          path: optional(input.path),
-          section: optional(input.section),
-          before: optional(input.before),
-          after: optional(input.after),
-        }),
-      ),
-  ),
-  "Import a validated plugin checkout",
-);
-
-const pluginUpdate = describe(
-  Command.make(
-    "update",
-    {
-      id: Argument.String("id").pipe(
-        Argument.withDescription("Managed plugin ID"),
-        Argument.optional,
-      ),
-      confirm: Argument.Literals("confirm", ["0", "1"]).pipe(
-        Argument.withDescription("Compatibility confirmation value"),
-        Argument.optional,
-      ),
-      yes: bool("yes", "Update without confirmation"),
-    },
-    ({ confirm, id, yes }) =>
-      omarchyPlugin(
-        OmarchyPluginInput.update({
-          id: optional(id),
-          yes: yes || Option.getOrUndefined(confirm) === "1",
-        }),
-      ),
-  ),
-  "Update one or all managed plugins",
-);
-
-const pluginRemove = describe(
-  Command.make(
-    "remove",
-    {
-      id: Argument.String("id").pipe(
-        Argument.withDescription("Managed plugin ID"),
-      ),
-      confirm: Argument.Literals("confirm", ["0", "1"]).pipe(
-        Argument.withDescription("Compatibility confirmation value"),
-        Argument.optional,
-      ),
-      save: Argument.Literals("save", ["0", "1"]).pipe(
-        Argument.withDescription("Compatibility commit-offer value"),
-        Argument.optional,
-      ),
-      yes: bool("yes", "Remove without confirmation"),
-      noCommitOffer: bool(
-        "no-commit-offer",
-        "Do not offer the optional git commit handoff",
-      ),
-    },
-    ({ confirm, id, noCommitOffer, save, yes }) =>
-      omarchyPlugin(
-        OmarchyPluginInput.remove({
-          id,
-          yes: yes || Option.getOrUndefined(confirm) === "1",
-          offerCommit: !noCommitOffer && Option.getOrUndefined(save) !== "0",
-        }),
-      ),
-  ),
-  "Remove a managed plugin",
-);
-
-const pluginSyncComponents = describe(
-  Command.make("sync").pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make(
-          "components",
-          {
-            check: bool("check", "Report out-of-date copies without writing"),
-          },
-          ({ check }) => syncOmarchyComponents({ check }),
-        ),
-        "Copy shared panel components into standalone plugin checkouts",
-      ),
-    ]),
-  ),
-  "Sync shared files into plugin checkouts",
-);
-
-const omarchyPluginCommand = describe(
-  Command.make("plugin").pipe(
-    Command.withSubcommands([
-      pluginAdd,
-      pluginUpdate,
-      pluginRemove,
-      pluginSyncComponents,
-    ]),
-  ),
-  "Manage Omarchy plugin submodules. The manage-omarchy-plugin compatibility wrapper may pass trailing 0/1 confirmation and commit-offer values to update and remove.",
-  [
-    "dot omarchy plugin update timmo.clock --yes",
-    "dot omarchy plugin remove timmo.clock",
-    "dot omarchy plugin sync components --check",
-  ],
-  {
-    description:
-      "Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.\n\nFor a repository that keeps its plugin in a subfolder, pass add --path with that folder. The submodule holds the whole repository, and the registry's path entry tells stow and update which folder to validate and deploy.\n\nsync components copies the shared panel components in omarchy/.config/omarchy/components into the plugin directories set by omarchy_components entries in the private dot-git.yml, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.",
-    sections: [
-      {
-        title: "Exit codes",
-        lines: [
-          "0   Managed operation completed or was skipped",
-          "1   Managed operation failed",
-          "20  Plugin is unmanaged; continue with Omarchy's normal operation",
-        ],
-      },
-    ],
-  },
-);
-
-const omarchyCommand = describe(
-  Command.make("omarchy").pipe(
-    Command.withSubcommands([
-      omarchyPluginCommand,
-      describe(
-        Command.make("shell").pipe(
-          Command.withSubcommands([
-            describe(
-              Command.make("config", {}, () =>
-                applyOmarchyShellConfig.pipe(Effect.asVoid),
-              ),
-              "Regenerate the Omarchy shell layout",
-              ["dot omarchy shell config"],
-              {
-                description:
-                  "Regenerate ~/.config/omarchy/shell.json from Omarchy's shipped default and the host-specific dotfiles layout without running the full stow flow.",
-              },
-            ),
-          ]),
-        ),
-        "Manage the Omarchy shell",
-      ),
-    ]),
-  ),
-  "Manage Omarchy plugins and the shell layout",
-);
-
-const gitWebCommand = describe(
-  Command.make(
-    "web",
-    {
-      path: text(
-        "path",
-        "Repository directory; defaults to the current directory when no URL is supplied",
-      ),
-      url: text("url", "Web URL; defaults to the repository's GitHub page"),
-      browser: text(
-        "browser",
-        "Override the repository browser with a name from dot-git.yml",
-      ),
-      workTime: bool(
-        "work-time",
-        "Use the work browser during work time, otherwise the desktop default",
-      ),
-      actions: bool("actions", "Open the repository's GitHub Actions page"),
-    },
-    ({ path, url, browser, workTime, actions }) =>
-      gitWeb({
-        path: optional(path),
-        url: optional(url),
-        browser: optional(browser),
-        workTime,
-        actions,
-      }),
-  ),
-  "Open a Git web action using the repository's configured browser",
-  [
-    "dot git web",
-    "dot git web --browser work",
-    "dot git web --url https://github.com/example/project/issues/1",
-  ],
-  {
-    description:
-      "Resolves repository browser settings from dot-git.yml, including linked worktrees. URL-only actions use the GitHub repository in the URL. Named browsers are argument lists under browsers; each repository can select one with browser, or work-time for links.work during work hours and links.personal otherwise. When links is set, links.sites rules come first and unselected links follow the same routing as dot link open. Without links or a selection, uses the desktop default, and --work-time selects the work browser during work hours outside calendar leave. --browser overrides the selection. The Git panel uses --work-time for web actions and --browser work for Alt+Enter and Alt+click.",
-  },
-);
-
-const linkCommand = describe(
-  Command.make("link").pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make(
-          "open",
-          {
-            args: Argument.String("args").pipe(
-              Argument.variadic(),
-              Argument.withDescription(
-                "One link, or browser arguments passed after --",
-              ),
-            ),
-            background: bool(
-              "background",
-              "Leave focus and the cursor where they are, for links opened by tools rather than by you",
-            ),
-          },
-          ({ args, background }) => linkOpen(args, background),
-        ),
-        "Open a link in the work or personal browser, or a dot:// link in the Git panel",
-        [
-          "dot link open https://github.com/home-assistant/frontend",
-          "dot link open --background http://localhost:38080/",
-          "dot link open dot://git/issue/timmo001/dotfiles/1076",
-          "dot link open -- --incognito",
-        ],
-        {
-          description:
-            "Routes a single HTTP or HTTPS link using links in dot-git.yml: the first matching links.sites rule, then the browser of the tracked repository a GitHub link belongs to, otherwise links.personal. A site rule or repository can select work-time, which opens links.work during work time outside calendar leave and links.personal otherwise. A site rule can be limited to some OMARCHY_HOST values with hosts, and can set a Hyprland workspace: the link opens in the browser's window there that was focused last, found by its links.window_classes pattern, or in a new window moved there. With --background, a link placed on a workspace leaves focus and the cursor where they were; link-open-background runs this for PLANNOTATOR_BROWSER, so reviews Plannotator opens by itself don't pull focus. Anything else, including no arguments, goes to links.personal unchanged. The link-browser desktop entry runs this as the default web browser, so xdg-open and Omarchy's browser launcher use it. A dot://git/issue/<owner>/<repo>/<number> or dot://git/pull/... link opens that item in the Git panel when the panel lists it, and its GitHub page through the same routing otherwise; the dot-link desktop entry handles the dot:// scheme. Failures are also sent as a desktop notification.",
-        },
-      ),
-      describe(
-        Command.make(
-          "git",
-          {
-            urls: Argument.String("urls").pipe(
-              Argument.variadic({ min: 1 }),
-              Argument.withDescription("GitHub issue or pull request URLs"),
-            ),
-            json: bool("json", "Print JSON (the default under an AI agent)"),
-          },
-          ({ urls, json }) => linkGit({ urls, json }),
-        ),
-        "Print the dot:// links that open GitHub issues and pull requests in the Git panel",
-        [
-          "dot link git https://github.com/timmo001/dotfiles/issues/1079",
-          "dot link git https://github.com/timmo001/dotfiles/pull/1080 --json",
-        ],
-        {
-          description:
-            "Read-only. For each URL, reports the dot://git/<issue|pull>/<owner>/<repo>/<number> link (null when the URL isn't a GitHub issue or pull request), whether the Git panel lists the item, read from the panel's cache, and, when it does, a Markdown icon link to put after the GitHub link. Agents add that icon link wherever they share GitHub issue and pull request links. Prints JSON with --json or when run under an AI agent, otherwise one line per URL.",
-        },
-      ),
-      describe(
-        Command.make(
-          "native-host",
-          {
-            origin: Argument.String("origin").pipe(
-              Argument.variadic(),
-              Argument.withDescription(
-                "The calling extension's origin, which Chromium passes and this ignores",
-              ),
-            ),
-          },
-          () => linkNativeHost,
-        ),
-        "Native messaging host for the dot links Chromium extension",
-        [],
-        {
-          description:
-            "Chromium runs this through the link-native-host wrapper; it isn't for running by hand. Reads one length-prefixed JSON request on stdin: resolve {url} replies with the page's dot:// link and whether the Git panel lists it, open {url} opens it in the Git panel and fails rather than opening the browser when the panel doesn't list it. dot stow builds the extension in chromium-extension/ and writes the host manifest into each browser in links.extension.user_data_dirs in dot-git.yml.",
-        },
-      ),
-    ]),
-  ),
-  "Route links to the work or personal browser, or to the Git panel",
-);
-
 const gitDiffCommand = describe(
   Command.make(
     "diff",
@@ -1358,7 +1031,6 @@ const gitPullRequestsCommand = describe(
         "refresh",
         "Fetch now instead of using the five-minute cache",
       ),
-      open: bool("open", "Open the tracked pull request page in the Git panel"),
       ignore: Flag.Int("ignore").pipe(
         Flag.withDescription(
           "Hide a PR locally from the panel and counters; requires --repo",
@@ -1370,19 +1042,14 @@ const gitPullRequestsCommand = describe(
         "Return enabled repositories and their open pull requests as JSON",
       ),
     },
-    ({ repo, refresh, open, ignore, panelJson }) =>
-      Effect.gen(function* () {
-        if (open && Option.isNone(ignore))
-          return yield* pullRequestsOpenShell(optional(repo));
-
-        return yield* pullRequestsQuery(
-          { repo: optional(repo), refresh, ignore: optional(ignore) },
-          panelJson,
-        );
-      }),
+    ({ repo, refresh, ignore, panelJson }) =>
+      pullRequestsQuery(
+        { repo: optional(repo), refresh, ignore: optional(ignore) },
+        panelJson,
+      ),
   ),
   "Track open pull requests for enabled repositories, independently of GitHub notifications",
-  ["dot pr list --panel-json", "dot pr list --refresh", "dot pr list --open"],
+  ["dot pr list --panel-json", "dot pr list --refresh"],
   {
     description:
       "Opt in with pull_requests.enabled in private dot-git.yml. Open PRs include drafts and automation, ordered by latest update. Use --repo <repository> --ignore <number> to hide a PR locally from the panel and all PR counters. Successful refreshes remove ignored entries once they close, merge or disappear. A non-draft PR is ready when at least one CI check passes and none fail, remain pending or are cancelled; failed check names are shown in the panel. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and ignore entries, and report an error.",
@@ -1398,25 +1065,16 @@ const gitIssuesCommand = describe(
         "refresh",
         "Fetch now instead of using the five-minute cache",
       ),
-      open: bool("open", "Open the tracked issue page in the Git panel"),
       panelJson: bool(
         "panel-json",
         "Return enabled repositories and their open issues as JSON",
       ),
     },
-    ({ repo, refresh, open, panelJson }) =>
-      Effect.gen(function* () {
-        if (open) return yield* issuesOpenShell(optional(repo));
-
-        return yield* issuesQuery({ repo: optional(repo), refresh }, panelJson);
-      }),
+    ({ repo, refresh, panelJson }) =>
+      issuesQuery({ repo: optional(repo), refresh }, panelJson),
   ),
   "Track open issues for enabled repositories, independently of GitHub notifications",
-  [
-    "dot git issues --panel-json",
-    "dot git issues --refresh",
-    "dot git issues --open",
-  ],
+  ["dot git issues --panel-json", "dot git issues --refresh"],
   {
     description:
       "Opt in with issues.enabled in private dot-git.yml. Open issues exclude pull requests and are ordered by latest update. Rules under the top-level issues.exclude list hide matching issues, such as a Dependency Dashboard; each rule matches when every field it sets (title, author, label and optional repo) matches, case-insensitively. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and report an error.",
@@ -1449,21 +1107,16 @@ const gitReleasesCommand = describe(
         "notify",
         "Send eligible desktop notifications with review actions",
       ),
-      open: bool("open", "Open the release review in the Omarchy shell"),
       panelJson: bool(
         "panel-json",
         "Complete JSON review snapshots, including quiet changes and errors",
       ),
     },
-    ({ repo, scheduled, refresh, notify, open, panelJson }) =>
-      Effect.gen(function* () {
-        if (open) return yield* releasesOpenShell(optional(repo));
-
-        return yield* releasesQuery(
-          { repo: optional(repo), scheduled, refresh, notify },
-          panelJson,
-        );
-      }),
+    ({ repo, scheduled, refresh, notify, panelJson }) =>
+      releasesQuery(
+        { repo: optional(repo), scheduled, refresh, notify },
+        panelJson,
+      ),
   ).pipe(
     Command.withSubcommands([
       describe(
@@ -1753,13 +1406,10 @@ const gitNotificationsCommand = describe(
         if (Option.isSome(input.markRead))
           return yield* notificationsMarkRead(input.markRead.value);
 
-        if (input.barJson || options)
-          return yield* notificationsBarJson(options);
-
-        return yield* notificationsOpenShell;
+        return yield* notificationsBarJson(options);
       }),
   ).pipe(Command.withSubcommands([notificationDismissCommand])),
-  "Open the authenticated GitHub notification inbox. Without output, query or action flags, this opens the Omarchy shell panel. --all and --participating return filtered bar JSON.",
+  "Read the authenticated GitHub notification inbox as JSON. --all and --participating filter it.",
   [
     "dot git notifications",
     "dot git notifications --bar-json",
@@ -1780,7 +1430,6 @@ const gitCommand = describe(
     Command.withSubcommands([
       gitDiffCommand,
       gitLogCommand,
-      gitWebCommand,
       gitCommitCommand,
       gitNotificationsCommand,
       gitReleasesCommand,
@@ -1970,7 +1619,7 @@ const simpleCommands = [
   ),
   describe(
     Command.make("doctor", {}, () => doctor),
-    "Run parallel health checks for dependencies, repositories, stow integrity, services, packages, browser configuration, hardware video, firewall rules, and OpenCode/Herdr integration. A timestamped report is always written under ~/.local/state/dot/logs/.",
+    "Run parallel health checks for dependencies, repositories, stow integrity, services, apt packages, firewall rules, and OpenCode/Herdr integration. A timestamped report is always written under ~/.local/state/dot/logs/.",
     [],
     {
       description:
@@ -1981,9 +1630,8 @@ const simpleCommands = [
           lines: [
             "Dependencies and configured gh extensions",
             "Repositories, origin HEAD, git config, and stow integrity",
-            "OpenCode, Herdr, notifications, timers, and UWSM integration",
-            "Omarchy host links, browser flags/extensions, and hardware video",
-            "Public/private packages, pacman hooks, and managed firewall rules",
+            "OpenCode, Herdr, notifications, timers, and registered services",
+            "Public/private apt packages, managed firewall rules, and Syncthing",
           ],
         },
         {
@@ -2076,90 +1724,6 @@ const notesCommand = describe(
     ]),
   ),
   "Integrate with the notes tool",
-);
-
-const setupCommand = describe(
-  Command.make("setup").pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make("private").pipe(
-          Command.withSubcommands([
-            describe(
-              Command.make("repo", {}, () => setupPrivateRepo),
-              "Sync and register the private pacman repository",
-              ["dot setup private repo"],
-              {
-                description:
-                  "Sync the private Arch package repo mirror, write the private pacman repo snippet, and add the Include line to /etc/pacman.conf when it is missing. This repairs Omarchy pacman.conf refreshes that remove local repository includes. Privileged writes prefer pkexec and fall back to sudo.",
-              },
-            ),
-          ]),
-        ),
-        "Set up private package sources",
-      ),
-      describe(
-        Command.make("public").pipe(
-          Command.withSubcommands([
-            describe(
-              Command.make("repo", {}, () => setupPublicRepo),
-              "Trust and register the public timmo pacman repository",
-              ["dot setup public repo"],
-              {
-                description:
-                  "Download the public signing key, require its pinned full fingerprint, locally sign it in pacman's keyring, and register the signed [timmo] repository before the other package repositories. The command fails before changing trust or pacman configuration when the repository is unavailable or the downloaded fingerprint does not match.",
-              },
-            ),
-          ]),
-        ),
-        "Set up public package sources",
-      ),
-    ]),
-  ),
-  "Set up pacman package repositories",
-);
-
-const privatePublishCommand = describe(
-  Command.make(
-    "publish",
-    {
-      packageName: Argument.String("package-name").pipe(
-        Argument.withDescription("Mapped private package name"),
-      ),
-      noGit: bool("no-git", "Skip package repo commit and push"),
-      skipBuild: bool("skip-build", "Publish an existing artifact"),
-      install: bool("install", "Install after publishing"),
-    },
-    ({ install, noGit, packageName, skipBuild }) =>
-      privatePkgPublish({
-        packageName,
-        publishGit: !noGit,
-        buildPackage: !skipBuild,
-        installPackage: install,
-      }),
-  ),
-  "Build and publish a private package",
-  [
-    "dot private pkg publish my-package --install",
-    "dot private pkg publish --skip-build --no-git my-package",
-  ],
-  {
-    description:
-      "Build and publish a mapped private package into the private pacman repo.",
-  },
-);
-
-const privateCommand = describe(
-  Command.make("private").pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make("pkg").pipe(
-          Command.withSubcommands([privatePublishCommand]),
-        ),
-        "Manage private packages",
-      ),
-    ]),
-  ),
-  "Work with the private package repository",
 );
 
 const skillsValidate = describe(
@@ -2605,8 +2169,8 @@ const repoSearchCommand = describe(
   ),
   "Fuzzy-search tracked repositories and shortcuts",
   [
-    "dot repo search pacman",
-    "dot repo search omarchy clock",
+    "dot repo search dotfiles",
+    "dot repo search home assistant",
     "dot repo search notse --limit 3 --json",
     "dot repo search ha --all",
   ],
@@ -3011,94 +2575,6 @@ const agentCommand = describe(
   "Agent harness tooling: instruction sync, linting and detection",
 );
 
-const floating = describe(
-  Command.make(
-    "webapp",
-    {
-      url: Argument.String("url").pipe(
-        Argument.withDescription("Webapp URL to launch"),
-        Argument.optional,
-      ),
-      monitor: text("monitor", "Target monitor"),
-      workspace: text("workspace", "Target workspace"),
-      width: integer("width", "Window width", 380),
-      height: integer("height", "Window height", 500),
-      rightMargin: integer("right-margin", "Right margin", 16),
-      bottomMargin: integer("bottom-margin", "Bottom margin", 6),
-      address: text("address", "Existing window address"),
-    },
-    (input) =>
-      launchFloatingWebapp({
-        ...input,
-        url: optional(input.url),
-        monitor: optional(input.monitor),
-        workspace: optional(input.workspace),
-        address: optional(input.address),
-      }),
-  ),
-  "Launch one Omarchy webapp and place its new window in the target monitor's bottom-right corner, or reposition an existing window with --address. Width and height must be positive integers; margins must be non-negative.",
-  [],
-  {
-    sections: [
-      {
-        title: "Exit codes",
-        lines: [
-          "0  Window placed and its address printed",
-          "1  Launch detection, Hyprland query, or placement failed",
-          "2  Invalid arguments",
-        ],
-      },
-    ],
-  },
-);
-
-const launchCommand = describe(
-  Command.make("launch").pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make("floating").pipe(Command.withSubcommands([floating])),
-        "Launch floating windows",
-      ),
-    ]),
-  ),
-  "Launch desktop apps",
-);
-
-const plannotatorCommand = describe(
-  Command.make("plannotator").pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make(
-          "inbox",
-          {
-            url: text(
-              "url",
-              "Base address the Inbox window opens instead of the Inbox's own loopback URL",
-            ),
-            thread: text("thread", "Open one thread by its id"),
-          },
-          (input) =>
-            plannotatorInbox({
-              url: optional(input.url),
-              thread: optional(input.thread),
-            }),
-        ),
-        "Open the Plannotator Inbox in its own window, starting it first when it is stopped",
-        [
-          "dot plannotator inbox",
-          "dot plannotator inbox --thread thr_01",
-          "dot plannotator inbox --url https://inbox.plannotator.localhost",
-        ],
-        {
-          description:
-            "Runs plannotator inbox --background, which starts a stopped Inbox detached and prints the running one's loopback URL, then opens that address in a Qt WebEngine window (~/.local/share/plannotator-inbox/Inbox.qml, run by the qml runtime). A running window is raised instead of duplicated. --url opens another base address, such as an HTTPS front in front of the Inbox; without it, the window opens the Inbox's own loopback URL, which needs no login. The Inbox is still started first. --thread shows one thread (the Inbox's #thread= fragment), in the running window when there is one. The timmo.plannotator-inbox bar plugin, dot workspace setup and the Plannotator Inbox desktop entry run this. Failures are also sent as a desktop notification.",
-        },
-      ),
-    ]),
-  ),
-  "Plannotator tooling",
-);
-
 const herdrRepoOpenCommand = describe(
   Command.make(
     "open",
@@ -3315,7 +2791,7 @@ const herdrPaneMoveCommand = describe(
 
 const herdrStartCommand = describe(
   Command.make("start", {}, () => herdrStart),
-  "Start the default Herdr server with the desktop autostart launch context",
+  "Start the default Herdr server through herdr.service",
 );
 
 const herdrRestartCommand = describe(
@@ -3633,70 +3109,15 @@ const reloadCommand = describe(
         Argument.variadic(),
         Argument.withDescription("Parts to reload (default: all but agents)"),
       ),
-      noAutoOpen: bool(
-        "no-auto-open",
-        "Do not open auto-open live channels during the upnext recheck",
-      ),
     },
     reload,
   ),
-  "Reload the desktop shell and services, or selected parts",
-  [
-    "dot reload",
-    "dot reload --no-auto-open",
-    "dot reload shell",
-    "dot reload shell updates",
-    "dot reload agents",
-  ],
+  "Reload services, or selected parts",
+  ["dot reload", "dot reload updates", "dot reload agents"],
   {
     description:
-      "Reload parts of the desktop that can go stale after suspend or a change. With no parts, reloads everything except agents. agents reloads the OpenCode service's config and, through Herdr, types /reload-plugins into idle Claude Code sessions and /reload into idle Pi sessions; busy sessions are left alone, and dot update runs it after a full update. keyboard re-arms the keyboard backlight. upnext rechecks Up Next sources, restarting its service if the recheck fails; it runs alongside the other parts because the YouTube check takes several seconds. shell clears a workspace mutation lock left by a dot workspace command stuck on a shell menu, regenerates shell.json, restarts the Omarchy shell and refreshes shell modules. updates refreshes available updates. doctor starts the dot doctor check.",
+      "Reload parts that can go stale after a change. With no parts, reloads everything except agents. agents reloads the OpenCode service's config and, through Herdr, types /reload-plugins into idle Claude Code sessions and /reload into idle Pi sessions; busy sessions are left alone, and dot update runs it after a full update. updates refreshes available updates. doctor starts the dot doctor check.",
   },
-);
-
-const relayout = describe(
-  Command.make(
-    "relayout",
-    { edit: bool("edit", "Capture or overwrite a preset") },
-    workspaceRelayout,
-  ),
-  "Apply or capture a Hyprland workspace layout",
-);
-
-const setupWorkspace = describe(
-  Command.make(
-    "setup",
-    {
-      sleep: Flag.Finite("sleep").pipe(
-        Flag.withDefault(0),
-        Flag.withDescription("Wait before running setup logic"),
-      ),
-      mode: Flag.Literals("mode", ["work", "normal"]).pipe(
-        Flag.optional,
-        Flag.withDescription(
-          "Use the work or normal layout instead of detecting work time",
-        ),
-      ),
-    },
-    ({ mode, sleep }) =>
-      workspaceSetup({
-        startupDelay: sleep,
-        mode: optional(mode),
-      }),
-  ),
-  "Launch or reuse desktop apps and rebuild the workspace layout",
-  [
-    "dot workspace setup",
-    "dot workspace setup --mode=work",
-    "dot workspace setup --mode=normal",
-  ],
-);
-
-const workspaceCommand = describe(
-  Command.make("workspace").pipe(
-    Command.withSubcommands([setupWorkspace, relayout]),
-  ),
-  "Set up and lay out desktop workspaces",
 );
 
 function showHelp(names: readonly string[]): Effect.Effect<void> {
@@ -3744,14 +3165,11 @@ export const dotCommand = describe(
       fansCommand,
       tunnelCommand,
       stowCommand,
-      omarchyCommand,
       sessionCommand,
       ...simpleCommands,
       agentCommand,
       notesCommand,
-      setupCommand,
       gitCommand,
-      linkCommand,
       describe(
         Command.make("mcp").pipe(
           Command.withSubcommands([
@@ -3772,19 +3190,15 @@ export const dotCommand = describe(
         ),
         "Manage agent MCP server configs",
       ),
-      privateCommand,
       skillsCommand,
       completionsCommand,
       repoCommand,
       prCommand,
       briefCommand,
       reportCommand,
-      launchCommand,
-      plannotatorCommand,
       herdr,
       homeAssistantCommand,
       reloadCommand,
-      workspaceCommand,
       helpCommand,
     ]),
   ),

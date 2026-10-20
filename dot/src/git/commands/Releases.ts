@@ -70,21 +70,6 @@ function summary(entries: readonly ReleaseEntry[]): string {
   );
 }
 
-/** Open the release review view without scanning or sending notifications. */
-export const releasesOpenShell = Effect.fn("releases.openShell")(function* (
-  repo: string | undefined,
-) {
-  const executor = yield* CommandExecutor;
-  yield* executor.run("omarchy-shell", [
-    "shell",
-    "summon",
-    "timmo.git",
-    JSON.stringify({ view: "releases", repo }),
-  ]);
-  // Installed shells discard summon payloads for bar-widget panels.
-  yield* executor.run("omarchy-shell", ["timmo.git", "release", repo ?? ""]);
-}, handleCommandError("dot git releases"));
-
 /** Offer the saved release log in the current terminal. */
 const viewReleaseLog = Effect.fn("releases.viewLog")(function* (path: string) {
   const open = yield* Prompt.run(

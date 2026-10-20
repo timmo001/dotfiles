@@ -23,7 +23,6 @@ import {
 } from "../lib/skillsMaintenance.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { trustRepoMiseConfigs } from "../lib/miseTrust.js";
-import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import { cliStyler } from "../lib/ansi.js";
 import { plural } from "../lib/runSummary.js";
 import { runQuiet } from "../lib/quietCommand.js";
@@ -57,10 +56,9 @@ import {
   gitRequired,
 } from "../lib/git.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
-import { detectLegacyHyprRepo } from "../lib/omarchyHost.js";
+import { notify } from "../lib/notify.js";
 import { ENV, envFlag } from "../lib/env.js";
 import { loadDotGitConfig, managedGitRepos } from "../services/GitConfig.js";
-import { setupPrivateRepo } from "./SetupPrivateRepo.js";
 import type { ConfigService } from "../services/Config.js";
 import type { GitManagedRepo } from "../services/GitConfig.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
@@ -162,7 +160,7 @@ export interface UpdateOptions {
   readonly app?: boolean;
   /** Run the initial self-update/restart phase before the selected phases. */
   readonly selfUpdate?: boolean;
-  /** Restart a changed shell and refresh shell modules after applying changes. */
+  /** Reload agents and start the doctor check after applying changes. */
   readonly reload?: boolean;
   /** Repository names already pulled before restart, for post-hook handling. */
   readonly postHookRepos?: readonly string[];
@@ -349,11 +347,10 @@ const safePull = (
     return { from: before, to: after };
   });
 
-/** Send a best-effort desktop notification for repos that pulled new changes */
+/** Record a best-effort notification for repos that pulled new changes */
 const notifyUpdated = (names: readonly string[]) =>
   Effect.gen(function* () {
     if (names.length === 0) return;
-    const executor = yield* CommandExecutor;
 
     const title = names.length === 1 ? "Git repo updated" : "Git repos updated";
 
@@ -364,13 +361,7 @@ const notifyUpdated = (names: readonly string[]) =>
             .map((n) => `- ${n}`)
             .join("\n")}`;
 
-    yield* executor.exitCode("omarchy", [
-      "notification",
-      "send",
-      "󰊢",
-      title,
-      message,
-    ]);
+    yield* notify(title, message).pipe(Effect.ignore);
   });
 
 /** Run a repository's configured command after its pull moves HEAD. */
@@ -1033,31 +1024,12 @@ const restoreHerdrPlugins = Effect.gen(function* () {
   return done("Restored and linked Herdr plugins");
 });
 
-/** Shell IPC targets refreshed after an update. */
-const REFRESHED_SHELL_MODULES = [
-  "omarchy.indicators",
-  "omarchy.clock",
-  "timmo.git",
-] as const;
-
-/**
- * Refresh shell modules and start the doctor check after an update, without
- * restarting the shell or its daemons.
- */
-const refreshShellModules = Effect.gen(function* () {
-  const config = yield* Config;
+/** Start the doctor check after an update. */
+const startDoctorCheck = Effect.gen(function* () {
   const log = yield* OutputLog;
   const executor = yield* CommandExecutor;
 
-  yield* log.section("Refresh Shell Modules");
-
-  if (config.omarchy.enabled) {
-    for (const target of REFRESHED_SHELL_MODULES) {
-      yield* executor.exitCode("omarchy-shell", ["-q", target, "refresh"]);
-    }
-
-    yield* log.success("Requested shell module refresh");
-  }
+  yield* log.section("Doctor Check");
 
   const doctorExitCode = yield* executor.exitCode("systemctl", [
     "--user",
@@ -1076,11 +1048,7 @@ const refreshShellModules = Effect.gen(function* () {
 
   yield* log.success("Started dot doctor check");
 
-  return done(
-    config.omarchy.enabled
-      ? "Refreshed shell modules and started the doctor check"
-      : "Started the doctor check",
-  );
+  return done("Started the doctor check");
 });
 
 /** Exit code from `dot update --check` when in-scope updates are available. */
@@ -1090,10 +1058,7 @@ export const UPDATE_CHECK_AVAILABLE_EXIT = 10;
 export const UPDATE_CHECK_ERROR_EXIT = 2;
 
 /** Repo categories treated as "core/system" by `dot update --check`. */
-const CORE_CHECK_CATEGORIES: ReadonlySet<RepoCategory> = new Set([
-  "dotfiles",
-  "omarchy",
-]);
+const CORE_CHECK_CATEGORIES: ReadonlySet<RepoCategory> = new Set(["dotfiles"]);
 
 /** Options controlling `dot update --check`. */
 export interface UpdateCheckOptions {
@@ -1105,7 +1070,7 @@ export interface UpdateCheckOptions {
  * Report actionable pulls and unapplied dotfiles maintenance without changing files.
  *
  * Scans repos via {@link DotDiff} (TTL-cached fetch). By default only
- * core/system repos (dotfiles + omarchy) are considered; `all` widens the
+ * core repos (the dotfiles) are considered; `all` widens the
  * scope to every tracked repo. Repositories with local work are skipped.
  * Returns {@link UPDATE_CHECK_AVAILABLE_EXIT} for actionable pulls or maintenance,
  * {@link UPDATE_CHECK_ERROR_EXIT} when checks fail without finding an update,
@@ -1222,41 +1187,6 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
     });
   });
 
-/** Exit code from `dot update` when a machine still needs the Hypr migration. */
-export const MIGRATION_REQUIRED_EXIT = 11;
-
-/**
- * Halt the update when `~/.config/hypr` is still the retired omarchy-hypr clone.
- *
- * The Hypr config is now a stowed dotfiles package. A machine still tracking
- * the external clone must back it up before stow can take over, so this stops
- * the pull/stow phases, prints manual remediation, and sets a non-zero exit.
- * Returns true when the update should halt.
- */
-const haltOnLegacyHyprRepo = (config: ConfigService) =>
-  Effect.gen(function* () {
-    const legacy = yield* detectLegacyHyprRepo(config);
-
-    if (!legacy.present) return false;
-
-    const log = yield* OutputLog;
-    const path = displayPath(legacy.repoPath);
-    yield* log.section("Migration Required");
-    yield* log.error(`Legacy omarchy-hypr clone present at ${path}`);
-    yield* log.error(
-      "Hypr config is now a stowed dotfiles package — update halted.",
-    );
-    yield* log.info("Resolve on this machine, then re-run dot update:");
-    yield* log.info(`  mv ${path} ${path}.bak`);
-    yield* log.info("  dot stow --public");
-    yield* log.info(`  cp -a ${path}.bak/shaders ${path}/`);
-    yield* Effect.sync(() => {
-      process.exitCode = MIGRATION_REQUIRED_EXIT;
-    });
-
-    return true;
-  });
-
 /**
  * Run `dot update`: self-update, pull behind repos, restow dotfiles, rebuild.
  *
@@ -1265,8 +1195,8 @@ const haltOnLegacyHyprRepo = (config: ConfigService) =>
  *
  * The pull phase first updates private dotfiles and restarts if they changed,
  * so cloning and stow use the refreshed configuration. It then fetch-scans
- * every tracked repo (public, private, notes,
- * omarchy + worktrees, schedule-gated extras) via {@link DotDiff} and only
+ * every tracked repo (public, private, notes, schedule-gated extras) via
+ * {@link DotDiff} and only
  * pulls repos that are behind upstream. It then marks any mise config files in
  * the tracked repos as trusted (best-effort) so `mise` never prompts for them
  * on this machine. Full updates pull public and private dotfiles together
@@ -1302,10 +1232,6 @@ export const update = (updateOpts?: UpdateOptions) =>
             name === basename(config.privateDotfiles)),
       );
 
-    const privatePackageRepo = config.canUsePrivate
-      ? yield* loadPrivatePackageRepoConfig(config)
-      : null;
-
     // Every handoff that names public dotfiles rebuilt dot from that pull first.
     let dotRebuilt =
       opts?.postHookRepos?.includes(basename(config.publicDotfiles)) ?? false;
@@ -1333,16 +1259,6 @@ export const update = (updateOpts?: UpdateOptions) =>
       completedActions.push(skip("Self-update found no dotfiles changes"));
     }
 
-    // Migration halt: a machine still on the retired omarchy-hypr clone must
-    // back it up before stow can take over. Runs after the self-update restart
-    // so the rebuilt binary (carrying this guard) performs the check, halting
-    // the first phase until the legacy repo is resolved.
-    if (doPull || doStow) {
-      const halted = yield* haltOnLegacyHyprRepo(config);
-
-      if (halted) return;
-    }
-
     if (
       doPull &&
       config.privateDotfiles &&
@@ -1366,7 +1282,6 @@ export const update = (updateOpts?: UpdateOptions) =>
     );
 
     const miseToolChanges: MiseToolChange[] = [];
-    let privatePackageRepoUpdated = false;
     const pullRecap: RecapEntry[] = [];
 
     if (!doPull) {
@@ -1510,9 +1425,6 @@ export const update = (updateOpts?: UpdateOptions) =>
                     ...range,
                   });
 
-                  if (repo.path === privatePackageRepo?.path)
-                    privatePackageRepoUpdated = true;
-
                   if (repo.path === config.publicDotfiles) dotRebuilt = false;
                 }
               }
@@ -1535,10 +1447,6 @@ export const update = (updateOpts?: UpdateOptions) =>
           for (const repo of managedGitRepos(config.gitConfig)) {
             if (updated.has(repo.name)) yield* runRepoPostUpdate(repo);
           }
-
-          if (privatePackageRepoUpdated) {
-            yield* setupPrivateRepo;
-          }
         }),
       );
 
@@ -1553,8 +1461,6 @@ export const update = (updateOpts?: UpdateOptions) =>
         ...pullRecap,
       );
     }
-
-    let shellChanged = false;
 
     if (!doStow && !doApp) {
       completedActions.push(
@@ -1652,9 +1558,7 @@ export const update = (updateOpts?: UpdateOptions) =>
           yield* syncNotesRemotes;
           completedActions.push(done("Synced MCP config"));
 
-          const result = yield* runStow();
-          shellChanged = result.shellChanged;
-          completedActions.push(...result.actions);
+          completedActions.push(...(yield* runStow()).actions);
         }),
       );
     }
@@ -1699,12 +1603,6 @@ export const update = (updateOpts?: UpdateOptions) =>
       if (!refreshed) {
         completedActions.push(warn("Agent runtime refresh timed out"));
       }
-    }
-
-    // The running shell watches shell.json and its plugin directories and
-    // reloads what changed itself, so the update never restarts it.
-    if (shellChanged) {
-      completedActions.push(notable("Omarchy shell applied its changes live"));
     }
 
     if (doApp && !dotRebuilt) {
@@ -1805,12 +1703,12 @@ export const update = (updateOpts?: UpdateOptions) =>
     }
 
     if (opts?.reload === false) {
-      completedActions.push(skip("Shell module refresh skipped (--no-reload)"));
+      completedActions.push(skip("Doctor check skipped (--no-reload)"));
     } else {
       const refreshed = yield* withStepTimeout(
-        "Refresh Shell Modules",
+        "Doctor Check",
         STEP_TIMEOUT_SECONDS.uiReload,
-        refreshShellModules.pipe(
+        startDoctorCheck.pipe(
           Effect.map((recap) => {
             completedActions.push(recap);
           }),
@@ -1818,7 +1716,7 @@ export const update = (updateOpts?: UpdateOptions) =>
       );
 
       if (!refreshed) {
-        completedActions.push(warn("Shell module refresh timed out"));
+        completedActions.push(warn("Doctor check start timed out"));
       }
     }
 

@@ -11,7 +11,6 @@ import { checkZshKeybindings } from "./checks/zshKeybindings.js";
 import { checkRepos, checkPrivateAccess } from "./checks/repos.js";
 import { checkStow } from "./checks/stow.js";
 import { checkOpencode } from "./checks/opencode.js";
-import { resolvedOmarchyHost } from "../lib/omarchyHost.js";
 import { checkHerdr } from "./checks/herdr.js";
 import { checkPitchforkProxy } from "./checks/pitchfork.js";
 import { checkGithubMcpAuth } from "./checks/githubMcpAuth.js";
@@ -21,27 +20,13 @@ import {
   checkGitNotifications,
   checkDoctorNotify,
   checkDependencyService,
-  checkDailyVolumeReset,
-  checkLocalBinPath,
   checkNotesCaptureDaemon,
   checkRegisteredServices,
 } from "./checks/systemd.js";
-import { checkOmarchy } from "./checks/omarchy.js";
-import { checkNvimThemeLink } from "./checks/omarchyNvim.js";
-import { checkBrowserFlags } from "./checks/browserFlags.js";
-import { checkHardwareVideo } from "./checks/hardwareVideo.js";
-import { checkBrowserExtensions } from "./checks/browserExtensions.js";
 import {
   checkPublicPackages,
-  checkPublicPackageRepo,
-  checkPrivatePackageRepo,
   checkPrivatePackages,
 } from "./checks/packages.js";
-import { checkPacmanHooks } from "./checks/pacmanHooks.js";
-import { checkFileManager } from "./checks/fileManager.js";
-import { checkDefaultBrowser } from "./checks/defaultBrowser.js";
-import { checkDotLinks } from "./checks/dotLinks.js";
-import { checkRetiredApps } from "./checks/retiredApps.js";
 import { checkFirewall } from "./checks/firewall.js";
 import { checkSyncthing } from "./checks/syncthing.js";
 import { checkSessionQueue } from "./checks/sessionQueue.js";
@@ -71,7 +56,6 @@ interface SectionDef {
     | ChildProcessSpawner.ChildProcessSpawner
   >;
   readonly requiresPrivate?: boolean;
-  readonly host?: string;
 }
 
 /** All doctor check sections in display order */
@@ -93,35 +77,13 @@ const sections: readonly SectionDef[] = [
   { name: "Dependency service", check: checkDependencyService },
   { name: "Notes capture daemon", check: checkNotesCaptureDaemon },
   { name: "Registered services", check: checkRegisteredServices },
-  { name: "uwsm session PATH", check: checkLocalBinPath },
-  { name: "Daily volume reset", check: checkDailyVolumeReset },
-  { name: "Omarchy config checks", check: checkOmarchy },
-  { name: "Neovim theme link", check: checkNvimThemeLink },
   { name: "Private access", check: checkPrivateAccess },
-  { name: "Browser flags", check: checkBrowserFlags },
-  { name: "Hardware video decode", check: checkHardwareVideo },
-  {
-    name: "Browser extension checks",
-    check: checkBrowserExtensions,
-    requiresPrivate: true,
-  },
   { name: "Public package checks", check: checkPublicPackages },
-  { name: "Public package repo checks", check: checkPublicPackageRepo },
-  {
-    name: "Private package repo checks",
-    check: checkPrivatePackageRepo,
-    requiresPrivate: true,
-  },
   {
     name: "Private package checks",
     check: checkPrivatePackages,
     requiresPrivate: true,
   },
-  { name: "Pacman hooks", check: checkPacmanHooks },
-  { name: "File manager", check: checkFileManager },
-  { name: "Default browser", check: checkDefaultBrowser },
-  { name: "dot links", check: checkDotLinks },
-  { name: "Retired apps", check: checkRetiredApps },
   { name: "Firewall rules", check: checkFirewall },
   { name: "Syncthing", check: checkSyncthing },
   { name: "Session queue", check: checkSessionQueue },
@@ -162,12 +124,8 @@ export const runDoctor = (
 
     // Filter out private-only checks when private is unavailable
     // (individual checks also handle this gracefully, but this avoids unnecessary work)
-    const host = yield* resolvedOmarchyHost(config);
-
     const applicable = sections.filter(
-      (s) =>
-        (!s.requiresPrivate || config.canUsePrivate) &&
-        (!s.host || s.host === host),
+      (s) => !s.requiresPrivate || config.canUsePrivate,
     );
 
     // Seed the running view before any check starts; under unbounded

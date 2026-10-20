@@ -1,28 +1,17 @@
 import type { Gh } from "@timmo001/effect-gh";
-import {
-  Duration,
-  Effect,
-  FileSystem,
-  Predicate,
-  Schema,
-  Stream,
-  type PlatformError,
-} from "effect";
-import { ChildProcess, ChildProcessSpawner } from "effect/process";
-import { basename, join } from "path";
+import { Effect, FileSystem, Schema, type PlatformError } from "effect";
+import type { ChildProcessSpawner } from "effect/process";
+import { dirname, join, resolve } from "path";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher } from "../services/Launcher.js";
 import { agentsSync } from "./AgentsSync.js";
 import { install } from "./Install.js";
-import { setupPrivateRepo } from "./SetupPrivateRepo.js";
-import { setupPublicRepo } from "./SetupPublicRepo.js";
 import { runElevated, withSudoKeepAlive } from "../lib/elevatedCommand.js";
 import { gitRequired } from "../lib/git.js";
 import {
-  ensureGumInstalled,
-  installMissingArchPackages,
+  installMissingPackages,
   installMiseTools,
 } from "../lib/packageSetup.js";
 import { ensureLocalesGenerated } from "../lib/localeSetup.js";
@@ -33,18 +22,12 @@ import { trustTrackedMiseConfigs } from "../lib/miseTrust.js";
 import { withStepTimeout } from "../lib/workflowStep.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
 import {
-  currentOmarchyHost,
-  ensureHyprHostLink,
-  hyprRepoPath,
-  resolveLinkTarget,
-} from "../lib/omarchyHost.js";
-import {
   initCompleteMarker,
   initInProgressMarker,
   writeInitCompleteMarker,
   writeInitInProgressMarker,
 } from "../lib/initState.js";
-import { ENV, envFlag, envString, setEnv } from "../lib/env.js";
+import { ENV, envString } from "../lib/env.js";
 import { cliStyler } from "../lib/ansi.js";
 import { logRunSummary } from "../lib/runSummary.js";
 import type { ConfigService } from "../services/Config.js";
@@ -53,22 +36,14 @@ const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
 
 const DOCTOR_TIMER_UNIT = "dot-doctor.timer";
 
-const DEFAULT_INIT_OMARCHY_HOST = "desktop";
-
-const INIT_OMARCHY_HOSTS = ["desktop", "laptop"] as const;
-
 const ETC_SHELLS = "/etc/shells";
-
-const OMARCHY_HOST_PERSIST_TIMEOUT_SECONDS = 10;
 
 /** Upper bound (seconds) for each init phase. */
 const INIT_STEP_TIMEOUT_SECONDS = {
   locale: 3 * 60,
-  hostLinks: 60,
   install: 5 * 60,
   mise: 10 * 60,
   publicPackages: 30 * 60,
-  publicRepo: 3 * 60,
   firewall: 3 * 60,
   ghExtensions: 5 * 60,
   loginShell: 2 * 60,
@@ -76,7 +51,6 @@ const INIT_STEP_TIMEOUT_SECONDS = {
   privateRepos: 10 * 60,
   miseTrust: 2 * 60,
   git: 2 * 60,
-  hooks: 2 * 60,
   doctorTimer: 60,
   agents: 2 * 60,
 } as const;
@@ -88,9 +62,7 @@ class InitError extends Schema.TaggedError<InitError>()("InitError", {
 
 /** Typed options supplied by the Effect CLI command. */
 export interface InitOptions {
-  readonly noninteractive: boolean;
   readonly force: boolean;
-  readonly host?: string;
   readonly log?: string;
 }
 
@@ -123,7 +95,7 @@ const symlinkTarget = Effect.fn("init.symlinkTarget")(function* (path: string) {
   const fs = yield* FileSystem.FileSystem;
 
   return yield* fs.readLink(path).pipe(
-    Effect.map((target) => resolveLinkTarget(path, target)),
+    Effect.map((target) => resolve(dirname(path), target)),
     Effect.orElseSucceed(() => null),
   );
 });
@@ -223,223 +195,6 @@ function assertFreshInitTarget(
   });
 }
 
-function initOmarchyHost(options: InitOptions): string {
-  return (
-    options.host?.trim() || currentOmarchyHost() || DEFAULT_INIT_OMARCHY_HOST
-  );
-}
-
-function shouldPromptForHost(options: InitOptions): boolean {
-  return (
-    !options.noninteractive && !options.host?.trim() && !currentOmarchyHost()
-  );
-}
-
-function assertQuestionnaireTty(): Effect.Effect<void, InitError> {
-  return process.stdin.isTTY && process.stdout.isTTY
-    ? Effect.void
-    : fail(
-        "Interactive init questionnaire requires a TTY. Pass --noninteractive or --host <name>.",
-      );
-}
-
-function promptForHost(): Effect.Effect<
-  string,
-  InitError,
-  ChildProcessSpawner.ChildProcessSpawner | CommandExecutor | OutputLog
-> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-
-    if ((yield* executor.exitCode("which", ["gum"])) !== 0) {
-      return yield* fail(
-        "Interactive init questionnaire requires gum. Install gum or pass --noninteractive/--host <name>.",
-      );
-    }
-
-    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-
-    return yield* Effect.gen(function* () {
-      const proc = yield* spawner.spawn(
-        ChildProcess.make(
-          "gum",
-          [
-            "choose",
-            "--header",
-            "Select Omarchy host for this machine",
-            "--selected",
-            DEFAULT_INIT_OMARCHY_HOST,
-            ...INIT_OMARCHY_HOSTS,
-          ],
-          {
-            stdin: "inherit",
-            stdout: "pipe",
-            stderr: "inherit",
-          },
-        ),
-      );
-
-      const output = yield* proc.stdout.pipe(
-        Stream.decodeText(),
-        Stream.mkString,
-      );
-
-      const exitCode = yield* proc.exitCode;
-
-      if (exitCode !== 0) {
-        return yield* new InitError({
-          message: `Init questionnaire failed: gum choose exited ${exitCode}`,
-        });
-      }
-
-      return output.trim();
-    }).pipe(
-      Effect.scoped,
-      Effect.mapError((error) =>
-        Predicate.isTagged(error, "InitError")
-          ? error
-          : new InitError({
-              message: `Init questionnaire failed: ${error.message}`,
-            }),
-      ),
-    );
-  });
-}
-
-function resolveInitOptions(
-  options: InitOptions,
-): Effect.Effect<
-  InitOptions,
-  InitError,
-  ChildProcessSpawner.ChildProcessSpawner | CommandExecutor | OutputLog
-> {
-  return Effect.gen(function* () {
-    const log = yield* OutputLog;
-    yield* log.section("Init Questionnaire");
-
-    if (shouldPromptForHost(options)) {
-      yield* assertQuestionnaireTty();
-      yield* ensureGumInstalled.pipe(
-        Effect.mapError((error) => new InitError({ message: error.message })),
-      );
-      const host = yield* promptForHost();
-      yield* log.success(`Selected Hypr host ${cliStyler().accent(host)}`);
-
-      return { ...options, host };
-    }
-
-    const host = initOmarchyHost(options);
-    yield* log.info(`Using Hypr host ${cliStyler().accent(host)}`);
-
-    return { ...options, host };
-  });
-}
-
-function persistOmarchyHostEnv(
-  host: string,
-): Effect.Effect<void, never, CommandExecutor | OutputLog> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    const log = yield* OutputLog;
-    const file = "/etc/environment";
-    const line = `OMARCHY_HOST=${host}`;
-
-    // Idempotent: no-op when already correct, otherwise replace any existing
-    // OMARCHY_HOST line or append one. pam_env reads /etc/environment at login,
-    // so the value reaches the graphical session and every terminal.
-    const script = [
-      `grep -qx '${line}' ${file} && exit 0`,
-      `if grep -q '^OMARCHY_HOST=' ${file}; then`,
-      `  sed -i 's|^OMARCHY_HOST=.*|${line}|' ${file}`,
-      `else`,
-      `  printf '%s\\n' '${line}' >> ${file}`,
-      `fi`,
-    ].join("\n");
-
-    const persistCommand =
-      process.getuid?.() === 0
-        ? (["bash", ["-c", script]] as const)
-        : (yield* executor.exitCode("which", ["pkexec"])) === 0
-          ? (["pkexec", ["bash", "-c", script]] as const)
-          : (["sudo", ["-n", "bash", "-c", script]] as const);
-
-    const exitCode = yield* executor
-      .exitCode(persistCommand[0], persistCommand[1])
-      .pipe(
-        Effect.timeout(Duration.seconds(OMARCHY_HOST_PERSIST_TIMEOUT_SECONDS)),
-        Effect.orElseSucceed(() => 1),
-      );
-
-    if (exitCode === 0) {
-      yield* log.success(`Persisted ${line} ${cliStyler().dim(file)}`);
-    } else {
-      yield* log.warn(
-        `Could not persist OMARCHY_HOST to ${file} (exit ${exitCode}); set it manually`,
-      );
-    }
-  });
-}
-
-function ensureInitHyprHostLink(
-  config: ConfigService,
-  options: InitOptions,
-): Effect.Effect<
-  void,
-  InitError,
-  CommandExecutor | FileSystem.FileSystem | OutputLog
-> {
-  return Effect.gen(function* () {
-    const log = yield* OutputLog;
-
-    if (!config.omarchy.enabled) return;
-
-    const host = initOmarchyHost(options);
-
-    yield* log.section("Omarchy Host Links");
-
-    // Validate the requested host against the stowed package source so a typo
-    // fails fast, even on a fresh machine before hypr is stowed.
-    const sourceHostDir = join(
-      config.publicDotfiles,
-      "hypr",
-      ".config",
-      "hypr",
-      "hosts",
-      host,
-    );
-
-    if (!(yield* pathExists(sourceHostDir))) {
-      return yield* fail(
-        `Unknown Hypr host '${host}': missing ${displayPath(sourceHostDir)}. Pass --host <name> with a configured host.`,
-      );
-    }
-
-    // Select the host now so host-suffixed stow packages and the Hypr host link
-    // resolve correctly during the stow phase.
-    setEnv(ENV.OMARCHY_HOST, host);
-
-    // Persist the host for future login sessions so terminals, status scripts,
-    // and dot doctor see OMARCHY_HOST without a transient init env.
-    yield* persistOmarchyHostEnv(host);
-
-    // The live host directory only exists once hypr is stowed; when it is not
-    // there yet, the stow phase creates the host link after stowing.
-    const liveHostDir = join(hyprRepoPath(config), "hosts", host);
-
-    if (!(yield* pathExists(liveHostDir))) {
-      yield* log.info(
-        cliStyler().dim(
-          `Hypr host '${host}' selected; host link will be created during stow`,
-        ),
-      );
-
-      return;
-    }
-
-    yield* ensureHyprHostLink(config, log, { host });
-  });
-}
-
 function configureGitInclude(
   config: ConfigService,
 ): Effect.Effect<
@@ -487,73 +242,6 @@ function configureGitInclude(
     yield* log.success(
       `Added Git config include ${cliStyler().dim(GIT_INCLUDE_PATH)}`,
     );
-  });
-}
-
-const pacmanHookFiles = Effect.fn("init.pacmanHookFiles")(function* (
-  hooksSource: string,
-) {
-  const fs = yield* FileSystem.FileSystem;
-
-  const names = yield* fs
-    .readDirectory(hooksSource)
-    .pipe(Effect.mapError(fsError));
-
-  return names.filter((name) => name.endsWith(".hook"));
-});
-
-function installPacmanHook(
-  hooksSource: string,
-  hookFile: string,
-): Effect.Effect<void, InitError, CommandExecutor | OutputLog> {
-  return Effect.gen(function* () {
-    const log = yield* OutputLog;
-    const source = join(hooksSource, hookFile);
-    const target = join("/etc", "pacman.d", "hooks", basename(hookFile));
-    const exitCode = yield* runElevated("install", ["-Dm644", source, target]);
-
-    if (exitCode !== 0) {
-      return yield* fail(
-        `install ${displayPath(source)} ${target} exited ${exitCode}`,
-      );
-    }
-
-    yield* log.success(`Installed ${cliStyler().accent(hookFile)}`);
-  });
-}
-
-function installPacmanHooks(): Effect.Effect<
-  void,
-  InitError,
-  CommandExecutor | FileSystem.FileSystem | OutputLog
-> {
-  return Effect.gen(function* () {
-    const log = yield* OutputLog;
-    const hooksSource = join(CONFIG_DIR, "pacman-hooks");
-
-    yield* log.section("Install Pacman Hooks");
-
-    if (!(yield* pathExists(hooksSource))) {
-      yield* log.info(
-        cliStyler().dim(
-          `No pacman hooks directory found: ${displayPath(hooksSource)}`,
-        ),
-      );
-
-      return;
-    }
-
-    const hookFiles = yield* pacmanHookFiles(hooksSource);
-
-    if (hookFiles.length === 0) {
-      yield* log.info(cliStyler().dim("No pacman hooks configured"));
-
-      return;
-    }
-
-    for (const hookFile of hookFiles) {
-      yield* installPacmanHook(hooksSource, hookFile);
-    }
   });
 }
 
@@ -632,7 +320,7 @@ function setupPrivatePackages(
 ): Effect.Effect<
   void,
   unknown,
-  Config | CommandExecutor | FileSystem.FileSystem | OutputLog | Gh
+  Config | CommandExecutor | FileSystem.FileSystem | OutputLog
 > {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
@@ -645,10 +333,7 @@ function setupPrivatePackages(
       return;
     }
 
-    yield* setupPrivateRepo;
-    yield* installMissingArchPackages({
-      scope: "private",
-    });
+    yield* installMissingPackages({ scope: "private" });
   });
 }
 
@@ -800,7 +485,7 @@ function ensureLoginShellZsh(): Effect.Effect<
 
 /** Run the one-time first-use setup workflow for a fresh machine. */
 export function init(
-  input: InitOptions & { readonly interactive: boolean },
+  options: InitOptions,
 ): Effect.Effect<
   void,
   unknown,
@@ -816,13 +501,6 @@ export function init(
     const config = yield* Config;
     const log = yield* OutputLog;
 
-    const optionsInput: InitOptions = {
-      ...input,
-      noninteractive: input.interactive
-        ? false
-        : input.noninteractive || envFlag(ENV.DOT_INIT_NONINTERACTIVE),
-    };
-
     yield* log.section("Initialization Workflow");
 
     const logFile = envString(ENV.DOT_LOG_FILE);
@@ -831,8 +509,7 @@ export function init(
       yield* log.info(cliStyler().dim(`Init log: ${displayPath(logFile)}`));
     }
 
-    yield* assertFreshInitTarget(config, optionsInput.force);
-    const options = yield* resolveInitOptions(optionsInput);
+    yield* assertFreshInitTarget(config, options.force);
     yield* writeInitInProgressMarker(config, options);
 
     const steps: string[] = [];
@@ -853,11 +530,6 @@ export function init(
       ensureLocalesGenerated,
     );
     yield* step(
-      "Omarchy Host Links",
-      INIT_STEP_TIMEOUT_SECONDS.hostLinks,
-      ensureInitHyprHostLink(config, options),
-    );
-    yield* step(
       "Install Dotfiles",
       INIT_STEP_TIMEOUT_SECONDS.install,
       install.pipe(
@@ -872,16 +544,9 @@ export function init(
       installMiseTools,
     );
     yield* step(
-      "Setup Public Package Repository",
-      INIT_STEP_TIMEOUT_SECONDS.publicRepo,
-      setupPublicRepo,
-    );
-    yield* step(
       "Install Public Packages",
       INIT_STEP_TIMEOUT_SECONDS.publicPackages,
-      installMissingArchPackages({
-        scope: "public",
-      }),
+      installMissingPackages({ scope: "public" }),
     );
     yield* step(
       "Configure Firewall",
@@ -919,11 +584,6 @@ export function init(
       configureGitInclude(config),
     );
     yield* step(
-      "Install Pacman Hooks",
-      INIT_STEP_TIMEOUT_SECONDS.hooks,
-      installPacmanHooks(),
-    );
-    yield* step(
       "Enable Doctor Timer",
       INIT_STEP_TIMEOUT_SECONDS.doctorTimer,
       enableUserUnit(DOCTOR_TIMER_UNIT, "Enable Doctor Timer"),
@@ -953,10 +613,10 @@ export function init(
     yield* log.info("");
     yield* log.info(style.label("Next steps"));
     yield* log.info(
-      `  Reboot so the Omarchy session picks up ${style.accent("OMARCHY_HOST")} and stowed user services`,
+      `  Run ${style.command("loginctl enable-linger")} so user services such as Herdr run without a login`,
     );
     yield* log.info(
-      `  After reboot, run ${style.command("dot doctor")} to verify this setup`,
+      `  Log in again to pick up the new login shell, then run ${style.command("dot doctor")}`,
     );
     yield* log.info(
       `  For ongoing maintenance, run ${style.command("dot update")}`,

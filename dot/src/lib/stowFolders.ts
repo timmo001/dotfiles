@@ -1,11 +1,9 @@
 import { Effect, FileSystem } from "effect";
+import { hostname } from "node:os";
 import { join } from "path";
-import type { ConfigService } from "../services/Config.js";
-import { resolvedOmarchyHost } from "./omarchyHost.js";
 
 /** Top-level repo directories that are not active stow packages. */
 export const INTERNAL_STOW_FOLDERS = [
-  "chromium-extension",
   "dot",
   "dot-migration",
   "docs",
@@ -19,29 +17,18 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  * Home-relative target directories that must stay real directories instead of
  * collapsing to a single folded symlink. Any stow package that lays a file
  * into one of these directories requires `--no-folding`, because external
- * tools, omarchy, or `systemctl` write their own files into the same directory
+ * tools or `systemctl` write their own files into the same directory
  * and folding would make it the repo directory (so those writes would land
  * inside the dotfiles repo).
  *
  * - `.agents/skills`: external skill symlinks live alongside the stowed skills.
  * - `.config/fish/completions`: fish and other tools write generated
  *   completions (and fish writes `fish_variables`, `functions/`, `conf.d/`).
- * - `.config/ghostty`: host overrides and any Ghostty-generated files live
- *   alongside the stowed config.
  * - `.config/herdr`: Herdr writes logs, sockets, and session state alongside
  *   its stowed config.
- * - `.config/hypr`: the runtime `~/.config/hypr/host` symlink, omarchy shaders,
- *   and `~/.local/state` toggles live alongside the stowed config.
- * - `.config/nvim`: `omarchy-nvim-setup` owns `~/.config/nvim` and writes into
- *   it (the `lua/plugins/theme.lua` symlink and its default plugin files).
- * - `.config/omarchy/plugins`: public and private user plugins share this
- *   directory, and Omarchy may manage additional plugins alongside them.
- * - `.config/pacman-hooks`: public and private pacman hooks share this
- *   directory.
- * - `.config/uwsm`: UWSM and Omarchy may add package or migration-owned files
- *   alongside the stowed user environment override.
- * - `.config/systemd/user`: omarchy ships units here and `systemctl --user
- *   enable` writes `*.target.wants/` symlinks and drop-in directories.
+ * - `.config/nvim`: lazy.nvim and plugins write into the config directory.
+ * - `.config/systemd/user`: `systemctl --user enable` writes
+ *   `*.target.wants/` symlinks and drop-in directories.
  * - `.local/bin`: mise, npm, pip, cargo, and other tools install binaries here
  *   alongside the stowed scripts.
  * - `.local/share/applications`: desktop entries are installed here by apps and
@@ -53,13 +40,8 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
 const NO_FOLDING_TARGET_PREFIXES = [
   ".agents/skills",
   ".config/fish/completions",
-  ".config/ghostty",
   ".config/herdr",
-  ".config/hypr",
   ".config/nvim",
-  ".config/omarchy/plugins",
-  ".config/pacman-hooks",
-  ".config/uwsm",
   ".config/systemd/user",
   ".local/bin",
   ".local/share/applications",
@@ -100,12 +82,12 @@ export const requiresNoFolding = Effect.fn("StowFolders.requiresNoFolding")(
  * List top-level stow package directories in a repo.
  *
  * Filters out non-directory entries, dotfiles, internal folders, the backup
- * folder, and host-specific packages that don't match `OMARCHY_HOST`.
+ * folder, and host-specific packages that don't match the machine's hostname.
  */
 export const listStowFolders = Effect.fn("StowFolders.listStowFolders")(
-  function* (repoDir: string, config?: ConfigService) {
+  function* (repoDir: string) {
     const fs = yield* FileSystem.FileSystem;
-    const host = config ? ((yield* resolvedOmarchyHost(config)) ?? "") : "";
+    const host = hostname();
     const entries = yield* fs.readDirectory(repoDir).pipe(Effect.orDie);
     const folders: string[] = [];
 

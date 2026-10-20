@@ -1,7 +1,7 @@
 import { Duration, Effect, FileSystem, Schema } from "effect";
+import { hostname } from "node:os";
 import { join } from "node:path";
 import { pathExists } from "../lib/fsProbe.js";
-import { currentOmarchyHost } from "../lib/omarchyHost.js";
 import { CONFIG_DIR } from "../lib/paths.js";
 
 /** Failure to read or decode `brief.yml`. */
@@ -169,13 +169,11 @@ export const readBriefConfig = Effect.fn("brief.readConfig")(function* () {
       )
     : {};
 
-  const host = currentOmarchyHost();
+  const host = hostname();
 
   return {
     decisionModel:
-      (host ? raw.hosts?.[host]?.decision_model : undefined) ??
-      raw.decision_model ??
-      "winnow:e4b",
+      raw.hosts?.[host]?.decision_model ?? raw.decision_model ?? "winnow:e4b",
     priorities: raw.priorities?.trim() ?? "",
     rules: raw.rules ?? [],
     explainTop: raw.explain?.top ?? 5,

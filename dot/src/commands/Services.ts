@@ -18,6 +18,7 @@ import {
 import { herdrRepoOpen } from "./HerdrRepoOpen.js";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "../lib/paths.js";
 import { hasManualStart, writeManualStart } from "../lib/manualStart.js";
+import { notify } from "../lib/notify.js";
 import { ENV, envString } from "../lib/env.js";
 
 /** Registered unit is unknown or its descriptor cannot be used. */
@@ -169,7 +170,7 @@ export interface ServiceStatus {
   readonly restartLimit?: { readonly count: number; readonly within: number };
   /** Staleness window in milliseconds, when configured. */
   readonly staleAfter?: number;
-  /** Whether failures raise desktop notifications. */
+  /** Whether failures are recorded as notifications in the journal. */
   readonly notify: boolean;
   /** Newest run log, when the job keeps its own logs. */
   readonly latestLog?: { readonly path: string; readonly modified: number };
@@ -1474,39 +1475,22 @@ export const servicesInvestigate = Effect.fn("Services.investigate")(function* (
   });
 });
 
-/** Notify about a failed registered job and refresh the shell panel. */
+/** Notify about a failed registered job. */
 export const servicesNotify = Effect.fn("Services.notify")(function* (
   unit: string,
 ) {
-  const executor = yield* CommandExecutor;
   const { descriptor } = yield* findRegistered(unit);
   const [status] = yield* collectServiceStatus([{ file: "", descriptor }]);
-
-  yield* executor
-    .exitCode("omarchy-shell", ["-q", "timmo.services", "refresh"])
-    .pipe(Effect.ignore);
 
   if (!status?.notify || status.health !== "failed") return;
 
   const lastFailure = status.runs.find((run) => run.result === "failed");
 
-  yield* executor.run("omarchy", [
-    "notification",
-    "send",
-    "--app-name",
-    "dot services",
-    "-g",
-    "󰀦",
-    "-u",
-    "critical",
+  yield* notify(
     `${status.label} failed`,
     [status.summary, lastFailure?.summary ?? lastFailure?.detail]
       .filter(Boolean)
       .join(" · "),
-    "--exec",
-    "dot",
-    "services",
-    "logs",
-    status.unit,
-  ]);
+    "critical",
+  );
 });

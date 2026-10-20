@@ -1,27 +1,15 @@
 import { Extension } from "@timmo001/effect-gh";
-import {
-  HerdrSdk,
-  herdrSdkLayerFromOptions,
-  PaneId,
-} from "@timmo001/effect-herdr";
-import { Duration, Effect, FileSystem, Schema, Scope } from "effect";
+import { Effect, FileSystem, Scope } from "effect";
 import { Prompt } from "effect/cli";
 import { tmpdir } from "os";
 import { join } from "path";
 import { isAgent } from "../lib/agent.js";
 import { cliStyler } from "../lib/ansi.js";
-import { ENV, envString } from "../lib/env.js";
-import { HOME_DIR, STATE_DIR } from "../lib/paths.js";
-import { formatCause } from "../lib/schema.js";
-import { rebuild } from "../lib/selfUpdate.js";
+import { HOME_DIR } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
-import { Config } from "../services/Config.js";
-import { DEFAULT_SOCKET_PATH } from "./HerdrRepoOpen.js";
 
 const TOPGRADE_UPDATES = [
   ["Topgrade: Yazi", "yazi", false],
-  ["Topgrade: ProtonPlus", "protonplus", false],
-  ["Topgrade: Firmware", "firmware", false],
   ["Topgrade: Rustup", "rustup", false],
   ["Topgrade: TLDR", "tldr", false],
   ["Topgrade: Neovim", "vim", false],
@@ -34,7 +22,7 @@ const TOPGRADE_UPDATES = [
 /** Steps `dot update system --step` accepts, in display order. */
 export const UPDATE_STEPS = [
   "dotfiles",
-  "omarchy",
+  "apt",
   "github-cli",
   ...TOPGRADE_UPDATES.map(([, value]) => value),
 ] as const;
@@ -47,7 +35,7 @@ const UPDATE_CHOICES: ReadonlyArray<{
   readonly selected: boolean;
 }> = [
   { title: "Dotfiles", value: "dotfiles", selected: true },
-  { title: "Omarchy", value: "omarchy", selected: true },
+  { title: "Apt packages", value: "apt", selected: true },
   { title: "GitHub CLI extensions", value: "github-cli", selected: true },
   ...TOPGRADE_UPDATES.map(([title, value, selected]) => ({
     title,
@@ -113,8 +101,6 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
   summaryFile: string,
   selfUpdate: boolean,
 ) {
-  const fs = yield* FileSystem.FileSystem;
-
   if (selectedSet.has("dotfiles")) {
     section("Dotfiles");
 
@@ -136,16 +122,17 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
     }
   }
 
-  if (selectedSet.has("omarchy")) {
-    section("Omarchy");
-    let exitCode = yield* runChild("dot", ["stow", "--public"], baseEnv);
+  if (selectedSet.has("apt")) {
+    section("Apt Packages");
+
+    let exitCode = yield* runChild("sudo", ["apt-get", "update"], baseEnv);
 
     if (exitCode === 0) {
-      yield* fs.makeDirectory(join(STATE_DIR, "mise"), { recursive: true });
-      exitCode = yield* runChild("omarchy", ["update", "-y"], {
-        ...baseEnv,
-        MISE_GLOBAL_CONFIG_FILE: join(STATE_DIR, "mise", "omarchy-config.toml"),
-      });
+      exitCode = yield* runChild(
+        "sudo",
+        ["apt-get", "upgrade", ...(automatic ? ["-y"] : [])],
+        baseEnv,
+      );
     }
 
     if (exitCode !== 0) {
@@ -211,140 +198,6 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
   if (refreshExitCode !== 0) process.exitCode = refreshExitCode;
 });
 
-const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
-
-/**
- * Run the given steps under `dot update system` in a pane split off this one,
- * leaving focus here. The pane stays open once the run finishes.
- */
-const splitPane = Effect.fn("SystemUpdate.splitPane")(
-  function* (
-    steps: readonly UpdateChoice[],
-    automatic: boolean,
-    selfUpdate: boolean,
-  ) {
-    const herdr = yield* HerdrSdk;
-
-    const from = yield* Schema.decodeUnknownEffect(PaneId)(
-      envString(ENV.HERDR_PANE_ID),
-    );
-
-    const pane = yield* herdr.panes.split(from, {
-      direction: "right",
-      cwd: HOME_DIR,
-      focus: false,
-    });
-
-    yield* herdr.panes.rename(pane.id, "Dotfiles update");
-
-    yield* herdr.panes.sendInput(pane.id, {
-      text: [
-        "dot",
-        "update",
-        "system",
-        ...steps.flatMap((step) => ["--step", step]),
-        ...(automatic ? ["--yes"] : []),
-        ...(selfUpdate ? [] : ["--no-self-update"]),
-      ]
-        .map(quote)
-        .join(" "),
-      keys: ["enter"],
-    });
-  },
-  Effect.provide(
-    herdrSdkLayerFromOptions({
-      socketPath: envString(ENV.HERDR_SOCKET_PATH) ?? DEFAULT_SOCKET_PATH,
-      requestTimeout: Duration.seconds(5),
-    }),
-  ),
-);
-
-/**
- * Pull the public and private dotfiles and rebuild dot from them, so the
- * Omarchy update and the split pane both start from the latest dotfiles.
- *
- * @returns Whether the pull and rebuild succeeded.
- */
-const pullDotfiles = Effect.fn("SystemUpdate.pullDotfiles")(function* () {
-  const config = yield* Config;
-
-  section("Pull Dotfiles");
-
-  const exitCode = yield* runChild(
-    "dot",
-    [
-      "update",
-      "--pull",
-      "--no-reload",
-      "--repo",
-      config.publicDotfiles,
-      ...(config.privateDotfiles ? ["--repo", config.privateDotfiles] : []),
-    ],
-    {},
-  );
-
-  if (exitCode !== 0) {
-    process.exitCode = exitCode;
-
-    return false;
-  }
-
-  return yield* rebuild.pipe(
-    Effect.as(true),
-    Effect.catch((error) =>
-      Effect.sync(() => {
-        process.stderr.write(
-          `[ERROR] Could not rebuild dot: ${formatCause(error)}\n`,
-        );
-        process.exitCode = 1;
-
-        return false;
-      }),
-    ),
-  );
-});
-
-/**
- * Under Herdr, pull the dotfiles first, then hand every step but Omarchy to a
- * split pane so both run, and prompt for authentication, at once.
- *
- * @returns The steps left for this pane, none when the pull failed, and
- *   whether dot update still needs its self-update pull.
- */
-const splitOffOmarchy = Effect.fn("SystemUpdate.splitOffOmarchy")(function* (
-  selected: readonly UpdateChoice[],
-  automatic: boolean,
-  selfUpdate: boolean,
-) {
-  const others = selected.filter((step) => step !== "omarchy");
-
-  if (
-    envString(ENV.HERDR_ENV) !== "1" ||
-    isAgent() ||
-    !selected.includes("omarchy") ||
-    others.length === 0
-  )
-    return { steps: selected, selfUpdate };
-
-  const prePull = selfUpdate && others.includes("dotfiles");
-  const childSelfUpdate = selfUpdate && !prePull;
-
-  if (prePull && !(yield* pullDotfiles())) return { steps: [], selfUpdate };
-
-  return yield* splitPane(others, automatic, childSelfUpdate).pipe(
-    Effect.as({ steps: ["omarchy"] as const, selfUpdate: childSelfUpdate }),
-    Effect.catch((error) =>
-      Effect.sync(() => {
-        process.stderr.write(
-          `[WARN] Could not open a Herdr pane, running every update here: ${formatCause(error)}\n`,
-        );
-
-        return { steps: selected, selfUpdate: childSelfUpdate };
-      }),
-    ),
-  );
-});
-
 /** Select and run system maintenance steps in their fixed display order. */
 export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
   readonly yes: boolean;
@@ -375,16 +228,7 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
   if (selected.length === 0) return;
 
   const fs = yield* FileSystem.FileSystem;
-
-  const { steps, selfUpdate } = yield* splitOffOmarchy(
-    selected,
-    automatic,
-    options.selfUpdate,
-  );
-
-  if (steps.length === 0) return;
-
-  const selectedSet = new Set<UpdateChoice>(steps);
+  const selectedSet = new Set<UpdateChoice>(selected);
   const baseEnv = yield* temporarySudoEnvironment();
 
   const summaryFile = join(
@@ -407,6 +251,6 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
     automatic,
     baseEnv,
     summaryFile,
-    selfUpdate,
+    options.selfUpdate,
   ).pipe(Effect.ensuring(printSummary));
 }, Effect.scoped);

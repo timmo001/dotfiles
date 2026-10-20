@@ -1,4 +1,5 @@
 import { Effect, type FileSystem, Schema } from "effect";
+import { hostname } from "node:os";
 import { cliStyler } from "./ansi.js";
 import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -11,8 +12,7 @@ import {
   isPackageInstalled,
   loadPackageList,
   loadPackageLists,
-} from "./archPackages.js";
-import { resolvedOmarchyHost } from "./omarchyHost.js";
+} from "./aptPackages.js";
 import { pathExists } from "./fsProbe.js";
 import type { ConfigService } from "../services/Config.js";
 
@@ -24,17 +24,8 @@ class PackageSetupError extends Schema.TaggedError<PackageSetupError>()(
   },
 ) {}
 
-/** Arch package list scope handled by init. */
-export type ArchPackageScope = "public" | "private";
-
-const packageListPath = Effect.fn("PackageSetup.packageListPath")(function* (
-  config: ConfigService,
-  scope: ArchPackageScope,
-) {
-  return scope === "public"
-    ? publicPackageListPath(config)
-    : yield* privatePackageListPath(config);
-});
+/** Apt package list scope handled by init. */
+export type PackageScope = "public" | "private";
 
 function publicPackageListPath(config: ConfigService): string {
   return (
@@ -43,17 +34,7 @@ function publicPackageListPath(config: ConfigService): string {
   );
 }
 
-const privatePackageListPath = Effect.fn("PackageSetup.privatePackageListPath")(
-  function* (config: ConfigService) {
-    return (yield* privatePackageListPaths(config))[0] ?? null;
-  },
-);
-
-const privatePackageListPaths = Effect.fn(
-  "PackageSetup.privatePackageListPaths",
-)(function* (
-  config: ConfigService,
-): Effect.fn.Return<readonly string[], never, FileSystem.FileSystem> {
+function privatePackageListPaths(config: ConfigService): readonly string[] {
   const override = envString(ENV.DOT_PRIVATE_PACKAGES_FILE);
 
   if (override) return [override];
@@ -61,17 +42,8 @@ const privatePackageListPaths = Effect.fn(
   if (!config.privateDotfiles) return [];
 
   const base = join(config.privateDotfiles, ".dot-private-packages");
-  const host = yield* resolvedOmarchyHost(config);
 
-  return host ? [base, `${base}--${host}`] : [base];
-});
-
-const scopeLabel = (scope: ArchPackageScope): string =>
-  scope === "public" ? "Public" : "Private";
-
-/** Installed package replaced by the requested public package. */
-export function replacedPublicPackage(packageName: string): string | undefined {
-  return packageName === "mise-bin" ? "mise" : undefined;
+  return [base, `${base}--${hostname()}`];
 }
 
 function fail(message: string): Effect.Effect<never, PackageSetupError> {
@@ -88,30 +60,33 @@ function commandAvailable(
   });
 }
 
-const requirePackageListPath = Effect.fn("PackageSetup.requirePackageListPath")(
-  function* (config: ConfigService, scope: ArchPackageScope) {
-    const filePath = yield* packageListPath(config, scope);
+function missingPackages(
+  config: ConfigService,
+  scope: PackageScope,
+): Effect.Effect<
+  readonly string[],
+  PackageSetupError,
+  CommandExecutor | FileSystem.FileSystem
+> {
+  return Effect.gen(function* () {
+    const filePath =
+      scope === "public"
+        ? publicPackageListPath(config)
+        : privatePackageListPaths(config)[0];
 
-    return filePath
-      ? filePath
-      : yield* fail(`Missing ${scope} package list path`);
-  },
-);
+    if (!filePath) return yield* fail(`Missing ${scope} package list path`);
 
-const assertPackageListExists = Effect.fn("PackageSetup.assertListExists")(
-  function* (scope: ArchPackageScope, filePath: string) {
     if (!(yield* pathExists(filePath))) {
       return yield* fail(
         `Missing ${scope} package list: ${displayPath(filePath)}`,
       );
     }
-  },
-);
 
-function missingFromPackageList(
-  packages: readonly string[],
-): Effect.Effect<readonly string[], never, CommandExecutor> {
-  return Effect.gen(function* () {
+    const packages =
+      scope === "private"
+        ? loadPackageLists(privatePackageListPaths(config))
+        : loadPackageList(filePath);
+
     const missing: string[] = [];
 
     for (const packageName of packages) {
@@ -122,56 +97,39 @@ function missingFromPackageList(
   });
 }
 
-function missingPackages(
-  config: ConfigService,
-  scope: ArchPackageScope,
-): Effect.Effect<
-  readonly string[],
-  PackageSetupError,
-  CommandExecutor | FileSystem.FileSystem
-> {
-  return Effect.gen(function* () {
-    const filePath = yield* requirePackageListPath(config, scope);
-    yield* assertPackageListExists(scope, filePath);
-
-    const packages =
-      scope === "private"
-        ? loadPackageLists(yield* privatePackageListPaths(config))
-        : loadPackageList(filePath);
-
-    return yield* missingFromPackageList(packages);
-  });
-}
-
-function installWithOmarchyPkgAdd(
-  packageName: string,
-  reason: string,
+function installWithApt(
+  packages: readonly string[],
 ): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
   return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
     const log = yield* OutputLog;
 
-    if (!(yield* commandAvailable("omarchy-pkg-add"))) {
-      return yield* fail(
-        `Required command missing: omarchy-pkg-add (needed to install ${packageName} for ${reason})`,
-      );
-    }
+    yield* log.info(`Installing: ${packages.join(" ")}`);
 
-    yield* log.info(`Installing: ${packageName}`);
-    const exitCode = yield* executor.inherit("omarchy-pkg-add", [packageName]);
+    const exitCode = yield* runElevated("apt-get", [
+      "install",
+      "-y",
+      ...packages,
+    ]);
 
     if (exitCode !== 0) {
-      return yield* fail(`omarchy-pkg-add ${packageName} exited ${exitCode}`);
+      return yield* fail(
+        `apt-get install ${packages.join(" ")} exited ${exitCode}`,
+      );
     }
   });
 }
 
-function assertCommandAvailable(
+function ensureCommand(
   command: string,
-  message: string,
-): Effect.Effect<void, PackageSetupError, CommandExecutor> {
+  packageName: string,
+): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
   return Effect.gen(function* () {
-    if (!(yield* commandAvailable(command))) return yield* fail(message);
+    if (yield* commandAvailable(command)) return;
+
+    yield* installWithApt([packageName]);
+
+    if (!(yield* commandAvailable(command)))
+      return yield* fail(`${command} is still unavailable after installation`);
   });
 }
 
@@ -191,34 +149,7 @@ export const ensureStowInstalled: Effect.Effect<
     return;
   }
 
-  yield* installWithOmarchyPkgAdd("stow", "dotfile linking");
-  yield* assertCommandAvailable(
-    "stow",
-    "stow is still unavailable after installation",
-  );
-});
-
-/** Ensure gum is installed before interactive init prompts run. */
-export const ensureGumInstalled: Effect.Effect<
-  void,
-  PackageSetupError,
-  CommandExecutor | OutputLog
-> = Effect.gen(function* () {
-  const log = yield* OutputLog;
-
-  yield* log.section("Init Questionnaire Prerequisites");
-
-  if (yield* commandAvailable("gum")) {
-    yield* log.info(cliStyler().dim("gum is already installed"));
-
-    return;
-  }
-
-  yield* installWithOmarchyPkgAdd("gum", "interactive init questionnaire");
-  yield* assertCommandAvailable(
-    "gum",
-    "gum is still unavailable after installation",
-  );
+  yield* ensureCommand("stow", "stow");
 });
 
 const miseConfigExists = Effect.fn("PackageSetup.miseConfigExists")(
@@ -256,14 +187,7 @@ export const installMiseTools: Effect.Effect<
     return;
   }
 
-  if (!(yield* commandAvailable("mise"))) {
-    yield* installWithOmarchyPkgAdd("mise-bin", "tool version setup");
-  }
-
-  yield* assertCommandAvailable(
-    "mise",
-    "mise is still unavailable after installation",
-  );
+  yield* ensureCommand("mise", "mise");
 
   const exitCode = yield* executor.inherit("mise", ["install"], {
     cwd: HOME_DIR,
@@ -274,126 +198,9 @@ export const installMiseTools: Effect.Effect<
   }
 });
 
-function shouldSkipPackageScope(
-  config: ConfigService,
-  scope: ArchPackageScope,
-): Effect.Effect<boolean, never, OutputLog> {
-  return Effect.gen(function* () {
-    const log = yield* OutputLog;
-
-    if (scope === "private" && !config.canUsePrivate) {
-      yield* log.warn(
-        `Skipping private Arch packages (${config.privateReason})`,
-      );
-
-      return true;
-    }
-
-    return false;
-  });
-}
-
-function installWithAurHelper(
-  opts: {
-    readonly scope: ArchPackageScope;
-  },
-  missing: readonly string[],
-): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    const log = yield* OutputLog;
-
-    if (!(yield* commandAvailable("omarchy-pkg-aur-add"))) {
-      return yield* fail(
-        `Cannot install missing ${opts.scope} Arch packages (omarchy-pkg-aur-add not found): ${missing.join(" ")}`,
-      );
-    }
-
-    yield* log.section(`Install ${opts.scope} Arch packages`);
-
-    yield* log.info(`Installing: ${missing.join(" ")}`);
-    const exitCode = yield* executor.inherit("omarchy-pkg-aur-add", missing);
-
-    if (exitCode !== 0) {
-      return yield* fail(
-        `omarchy-pkg-aur-add ${missing.join(" ")} exited ${exitCode}`,
-      );
-    }
-  });
-}
-
-function installWithPacman(
-  opts: {
-    readonly scope: ArchPackageScope;
-  },
-  missing: readonly string[],
-): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
-  return Effect.gen(function* () {
-    const log = yield* OutputLog;
-
-    yield* log.section(`Install ${opts.scope} Arch packages`);
-    yield* log.info(`Installing: ${missing.join(" ")}`);
-
-    const exitCode = yield* runElevated("pacman", [
-      "-Sy",
-      "--needed",
-      "--noconfirm",
-      ...missing,
-    ]);
-
-    if (exitCode !== 0) {
-      return yield* fail(`pacman -Sy ${missing.join(" ")} exited ${exitCode}`);
-    }
-  });
-}
-
-function installPublicPackageReplacements(
-  missing: readonly string[],
-): Effect.Effect<
-  readonly string[],
-  PackageSetupError,
-  CommandExecutor | OutputLog
-> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    const log = yield* OutputLog;
-    const remaining: string[] = [];
-
-    for (const packageName of missing) {
-      const replaced = replacedPublicPackage(packageName);
-
-      if (
-        !replaced ||
-        (yield* executor.exitCode("pacman", ["-Q", replaced])) !== 0
-      ) {
-        remaining.push(packageName);
-        continue;
-      }
-
-      yield* log.info(`Replacing ${replaced} with ${packageName}`);
-
-      const exitCode = yield* runElevated("pacman", [
-        "-S",
-        "--needed",
-        "--noconfirm",
-        "--ask=4",
-        packageName,
-      ]);
-
-      if (exitCode !== 0) {
-        return yield* fail(
-          `pacman -S ${packageName} exited ${exitCode}; cannot replace ${replaced}`,
-        );
-      }
-    }
-
-    return remaining;
-  });
-}
-
-/** Install missing Arch/AUR packages listed for the given scope. */
-export function installMissingArchPackages(opts: {
-  readonly scope: ArchPackageScope;
+/** Install missing apt packages listed for the given scope. */
+export function installMissingPackages(opts: {
+  readonly scope: PackageScope;
 }): Effect.Effect<
   void,
   PackageSetupError,
@@ -402,26 +209,23 @@ export function installMissingArchPackages(opts: {
   return Effect.gen(function* () {
     const config = yield* Config;
     const log = yield* OutputLog;
-    const label = scopeLabel(opts.scope);
+    const label = opts.scope === "public" ? "Public" : "Private";
 
-    if (yield* shouldSkipPackageScope(config, opts.scope)) return;
-
-    const missing = yield* missingPackages(config, opts.scope);
-
-    if (missing.length === 0) {
-      yield* log.info(
-        cliStyler().dim(`${label} Arch packages already installed`),
-      );
+    if (opts.scope === "private" && !config.canUsePrivate) {
+      yield* log.warn(`Skipping private packages (${config.privateReason})`);
 
       return;
     }
 
-    if (opts.scope === "private") {
-      yield* installWithPacman(opts, missing);
-    } else {
-      const remaining = yield* installPublicPackageReplacements(missing);
+    const missing = yield* missingPackages(config, opts.scope);
 
-      if (remaining.length > 0) yield* installWithAurHelper(opts, remaining);
+    if (missing.length === 0) {
+      yield* log.info(cliStyler().dim(`${label} packages already installed`));
+
+      return;
     }
+
+    yield* log.section(`Install ${opts.scope} packages`);
+    yield* installWithApt(missing);
   });
 }

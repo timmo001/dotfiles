@@ -21,22 +21,6 @@ import {
 } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
 
-/** Omarchy repo configuration for diff tracking */
-export interface OmarchyRepoConfig {
-  /** Base directory for omarchy repos (default: ~/.config) */
-  readonly repoBase: string;
-  /** Repos to include in diff (e.g. ["uwsm"]) */
-  readonly diffRepos: readonly string[];
-  /** Repos with multiple worktree branches */
-  readonly worktreeRepos: readonly string[];
-  /** Branch names for worktrees */
-  readonly worktreeBranches: readonly string[];
-  /** Expected branch for each Omarchy diff repo */
-  readonly expectedBranches: Readonly<Record<string, string>>;
-  /** Whether omarchy diff repos are enabled */
-  readonly enabled: boolean;
-}
-
 /** Service interface providing resolved paths and environment detection */
 export interface ConfigService {
   /** Path to the public dotfiles repository */
@@ -49,8 +33,6 @@ export interface ConfigService {
   readonly privateReason: string;
   /** Path to the notes repository */
   readonly notesDir: string;
-  /** Omarchy repository configuration */
-  readonly omarchy: OmarchyRepoConfig;
   /** Private git repository and workflow configuration. */
   readonly gitConfig: DotGitConfig;
   /** Private MCP server sync configuration. */
@@ -118,25 +100,6 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
           join(HOME_DIR, "Documents", "notes"),
       );
 
-      // Omarchy config
-      const omarchyRepoBase =
-        envString(ENV.OMARCHY_REPO_BASE_DIR) ?? CONFIG_DIR;
-
-      const omarchyDiffRepos: readonly string[] = [];
-      const omarchyWorktreeRepos: readonly string[] = [];
-      const omarchyWorktreeBranches = ["desktop", "laptop"];
-      const omarchyExpectedBranches: Readonly<Record<string, string>> = {};
-      const omarchyEnabled = true;
-
-      const omarchy: OmarchyRepoConfig = {
-        repoBase: omarchyRepoBase,
-        diffRepos: omarchyDiffRepos,
-        worktreeRepos: omarchyWorktreeRepos,
-        worktreeBranches: omarchyWorktreeBranches,
-        expectedBranches: omarchyExpectedBranches,
-        enabled: omarchyEnabled,
-      };
-
       const gitConfigFile =
         envString(ENV.DOT_GIT_CONFIG_FILE) ??
         defaultDotGitConfigPath(privatePath);
@@ -172,7 +135,6 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
         canUsePrivate,
         privateReason,
         notesDir,
-        omarchy,
         gitConfig,
         mcpConfig,
         cacheDir,
