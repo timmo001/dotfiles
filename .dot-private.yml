@@ -1,8 +1,10 @@
 ---
-# Stow packages dot links from the private dotfiles on this server. The
-# private repository stays on its main branch; anything not listed here, such
-# as its Omarchy, UWSM and desktop service packages, is left alone, and links
-# already made for a package removed from the list are unstowed.
+# What this server takes from the private dotfiles, which stay on their main
+# branch.
+#
+# stow: the private stow packages dot links. Anything not listed, such as the
+# Omarchy, UWSM and desktop service packages, is left alone, and links already
+# made for a package removed from the list are unstowed.
 stow:
   - agents
   - dot-config
@@ -11,3 +13,11 @@ stow:
   - scripts
   - triage
   - zsh
+
+# mcp.exclude: servers from the private mcp.yml kept off this machine. dot mcp
+# sync disables them in the untracked ~/.config/opencode/opencode.jsonc and
+# leaves them out of Claude Code, so the shared generated configs stay as
+# they are.
+mcp:
+  exclude:
+    - chrome-devtools

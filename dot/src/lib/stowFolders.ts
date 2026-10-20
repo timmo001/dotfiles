@@ -1,8 +1,8 @@
-import { Effect, FileSystem, Schema } from "effect";
+import { Effect, FileSystem } from "effect";
 import { hostname } from "node:os";
 import { join } from "path";
 import { Config } from "../services/Config.js";
-import { readTextOrNull } from "./fsProbe.js";
+import { readPrivateSelection } from "./privateSelection.js";
 
 /** Top-level repo directories that are not active stow packages. */
 export const INTERNAL_STOW_FOLDERS = [
@@ -127,30 +127,6 @@ export const listStowFolders = Effect.fn("StowFolders.listStowFolders")(
   },
 );
 
-/** `.dot-private.yml`: the private stow packages this machine pulls in. */
-const PrivateSelection = Schema.Struct({ stow: Schema.Array(Schema.String) });
-
-/**
- * Private stow packages listed under `stow` in the public `.dot-private.yml`,
- * or `null` to stow them all when the file is missing. An invalid file
- * selects none, so a typo never stows the desktop's packages.
- */
-export const privateStowSelection = Effect.fn("StowFolders.privateSelection")(
-  function* (publicDotfiles: string) {
-    const text = yield* readTextOrNull(
-      join(publicDotfiles, ".dot-private.yml"),
-    );
-
-    if (text === null) return null;
-
-    return yield* Effect.try(() => Bun.YAML.parse(text)).pipe(
-      Effect.flatMap(Schema.decodeUnknownEffect(PrivateSelection)),
-      Effect.map(({ stow }): ReadonlySet<string> => new Set(stow)),
-      Effect.orElseSucceed((): ReadonlySet<string> => new Set()),
-    );
-  },
-);
-
 /**
  * List the stow packages dot links from a repository: every package in the
  * public repository, and only those selected in `.dot-private.yml` in the
@@ -164,7 +140,8 @@ export const selectedStowFolders = Effect.fn("StowFolders.selected")(function* (
 
   if (repoDir !== config.privateDotfiles) return folders;
 
-  const selection = yield* privateStowSelection(config.publicDotfiles);
+  const selection =
+    (yield* readPrivateSelection(config.publicDotfiles))?.stow ?? null;
 
   return selection === null
     ? folders
