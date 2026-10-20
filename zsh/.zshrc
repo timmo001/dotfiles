@@ -850,6 +850,97 @@ alias gcad='git commit -a --amend'
 alias mup='MISE_MINIMUM_RELEASE_AGE=0 mise up'
 n() { if [ "$#" -eq 0 ]; then command nvim . ; else command nvim "$@"; fi; }
 
+# From Omarchy's default/bash/fns, minus the ones that need a desktop, tmux,
+# hunk or inotify.
+compress() { tar -czf "${1%/}.tar.gz" "${1%/}"; }
+alias decompress="tar -xzf"
+
+sff() { if [ $# -eq 0 ]; then echo "Usage: sff <destination> (e.g. sff host:/tmp/)"; return 1; fi; local file; file=$(find . -type f -printf '%T@\t%p\n' | sort -rn | cut -f2- | ff) && [ -n "$file" ] && scp "$file" "$1"; }
+
+# Create a worktree and branch next to the current checkout.
+ga() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: ga [branch name]"
+    return 1
+  fi
+
+  local branch="$1"
+  local base="$(basename "$PWD")"
+  local wt_path="../${base}--${branch}"
+
+  git worktree add -b "$branch" "$wt_path"
+  mise trust "$wt_path"
+  cd "$wt_path"
+}
+
+# Remove the current worktree and its branch.
+gd() {
+  if gum confirm "Remove worktree and branch?"; then
+    local cwd base branch root worktree
+
+    cwd="$(pwd)"
+    worktree="$(basename "$cwd")"
+    root="${worktree%%--*}"
+    branch="${worktree#*--}"
+
+    if [[ "$root" != "$worktree" ]]; then
+      cd "../$root"
+      git worktree remove "$cwd" --force || return 1
+      git branch -D "$branch"
+    fi
+  fi
+}
+
+# Herdr dev layout: editor, AI pane on the right, terminal below.
+# Usage: hdl <ai command> [<second ai command>]
+_herdr_split() {
+  herdr pane split "$1" --direction "$2" --ratio "$3" --cwd "$4" --no-focus |
+    jq -r '.result.pane.pane_id'
+}
+
+hdl() {
+  [[ -z $1 ]] && { echo "Usage: hdl <ai command> [<second ai command>]"; return 1; }
+  [[ -z $HERDR_PANE_ID ]] && { echo "You must start herdr to use hdl."; return 1; }
+
+  local current_dir="${PWD}"
+  local editor_pane="$HERDR_PANE_ID" ai_pane ai2_pane
+  local ai="$1"
+  local ai2="${2:-}"
+
+  herdr tab rename "$HERDR_TAB_ID" "$(basename "$current_dir")" >/dev/null
+  _herdr_split "$editor_pane" down 0.85 "$current_dir" >/dev/null
+  ai_pane=$(_herdr_split "$editor_pane" right 0.7 "$current_dir")
+
+  if [[ -n $ai2 ]]; then
+    ai2_pane=$(_herdr_split "$ai_pane" down 0.5 "$current_dir")
+    herdr pane run "$ai2_pane" "$ai2" >/dev/null
+  fi
+
+  herdr pane run "$ai_pane" "$ai" >/dev/null
+  herdr pane run "$editor_pane" "$EDITOR ." >/dev/null
+}
+
+# SSH port forwarding: fip starts, dip stops, lip lists.
+fip() {
+  (( $# < 2 )) && echo "Usage: fip <host> <port1> [port2] ..." && return 1
+  local host="$1"
+  shift
+  for port in "$@"; do
+    ssh -f -N -L "${port}:localhost:${port}" "$host" && echo "Forwarding localhost:$port -> $host:$port"
+  done
+}
+
+dip() {
+  (( $# == 0 )) && echo "Usage: dip <port1> [port2] ..." && return 1
+  for port in "$@"; do
+    pkill -f "ssh.*-L ${port}:localhost:${port}" && echo "Stopped forwarding port $port" || echo "No forwarding on port $port"
+  done
+}
+
+lip() {
+  pgrep -af "ssh.*-L [0-9]+:localhost:[0-9]+" || echo "No active forwards"
+}
+
 export BAT_THEME=ansi
 export MANROFFOPT="-c"
 export MANPAGER="sh -c 'col -bx | bat -l man -p'"
