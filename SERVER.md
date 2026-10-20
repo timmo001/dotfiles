@@ -79,8 +79,8 @@ Check these from a local session on the server. Items tied to a file are also ma
 ### Herdr
 
 - [x] Check whether the desktop Herdr swallows the `alt+x` prefix when the server is attached from inside it
-- [ ] Check whether sounds play on the client when attached remotely
-- [ ] Check the Plannotator review binding from a remote client, and where reviews open now `PLANNOTATOR_BROWSER` is unset
+- [x] Check whether sounds play on the client when attached remotely: they do
+- [ ] Check the Plannotator review binding from a remote client, and where reviews open now `PLANNOTATOR_BROWSER` is unset. Needs research: #1133
 - [ ] Check the `dotfiles.dot-links` plugin: `file://` links open Neovim in Herdr, but `dot://` links target the desktop Git panel
 - [x] Confirm the `herdr-lazy` plugins all work headless
 
