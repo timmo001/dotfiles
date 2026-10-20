@@ -25,7 +25,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Removed files
 
-78 files removed from folders that stay.
+79 files removed from folders that stay.
 
 | File | Was |
 | --- | --- |
@@ -103,6 +103,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `scripts/.local/share/omarchy-patches/plugin-update-hook.patch` | [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/scripts/.local/share/omarchy-patches/plugin-update-hook.patch) |
 | `scripts/.local/share/plannotator-inbox/Inbox.qml` | [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/scripts/.local/share/plannotator-inbox/Inbox.qml) |
 | `scripts/.local/share/workspace-relayout/presets.json` | [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/scripts/.local/share/workspace-relayout/presets.json) |
+| `systemd/.config/dot/services.d/upnext.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/systemd/.config/dot/services.d/upnext.yml) |
 | `systemd/.config/systemd/user/background.slice.d/10-oomd.conf` | [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/systemd/.config/systemd/user/background.slice.d/10-oomd.conf) |
 | `tests/dot/omarchy-plugin-deployment.test.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/tests/dot/omarchy-plugin-deployment.test.ts) |
 | `tests/scripts/hypr-lua-dispatchers.test.sh` | [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/tests/scripts/hypr-lua-dispatchers.test.sh) |
@@ -110,12 +111,13 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Changed files
 
-72 files in both branches with different contents.
+80 files in both branches with different contents.
 
 | File | Compare |
 | --- | --- |
 | `.agents/skills/dotfiles-docs/SKILL.md` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-47821917f2c4eefca26148d8a12cddfca6e0c99a8c341748c49f0778c56a4a26), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/.agents/skills/dotfiles-docs/SKILL.md), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.agents/skills/dotfiles-docs/SKILL.md) |
 | `.dot-public-packages` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-8941c748d0c207bc289849fdae5a1451fa1f5f4a34f1600a2e5ed38d164a6f32), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/.dot-public-packages), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-public-packages) |
+| `.gitignore` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-bc37d034bad564583790a46f19d807abfe519c5671395fd494d8cce506c42947), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/.gitignore), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.gitignore) |
 | `.stowrc` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-c683a06385785fe8ccba263b2d8c397072d5a7713f0ca9d152c7b115b9753e02), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/.stowrc), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.stowrc) |
 | `AGENTS.md` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/AGENTS.md), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/AGENTS.md) |
 | `docs/AGENTS.md` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-d00743dc4e878f258330deadcd4008e361276d760b58b672150c54bb1ac9758a), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/docs/AGENTS.md), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/docs/AGENTS.md) |
@@ -160,6 +162,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `dot/src/git/services/GitReleases.ts` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-df7382eb6605cd7f6cb8b7d3053ac2f92508591d81b5aa2362973f58b342d2f3), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/dot/src/git/services/GitReleases.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/git/services/GitReleases.ts) |
 | `dot/src/lib/aptPackages.ts` (was `dot/src/lib/archPackages.ts`) | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-ce4a8dde23f5abc5916440737fe5c0f8707a1731292660eeeda2ba35c509a107), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/dot/src/lib/archPackages.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/aptPackages.ts) |
 | `dot/src/lib/env.ts` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-a0574922bb080de9f606b225b2910eab1d1dcfd244ae35afdb36fc02cd1ccd66), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/dot/src/lib/env.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/env.ts) |
+| `dot/src/lib/externalSkills.ts` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-e5e2642358129323d42bc8e99d2ec3748865f9236449b87d63d72e286b0cb2f4), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/dot/src/lib/externalSkills.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/externalSkills.ts) |
 | `dot/src/lib/initState.ts` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-776232c21b2f4ae5ea198b760a762474b1f55ac799af55f2e5f9a41008478265), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/dot/src/lib/initState.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/initState.ts) |
 | `dot/src/lib/linkBrowser.ts` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-24927383655c04c921b542a3f8a31d7c6b9798b3cbf59c7348cba77cd167aa5d), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/dot/src/lib/linkBrowser.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/linkBrowser.ts) |
 | `dot/src/lib/miseTrust.ts` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-c1431681c6272456105673af059a37bb5cd56b81bc978eef25b93eb787b44c5e), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/dot/src/lib/miseTrust.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/miseTrust.ts) |
@@ -176,8 +179,14 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `lazygit/.config/lazygit/config.yml` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-6a658b4d7f8c96dd27274aa9c62dad4430a9db19f3bb5c44fc69083ab423c660), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/lazygit/.config/lazygit/config.yml), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/lazygit/.config/lazygit/config.yml) |
 | `mise.toml` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-3c9056799ce8e353b18de841a8b9c8492d46cb096e063c86fb0ce54cfcd117c2), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/mise.toml), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/mise.toml) |
 | `mise/.config/mise/config.toml` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-d21ce4917a135596ad0d792dc1f613a1316ed373af791af2d1028ab90dd92556), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/mise/.config/mise/config.toml), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/mise/.config/mise/config.toml) |
+| `pitchfork.toml` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-0d6652c3581bab18f35d27f420fa244e3441bf19a655fbbd72a6510d5207ddde), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/pitchfork.toml), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/pitchfork.toml) |
 | `README.md` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/README.md), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/README.md) |
+| `systemd/.config/systemd/user/dot-brief-follow-up.service` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-1aa561be76563a4dfc50511ce93eb21e0f883f6566dbfc34417bed9a276dc806), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/systemd/.config/systemd/user/dot-brief-follow-up.service), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/dot-brief-follow-up.service) |
+| `systemd/.config/systemd/user/dot-brief.service` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-12d5c6df8ce6da5254f8e52ed0debb943b155c5c026d6b4a0c6767b45be88274), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/systemd/.config/systemd/user/dot-brief.service), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/dot-brief.service) |
+| `systemd/.config/systemd/user/dot-deps.service` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-d811475833eb5cea8407d2482f7f1d5c4a20d7a9a3109c2e3475f10da638fff2), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/systemd/.config/systemd/user/dot-deps.service), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/dot-deps.service) |
 | `systemd/.config/systemd/user/dot-doctor.service` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-ac4ca7d9895435faec807d37e14e152f8bfedd96cb6ded262b4460e116609ce8), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/systemd/.config/systemd/user/dot-doctor.service), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/dot-doctor.service) |
+| `systemd/.config/systemd/user/dot-notifications-dismiss.service` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-49d4ce75d97870acd57e0dc19dcaee0f630890209bc122b1962c8a2b723f1132), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/systemd/.config/systemd/user/dot-notifications-dismiss.service), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/dot-notifications-dismiss.service) |
+| `systemd/.config/systemd/user/pitchfork.service` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-b2c7e5845cb31df4ca25cb8990d5a72e250cc70f4046ad762bf19b869a48bc31), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/systemd/.config/systemd/user/pitchfork.service), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/pitchfork.service) |
 | `tests/dot/git-diff-index-lock.test.sh` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-7aac6566eb24ba24140386b03f4b59dbe92c46ebbc6f05b6395082b775abcbc4), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/tests/dot/git-diff-index-lock.test.sh), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/tests/dot/git-diff-index-lock.test.sh) |
 | `tests/dot/git-notification-dismissal.test.ts` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-f9608ee1c13ac238b9792dbb38f2991f8e2aa1a7895b38ff5e500ae7ee99906b), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/tests/dot/git-notification-dismissal.test.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/tests/dot/git-notification-dismissal.test.ts) |
 | `tests/dot/git-releases-contract.test.ts` | [diff](https://github.com/timmo001/dotfiles/compare/60d8b331373a2f28ffebee3f429f5551e7ed9b06...distro/ubuntu-server#diff-550aa76667bd614b10311746192428e08e9c26bcfd48854d01c0b5f4813ffd8c), [desktop](https://github.com/timmo001/dotfiles/blob/60d8b331373a2f28ffebee3f429f5551e7ed9b06/tests/dot/git-releases-contract.test.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/tests/dot/git-releases-contract.test.ts) |
@@ -189,8 +198,10 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-11 files only on this branch.
+36 files only on this branch.
 
+- [`.dot-public-deb-releases.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-public-deb-releases.yml)
+- [`.dot-skills.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-skills.yml)
 - [`.github/workflows/distro-diff.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.github/workflows/distro-diff.yml)
 - [`docs/current-distro.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/docs/current-distro.ts)
 - [`docs/distros.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/docs/distros.ts)
@@ -198,7 +209,30 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`docs/src/content/docs/distros.mdx`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/docs/src/content/docs/distros.mdx)
 - [`docs/src/content/docs/server/herdr.mdx`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/docs/src/content/docs/server/herdr.mdx)
 - [`docs/src/content/docs/server/overview.mdx`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/docs/src/content/docs/server/overview.mdx)
+- [`dot/src/lib/debReleases.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/debReleases.ts)
 - [`dot/src/lib/notify.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/notify.ts)
+- [`dot/src/server/api.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/api.ts)
+- [`dot/src/server/Serve.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/Serve.ts)
 - [`SERVER.md`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/SERVER.md)
+- [`server/bun.lock`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/bun.lock)
+- [`server/index.html`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/index.html)
+- [`server/package.json`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/package.json)
+- [`server/src/app.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/app.ts)
+- [`server/src/components/ui/button.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/components/ui/button.ts)
+- [`server/src/components/ui/icon.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/components/ui/icon.ts)
+- [`server/src/controllers/atom-controller.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/controllers/atom-controller.ts)
+- [`server/src/lib/atoms.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/lib/atoms.ts)
+- [`server/src/lib/utils.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/lib/utils.ts)
+- [`server/src/mixins/light-dom.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/mixins/light-dom.ts)
+- [`server/src/pages/services.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/pages/services.ts)
+- [`server/src/styles/globals.css`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/styles/globals.css)
+- [`server/tsconfig.json`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/tsconfig.json)
+- [`server/vite.config.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/vite.config.ts)
 - [`systemd/.config/dot/services.d/herdr.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/dot/services.d/herdr.yml)
+- [`systemd/.config/dot/services.d/ollama.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/dot/services.d/ollama.yml)
+- [`systemd/.config/dot/services.d/system-bridge.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/dot/services.d/system-bridge.yml)
+- [`systemd/.config/systemd/user/ha-bridge.service`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/ha-bridge.service)
 - [`systemd/.config/systemd/user/herdr.service`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/herdr.service)
+- [`systemd/.config/systemd/user/ollama.service`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/ollama.service)
+- [`systemd/.config/systemd/user/system-bridge.service`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/system-bridge.service)
+- [`systemd/.config/systemd/user/triage-agent.service`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/triage-agent.service)
