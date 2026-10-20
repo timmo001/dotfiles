@@ -1,0 +1,54 @@
+---
+name: Distro diff
+
+# Regenerates the page listing what this distro branch changed from the
+# default branch, and commits it back when it moved. Pushes made with
+# GITHUB_TOKEN don't start workflows, so the commit doesn't run this again.
+
+on:
+  push:
+    branches:
+      - 'distro/**'
+      - '!distro/arch-omarchy-quattro'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: distro-diff-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup mise
+        uses: ./.github/actions/setup-mise
+        with:
+          install: false
+
+      - name: Install mise tools
+        run: |
+          mise trust
+          mise install
+
+      - name: Regenerate the distro diff page
+        run: mise run docs:gen:distro-diff
+
+      - name: Commit the page if it changed
+        run: |
+          page=docs/src/content/docs/server/changes.md
+          if git diff --quiet -- "$page"; then
+            echo "The page is current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Regenerate the distro diff page" -- "$page"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

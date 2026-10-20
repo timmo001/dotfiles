@@ -73,16 +73,6 @@ const changes: Change[] = [
   ...untracked.map((file): Change => ({ status: 'A', path: file })),
 ];
 
-const numstat = new Map<string, string>();
-for (const line of lines(git('diff', '--numstat', '--find-renames', mergeBase))) {
-  const [added = '', removed = '', ...rest] = line.split('\t');
-  const file = rest.join('\t').replace(/^(.*)\{(.*) => (.*)\}(.*)$/, '$1$3$4').replace(/^.* => /, '');
-  numstat.set(file, added === '-' ? 'binary' : `+${added} -${removed}`);
-}
-for (const file of untracked) {
-  numstat.set(file, `+${(await Bun.file(path.join(repoRoot, file)).text()).split('\n').length - 1} -0`);
-}
-
 const topLevel = (file: string) => (file.includes('/') ? file.slice(0, file.indexOf('/')) : null);
 
 const removedFolders = new Map<string, number>();
@@ -154,11 +144,11 @@ if (changed.length === 0) {
 } else {
   push(`${plural(changed.length, 'file')} in both branches with different contents.`);
   push();
-  push('| File | Lines | Compare |');
-  push('| --- | --- | --- |');
+  push('| File | Compare |');
+  push('| --- | --- |');
   for (const change of changed) {
     const name = change.from ? `${code(change.path)} (was ${code(change.from)})` : code(change.path);
-    push(`| ${name} | ${numstat.get(change.path) ?? ''} | ${baseLink(change.from ?? change.path)}, ${headLink(change.path)} |`);
+    push(`| ${name} | ${baseLink(change.from ?? change.path)}, ${headLink(change.path)} |`);
   }
 }
 push();
@@ -171,9 +161,7 @@ if (added.length === 0) {
 } else {
   push(`${plural(added.length, 'file')} only on this branch.`);
   push();
-  push('| File | Lines |');
-  push('| --- | --- |');
-  for (const file of added) push(`| [${code(file)}](${blobBase}/${current.branch}/${file}) | ${numstat.get(file) ?? ''} |`);
+  for (const file of added) push(`- [${code(file)}](${blobBase}/${current.branch}/${file})`);
 }
 
 await mkdir(path.dirname(outFile), { recursive: true });
