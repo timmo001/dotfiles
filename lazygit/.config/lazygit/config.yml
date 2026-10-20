@@ -1,7 +1,6 @@
 ---
 customCommands:
-  # A plain git pull, then dot offers the repository's post-update command
-  # when the pull moved HEAD.
+  # Runs the pull directly, so lazygit shows any failure.
   - key: p
     context: global
     command: >-
