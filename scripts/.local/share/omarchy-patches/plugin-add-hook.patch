@@ -1,5 +1,5 @@
 diff --git a/bin/omarchy-plugin-add b/bin/omarchy-plugin-add
-index f0bdfca5..279edbd6 100755
+index fc9e4ad..b7a7813 100755
 --- a/bin/omarchy-plugin-add
 +++ b/bin/omarchy-plugin-add
 @@ -38,6 +38,8 @@ ENABLE_PLACEMENT=()
@@ -11,8 +11,8 @@ index f0bdfca5..279edbd6 100755
    local default_section
    interactive || return 0
    (( ASSUME_YES )) && return 0
-@@ -50,6 +52,21 @@ select_bar_widget_placement() {
-     gum choose --header="Place $id in which bar section?" --selected "$default_section") || return 0
+@@ -51,6 +53,21 @@ select_bar_widget_placement() {
+     gum choose --header="$(omarchy-i18n plugin.barSection "$id")" --selected "$default_section") || return 0
    [[ -n $section ]] || return 0
    ENABLE_PLACEMENT=(--section "$section")
 +
@@ -33,7 +33,7 @@ index f0bdfca5..279edbd6 100755
  }
  
  plugin_id_manifest() {
-@@ -166,3 +183,8 @@ if [[ $enable_after == true ]]; then
+@@ -174,3 +191,8 @@ if [[ $enable_after == true ]]; then
  else
    echo "Enable it later with: omarchy plugin enable $id"
  fi
