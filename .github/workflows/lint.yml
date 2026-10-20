@@ -83,6 +83,9 @@ jobs:
       - name: Install OpenCode plugin dependencies
         run: bun install --cwd agents/.config/opencode/plugins --frozen-lockfile
 
+      - name: Install server dashboard dependencies
+        run: bun install --cwd server --frozen-lockfile
+
       - name: Run TypeScript lint
         run: mise run lint:oxlint
 
