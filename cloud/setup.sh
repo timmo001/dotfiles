@@ -5,10 +5,12 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/timmo001/dotfiles/distro/cloud/cloud/setup.sh | bash
 #
-# It clones the public dotfiles, and the private ones when the session can
-# reach them, installs mise and the pinned toolchain, builds dot and runs
-# `dot cloud setup`. The environment snapshots the result, so later sessions
-# skip all of this. A failure is logged but never stops a session starting.
+# It clones the public dotfiles, installs mise and the pinned toolchain,
+# builds dot and runs `dot cloud setup`, which also links the private
+# dotfiles when they are attached to the session. The environment snapshots
+# the result, so later sessions skip all of this, and the session start hook
+# in the cloud settings brings it up to date. A failure is logged but never
+# stops a session starting.
 #
 # Options (after `bash -s --` when piped):
 #   --ref <branch>  Public dotfiles branch to clone (default: distro/cloud)
@@ -37,7 +39,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 public=$HOME/.config/dotfiles
-private=$HOME/.config/dotfiles-private
 log_file=$HOME/.local/state/dot/cloud-setup.log
 
 export PATH=$HOME/.local/bin:$PATH
@@ -50,17 +51,15 @@ step() { printf '\n==> %s\n' "$*"; }
 
 warn() { printf '[WARN] %s\n' "$*" >&2; }
 
-# Clone a repository shallowly, or reset an existing clone to the remote.
-# These clones are only read, and distro/cloud is force-pushed on every
-# rebase, so a reset is always safe where a fast-forward would fail.
+# Clone a branch shallowly, or reset an existing clone to the remote. The
+# clone is only read, and distro/cloud is force-pushed on every rebase, so a
+# reset is always safe where a fast-forward would fail.
 sync_repo() {
-  local dir=$1 url=$2 branch=${3:-HEAD}
+  local dir=$1 url=$2 branch=$3
 
   if [[ -d $dir/.git ]]; then
     git -C "$dir" fetch --quiet --depth=1 origin "$branch" &&
-      git -C "$dir" reset --quiet --hard FETCH_HEAD
-  elif [[ $branch == HEAD ]]; then
-    git clone --quiet --depth=1 "$url" "$dir"
+      git -C "$dir" checkout --quiet -B "$branch" FETCH_HEAD
   else
     git clone --quiet --depth=1 --branch "$branch" "$url" "$dir"
   fi
@@ -94,10 +93,6 @@ main() {
   step "Dotfiles ($ref)"
   sync_repo "$public" https://github.com/timmo001/dotfiles.git "$ref" || return
 
-  step "Private dotfiles"
-  sync_repo "$private" https://github.com/timmo001/dotfiles-private.git ||
-    warn "Private dotfiles are not reachable from this session; continuing without them"
-
   step "mise"
   if ! command -v mise >/dev/null; then
     install_mise || return
@@ -113,7 +108,9 @@ main() {
   step "Build dot"
   mise run dot:build ::: skills-maintenance:build || return
   mkdir -p "$HOME/.local/bin"
-  ln -sfn "$public/scripts/.local/bin/dot" "$HOME/.local/bin/dot"
+  for bin in dot skill-maintenance; do
+    ln -sfn "$public/scripts/.local/bin/$bin" "$HOME/.local/bin/$bin"
+  done
 
   step "dot cloud setup"
   dot cloud setup --force
