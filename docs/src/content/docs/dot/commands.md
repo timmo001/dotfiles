@@ -92,20 +92,20 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 
 ### `dot update system`
 
-Select and run Dotfiles, apt, and Topgrade updates
+Select and run Dotfiles, apt, release package and Topgrade updates
 
 ```text
 dot update system [flags]
 ```
 
-Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, apt packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
+Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. Interactive runs pre-select Dotfiles, apt packages, release packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
 | `--yes` | Select every update without prompting |
-| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, apt, github-cli, yazi, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
+| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, apt, releases, github-cli, yazi, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
 | `--no-self-update` | Skip dot update's self-update pull when the dotfiles are already pulled |
 | `--help` `-h` | Show help information |
 
@@ -303,6 +303,46 @@ Listens on 127.0.0.1 and forwards HTTP requests and websockets to the target ori
 ```bash
 dot http forward --port 8126 --target http://homeassistant.local:8123
 dot http forward --port 8126 --target http://homeassistant.local:8123 --cors-origin https://serve.ha-frontend.localhost --cors-suffix .ha-frontend.localhost
+```
+
+## `dot server`
+
+Headless server helpers
+
+```text
+dot server <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot server serve`
+
+Serve the server dashboard
+
+```text
+dot server serve [flags]
+```
+
+Serves the server dashboard and its API. The dashboard shows the registered user services from dot services status, with run or restart, stop and recent journal lines for each. It is built from the server/ package with mise run server:build, and pitchfork runs it through mise run serve:server. It has no login, so only expose it on a trusted network.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--host` `<string>` | Address to listen on |
+| `--port` `<integer>` | Port to listen on |
+| `--dashboard` `<path>` | Dashboard build to serve (default: server/dist in the public dotfiles) |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot server serve
+dot server serve --host 0.0.0.0
 ```
 
 ## `dot status`

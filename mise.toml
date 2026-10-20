@@ -183,6 +183,62 @@ run = "pitchfork restart docs"
 description = "Stop the background docs dev server"
 run = "pitchfork stop docs"
 
+# server dashboard (runs in ./server)
+[tasks."server:install"]
+description = "Install server dashboard dependencies"
+dir = "server"
+run = "bun install"
+
+[tasks."server:dev"]
+description = "Run the server dashboard dev server, proxying /api to dot server serve"
+dir = "server"
+depends = ["server:install"]
+run = "bun run dev"
+
+[tasks."server:build"]
+description = "Build the server dashboard"
+dir = "server"
+depends = ["server:install"]
+run = "bun run build"
+
+[tasks."server:typecheck"]
+description = "Type-check the server dashboard"
+dir = "server"
+depends = ["server:install"]
+run = "bun run typecheck"
+
+[tasks."server:format"]
+description = "Format the server dashboard"
+dir = "server"
+depends = ["server:install"]
+run = "bun run format"
+
+[tasks."server:format:check"]
+description = "Check the server dashboard formatting"
+dir = "server"
+depends = ["server:install"]
+run = "bun run format:check"
+
+[tasks."serve:server"]
+description = "Start dot server serve in the background through Pitchfork"
+run = "pitchfork start server"
+
+[tasks."serve:server:status"]
+description = "Show the background dot server status"
+run = "pitchfork status server"
+
+[tasks."serve:server:logs"]
+description = "Follow the background dot server logs"
+run = "pitchfork logs -t server"
+
+[tasks."serve:server:restart"]
+description = "Rebuild the dashboard and restart the background dot server"
+run = "pitchfork restart server"
+
+[tasks."serve:server:stop"]
+description = "Stop the background dot server"
+run = "pitchfork stop server"
+
 [tasks."docs:og"]
 description = "Regenerate the share images and PNG logos"
 dir = "docs"
