@@ -2,7 +2,7 @@
 
 ![Dotfiles](.github/social-preview.png)
 
-Personal [Omarchy](https://omarchy.org) dotfiles, managed with [GNU Stow](https://www.gnu.org/software/stow/) and the `dot` command.
+Personal dotfiles for a headless Ubuntu server, managed with [GNU Stow](https://www.gnu.org/software/stow/) and the `dot` command.
 
 > [!NOTE]
 > This is the `distro/ubuntu-server` branch: a headless Ubuntu server build with the terminal and service tooling only, and a Herdr server for remote clients. See [SERVER.md](SERVER.md) for what changed and what is still to do. The desktop setup lives on `distro/arch-omarchy-quattro`.
@@ -10,7 +10,7 @@ Personal [Omarchy](https://omarchy.org) dotfiles, managed with [GNU Stow](https:
 **Docs:** <https://ubuntu-server.dotfiles.timmo.dev> (desktop: <https://dotfiles.timmo.dev>)
 
 > [!CAUTION]
-> This repository is for reference. The configs are tuned for Omarchy and my machines, with a private overlay that is not public, so installation is not recommended. Have your agents borrow the pieces you want instead.
+> This repository is for reference. The configs are tuned for my machines, with a private overlay that is not public, so installation is not recommended. Have your agents borrow the pieces you want instead.
 
 ## Quick start
 

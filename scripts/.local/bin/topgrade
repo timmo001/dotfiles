@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Wrapper around topgrade that logs the full session (mimics omarchy-update pattern).
+# Wrapper around topgrade that logs the full session.
 # Log is stored at $XDG_STATE_HOME/topgrade.log (default ~/.local/state) for post-run review.
 # Adds --sudoloop for steps that need root (system, firmware, containers) so credentials
 # stay cached during long runs, but skips it for user-only steps.

@@ -28,6 +28,5 @@ export default defineConfig({
     "!agents/.config/opencode/plugins/**/*.tsx",
     "docs/**",
     "node_modules/**",
-    "omarchy/.config/omarchy/plugins/**",
   ],
 });

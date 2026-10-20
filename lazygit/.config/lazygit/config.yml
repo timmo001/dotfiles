@@ -1,7 +1,6 @@
 ---
 customCommands:
-  # The desktop routes this through the Omarchy Git panel. There is no panel
-  # here, so the pull runs directly and lazygit shows any failure.
+  # Runs the pull directly, so lazygit shows any failure.
   - key: p
     context: global
     command: dot update --pull --repo "$(git rev-parse --show-toplevel)"
