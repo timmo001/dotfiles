@@ -147,17 +147,27 @@ const childSessions = Effect.fn("sessionQueue.childSessions")(function* (
   return ids;
 });
 
-/** Pick an OpenCode pane from Herdr, current workspace first. */
+/**
+ * Without an ID, an agent sends the session in its own Herdr pane; a person
+ * picks an OpenCode pane, current workspace first.
+ */
 const pickSession = Effect.fn("sessionQueue.pickSession")(function* (
   snapshot: HerdrSnapshot,
 ) {
-  if (isAgent())
-    return yield* fail(
-      "Pass the exact session ID from your injected environment context",
-    );
-
   const ownPane = envString(ENV.HERDR_PANE_ID);
   const ownWorkspace = envString(ENV.HERDR_WORKSPACE_ID);
+
+  if (isAgent()) {
+    const own = snapshot.agents.find((agent) => agent.paneId === ownPane);
+    const sessionId = own ? openCodeSession(own) : undefined;
+
+    if (!sessionId)
+      return yield* fail(
+        "Herdr doesn't report an OpenCode session for this pane; pass the session ID",
+      );
+
+    return sessionId;
+  }
 
   const candidates = snapshot.agents
     .filter((agent) => openCodeSession(agent) && agent.paneId !== ownPane)

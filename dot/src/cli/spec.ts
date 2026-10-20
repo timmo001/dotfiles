@@ -1819,7 +1819,7 @@ const sessionCommand = describe(
           {
             sessionId: Argument.String("session-id").pipe(
               Argument.withDescription(
-                "OpenCode 2 session ID; without it, pick an OpenCode pane from Herdr",
+                "OpenCode 2 session ID; without it, pick an OpenCode pane from Herdr, or under an agent use the agent's own pane",
               ),
               Argument.optional,
             ),
