@@ -233,7 +233,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-56 files only on this branch.
+55 files only on this branch.
 
 - [`.agents/skills/server-rebase/SKILL.md`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.agents/skills/server-rebase/SKILL.md)
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-private.yml)
@@ -265,7 +265,6 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`neovim/.config/nvim/stylua.toml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/stylua.toml)
 - [`pitchfork/.config/pitchfork/config.toml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/pitchfork/.config/pitchfork/config.toml)
 - [`scripts/.local/bin/herdr`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/scripts/.local/bin/herdr)
-- [`SERVER.md`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/SERVER.md)
 - [`server/bun.lock`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/bun.lock)
 - [`server/index.html`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/index.html)
 - [`server/package.json`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/package.json)
