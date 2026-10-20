@@ -23,6 +23,7 @@ import { CACHE_DIR, CONFIG_DIR, HOME_DIR } from "../lib/paths.js";
 import { formatCause } from "../lib/schema.js";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
 import { installedHerdrAgents } from "./HerdrAgents.js";
+import { SESSION_ID_PATTERN } from "./SessionStatus.js";
 import {
   createHerdrModelSession,
   HerdrModelError,
@@ -79,6 +80,10 @@ export interface HerdrRepoOpenOptions {
   readonly variant?: string;
   /** Unique name assigned to the verified agent before prompting. */
   readonly agentName?: string;
+  /** Existing OpenCode 2 session to open; excludes model. */
+  readonly sessionId?: string;
+  /** Text pasted into the ready agent's input without submitting it; excludes prompt. */
+  readonly draft?: string;
   /** Place a new workspace after the last one whose label starts with this prefix; defaults to a leading [tag] or an existing whole-word label prefix. */
   readonly afterPrefix?: string;
   /** Leave the current view focused and do not open a terminal client. */
@@ -261,12 +266,29 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   if (options.variant !== undefined && options.model === undefined)
     return fail("--variant requires --model", 2);
 
+  if (options.sessionId !== undefined && options.model !== undefined)
+    return fail("Open an existing session or choose a model, not both", 2);
+
+  if (options.sessionId !== undefined && options.agent !== "opencode2")
+    return fail("An existing session requires --agent opencode2", 2);
+
+  if (
+    options.sessionId !== undefined &&
+    !SESSION_ID_PATTERN.test(options.sessionId)
+  )
+    return fail(`Invalid OpenCode session ID ${options.sessionId}`, 2);
+
+  if (options.draft !== undefined && prompt !== undefined)
+    return fail("Use a prompt or a draft, not both", 2);
+
   let command = launcher?.executable ?? options.command;
   const agentKind = launcher?.kind ?? options.agentKind;
   const tabLabel = options.tabLabel ?? launcher?.label ?? "Shell";
 
   if (
-    (prompt !== undefined || options.agentName !== undefined) &&
+    (prompt !== undefined ||
+      options.draft !== undefined ||
+      options.agentName !== undefined) &&
     (!command || !agentKind)
   )
     return fail(
@@ -325,7 +347,9 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
           options.variant,
         );
 
-  if (selected && command) command += ` --session ${selected.sessionId}`;
+  const sessionId = selected?.sessionId ?? options.sessionId;
+
+  if (sessionId && command) command += ` --session ${sessionId}`;
 
   const socketPath = herdr.config.socketPath;
 
@@ -587,6 +611,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   }
 
   let agent: Agent | undefined;
+  let draftPasted = false;
 
   if (agentKind && paneId) {
     const targetPane = paneId;
@@ -642,6 +667,31 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
         { paneId: targetPane },
         { text: prompt },
       );
+
+    if (options.draft !== undefined) {
+      const text = options.draft;
+
+      // Paste needs an active client surface; an inactive one drops input.
+      draftPasted = yield* herdr.clientShell
+        .withConnection(
+          {
+            surface: { columns: 80, rows: 24 },
+            cellPixels: { width: 8, height: 16 },
+            initialSurface: "active",
+          },
+          (connection) =>
+            connection.surface
+              .awaitReady()
+              .pipe(
+                Effect.andThen(connection.input.paste(targetPane, { text })),
+              ),
+        )
+        .pipe(
+          Effect.as(true),
+          Effect.timeout("10 seconds"),
+          Effect.orElseSucceed(() => false),
+        );
+    }
   }
 
   return {
@@ -659,8 +709,9 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
         }
       : null,
     promptSent: prompt !== undefined && agent !== undefined,
+    draftPasted,
     model: selected?.model ?? null,
-    sessionId: selected?.sessionId ?? null,
+    sessionId: sessionId ?? null,
   };
 });
 

@@ -77,7 +77,11 @@ export class SessionStatusError extends Schema.TaggedError<SessionStatusError>()
   { message: Schema.String, exitCode: Schema.Literal(2) },
 ) {}
 
-const get = Effect.fn("sessionStatus.get")(function* <A, I>(
+/** Matches an OpenCode session ID. */
+export const SESSION_ID_PATTERN = /^ses[a-zA-Z0-9_-]+$/;
+
+/** Read and decode an OpenCode API path through the configured launcher. */
+export const getOpenCode = Effect.fn("sessionStatus.get")(function* <A, I>(
   path: string,
   schema: Schema.Codec<A, I>,
   directory?: string,
@@ -118,7 +122,7 @@ const latest = Effect.fn("sessionStatus.latest")(function* (
       ...(cursor ? { cursor } : { order: "desc" }),
     });
 
-    const page = yield* get(
+    const page = yield* getOpenCode(
       `/api/session/${sessionId}/message?${query.toString()}`,
       MessagePage,
       directory,
@@ -150,14 +154,14 @@ export const readSessionStatus = Effect.fn("readSessionStatus")(function* (
   sessionId: string,
   warnAt: number,
 ) {
-  if (!/^ses[a-zA-Z0-9_-]+$/.test(sessionId))
+  if (!SESSION_ID_PATTERN.test(sessionId))
     return yield* new SessionStatusError({
       message:
         "Use the exact OpenCode session ID from the injected environment context",
       exitCode: 2,
     });
 
-  const { data: session } = yield* get(
+  const { data: session } = yield* getOpenCode(
     `/api/session/${sessionId}`,
     Schema.Struct({ data: Session }),
   );
@@ -170,7 +174,7 @@ export const readSessionStatus = Effect.fn("readSessionStatus")(function* (
 
   const { catalogue, compaction, usage } = yield* Effect.all(
     {
-      catalogue: get(
+      catalogue: getOpenCode(
         `/api/model?location%5Bdirectory%5D=${encodeURIComponent(session.location.directory)}`,
         Catalogue,
         session.location.directory,
