@@ -111,7 +111,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Changed files
 
-81 files in both branches with different contents.
+83 files in both branches with different contents.
 
 | File | Compare |
 | --- | --- |
@@ -172,6 +172,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `dot/src/lib/stowFolders.ts` | [diff](https://github.com/timmo001/dotfiles/compare/3944d78c18624c488e1efb77e34b28d144a62214...distro/ubuntu-server#diff-a2a0425b33e3c0dc596b9366930bd8718e76f21b7209a4fca488ea326fb74e7c), [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/dot/src/lib/stowFolders.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/stowFolders.ts) |
 | `dot/src/lib/stowPackages.ts` | [diff](https://github.com/timmo001/dotfiles/compare/3944d78c18624c488e1efb77e34b28d144a62214...distro/ubuntu-server#diff-5440aa31f9a930d867fdbb8433f82b5f6a3bd99585e6fc2c9cacdb9d50a9f523), [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/dot/src/lib/stowPackages.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/stowPackages.ts) |
 | `dot/src/lib/updateMaintenance.ts` | [diff](https://github.com/timmo001/dotfiles/compare/3944d78c18624c488e1efb77e34b28d144a62214...distro/ubuntu-server#diff-3b36e56bf8a4e4845facf8a2149ede741bbb9dd88c4c114cb235b2feb637b266), [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/dot/src/lib/updateMaintenance.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/updateMaintenance.ts) |
+| `dot/src/mcp/commands/McpSync.ts` | [diff](https://github.com/timmo001/dotfiles/compare/3944d78c18624c488e1efb77e34b28d144a62214...distro/ubuntu-server#diff-427ebbc8ddb7c2c90405115d3b07ca7f287a272a52acfa6327044dd94527eb20), [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/dot/src/mcp/commands/McpSync.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/mcp/commands/McpSync.ts) |
 | `dot/src/services/Config.ts` | [diff](https://github.com/timmo001/dotfiles/compare/3944d78c18624c488e1efb77e34b28d144a62214...distro/ubuntu-server#diff-56ce6d19c4f2ff616156a3a10f5a466cdc769353812557f2d09dbefbe2dee71a), [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/dot/src/services/Config.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/services/Config.ts) |
 | `dot/src/services/GitConfig.ts` | [diff](https://github.com/timmo001/dotfiles/compare/3944d78c18624c488e1efb77e34b28d144a62214...distro/ubuntu-server#diff-9b81c9c836761105bf896532b42e46a305712303db983744fb0de221e5213d5a), [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/dot/src/services/GitConfig.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/services/GitConfig.ts) |
 | `dot/src/types.ts` | [diff](https://github.com/timmo001/dotfiles/compare/3944d78c18624c488e1efb77e34b28d144a62214...distro/ubuntu-server#diff-d7f5e4f72d0652644c550ed48a4c5b0d14534399f6b90fdf622779bbac93a464), [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/dot/src/types.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/types.ts) |
@@ -192,6 +193,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `tests/dot/git-notification-dismissal.test.ts` | [diff](https://github.com/timmo001/dotfiles/compare/3944d78c18624c488e1efb77e34b28d144a62214...distro/ubuntu-server#diff-f9608ee1c13ac238b9792dbb38f2991f8e2aa1a7895b38ff5e500ae7ee99906b), [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/tests/dot/git-notification-dismissal.test.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/tests/dot/git-notification-dismissal.test.ts) |
 | `tests/dot/git-releases-contract.test.ts` | [diff](https://github.com/timmo001/dotfiles/compare/3944d78c18624c488e1efb77e34b28d144a62214...distro/ubuntu-server#diff-550aa76667bd614b10311746192428e08e9c26bcfd48854d01c0b5f4813ffd8c), [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/tests/dot/git-releases-contract.test.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/tests/dot/git-releases-contract.test.ts) |
 | `tests/dot/herdr-launch-contract.test.ts` | [diff](https://github.com/timmo001/dotfiles/compare/3944d78c18624c488e1efb77e34b28d144a62214...distro/ubuntu-server#diff-f27633817b7015f74c9809cf065402a8aa32b85a97783566e779eafe9852fc7b), [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/tests/dot/herdr-launch-contract.test.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/tests/dot/herdr-launch-contract.test.ts) |
+| `tests/dot/mcp-repositories.test.ts` | [diff](https://github.com/timmo001/dotfiles/compare/3944d78c18624c488e1efb77e34b28d144a62214...distro/ubuntu-server#diff-8d0ef969ac3a62ee988cd68338322f8eb4f3415a5546678512003db049ef537c), [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/tests/dot/mcp-repositories.test.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/tests/dot/mcp-repositories.test.ts) |
 | `tests/dot/services-outcomes.test.ts` | [diff](https://github.com/timmo001/dotfiles/compare/3944d78c18624c488e1efb77e34b28d144a62214...distro/ubuntu-server#diff-a17bb1fbd2735f3ab018bc20de61387f58ca391f47df66dfda7b639f96502de7), [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/tests/dot/services-outcomes.test.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/tests/dot/services-outcomes.test.ts) |
 | `tmux/.config/tmux/tmux.conf` | [diff](https://github.com/timmo001/dotfiles/compare/3944d78c18624c488e1efb77e34b28d144a62214...distro/ubuntu-server#diff-900a96f49b7df7b910196082facafadf277a6773b24efe9decacdddb9686bb7f), [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/tmux/.config/tmux/tmux.conf), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/tmux/.config/tmux/tmux.conf) |
 | `topgrade/.config/topgrade.toml` | [diff](https://github.com/timmo001/dotfiles/compare/3944d78c18624c488e1efb77e34b28d144a62214...distro/ubuntu-server#diff-7ef0fa47933c852e0c8f8995b684ef2b626a1886f8aa3beaff070306f27315ed), [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/topgrade/.config/topgrade.toml), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/topgrade/.config/topgrade.toml) |
@@ -199,7 +201,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-34 files only on this branch.
+35 files only on this branch.
 
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-private.yml)
 - [`.dot-public-deb-releases.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-public-deb-releases.yml)
@@ -210,6 +212,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`docs/src/content/docs/server/overview.mdx`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/docs/src/content/docs/server/overview.mdx)
 - [`dot/src/lib/debReleases.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/debReleases.ts)
 - [`dot/src/lib/notify.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/notify.ts)
+- [`dot/src/lib/privateSelection.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/privateSelection.ts)
 - [`dot/src/server/api.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/api.ts)
 - [`dot/src/server/Serve.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/Serve.ts)
 - [`SERVER.md`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/SERVER.md)
