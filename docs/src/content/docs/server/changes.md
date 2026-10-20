@@ -230,7 +230,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-55 files only on this branch.
+56 files only on this branch.
 
 - [`.agents/skills/server-rebase/SKILL.md`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.agents/skills/server-rebase/SKILL.md)
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-private.yml)
@@ -244,6 +244,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`dot/src/lib/notify.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/notify.ts)
 - [`dot/src/lib/privateSelection.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/privateSelection.ts)
 - [`dot/src/server/api.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/api.ts)
+- [`dot/src/server/auth.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/auth.ts)
 - [`dot/src/server/Serve.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/Serve.ts)
 - [`neovim/.config/nvim/.neoconf.json`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/.neoconf.json)
 - [`neovim/.config/nvim/init.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/init.lua)
