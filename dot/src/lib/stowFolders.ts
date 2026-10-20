@@ -10,6 +10,7 @@ export const INTERNAL_STOW_FOLDERS = [
   "dot-migration",
   "docs",
   "node_modules",
+  "server",
   "tests",
 ] as const;
 
