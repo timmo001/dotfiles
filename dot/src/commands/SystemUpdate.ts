@@ -1,10 +1,11 @@
 import { Extension } from "@timmo001/effect-gh";
-import { Effect, FileSystem, Scope } from "effect";
+import { Console, Effect, FileSystem, Scope } from "effect";
 import { Prompt } from "effect/cli";
 import { tmpdir } from "os";
 import { join } from "path";
 import { isAgent } from "../lib/agent.js";
 import { cliStyler } from "../lib/ansi.js";
+import { updateDebReleases } from "../lib/debReleases.js";
 import { HOME_DIR } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
@@ -23,6 +24,7 @@ const TOPGRADE_UPDATES = [
 export const UPDATE_STEPS = [
   "dotfiles",
   "apt",
+  "releases",
   "github-cli",
   ...TOPGRADE_UPDATES.map(([, value]) => value),
 ] as const;
@@ -36,6 +38,7 @@ const UPDATE_CHOICES: ReadonlyArray<{
 }> = [
   { title: "Dotfiles", value: "dotfiles", selected: true },
   { title: "Apt packages", value: "apt", selected: true },
+  { title: "GitHub release packages", value: "releases", selected: true },
   { title: "GitHub CLI extensions", value: "github-cli", selected: true },
   ...TOPGRADE_UPDATES.map(([title, value, selected]) => ({
     title,
@@ -134,6 +137,22 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
         baseEnv,
       );
     }
+
+    if (exitCode !== 0) {
+      process.exitCode = exitCode;
+
+      return;
+    }
+  }
+
+  if (selectedSet.has("releases")) {
+    section("GitHub Release Packages");
+
+    const exitCode = yield* updateDebReleases(baseEnv).pipe(
+      Effect.catch((error) =>
+        Console.error(`[ERROR] ${error.message}`).pipe(Effect.as(1)),
+      ),
+    );
 
     if (exitCode !== 0) {
       process.exitCode = exitCode;
