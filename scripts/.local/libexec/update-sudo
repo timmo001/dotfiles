@@ -25,13 +25,5 @@ while (( $# > 0 )); do
   esac
 done
 
-if /usr/bin/sudo -n /usr/bin/true 2>/dev/null; then
-  (( validate )) && (( $# == 0 )) && exit 0
-  exec /usr/bin/sudo -n "$@"
-fi
-
-if (( validate )) && (( $# == 0 )); then
-  exec pkexec /usr/bin/true
-fi
-
-exec pkexec "$@"
+(( validate )) && (( $# == 0 )) && exec /usr/bin/sudo -n /usr/bin/true
+exec /usr/bin/sudo -n "$@"
