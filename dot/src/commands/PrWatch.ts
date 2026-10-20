@@ -13,16 +13,19 @@ import { STATE_DIR, displayPath, expandHomePath } from "../lib/paths.js";
 import {
   GH_OPTIONS as GH,
   authorLogin as author,
+  bodyFindings,
   fetchReviews,
   ghErrorMessage,
   isOpenThread,
   pullRequestLookupMessage,
   renderReviews,
   resolvePullRequest,
+  reviewBodyFindings,
   shortSha as short,
   threadLocation,
   viewPullRequest,
   type PullRequestRef,
+  type BodyFinding,
   type Review,
   type ReviewState,
   type ReviewThread,
@@ -114,6 +117,12 @@ const threadLine = (thread: ReviewThread) => {
 
   return `${threadLocation(thread)} by ${author(first?.author ?? null)}${first ? ` ${first.url}` : ""}`;
 };
+
+const findingLine = (finding: BodyFinding) =>
+  `"${finding.title}" by ${author(finding.review.author)} ${finding.review.url}`;
+
+const plural = (count: number, noun: string) =>
+  `${count} ${noun}${count === 1 ? "" : "s"}`;
 
 /** Keep only the newest run per workflow and event; older same-commit runs are superseded. */
 function latestRuns(runs: readonly Run[]): Run[] {
@@ -398,12 +407,15 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
           isOpenThread(thread),
       ).length;
 
+      const findings = bodyFindings(review).length;
+
       yield* say(
         target,
-        `Review ${review.state.toLowerCase()} by ${author(review.author)}: ${open} open thread${open === 1 ? "" : "s"}`,
+        `Review ${review.state.toLowerCase()} by ${author(review.author)}: ${open} open thread${open === 1 ? "" : "s"}${findings > 0 ? `, ${plural(findings, "finding")} in the review body` : ""}`,
       );
 
-      if (options.stopOn.includes("review") && open > 0) yield* stop("review");
+      if (options.stopOn.includes("review") && open + findings > 0)
+        yield* stop("review");
     }
 
     if (target.baseline) {
@@ -412,6 +424,9 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
           target,
           `Review ${review.state.toLowerCase()} by ${author(review.author)}${review.commit?.oid === target.head ? "" : " (older commit)"} ${review.url}`,
         );
+
+      for (const finding of reviewBodyFindings(target.reviews.reviews))
+        yield* say(target, `Review body finding ${findingLine(finding)}`);
 
       if (target.reviews.botRequests.length > 0)
         yield* say(
@@ -509,20 +524,37 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
     yield* write(`${renderReviews(target, target.reviews)}\n`);
   }
 
-  const summarise = (target: Target) => {
-    const openThreads = target.reviews.threads.filter(isOpenThread).length;
+  const feedback = (target: Target) => {
+    const threads = target.reviews.threads.filter(isOpenThread).length;
+    const findings = reviewBodyFindings(target.reviews.reviews).length;
 
+    return { threads, findings };
+  };
+
+  const describe = ({
+    threads,
+    findings,
+  }: {
+    threads: number;
+    findings: number;
+  }) =>
+    `${plural(threads, "open review thread")}${findings > 0 ? `, ${plural(findings, "review body finding")}` : ""}`;
+
+  const summarise = (target: Target) => {
     const waiting = [
       ...target.pending,
       ...target.reviews.botRequests.map((login) => `review from ${login}`),
     ];
 
-    return `#${target.number}: ${target.failures} failed, ${target.reviewsRead ? `${openThreads} open review thread${openThreads === 1 ? "" : "s"}` : "reviews not checked yet"}${waiting.length > 0 ? `, still pending: ${waiting.join(", ")}` : ""}`;
+    return `#${target.number}: ${target.failures} failed, ${target.reviewsRead ? describe(feedback(target)) : "reviews not checked yet"}${waiting.length > 0 ? `, still pending: ${waiting.join(", ")}` : ""}`;
   };
 
-  const openThreads = targets.reduce(
-    (sum, target) => sum + target.reviews.threads.filter(isOpenThread).length,
-    0,
+  const total = targets.map(feedback).reduce(
+    (sum, next) => ({
+      threads: sum.threads + next.threads,
+      findings: sum.findings + next.findings,
+    }),
+    { threads: 0, findings: 0 },
   );
 
   const outcome = timedOut
@@ -530,11 +562,11 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
     : stopReason === "failure"
       ? "Stopped early on a failure"
       : stopReason === "review"
-        ? "Stopped early on open review threads"
+        ? "Stopped early on review feedback"
         : failures > 0
           ? "Finished with failures"
-          : openThreads > 0
-            ? `Finished, CI passed with ${openThreads} open review thread${openThreads === 1 ? "" : "s"}`
+          : total.threads + total.findings > 0
+            ? `Finished, CI passed with ${describe(total)}`
             : "Finished, all passed";
 
   yield* write(
@@ -548,6 +580,9 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
     for (const thread of target.reviews.threads)
       if (isOpenThread(thread))
         process.stdout.write(`    Open thread ${threadLine(thread)}\n`);
+
+    for (const finding of reviewBodyFindings(target.reviews.reviews))
+      process.stdout.write(`    Review body finding ${findingLine(finding)}\n`);
   }
 
   process.stdout.write(`Full report: ${displayPath(report)}\n`);

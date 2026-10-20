@@ -312,6 +312,73 @@ export const fetchReviews = Effect.fn("fetchReviews")(function* (
   return { reviews, threads, botRequests } satisfies ReviewState;
 });
 
+const BADGE =
+  /<picture>(?:(?!<\/picture>)[\s\S])*?<img [^>]*alt="([^"]*)"[^>]*>[\s\S]*?<\/picture>/g;
+
+/** Review body with GitHub badge images, such as Copilot's severity, reduced to their alt text. */
+export const plainBadges = (body: string) => body.replace(BADGE, "[$1]");
+
+const SECTION =
+  /<details>\s*<summary>((?:(?!<\/summary>)[\s\S])*?)<\/summary>((?:(?!<details)[\s\S])*?)<\/details>/g;
+
+const OVERVIEW = /what changed|resolved since last review/i;
+
+/** A finding in a review body that has no review thread. */
+export interface BodyFinding {
+  /** Finding title, from its collapsed section's summary. */
+  readonly title: string;
+  /** Finding text, usually naming its `path:line`. */
+  readonly text: string;
+  /** The review whose body holds it. */
+  readonly review: Review;
+}
+
+/**
+ * Copilot findings that exist only in a review body, such as a previously
+ * missed issue in unchanged code or comments suppressed for low confidence.
+ * Sections that link to a review thread, or summarise the change, are skipped.
+ */
+export function bodyFindings(review: Review): readonly BodyFinding[] {
+  if (
+    review.isMinimized ||
+    review.state === "DISMISSED" ||
+    !/copilot/i.test(authorLogin(review.author))
+  )
+    return [];
+
+  return [...plainBadges(review.body).matchAll(SECTION)].flatMap(
+    ([, summary = "", text = ""]) => {
+      const title = summary.replace(/<[^>]+>/g, "").trim();
+
+      return OVERVIEW.test(title) || text.includes("#discussion_r")
+        ? []
+        : [{ title, text: text.trim(), review }];
+    },
+  );
+}
+
+/** Submitted reviews, newest first. */
+const submittedReviews = (reviews: readonly Review[]) =>
+  [...reviews]
+    .filter((review) => review.state !== "PENDING")
+    .sort((a, b) => (b.submittedAt ?? "").localeCompare(a.submittedAt ?? ""));
+
+/** Thread-less findings in the latest review from each author. */
+export function reviewBodyFindings(
+  reviews: readonly Review[],
+): readonly BodyFinding[] {
+  const seen = new Set<string>();
+
+  return submittedReviews(reviews).flatMap((review) => {
+    const reviewer = authorLogin(review.author);
+
+    if (seen.has(reviewer)) return [];
+    seen.add(reviewer);
+
+    return bodyFindings(review);
+  });
+}
+
 function renderComment(comment: ReviewComment): string {
   const hidden = comment.isMinimized
     ? ` (minimized as ${comment.minimizedReason ?? "unknown"})`
@@ -356,9 +423,7 @@ export function renderReviews(pr: PullRequestRef, state: ReviewState): string {
 
   out.push("", "### Reviews (newest first)", "");
 
-  const sortedReviews = [...reviews]
-    .filter((review) => review.state !== "PENDING")
-    .sort((a, b) => (b.submittedAt ?? "").localeCompare(a.submittedAt ?? ""));
+  const sortedReviews = submittedReviews(reviews);
 
   if (sortedReviews.length === 0) out.push("None.", "");
 
@@ -388,7 +453,28 @@ export function renderReviews(pr: PullRequestRef, state: ReviewState): string {
         "Superseded by a later review from the same author; body omitted.",
         "",
       );
-    else if (review.body.trim()) out.push(quote(review.body), "");
+    else if (review.body.trim()) out.push(quote(plainBadges(review.body)), "");
+  }
+
+  const findings = reviewBodyFindings(reviews);
+
+  if (findings.length > 0) {
+    out.push(
+      `### Review body findings (${findings.length})`,
+      "",
+      "In a review body with no thread, often in code the pull request did not change. Triage them like open threads; with no thread to reply in, reply in a pull request comment.",
+      "",
+    );
+
+    for (const finding of findings)
+      out.push(
+        `#### ${finding.title}`,
+        "",
+        `From ${authorLogin(finding.review.author)}: ${finding.review.url}`,
+        "",
+        quote(finding.text),
+        "",
+      );
   }
 
   out.push(`### Open threads (${open.length})`, "");

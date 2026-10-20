@@ -2497,7 +2497,7 @@ Follow every GitHub Actions run on each pull request's head commit, including Co
 | Option | Description |
 | --- | --- |
 | `--repo` `<string>` | Repository slug when the PRs are elsewhere |
-| `--stop-on` `<choice>` | Stop early on a failed job or check, or open review threads: a new review's, or unanswered ones already there at the start; repeatable (choices: failure, review) |
+| `--stop-on` `<choice>` | Stop early on a failed job or check, or review feedback: a new review's open threads or review body findings, or unanswered threads already there at the start; repeatable (choices: failure, review) |
 | `--timeout` `<string>` | Overall watch deadline (default: 60 minutes) |
 | `--interval` `<integer>` | Seconds between polls |
 | `--log-lines` `<integer>` | Trailing failed-log lines kept per job; 0 keeps everything |
