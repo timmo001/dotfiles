@@ -14,7 +14,7 @@ import { agentOxlint } from "../commands/AgentOxlint.js";
 import { agentLint } from "../commands/AgentLint.js";
 import { repoInduct } from "../commands/RepoInduct.js";
 import { clean } from "../commands/Clean.js";
-import { cloudSetup } from "../commands/CloudSetup.js";
+import { cloudSessionStart, cloudSetup } from "../commands/CloudSetup.js";
 import { completions } from "../commands/Completions.js";
 import { doctor } from "../commands/Doctor.js";
 import {
@@ -587,6 +587,15 @@ const cloudCommand = describe(
         {
           description:
             "Links ~/.claude/settings.json to cloud/claude/settings.json, writes ~/.claude/CLAUDE.md from cloud/claude/CLAUDE.md followed by the private global AGENTS.md when the private dotfiles are present, and links the shared skills into ~/.claude/skills. cloud/setup.sh runs it as the cloud environment's setup script, after installing mise and building dot. It refuses to run unless CLAUDE_CODE_REMOTE is true, since it replaces the user-level Claude Code settings and instructions.",
+        },
+      ),
+      describe(
+        Command.make("session-start", {}, () => cloudSessionStart),
+        "Add the global agent instructions when a cloud session starts",
+        ["dot cloud session-start"],
+        {
+          description:
+            "Claude Code SessionStart hook in the cloud settings. The setup script runs before a session has GitHub access, so it usually can't clone the private dotfiles. This clones or refreshes them, rewrites ~/.claude/CLAUDE.md with the global AGENTS.md for later reloads, and prints it as additional context when the CLAUDE.md the session started with lacked it. Does nothing outside a cloud session, prints nothing else and never fails.",
         },
       ),
     ]),

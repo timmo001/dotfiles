@@ -426,6 +426,28 @@ dot cloud setup
 dot cloud setup --force
 ```
 
+### `dot cloud session-start`
+
+Add the global agent instructions when a cloud session starts
+
+```text
+dot cloud session-start [flags]
+```
+
+Claude Code SessionStart hook in the cloud settings. The setup script runs before a session has GitHub access, so it usually can't clone the private dotfiles. This clones or refreshes them, rewrites ~/.claude/CLAUDE.md with the global AGENTS.md for later reloads, and prints it as additional context when the CLAUDE.md the session started with lacked it. Does nothing outside a cloud session, prints nothing else and never fails.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot cloud session-start
+```
+
 ## `dot status`
 
 Run work under a pinned terminal status header

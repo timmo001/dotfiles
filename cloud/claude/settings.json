@@ -11,5 +11,19 @@
       "Bash(jq *)"
     ]
   },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.local/bin/dot\" cloud session-start",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  },
   "alwaysThinkingEnabled": true
 }
