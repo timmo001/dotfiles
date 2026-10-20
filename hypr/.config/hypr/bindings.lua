@@ -43,7 +43,6 @@ local slack =
 
 -- Resume recovery
 o.bind("SUPER + SHIFT + R", "Reload UI", "dot reload --no-auto-open")
-o.bind("SUPER + CTRL + SHIFT + R", "Reload UI (Auto Open)", "dot reload")
 
 -- Hyprland runs all binds for the same chord in order; unbind clears default bindings first.
 hl.unbind("SUPER + TAB")
@@ -148,7 +147,6 @@ hl.unbind("SUPER + SHIFT + CTRL + G") -- Google Messages
 hl.unbind("SUPER + SHIFT + P") -- Google Photos
 hl.unbind("SUPER + SHIFT + S") -- Google Maps
 o.bind("SUPER + CTRL + SHIFT + S", "Slack", slack)
-o.bind("SUPER + M", "Music Assistant", [[omarchy-launch-webapp "http://homeassistant.local:8095"]])
 o.bind("SUPER + ALT + N", "Notes", "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e notes --all")
 o.bind("SUPER + Y", "YouTube", [[omarchy-launch-webapp "https://www.youtube.com/feed/subscriptions"]])
 o.bind("SUPER + ALT + X", "X Notifications", [[omarchy-launch-webapp "https://twitter.com/notifications"]])
@@ -161,11 +159,6 @@ o.bind("SUPER + D", "Discord", discord)
 -- Home Assistant
 o.bind("SUPER + H", "Home Assistant", [[omarchy-launch-webapp "https://prod.ha-core.localhost"]])
 o.bind("SUPER + ALT + H", "Handoffs", "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e notes handoffs --all")
-o.bind(
-  "SUPER + A",
-  "Home Assistant Assist",
-  [[omarchy-launch-webapp "https://prod.ha-core.localhost/?conversation=1"]]
-)
 o.bind("CTRL + ALT + H", "Home Assistant panel", "omarchy-shell shell toggle timmo.home-assistant")
 o.bind("CTRL + ALT + G", "Git panel", "omarchy-shell shell toggle timmo.git")
 o.bind("CTRL + ALT + SHIFT + G", "Other repositories", "omarchy-shell timmo.git other")
