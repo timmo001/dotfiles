@@ -12,6 +12,7 @@ stow:
   - herdr
   - scripts
   - triage
+  - triage--nas
   - zsh
 
 # mcp.exclude: servers from the private mcp.yml kept off this machine. dot mcp
