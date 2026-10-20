@@ -11,6 +11,7 @@ stow:
   - git
   - herdr
   - scripts
+  - systemd--nas
   - triage
   - triage--nas
   - zsh
