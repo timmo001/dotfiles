@@ -125,7 +125,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Changed files
 
-104 files in both branches with different contents.
+105 files in both branches with different contents.
 
 | File | Compare |
 | --- | --- |
@@ -218,6 +218,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `oxlint.config.ts` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-bb74d47b77763f955ac4f1aa50c369328c445a697494dd8abbeaa650907870ae), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/oxlint.config.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/oxlint.config.ts) |
 | `pitchfork.toml` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-0d6652c3581bab18f35d27f420fa244e3441bf19a655fbbd72a6510d5207ddde), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/pitchfork.toml), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/pitchfork.toml) |
 | `README.md` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/README.md), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/README.md) |
+| `renovate.json` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-7b5c8955fc544a11b4b74eddb4115f9cc51c9cf162dbffa60d37eeed82a55a57), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/renovate.json), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/renovate.json) |
 | `scripts/.local/bin/mise` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-568091f6537a01ea35418690322fc041df437fbd5daede9ae24f3bf9a671ed33), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/scripts/.local/bin/mise), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/scripts/.local/bin/mise) |
 | `scripts/.local/bin/topgrade` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-ad610e12ef616f8a312ac6e2a438efc08c5a487fd1c000571c4ebe7893af8711), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/scripts/.local/bin/topgrade), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/scripts/.local/bin/topgrade) |
 | `scripts/.local/libexec/update-sudo` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-2988dec49cdf194d5c7dde70f36862dcb4d673307a991cf58c6df48231ff15fe), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/scripts/.local/libexec/update-sudo), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/scripts/.local/libexec/update-sudo) |
