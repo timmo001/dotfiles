@@ -34,6 +34,7 @@ export default defineConfig(
           items: [
             '/server/overview',
             '/server/herdr',
+            '/server/changes',
           ],
         },
         '/stow',
