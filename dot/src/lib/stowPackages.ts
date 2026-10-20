@@ -8,6 +8,7 @@ import {
   INTERNAL_STOW_FOLDERS,
   listStowFolders,
   requiresNoFolding,
+  selectedStowFolders,
 } from "./stowFolders.js";
 import { displayPath, HOME_DIR } from "./paths.js";
 import { foldOpencodePluginFolders } from "./opencodePluginFolders.js";
@@ -111,7 +112,7 @@ export const backupUnmanagedTargets = Effect.fn("stow.backupUnmanaged")(
     const log = yield* OutputLog;
     const style = cliStyler();
 
-    const folders = (yield* listStowFolders(repoDir)).sort();
+    const folders = (yield* selectedStowFolders(repoDir)).sort();
 
     const moves = yield* Effect.sync(() =>
       backupUnmanagedStowTargets(repoDir, folders, new Set(extraIgnored)),
@@ -143,7 +144,7 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
 ) {
   const log = yield* OutputLog;
   const launcher = yield* Launcher;
-  const folders = (yield* listStowFolders(repoDir)).sort();
+  const folders = (yield* selectedStowFolders(repoDir)).sort();
   const repoDisplayPath = displayPath(repoDir);
   const style = cliStyler();
   const adoptFlags = options.adopt ? ["--adopt"] : [];
@@ -151,6 +152,7 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
   yield* log.info(style.dim(repoDisplayPath));
 
   if (scope === "public") yield* unstowLegacyInternalFolders(repoDir);
+  else yield* unstowDeselectedFolders(repoDir, folders, counts);
 
   const stowFolder = (folder: string) =>
     Effect.gen(function* () {
@@ -307,3 +309,31 @@ const unstowLegacyInternalFolders = Effect.fn("stow.unstowLegacyInternal")(
     }
   },
 );
+
+/** Unstow private packages `.dot-private.yml` no longer selects. */
+const unstowDeselectedFolders = Effect.fn("stow.unstowDeselected")(function* (
+  repoDir: string,
+  selected: readonly string[],
+  counts: StowCounts,
+) {
+  const log = yield* OutputLog;
+  const style = cliStyler();
+
+  for (const folder of yield* listStowFolders(repoDir)) {
+    if (selected.includes(folder)) continue;
+
+    const packageDir = join(repoDir, folder);
+
+    if (!(yield* hasStowLinksInto(packageDir, packageDir, HOME_DIR))) continue;
+
+    yield* log.info(
+      `${style.warn("Unstowing")} deselected ${style.accent(folder)} ${style.dim(`(${displayPath(repoDir)})`)}`,
+    );
+
+    yield* runStow(repoDir, "private", "unstow deselected", folder, [
+      "-D",
+      folder,
+    ]);
+    counts.removed++;
+  }
+});

@@ -1,0 +1,13 @@
+---
+# Stow packages dot links from the private dotfiles on this server. The
+# private repository stays on its main branch; anything not listed here, such
+# as its Omarchy, UWSM and desktop service packages, is left alone, and links
+# already made for a package removed from the list are unstowed.
+stow:
+  - agents
+  - dot-config
+  - git
+  - herdr
+  - scripts
+  - triage
+  - zsh
