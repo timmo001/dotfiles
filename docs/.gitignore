@@ -5,6 +5,9 @@ dist/
 .blume/
 .blume-verify/
 
+# generated from git on every build and dev start
+src/content/docs/server/changes.md
+
 # dependencies
 node_modules/
 
