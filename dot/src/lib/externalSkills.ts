@@ -26,6 +26,11 @@ const decodeManifest = Schema.decodeUnknownOption(
   Schema.fromJsonString(Schema.Record(Schema.String, Schema.String)),
 );
 
+/** `.dot-skills.yml`: authored skills not linked on this machine. */
+const SkillsConfig = Schema.Struct({
+  exclude: Schema.Array(Schema.String),
+});
+
 const readManifest = Effect.fn("ExternalSkills.readManifest")(function* (
   skillsDir: string,
 ) {
@@ -53,9 +58,10 @@ export const missingExternalSkills = Effect.fn("ExternalSkills.missing")(
 const pruneDirectory: (
   directory: string,
   sources: readonly string[],
+  live?: boolean,
 ) => Effect.Effect<number, never, FileSystem.FileSystem> = Effect.fn(
   "ExternalSkills.pruneDirectory",
-)(function* (directory: string, sources: readonly string[]) {
+)(function* (directory: string, sources: readonly string[], live = false) {
   const fs = yield* FileSystem.FileSystem;
   let removed = 0;
 
@@ -64,13 +70,13 @@ const pruneDirectory: (
     const info = yield* lstatOrNull(path);
 
     if (info?.type === "Directory") {
-      removed += yield* pruneDirectory(path, sources);
+      removed += yield* pruneDirectory(path, sources, live);
       continue;
     }
 
     const link = yield* readLinkOrNull(path);
 
-    if (link === null || (yield* pathExists(path))) continue;
+    if (link === null || (!live && (yield* pathExists(path)))) continue;
     const target = resolve(dirname(path), link);
 
     if (!sources.some((source) => target.startsWith(`${source}/`))) continue;
@@ -170,19 +176,61 @@ const linkSkill = Effect.fn("Skills.linkSkill")(function* (
 });
 
 /**
- * Link every authored skill from the managed skills checkout.
+ * Authored skills listed under `exclude` in `.dot-skills.yml`, which are not
+ * linked on this machine. A missing or invalid file excludes nothing.
+ */
+const excludedSkills = Effect.fn("Skills.excluded")(function* (
+  publicDotfiles: string,
+) {
+  const log = yield* OutputLog;
+  const text = yield* readTextOrNull(join(publicDotfiles, ".dot-skills.yml"));
+
+  if (text === null) return new Set<string>();
+
+  return yield* Effect.try(() => Bun.YAML.parse(text)).pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(SkillsConfig)),
+    Effect.map(({ exclude }) => new Set(exclude)),
+    Effect.catch((error) =>
+      log
+        .warn(`Ignoring .dot-skills.yml: ${error.message}`)
+        .pipe(Effect.as(new Set<string>())),
+    ),
+  );
+});
+
+/** Remove an excluded skill's links into the managed skills checkout. */
+const unlinkSkill = Effect.fn("Skills.unlinkSkill")(function* (name: string) {
+  const directory = join(AGENT_SKILLS_DIR, name);
+
+  if ((yield* lstatOrNull(directory))?.type !== "Directory") return false;
+
+  return (
+    (yield* pruneDirectory(directory, [join(SKILLS_CHECKOUT, name)], true)) > 0
+  );
+});
+
+/**
+ * Link every authored skill from the managed skills checkout, except those
+ * excluded in `.dot-skills.yml`, whose links are removed.
  *
- * @returns The number of skills whose links changed.
+ * @returns The number of skills linked, and of excluded skills unlinked.
  */
 const linkAuthoredSkills = Effect.fn("Skills.linkAuthored")(function* (
   publicDotfiles: string,
 ) {
   const log = yield* OutputLog;
   const retiredSource = join(publicDotfiles, "agents", ".agents", "skills");
+  const excluded = yield* excludedSkills(publicDotfiles);
   let changed = 0;
+  let unlinked = 0;
 
   for (const name of (yield* readDirectoryOrNull(SKILLS_CHECKOUT)) ?? []) {
     if (!(yield* pathExists(join(SKILLS_CHECKOUT, name, "SKILL.md")))) continue;
+
+    if (excluded.has(name)) {
+      if (yield* unlinkSkill(name)) unlinked++;
+      continue;
+    }
 
     const { linked, conflicts } = yield* linkSkill(name, retiredSource).pipe(
       Effect.catch((error) =>
@@ -200,7 +248,7 @@ const linkAuthoredSkills = Effect.fn("Skills.linkAuthored")(function* (
     if (linked) changed++;
   }
 
-  return changed;
+  return { changed, unlinked };
 });
 
 /**
@@ -349,7 +397,12 @@ export const syncSkills = Effect.gen(function* () {
 
   actions.push(yield* installExternalSkills(config.publicDotfiles));
 
-  const linked = yield* linkAuthoredSkills(config.publicDotfiles);
+  const { changed: linked, unlinked } = yield* linkAuthoredSkills(
+    config.publicDotfiles,
+  );
+
+  if (unlinked > 0)
+    actions.push(notable(`Unlinked ${plural(unlinked, "excluded skill")}`));
 
   if (linked > 0) {
     actions.push(notable(`Linked ${plural(linked, "authored skill")}`));
