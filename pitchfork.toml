@@ -1,5 +1,5 @@
-# Keeps the docs dev server running in the background, outside the invoking
-# shell or agent. Manage it with the serve:docs* mise tasks.
+# Keeps the docs dev server and the server dashboard running in the background,
+# outside the invoking shell or agent. Manage them with the serve:* mise tasks.
 
 [daemons.docs]
 run = 'exec mise run docs:dev --host 127.0.0.1 --port "$PORT"'
@@ -7,3 +7,13 @@ port = { expect = [7790], bump = 10 }
 ready_cmd = 'curl -fsS "http://127.0.0.1:$PORT/"'
 health_cmd = 'curl -fsS "http://127.0.0.1:$PORT/"'
 retry = true
+
+# The dashboard and API from `dot server serve`, on the LAN. Rebuilds the
+# dashboard on each start so a restart picks up a pulled change.
+[daemons.server]
+run = 'mise run server:build && exec "$HOME/.local/bin/dot" server serve --host 0.0.0.0 --port "$PORT" --dashboard server/dist'
+port = { expect = [7700], bump = 10 }
+ready_cmd = 'curl -fsS "http://127.0.0.1:$PORT/api/health"'
+health_cmd = 'curl -fsS "http://127.0.0.1:$PORT/api/health"'
+retry = true
+boot_start = true

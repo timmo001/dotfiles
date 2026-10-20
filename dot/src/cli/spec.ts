@@ -66,6 +66,7 @@ import { secretsPush } from "../commands/SecretsPush.js";
 import { editSkillConsumer, runSkillsMaintenance } from "../commands/Skills.js";
 import { runCommand } from "../commands/Run.js";
 import { httpForward } from "../commands/HttpForward.js";
+import { serverServe } from "../server/Serve.js";
 import {
   FRONTEND_SUITES,
   type FrontendSuite,
@@ -238,7 +239,7 @@ const systemUpdateCommand = describe(
     ({ yes, step, noSelfUpdate }) =>
       systemUpdate({ yes, steps: step, selfUpdate: !noSelfUpdate }),
   ),
-  "Select and run Dotfiles, apt, and Topgrade updates",
+  "Select and run Dotfiles, apt, release package and Topgrade updates",
   [
     "dot update system",
     "dot update system --yes",
@@ -246,7 +247,7 @@ const systemUpdateCommand = describe(
   ],
   {
     description:
-      "Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, apt packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.",
+      "Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. Interactive runs pre-select Dotfiles, apt packages, release packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.",
   },
 );
 
@@ -419,6 +420,38 @@ const httpForwardCommand = describe(
 const httpCommand = describe(
   Command.make("http").pipe(Command.withSubcommands([httpForwardCommand])),
   "Local HTTP helpers",
+);
+
+const serverCommand = describe(
+  Command.make("server").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "serve",
+          {
+            host: Flag.String("host").pipe(
+              Flag.withDefault("127.0.0.1"),
+              Flag.withDescription("Address to listen on"),
+            ),
+            port: integer("port", "Port to listen on", 7700),
+            dashboard: pathFlag(
+              "dashboard",
+              "Dashboard build to serve (default: server/dist in the public dotfiles)",
+              "directory",
+            ),
+          },
+          serverServe,
+        ),
+        "Serve the server dashboard",
+        ["dot server serve", "dot server serve --host 0.0.0.0"],
+        {
+          description:
+            "Serves the server dashboard and its API. The dashboard shows the registered user services from dot services status, with run or restart, stop and recent journal lines for each. It is built from the server/ package with mise run server:build, and pitchfork runs it through mise run serve:server. It has no login, so only expose it on a trusted network.",
+        },
+      ),
+    ]),
+  ),
+  "Headless server helpers",
 );
 
 const statusRunCommand = describe(
@@ -3363,6 +3396,7 @@ export const dotCommand = describe(
       updateCommand,
       runCommandSpec,
       httpCommand,
+      serverCommand,
       statusCommand,
       updatesCommand,
       daemonCommand,

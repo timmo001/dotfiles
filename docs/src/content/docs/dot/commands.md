@@ -58,7 +58,7 @@ Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: pass
 dot update <subcommand> [flags]
 ```
 
-A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and starts the doctor check. It finishes with a summary of updated repositories and every completed or skipped step, in order.
+A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and starts the doctor check. On the server branch it then runs dot update branch unless --no-branch is given. It finishes with a summary of updated repositories and every completed or skipped step, in order.
 
 Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip agents sync and init-marker backfill.
 
@@ -76,6 +76,7 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--check-all` | Also check development repos for pulls, skipping local work |
 | `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
+| `--no-branch` | Skip the final branch update, which opens an agent to rebase behind server and cloud branches |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
 | `--summary-file` `<string>` | Internal: write the final summary to this file instead of printing it |
 | `--started-at` `<integer>` | Internal: epoch ms the run started, for the summary timing |
@@ -92,47 +93,21 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 
 ### `dot update system`
 
-<<<<<<< HEAD
-Run omarchy update, which then runs the Dotfiles and Topgrade updates
-||||||| parent of b3f8fabf (Remove the desktop code from dot and switch packages to apt)
-Select and run Dotfiles, Omarchy, and Topgrade updates
-=======
-Select and run Dotfiles, apt, and Topgrade updates
->>>>>>> b3f8fabf (Remove the desktop code from dot and switch packages to apt)
+Select and run Dotfiles, apt, release package, compose-up and Topgrade updates
 
 ```text
 dot update system [flags]
 ```
 
-<<<<<<< HEAD
-Hand over to omarchy update. Its post-update hook runs dot update system --omarchy-hook, which selects and runs the other steps in order: Dotfiles, GitHub CLI extensions, and Topgrade, while Omarchy still holds its sudo authorisation, so the whole update asks for the password once. Interactive runs pre-select Dotfiles and GitHub CLI extensions; Topgrade steps start unselected. Non-interactive runs and --yes select every step. Cancelling the prompt skips them.
-
---step runs only the steps given, here and without omarchy update.
-||||||| parent of b3f8fabf (Remove the desktop code from dot and switch packages to apt)
-Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
-
-Under Herdr, when Omarchy and other steps are selected, this pane first pulls the public and private dotfiles and rebuilds dot when Dotfiles is selected. The other steps then run in a pane split off to the right, which stays open when they finish and doesn't pull the dotfiles again, while this pane runs the Omarchy update, so both can ask for authentication straight away.
-=======
-Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, apt packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
->>>>>>> b3f8fabf (Remove the desktop code from dot and switch packages to apt)
+Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, compose-up, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select Dotfiles, apt packages, release packages, GitHub CLI extensions, and compose-up; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates. When Dotfiles runs, dot update branch runs last.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-<<<<<<< HEAD
-| `--yes` | Run omarchy update with -y, and select every other update without prompting |
-| `--step` `<choice>` | Run only this step here, without omarchy update or prompting; repeat for several (choices: dotfiles, github-cli, yazi, protonplus, firmware, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
-| `--omarchy-hook` | Internal: run from Omarchy's post-update hook to select and run the other updates |
-||||||| parent of b3f8fabf (Remove the desktop code from dot and switch packages to apt)
 | `--yes` | Select every update without prompting |
-| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, omarchy, github-cli, yazi, protonplus, firmware, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
-| `--no-self-update` | Internal: the dotfiles are already pulled, so dot update skips its self-update |
-=======
-| `--yes` | Select every update without prompting |
-| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, apt, github-cli, yazi, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
+| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, apt, releases, github-cli, compose, yazi, rustup, tldr, vim, claude_code, claude_code_plugins, uv) |
 | `--no-self-update` | Skip dot update's self-update pull when the dotfiles are already pulled |
->>>>>>> b3f8fabf (Remove the desktop code from dot and switch packages to apt)
 | `--help` `-h` | Show help information |
 
 **Examples**
@@ -143,7 +118,29 @@ dot update system --yes
 dot update system --step dotfiles --step github-cli
 ```
 
-### `dot up dotfiles`
+### `dot update branch`
+
+Open an agent to rebase the distro branches when they are behind
+
+```text
+dot update branch [flags]
+```
+
+Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fast-forwards the permanent distro/cloud and distro/opencode-app worktrees at ~/.local/share/dot/dotfiles-cloud and ~/.local/share/dot/dotfiles-opencode-app, then checks whether distro/ubuntu-server is behind distro/arch-omarchy-quattro or either of those is behind distro/ubuntu-server, ignoring commits that only regenerate the distro diff page. When one is, it opens an OpenCode agent named branch-update in Herdr to follow the rebase steps in AGENTS.md, check and push. Nothing opens when all are up to date, a rebase is already in progress, the agent is already open, or dot runs under an agent. A full dot update and dot update system run it last; --no-branch skips it.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot update branch
+```
+
+## `dot deps`
 
 Pull the public and private dotfiles and their pinned submodules, and rebuild dot when its source moved. Never prompts, so it can run in the background.
 
@@ -464,6 +461,49 @@ Child exit code on completion
 dot run --timeout '5 minutes' -- opencode2 run --standalone 'Process this capture'
 ```
 
+## `dot compose`
+
+Manage Docker compose stacks
+
+```text
+dot compose <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot compose up`
+
+Pull and start compose files, then prune unused Docker data
+
+```text
+dot compose up [flags] [<file...>]
+```
+
+Reads ~/.config/dot/compose.yml: directory (compose files), optional envFile (sourced with bash; its exported variables reach docker compose) and optional pruneAfterHours (default 720). For each file, runs docker compose pull then up -d --remove-orphans, carrying on past a failed file, then runs docker system prune -af for data older than pruneAfterHours. Its messages and Docker's output are also written to the run's log in ~/.local/state/dot/logs. dot update system offers it as a step when the config exists.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<file>` | Compose files to run (default: every *.yml in the configured directory) |
+
+**Examples**
+
+```bash
+dot compose up
+dot compose up ~/containers/compose/media.yml
+```
+
 ## `dot http`
 
 Local HTTP helpers
@@ -503,6 +543,46 @@ Listens on 127.0.0.1 and forwards HTTP requests and websockets to the target ori
 ```bash
 dot http forward --port 8126 --target http://homeassistant.local:8123
 dot http forward --port 8126 --target http://homeassistant.local:8123 --cors-origin https://serve.ha-frontend.localhost --cors-suffix .ha-frontend.localhost
+```
+
+## `dot server`
+
+Headless server helpers
+
+```text
+dot server <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot server serve`
+
+Serve the server dashboard
+
+```text
+dot server serve [flags]
+```
+
+Serves the server dashboard and its API. The dashboard shows the registered user services from dot services status, with run or restart, stop and recent journal lines for each. It is built from the server/ package with mise run server:build, and pitchfork runs it through mise run serve:server. Everything except /api/health needs a login with the token in ~/.config/dot/server/token. It is plain HTTP, so only expose it on a trusted network.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--host` `<string>` | Address to listen on |
+| `--port` `<integer>` | Port to listen on |
+| `--dashboard` `<path>` | Dashboard build to serve (default: server/dist in the public dotfiles) |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot server serve
+dot server serve --host 0.0.0.0
 ```
 
 ## `dot status`
@@ -1149,648 +1229,6 @@ dot fans run [flags]
 
 ```bash
 dot fans run
-```
-
-## `dot hdr`
-
-Switch the primary monitor between HDR and SDR
-
-```text
-dot hdr <subcommand> [flags]
-```
-
-The primary monitor is HDMI-A-2 on the desktop host and the focused monitor elsewhere. On sets 10-bit output with HDR colour management and doubled SDR brightness, and saves the setting so a Hyprland reload keeps it; off restores 8-bit sRGB. Either does nothing when the monitor is already there. The hdr-on and hdr-off scripts wrap these for launchers that take a script path, such as a desktop entry for a video app. Games use dot game, which turns HDR on as part of gaming mode.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot hdr on
-dot hdr off
-```
-
-### `dot hdr on`
-
-Switch the primary monitor to HDR
-
-```text
-dot hdr on [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot hdr on
-```
-
-### `dot hdr off`
-
-Switch the primary monitor back to SDR
-
-```text
-dot hdr off [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot hdr off
-```
-
-## `dot macropad`
-
-Program and draw the 12-key, 4-knob macro pad
-
-```text
-dot macropad <subcommand> [flags]
-```
-
-macropad/layout.yaml in the public dotfiles lists what each key (in reading order) and knob (small left, small right, medium, big; each turned left, pressed and turned right) sends, as a wonkey command (key, media or mouse) and its value, and what it does. Apply runs wonkey once per action, so the pad needs its USB cable and udev-rules/60-ch57x-macropad.rules; wonkey is the patched copy vendored in macropad/vendor/wonkey, built by mise run macropad:build. Render draws the pad with those labels for the README, then converts it to PNG with rsvg-convert. Hyprland binds the keys' F13-F24, the middle knob's Ctrl+F16-F18 and the big knob's Ctrl+F13-F15.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot macropad read
-dot macropad apply
-dot macropad render
-```
-
-### `dot macropad read`
-
-Show what the macro pad holds now
-
-```text
-dot macropad read [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot macropad read
-```
-
-### `dot macropad apply`
-
-Program the macro pad from macropad/layout.yaml
-
-```text
-dot macropad apply [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot macropad apply
-```
-
-### `dot macropad render`
-
-Draw macropad/layout.svg and layout.png from layout.yaml
-
-```text
-dot macropad render [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot macropad render
-```
-
-## `dot game`
-
-Pause heavy background services and turn on HDR while gaming
-
-```text
-dot game <subcommand> [flags]
-```
-
-Gaming mode stops the user units listed in ~/.config/dot/gaming.yml that are running, waiting up to 15 seconds for them to exit, and turns HDR on unless it already is or --sdr is given. It stays on while anything holds it: each dot game run or dot game launch process, or dot game on until dot game off. When the last holder exits it starts the stopped units again and turns HDR off if it turned it on. Holders that died are dropped on the next call, so a killed wrapper can't keep services stopped. State lives in $XDG_RUNTIME_DIR/dot-game.json.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot game launch steam://rungameid/1086940
-dot game on
-dot game off
-```
-
-### `dot game on`
-
-Turn gaming mode on until dot game off
-
-```text
-dot game on [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--sdr` | Leave HDR alone, for games that look wrong in it |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot game on
-dot game on --sdr
-```
-
-### `dot game off`
-
-Turn gaming mode off now and put everything back
-
-```text
-dot game off [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot game off
-```
-
-### `dot game run`
-
-Run a game's command in gaming mode
-
-```text
-dot game run [flags] <command> [<args...>]
-```
-
-Gaming mode stays on until the command exits, then everything it changed is put back. dot game run exits with the game's exit code; SIGINT, SIGTERM and SIGHUP are passed on to the game's process group. game-run wraps it for launchers: Heroic's wrapper (dot game sync sets it) and Steam's launch options (game-run %command%).
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--sdr` | Leave HDR alone, for games that look wrong in it |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<command>` | The game's executable, after -- |
-| `<args>` | Arguments passed unchanged to the game |
-
-**Examples**
-
-```bash
-dot game run -- %command%
-game-run %command%
-```
-
-### `dot game launch`
-
-Launch a game by its store URL in gaming mode
-
-```text
-dot game launch [flags] <url>
-```
-
-Steam games are opened through Steam, and gaming mode is held until Steam's reaper process for the app exits; a game that hasn't started within 10 minutes ends it. Heroic games are only opened, since game-run holds gaming mode for them. Lutris games run through lutris with LUTRIS_SKIP_INIT=1 and hold gaming mode until it exits. Game desktop files and the Games panel launch through this.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--sdr` | Leave HDR alone, for games that look wrong in it |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<url>` | A steam://rungameid/, heroic://launch? or lutris:rungameid/ URL |
-
-**Examples**
-
-```bash
-dot game launch steam://rungameid/1086940
-dot game launch "heroic://launch?appName=1495134320&runner=gog"
-```
-
-### `dot game list`
-
-List game shortcuts and whether gaming mode is on
-
-```text
-dot game list [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--json` | Print JSON for the Games panel |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot game list
-dot game list --json
-```
-
-### `dot game sync`
-
-Make every game shortcut and Heroic game launch in gaming mode
-
-```text
-dot game sync [flags]
-```
-
-Rewrites the Steam, Heroic and Lutris game desktop files in ~/.local/share/applications to run dot game launch, keeping the store URL in X-Dot-Game-Url. Sets Heroic's default and per-game wrapper to game-run, and clears hdr-on and hdr-off launch scripts that it replaces. Only changed files are written. dot-game-sync.path runs it whenever those directories change.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot game sync
-```
-
-## `dot station`
-
-Work with Station from this machine
-
-```text
-dot station <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station desktop on
-dot station screen game
-dot station screen status
-```
-
-### `dot station desktop`
-
-Use Station's TV as an extra desktop for this machine
-
-```text
-dot station desktop <subcommand> [flags]
-```
-
-On adds a headless Hyprland output named STATION, whose mode comes from hypr/monitors.lua, makes sure Sunshine is running and can capture the desktop, restarting it when it started before Hyprland at login, and waits for it (it streams the output through output_name = STATION in ~/.config/sunshine/sunshine.conf), then runs dot screen moonlight on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml (ssh: user@host), at the output's size and refresh rate, with sound on both machines. That shows Moonlight full screen in gamescope instead of Station's desktop or gaming mode, which also takes the TV out of HDR, since the stream is SDR. It also starts a watcher that removes the output when Moonlight closes there, such as when another dot screen command takes the TV, or when Station has been unreachable for a minute. Off runs dot screen last on Station while Moonlight is on its TV, which closes it so the TV goes back to what it showed before, stops the watcher and removes the output, so its workspaces move back; the watcher removes it too. Each shows a notification, as does On when it can't reach Station. SSH calls share one connection, kept for 60 seconds after the last.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station desktop on
-dot station desktop off
-dot station desktop toggle
-```
-
-#### `dot station desktop on`
-
-Add the Station desktop and show it on Station
-
-```text
-dot station desktop on [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station desktop on
-```
-
-#### `dot station desktop off`
-
-Close Moonlight on Station, back to what it showed, and remove the Station desktop
-
-```text
-dot station desktop off [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station desktop off
-```
-
-#### `dot station desktop toggle`
-
-Turn the Station desktop off when it's on, otherwise on
-
-```text
-dot station desktop toggle [flags]
-```
-
-The laptop binds it to Super + Ctrl + Alt + S, and the Station Desktop app runs it.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station desktop toggle
-```
-
-#### `dot station desktop status`
-
-Say whether the Station desktop is on and Moonlight is showing it
-
-```text
-dot station desktop status [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station desktop status
-```
-
-#### `dot station desktop watch`
-
-Remove the Station desktop once Moonlight on Station closes
-
-```text
-dot station desktop watch [flags]
-```
-
-Run by dot station desktop on as the station-desktop-watch user unit. One SSH connection checks on Station every 2 seconds, since Station's firewall limits new connections; when it drops, it reconnects every 10 seconds rather than taking that as Moonlight closing. Once Station has been unreachable for a minute while this machine was awake, such as when it reboots or shuts down, it removes the desktop too; a suspend here starts the minute again.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station desktop watch
-```
-
-### `dot station screen`
-
-Switch what Station's TV shows
-
-```text
-dot station screen <subcommand> [flags]
-```
-
-Each runs the matching dot screen command on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml, sharing the Station desktop's SSH connection.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station screen game
-dot station screen status
-```
-
-#### `dot station screen game`
-
-Show Steam's gaming mode on Station's TV
-
-```text
-dot station screen game [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station screen game
-```
-
-#### `dot station screen desktop`
-
-Show the Plasma desktop on Station's TV
-
-```text
-dot station screen desktop [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station screen desktop
-```
-
-#### `dot station screen off`
-
-Close whatever is on Station's TV, leaving it headless
-
-```text
-dot station screen off [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station screen off
-```
-
-#### `dot station screen moonlight`
-
-Show a Moonlight stream full screen on Station's TV
-
-```text
-dot station screen moonlight [flags] <host>
-```
-
-For any other stream: dot station desktop on already runs this for the Station desktop, and also watches for it closing.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--width` `<integer>` | Stream width |
-| `--height` `<integer>` | Stream height |
-| `--fps` `<integer>` | Stream frame rate, and the TV's |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<host>` | Sunshine host to stream from |
-
-**Examples**
-
-```bash
-dot station screen moonlight desktop.local
-```
-
-#### `dot station screen last`
-
-Switch Station's TV back to what it showed before the latest switch
-
-```text
-dot station screen last [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station screen last
-```
-
-#### `dot station screen status`
-
-Say what's on Station's TV and what its next login starts
-
-```text
-dot station screen status [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station screen status
-```
-
-#### `dot station screen keyboard`
-
-Show or hide Plasma's on-screen keyboard on Station's TV
-
-```text
-dot station screen keyboard [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station screen keyboard
 ```
 
 ## `dot tunnel`

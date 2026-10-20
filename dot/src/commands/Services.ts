@@ -34,6 +34,17 @@ import {
 import { hasManualStart, writeManualStart } from "../lib/manualStart.js";
 import { notify } from "../lib/notify.js";
 import { ENV, envString } from "../lib/env.js";
+import {
+  ServiceHealth as ServiceHealthSchema,
+  StatusList,
+  StatusStat,
+  type ItemAction,
+  type ServiceHealth,
+  type ServiceRepository,
+  type ServiceRun,
+  type ServiceStatus,
+  type ServicesSnapshot,
+} from "../server/api.js";
 
 /** Registered unit is unknown or its descriptor cannot be used. */
 export class ServiceMonitorError extends Schema.TaggedError<ServiceMonitorError>()(
@@ -143,25 +154,6 @@ type CheckDescriptor = ServiceDescriptor & {
   readonly check: typeof ServiceCheck.Type;
 };
 
-const StatusStat = Schema.Struct({
-  id: Schema.String,
-  label: Schema.String,
-  value: Schema.Union([Schema.Finite, Schema.String]),
-  unit: Schema.optionalKey(Schema.String),
-  /** A hint for clients, such as Home Assistant picking a device class. */
-  kind: Schema.optionalKey(
-    Schema.Literals(["duration", "size", "timestamp", "count"]),
-  ),
-});
-
-const StatusList = Schema.Struct({
-  id: Schema.String,
-  label: Schema.String,
-  items: Schema.Array(
-    Schema.Struct({ label: Schema.String, value: Schema.String }),
-  ),
-});
-
 /** The parts of a status file or check output beyond health and summary. */
 const StatusExtras = {
   /** The item's work is under way, so the machine shouldn't turn off. */
@@ -237,138 +229,9 @@ export const writeReportedStatus = Effect.fn("Services.writeReportedStatus")(
 
 const decodeDescriptor = Schema.decodeUnknownEffect(ServiceDescriptor);
 
-/** Overall monitoring state of one registered job, ordered from worst to best. */
-export type ServiceHealth =
-  | "failed"
-  | "missing"
-  | "inactive"
-  | "stale"
-  | "degraded"
-  | "warning"
-  | "running"
-  | "paused"
-  | "ok";
+export type { ServiceHealth, ServiceRun, ServiceRepository, ServiceStatus };
 
-const HEALTH_ORDER: readonly ServiceHealth[] = [
-  "failed",
-  "missing",
-  "inactive",
-  "stale",
-  "degraded",
-  "warning",
-  "running",
-  "paused",
-  "ok",
-];
-
-/** One service invocation reconstructed from the user journal. */
-export interface ServiceRun {
-  /** systemd invocation ID. */
-  readonly invocation: string;
-  /** Start time in epoch milliseconds. */
-  readonly started?: number;
-  /** Completion time in epoch milliseconds. */
-  readonly finished?: number;
-  /** Outcome of the invocation. */
-  readonly result:
-    "success" | "warning" | "skipped" | "failed" | "running" | "stopped";
-  /** systemd result and exit status for failed runs. */
-  readonly detail?: string;
-  /** What the job reported doing, from its last `[RESULT] ` output line. */
-  readonly summary?: string;
-}
-
-/** Repository that owns a registered job's executable. */
-export interface ServiceRepository {
-  /** Herdr workspace label. */
-  readonly name: string;
-  /** Absolute repository path. */
-  readonly path: string;
-}
-
-/** An action `dot services act` runs for an item, as clients show it. */
-export interface ItemAction {
-  /** Built-in (`start`, `stop`, `dismiss`, `logs`, `investigate`) or the descriptor's id. */
-  readonly id: string;
-  /** Button label. */
-  readonly label: string;
-  /** A question for clients to ask before running it. */
-  readonly confirm?: string;
-  /** Why it can't run now; it's refused until this clears. */
-  readonly disabled?: string;
-}
-
-/** A number or short string a job reports, with an optional unit and kind. */
-export type StatusStat = typeof StatusStat.Type;
-
-/** A labelled list of label and value pairs a job reports. */
-export type StatusList = typeof StatusList.Type;
-
-/** Monitoring snapshot for one registered job. */
-export interface ServiceStatus {
-  /** Stable key, the descriptor's `id` or its file name. */
-  readonly id: string;
-  /** Registered unit, either a timer or a service; a check's id. */
-  readonly unit: string;
-  /** Service unit that does the work; a check's id. */
-  readonly service: string;
-  /** Display label. */
-  readonly label: string;
-  /** A timer and its oneshot, a long-running service, or a check with no unit. */
-  readonly kind: "timer" | "service" | "check";
-  /** Whether the item's work is under way, so the machine shouldn't turn off. */
-  readonly busy: boolean;
-  /** When the busy work started, when known. */
-  readonly busySince?: number;
-  /** How far the work is, from 0 to 1, from the status file or check. */
-  readonly progress?: number;
-  /** Figures from the status file or check. */
-  readonly stats?: readonly StatusStat[];
-  /** Short lines from the status file or check. */
-  readonly notes?: readonly string[];
-  /** Lists from the status file or check. */
-  readonly lists?: readonly StatusList[];
-  /** What `dot services act` can run for this item. */
-  readonly actions: readonly ItemAction[];
-  /** Health derived from the monitoring policy. */
-  readonly health: ServiceHealth;
-  /** Short human summary of the health. */
-  readonly summary: string;
-  /** Service ActiveState. */
-  readonly activeState: string;
-  /** Most recent run start in epoch milliseconds. */
-  readonly lastRun?: number;
-  /** Most recent successful run in epoch milliseconds. */
-  readonly lastSuccess?: number;
-  /** Next timer elapse in epoch milliseconds. */
-  readonly nextRun?: number;
-  /** Why a timer has no next elapse, when it has none. */
-  readonly nextNote?: string;
-  /** How the job runs: its kind first, then schedule or restart policy. */
-  readonly tags: readonly string[];
-  /** Consecutive failed runs since the last success, skipped run or dismissal. */
-  readonly consecutiveFailures: number;
-  /** When failures up to then were dismissed by hand, in epoch milliseconds. */
-  readonly dismissedAt?: number;
-  /** Failed runs before the latest success, when the job has recovered. */
-  readonly recoveredAfter: number;
-  /** Consecutive failures before the job counts as failed. */
-  readonly failAfter: number;
-  /** Automatic restarts inside the restart window. */
-  readonly restarts: number;
-  /** Restart policy, when configured. */
-  readonly restartLimit?: { readonly count: number; readonly within: number };
-  /** Staleness window in milliseconds, when configured. */
-  readonly staleAfter?: number;
-  /** Whether failures are recorded as notifications in the journal. */
-  readonly notify: boolean;
-  /** Newest run log, when the job keeps its own logs. */
-  readonly latestLog?: { readonly path: string; readonly modified: number };
-  /** Recent runs, newest first. */
-  readonly runs: readonly ServiceRun[];
-  /** Repository owning the executable, falling back to the public dotfiles. */
-  readonly repository: ServiceRepository;
-}
+const HEALTH_ORDER = ServiceHealthSchema.literals;
 
 interface Registered {
   readonly file: string;
@@ -1845,8 +1708,11 @@ export const servicesReport = Effect.fn("Services.report")(function* (
     services,
     errors,
     directory: SERVICES_DIR,
-  } satisfies ServicesReport;
+  } satisfies ServicesSnapshot;
 });
+
+/** Read the monitoring snapshot for every registered job, as `dot services status --json` prints it. */
+export const servicesSnapshot = servicesReport();
 
 /** How long a status read waits for the daemon before checking itself. */
 const DAEMON_TIMEOUT = "15 seconds";
@@ -2319,6 +2185,27 @@ const runSummary = (run: ServiceRun) =>
     .join(" · ");
 
 const RUN_LOG_LINES = 200;
+
+/** Read the latest journal lines of a registered job's service. */
+export const servicesJournal = Effect.fn("Services.journal")(function* (
+  unit: string,
+  lines: number,
+) {
+  const { descriptor } = yield* findRegistered(unit);
+  const [status] = yield* collectServiceStatus([{ file: "", descriptor }]);
+  const executor = yield* CommandExecutor;
+
+  return yield* executor
+    .run("journalctl", [
+      "--user",
+      "--unit",
+      status?.service ?? descriptor.unit,
+      `--lines=${lines}`,
+      "--output=short-iso",
+      "--no-pager",
+    ])
+    .pipe(Effect.orElseSucceed(() => ""));
+});
 
 /** Print the journal output of a registered job's most recent runs. */
 export const servicesRunLogs = Effect.fn("Services.runLogs")(function* (
