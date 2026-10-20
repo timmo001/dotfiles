@@ -91,7 +91,7 @@ servers:
     Effect.provide(NodeServices.layer),
     Effect.provide(Layer.mock(Config, {
       gitConfig: config(true), mcpConfig, stateDir,
-      canUsePrivate: true, privateDotfiles: directory,
+      canUsePrivate: true, privateDotfiles: directory, publicDotfiles: directory,
     })),
     Effect.provide(Layer.mock(OutputLog, {
       section: () => Effect.void, info: () => Effect.void, success: () => Effect.void, warn: () => Effect.void,
