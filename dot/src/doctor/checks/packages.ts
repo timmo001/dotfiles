@@ -70,7 +70,7 @@ const packageListResults = Effect.fn("Packages.packageListResults")(function* (
   if (pending.length > 0)
     results.push({
       severity: "warn",
-      message: `Install/update with: sudo apt-get install ${pending.join(" ")}`,
+      message: `Install/update with: sudo apt-get install --no-install-recommends ${pending.join(" ")}`,
     });
 
   return results;

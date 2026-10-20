@@ -83,7 +83,13 @@ export const updateDebReleases = Effect.fn("DebReleases.update")(function* (
 
     const exitCode = yield* executor.inherit(
       "sudo",
-      ["apt-get", "install", "-y", join(directory, asset.name)],
+      [
+        "apt-get",
+        "install",
+        "-y",
+        "--no-install-recommends",
+        join(directory, asset.name),
+      ],
       { ...(Object.keys(env).length > 0 && { env }) },
     );
 
