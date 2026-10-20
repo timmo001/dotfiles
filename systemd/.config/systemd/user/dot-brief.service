@@ -13,7 +13,7 @@ Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bi
 ExecCondition=%h/.local/bin/dot services schedule check --grace "230 minutes"
 # A missed run catches up as soon as you log in, before the network is up
 ExecStartPre=/bin/sh -c 'up=$$(cut -d. -f1 /proc/uptime); [ "$$up" -ge 120 ] || sleep $$((120 - up))'
-ExecStart=%h/.local/bin/mise exec -- %h/.local/bin/dot brief run
+ExecStart=/usr/bin/mise exec -- %h/.local/bin/dot brief run
 TimeoutStartSec=30min
 TimeoutStopSec=30s
 Restart=on-failure

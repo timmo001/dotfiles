@@ -8,9 +8,8 @@ OnFailure=dot-service-failed@%n.service
 # The desktop starts Herdr through uwsm-app from dot herdr start. The server
 # has no graphical session, so systemd owns it instead. Enable lingering
 # (loginctl enable-linger) so it runs without anyone logged in, then attach
-# from another machine with herdr --remote <host>.
-# TODO(ubuntu-server): confirm herdr server stays in the foreground. If it
-# forks, switch to Type=forking.
+# from another machine with herdr --remote <host>. herdr server stays in the
+# foreground.
 Type=simple
 Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 WorkingDirectory=%h
