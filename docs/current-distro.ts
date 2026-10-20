@@ -4,4 +4,4 @@
  * `wrangler.jsonc`. The default branch never changes this file again, so
  * merging it into a distro branch keeps that branch's value.
  */
-export const currentDistro = 'ubuntu-server';
+export const currentDistro = 'cloud';

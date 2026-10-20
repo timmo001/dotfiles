@@ -16,6 +16,7 @@ import { agentTools } from "../commands/AgentTools.js";
 import { repoHook } from "../commands/RepoHook.js";
 import { repoInduct } from "../commands/RepoInduct.js";
 import { clean } from "../commands/Clean.js";
+import { cloudSetup } from "../commands/CloudSetup.js";
 import { completions } from "../commands/Completions.js";
 import { doctor } from "../commands/Doctor.js";
 import { herdrModel, herdrRepoOpen } from "../commands/HerdrRepoOpen.js";
@@ -530,6 +531,35 @@ const serverCommand = describe(
     ]),
   ),
   "Headless server helpers",
+);
+
+const cloudCommand = describe(
+  Command.make("cloud").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "setup",
+          {
+            force: bool(
+              "force",
+              "Set up Claude Code outside a Claude Code cloud session",
+            ),
+          },
+          (input) =>
+            cloudSetup({ force: input.force }).pipe(
+              Effect.flatMap((actions) => logRunSummary("Summary", actions)),
+            ),
+        ),
+        "Prepare Claude Code in a cloud session VM",
+        ["dot cloud setup", "dot cloud setup --force"],
+        {
+          description:
+            "Links ~/.claude/settings.json to cloud/claude/settings.json, writes ~/.claude/CLAUDE.md from cloud/claude/CLAUDE.md followed by the private global AGENTS.md when the private dotfiles are present, and links the shared skills into ~/.claude/skills. cloud/setup.sh runs it as the cloud environment's setup script, after installing mise and building dot. It refuses to run unless CLAUDE_CODE_REMOTE is true, since it replaces the user-level Claude Code settings and instructions.",
+        },
+      ),
+    ]),
+  ),
+  "Cloud session VM helpers",
 );
 
 const statusRunCommand = describe(
@@ -2956,6 +2986,7 @@ export const dotCommand = describe(
       composeCommand,
       httpCommand,
       serverCommand,
+      cloudCommand,
       statusCommand,
       updatesCommand,
       servicesCommand,
