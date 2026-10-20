@@ -1,11 +1,10 @@
 ---
 # Authored skills from timmo001/skills that dot does not link on this server,
 # because they need a desktop session or cover work done elsewhere. Links
-# already made for them are removed on the next sync.
+# already made for them are removed on the next sync. The cloud branch keeps
+# the Home Assistant frontend skills, for sessions on those repositories.
 exclude:
   - browser-access
   - change-review-handoff
-  - home-assistant-frontend
-  - home-assistant-lit-rendering
   - pkexec-root
   - show-me
