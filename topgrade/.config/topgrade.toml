@@ -5,8 +5,7 @@ pre_sudo = false
 # The wrapper enables this only for runs containing privileged steps
 sudo_loop = false
 
-# TODO(ubuntu-server): decide how topgrade is installed on the server. Keep
-# self-update off until then so it does not fight the package manager.
+# mise installs topgrade, so it must not replace its own binary
 no_self_update = true
 
 # Disable specific steps
@@ -16,9 +15,9 @@ no_self_update = true
 # - lensfun: broken (missing python module)
 # - github_cli_extensions: run natively by dot update system
 # - mise: handled by dot update
-# The system step stays on here: it runs apt, and dot update system only
-# knows pacman so far.
+# - system: apt runs natively in dot update system
 disable = [
+  "system",
   "github_cli_extensions",
   "mise",
   "cursor",

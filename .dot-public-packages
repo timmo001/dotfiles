@@ -1,10 +1,8 @@
-# Public Ubuntu packages for the server.
+# Public Ubuntu packages for the server, installed by dot with apt.
 # One package per line, comments and blank lines are ignored.
 #
-# TODO(ubuntu-server): dot installs this list with pacman. It needs an apt path
-# before dot can use it here. Until then: xargs -a <(grep -v '^#' .dot-public-packages) sudo apt install
-# CLI tools such as fzf, ripgrep, jq, gh, lazygit and herdr come from the
-# global mise config, not this list.
+# CLI tools such as fzf, ripgrep, jq, gh, lazygit, neovim, yazi, topgrade and
+# herdr come from the global mise config, not this list.
 
 bmon
 btop
@@ -15,7 +13,6 @@ curl
 fastfetch
 git
 iperf3
-neovim
 pkgconf
 smem
 stow
@@ -25,26 +22,15 @@ sysstat
 syncthing
 tmux
 unzip
-yazi
 zsh
 zsh-autosuggestions
 zsh-syntax-highlighting
+# Unpacks the Ollaya CUDA libraries in ollaya-cuda-postinstall
+zstd
 
-# TODO(ubuntu-server): these come from the AUR on the desktop and have no apt
-# package. Pick an install method on the server for the ones still wanted:
-# context-git
-# ha-bridge-git
-# home-assistant-tui-git
-# momentum-git
-# music-assistant-tui-git
-# repo-notes-git
-# system-bridge-git
-# topgrade-bin
-# triage-git
-# upnext-git
-#
-# TODO(ubuntu-server): fastfetch and yazi are only in newer Ubuntu releases.
-# Check against the server's release and move them to mise if needed.
+# From the AUR on the desktop. context, ha-bridge, repo-notes, triage and
+# topgrade come from the global mise config here. Left out as desktop only:
+# home-assistant-tui, momentum, music-assistant-tui, system-bridge and upnext.
 #
 # Desktop only, left out: catppuccin-cursors-mocha, float-app-git,
 # gtk4-layer-shell, kdeconnect, libva-utils, python-gobject, qt6-webengine,
