@@ -9,11 +9,14 @@ compatibility: Requires the dot CLI, the host's configured OpenCode 2 launcher a
 
 ## Send A Session
 
-1. For this session, take the exact `Current conversation session ID` from the
-   harness's injected environment context. Never guess it from the directory,
-   the focused pane or the latest session. For another session, use the ID the
-   user gives or the one Herdr reports for that pane.
-2. Run `dot session send <session-id> --json`. It exports the session and its
+1. To send this session, run `dot session send --json` with no ID. It finds the
+   session Herdr reports for your own pane (`HERDR_PANE_ID`). If you are not in
+   a Herdr pane, pass the `Current conversation session ID` from the harness's
+   injected environment context instead. Never ask the user for the ID and
+   never guess it from the directory or the latest session.
+   To send another session, pass the ID the user gives or the one
+   `herdr agent get <pane-id>` reports for that pane (`agent_session.value`).
+2. `dot session send` exports the session and its
    subagent sessions, adds a patch of uncommitted changes (untracked files
    included) and uploads them to the queue over SSH.
 3. Tell the user, briefly:
