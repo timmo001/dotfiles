@@ -45,6 +45,8 @@ Two areas are generated from the single source of truth in the repo:
 
 Regenerate the affected catalogue from its source and include the output in the changeset; never hand-edit it. `mise run docs:gen` regenerates both. `docs:dev` also regenerates them, while production builds consume committed output. CI checks catalogue drift and builds the site.
 
+On a distro branch, `src/content/docs/server/changes.md` is generated from git by `mise run docs:gen:distro-diff` and is not committed. `build`, `check`, `validate` and `dev` run it first. It fetches the default branch and full history from GitHub when the clone is shallow.
+
 `mise run docs:og` (wraps `bun run og`) renders the raster branding from `src/assets/logo.svg` with docs-kit's `writeBrandImages`: the Open Graph image `public/og.png`, the search engine logo `public/logo.png`, `public/apple-touch-icon.png`, and the GitHub social preview `.github/social-preview.png` (upload it by hand under the repository's **Settings > Social preview**). Regenerate them only when the branding or tagline changes.
 
 ## Authoring
