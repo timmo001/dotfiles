@@ -230,8 +230,9 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-54 files only on this branch.
+55 files only on this branch.
 
+- [`.agents/skills/server-rebase/SKILL.md`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.agents/skills/server-rebase/SKILL.md)
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-private.yml)
 - [`.dot-public-deb-releases.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-public-deb-releases.yml)
 - [`.dot-skills.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-skills.yml)
