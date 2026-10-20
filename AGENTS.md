@@ -8,6 +8,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 - This is `distro/ubuntu-server`, a headless build for an Ubuntu server. It has no desktop packages: no Hyprland, UWSM, Ghostty or Omarchy.
 - Keep it terminal and service tooling only. Do not add packages that need a graphical session.
+- The server (hostname `nas`, NVIDIA GPU) is not always on. Don't move scheduled jobs, reports or anything that must run reliably onto it; keep them on the machine that already owns them. Treat it as a headless desktop, not a laptop.
 - The server hosts Herdr for remote clients through `systemd/.config/systemd/user/herdr.service`.
 - `SERVER.md` tracks what changed, the switch-over steps and what is still open. Open items tied to a file are also marked `TODO(ubuntu-server)` in place. Resolve them on the real server and tick them off.
 - The desktop code (Omarchy, Hyprland, UWSM, Ghostty, pacman, AUR, browser) is removed from `dot/`, not gated. Don't add it back.
