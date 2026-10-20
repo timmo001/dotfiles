@@ -6,6 +6,7 @@ on:
     branches:
       - distro/arch-omarchy-quattro
       - distro/ubuntu-server
+      - distro/cloud
     paths:
       - 'dot/**'
       - 'mise.toml'

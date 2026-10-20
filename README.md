@@ -2,6 +2,15 @@
 
 ![Dotfiles](.github/social-preview.png)
 
+> [!IMPORTANT]
+> This is the `distro/cloud` branch: the [Ubuntu server build](https://github.com/timmo001/dotfiles/tree/distro/ubuntu-server) with a layer for cloud agent environments, starting with Claude Code cloud sessions. Set a cloud environment's setup script to:
+>
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/timmo001/dotfiles/distro/cloud/cloud/setup.sh | bash
+> ```
+>
+> It builds `dot` and sets up Claude Code's user settings, instructions and skills in the session VM. See [Cloud](https://cloud.dotfiles.timmo.dev/cloud/overview/). The rest of this README describes the server base.
+
 Personal dotfiles for a headless Ubuntu server, managed with [GNU Stow](https://www.gnu.org/software/stow/) and the `dot` command.
 
 > [!NOTE]
