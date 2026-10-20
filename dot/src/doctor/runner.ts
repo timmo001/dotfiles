@@ -44,6 +44,7 @@ import { checkDotLinks } from "./checks/dotLinks.js";
 import { checkRetiredApps } from "./checks/retiredApps.js";
 import { checkFirewall } from "./checks/firewall.js";
 import { checkSyncthing } from "./checks/syncthing.js";
+import { checkSessionQueue } from "./checks/sessionQueue.js";
 import { withTimeoutOption } from "../lib/workflowStep.js";
 import type { CheckResult, CheckSection, DoctorReport } from "./types.js";
 
@@ -123,6 +124,7 @@ const sections: readonly SectionDef[] = [
   { name: "Retired apps", check: checkRetiredApps },
   { name: "Firewall rules", check: checkFirewall },
   { name: "Syncthing", check: checkSyncthing },
+  { name: "Session queue", check: checkSessionQueue },
 ];
 
 /**
