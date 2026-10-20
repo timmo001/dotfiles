@@ -23,6 +23,10 @@ stow:
 mcp:
   exclude:
     - chrome-devtools
+    - cloudflare-api
+    - cloudflare-bindings
+    - cloudflare-builds
+    - cloudflare-observability
 
 # syncthing.exclude: folder IDs from the private syncthing.yml kept off this
 # machine. dot stow removes them from Syncthing if they were added before, and
