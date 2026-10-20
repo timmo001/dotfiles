@@ -47,14 +47,3 @@ zsh/.local/share/zsh/chpwd-recent-dirs
 zsh/.local/share/zsh/site-functions/_mise
 zsh/.local/share/zsh/site-functions/_op
 /session-*.md
-# Former Omarchy plugin submodules. Pulling their removal leaves the old
-# checkouts behind, and `git add --all` would commit them back as gitlinks.
-/omarchy/.config/omarchy/plugins/nosignal.deckshift/
-/omarchy/.config/omarchy/plugins/timmo.agent-checks/
-/omarchy/.config/omarchy/plugins/timmo.clock/
-/omarchy/.config/omarchy/plugins/timmo.momentumctl/
-/omarchy/.config/omarchy/plugins/timmo.notes/
-/omarchy/.config/omarchy/plugins/timmo.system-bridge/
-/omarchy/.config/omarchy/plugins/timmo.upnext/
-/uwsm/.config/uwsm/env.d/99-omarchy-upgrade-env
-/uwsm/.config/uwsm/*.omarchy-upgrade-to-quattro.*.bak

@@ -11,7 +11,7 @@ const repoRoot = path.resolve(root, '..');
 const written = await writeBrandImages({
   logo: path.join(root, 'src/assets/logo.svg'),
   title: 'Dotfiles',
-  tagline: ['An agent-driven Omarchy setup for', 'development, desktop, and automation.'],
+  tagline: ['An agent-driven headless server setup for', 'development, services, and automation.'],
   site: 'dotfiles.timmo.dev',
   background: '#1e293b',
   accent: '#d97706',
