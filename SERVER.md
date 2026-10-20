@@ -86,7 +86,7 @@ Check these from a local session on the server. Items tied to a file are also ma
 
 ### Branch upkeep
 
-- [ ] Automate the rebase onto `distro/arch-omarchy-quattro`: the Server rebase workflow force-pushes a clean rebase that adds no files and passes the checks, and otherwise opens an issue for the `server-rebase` skill in OpenCode. The workflow must live on the desktop branch, since pushes there run that branch's workflows
+- [x] Automate the rebase onto `distro/arch-omarchy-quattro`: the Server rebase workflow on the desktop branch force-pushes a clean rebase that adds no files and passes the checks, and otherwise opens an issue for the `server-rebase` skill in OpenCode
 
 ### Private overlay
 
