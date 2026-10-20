@@ -176,31 +176,6 @@ export const checkDoctorTimer = checkRequiredUserUnitSetup({
   unitLabel: "Doctor timer",
 });
 
-/** Check the notes capture daemon is enabled and running. */
-export const checkNotesCaptureDaemon = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  const unit = "notes-capture-daemon.service";
-  const results: CheckResult[] = [];
-
-  yield* addFilePresenceCheck(
-    results,
-    userSystemdUnitPath(unit),
-    `Notes capture unit found: ${unit}`,
-    `Notes capture unit missing: ${unit}`,
-    "Run dot stow to link systemd user units",
-  );
-
-  yield* checkRequiredUserUnit(
-    results,
-    executor,
-    unit,
-    "Notes capture daemon",
-    `Enable with: systemctl --user enable --now ${unit}`,
-  );
-
-  return results;
-});
-
 /** Report registered services whose monitoring policy says they need attention. */
 export const checkRegisteredServices = Effect.gen(function* () {
   const { registered, errors } = yield* readRegisteredServices;
