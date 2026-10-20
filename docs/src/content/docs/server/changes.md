@@ -228,7 +228,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-40 files only on this branch.
+54 files only on this branch.
 
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-private.yml)
 - [`.dot-public-deb-releases.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-public-deb-releases.yml)
@@ -242,6 +242,20 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`dot/src/lib/privateSelection.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/privateSelection.ts)
 - [`dot/src/server/api.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/api.ts)
 - [`dot/src/server/Serve.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/Serve.ts)
+- [`neovim/.config/nvim/.neoconf.json`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/.neoconf.json)
+- [`neovim/.config/nvim/init.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/init.lua)
+- [`neovim/.config/nvim/lua/config/autocmds.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/lua/config/autocmds.lua)
+- [`neovim/.config/nvim/lua/config/keymaps.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/lua/config/keymaps.lua)
+- [`neovim/.config/nvim/lua/config/lazy.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/lua/config/lazy.lua)
+- [`neovim/.config/nvim/lua/config/options.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/lua/config/options.lua)
+- [`neovim/.config/nvim/lua/config/remote_clipboard.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/lua/config/remote_clipboard.lua)
+- [`neovim/.config/nvim/lua/plugins/all-themes.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/lua/plugins/all-themes.lua)
+- [`neovim/.config/nvim/lua/plugins/disable-news-alert.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/lua/plugins/disable-news-alert.lua)
+- [`neovim/.config/nvim/lua/plugins/lualine-transparent.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/lua/plugins/lualine-transparent.lua)
+- [`neovim/.config/nvim/lua/plugins/snacks-animated-scrolling-off.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/lua/plugins/snacks-animated-scrolling-off.lua)
+- [`neovim/.config/nvim/lua/plugins/theme.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/lua/plugins/theme.lua)
+- [`neovim/.config/nvim/plugin/after/transparency.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/plugin/after/transparency.lua)
+- [`neovim/.config/nvim/stylua.toml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/stylua.toml)
 - [`pitchfork/.config/pitchfork/config.toml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/pitchfork/.config/pitchfork/config.toml)
 - [`scripts/.local/bin/herdr`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/scripts/.local/bin/herdr)
 - [`SERVER.md`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/SERVER.md)
