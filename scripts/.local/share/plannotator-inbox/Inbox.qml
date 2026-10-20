@@ -53,14 +53,33 @@ Window {
   function forwardNotification(notification) {
     if (!sameOrigin(notification.origin)) return
     notification.show()
+    writeNotification(notification.title, notification.message)
+  }
 
+  function writeNotification(title, message) {
     var request = new XMLHttpRequest()
     request.open("PUT", "file://" + root.notificationFile)
     request.send(JSON.stringify({
-      title: String(notification.title),
-      message: String(notification.message),
+      title: String(title),
+      message: String(message),
       at: Date.now()
     }))
+  }
+
+  // Downloads, such as an attachment's Download button, are cancelled unless
+  // the app accepts them. They go to the profile's download folder
+  // (~/Downloads), and a notification says where each one landed.
+  function acceptDownload(download) {
+    download.accept()
+  }
+
+  function reportDownload(download) {
+    if (download.state === WebEngineDownloadRequest.DownloadCompleted)
+      writeNotification("Downloaded " + download.downloadFileName,
+        "Saved to " + download.downloadDirectory)
+    else if (download.state === WebEngineDownloadRequest.DownloadInterrupted)
+      writeNotification("Download failed",
+        download.downloadFileName + ": " + download.interruptReasonString)
   }
 
   // A prototype, because a profile only keeps cookies and local storage (the
@@ -79,6 +98,8 @@ Window {
   Component.onCompleted: {
     var profile = inboxProfile.instance()
     profile.presentNotification.connect(root.forwardNotification)
+    profile.downloadRequested.connect(root.acceptDownload)
+    profile.downloadFinished.connect(root.reportDownload)
     view.profile = profile
     view.url = root.baseUrl
     commandPoll.start()
