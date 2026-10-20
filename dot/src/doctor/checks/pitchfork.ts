@@ -17,6 +17,16 @@ export const checkPitchforkProxy = Effect.gen(function* () {
     ] satisfies CheckResult[];
   }
 
+  if (
+    (yield* executor
+      .run("pitchfork", ["settings", "get", "proxy.enable"])
+      .pipe(Effect.orElseSucceed(() => ""))).trim() === "false"
+  ) {
+    return [
+      { severity: "ok", message: "pitchfork proxy is disabled, skipping" },
+    ] satisfies CheckResult[];
+  }
+
   if ((yield* executor.exitCode("pitchfork", ["proxy", "doctor"])) === 0) {
     return [
       { severity: "ok", message: "pitchfork proxy is healthy" },
