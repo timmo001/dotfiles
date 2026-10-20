@@ -45,6 +45,8 @@ const REPO_KEYS = new Set([
   "releases",
   "herdr_after",
   "machines",
+  // Desktop-only Omarchy setting, shared through dot-git.yml and ignored here.
+  "omarchy_components",
 ]);
 
 const CHECK_KEYS = new Set(["enabled", "schedule"]);
@@ -154,6 +156,10 @@ export const LinkSiteRule = Schema.Struct({
   ),
   /** Browser name from `browsers`, or `work-time` for `work` during work time and `personal` otherwise. */
   browser: Schema.NonEmptyString,
+  /** Desktop-only Hyprland placement, ignored on the server. */
+  workspace: Schema.optionalKey(Schema.Unknown),
+  /** Desktop-only host filter, ignored on the server. */
+  hosts: Schema.optionalKey(Schema.Unknown),
 });
 
 /** Decoded {@link LinkSiteRule}. */
@@ -167,6 +173,10 @@ export const LinkSettings = Schema.Struct({
   work: Schema.optionalKey(Schema.NonEmptyString),
   /** Per-site overrides, checked in order before repository browsers. */
   sites: Schema.optionalKey(Schema.Array(LinkSiteRule)),
+  /** Desktop-only browser window classes, ignored on the server. */
+  window_classes: Schema.optionalKey(Schema.Unknown),
+  /** Desktop-only dot links extension setup, ignored on the server. */
+  extension: Schema.optionalKey(Schema.Unknown),
 });
 
 /** Decoded {@link LinkSettings}. */
@@ -245,6 +255,8 @@ export interface DotGitConfig {
   readonly issueExclusions: readonly IssueExclusion[];
   /** Validation diagnostics for missing or malformed config. */
   readonly diagnostics: readonly string[];
+  /** Clone missing repositories shallow, as `.dot-private.yml` selects. */
+  readonly shallowClones?: boolean;
 }
 
 interface ParsedGitConfig {
