@@ -13,8 +13,8 @@ import type { CheckResult } from "../types.js";
  * Check that the managed ufw firewall rules are present and carry their
  * expected purpose comment.
  *
- * Reads the world-readable ufw user.rules file (no elevation), so it runs
- * non-interactively inside the parallel doctor runner. Reports a warning per
+ * Reads the ufw user.rules file, through non-interactive sudo when it is
+ * root-only, so it never prompts inside the parallel doctor runner. Reports a warning per
  * missing rule unit (with the command to add it), a warning when a rule
  * exists without its expected comment, or a single warning when ufw is not
  * installed.
