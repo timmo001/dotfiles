@@ -1,5 +1,5 @@
 import { join } from "path";
-import { Cron, Duration, Effect, FileSystem, Schema } from "effect";
+import { Cron, Duration, Effect, FileSystem, Option, Schema } from "effect";
 import { ReleaseSettings } from "../git/release/types.js";
 import { displayPath, expandHomePath } from "../lib/paths.js";
 import {
@@ -44,6 +44,7 @@ const REPO_KEYS = new Set([
   "issues",
   "releases",
   "herdr_after",
+  "machines",
 ]);
 
 const CHECK_KEYS = new Set(["enabled", "schedule"]);
@@ -235,6 +236,8 @@ export interface GitManagedRepo {
   readonly github: string;
   /** Shell shortcuts generated for this repository. */
   readonly aliases: readonly string[];
+  /** Machines that want this repository, such as `desktop` and `server`. */
+  readonly machines?: readonly string[];
   /** Workspace label a new Herdr workspace for this repository opens after. */
   readonly herdrAfter?: string;
   /** Command run from the repository root after `dot update` pulls a new HEAD. */
@@ -699,6 +702,18 @@ function parseRepo(
     diagnostics,
   );
 
+  const machines =
+    value.machines === undefined
+      ? []
+      : Option.getOrUndefined(
+          Schema.decodeUnknownOption(Schema.Array(Schema.NonEmptyString))(
+            value.machines,
+          ),
+        );
+
+  if (machines === undefined)
+    diagnostics.push(`${location}.machines must be a list of machine names`);
+
   const agentOxlint = optionalBoolean(
     value.agent_oxlint,
     `${location}.agent_oxlint`,
@@ -796,6 +811,7 @@ function parseRepo(
       path: expandHomePath(rawPath),
       github,
       aliases,
+      ...(machines && machines.length > 0 && { machines }),
       ...(herdrAfter && { herdrAfter }),
       postUpdate,
       agentOxlint,

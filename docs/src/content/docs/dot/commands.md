@@ -2528,6 +2528,7 @@ The terminal wizard asks for Normal (first and default) or Home Assistant, then 
 | `--issues` | Show open issues in the Git panel; --no-issues hides them (default: the preset, for repositories you own with GitHub issues enabled) |
 | `--browser` `<string>` | Named browser from dot-git.yml; empty for the desktop default |
 | `--herdr-after` `<string>` | Herdr workspace to open after; empty for none (default: last entry with the preset prefix) |
+| `--machines` `<string>` | Space- or comma-separated machines that want the repository; empty for none (default: the preset's) |
 | `--notes-remote` `<string>` | Git remote for notes; empty for none (default: upstream when present) |
 | `--agent-lint` `<string>` | Agent lint command, split on spaces; empty for none |
 | `--opencode-mcp` `<string>` | Space- or comma-separated OpenCode MCP servers; empty for none |

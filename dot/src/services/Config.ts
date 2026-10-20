@@ -141,9 +141,16 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
         envString(ENV.DOT_GIT_CONFIG_FILE) ??
         defaultDotGitConfigPath(privatePath);
 
-      const gitConfig = canUsePrivate
+      const loadedGitConfig = canUsePrivate
         ? yield* loadDotGitConfig(gitConfigFile)
         : emptyDotGitConfig(gitConfigFile);
+
+      const gitConfig: DotGitConfig = {
+        ...loadedGitConfig,
+        repositories: loadedGitConfig.repositories.filter(
+          (repo) => repo.machines?.includes("desktop") ?? false,
+        ),
+      };
 
       const mcpConfigFile =
         envString(ENV.DOT_MCP_CONFIG_FILE) ?? defaultMcpConfigPath(privatePath);

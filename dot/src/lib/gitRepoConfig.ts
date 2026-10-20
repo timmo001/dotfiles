@@ -291,6 +291,8 @@ export function appendGitRepository(
 
   if (repo.herdrAfter) Object.assign(entry, { herdr_after: repo.herdrAfter });
 
+  if (repo.machines?.length) Object.assign(entry, { machines: repo.machines });
+
   if (repo.browser) Object.assign(entry, { browser: repo.browser });
 
   if (repo.notesRemote)
@@ -341,6 +343,14 @@ export function appendGitRepository(
           ...entry.aliases.map((alias) => `      - ${JSON.stringify(alias)}`),
         ]
       : ["    aliases: []"]),
+    ...(repo.machines?.length
+      ? [
+          "    machines:",
+          ...repo.machines.map(
+            (machine) => `      - ${JSON.stringify(machine)}`,
+          ),
+        ]
+      : []),
     ...(repo.postUpdate === null
       ? []
       : [`    post_update: ${JSON.stringify(repo.postUpdate)}`]),

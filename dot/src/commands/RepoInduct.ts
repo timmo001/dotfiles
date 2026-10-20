@@ -31,6 +31,7 @@ const ScheduledCheck = Schema.Struct({
 
 const Preset = Schema.Struct({
   name_prefix: Schema.optionalKey(Schema.String),
+  machines: Schema.optionalKey(Schema.Array(Schema.String)),
   post_update: Schema.NullOr(Schema.String),
   agent_oxlint: Schema.Boolean,
   agent_lint: Schema.optionalKey(Schema.NullOr(Schema.String)),
@@ -72,6 +73,8 @@ export interface RepoInductOptions {
   readonly github?: string;
   /** Space- or comma-separated aliases; an empty string means none. */
   readonly aliases?: string;
+  /** Space- or comma-separated machines that want the repository; an empty string means none. */
+  readonly machines?: string;
   /** Post-update command; an empty string means none. */
   readonly postUpdate?: string;
   /** Enable the advisory agent Oxlint pass. */
@@ -326,6 +329,10 @@ export const inductRepository = Effect.fn("repoInduct.run")(
       path: root,
       github,
       aliases: splitList(options.aliases ?? ""),
+      machines:
+        options.machines === undefined
+          ? (preset.machines ?? [])
+          : splitList(options.machines),
       herdrAfter: optionalText(options.herdrAfter ?? previousInPreset),
       browser: optionalText(
         options.browser === undefined ? preset.browser : options.browser,
@@ -380,6 +387,14 @@ export const inductRepository = Effect.fn("repoInduct.run")(
           yield* askText(
             "Aliases (spaces or commas, blank for none)",
             answers.aliases.join(" "),
+            false,
+          ),
+        );
+
+        const machines = splitList(
+          yield* askText(
+            "Machines that want this repository (spaces or commas)",
+            (answers.machines ?? []).join(" "),
             false,
           ),
         );
@@ -510,6 +525,7 @@ export const inductRepository = Effect.fn("repoInduct.run")(
           path: root,
           github,
           aliases,
+          machines,
           herdrAfter: optionalText(herdrAfter),
           browser: optionalText(browser),
           notesRemote: optionalText(notesRemote),

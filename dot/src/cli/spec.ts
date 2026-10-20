@@ -2456,6 +2456,10 @@ const repoInductCommand = describe(
         "herdr-after",
         "Herdr workspace to open after; empty for none (default: last entry with the preset prefix)",
       ),
+      machines: text(
+        "machines",
+        "Space- or comma-separated machines that want the repository; empty for none (default: the preset's)",
+      ),
       notesRemote: text(
         "notes-remote",
         "Git remote for notes; empty for none (default: upstream when present)",
@@ -2503,6 +2507,7 @@ const repoInductCommand = describe(
         issues: optional(input.issues),
         browser: optional(input.browser),
         herdrAfter: optional(input.herdrAfter),
+        machines: optional(input.machines),
         notesRemote: optional(input.notesRemote),
         agentLint: optional(input.agentLint),
         opencodeMcp: optional(input.opencodeMcp),

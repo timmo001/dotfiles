@@ -194,6 +194,13 @@ $defs:
           type: string
           pattern: "^[A-Za-z_][A-Za-z0-9_-]*$"
         description: Shell shortcuts generated for this repository.
+      machines:
+        type: array
+        uniqueItems: true
+        items:
+          type: string
+          minLength: 1
+        description: Machines that want this repository, such as desktop and server. Each machine keeps only the repositories that list it; the desktop is desktop, and a server is its .dot-private.yml repos.machine.
       herdr_after:
         type: string
         minLength: 1
