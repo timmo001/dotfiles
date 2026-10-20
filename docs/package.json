@@ -14,6 +14,7 @@
     "og": "bun scripts/generate-og.mjs",
     "gen:cli": "bun scripts/generate-cli-reference.ts",
     "gen:opencode": "bun scripts/generate-opencode-reference.ts",
+    "gen:distro-diff": "bun scripts/generate-distro-diff.ts",
     "gen": "bun run gen:cli && bun run gen:opencode",
     "predev": "bun run gen"
   },
