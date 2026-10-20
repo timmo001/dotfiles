@@ -13,6 +13,7 @@ import {
 } from "../commands/Services.js";
 import { Config } from "../services/Config.js";
 import { ServerApi, ServerFailure, ServiceNotFound } from "./api.js";
+import { loginMiddleware } from "./auth.js";
 
 const JOURNAL_LINES = 200;
 
@@ -98,10 +99,12 @@ export const serverServe = Effect.fn("Server.serve")(function* (
       )
     : api;
 
+  const auth = yield* loginMiddleware;
+
   yield* Console.log(`Serving on http://${options.host}:${options.port}`);
 
   return yield* Layer.launch(
-    HttpRouter.serve(routes).pipe(
+    HttpRouter.serve(routes, { middleware: auth }).pipe(
       Layer.provide(
         NodeHttpServer.layer(createServer, {
           host: options.host,
