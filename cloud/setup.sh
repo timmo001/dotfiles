@@ -43,6 +43,9 @@ log_file=$HOME/.local/state/dot/cloud-setup.log
 export PATH=$HOME/.local/bin:$PATH
 export GIT_TERMINAL_PROMPT=0
 
+# Follows the CI pin in .github/actions/setup-mise through Renovate.
+MISE_VERSION="2026.10.15"
+
 step() { printf '\n==> %s\n' "$*"; }
 
 warn() { printf '[WARN] %s\n' "$*" >&2; }
@@ -63,6 +66,23 @@ sync_repo() {
   fi
 }
 
+# Install the pinned mise from GitHub Releases, which the default Trusted
+# network access allows, unlike mise.run and mise.jdx.dev.
+install_mise() {
+  local base=https://github.com/jdx/mise/releases/download/v$MISE_VERSION
+  local asset=mise-v$MISE_VERSION-linux-x64 tmp status
+
+  tmp=$(mktemp -d) || return
+  curl -fsSL -o "$tmp/$asset" "$base/$asset" &&
+    curl -fsSL -o "$tmp/SHASUMS256.txt" "$base/SHASUMS256.txt" &&
+    (cd "$tmp" && grep " ./$asset\$" SHASUMS256.txt | sha256sum --check --status) &&
+    install -D -m 755 "$tmp/$asset" "$HOME/.local/bin/mise"
+  status=$?
+  rm -rf "$tmp"
+
+  return $status
+}
+
 main() {
   # Cloud setup scripts run as root; anywhere else this would replace the
   # user's own Claude Code settings.
@@ -80,7 +100,7 @@ main() {
 
   step "mise"
   if ! command -v mise >/dev/null; then
-    curl -fsSL https://mise.run | MISE_QUIET=1 sh || return
+    install_mise || return
   fi
   mise --version
 
