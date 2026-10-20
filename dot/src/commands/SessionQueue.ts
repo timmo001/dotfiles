@@ -17,7 +17,6 @@ import {
   gitRemoteOrigin,
   gitWorkingTreeClean,
 } from "../lib/git.js";
-import { resolvedOmarchyHost } from "../lib/omarchyHost.js";
 import { CACHE_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
 import {
   attachmentFor,
@@ -37,7 +36,6 @@ import {
   type QueueMeta,
 } from "../lib/sessionQueue.js";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
-import { Config } from "../services/Config.js";
 import { normalizeGitHubSlug } from "../services/GitConfig.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { DEFAULT_SOCKET_PATH, openHerdrRepo } from "./HerdrRepoOpen.js";
@@ -112,12 +110,7 @@ const requireQueue = Effect.gen(function* () {
   return queue;
 });
 
-const thisHost = Effect.gen(function* () {
-  const config = yield* Config;
-  const host = (yield* resolvedOmarchyHost(config)) ?? hostname();
-
-  return host.replace(/[^A-Za-z0-9._-]/g, "-");
-});
+const thisHost = Effect.sync(() => hostname().replace(/[^A-Za-z0-9._-]/g, "-"));
 
 const opencodeVersion = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
