@@ -1,21 +1,27 @@
 import { docsConfig } from '@timmo001/docs-kit/blume';
 import { defineConfig } from 'blume';
+import { currentDistro } from './current-distro';
+import { distroById, distroSelector } from './distros';
+
+const distro = distroById(currentDistro);
 
 export default defineConfig(
   docsConfig({
     title: 'Dotfiles',
     description: 'An agent-driven Omarchy setup for development, desktop, and automation.',
-    site: 'dotfiles.timmo.dev',
+    site: distro.site,
     github: {
       owner: 'timmo001',
       repo: 'dotfiles',
-      branch: 'distro/arch-omarchy-quattro',
+      branch: distro.branch,
     },
     navigation: {
+      selectors: [distroSelector(distro)],
       sidebar: [
         '/',
         '/getting-started',
         '/configuration',
+        '/distros',
         {
           label: 'dot',
           items: [

@@ -46,6 +46,7 @@ Short personal reference: what each major part of **these** dotfiles is, and why
 - Keep `blume.config.ts`, site Overview, `agents/overview.mdx`, `agents/skills.mdx`, `agents/opencode/overview.mdx`, and README docs-map aligned: **paths** under `/agents/overview`, `/agents/skills`, `/agents/opencode/*`, `/agents/{pi,cursor}`; **sidebar** is **Agents** (flat Overview/Skills), **OpenCode** (`display: "group"`), then top-level **Pi** and **Cursor** (no Other agents wrapper). Machine-readable docs URLs live on the site Overview; `dot/commands` sits with `dot`. Sidebar labels: `/agents/overview` → **Overview**, `/agents/skills` → **Skills**, `/agents/opencode/overview` → **Overview**, `/agents/opencode/agents` → **Agents** (via generated page title). Desktop pages live under `/desktop/*`.
 - Cursor has **no** generated command catalogue in this repo; do not invent one on Cursor pages.
 - `README.md` stays a slim pointer to the docs site.
+- Each `distro/*` branch publishes its own docs site. Follow `docs/AGENTS.md` (Distro Sites) when adding a distro or editing `distros.ts`, `current-distro.ts` or `wrangler.jsonc`.
 
 ## Voice and shape
 

@@ -1,0 +1,24 @@
+---
+title: Distros
+description: The distro branches of these dotfiles and the docs site each one publishes.
+---
+
+Each machine type lives on its own `distro/*` branch. The default branch is the full Omarchy desktop, and the others are cut-down copies for machines without that desktop. Every branch publishes its own copy of these docs, so each site describes only what that branch ships. The **Distro** switcher in the header moves between them.
+
+| Distro | Branch | Docs |
+| --- | --- | --- |
+| **Omarchy desktop**: Arch and Omarchy on the desktop and laptop | [`distro/arch-omarchy-quattro`](https://github.com/timmo001/dotfiles/tree/distro/arch-omarchy-quattro) | [dotfiles.timmo.dev](https://dotfiles.timmo.dev/) |
+| **Ubuntu server**: headless Ubuntu server and remote Herdr host | [`distro/ubuntu-server`](https://github.com/timmo001/dotfiles/tree/distro/ubuntu-server) | [ubuntu-server.dotfiles.timmo.dev](https://ubuntu-server.dotfiles.timmo.dev/) |
+
+:::caution[Personal setup]
+Like the rest of these docs, each distro is tuned for my own machines. Borrow the pieces you want rather than installing one wholesale.
+:::
+
+## How the sites publish
+
+| Piece | Why |
+| --- | --- |
+| `docs/distros.ts` | Shared list of distros for the header switcher, kept on the default branch and merged into the others |
+| `docs/current-distro.ts` | Which entry this branch is, setting its site and GitHub branch |
+| `docs/wrangler.jsonc` | Worker name and custom domain for this branch's site |
+| [Cloudflare Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) | One Worker per distro, each deploying from its own branch |

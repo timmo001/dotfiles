@@ -22,6 +22,20 @@ This directory is the Blume + Astro documentation site for the dotfiles repo, de
 - Site, navigation, theme, and SEO config: `blume.config.ts`, built with docs-kit's `docsConfig`, which supplies the shared defaults (logos, agent surfaces, Cloudflare deployment, share cards).
 - Generated runtime: `.blume/` (ignored; never edit it directly).
 
+## Distro Sites
+
+Each `distro/*` branch publishes its own copy of this site to its own Cloudflare Worker, so every site describes only what its branch ships. The header **Distro** switcher and the `/distros` page link them together.
+
+- `distros.ts` lists every distro (ID, label, branch, host name). It lives on the default branch and merges into the others; never edit it only on a distro branch.
+- `current-distro.ts` names this branch's entry. `blume.config.ts` reads it for `site`, `github.branch` and the switcher. The default branch never changes this file, so merges keep each distro branch's value.
+- `wrangler.jsonc` holds this branch's Worker `name` and custom-domain route. Each distro branch sets its own; the default branch keeps `dotfiles-docs` on `dotfiles.timmo.dev`.
+
+To add a distro:
+
+1. On the default branch, add its entry to `distros.ts` and a row to `src/content/docs/distros.mdx`, then merge into the other distro branches.
+2. On the distro branch, set `current-distro.ts` to the new ID and give `wrangler.jsonc` a new Worker name (`dotfiles-docs-<id>`) and route (`<id>.dotfiles.timmo.dev`). Trim the sidebar and pages to what the branch ships.
+3. In Cloudflare, create a Workers Builds project for that Worker with the distro branch as its production branch, the `docs` root directory, and the same build and deploy commands as the main site.
+
 ## Generated Content
 
 Two areas are generated from the single source of truth in the repo:

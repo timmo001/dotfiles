@@ -37,6 +37,7 @@ Ongoing: `dot doctor` (health checks), `dot update` (pull, stow, rebuild).
 
 - [Overview](https://dotfiles.timmo.dev/)
 - [Getting started](https://dotfiles.timmo.dev/getting-started/)
+- [Distros](https://dotfiles.timmo.dev/distros/)
 - [Configuration](https://dotfiles.timmo.dev/configuration/)
 - [`dot`](https://dotfiles.timmo.dev/dot/overview/) · [command reference](https://dotfiles.timmo.dev/dot/commands/)
 - [Hyprland](https://dotfiles.timmo.dev/desktop/hyprland/) · [Ghostty](https://dotfiles.timmo.dev/desktop/ghostty/) · [Herdr](https://dotfiles.timmo.dev/desktop/herdr/) · [UWSM](https://dotfiles.timmo.dev/desktop/uwsm/) · [Omarchy Shell](https://dotfiles.timmo.dev/desktop/omarchy-shell/)
