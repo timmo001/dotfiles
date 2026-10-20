@@ -2,14 +2,18 @@ import { Effect } from "effect";
 import { readListFile } from "./listFile.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
-/** Whether a package is installed. */
+/** Whether an apt package is installed. */
 export function isPackageInstalled(
   packageName: string,
 ): Effect.Effect<boolean, never, CommandExecutor> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
 
-    return (yield* executor.exitCode("pacman", ["-Q", packageName])) === 0;
+    const status = yield* executor
+      .run("dpkg-query", ["-W", "-f=${Status}", packageName])
+      .pipe(Effect.orElseSucceed(() => ""));
+
+    return status.trim() === "install ok installed";
   });
 }
 

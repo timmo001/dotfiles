@@ -5,9 +5,7 @@ import { pathExists } from "./fsProbe.js";
 import type { ConfigService } from "../services/Config.js";
 
 interface InitMarkerOptions {
-  readonly noninteractive?: boolean;
   readonly force?: boolean;
-  readonly host?: string;
   readonly log?: string;
 }
 
