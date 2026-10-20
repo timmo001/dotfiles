@@ -31,16 +31,25 @@ interface BarEntry {
   readonly [key: string]: string | number | boolean | undefined;
 }
 
-/** The bar layout columns of an Omarchy `shell.json`. */
+/** The bar layout sections of an Omarchy `shell.json`. */
 interface ShellLayout {
   left: BarEntry[];
   center: BarEntry[];
   right: BarEntry[];
-  [key: string]: BarEntry[];
+  [key: string]: BarEntry[] | undefined;
 }
 
+const BAR_SECTIONS = [
+  "left",
+  "centerBegin",
+  "center",
+  "centerEnd",
+  "tray",
+  "right",
+] as const;
+
 /** A bar section accepted by Omarchy's placement commands. */
-type BarSection = keyof ShellLayout;
+type BarSection = (typeof BAR_SECTIONS)[number];
 
 /** Persisted placement for a managed third-party bar widget. */
 export interface ManagedPluginPlacement {
@@ -113,14 +122,13 @@ export function mergeManagedPluginConfigs(
 /** The `bar` block of an Omarchy `shell.json` (unknown fields preserved). */
 interface ShellBar {
   position?: string;
-  centerAnchor?: string;
   layout: ShellLayout;
   [key: string]: JsonValue | ShellLayout | undefined;
 }
 
 /**
  * The parts of Omarchy's `shell.json` this generator reads and mutates. All
- * other fields (`version`, `centerAnchor`, clock formats, weather, future
+ * other fields (`version`, clock formats, weather, future
  * additions) are preserved verbatim via the index signatures.
  */
 interface ShellConfig {
@@ -183,8 +191,20 @@ function isShellConfig(value: JsonValue): value is JsonObject & ShellConfig {
   const { left, center, right } = layout;
 
   return (
-    isBarEntryArray(left) && isBarEntryArray(center) && isBarEntryArray(right)
+    isBarEntryArray(left) &&
+    isBarEntryArray(center) &&
+    isBarEntryArray(right) &&
+    Object.values(layout).every(isBarEntryArray)
   );
+}
+
+/** Every section list present in a layout, including Omarchy's newer ones. */
+function layoutSections(layout: ShellLayout): BarEntry[][] {
+  return Object.values(layout).filter((entries) => entries !== undefined);
+}
+
+function isBarSection(value: JsonValue | undefined): value is BarSection {
+  return BAR_SECTIONS.some((section) => section === value);
 }
 
 /** Place a managed widget after removing any previous instance. */
@@ -198,7 +218,7 @@ function placeManagedPlugin(
   if (!placement) return;
   let existing: BarEntry | undefined;
 
-  for (const entries of [layout.left, layout.center, layout.right]) {
+  for (const entries of layoutSections(layout)) {
     let index = entries.findIndex(
       (entry) => entry.id === plugin.id || entry.id === plugin.replace,
     );
@@ -212,7 +232,7 @@ function placeManagedPlugin(
     }
   }
 
-  const entries = layout[placement.section];
+  const entries = (layout[placement.section] ??= []);
 
   const beforeIndex = placement.before
     ? entries.findIndex((entry) => entry.id === placement.before)
@@ -313,8 +333,7 @@ export function parseManagedPlugins(
       if (!isJsonObject(placement)) return null;
       const { section, before, after, index } = placement;
 
-      if (section !== "left" && section !== "center" && section !== "right")
-        return null;
+      if (!isBarSection(section)) return null;
 
       if (before !== undefined && !isString(before)) return null;
 
@@ -421,11 +440,7 @@ export function mergeOmarchyShellConfig(
       : { screensaver: 1800, lock: 3600 };
   base.bar.position = host === "laptop" ? "bottom" : "top";
 
-  for (const entries of [
-    base.bar.layout.left,
-    base.bar.layout.center,
-    base.bar.layout.right,
-  ]) {
+  for (const entries of layoutSections(base.bar.layout)) {
     for (const id of managedPlugins.remove) {
       let index = entries.findIndex((entry) => entry.id === id);
 
@@ -460,8 +475,6 @@ export function mergeOmarchyShellConfig(
       entry.id = plugin.id;
     }
   }
-
-  base.bar.centerAnchor = "";
 
   return base;
 }
