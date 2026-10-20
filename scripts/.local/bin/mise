@@ -37,13 +37,16 @@ case ${1:-} in
     ;;
   settings)
     case ${2:-} in
-      add | set | unset | rm | remove | delete | del)
+      add | set | create | unset | rm | remove | delete | del)
         redirect_global_write=true
         ;;
+      get | ls | list | help) ;;
+      *)
+        if (( $# >= 3 )) || [[ ${2:-} == *=* ]]; then
+          redirect_global_write=true
+        fi
+        ;;
     esac
-    if (( $# >= 3 )) || [[ ${2:-} == *=* ]]; then
-      redirect_global_write=true
-    fi
     ;;
 esac
 
