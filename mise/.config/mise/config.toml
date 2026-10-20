@@ -37,7 +37,7 @@ yq = "4.54.1"
 zig = "0.15.2"
 zoxide = "0.10.0"
 just = "1.59.0"
-uv = "0.13.1"
+uv = "0.13.2"
 [tools."npm:@opencode/cli"]
 version = "2.1.1"
 allow_builds = ["@opencode/cli"]
