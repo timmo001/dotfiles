@@ -90,6 +90,9 @@ for (const change of changes) {
 const code = (text: string) => `\`${text}\``;
 const baseLink = (file: string) => `[desktop](${blobBase}/${mergeBase}/${file})`;
 const headLink = (file: string) => `[server](${blobBase}/${current.branch}/${file})`;
+// GitHub anchors each file in a compare view by the SHA-256 of its path.
+const diffLink = (file: string) =>
+  `[diff](https://github.com/timmo001/dotfiles/compare/${mergeBase}...${current.branch}#diff-${new Bun.CryptoHasher('sha256').update(file).digest('hex')})`;
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
 const byPath = (a: string, b: string) => a.localeCompare(b);
 
@@ -148,7 +151,7 @@ if (changed.length === 0) {
   push('| --- | --- |');
   for (const change of changed) {
     const name = change.from ? `${code(change.path)} (was ${code(change.from)})` : code(change.path);
-    push(`| ${name} | ${baseLink(change.from ?? change.path)}, ${headLink(change.path)} |`);
+    push(`| ${name} | ${diffLink(change.path)}, ${baseLink(change.from ?? change.path)}, ${headLink(change.path)} |`);
   }
 }
 push();
