@@ -1,92 +1,69 @@
 [tools]
-android-sdk = "latest"
-bat = "latest"
-"aqua:coder/boo" = "latest"
-"aqua:cloudflare/cloudflared" = "latest"
+bat = "0.26.1"
+"aqua:coder/boo" = "0.6.4"
+"aqua:cloudflare/cloudflared" = "2026.10.3"
+"github:anomalyco/opentunnel" = "0.6.1"
 bun = "1.4.4"
-"cargo:terminal-control" = "latest"
+"cargo:terminal-control" = "1.2.1"
 "cargo:https://codeberg.org/galen/momentumctl" = "rev:e86f3e22a0278892c073d1a9f956e5976839c661"
 deno = "2.9.8"
-eza = "latest"
-fd = "latest"
-fzf = "latest"
+eza = "0.23.5"
+fd = "10.5.0"
+fzf = "0.74.5"
+gh = "2.103.2"
 go = "1.27.3"
-gdu = "latest"
-gum = "latest"
-hk = "latest"
-"aqua:sharkdp/hyperfine" = "latest"
-jq = "latest"
-lazygit = "latest"
-node = "26.13.0"
-pitchfork = "latest"
-pnpm = "latest"
-"npm:skills" = "latest"
-"npm:rift-snapshot" = "latest"
-# Hold on 3.14 until pyyaml publishes Python 3.15 wheels for yamllint.
-python = "3.14.10"
-ripgrep = "latest"
-rust = "1.99.1"
-shellcheck = "latest"
-shfmt = "latest"
-starship = "latest"
-usage = "latest"
-watchexec = "latest"
-yq = "latest"
-# Pre-1.0: each minor breaks the language, so hold on 0.15.
-zig = "0.15.2"
-zoxide = "latest"
-just = "latest"
-"aqua:biomejs/biome" = "latest"
-"aqua:jesseduffield/lazydocker" = "latest"
-"aqua:vi/websocat" = "latest"
-"aqua:sxyazi/yazi" = "latest"
-"aqua:fastfetch-cli/fastfetch" = "latest"
-"aqua:tealdeer-rs/tealdeer" = "latest"
-"aqua:tree-sitter/tree-sitter" = "latest"
-# Pre-1.0: plugins track the minor.
+gdu = "5.38.0"
+gum = "2.0.2"
+"aqua:sharkdp/hyperfine" = "2.0.0"
+jq = "1.8.2"
+lazygit = "0.66.2"
+"aqua:jesseduffield/lazydocker" = "0.25.2"
 "aqua:neovim/neovim" = "0.12.6"
-# AI tooling and the tools Omarchy keeps current: no release delay, as in
-# /etc/mise/conf.d/omarchy-tools.toml. Agent CLIs also update themselves before
-# they run, at most every four hours; gh stays off that as mise's credential helper.
-claude = { version = "latest", auto_update = "4h", minimum_release_age = "0s" }
-copilot = { version = "latest", auto_update = "4h", minimum_release_age = "0s" }
-gh = { version = "latest", minimum_release_age = "0s" }
-ghui = { version = "latest", minimum_release_age = "0s" }
-ollama = { version = "latest", minimum_release_age = "0s" }
-"github:anomalyco/opentunnel" = { version = "latest", minimum_release_age = "0s" }
-playwright = { version = "latest", minimum_release_age = "0s" }
-uv = { version = "latest", minimum_release_age = "0s" }
-# OpenCode is an AI tool like the rest: always the latest. Renovate bumps the plugin packages
-# straight away and the anomalyco/opencode tooling drift review keeps the plugins compliant.
+node = "26.12.1"
+ollama = "0.40.11"
+pitchfork = "2.32.2"
+pnpm = "12.15.0"
+"npm:skills" = "1.7.4"
+"npm:rift-snapshot" = "latest"
+python = "3.14.9"
+ripgrep = "15.2.0"
+rust = "1.99.1"
+shellcheck = "0.11.0"
+shfmt = "3.14.1"
+starship = "1.27.0"
+"aqua:topgrade-rs/topgrade" = "17.14.0"
+usage = "7.1.2"
+watchexec = "2.8.0"
+yq = "4.54.1"
+"aqua:sxyazi/yazi" = "26.9.1"
+zig = "0.15.2"
+zoxide = "0.10.0"
+just = "1.59.0"
+uv = "0.13.5"
+# Released as Linux tarballs; the desktop installs them from the AUR.
+"github:timmo001/context" = "20261010.0"
+"github:timmo001/ha-bridge" = "1.4.1"
+"github:timmo001/notes" = "20261010.0"
+"github:timmo001/triage" = "0.19.0"
 [tools."npm:@opencode/cli"]
-version = "latest"
-minimum_release_age = "0s"
+version = "2.1.4"
 allow_builds = ["@opencode/cli"]
 
-# The Cloudflare CLI only publishes 1.0 as betas; latest without prereleases is the old 0.x line.
-[tools."npm:cf"]
-version = "latest"
-prerelease = true
-minimum_release_age = "0s"
-
 [tools."aqua:herdrdev/herdr"]
-version = "latest"
-minimum_release_age = "0s"
+version = "0.9.5"
+minimum_release_age = "2h"
 
 [tools."aqua:earendil-works/pi"]
-version = "latest"
-minimum_release_age = "0s"
+version = "1.4.0"
+minimum_release_age = "2h"
 
 [tools."github:backnotprop/plannotator"]
-version = "latest"
-minimum_release_age = "0s"
-# A long-lived Inbox server or MCP keeps the old binary; dot update also
-# restarts these, and moves the unpinned agent plugins to this version
-postinstall = "systemctl --user try-restart dot-brief-follow-up.service; pitchfork restart plannotator/server >/dev/null 2>&1 || true"
+version = "0.28.30"
+minimum_release_age = "2h"
 
 [tools."github:plannotator/plannotator-tui"]
-version = "latest"
-minimum_release_age = "0s"
+version = "0.9.4"
+minimum_release_age = "2h"
 
 [tools."github:home-assistant/installer"]
 version = "0.0.0-alpha.4"
@@ -96,62 +73,67 @@ format = "raw"
 bin = "home-assistant-installer"
 
 [tools."github:esphome/esphome-desktop"]
-version = "latest"
+version = "1.1.3"
 asset_pattern = "ESPHome.Device.Builder_*_amd64.AppImage"
 format = "raw"
 bin = "esphome-desktop"
 
 [tools."github:music-assistant/desktop-app"]
-version = "latest"
+version = "0.7.2"
 asset_pattern = "Music.Assistant_*_amd64.AppImage"
 format = "raw"
 bin = "music-assistant-companion"
 
 [tools."github:AlexxIT/go2rtc"]
-version = "latest"
+version = "1.9.14"
 asset_pattern = "go2rtc_linux_amd64"
 format = "raw"
 bin = "go2rtc"
 
 [tools."github:github/app"]
-version = "latest"
+version = "1.1.32"
 asset_pattern = "GitHub-Copilot-linux-x64.AppImage"
 format = "raw"
 bin = "github-copilot"
-minimum_release_age = "0s"
+
+# Renamed so the topgrade wrapper in ~/.local/bin stays first on PATH.
+[tools."github:topgrade-rs/topgrade"]
+version = "17.14.1"
+asset_pattern = "topgrade-v*-x86_64-unknown-linux-musl.tar.gz"
+rename_exe = "topgrade-cli"
 
 [tools."github:storytold/photocraft"]
-version = "latest"
+version = "0.15.1"
 asset_pattern = "photocraft-*-linux-x86_64.tar.gz"
 strip_components = 1
 bin_path = "bin"
 
 [tools."github:storytold/vectorcraft"]
-version = "latest"
+version = "0.16.0"
 asset_pattern = "vectorcraft-[0-9]*-linux-x86_64.tar.gz"
 strip_components = 1
 bin_path = "bin"
 
 [tools."github:storytold/effectcraft"]
-version = "latest"
+version = "0.16.0"
 asset_pattern = "effectcraft-[0-9]*-linux-x86_64.tar.gz"
 strip_components = 1
 bin_path = "bin"
 
 [tools."github:storytold/filmcraft"]
-version = "latest"
+version = "0.12.0"
 asset_pattern = "filmcraft-[0-9]*-linux-x86_64.tar.gz"
 strip_components = 1
 bin_path = "bin"
 
 [tools."github:storytold/lightcraft"]
-version = "latest"
+version = "0.13.0"
 asset_pattern = "lightcraft-[0-9]*-linux-x86_64.tar.gz"
 strip_components = 1
 bin_path = "bin"
 
 [tools."github:Vysp3r/ProtonPlus"]
-version = "latest"
+version = "0.6.8"
 asset_pattern = "ProtonPlus-*-anylinux-x86_64.AppImage"
 format = "raw"
 bin = "protonplus"
@@ -159,21 +141,20 @@ bin = "protonplus"
 # plezy.sh sets LD_LIBRARY_PATH for the bundled libraries and execs the plezy binary beside it.
 # The tarball ships it and crashpad_handler without the executable bit.
 [tools."github:edde746/plezy"]
-version = "latest"
+version = "2.24.0"
 asset_pattern = "plezy-linux-x64.tar.gz"
 filter_bins = "plezy.sh"
 postinstall = 'chmod 755 "$MISE_TOOL_INSTALL_PATH/plezy.sh" "$MISE_TOOL_INSTALL_PATH/lib/crashpad_handler"'
 
 # The bundled adb stays off PATH so the Android SDK's adb is used.
 [tools."github:Genymobile/scrcpy"]
-version = "latest"
+version = "5.0.1"
 asset_pattern = "scrcpy-linux-x86_64-v*.tar.gz"
 filter_bins = "scrcpy"
 
 # The v2 desktop app is only published on opencode.ai, not GitHub releases.
 [tools."http:opencode-desktop"]
-version = "latest"
-minimum_release_age = "0s"
+version = "2.1.4"
 url = "https://opencode.ai/files/bin/{{ version }}/opencode-desktop-linux-x86_64.AppImage"
 version_list_url = "https://opencode.ai/update/api/latest/desktop/opencode"
 version_json_path = ".version"
@@ -181,13 +162,13 @@ format = "raw"
 bin = "opencode-desktop"
 
 [tools."github:bambulab/BambuStudio"]
-version = "latest"
+version = "02.08.02.61"
 asset_pattern = "BambuStudio_ubuntu24.04-v*.AppImage"
 format = "raw"
 bin = "bambu-studio"
 
 [tools."github:yt-dlp/yt-dlp"]
-version = "latest"
+version = "2026.10.21"
 asset_pattern = "yt-dlp_linux"
 format = "raw"
 bin = "yt-dlp"
@@ -199,10 +180,9 @@ url = "https://github.com/Aloxaf/fzf-tab/archive/refs/tags/v{{ version }}.tar.gz
 
 # Base build; the postinstall adds the CUDA libraries when an NVIDIA driver is present.
 [tools."github:ollaya-dev/ollaya"]
-version = "latest"
+version = "0.17.0"
 asset_pattern = "ollaya-linux-amd64.tar.zst"
 postinstall = "ollaya-cuda-postinstall"
-minimum_release_age = "0s"
 
 # Read this machine's current gh token without invoking mise or its shims.
 # Search inside release archives too; gh's binary can sit below a platform directory.
@@ -218,41 +198,12 @@ compile = false
 
 [settings]
 aqua.registries = ["https://github.com/aquaproj/aqua-registry"]
-# Only the tools above are wanted: disable the rest of Omarchy's
-# /etc/mise/conf.d/omarchy-tools.toml. Short names only match those entries,
-# not the npm:@opencode/cli and aqua:earendil-works/pi entries above.
-disable_tools = [
-  "amp",
-  "antigravity-cli",
-  "basecamp",
-  "codex",
-  "crush",
-  "cursor-agent",
-  "grok",
-  "hey-cli",
-  "http:devin",
-  "http:kiro-cli",
-  "hunk",
-  "muse",
-  "npm:@deepseek-ai/dsh",
-  "npm:@kilocode/cli",
-  "npm:@minimax-ai/code",
-  "npm:@moonshot-ai/kimi-code",
-  "npm:command-code",
-  "npm:freebuff",
-  "oh-my-pi",
-  "opencode",
-  "ori",
-  "pi",
-  "qwen",
-]
 idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]
 # Remove with mise 2026.11.0, when minimum-version detection is removed.
 idiomatic_version_file_ignore_minimum_versions = true
 lockfile = true
 minimum_release_age = "1d"
 npm.package_manager = "aube"
-# Don't treat build/cache dirs as mise projects. Stops AUR builds (yay cd's into
-# ~/.cache/yay/<pkg>/src, which contains package.json/.tool-versions/mise.toml)
-# from auto-installing and reshimming all shims on every update.
+# Don't treat build/cache dirs as mise projects, so tools cloned or built under
+# ~/.cache don't auto-install and reshim on every update.
 ignored_config_paths = ["~/.cache"]
