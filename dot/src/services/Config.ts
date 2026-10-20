@@ -20,11 +20,7 @@ import {
   expandHomePath,
 } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
-import {
-  REPO_LISTS_FILE,
-  readPrivateSelection,
-  readRepoList,
-} from "../lib/privateSelection.js";
+import { readPrivateSelection } from "../lib/privateSelection.js";
 
 /** Service interface providing resolved paths and environment detection */
 export interface ConfigService {
@@ -116,26 +112,15 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
       const repoSelection = (yield* readPrivateSelection(publicDotfiles))
         ?.repos;
 
-      const repoList =
-        repoSelection === null || repoSelection === undefined
-          ? null
-          : yield* readRepoList(privatePath, repoSelection.list);
-
       const gitConfig: DotGitConfig =
         repoSelection === null || repoSelection === undefined
           ? loadedGitConfig
           : {
               ...loadedGitConfig,
               repositories: loadedGitConfig.repositories.filter(
-                (repo) => repoList?.has(repo.github.toLowerCase()) ?? false,
+                (repo) =>
+                  repo.machines?.includes(repoSelection.machine) ?? false,
               ),
-              diagnostics:
-                repoList === null
-                  ? [
-                      ...loadedGitConfig.diagnostics,
-                      `Repository list "${repoSelection.list}" from .dot-private.yml is missing in ${REPO_LISTS_FILE}; keeping no tracked repositories`,
-                    ]
-                  : loadedGitConfig.diagnostics,
               shallowClones: repoSelection.shallow,
             };
 
