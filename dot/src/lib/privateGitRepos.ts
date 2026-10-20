@@ -60,6 +60,8 @@ export function cloneMissingGitConfigRepos(opts?: {
 
     yield* log.section("Clone Private Git Repositories");
 
+    const gitArgs = config.gitConfig.shallowClones ? ["--depth=1"] : [];
+
     for (const repo of missing) {
       if (!repo.github) {
         yield* log.warn(
@@ -76,10 +78,10 @@ export function cloneMissingGitConfigRepos(opts?: {
         if (opts?.captured) {
           yield* log.withSpinner(
             `Cloning ${repo.name}`,
-            ghRepoCloneCaptured(github, repo.path),
+            ghRepoCloneCaptured(repo.github, repo.path, gitArgs),
           );
         } else {
-          yield* ghRepoClone(github, repo.path);
+          yield* ghRepoClone(repo.github, repo.path, gitArgs);
         }
       });
 
