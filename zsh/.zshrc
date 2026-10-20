@@ -33,26 +33,9 @@ if command -v mise &> /dev/null; then
 fi
 
 # ------------------------------
-# Ghostty shell features
-# Strip title features; the hooks below own the terminal title.
-# ------------------------------
-if [[ -n "${GHOSTTY_SHELL_FEATURES:-}" ]]; then
-  typeset -a _dot_ghostty_features
-  _dot_ghostty_features=("${(@s:,:)GHOSTTY_SHELL_FEATURES}")
-  _dot_ghostty_features=("${(@)_dot_ghostty_features:#title}")
-  _dot_ghostty_features=("${(@)_dot_ghostty_features:#no-title}")
-  export GHOSTTY_SHELL_FEATURES="${(j:,:)_dot_ghostty_features}"
-  unset _dot_ghostty_features
-fi
-
-# ------------------------------
 # Zsh plugins
-# autosuggestions and fast-syntax-highlighting come from the system package
-# manager (see .dot-public-packages); fzf-tab comes from the global mise config.
-# Arch paths are checked first, then the Ubuntu ones.
-# TODO(ubuntu-server): Ubuntu does not package fast-syntax-highlighting. Pick
-# zsh-syntax-highlighting from apt or install it another way on the server.
-# fast-syntax-highlighting replaces zsh-syntax-highlighting; do not load both.
+# autosuggestions and syntax highlighting come from apt (see
+# .dot-public-packages); fzf-tab comes from the global mise config.
 # fzf-tab needs compinit first and must load before the widget-wrapping plugins.
 # ------------------------------
 autoload -Uz compinit && compinit
@@ -63,17 +46,10 @@ _fzf_tab_plugin="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}/ins
 [[ -r "$_fzf_tab_plugin" ]] && source "$_fzf_tab_plugin"
 unset _fzf_tab_plugin
 
-for _dot_zsh_plugin in \
-  /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh \
-  /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh; do
-  [[ -r "$_dot_zsh_plugin" ]] && source "$_dot_zsh_plugin" && break
-done
-for _dot_zsh_plugin in \
-  /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh \
-  /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
-  [[ -r "$_dot_zsh_plugin" ]] && source "$_dot_zsh_plugin" && break
-done
-unset _dot_zsh_plugin
+[[ -r /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && \
+  source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+[[ -r /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] && \
+  source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 autoload -Uz _dot 2>/dev/null
 compdef _dot dot 2>/dev/null
@@ -234,17 +210,14 @@ export KEYMAP=uk
 # Editor
 # ------------------------------
 export EDITOR=nvim
-# The desktop uses Cursor here; the server has no GUI editor.
 export VISUAL=nvim
 export REACT_EDITOR=nvim
 
 # ------------------------------
 # Plannotator
 # ------------------------------
-# The desktop opens Plannotator reviews in a background browser tab. There is
-# no browser here, so Plannotator falls back to printing the review URL.
-# TODO(ubuntu-server): check how reviews reach a remote client (port forward,
-# or the TUI only).
+# There is no browser here, so Plannotator prints the review URL. Open it from
+# a client through an SSH port forward, or use the Plannotator TUI.
 
 # ------------------------------
 # GPG
@@ -313,9 +286,6 @@ dev() {
     python main.py "$@"
     return 0
   fi
-
-  # Open cursor
-  cursor .
 
   if [ -f package.json ]; then
     if [ -f deno.lock ]; then
@@ -435,24 +405,10 @@ bulk-rename-files() {
 
 save-installed-packages() {
   local outfile="$HOME/.local/installed-packages.txt"
-  echo "# System packages (including AUR)" >"$outfile"
-  yay -Qqe | sort -u | tr '\n' ' ' >>"$outfile"
-  echo -e "\n\n# Brew formulae" >>"$outfile"
-  if command -v brew &>/dev/null; then
-    brew list --formula | sort -u | tr '\n' ' ' >>"$outfile"
-    echo -e "\n\n# Brew casks" >>"$outfile"
-    brew list --cask | sort -u | tr '\n' ' ' >>"$outfile"
-  else
-    echo "brew not found" >>"$outfile"
-  fi
-  echo -e "\n\n# Flatpak apps" >>"$outfile"
-  if command -v flatpak &>/dev/null; then
-    flatpak list --app --columns=application | sort -u | tr '\n' ' ' >>"$outfile"
-  else
-    echo "flatpak not found" >>"$outfile"
-  fi
+  echo "# Manually installed apt packages" >"$outfile"
+  apt-mark showmanual | sort -u | tr '\n' ' ' >>"$outfile"
   echo -e "\n" >>"$outfile"
-  echo "Saved all user-installed packages (system, brew, flatpak) to $outfile"
+  echo "Saved manually installed apt packages to $outfile"
 }
 
 command-breakdown() {
@@ -682,9 +638,6 @@ alias ......="cd ../../../../.."
 alias flushdns="sudo resolvectl flush-caches"
 alias fc="sudo resolvectl flush-caches"
 
-# Gear lever (app images)
-alias gearlever="flatpak run it.mijorus.gearlever"
-
 # Notes
 alias handoffs="notes handoffs"
 
@@ -783,26 +736,17 @@ _repo_open() {
 
 [[ -r "$HOME/.cache/dot/repo-shortcuts.zsh" ]] && source "$HOME/.cache/dot/repo-shortcuts.zsh"
 
-# Reboot to Windows
-alias reboot-windows="reboot-to windows"
-
-# Reboot to Bazzite
-alias reboot-bazzite="reboot-to bazzite"
-
-# Reboot to UEFI firmware setup
-alias reboot-uefi="reboot-to uefi"
-alias reboot-bios="reboot-to bios"
-
 # Find and edit
 alias fe="find-and-edit"
 alias fev="find-and-edit --visual"
 
-# Cursor
-# alias cursor="/usr/bin/cursor $(grep -v '^#' ~/.config/cursor-flags.conf 2>/dev/null | tr '\n' ' ')"
-
-# TODO(ubuntu-server): dot update system drives pacman and Omarchy. Point this
-# at the server's update path once dot has one.
 alias update="dot update system"
+
+# Docker compose helpers. The compose-* scripts come from the nas-containers repository.
+alias cu="compose-up"
+alias cr="compose-restart"
+alias cl="compose-logs"
+alias cps="compose-ps"
 
 # Home Assistant dev servers: shortcuts for dot homeassistant (dot ha), which
 # reads its repositories, daemons and URLs from ~/.config/dot/homeassistant.yml.
@@ -881,16 +825,34 @@ setopt HIST_REDUCE_BLANKS   # tidy surplus whitespace
 
 # ------------------------------
 # Omarchy shell helpers
-# The desktop sources Omarchy's bash aliases, functions and envs. Omarchy is
-# not installed here, so these only load if a copy is present.
-# TODO(ubuntu-server): port the Omarchy aliases and functions still wanted on
-# the server (eza, zoxide, fzf helpers and so on) into this file.
+# The desktop sources these from Omarchy's bash aliases and envs. Omarchy is
+# not installed here, so the ones wanted on the server live here instead.
 # ------------------------------
-for _dot_omarchy_bash in aliases functions envs; do
-  [[ -r ~/.local/share/omarchy/default/bash/$_dot_omarchy_bash ]] && \
-    source ~/.local/share/omarchy/default/bash/$_dot_omarchy_bash
-done
-unset _dot_omarchy_bash
+if command -v eza &> /dev/null; then
+  alias ls='eza -lh --group-directories-first --icons=auto'
+  alias lsa='ls -a'
+  alias lt='eza --tree --level=2 --long --icons --git'
+  alias lta='lt -a'
+fi
+
+alias ff="fzf --preview 'bat --style=numbers --color=always {}'"
+alias eff='$EDITOR "$(ff)"'
+
+# zoxide below defines zd
+command -v zoxide &> /dev/null && alias cd="zd"
+
+alias d='docker'
+alias h='herdr'
+alias g='git'
+alias gcm='git commit -m'
+alias gcam='git commit -a -m'
+alias gcad='git commit -a --amend'
+alias mup='MISE_MINIMUM_RELEASE_AGE=0 mise up'
+n() { if [ "$#" -eq 0 ]; then command nvim . ; else command nvim "$@"; fi; }
+
+export BAT_THEME=ansi
+export MANROFFOPT="-c"
+export MANPAGER="sh -c 'col -bx | bat -l man -p'"
 
 # ------------------------------
 # Mise, zoxide and fzf
@@ -949,14 +911,6 @@ alias c2="opencode2"
 alias opencode="opencode2"
 alias c="c2"
 alias c2-cancel="opencode2-cancel"
-
-cursor() {
-  _dot_with_mcp_bearers cursor "$@"
-}
-
-code() {
-  _dot_with_mcp_bearers code "$@"
-}
 
 unalias copilot 2>/dev/null
 copilot() {
@@ -1041,7 +995,3 @@ bindkey "^[[4~" end-of-line        # End (vt variant)
 # ------------------------------
 # Fastfetch
 # ff
-
-# Added by LM Studio CLI (lms)
-export PATH="$PATH:$HOME/.lmstudio/bin"
-# End of LM Studio CLI section
