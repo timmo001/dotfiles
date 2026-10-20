@@ -71,6 +71,39 @@ o.bind(
 hl.unbind("SUPER + SHIFT + F")
 o.bind("SUPER + SHIFT + F", "Add floating application", "/usr/bin/float-app add")
 
+-- Workspaces numbered across all monitors, as before Omarchy gave each monitor
+-- its own 1-10 (omacom/omarchy#15655). The no-op reconcile stops Omarchy
+-- renumbering workspaces into per-monitor blocks on reloads and hotplugs.
+o.workspaces.reconcile = function() end
+for workspace = 1, 10 do
+  local key = "code:" .. tostring(workspace + 9)
+  local id = tostring(workspace)
+  hl.unbind("SUPER + " .. key)
+  hl.unbind("SUPER + SHIFT + " .. key)
+  hl.unbind("SUPER + SHIFT + ALT + " .. key)
+  o.bind("SUPER + " .. key, "Switch to workspace " .. workspace, hl.dsp.focus({ workspace = id }))
+  o.bind("SUPER + SHIFT + " .. key, "Move window to workspace " .. workspace, hl.dsp.window.move({ workspace = id }))
+  o.bind(
+    "SUPER + SHIFT + ALT + " .. key,
+    "Move window silently to workspace " .. workspace,
+    hl.dsp.window.move({ workspace = id, follow = false })
+  )
+end
+hl.unbind("SUPER + SHIFT + TAB")
+o.bind("SUPER + SHIFT + TAB", "Previous workspace", hl.dsp.focus({ workspace = "e-1" }))
+hl.unbind("SUPER + mouse_down")
+hl.unbind("SUPER + mouse_up")
+o.bind("SUPER + mouse_down", "Scroll active workspace forward", hl.dsp.focus({ workspace = "e+1" }))
+o.bind("SUPER + mouse_up", "Scroll active workspace backward", hl.dsp.focus({ workspace = "e-1" }))
+for _, move in ipairs({ { "LEFT", "l" }, { "RIGHT", "r" }, { "UP", "u" }, { "DOWN", "d" } }) do
+  hl.unbind("SUPER + SHIFT + ALT + " .. move[1])
+  o.bind(
+    "SUPER + SHIFT + ALT + " .. move[1],
+    "Move workspace to " .. move[1]:lower() .. " monitor",
+    hl.dsp.workspace.move({ monitor = move[2] })
+  )
+end
+
 -- Terminal
 hl.unbind("SUPER + RETURN")
 o.bind("SUPER + RETURN", "Terminal", terminal .. " --working-directory=$(omarchy-cmd-terminal-cwd)")
