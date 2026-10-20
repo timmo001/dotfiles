@@ -30,6 +30,8 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  * - `.config/herdr`: Herdr writes logs, sockets, and session state alongside
  *   its stowed config.
  * - `.config/nvim`: lazy.nvim and plugins write into the config directory.
+ * - `.config/opencode`: Herdr's OpenCode integration writes its plugin files
+ *   into it and `plugins/`.
  * - `.config/systemd/user`: `systemctl --user enable` writes
  *   `*.target.wants/` symlinks and drop-in directories.
  * - `.local/bin`: mise, npm, pip, cargo, and other tools install binaries here
@@ -45,6 +47,7 @@ const NO_FOLDING_TARGET_PREFIXES = [
   ".config/fish/completions",
   ".config/herdr",
   ".config/nvim",
+  ".config/opencode",
   ".config/systemd/user",
   ".local/bin",
   ".local/share/applications",
