@@ -1,15 +1,15 @@
 ---
 title: Getting Started
-description: Bootstrap a fresh Omarchy machine and keep it in sync.
+description: Bootstrap the Ubuntu server and keep it in sync.
 ---
 
-How I stand up a new [Omarchy](https://omarchy.org) machine. Personal setup; not a turnkey install for other people.
+How I stand up the [Ubuntu Server](https://ubuntu.com/server) machine. Personal setup; not a turnkey install for other people. `dot init` still assumes Omarchy and pacman in places, so expect gaps until the [open items](/server/overview/#still-open) are done.
 
 ## Bootstrap
 
 ```bash
 # Public source of truth; stow packages live under this checkout
-git clone git@github.com:timmo001/dotfiles.git ~/.config/dotfiles
+git clone --branch distro/ubuntu-server git@github.com:timmo001/dotfiles.git ~/.config/dotfiles
 
 # Private overlay clone during init needs an authenticated gh
 gh auth status || gh auth login

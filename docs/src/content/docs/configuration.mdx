@@ -8,15 +8,14 @@ Behaviour prefers CLI flags. Environment variables cover process context and sec
 | Piece | Why |
 | --- | --- |
 | Private overlay | Host-only config, secrets, package lists, browser checks, `dot-git.yml` |
-| Public packages | Signed `timmo` repo plus AUR where needed |
-| Private packages | Optional private pacman repo via the private publish flow |
-| Stow packages | App config in this repo; see [Stow packages](/stow/) and the Desktop / Agents pages |
-| Env vars | `DOT_*`, `DOTFILES_*`, and `OMARCHY_*` influence `dot` and session tooling |
+| Public packages | apt packages listed in `.dot-public-packages`; command-line tools come from mise |
+| Stow packages | App config in this repo; see [Stow packages](/stow/) and the Server / Agents pages |
+| Env vars | `DOT_*`, `DOTFILES_*`, and `OMARCHY_HOST` (host-specific packages) influence `dot` and session tooling |
 
 | Private file (typical) | Role |
 | --- | --- |
 | `dot-git.yml` | Managed repos, shortcuts, notifications, activity, PR tracking, and OpenCode MCP opt-ins |
-| Package manifests | Private pacman / install lists |
+| Package manifests | Private install lists |
 | Browser checks | Machine-specific doctor expectations |
 | MCP spec (`mcp.yml`) | Source for `dot mcp sync` |
 

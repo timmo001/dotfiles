@@ -77,6 +77,11 @@ The CLI still assumes Omarchy and pacman. Nothing under `dot/` has changed yet, 
 - [ ] Check the `dotfiles.dot-links` plugin: `file://` links open Neovim in Herdr, but `dot://` links target the desktop Git panel
 - [ ] Confirm the `herdr-lazy` plugins all work headless
 
+### Docs site
+
+- [ ] Create the `dotfiles-docs-ubuntu-server` Worker in Cloudflare Workers Builds, deploying `docs/` from this branch to `ubuntu-server.dotfiles.timmo.dev`. `docs/AGENTS.md` (Distro Sites) has the steps
+- [ ] Update the server docs pages as the open items above are settled
+
 ### Private overlay
 
 - [ ] Decide how `dotfiles-private` serves the server: its own branch, or `--server` host packages. It still carries Omarchy, UWSM, pacman and yay packages
