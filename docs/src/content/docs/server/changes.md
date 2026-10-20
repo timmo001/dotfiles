@@ -25,7 +25,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Removed files
 
-88 files removed from folders that stay.
+93 files removed from folders that stay.
 
 | File | Was |
 | --- | --- |
@@ -104,11 +104,16 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `scripts/.local/share/omarchy-patches/plugin-update-hook.patch` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/scripts/.local/share/omarchy-patches/plugin-update-hook.patch) |
 | `scripts/.local/share/plannotator-inbox/Inbox.qml` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/scripts/.local/share/plannotator-inbox/Inbox.qml) |
 | `scripts/.local/share/workspace-relayout/presets.json` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/scripts/.local/share/workspace-relayout/presets.json) |
+| `systemd/.config/dot/services.d/dot-brief-follow-up.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/dot/services.d/dot-brief-follow-up.yml) |
+| `systemd/.config/dot/services.d/dot-brief.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/dot/services.d/dot-brief.yml) |
 | `systemd/.config/dot/services.d/dot-deps.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/dot/services.d/dot-deps.yml) |
 | `systemd/.config/dot/services.d/dot-notifications-dismiss.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/dot/services.d/dot-notifications-dismiss.yml) |
 | `systemd/.config/dot/services.d/notes-capture-daemon.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/dot/services.d/notes-capture-daemon.yml) |
 | `systemd/.config/dot/services.d/upnext.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/dot/services.d/upnext.yml) |
 | `systemd/.config/systemd/user/background.slice.d/10-oomd.conf` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/systemd/user/background.slice.d/10-oomd.conf) |
+| `systemd/.config/systemd/user/dot-brief-follow-up.service` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/systemd/user/dot-brief-follow-up.service) |
+| `systemd/.config/systemd/user/dot-brief.service` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/systemd/user/dot-brief.service) |
+| `systemd/.config/systemd/user/dot-brief.timer` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/systemd/user/dot-brief.timer) |
 | `systemd/.config/systemd/user/dot-deps.service` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/systemd/user/dot-deps.service) |
 | `systemd/.config/systemd/user/dot-deps.timer` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/systemd/user/dot-deps.timer) |
 | `systemd/.config/systemd/user/dot-notifications-dismiss.service` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/systemd/user/dot-notifications-dismiss.service) |
@@ -120,7 +125,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Changed files
 
-103 files in both branches with different contents.
+101 files in both branches with different contents.
 
 | File | Compare |
 | --- | --- |
@@ -213,8 +218,6 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `scripts/.local/bin/mise` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/ubuntu-server#diff-568091f6537a01ea35418690322fc041df437fbd5daede9ae24f3bf9a671ed33), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/scripts/.local/bin/mise), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/scripts/.local/bin/mise) |
 | `scripts/.local/bin/topgrade` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/ubuntu-server#diff-ad610e12ef616f8a312ac6e2a438efc08c5a487fd1c000571c4ebe7893af8711), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/scripts/.local/bin/topgrade), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/scripts/.local/bin/topgrade) |
 | `scripts/.local/libexec/update-sudo` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/ubuntu-server#diff-2988dec49cdf194d5c7dde70f36862dcb4d673307a991cf58c6df48231ff15fe), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/scripts/.local/libexec/update-sudo), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/scripts/.local/libexec/update-sudo) |
-| `systemd/.config/systemd/user/dot-brief-follow-up.service` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/ubuntu-server#diff-1aa561be76563a4dfc50511ce93eb21e0f883f6566dbfc34417bed9a276dc806), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/systemd/user/dot-brief-follow-up.service), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/dot-brief-follow-up.service) |
-| `systemd/.config/systemd/user/dot-brief.service` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/ubuntu-server#diff-12d5c6df8ce6da5254f8e52ed0debb943b155c5c026d6b4a0c6767b45be88274), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/systemd/user/dot-brief.service), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/dot-brief.service) |
 | `systemd/.config/systemd/user/dot-doctor.service` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/ubuntu-server#diff-ac4ca7d9895435faec807d37e14e152f8bfedd96cb6ded262b4460e116609ce8), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/systemd/user/dot-doctor.service), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/dot-doctor.service) |
 | `systemd/.config/systemd/user/pitchfork.service` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/ubuntu-server#diff-b2c7e5845cb31df4ca25cb8990d5a72e250cc70f4046ad762bf19b869a48bc31), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/systemd/.config/systemd/user/pitchfork.service), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/pitchfork.service) |
 | `tests/dot/git-diff-index-lock.test.sh` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/ubuntu-server#diff-7aac6566eb24ba24140386b03f4b59dbe92c46ebbc6f05b6395082b775abcbc4), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/tests/dot/git-diff-index-lock.test.sh), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/tests/dot/git-diff-index-lock.test.sh) |
