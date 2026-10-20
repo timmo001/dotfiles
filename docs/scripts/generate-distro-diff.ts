@@ -28,7 +28,25 @@ function git(...args: string[]): string {
   return result.stdout.toString();
 }
 
+const succeeds = (...args: string[]) =>
+  Bun.spawnSync(['git', ...args], { cwd: repoRoot, stdout: 'ignore', stderr: 'ignore' }).exitCode === 0;
+
 const baseRef = `origin/${base.branch}`;
+
+// Build clones are shallow and may only have this branch, so fetch the
+// default branch and the full history from the public repository when the
+// merge base is out of reach.
+if (!succeeds('merge-base', baseRef, 'HEAD')) {
+  const shallow = git('rev-parse', '--is-shallow-repository').trim() === 'true';
+  git(
+    'fetch',
+    '--quiet',
+    ...(shallow ? ['--unshallow'] : []),
+    'https://github.com/timmo001/dotfiles.git',
+    `+refs/heads/${base.branch}:refs/remotes/${baseRef}`,
+  );
+}
+
 const mergeBase = git('merge-base', baseRef, 'HEAD').trim();
 const lines = (text: string) => text.split('\n').filter((line) => line !== '');
 
@@ -93,10 +111,10 @@ push('title: Changes from the desktop');
 push(`description: What the ${current.label} branch removed, changed and added compared with ${base.branch}.`);
 push('---');
 push();
-push('<!-- Generated from git by `mise run docs:gen:distro-diff`. Run it after merging the default branch. Do not edit by hand. -->');
+push('<!-- Generated from git by `mise run docs:gen:distro-diff` before every docs build. Not committed. -->');
 push();
 push(
-  `This page compares ${code(current.branch)} with the default branch, ${code(base.branch)} ([${base.label}](https://${base.site}/)), from the commit they last shared: ${code(mergeBase.slice(0, 7))}. It only changes when this branch changes or the default branch is merged in, not on every desktop commit.`,
+  `This page compares ${code(current.branch)} with the default branch, ${code(base.branch)} ([${base.label}](https://${base.site}/)), from the commit they last shared: ${code(mergeBase.slice(0, 7))}. It is rebuilt with the site, so it moves when this branch changes or is rebased onto the default branch, not on every desktop commit.`,
 );
 push();
 
