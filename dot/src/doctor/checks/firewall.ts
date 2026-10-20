@@ -1,10 +1,11 @@
 import { Effect } from "effect";
 import { pathExists } from "../../lib/fsProbe.js";
-import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { displayPath } from "../../lib/paths.js";
 import {
   firewallRuleSpecs,
   presentUfwTuples,
+  ufwActive,
+  ufwInstalled,
   ufwRulesFilePath,
 } from "../../lib/firewallSetup.js";
 import type { CheckResult } from "../types.js";
@@ -20,12 +21,9 @@ import type { CheckResult } from "../types.js";
  * installed.
  */
 export const checkFirewall = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
   const results: CheckResult[] = [];
 
-  const hasUfw = (yield* executor.exitCode("which", ["ufw"])) === 0;
-
-  if (!hasUfw) {
+  if (!(yield* ufwInstalled)) {
     results.push({
       severity: "warn",
       message: "ufw is not installed; firewall rules not checked",
@@ -52,6 +50,16 @@ export const checkFirewall = Effect.gen(function* () {
   const present = yield* presentUfwTuples();
   const missing: string[] = [];
   let needsReconcile = false;
+
+  results.push(
+    (yield* ufwActive)
+      ? { severity: "ok", message: "ufw is active" }
+      : {
+          severity: "warn",
+          message: "ufw is not active",
+          detail: "Run dot firewall to add the managed rules and enable ufw",
+        },
+  );
 
   for (const spec of firewallRuleSpecs()) {
     const tuple = present.get(spec.tupleKey);

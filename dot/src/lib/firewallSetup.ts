@@ -10,6 +10,9 @@ import { ENV, envString } from "./env.js";
 /** IPv4 ufw user rules file scanned to detect already-configured ports. */
 const UFW_USER_RULES_FILE = "/etc/ufw/user.rules";
 
+/** Absolute ufw path, used because /usr/sbin is often not on a user PATH. */
+const UFW_BINARY = "/usr/sbin/ufw";
+
 /** Supported transport protocols for a managed firewall rule. */
 export type FirewallProtocol = "tcp" | "udp";
 
@@ -47,7 +50,23 @@ export interface ManagedRouteRule {
 }
 
 /** A ufw rule managed by dot init and verified by dot doctor. */
-export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
+export type ManagedFirewallRule =
+  ManagedPortRule | ManagedRouteRule | ManagedSourceRule;
+
+/**
+ * An inbound ufw rule allowing all traffic from a source network or arriving
+ * on an interface.
+ */
+export interface ManagedSourceRule {
+  /** Discriminant: an any-port allow rule for a trusted source. */
+  readonly kind: "source";
+  /** Human-readable purpose, stored as the ufw rule comment. */
+  readonly label: string;
+  /** Source network in CIDR form (e.g. `192.168.0.0/16`). */
+  readonly from?: string;
+  /** Interface the traffic arrives on (e.g. `tailscale0`). */
+  readonly interface?: string;
+}
 
 /**
  * ufw rules dot keeps open on the server.
@@ -55,12 +74,19 @@ export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
  * - SSH on 22, so enabling ufw never locks the server out.
  * - System Bridge serves its API on 9170, which Home Assistant connects to.
  * - Ollama (11434) and Ollaya (11435) serve models to other machines.
+ * - Private networks and Tailscale are trusted, so LAN services (Plex, Samba,
+ *   ESPHome and others with changing ports) and containers reaching host
+ *   services keep working.
  */
 export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
   { kind: "port", label: "SSH", port: "22", protocols: ["tcp"] },
   { kind: "port", label: "System Bridge", port: "9170", protocols: ["tcp"] },
   { kind: "port", label: "Ollama", port: "11434", protocols: ["tcp"] },
   { kind: "port", label: "Ollaya", port: "11435", protocols: ["tcp"] },
+  { kind: "source", label: "Private network", from: "192.168.0.0/16" },
+  { kind: "source", label: "Private network", from: "10.0.0.0/8" },
+  { kind: "source", label: "Docker networks", from: "172.16.0.0/12" },
+  { kind: "source", label: "Tailscale", interface: "tailscale0" },
 ];
 
 /** Domain error for firewall setup failures. */
@@ -161,11 +187,32 @@ function routeRuleSpec(rule: ManagedRouteRule): FirewallRuleSpec {
   };
 }
 
+/** Build the spec for a single trusted-source rule. */
+function sourceRuleSpec(rule: ManagedSourceRule): FirewallRuleSpec {
+  const addArgs = rule.interface
+    ? ["allow", "in", "on", rule.interface]
+    : ["allow", "from", rule.from ?? "any"];
+
+  return {
+    addArgs,
+    deleteArgs: ["delete", ...addArgs],
+    tupleKey: `allow any any 0.0.0.0/0 any ${rule.from ?? "0.0.0.0/0"} ${rule.interface ? `in_${rule.interface}` : "in"}`,
+    comment: rule.label,
+    describe: rule.interface
+      ? `all in on ${rule.interface}`
+      : `all from ${rule.from}`,
+  };
+}
+
 /** Flatten the managed rules into one spec per ufw rule unit. */
 export function firewallRuleSpecs(): readonly FirewallRuleSpec[] {
-  return MANAGED_FIREWALL_RULES.flatMap((rule) =>
-    rule.kind === "route" ? [routeRuleSpec(rule)] : portRuleSpecs(rule),
-  );
+  return MANAGED_FIREWALL_RULES.flatMap((rule) => {
+    if (rule.kind === "route") return [routeRuleSpec(rule)];
+
+    if (rule.kind === "source") return [sourceRuleSpec(rule)];
+
+    return portRuleSpecs(rule);
+  });
 }
 
 /** Decode a ufw comment, stored as hex-encoded UTF-8 bytes. */
@@ -261,15 +308,34 @@ function fail(message: string): Effect.Effect<never, FirewallSetupError> {
   return Effect.fail(new FirewallSetupError({ message }));
 }
 
-function commandAvailable(
-  command: string,
-): Effect.Effect<boolean, never, CommandExecutor> {
-  return Effect.gen(function* () {
+/**
+ * Whether ufw is installed. It lives in /usr/sbin, which is often missing
+ * from a user PATH, so that path is checked as well.
+ */
+export const ufwInstalled: Effect.Effect<
+  boolean,
+  never,
+  CommandExecutor | FileSystem.FileSystem
+> = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+
+  return (
+    (yield* executor.exitCode("which", ["ufw"])) === 0 ||
+    (yield* pathExists(UFW_BINARY))
+  );
+});
+
+/** Whether ufw is enabled, read through non-interactive sudo. */
+export const ufwActive: Effect.Effect<boolean, never, CommandExecutor> =
+  Effect.gen(function* () {
     const executor = yield* CommandExecutor;
 
-    return (yield* executor.exitCode("which", [command])) === 0;
+    const status = yield* executor
+      .run("sudo", ["-n", UFW_BINARY, "status"])
+      .pipe(Effect.orElseSucceed(() => ""));
+
+    return /^Status: active/m.test(status);
   });
-}
 
 function shellQuote(value: string): string {
   if (/^[A-Za-z0-9_@%+=:,./-]+$/.test(value)) return value;
@@ -287,7 +353,7 @@ export function firewallSetupScript(
 ): string {
   return [
     "set -e",
-    ...commands.map((args) => shellCommand(["ufw", ...args])),
+    ...commands.map((args) => shellCommand([UFW_BINARY, ...args])),
   ].join("\n");
 }
 
@@ -295,32 +361,8 @@ function ufwAllowArgs(spec: FirewallRuleSpec): readonly string[] {
   return [...spec.addArgs, "comment", spec.comment];
 }
 
-/**
- * Ensure the managed ufw rules are present, each tagged with its purpose as a
- * ufw comment so it is visible in `ufw status`.
- *
- * Idempotent: rules are read from the ufw user.rules file (through
- * non-interactive sudo when it is root-only), so a fully configured machine
- * needs no prompt. Missing rules are added; rules
- * that exist with a missing or stale comment are deleted and re-added (ufw
- * cannot edit a comment in place). A single `ufw reload` follows any change.
- * Skips with a warning when ufw is not installed.
- */
-export const configureFirewallRules: Effect.Effect<
-  void,
-  FirewallSetupError,
-  CommandExecutor | OutputLog | FileSystem.FileSystem
-> = Effect.gen(function* () {
+const reconcileFirewallRules = Effect.gen(function* () {
   const log = yield* OutputLog;
-
-  yield* log.section("Configure Firewall");
-
-  if (!(yield* commandAvailable("ufw"))) {
-    yield* log.warn("Skipping firewall rules (ufw not installed)");
-
-    return;
-  }
-
   const present = yield* presentUfwTuples();
   const specs = firewallRuleSpecs();
   const toAdd = specs.filter((spec) => !present.has(spec.tupleKey));
@@ -372,4 +414,48 @@ export const configureFirewallRules: Effect.Effect<
 
   const changed = toAdd.length + toRecomment.length;
   yield* log.success(`Configured ${plural(changed, "firewall rule")}`);
+});
+
+/**
+ * Ensure the managed ufw rules are present, each tagged with its purpose as a
+ * ufw comment so it is visible in `ufw status`.
+ *
+ * Idempotent: rules are read from the ufw user.rules file (through
+ * non-interactive sudo when it is root-only), so a fully configured machine
+ * needs no prompt. Missing rules are added; rules
+ * that exist with a missing or stale comment are deleted and re-added (ufw
+ * cannot edit a comment in place). A single `ufw reload` follows any change.
+ * ufw is then enabled when inactive; the SSH rule is in place first, so this
+ * cannot lock the server out. Skips with a warning when ufw is not installed.
+ */
+export const configureFirewallRules: Effect.Effect<
+  void,
+  FirewallSetupError,
+  CommandExecutor | OutputLog | FileSystem.FileSystem
+> = Effect.gen(function* () {
+  const log = yield* OutputLog;
+
+  yield* log.section("Configure Firewall");
+
+  if (!(yield* ufwInstalled)) {
+    yield* log.warn("Skipping firewall rules (ufw not installed)");
+
+    return;
+  }
+
+  yield* reconcileFirewallRules;
+
+  if (yield* ufwActive) return;
+
+  yield* log.info("Enabling ufw");
+
+  const exitCode = yield* runElevated("sh", [
+    "-c",
+    firewallSetupScript([["--force", "enable"]]),
+  ]);
+
+  if (exitCode !== 0 || !(yield* ufwActive))
+    return yield* fail(`ufw enable exited ${exitCode}`);
+
+  yield* log.success("Enabled ufw");
 });
