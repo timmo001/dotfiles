@@ -22,9 +22,9 @@ mcp:
   exclude:
     - chrome-devtools
 
-# repos: the repositories from the private dot-git.yml this machine clones,
-# pulls and checks: those whose machines list includes machine. The rest are
-# left to the desktop. With shallow, missing ones are cloned with --depth=1.
+# repos: this machine clones, pulls and checks the repositories in the
+# private dot-git.yml whose machines list includes machine. With shallow,
+# missing ones are cloned with --depth=1.
 repos:
   machine: server
   shallow: true
