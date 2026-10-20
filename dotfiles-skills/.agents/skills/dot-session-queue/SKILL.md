@@ -19,8 +19,16 @@ compatibility: Requires the dot CLI, the host's configured OpenCode 2 launcher a
 2. `dot session send` exports the session and its
    subagent sessions, adds a patch of uncommitted changes (untracked files
    included) and uploads them to the queue over SSH.
+   Attach this task's scratch folders by default: pass
+   `--attach <folder>` for each of `/tmp/opencode/<task>/` and
+   `~/.cache/agent-scratch/<task>/` that exists, plus any other file the work
+   depends on that Git ignores or that lives outside the repository. Don't
+   attach files already in the patch. `dot session take` puts attachments back
+   at the same path, relative to the repository or home directory, and never
+   overwrites an existing file.
 3. Tell the user, briefly:
-   - the entry ID (`result.id`) and how many changed files went in the patch;
+   - the entry ID (`result.id`), how many changed files went in the patch and
+     what was attached (`result.attachments`);
    - that the turn doing the sending is cut off in the export, because the
      export is taken while you are still working;
    - any warning in `notes`, especially when HEAD isn't pushed, since the other
