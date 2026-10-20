@@ -70,7 +70,7 @@ Check these from a local session on the server. Items tied to a file are also ma
 
 ### Services
 
-- [ ] Decide which of `ha-bridge`, `triage-agent`, `notes-capture-daemon`, `dot-brief` and `dot-brief-follow-up` run on the server, so they do not run twice alongside the desktop
+- [ ] Decide which of `ha-bridge`, `triage-agent`, `dot-brief` and `dot-brief-follow-up` run on the server, so they do not run twice alongside the desktop (`notes-capture-daemon` and `dot-deps` are dropped from the server)
 - [ ] `dot stow` enables `dot-notifications-dismiss.timer` on every machine. It is safe to run twice, but one machine is enough
 - [ ] Move the nightly `compose-up` crontab line to a `dot` timer once `dot update` has run cleanly a few times
 - [ ] Send failure notifications somewhere other than the journal (ntfy or Home Assistant)
