@@ -13,13 +13,7 @@ import { html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 
 import { AtomController } from "~/controllers/atom-controller";
-import {
-  errorMessage,
-  journal,
-  registry,
-  serviceAction,
-  services,
-} from "~/lib/atoms";
+import { journal, registry, serviceAction, services } from "~/lib/atoms";
 import { cn, formatTime } from "~/lib/utils";
 import { UIElement } from "~/mixins/light-dom";
 import "../components/ui/button";
@@ -37,13 +31,13 @@ const HEALTH_CLASS: Record<ServiceHealth, string> = {
 };
 
 /** The failure in a result, as a message for the page. */
-function failureMessage<A, E>(
+function failureMessage<A, E extends { readonly message: string }>(
   result: AsyncResult.AsyncResult<A, E>,
 ): string | undefined {
   if (!AsyncResult.isFailure(result)) return undefined;
 
   return Option.match(AsyncResult.error(result), {
-    onSome: errorMessage,
+    onSome: (error) => error.message,
     onNone: () => Cause.pretty(result.cause),
   });
 }
@@ -71,6 +65,7 @@ class ServiceRow extends UIElement {
 
     const result = this.logs.value;
     const error = failureMessage(result);
+
     const text = Option.match(AsyncResult.value(result), {
       onSome: (journal) => journal.text || "(no journal output)",
       onNone: () => (error ? "" : "Loading…"),
@@ -96,6 +91,7 @@ ${text}</pre>
     const action = this.action.value;
     const busy = action.waiting;
     const error = failureMessage(action);
+
     const schedule = [
       status.lastRun ? `Last run ${formatTime(status.lastRun)}` : undefined,
       status.nextRun ? `next ${formatTime(status.nextRun)}` : status.nextNote,

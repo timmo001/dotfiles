@@ -1,5 +1,5 @@
 import { NodeHttpServer } from "@effect/platform-node";
-import { Console, Effect, FileSystem, Layer, Option, Predicate } from "effect";
+import { Console, Effect, FileSystem, Layer, Option } from "effect";
 import { HttpRouter, HttpStaticServer } from "effect/http";
 import { HttpApiBuilder } from "effect/http-api";
 import { createServer } from "node:http";
@@ -20,7 +20,6 @@ type ServerRequirements = Effect.Services<
   | typeof servicesSnapshot
   | ReturnType<typeof servicesJournal>
   | ReturnType<typeof servicesStart>
-  | ReturnType<typeof servicesStop>
 >;
 
 /** Options for {@link serverServe}. */
@@ -33,15 +32,15 @@ export interface ServerServeOptions {
   readonly dashboard: Option.Option<string>;
 }
 
-const messageOf = (error: unknown) =>
-  Predicate.hasProperty(error, "message") && Predicate.isString(error.message)
-    ? error.message
-    : String(error);
+/** Any failure the services commands raise; each carries a message. */
+interface Failure {
+  readonly message: string;
+}
 
-const toFailure = (error: unknown) =>
-  new ServerFailure({ message: messageOf(error) });
+const toFailure = (error: Failure) =>
+  new ServerFailure({ message: error.message });
 
-const toUnitError = (error: unknown) =>
+const toUnitError = (error: Failure) =>
   error instanceof ServiceMonitorError
     ? new ServiceNotFound({ message: error.message })
     : toFailure(error);
@@ -75,6 +74,7 @@ export const serverServe = Effect.fn("Server.serve")(function* (
   const config = yield* Config;
   const fs = yield* FileSystem.FileSystem;
   const context = yield* Effect.context<ServerRequirements>();
+
   const dashboard = Option.getOrElse(options.dashboard, () =>
     join(config.publicDotfiles, "server", "dist"),
   );
