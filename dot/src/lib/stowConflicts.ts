@@ -49,7 +49,6 @@ const RETIRED_PUBLIC_STOW_PATHS = [
   "systemd/.config/dot/services.d/dot-doctor-startup.json",
   "systemd/.config/systemd/user/notes-capture-daemon.service",
   "systemd/.config/dot/services.d/notes-capture-daemon.yml",
-  "pitchfork/.config/pitchfork",
 ] as const;
 
 /** Stored external symlink for save/restore around stow. */
