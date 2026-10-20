@@ -1,0 +1,36 @@
+---
+title: Herdr
+description: The server's Herdr session, run as a user service for remote clients.
+---
+
+[Herdr](https://herdr.dev) is the shared agent terminal multiplexer. Product behaviour, concepts, and configuration options live in the [official docs](https://herdr.dev/docs). This page covers only what this branch customises. On the server, Herdr is the main way in: other machines attach to its session over SSH.
+
+## Remote host
+
+There is no desktop to start Herdr, so a systemd user service owns the server process. Lingering keeps it running with nobody logged in.
+
+```bash
+# On the server, once
+loginctl enable-linger "$USER"
+systemctl --user enable --now herdr.service
+
+# From another machine
+herdr --remote <host>
+```
+
+The config matches the desktop's keys, theme and sidebar, so a remote session feels the same. Sounds are off.
+
+## Layout
+
+| Piece | Why |
+| --- | --- |
+| `herdr/` package | Stow source for managed session and plugin config |
+| `herdr.service` | Keeps the Herdr server running for remote clients |
+| Runtime `~/.config/herdr/` | Herdr-owned logs, sockets, and session state stay untracked beside stowed files |
+| `config.toml` | Reproducible session layer (prefix commands, theme, sidebar, plugin chords) |
+| `plugins/config/` | Selected third-party plugin config stowed with the package |
+| `scripts/.local/share/herdr-plugins/` | Local `dotfiles.*` plugin sources linked on `dot update` |
+
+## Plugins
+
+`dot update` links the local `dotfiles.*` plugins (repository picker, terminal titles, Yazi, mise tasks, Plannotator and dot links) and restores the pinned third-party plugins through `herdr-lazy`. Some of them, such as Plannotator reviews and `dot://` links, were built for the desktop and still need checking from a remote client.
