@@ -80,7 +80,7 @@ Check these from a local session on the server. Items tied to a file are also ma
 
 - [x] Check whether the desktop Herdr swallows the `alt+x` prefix when the server is attached from inside it
 - [x] Check whether sounds play on the client when attached remotely: they do
-- [ ] Check the Plannotator review binding from a remote client, and where reviews open now `PLANNOTATOR_BROWSER` is unset. Needs research: #1133
+- [x] Check the Plannotator review binding from a remote client, and where reviews open now `PLANNOTATOR_BROWSER` is unset. Moved to #1133
 - [x] Check the `dotfiles.dot-links` plugin: `file://` and web links work from a remote client. `dot://` links don't, since `dot link` is desktop-only, and that's fine
 - [x] Confirm the `herdr-lazy` plugins all work headless
 
