@@ -982,7 +982,7 @@ dot omarchy shell config
 
 ## `dot session`
 
-Inspect agent sessions
+Inspect and move agent sessions
 
 ```text
 dot session <subcommand> [flags]
@@ -1023,6 +1023,87 @@ Read-only OpenCode 2 session inspection through the configured launcher. Pass th
 ```bash
 dot session status ses_example --json
 dot session status ses_example --warn-at 80
+```
+
+### `dot session send`
+
+Queue a session on the HA box to pick up on another machine
+
+```text
+dot session send [flags] [<session-id>]
+```
+
+Exports the session and its subagent sessions with opencode2 session export, adds a patch of uncommitted changes (untracked files included) and uploads them over SSH to the queue folder set in ~/.config/dot/session-queue.yml. The original session is left as it is.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the queued entry's metadata as JSON |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<session-id>` | OpenCode 2 session ID; without it, pick an OpenCode pane from Herdr |
+
+**Examples**
+
+```bash
+dot session send
+dot session send ses_example --json
+```
+
+### `dot session queue`
+
+List sessions waiting in the queue
+
+```text
+dot session queue [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print pending entries as JSON |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot session queue
+dot session queue --json
+```
+
+### `dot session take`
+
+Pick up a queued session on this machine
+
+```text
+dot session take [flags] [<entry-id>]
+```
+
+Claims the entry so no other machine can take it, imports the sessions into this machine's checkout of the same repository, offers to apply the patch when HEAD matches and the tree is clean, then opens the session in its Herdr workspace with a draft prompt pasted in but not sent.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the outcome as JSON |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<entry-id>` | Entry ID from dot session queue; without it, pick one |
+
+**Examples**
+
+```bash
+dot session take
 ```
 
 ## `dot snapshot`

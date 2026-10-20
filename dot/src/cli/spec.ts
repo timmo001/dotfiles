@@ -86,6 +86,11 @@ import { cliStyler } from "../lib/ansi.js";
 import { recapMessage } from "../lib/updateSummary.js";
 import { snapshot } from "../commands/Snapshot.js";
 import { sessionStatus } from "../commands/SessionStatus.js";
+import {
+  sessionQueueList,
+  sessionSend,
+  sessionTake,
+} from "../commands/SessionQueue.js";
 import { repos, searchRepos } from "../commands/Repos.js";
 import { systemUpdate, UPDATE_STEPS } from "../commands/SystemUpdate.js";
 import { update, updateCheck, updateRepositories } from "../commands/Update.js";
@@ -1808,9 +1813,62 @@ const sessionCommand = describe(
             "Read-only OpenCode 2 session inspection through the configured launcher. Pass the exact session ID supplied in the agent's environment context; it is not inferred from the focused pane, working directory or a guessed shell variable. Reports the selected model and variant, supported variants, model limits, latest completed assistant token measurement, its age, the latest completed compaction, and separately labelled cumulative usage and cost. Context tokens include non-cached input, cache reads and writes, output and reasoning, matching OpenCode's display. Input usage includes non-cached and cached input. Pressure uses whichever percentage is higher: context-window usage or input-limit usage. Current usage is unknown after compaction without a new measurement, after a model/variant switch, or with a staged revert. Later tool results and messages are not counted. Looks back through at most 20 messages per type and marks incomplete lookups. --warn-at defaults to 70 percent: a workflow heuristic, not a proven cognitive degradation threshold. The command does not change models, compact or open sessions.",
         },
       ),
+      describe(
+        Command.make(
+          "send",
+          {
+            sessionId: Argument.String("session-id").pipe(
+              Argument.withDescription(
+                "OpenCode 2 session ID; without it, pick an OpenCode pane from Herdr",
+              ),
+              Argument.optional,
+            ),
+            json: bool("json", "Print the queued entry's metadata as JSON"),
+          },
+          ({ sessionId, json }) =>
+            sessionSend({ sessionId: Option.getOrUndefined(sessionId), json }),
+        ),
+        "Queue a session on the HA box to pick up on another machine",
+        ["dot session send", "dot session send ses_example --json"],
+        {
+          description:
+            "Exports the session and its subagent sessions with opencode2 session export, adds a patch of uncommitted changes (untracked files included) and uploads them over SSH to the queue folder set in ~/.config/dot/session-queue.yml. The original session is left as it is.",
+        },
+      ),
+      describe(
+        Command.make(
+          "queue",
+          { json: bool("json", "Print pending entries as JSON") },
+          sessionQueueList,
+        ),
+        "List sessions waiting in the queue",
+        ["dot session queue", "dot session queue --json"],
+      ),
+      describe(
+        Command.make(
+          "take",
+          {
+            entryId: Argument.String("entry-id").pipe(
+              Argument.withDescription(
+                "Entry ID from dot session queue; without it, pick one",
+              ),
+              Argument.optional,
+            ),
+            json: bool("json", "Print the outcome as JSON"),
+          },
+          ({ entryId, json }) =>
+            sessionTake({ entryId: Option.getOrUndefined(entryId), json }),
+        ),
+        "Pick up a queued session on this machine",
+        ["dot session take"],
+        {
+          description:
+            "Claims the entry so no other machine can take it, imports the sessions into this machine's checkout of the same repository, offers to apply the patch when HEAD matches and the tree is clean, then opens the session in its Herdr workspace with a draft prompt pasted in but not sent.",
+        },
+      ),
     ]),
   ),
-  "Inspect agent sessions",
+  "Inspect and move agent sessions",
 );
 
 const simpleCommands = [
