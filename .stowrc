@@ -9,6 +9,8 @@
 --ignore=AGENTS.md
 --ignore=\.github
 --ignore=\.dot-public-packages
+--ignore=\.dot-public-deb-releases\.yml
+--ignore=\.dot-skills\.yml
 --ignore=\.dot-gh-extensions
 --ignore=^/\.opencode
 --ignore=^/\.claude-plugin
@@ -26,6 +28,7 @@
 --ignore=^/dot
 --ignore=^/dot-migration
 --ignore=^/docs
+--ignore=^/server
 --ignore=^/chromium-extension
 --ignore=^/package\.json
 --ignore=(^|/)node_modules(/|$)
