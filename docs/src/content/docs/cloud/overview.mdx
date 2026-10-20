@@ -15,6 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/timmo001/dotfiles/distro/cloud/clou
 | `cloud/setup.sh` | Clones this branch, installs [mise](https://mise.jdx.dev/) and the toolchain, builds `dot` and runs `dot cloud setup`. [Environment caching](https://code.claude.com/docs/en/cloud-environments#environment-caching) snapshots the result, so later sessions skip it |
 | `dot cloud setup` | Links the cloud Claude Code settings, writes the user `CLAUDE.md` and links the shared skills into `~/.claude/skills` |
 | `cloud/claude/settings.json` | User settings for a cloud session, without the desktop hooks that need stowed config |
+| `dot cloud session-start` | Session start hook that pulls the latest branch and adds the private global instructions, which the setup script can't reach without GitHub access |
 | `cloud/claude/CLAUDE.md` | Notes on what a cloud VM has and lacks, placed ahead of my global agent instructions when the private overlay is reachable |
 
 | Left out | Why |
