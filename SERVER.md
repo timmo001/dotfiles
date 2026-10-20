@@ -9,7 +9,7 @@ It branches from `distro/arch-omarchy-quattro` and rebases onto it to pick up sh
 - Shell and prompt: `zsh`, `starship`, `tmux`, `editorconfig`, `ripgrep`. The Omarchy aliases still wanted (eza `ls`, `ff`, `cd` through zoxide, `n` and so on) live in `.zshrc`
 - Terminal tools from mise: `btop`, `fastfetch`, `lazygit`, `lazydocker`, `neovim`, `yazi`, `topgrade`, plus `context`, `ha-bridge`, `notes` and `triage`. apt packages come from `.dot-public-packages`
 - Agents: `agents` (OpenCode, installed and updated by `dot install`), `pi`, `plannotator`, `dotfiles-skills`, and the shared skills minus the desktop-only ones listed in `.dot-skills.yml`
-- Private overlay: `dotfiles-private` stays on its main branch, and `dot` stows only the private packages listed in `.dot-private.yml`, unstowing any dropped from the list
+- Private overlay: `dotfiles-private` stays on its main branch, and `dot` stows only the private packages listed in `.dot-private.yml`, unstowing any dropped from the list. The private `dot-git.yml` and `mcp.yml` are shared, except the MCP servers its `mcp.exclude` keeps off the server
 - Herdr: `herdr` config and the local plugins under `scripts/.local/share/herdr-plugins/`
 - Services: `systemd` user units and `dot services` definitions, plus `herdr`, `ollama` (on the GPU, listening on the LAN) and `system-bridge`
 - System Bridge, installed from its latest release `.deb` by `dot update system` (`.dot-public-deb-releases.yml`)
@@ -99,5 +99,4 @@ Check these from a local session on the server. Items tied to a file are also ma
 
 ### Private overlay
 
-- [ ] Check the private packages `.dot-private.yml` selects stow cleanly on the NAS
-- [ ] Decide what the server does with the private `dot-git.yml`, `mcp.yml` and `dot-deps.yml`, which `dot` reads directly rather than stowing
+- [ ] Check the private packages `.dot-private.yml` selects stow cleanly on the NAS, and that `chrome-devtools` shows as disabled in OpenCode there
