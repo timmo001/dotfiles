@@ -30,6 +30,7 @@
 --ignore=^/dot-migration
 --ignore=^/docs
 --ignore=^/system-upgrade
+--ignore=^/cloud
 --ignore=^/chromium-extension
 --ignore=^/package\.json
 --ignore=(^|/)node_modules(/|$)

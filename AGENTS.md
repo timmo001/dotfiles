@@ -4,6 +4,22 @@ Repository-specific instructions for coding agents working in this public dotfil
 
 Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGENTS.md`. This file should only describe this repo's source layout, stow workflow, repo-local commands, and validation expectations. Don't catalogue skills or commands here: skills self-document via their injected `description`, commands via their frontmatter and the generated docs reference. Keep only repo facts and routing those don't capture.
 
+## Cloud Branch
+
+- This is `distro/cloud`, a build for cloud agent environments, starting with Claude Code cloud sessions. It is `distro/ubuntu-server` with a cloud layer on top, so the Ubuntu Server Branch section below describes its base: where that section says "this branch" or "the server", it means `distro/ubuntu-server`.
+- A cloud session VM never stows packages, runs `dot init` or starts services. The environment's setup script runs `cloud/setup.sh`, which clones this branch shallowly to `~/.config/dotfiles` (and the private dotfiles when the session can reach them), installs mise and the pinned toolchain, builds `dot` and runs `dot cloud setup`. The environment snapshots the result, so keep the script under the roughly five-minute cache limit and never let it exit non-zero, since that stops the session starting.
+- `dot cloud setup` (`dot/src/commands/CloudSetup.ts`) links `~/.claude/settings.json` to `cloud/claude/settings.json`, writes `~/.claude/CLAUDE.md` from `cloud/claude/CLAUDE.md` followed by the private global AGENTS.md, and links the shared skills into `~/.claude/skills`. Keep hooks out of the cloud settings unless they work without stowed config: the desktop Claude Code hooks read the stowed OpenCode config and Plannotator.
+- Keep the cloud layer additive: new files under `cloud/` and new code, not edits to server files, so rebasing onto the server stays clean. Remove server code only when it gets in the way in a cloud session.
+- Test `cloud/setup.sh` with a scratch `HOME` (`HOME=$(mktemp -d) bash cloud/setup.sh --ref <branch>`) rather than against a live session's `~/.claude`.
+
+### Updating From The Server Branch
+
+The branch rebases onto `origin/distro/ubuntu-server`; the Cloud rebase workflow does it when dispatched and opens a "Rebase distro/cloud onto the server branch" issue when it can't. Follow the same steps as Updating From The Desktop Branch below, with these changes:
+
+- Look ahead and rebase against `origin/distro/ubuntu-server` instead of the desktop branch.
+- Wanted: everything the server takes, apart from server-only machine setup that can't run in a cloud VM, such as systemd units, ufw rules and NAS power handling.
+- Resolve blindly by keeping the cloud side, and push with `--force-with-lease`. The `cloud-rebase` skill has the steps.
+
 ## Ubuntu Server Branch
 
 - This is `distro/ubuntu-server`, a headless build for an Ubuntu server. It has no desktop packages: no Hyprland, UWSM, Ghostty or Omarchy.

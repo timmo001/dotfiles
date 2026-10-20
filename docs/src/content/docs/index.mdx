@@ -5,6 +5,10 @@ description: A headless Ubuntu server build of my dotfiles, with a shared Herdr 
 
 The headless [Ubuntu Server](https://ubuntu.com/server) build of my dotfiles. It is a cut-down copy of the [Omarchy desktop](https://dotfiles.timmo.dev/) setup with the terminal and service tooling only, and it hosts a [Herdr](/server/herdr/) session that other machines attach to. [GNU Stow](https://www.gnu.org/software/stow/) links each package into place, and a compiled `dot` CLI sets up, updates and checks the machine. Private machine details live in a separate overlay.
 
+:::tip[Cloud build]
+This is the cloud build: the server build described below, with a layer for Claude Code cloud sessions. See the [cloud overview](/cloud/overview/).
+:::
+
 :::note[Work in progress]
 This build is ahead of the real server. See the [server overview](/server/overview/) for what is still open.
 :::
