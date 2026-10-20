@@ -11,7 +11,7 @@ It branches from `distro/arch-omarchy-quattro` and rebases onto it to pick up sh
 - Agents: `agents` (OpenCode, installed and updated by `dot install`), `pi`, `plannotator`, `dotfiles-skills`, and the shared skills minus the desktop-only ones listed in `.dot-skills.yml`
 - Private overlay: `dotfiles-private` stays on its main branch, and `dot` stows only the private packages listed in `.dot-private.yml`, unstowing any dropped from the list. The private `dot-git.yml` and `mcp.yml` are shared, except the MCP servers its `mcp.exclude` keeps off the server and the repositories not tagged `machines: [server]` in `dot-git.yml`. The tagged ones are cloned shallow
 - Herdr: `herdr` config and the local plugins under `scripts/.local/share/herdr-plugins/`
-- Services: `systemd` user units and `dot services` definitions, plus `herdr`, `ollama` (on the GPU, listening on the LAN) and `system-bridge`
+- Services: `systemd` user units and `dot services` definitions, plus `herdr`, `ollama` and `ollaya` (on the GPU, listening on the LAN) and `system-bridge`
 - System Bridge, installed from its latest release `.deb` by `dot update system` (`.dot-public-deb-releases.yml`)
 - The `dot` CLI source, tests, docs site and CI
 
@@ -62,7 +62,7 @@ The server still runs an older checkout with tools installed by hand. When this 
 
 1. Back up `~/.config/dotfiles` and unstow its old packages, so the hypr, waybar, wofi and ghostty links go.
 2. Clone this branch to `~/.config/dotfiles` (and the private overlay), build `dot` with `mise run dot:build`, then run `dot init`.
-3. Swap the old `herdr-server.service` for `herdr.service`, and the system `system-bridge.service` for the user unit. Enable `ollama.service` and start the dashboard with `mise run serve:server`.
+3. Swap the old `herdr-server.service` for `herdr.service`, and the system `system-bridge.service` for the user unit. Enable `ollama.service` and `ollaya.service` and start the dashboard with `mise run serve:server`.
 4. Run `dot doctor`, then `dot update system` once interactively.
 5. Once the mise and apt versions work, remove what they replace:
    - linuxbrew (lazygit, lazydocker, ttyd)
@@ -96,6 +96,10 @@ Check these from a local session on the server. Items tied to a file are also ma
 - [ ] Check the Plannotator review binding from a remote client, and where reviews open now `PLANNOTATOR_BROWSER` is unset
 - [ ] Check the `dotfiles.dot-links` plugin: `file://` links open Neovim in Herdr, but `dot://` links target the desktop Git panel
 - [ ] Confirm the `herdr-lazy` plugins all work headless
+
+### Branch upkeep
+
+- [ ] Automate the rebase onto `distro/arch-omarchy-quattro`, like the `dot-deps` and `skill-updates-agent` jobs: a timer runs an unattended agent that follows "Updating From The Desktop Branch" in `AGENTS.md`, keeps wanted changes, drops desktop-only ones, runs the checks and force-pushes with `--force-with-lease`, and stops with a report when a conflict needs a decision
 
 ### Private overlay
 
