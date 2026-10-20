@@ -3,13 +3,12 @@ title: Stow Packages
 description: Short blurbs for the other stowed packages in this repo.
 ---
 
-Everything below is applied with `dot stow`. Dedicated pages cover [Hyprland](/desktop/hyprland/), [Ghostty](/desktop/ghostty/), [Herdr](/desktop/herdr/), [UWSM](/desktop/uwsm/), [Omarchy Shell](/desktop/omarchy-shell/), [Agents](/agents/overview/), [OpenCode](/agents/opencode/overview/), [Pi](/agents/pi/), and [Cursor](/agents/cursor/). The rest stay as one-line blurbs.
+Everything below is applied with `dot stow`. Dedicated pages cover [Herdr](/server/herdr/), [Agents](/agents/overview/), [OpenCode](/agents/opencode/overview/), and [Pi](/agents/pi/). The rest stay as one-line blurbs. The desktop-only packages live on the [desktop build](https://dotfiles.timmo.dev/stow/).
 
 | Package | Why it exists |
 | --- | --- |
 | `agents/` | Shared OpenCode assets; see [OpenCode](/agents/opencode/overview/) |
 | `bash/`, `fish/`, `zsh/` | Shell config and `dot` completions |
-| `cursor/` | Cursor launch helpers; agent notes on [Cursor](/agents/cursor/) |
 | `dotfiles-skills/` | Global skills tied to these paths or private overlays; see [Skills](/agents/skills/) |
 | `editorconfig/` | Shared editor formatting baseline |
 | `fastfetch/` | System info display config |
@@ -19,11 +18,10 @@ Everything below is applied with `dot stow`. Dedicated pages cover [Hyprland](/d
 | `pi/` | Pi companion config; see [Pi](/agents/pi/) |
 | `plannotator/` | Shared [Plannotator](https://github.com/backnotprop/plannotator) plan/review settings |
 | `ripgrep/` | Default ripgrep flags |
-| `scripts/` | `~/.local/bin` helpers used by the desktop and `dot` |
+| `scripts/` | `~/.local/bin` helpers and local Herdr plugins |
 | `starship/` | [Starship](https://starship.rs) prompt config |
-| `systemd/` | User units (timers and services) |
+| `systemd/` | User units (timers and services), including the Herdr server |
 | `tmux/` | Terminal multiplexer fallback config |
 | `topgrade/` | [Topgrade](https://github.com/topgrade-rs/topgrade) system update orchestration |
 | `yazi/` | [Yazi](https://yazi-rs.github.io) file manager plugins and config |
 
-Laptop-only overlays use the `--laptop` package suffix (`scripts--laptop`, `systemd--laptop`).

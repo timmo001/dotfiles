@@ -7,7 +7,7 @@ Personal [Omarchy](https://omarchy.org) dotfiles, managed with [GNU Stow](https:
 > [!NOTE]
 > This is the `distro/ubuntu-server` branch: a headless Ubuntu server build with the terminal and service tooling only, and a Herdr server for remote clients. See [SERVER.md](SERVER.md) for what changed and what is still to do. The desktop setup lives on `distro/arch-omarchy-quattro`.
 
-**Docs:** <https://dotfiles.timmo.dev>
+**Docs:** <https://ubuntu-server.dotfiles.timmo.dev> (desktop: <https://dotfiles.timmo.dev>)
 
 > [!CAUTION]
 > This repository is for reference. The configs are tuned for Omarchy and my machines, with a private overlay that is not public, so installation is not recommended. Have your agents borrow the pieces you want instead.
@@ -38,16 +38,16 @@ Ongoing: `dot doctor` (health checks), `dot update` (pull, stow, rebuild).
 
 ## Docs map
 
-- [Overview](https://dotfiles.timmo.dev/)
-- [Getting started](https://dotfiles.timmo.dev/getting-started/)
-- [Distros](https://dotfiles.timmo.dev/distros/)
-- [Configuration](https://dotfiles.timmo.dev/configuration/)
-- [`dot`](https://dotfiles.timmo.dev/dot/overview/) · [command reference](https://dotfiles.timmo.dev/dot/commands/)
-- [Hyprland](https://dotfiles.timmo.dev/desktop/hyprland/) · [Ghostty](https://dotfiles.timmo.dev/desktop/ghostty/) · [Herdr](https://dotfiles.timmo.dev/desktop/herdr/) · [UWSM](https://dotfiles.timmo.dev/desktop/uwsm/) · [Omarchy Shell](https://dotfiles.timmo.dev/desktop/omarchy-shell/)
-- [Stow packages](https://dotfiles.timmo.dev/stow/)
-- [Agents](https://dotfiles.timmo.dev/agents/overview/) · [skills](https://dotfiles.timmo.dev/agents/skills/)
-- [OpenCode](https://dotfiles.timmo.dev/agents/opencode/overview/) · [agents](https://dotfiles.timmo.dev/agents/opencode/agents/) · [commands](https://dotfiles.timmo.dev/agents/opencode/commands/) · [plugins](https://dotfiles.timmo.dev/agents/opencode/plugins/)
-- [Pi](https://dotfiles.timmo.dev/agents/pi/) · [Cursor](https://dotfiles.timmo.dev/agents/cursor/)
+- [Overview](https://ubuntu-server.dotfiles.timmo.dev/)
+- [Getting started](https://ubuntu-server.dotfiles.timmo.dev/getting-started/)
+- [Distros](https://ubuntu-server.dotfiles.timmo.dev/distros/)
+- [Configuration](https://ubuntu-server.dotfiles.timmo.dev/configuration/)
+- [`dot`](https://ubuntu-server.dotfiles.timmo.dev/dot/overview/) · [command reference](https://ubuntu-server.dotfiles.timmo.dev/dot/commands/)
+- [Server](https://ubuntu-server.dotfiles.timmo.dev/server/overview/) · [Herdr](https://ubuntu-server.dotfiles.timmo.dev/server/herdr/)
+- [Stow packages](https://ubuntu-server.dotfiles.timmo.dev/stow/)
+- [Agents](https://ubuntu-server.dotfiles.timmo.dev/agents/overview/) · [skills](https://ubuntu-server.dotfiles.timmo.dev/agents/skills/)
+- [OpenCode](https://ubuntu-server.dotfiles.timmo.dev/agents/opencode/overview/) · [agents](https://ubuntu-server.dotfiles.timmo.dev/agents/opencode/agents/) · [commands](https://ubuntu-server.dotfiles.timmo.dev/agents/opencode/commands/) · [plugins](https://ubuntu-server.dotfiles.timmo.dev/agents/opencode/plugins/)
+- [Pi](https://ubuntu-server.dotfiles.timmo.dev/agents/pi/)
 
 Detail lives in code and `--help`. The site stays a short what-and-why reference.
 

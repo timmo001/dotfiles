@@ -5,14 +5,13 @@ sidebar:
   label: Overview
 ---
 
-Coding agents in this setup share skills and AGENTS guidance. [OpenCode](https://opencode.ai) is the primary harness; Pi and Cursor are thinner companions. Shared skills live in a separate repo. `dot` keeps a checkout detached at the latest `main` and links it into `~/.agents/skills/`.
+Coding agents in this setup share skills and AGENTS guidance. [OpenCode](https://opencode.ai) is the primary harness; Pi is a thinner companion. Shared skills live in a separate repo. `dot` keeps a checkout detached at the latest `main` and links it into `~/.agents/skills/`.
 
 | Piece | Why |
 | --- | --- |
 | [Skills](/agents/skills/) | Shared catalogue plus repo-local skills |
 | [OpenCode](/agents/opencode/overview/) | Day-to-day sessions, slash commands, plugins, Herdr panes |
 | [Pi](/agents/pi/) | Lightweight companion sessions |
-| [Cursor](/agents/cursor/) | IDE-embedded agent and launchers |
 
 ## Shared wiring
 
@@ -23,4 +22,4 @@ Coding agents in this setup share skills and AGENTS guidance. [OpenCode](https:/
 | `dot skills` | Check and apply updates from the skills repo |
 | `~/.agents/skills/` | Shared skills linked from the latest skills repo `main` |
 
-OpenCode owns the full agent, command, and plugin stack. Pi and Cursor reuse skills and/or AGENTS, not that stack.
+OpenCode owns the full agent, command, and plugin stack. Pi reuses skills and AGENTS, not that stack.

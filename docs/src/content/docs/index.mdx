@@ -1,9 +1,13 @@
 ---
 title: Overview
-description: An agent-driven Omarchy setup for development, desktop, and automation.
+description: A headless Ubuntu server build of my dotfiles, with a shared Herdr session.
 ---
 
-My [Omarchy](https://omarchy.org) dotfiles (Arch-based). [GNU Stow](https://www.gnu.org/software/stow/) links each package into place, and a compiled `dot` CLI sets up, updates and checks each machine. It covers public config, desktop customisations, git tooling and a shared [OpenCode](https://opencode.ai) setup. Private machine details live in a separate overlay.
+The headless [Ubuntu Server](https://ubuntu.com/server) build of my dotfiles. It is a cut-down copy of the [Omarchy desktop](https://dotfiles.timmo.dev/) setup with the terminal and service tooling only, and it hosts a [Herdr](/server/herdr/) session that other machines attach to. [GNU Stow](https://www.gnu.org/software/stow/) links each package into place, and a compiled `dot` CLI sets up, updates and checks the machine. Private machine details live in a separate overlay.
+
+:::note[Work in progress]
+This build is ahead of the real server. See the [server overview](/server/overview/) for what is still open.
+:::
 
 ```bash
 # Pull, refresh config, re-stow and rebuild
@@ -29,10 +33,6 @@ These docs and the public dotfiles are for reference. They are tuned for my mach
     <figcaption><code>dot</code> sets up and maintains the machine</figcaption>
   </figure>
   <figure style={{ margin: 0, width: "9rem", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-    <img src="/illustrations/desktop.svg" alt="" width="120" height="120" />
-    <figcaption>Hyprland and the Omarchy Shell make the desktop</figcaption>
-  </figure>
-  <figure style={{ margin: 0, width: "9rem", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
     <img src="/illustrations/agents.svg" alt="" width="120" height="120" />
     <figcaption>Agents share skills and guidance</figcaption>
   </figure>
@@ -42,21 +42,18 @@ These docs and the public dotfiles are for reference. They are tuned for my mach
 
 | Page | Why |
 | --- | --- |
-| [Getting started](/getting-started/) | Bootstrap a fresh Omarchy machine |
+| [Getting started](/getting-started/) | Bootstrap the server |
 | [Configuration](/configuration/) | Private overlay, packages, and tracked app config |
-| [Distros](/distros/) | The other machine builds and their own docs sites |
+| [Distros](/distros/) | The desktop build and any others, with their own docs sites |
 | [`dot` CLI](/dot/overview/) | Setup, sync, stow, doctor, and git helpers ([command reference](/dot/commands/)) |
 | [Stow packages](/stow/) | One-line blurbs for everything else that is stowed |
 
-## Desktop
+## Server
 
 | Page | Why |
 | --- | --- |
-| [Hyprland](/desktop/hyprland/) | Window manager config and per-host overrides |
-| [Ghostty](/desktop/ghostty/) | Terminal config with host overrides |
-| [Herdr](/desktop/herdr/) | Shared agent terminal multiplexer |
-| [UWSM](/desktop/uwsm/) | User environment for the graphical session |
-| [Omarchy Shell](/desktop/omarchy-shell/) | Quickshell bar, panels, and `timmo.*` plugins |
+| [Overview](/server/overview/) | What this build keeps, drops, and still has open |
+| [Herdr](/server/herdr/) | Shared agent session that remote clients attach to |
 
 ## Agents
 
@@ -66,7 +63,6 @@ These docs and the public dotfiles are for reference. They are tuned for my mach
 | [Skills](/agents/skills/) | Shared catalogue and repo-local skills |
 | [OpenCode](/agents/opencode/overview/) | Primary coding-agent harness |
 | [Pi](/agents/pi/) | Lightweight companion agent |
-| [Cursor](/agents/cursor/) | IDE-embedded agent and launchers |
 
 ## Machine-readable docs
 
@@ -74,9 +70,9 @@ Build-time [llms.txt](https://llmstxt.org) bundles and a read-only docs MCP, gen
 
 | URL | Use |
 | --- | --- |
-| https://dotfiles.timmo.dev/llms.txt | Compact page index |
-| https://dotfiles.timmo.dev/llms-full.txt | Full docs bundle |
-| https://dotfiles.timmo.dev/mcp | Hosted MCP (search, page and navigation) |
+| https://ubuntu-server.dotfiles.timmo.dev/llms.txt | Compact page index |
+| https://ubuntu-server.dotfiles.timmo.dev/llms-full.txt | Full docs bundle |
+| https://ubuntu-server.dotfiles.timmo.dev/mcp | Hosted MCP (search, page and navigation) |
 | `/{route}.md` | One page as Markdown |
 
 Ask AI on the site is off. For live repo state, use [context](https://context.timmo.dev) rather than these static bundles.

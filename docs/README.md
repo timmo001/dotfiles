@@ -4,7 +4,7 @@ The [dotfiles](https://github.com/timmo001/dotfiles) documentation site, built w
 
 ## Site
 
-The site is available at <https://dotfiles.timmo.dev>.
+The site is available at <https://ubuntu-server.dotfiles.timmo.dev>. The desktop build publishes its own copy at <https://dotfiles.timmo.dev>.
 
 ## Project Structure
 
