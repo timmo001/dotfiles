@@ -58,21 +58,7 @@ The config matches the desktop's keys, theme and sidebar, with sounds off.
 
 ## Switching the server over
 
-The server still runs an older checkout with tools installed by hand. When this branch replaces it:
-
-1. Back up `~/.config/dotfiles` and unstow its old packages, so the hypr, waybar, wofi and ghostty links go.
-2. Clone this branch to `~/.config/dotfiles` (and the private overlay), build `dot` with `mise run dot:build`, then run `dot init`.
-3. Swap the old `herdr-server.service` for `herdr.service`, and the system `system-bridge.service` for the user unit. Enable `ollama.service` and `ollaya.service` and start the dashboard with `mise run serve:server`.
-4. Run `dot doctor`, then `dot update system` once interactively.
-5. Once the mise and apt versions work, remove what they replace:
-   - linuxbrew (lazygit, lazydocker, ttyd)
-   - `/opt/nvim-linux-x86_64`
-   - `/usr/local/bin/ollama` and its system unit
-   - the topgrade `.deb`
-   - `~/.opencode/bin` and `~/.local/bin/herdr`. Keep `~/.local/share/opencode`, which holds the login
-   - System Bridge 5.13.0 from mise
-   - the old configs the new packages replace
-   - the `update-mise` crontab line, now that `dot update system` covers it
+Done on the NAS in October 2026: the old checkout was backed up and unstowed, this branch cloned and `dot init` run, the old Herdr and System Bridge units swapped for the user units, and the hand-installed tools (linuxbrew, `/opt/nvim`, `/usr/local/bin/ollama`, the topgrade `.deb`, `~/.opencode/bin`, mise's System Bridge) and the `update-mise` crontab line removed. Pitchfork starts the dashboard at boot. `dot doctor` and `dot update system` run cleanly.
 
 ## Still open
 
@@ -103,4 +89,4 @@ Check these from a local session on the server. Items tied to a file are also ma
 
 ### Private overlay
 
-- [ ] Check the private packages `.dot-private.yml` selects stow cleanly on the NAS, and that `chrome-devtools` shows as disabled in OpenCode there
+- [x] Check the private packages `.dot-private.yml` selects stow cleanly on the NAS, and that `chrome-devtools` shows as disabled in OpenCode there
