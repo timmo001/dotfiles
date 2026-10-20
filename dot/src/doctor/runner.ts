@@ -21,8 +21,6 @@ import { checkGitSigning } from "../git/doctor/gitSigning.js";
 import {
   checkGitNotifications,
   checkDoctorTimer,
-  checkDependencyService,
-  checkNotesCaptureDaemon,
   checkRegisteredServices,
 } from "./checks/systemd.js";
 import {
@@ -78,8 +76,6 @@ const sections: readonly SectionDef[] = [
   { name: "Git commit signing", check: checkGitSigning },
   { name: "Git notification checks", check: checkGitNotifications },
   { name: "Doctor timer", check: checkDoctorTimer },
-  { name: "Dependency service", check: checkDependencyService },
-  { name: "Notes capture daemon", check: checkNotesCaptureDaemon },
   { name: "Registered services", check: checkRegisteredServices },
   { name: "Private access", check: checkPrivateAccess },
   { name: "Public package checks", check: checkPublicPackages },
