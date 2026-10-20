@@ -8,7 +8,7 @@ const distro = distroById(currentDistro);
 export default defineConfig(
   docsConfig({
     title: 'Dotfiles',
-    description: 'An agent-driven Omarchy setup for development, desktop, and automation.',
+    description: 'A headless Ubuntu server build of my dotfiles, with a shared Herdr session.',
     site: distro.site,
     github: {
       owner: 'timmo001',
@@ -30,13 +30,10 @@ export default defineConfig(
           ],
         },
         {
-          label: 'Desktop',
+          label: 'Server',
           items: [
-            '/desktop/hyprland',
-            '/desktop/ghostty',
-            '/desktop/herdr',
-            '/desktop/uwsm',
-            '/desktop/omarchy-shell',
+            '/server/overview',
+            '/server/herdr',
           ],
         },
         '/stow',
@@ -65,7 +62,6 @@ export default defineConfig(
           ],
         },
         '/agents/pi',
-        '/agents/cursor',
       ],
     },
     redirects: [
@@ -81,17 +77,25 @@ export default defineConfig(
       { from: '/reference/commands', to: '/agents/opencode/commands', status: 301 },
       { from: '/reference/plugins', to: '/agents/opencode/plugins', status: 301 },
       { from: '/other-agents/pi', to: '/agents/pi', status: 301 },
-      { from: '/other-agents/cursor', to: '/agents/cursor', status: 301 },
+      { from: '/other-agents/cursor', to: '/distros', status: 301 },
       { from: '/other-agents/agents-llms', to: '/', status: 301 },
       { from: '/agents/agents-llms', to: '/', status: 301 },
       { from: '/pi', to: '/agents/pi', status: 301 },
-      { from: '/cursor', to: '/agents/cursor', status: 301 },
+      { from: '/cursor', to: '/distros', status: 301 },
+      { from: '/agents/cursor', to: '/distros', status: 301 },
+      { from: '/server', to: '/server/overview', status: 301 },
       { from: '/agents-llms', to: '/', status: 301 },
-      { from: '/hyprland', to: '/desktop/hyprland', status: 301 },
-      { from: '/ghostty', to: '/desktop/ghostty', status: 301 },
-      { from: '/herdr', to: '/desktop/herdr', status: 301 },
-      { from: '/uwsm', to: '/desktop/uwsm', status: 301 },
-      { from: '/omarchy-shell', to: '/desktop/omarchy-shell', status: 301 },
+      // Desktop pages only exist on the desktop build; the Distros page links there.
+      { from: '/hyprland', to: '/distros', status: 301 },
+      { from: '/ghostty', to: '/distros', status: 301 },
+      { from: '/uwsm', to: '/distros', status: 301 },
+      { from: '/omarchy-shell', to: '/distros', status: 301 },
+      { from: '/desktop/hyprland', to: '/distros', status: 301 },
+      { from: '/desktop/ghostty', to: '/distros', status: 301 },
+      { from: '/desktop/uwsm', to: '/distros', status: 301 },
+      { from: '/desktop/omarchy-shell', to: '/distros', status: 301 },
+      { from: '/herdr', to: '/server/herdr', status: 301 },
+      { from: '/desktop/herdr', to: '/server/herdr', status: 301 },
     ],
     seo: {
       og: {
