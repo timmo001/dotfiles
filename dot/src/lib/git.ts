@@ -251,16 +251,22 @@ const ensureParentDirectory = Effect.fn("Git.ensureParentDirectory")(function* (
 export function ghRepoClone(
   remote: string,
   repoPath: string,
+  gitArgs: readonly string[] = [],
 ): Effect.Effect<void, GitCommandError, Gh | FileSystem.FileSystem> {
   return Effect.gen(function* () {
     yield* ensureParentDirectory(repoPath);
 
     yield* Repository.cloneInteractive(
-      { repository: remote, directory: repoPath },
+      { repository: remote, directory: repoPath, gitArgs },
       { timeout: null },
     ).pipe(
       Effect.mapError((error) =>
-        cloneError(`gh repo clone ${remote} ${displayPath(repoPath)}`, error),
+        cloneError(
+          ["gh repo clone", remote, displayPath(repoPath), ...gitArgs].join(
+            " ",
+          ),
+          error,
+        ),
       ),
     );
   });
