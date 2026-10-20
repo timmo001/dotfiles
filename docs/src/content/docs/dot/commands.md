@@ -1033,12 +1033,13 @@ Queue a session on the HA box to pick up on another machine
 dot session send [flags] [<session-id>]
 ```
 
-Exports the session and its subagent sessions with opencode2 session export, adds a patch of uncommitted changes (untracked files included) and uploads them over SSH to the queue folder set in ~/.config/dot/session-queue.yml. The original session is left as it is.
+Exports the session and its subagent sessions with opencode2 session export, adds a patch of uncommitted changes (untracked files included) and uploads them over SSH to the queue folder set in ~/.config/dot/session-queue.yml. Attachments are kept relative to the session's directory, then the home directory, so take restores them to the same place on the other machine without overwriting anything. The original session is left as it is.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
+| `--attach` `-a` `<path>` | Send this file or folder too, such as screenshots or a scratch folder; repeatable |
 | `--json` | Print the queued entry's metadata as JSON |
 | `--help` `-h` | Show help information |
 
@@ -1053,6 +1054,7 @@ Exports the session and its subagent sessions with opencode2 session export, add
 ```bash
 dot session send
 dot session send ses_example --json
+dot session send -a /tmp/opencode/my-task -a screenshot.png
 ```
 
 ### `dot session queue`

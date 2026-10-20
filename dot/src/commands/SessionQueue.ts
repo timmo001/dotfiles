@@ -7,7 +7,7 @@ import {
 import { Clock, Duration, Effect, FileSystem, Option, Schema } from "effect";
 import { Prompt } from "effect/cli";
 import { hostname } from "node:os";
-import { basename, join, relative } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { formatRelativeTimeAgo } from "../git/services/relativeTime.js";
 import { isAgent } from "../lib/agent.js";
 import { ENV, envString } from "../lib/env.js";
@@ -20,6 +20,8 @@ import {
 import { resolvedOmarchyHost } from "../lib/omarchyHost.js";
 import { CACHE_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
 import {
+  attachmentFor,
+  attachmentTarget,
   claim,
   download,
   finish,
@@ -31,6 +33,7 @@ import {
   SessionQueueError,
   sessionTree,
   upload,
+  type Attachment,
   type QueueMeta,
 } from "../lib/sessionQueue.js";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
@@ -329,6 +332,7 @@ const handled = <A, R>(
 /** Export a session and its subagent sessions to the queue on the HA box. */
 export const sessionSend = (options: {
   readonly sessionId?: string;
+  readonly attach: readonly string[];
   readonly json: boolean;
 }) =>
   handled(
@@ -353,6 +357,17 @@ export const sessionSend = (options: {
         );
 
       const sessions = yield* sessionTree(sessionId, childSessions);
+
+      const attachPaths = [
+        ...new Set(options.attach.map((path) => resolve(path))),
+      ];
+
+      for (const path of attachPaths)
+        if (!(yield* fs.exists(path)))
+          return yield* fail(
+            `Can't attach ${displayPath(path)}: it doesn't exist`,
+          );
+
       const host = yield* thisHost;
       const now = yield* Clock.currentTimeMillis;
       const sentAt = new Date(now).toISOString();
@@ -388,6 +403,16 @@ export const sessionSend = (options: {
           ? yield* writePatch(state.root, scratch, join(entry, "changes.patch"))
           : null;
 
+      const attachments: Attachment[] = [];
+
+      if (attachPaths.length > 0)
+        yield* fs.makeDirectory(join(entry, "attachments"));
+
+      for (const [index, path] of attachPaths.entries()) {
+        yield* fs.copy(path, join(entry, "attachments", String(index)));
+        attachments.push(attachmentFor(path, directory, HOME_DIR));
+      }
+
       const meta = {
         version: 1,
         id,
@@ -402,6 +427,7 @@ export const sessionSend = (options: {
         repository: state?.repository ?? null,
         herdr: workspace ? { workspace: workspace.label } : null,
         patch,
+        attachments,
       } satisfies QueueMeta;
 
       yield* fs.writeFileString(join(entry, "meta.json"), JSON.stringify(meta));
@@ -417,6 +443,14 @@ export const sessionSend = (options: {
               {
                 level: "info" as const,
                 text: `Included uncommitted changes to ${patch.files} files as a patch`,
+              },
+            ]
+          : []),
+        ...(attachments.length > 0
+          ? [
+              {
+                level: "info" as const,
+                text: `Attached ${attachPaths.map(displayPath).join(", ")}`,
               },
             ]
           : []),
@@ -467,7 +501,7 @@ export const sessionQueueList = (options: { readonly json: boolean }) =>
             `${entry.title ?? entry.sessionId}`,
             `  ${entry.id}`,
             `  from ${entry.host}${entry.host === host ? " (this machine)" : ""}, ${formatRelativeTimeAgo(entry.sentAt, now)}`,
-            `  ${entry.repository ? `${entry.repository.github ?? entry.repository.name} on ${entry.repository.branch ?? short(entry.repository.head)}` : entry.directory}${entry.patch ? `, ${entry.patch.files} changed files` : ""}`,
+            `  ${entry.repository ? `${entry.repository.github ?? entry.repository.name} on ${entry.repository.branch ?? short(entry.repository.head)}` : entry.directory}${entry.patch ? `, ${entry.patch.files} changed files` : ""}${entry.attachments?.length ? `, ${entry.attachments.length} attachments` : ""}`,
             "",
           ].join("\n"),
         );
@@ -484,11 +518,69 @@ type Changes =
   | { readonly kind: "applied"; readonly files: number }
   | { readonly kind: "left"; readonly path: string; readonly reason: string };
 
+/** Attachments put back on this machine, or left in the taken entry. */
+interface Attachments {
+  readonly restored: readonly string[];
+  readonly left: readonly {
+    readonly path: string;
+    readonly reason: string;
+  }[];
+}
+
+/**
+ * Copy each attachment to its place here, never over an existing file; any
+ * that can't go back stay in the taken entry.
+ */
+const restoreAttachments = Effect.fn("sessionQueue.restoreAttachments")(
+  function* (meta: QueueMeta, directory: string, entry: string) {
+    const fs = yield* FileSystem.FileSystem;
+    const restored: string[] = [];
+    const left: { path: string; reason: string }[] = [];
+
+    for (const [index, attachment] of (meta.attachments ?? []).entries()) {
+      const from = join(entry, "attachments", String(index));
+      const target = attachmentTarget(attachment, directory, HOME_DIR);
+
+      if (!target) {
+        left.push({
+          path: from,
+          reason: `${attachment.path} isn't a safe path`,
+        });
+        continue;
+      }
+
+      if (yield* fs.exists(target)) {
+        left.push({
+          path: from,
+          reason: `${displayPath(target)} already exists`,
+        });
+        continue;
+      }
+
+      yield* fs.makeDirectory(dirname(target), { recursive: true }).pipe(
+        Effect.andThen(fs.copy(from, target)),
+        Effect.andThen(Effect.sync(() => restored.push(target))),
+        Effect.catch((error) =>
+          Effect.sync(() =>
+            left.push({
+              path: from,
+              reason: `couldn't copy to ${displayPath(target)}: ${error.message}`,
+            }),
+          ),
+        ),
+      );
+    }
+
+    return { restored, left } satisfies Attachments;
+  },
+);
+
 /** What `take` did, printed with `--json`. */
 interface TakeOutcome {
   readonly entry: QueueMeta;
   readonly directory: string;
   readonly changes: Changes;
+  readonly attachments: Attachments;
   /** Whether the draft was pasted, or `null` when Herdr couldn't open it. */
   readonly opened: boolean | null;
 }
@@ -556,6 +648,7 @@ export function takePrompt(
     readonly directory: string;
     readonly branch: string | null;
     readonly changes: Changes;
+    readonly attachments: Attachments;
     readonly now: number;
   },
 ): string {
@@ -575,6 +668,16 @@ export function takePrompt(
   return [
     `This session was sent from ${meta.host} ${formatRelativeTimeAgo(meta.sentAt, here.now)} and is now on ${here.host}, in ${displayPath(here.directory)}${here.branch ? ` on branch ${here.branch}` : ""}. ${sent} ${changes}`,
     ...(meta.busy ? ["The last turn was cut off when it was sent."] : []),
+    ...(here.attachments.restored.length > 0
+      ? [
+          `Files attached when it was sent are back at: ${here.attachments.restored.map(displayPath).join(", ")}.`,
+        ]
+      : []),
+    ...(here.attachments.left.length > 0
+      ? [
+          `Some attached files weren't put back: ${here.attachments.left.map((item) => `${displayPath(item.path)} (${item.reason})`).join("; ")}.`,
+        ]
+      : []),
     `Before carrying on, check git status${meta.repository ? `, that HEAD matches ${short(meta.repository.head)}` : ""}, and re-read any files you changed earlier.`,
   ].join("\n\n");
 }
@@ -645,7 +748,7 @@ export const sessionTake = (options: {
 
       yield* claim(queue, meta.id, host);
 
-      const changes = yield* Effect.gen(function* () {
+      const { changes, attachments } = yield* Effect.gen(function* () {
         const entry = join(TAKEN_DIR, meta.id);
 
         yield* fs.makeDirectory(TAKEN_DIR, { recursive: true });
@@ -667,9 +770,15 @@ export const sessionTake = (options: {
           join(entry, "changes.patch"),
         );
 
+        const attachments = yield* restoreAttachments(
+          meta,
+          local.directory,
+          entry,
+        );
+
         yield* finish(queue, meta.id, host);
 
-        return changes;
+        return { changes, attachments };
       }).pipe(
         Effect.tapError(() =>
           release(queue, meta.id, host).pipe(Effect.ignore),
@@ -689,6 +798,7 @@ export const sessionTake = (options: {
         directory: local.directory,
         branch,
         changes,
+        attachments,
         now,
       });
 
@@ -708,12 +818,26 @@ export const sessionTake = (options: {
 
       yield* report(
         options.json,
-        { entry: meta, directory: local.directory, changes, opened },
+        {
+          entry: meta,
+          directory: local.directory,
+          changes,
+          attachments,
+          opened,
+        },
         [
           {
             level: "info",
             text: `Imported ${meta.title ?? meta.sessionId} into ${displayPath(local.directory)}`,
           },
+          ...attachments.restored.map((path) => ({
+            level: "info" as const,
+            text: `Restored ${displayPath(path)}`,
+          })),
+          ...attachments.left.map((item) => ({
+            level: "warn" as const,
+            text: `Attachment not restored (${item.reason}): ${displayPath(item.path)}`,
+          })),
           ...(meta.opencodeVersion !== version
             ? [
                 {

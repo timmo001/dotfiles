@@ -1,5 +1,5 @@
 import { Effect, FileSystem, Option, Schema } from "effect";
-import { join } from "node:path";
+import { isAbsolute, join, relative } from "node:path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import type { CommandError } from "../services/CommandExecutor.js";
 import { CONFIG_DIR, displayPath } from "./paths.js";
@@ -41,6 +41,65 @@ const Repository = Schema.Struct({
   pushed: Schema.Boolean,
 });
 
+/**
+ * A sent file or folder, stored as `attachments/<index>` in the entry. `path`
+ * is relative to the session's directory or the home directory, so it lands in
+ * the same place on a machine with different paths, or absolute otherwise.
+ */
+const Attachment = Schema.Struct({
+  base: Schema.Literals(["directory", "home", "root"]),
+  path: Schema.String,
+});
+
+/** Decoded {@link Attachment}. */
+export interface Attachment extends Schema.Schema.Type<typeof Attachment> {}
+
+/** `path` relative to `base` when it is strictly inside it. */
+const inside = (base: string, path: string) => {
+  const rel = relative(base, path);
+
+  return rel !== "" &&
+    rel !== ".." &&
+    !rel.startsWith("../") &&
+    !isAbsolute(rel)
+    ? rel
+    : undefined;
+};
+
+/** Where an attachment goes, relative to `directory` or `home` where possible. */
+export function attachmentFor(
+  path: string,
+  directory: string,
+  home: string,
+): Attachment {
+  const inDirectory = inside(directory, path);
+
+  if (inDirectory !== undefined)
+    return { base: "directory", path: inDirectory };
+
+  const inHome = inside(home, path);
+
+  return inHome !== undefined
+    ? { base: "home", path: inHome }
+    : { base: "root", path };
+}
+
+/** Where an attachment belongs on this machine, or `null` if it would escape its base. */
+export function attachmentTarget(
+  attachment: Attachment,
+  directory: string,
+  home: string,
+): string | null {
+  const base = { directory, home, root: "/" }[attachment.base];
+
+  const target =
+    attachment.base === "root" ? attachment.path : join(base, attachment.path);
+
+  return isAbsolute(target) && inside(base, target) !== undefined
+    ? target
+    : null;
+}
+
 /** What `send` writes next to the exported sessions. */
 export const QueueMeta = Schema.Struct({
   version: Schema.Literal(1),
@@ -56,6 +115,7 @@ export const QueueMeta = Schema.Struct({
   repository: Schema.NullOr(Repository),
   herdr: Schema.NullOr(Schema.Struct({ workspace: Schema.String })),
   patch: Schema.NullOr(Schema.Struct({ files: Schema.Finite })),
+  attachments: Schema.optionalKey(Schema.Array(Attachment)),
 });
 
 /** Decoded {@link QueueMeta}. */
