@@ -1,0 +1,7 @@
+---
+unit: ollaya.service
+label: Ollaya
+restartLimit:
+  count: 3
+  within: 1 hour
+repository: ollaya-dev/ollaya
