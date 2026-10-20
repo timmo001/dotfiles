@@ -50,8 +50,9 @@ const AGENTS_PRIVATE_IGNORES = [
   "--ignore='package\\.json'",
   "--ignore='bun\\.lock'",
   "--ignore='\\.gitignore'",
-  // Omarchy's own skill, which the server has no Omarchy install for.
-  "--ignore='^omarchy$'",
+  // Omarchy's own skill, which the server has no Omarchy install for. Stow
+  // ignores anchored patterns for nested paths, so match the name's end.
+  "--ignore='omarchy$'",
 ];
 
 /** Packages with per-package stow handling that cannot share a batch. */
