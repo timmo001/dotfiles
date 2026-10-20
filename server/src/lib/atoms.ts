@@ -1,5 +1,5 @@
 import { ServerApi } from "@dot/server-api";
-import { Context, Effect, Layer, Predicate } from "effect";
+import { Context, Effect, Layer } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { HttpApiClient } from "effect/http-api";
 import { Atom, AtomRegistry } from "effect/reactivity";
@@ -25,14 +25,6 @@ const REFRESH = "15 seconds";
 
 /** systemctl returns before the unit changes, so wait before refreshing. */
 const SETTLE = "1 second";
-
-/** Turns an API or transport failure into a message for the page. */
-export function errorMessage(error: unknown): string {
-  return Predicate.hasProperty(error, "message") &&
-    Predicate.isString(error.message)
-    ? error.message
-    : String(error);
-}
 
 /** Every registered service with its health, refreshed on a timer. */
 export const services = runtime
@@ -61,6 +53,7 @@ export const serviceAction = Atom.family((unit: string) =>
   runtime.fn((action: "start" | "stop", get) =>
     Effect.gen(function* () {
       const client = yield* ApiClient;
+
       const request = {
         params: { unit },
         headers: { "x-dot-server": "1" },
