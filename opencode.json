@@ -7,19 +7,10 @@
       "repository": "Effect-TS/effect",
       "description": "Use for Effect v4 APIs when working in dot/"
     },
-    "omarchy": {
-      "repository": "omacom/omarchy",
-      "branch": "quattro",
-      "description": "Use for Omarchy desktop, Hyprland, and Quickshell shell customisation details"
-    },
     "opencode": {
       "repository": "anomalyco/opencode",
       "branch": "v2.4.2",
       "description": "Use for OpenCode config, agents, commands, skills, and plugin behaviour"
-    },
-    "quickshell": {
-      "repository": "quickshell-mirror/quickshell",
-      "description": "Use for upstream Quickshell QML types, WlrLayershell/layer-shell, IpcHandler, reloadable config, and the qs CLI when customising the Omarchy shell bar widgets"
     }
   },
   "permissions": [
@@ -29,9 +20,374 @@
       "effect": "allow"
     },
     {
-      "action": "gh.write *",
-      "resource": "gh_*delete* timmo001/dotfiles*",
-      "effect": "ask"
+      "action": "read",
+      "resource": "~/.config/opencode/**",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.config/ripgrep/**",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.config/starship/**",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.config/systemd",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.config/systemd/user/**",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.config/tmux/**",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.config/yazi/**",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.local",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.local/bin/**",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.local/libexec/**",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.local/share",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.local/share/applications/**",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.local/share/bash-completion",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.local/share/bash-completion/completions/**",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.local/share/opencode/repos/**",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.local/share/workspace-relayout/**",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.local/share/zsh",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.local/share/zsh/site-functions/**",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.plannotator/**",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/repos/skills",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/repos/skills/**",
+      "effect": "allow"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.agents/skills/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/fastfetch/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/fish/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/ghostty/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/herdr/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/hypr/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/mise/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/nvim/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/opencode/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/ripgrep/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/starship/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/systemd/user/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/tmux/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/yazi/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.local/bin/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.local/libexec/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.local/share/applications/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.local/share/bash-completion/completions/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.local/share/workspace-relayout/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.local/share/zsh/site-functions/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.plannotator/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/repos/skills/**",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "~/.repos/**",
+      "effect": "allow"
+    },
+    {
+      "action": "write",
+      "resource": "~/.repos/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.agents/*",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.cache/opencode/*",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.config/*",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.config/fastfetch/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.config/fish/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.config/ghostty/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.config/herdr/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.config/opencode/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.config/hypr/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.config/mise/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.config/nvim/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.config/ripgrep/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.config/starship/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.config/systemd/user/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.config/tmux/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.config/yazi/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.agents/skills/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.local/*",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.local/bin/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.local/libexec/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.local/share/*",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.local/share/applications/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.local/share/bash-completion/*",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.local/share/bash-completion/completions/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.local/share/opencode/repos/github.com/anomalyco/opencode/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.local/share/workspace-relayout/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.local/share/zsh/*",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.local/share/zsh/site-functions/**",
+      "effect": "allow"
+    },
+    {
+      "action": "external_directory",
+      "resource": "~/.plannotator/**",
+      "effect": "allow"
     },
     {
       "action": "notes_note_delete",

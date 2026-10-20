@@ -10,7 +10,7 @@ Behaviour prefers CLI flags. Environment variables cover process context and sec
 | Private overlay | Host-only config, secrets, package lists, browser checks, `dot-git.yml` |
 | Public packages | apt packages listed in `.dot-public-packages`; command-line tools come from mise |
 | Stow packages | App config in this repo; see [Stow packages](/stow/) and the Server / Agents pages |
-| Env vars | `DOT_*`, `DOTFILES_*`, and `OMARCHY_HOST` (host-specific packages) influence `dot` and session tooling |
+| Env vars | `DOT_*` and `DOTFILES_*` influence `dot` and session tooling. Host-specific private packages (`<name>--<host>`) follow the machine's hostname |
 
 | Private file (typical) | Role |
 | --- | --- |
