@@ -198,6 +198,11 @@ description = "Regenerate the OpenCode reference pages"
 dir = "docs"
 run = "bun run gen:opencode"
 
+[tasks."docs:gen:distro-diff"]
+description = "Regenerate the page comparing this distro branch with the default branch"
+dir = "docs"
+run = "bun run gen:distro-diff"
+
 [tasks."docs:gen"]
 description = "Regenerate all generated reference pages"
 dir = "docs"
