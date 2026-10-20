@@ -1,0 +1,7 @@
+# The server's pitchfork settings. The desktop's come from the private overlay.
+
+[settings.boot]
+# Register the boot unit with the mise shim rather than the versioned install
+# path, so the supervisor doesn't rewrite the stowed pitchfork.service. It must
+# match the unit's ExecStart exactly.
+executable = "/home/aidan/.local/share/mise/shims/pitchfork"
