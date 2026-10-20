@@ -71,7 +71,7 @@ Check these from a local session on the server. Items tied to a file are also ma
 
 ### Services
 
-- [x] Run `ha-bridge.service` on the server for local agent use, such as reading the Home Assistant automation that controls when the NAS is up. Shared jobs (the bar, `dot-brief`, `dot-brief-follow-up`) stay on the desktop, since the NAS is not always on. `triage-agent` runs here with its own token from `triage--nas`; `notes-capture-daemon` and `dot-deps` are dropped from the server
+- [x] Run `ha-bridge.service` on the server for local agent use, such as reading the Home Assistant automation that controls when the NAS is up. Shared jobs (the bar, `dot-brief`, `dot-brief-follow-up`) stay on the desktop, since the NAS is not always on, and their units are removed here. `triage-agent` runs here with its own token from `triage--nas`; `notes-capture-daemon` and `dot-deps` are dropped from the server
 - [x] Once `ha-bridge` runs here, name the automation that controls the NAS in `AGENTS.md`
 - [x] Leave `dot-notifications-dismiss.timer` to the desktops. Its units are removed here, so `dot stow` has nothing to enable
 - [x] Move the nightly `compose-up` crontab line to the private `systemd--nas` timer, at 02:00 inside the maintenance window
