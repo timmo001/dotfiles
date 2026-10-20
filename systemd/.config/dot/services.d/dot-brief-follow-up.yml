@@ -1,6 +1,0 @@
----
-unit: dot-brief-follow-up.service
-label: Daily brief follow-ups
-restartLimit:
-  count: 3
-  within: 1 hour
