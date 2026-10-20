@@ -9,7 +9,7 @@
  * in the sync adapters; this orchestrator owns IO and logging, mirroring
  * {@link file://./../../commands/AgentsSync.ts}.
  */
-import { Effect, FileSystem, Schema } from "effect";
+import { Effect, FileSystem, Option, Schema } from "effect";
 import { join } from "path";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { Config } from "../../services/Config.js";
@@ -205,7 +205,7 @@ const syncMachineExcludes = Effect.fn("McpSync.machineExcludes")(function* (
     decodeJsonObject(text === null ? {} : Bun.JSONC.parse(text)),
   ).pipe(Effect.option);
 
-  if (existing._tag === "None") {
+  if (Option.isNone(existing)) {
     yield* log.warn(
       `Skipped excluding MCP servers: ${displayPath(OPENCODE_MACHINE_CONFIG)} is not a JSON object`,
     );
