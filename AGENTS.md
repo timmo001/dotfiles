@@ -13,6 +13,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - The desktop code (Omarchy, Hyprland, UWSM, Ghostty, pacman, AUR, browser) is removed from `dot/`, not gated. Don't add it back.
 - Packages come from apt (`.dot-public-packages`) and the global mise config. Release `.deb` packages such as System Bridge are listed in `.dot-public-deb-releases.yml` and installed by `dot update system`.
 - `.dot-skills.yml` lists the authored skills `dot` does not link on the server. Add desktop-only skills there as they appear.
+- `.dot-private.yml` lists the private stow packages `dot` links on the server; the private repository stays on its main branch. A missing file stows all of them, an invalid one stows none, and packages dropped from the list are unstowed.
 - `dot server serve` (`dot/src/server/`) serves the dashboard in `server/` (Vite, Lit, Tailwind). Pitchfork runs it as the `server` daemon in `pitchfork.toml`; manage it with the `serve:server*` mise tasks, and check the dashboard with `mise run server:typecheck ::: server:format:check ::: server:build`.
 
 ### Updating From The Desktop Branch
