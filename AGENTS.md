@@ -9,8 +9,11 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - This is `distro/ubuntu-server`, a headless build for an Ubuntu server. It has no desktop packages: no Hyprland, UWSM, Ghostty or Omarchy.
 - Keep it terminal and service tooling only. Do not add packages that need a graphical session.
 - The server hosts Herdr for remote clients through `systemd/.config/systemd/user/herdr.service`.
-- `SERVER.md` tracks what changed and what is still unknown. Open items are also marked `TODO(ubuntu-server)` in place. Resolve them on the real server and tick them off.
+- `SERVER.md` tracks what changed, the switch-over steps and what is still open. Open items tied to a file are also marked `TODO(ubuntu-server)` in place. Resolve them on the real server and tick them off.
 - The desktop code (Omarchy, Hyprland, UWSM, Ghostty, pacman, AUR, browser) is removed from `dot/`, not gated. Don't add it back.
+- Packages come from apt (`.dot-public-packages`) and the global mise config. Release `.deb` packages such as System Bridge are listed in `.dot-public-deb-releases.yml` and installed by `dot update system`.
+- `.dot-skills.yml` lists the authored skills `dot` does not link on the server. Add desktop-only skills there as they appear.
+- `dot server serve` (`dot/src/server/`) serves the dashboard in `server/` (Vite, Lit, Tailwind). Pitchfork runs it as the `server` daemon in `pitchfork.toml`; manage it with the `serve:server*` mise tasks, and check the dashboard with `mise run server:typecheck ::: server:format:check ::: server:build`.
 
 ### Updating From The Desktop Branch
 

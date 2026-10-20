@@ -6,11 +6,12 @@ It branches from `distro/arch-omarchy-quattro` and rebases onto it to pick up sh
 
 ## What stays
 
-- Shell and prompt: `zsh`, `starship`, `tmux`, `editorconfig`, `ripgrep`
-- Terminal tools: `btop`, `fastfetch`, `lazygit`, `neovim`, `yazi`, `topgrade`, `mise`
-- Agents: `agents` (OpenCode), `pi`, `plannotator`, `dotfiles-skills`
+- Shell and prompt: `zsh`, `starship`, `tmux`, `editorconfig`, `ripgrep`. The Omarchy aliases still wanted (eza `ls`, `ff`, `cd` through zoxide, `n` and so on) live in `.zshrc`
+- Terminal tools from mise: `btop`, `fastfetch`, `lazygit`, `lazydocker`, `neovim`, `yazi`, `topgrade`, plus `context`, `ha-bridge`, `notes` and `triage`. apt packages come from `.dot-public-packages`
+- Agents: `agents` (OpenCode, installed and updated by `dot install`), `pi`, `plannotator`, `dotfiles-skills`, and the shared skills minus the desktop-only ones listed in `.dot-skills.yml`
 - Herdr: `herdr` config and the local plugins under `scripts/.local/share/herdr-plugins/`
-- Services: `systemd` user units and `dot services` definitions, plus a new `herdr.service`
+- Services: `systemd` user units and `dot services` definitions, plus `herdr`, `ollama` (on the GPU, listening on the LAN) and `system-bridge`
+- System Bridge, installed from its latest release `.deb` by `dot update system` (`.dot-public-deb-releases.yml`)
 - The `dot` CLI source, tests, docs site and CI
 
 ## What went
@@ -18,6 +19,26 @@ It branches from `distro/arch-omarchy-quattro` and rebases onto it to pick up sh
 Hyprland, UWSM, Ghostty, Omarchy (shell plugins, hooks, patches and plugin submodules), Cursor launchers, pacman hooks, the laptop-only packages and the desktop launcher scripts. The OOM slice override went too, since it only covered UWSM-launched apps.
 
 Later desktop additions are dropped as they come in: the dot links Chromium extension and its native host, the background link opener, the Plannotator Inbox window and bar plugin, and their desktop entries. `VISUAL` points at Neovim rather than Cursor.
+
+`dot` itself has its desktop code removed rather than switched off: the `omarchy`, `workspace`, `link` and pacman repository commands, the Omarchy and browser doctor checks, and the host-suffixed packages. Packages install with apt, `dot update system` runs apt, the release `.deb` packages and topgrade, and failure notifications go to the journal.
+
+## Server dashboard
+
+`dot server serve` serves a small web dashboard and its API: the registered `dot services` with their health, recent logs, and start and stop. The dashboard source is in `server/` (Vite and Lit, sharing the API schema in `dot/src/server/api.ts`).
+
+Pitchfork keeps it running, configured in `pitchfork.toml`. It rebuilds the dashboard on each start and listens on port 7700 on the LAN.
+
+```bash
+mise run serve:server          # start through pitchfork
+mise run serve:server:logs     # follow its logs
+mise run serve:server:restart  # rebuild and restart after a pull
+```
+
+There is no auth yet, so it trusts the LAN. Planned next, auth first:
+
+- [ ] Auth
+- [ ] Run `dot update` and other maintenance tasks from the dashboard, with live output in a web terminal
+- [ ] Summaries of the nightly `compose-up` logs
 
 ## Herdr as a remote machine
 
@@ -34,40 +55,38 @@ herdr --remote <host>
 
 The config matches the desktop's keys, theme and sidebar, with sounds off.
 
-## To do on the real server
+## Switching the server over
 
-Every open item below is also marked `TODO(ubuntu-server)` in the file it affects, so `rg 'TODO\(ubuntu-server\)'` finds them in place. Work through these from a local session on the server.
+The server still runs an older checkout with tools installed by hand. When this branch replaces it:
 
-### `dot`
+1. Back up `~/.config/dotfiles` and unstow its old packages, so the hypr, waybar, wofi and ghostty links go.
+2. Clone this branch to `~/.config/dotfiles` (and the private overlay), build `dot` with `mise run dot:build`, then run `dot init`.
+3. Swap the old `herdr-server.service` for `herdr.service`, and the system `system-bridge.service` for the user unit. Enable `ollama.service` and start the dashboard with `mise run serve:server`.
+4. Run `dot doctor`, then `dot update system` once interactively.
+5. Once the mise and apt versions work, remove what they replace:
+   - linuxbrew (lazygit, lazydocker, ttyd)
+   - `/opt/nvim-linux-x86_64`
+   - `/usr/local/bin/ollama` and its system unit
+   - the topgrade `.deb`
+   - `~/.opencode/bin` and `~/.local/bin/herdr`. Keep `~/.local/share/opencode`, which holds the login
+   - System Bridge 5.13.0 from mise
+   - the old configs the new packages replace
+   - the `update-mise` crontab line, now that `dot update system` covers it
 
-The CLI still assumes Omarchy and pacman. Nothing under `dot/` has changed yet, so check each of these before relying on it:
+## Still open
 
-- [ ] `dot init` and `dot install` on Ubuntu, including the private overlay clone
-- [ ] `dot stow` runs the Omarchy Neovim theme, crash-capture and shell-config steps. Make them skip cleanly without Omarchy
-- [ ] Package setup installs `.dot-public-packages` with pacman. Add an apt path
-- [ ] `dot update system` drives pacman and Omarchy updates. Decide what it should run here (apt, topgrade or both)
-- [ ] `dot herdr start` and `restart` launch through `uwsm-app`. Make them use `herdr.service` when there is no graphical session
-- [ ] `dot services notify` sends failures through `omarchy notification`. Pick a headless channel (journal, ntfy, Home Assistant)
-- [ ] `dot doctor` checks for pacman hooks, the Hypr host link, Omarchy and the dot links extension. Skip or replace them on the server
-- [ ] `dot plannotator inbox` opens a Qt WebEngine window. Decide whether the server needs an Inbox at all, or only posts to the desktop's
-- [ ] Host-suffixed packages (`systemd--desktop` and so on) key off `OMARCHY_HOST`, which UWSM set on the desktop. Set it for the server, for example in `~/.zsh_profile` and the systemd user environment
+Check these from a local session on the server. Items tied to a file are also marked `TODO(ubuntu-server)` there, so `rg 'TODO\(ubuntu-server\)'` finds them in place.
 
-### Packages and tools
+### Tools
 
-- [ ] Check `.dot-public-packages` against the server's Ubuntu release
-- [ ] Choose install methods for the AUR-only tools listed in `.dot-public-packages`
-- [ ] Review the global mise tools for the server (`android-sdk`, `ollama` and `ollaya` may not be wanted)
 - [ ] Neovim config assumes the LazyVim base that Omarchy installs. Install LazyVim, or drop the `neovim` package
-- [ ] Port any Omarchy shell aliases and functions still wanted into `.zshrc`
-- [ ] Confirm the zsh plugin paths for autosuggestions and syntax highlighting
 
 ### Services
 
-- [ ] Confirm `herdr server` stays in the foreground under `Type=simple`
-- [ ] Decide which of `ha-bridge`, `upnext`, `triage-agent`, `notes-capture-daemon`, `dot-brief` and `dot-brief-follow-up` run on the server, so they do not run twice alongside the desktop
+- [ ] Decide which of `ha-bridge`, `triage-agent`, `notes-capture-daemon`, `dot-brief` and `dot-brief-follow-up` run on the server, so they do not run twice alongside the desktop
 - [ ] `dot stow` enables `dot-notifications-dismiss.timer` on every machine. It is safe to run twice, but one machine is enough
-- [ ] `pitchfork.service` pins an absolute mise install path with the desktop's user name
-- [ ] Decide where `dot doctor` failures surface now there is no desktop notification
+- [ ] Move the nightly `compose-up` crontab line to a `dot` timer once `dot update` has run cleanly a few times
+- [ ] Send failure notifications somewhere other than the journal (ntfy or Home Assistant)
 
 ### Herdr
 
@@ -77,11 +96,6 @@ The CLI still assumes Omarchy and pacman. Nothing under `dot/` has changed yet, 
 - [ ] Check the `dotfiles.dot-links` plugin: `file://` links open Neovim in Herdr, but `dot://` links target the desktop Git panel
 - [ ] Confirm the `herdr-lazy` plugins all work headless
 
-### Docs site
-
-- [ ] Create the `dotfiles-docs-ubuntu-server` Worker in Cloudflare Workers Builds, deploying `docs/` from this branch to `ubuntu-server.dotfiles.timmo.dev`. `docs/AGENTS.md` (Distro Sites) has the steps
-- [ ] Update the server docs pages as the open items above are settled
-
 ### Private overlay
 
-- [ ] Decide how `dotfiles-private` serves the server: its own branch, or `--server` host packages. It still carries Omarchy, UWSM, pacman and yay packages
+- [ ] Give `dotfiles-private` a `distro/ubuntu-server` branch holding only the agent config, `mcp.yml`, a server `dot-git.yml` and `.zshrc-private`. Its main branch still carries Omarchy, UWSM, pacman and yay packages

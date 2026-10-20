@@ -21,7 +21,9 @@ The `distro/ubuntu-server` branch is a cut-down copy of the [Omarchy desktop](ht
 
 ## Still open
 
-The branch is ahead of the real server, so some pieces are unverified. `dot` still assumes Omarchy and pacman for package installs, system updates, notifications and some health checks. The full checklist lives in [`SERVER.md`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/SERVER.md), and each item is also marked `TODO(ubuntu-server)` in the file it affects.
+`dot` has its desktop code removed: packages install with apt, `dot update system` runs apt and topgrade, and failures go to the journal. [Changes from the desktop](/server/changes/) lists every file this branch removes or changes.
+
+The server still runs an older checkout, so a few pieces are unverified until it switches over: which user services run here rather than on the desktop, and how Herdr behaves from a remote client. [`SERVER.md`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/SERVER.md) has the switch-over steps and the open checklist.
 
 :::caution[Personal setup]
 This build is tuned for one machine and a private overlay that is not public. Borrow the pieces you want rather than installing it wholesale.
