@@ -50,49 +50,17 @@ export interface ManagedRouteRule {
 export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
 
 /**
- * ufw rules dot keeps open.
+ * ufw rules dot keeps open on the server.
  *
- * - KDE Connect discovers and connects over the full 1714-1764 range on both
- *   UDP (discovery) and TCP (transfer).
- * - Home Assistant serves its frontend on 8123 and its companion port 8124.
- * - LocalSend discovers and transfers over 53317 on both UDP and TCP.
+ * - SSH on 22, so enabling ufw never locks the server out.
  * - System Bridge serves its API on 9170, which Home Assistant connects to.
- * - libvirt's default NAT network needs the host to accept guest DHCP (67) and
- *   DNS (53) on `virbr0` and to forward (route) guest traffic off `virbr0`,
- *   which ufw's default `deny (incoming)`/`deny (routed)` policy otherwise
- *   blocks.
+ * - Ollama (11434) and Ollaya (11435) serve models to other machines.
  */
 export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
-  {
-    kind: "port",
-    label: "KDE Connect",
-    port: "1714:1764",
-    protocols: ["udp", "tcp"],
-  },
-  { kind: "port", label: "Home Assistant", port: "8123", protocols: ["tcp"] },
-  { kind: "port", label: "Home Assistant", port: "8124", protocols: ["tcp"] },
-  {
-    kind: "port",
-    label: "LocalSend",
-    port: "53317",
-    protocols: ["udp", "tcp"],
-  },
+  { kind: "port", label: "SSH", port: "22", protocols: ["tcp"] },
   { kind: "port", label: "System Bridge", port: "9170", protocols: ["tcp"] },
-  {
-    kind: "port",
-    label: "libvirt DHCP",
-    port: "67",
-    protocols: ["udp"],
-    interface: "virbr0",
-  },
-  {
-    kind: "port",
-    label: "libvirt DNS",
-    port: "53",
-    protocols: ["tcp", "udp"],
-    interface: "virbr0",
-  },
-  { kind: "route", label: "libvirt NAT forward", interface: "virbr0" },
+  { kind: "port", label: "Ollama", port: "11434", protocols: ["tcp"] },
+  { kind: "port", label: "Ollaya", port: "11435", protocols: ["tcp"] },
 ];
 
 /** Domain error for firewall setup failures. */
@@ -249,14 +217,25 @@ export function parseUfwAllowTuples(
   return tuples;
 }
 
-/** Read the currently allowed ufw tuples, or an empty map when unreadable. */
+/**
+ * Read the currently allowed ufw tuples, or an empty map when unreadable.
+ *
+ * Ubuntu keeps user.rules readable by root only, so an unreadable file is
+ * read through non-interactive sudo, which never prompts.
+ */
 export const presentUfwTuples = Effect.fn("FirewallSetup.presentUfwTuples")(
   function* () {
     const filePath = ufwRulesFilePath();
 
     if (!(yield* pathExists(filePath))) return new Map<string, UfwTuple>();
 
-    const text = yield* readTextOrNull(filePath);
+    const executor = yield* CommandExecutor;
+
+    const text =
+      (yield* readTextOrNull(filePath)) ??
+      (yield* executor
+        .run("sudo", ["-n", "cat", filePath])
+        .pipe(Effect.orElseSucceed(() => null)));
 
     if (text === null) return new Map<string, UfwTuple>();
 
@@ -320,8 +299,9 @@ function ufwAllowArgs(spec: FirewallRuleSpec): readonly string[] {
  * Ensure the managed ufw rules are present, each tagged with its purpose as a
  * ufw comment so it is visible in `ufw status`.
  *
- * Idempotent: rules are read from the world-readable ufw user.rules file, so a
- * fully configured machine needs no elevation. Missing rules are added; rules
+ * Idempotent: rules are read from the ufw user.rules file (through
+ * non-interactive sudo when it is root-only), so a fully configured machine
+ * needs no prompt. Missing rules are added; rules
  * that exist with a missing or stale comment are deleted and re-added (ufw
  * cannot edit a comment in place). A single `ufw reload` follows any change.
  * Skips with a warning when ufw is not installed.
