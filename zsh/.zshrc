@@ -907,7 +907,8 @@ if command -v zoxide &> /dev/null; then
   eval "$(zoxide init zsh --cmd zd)"
 fi
 
-if command -v fzf &> /dev/null; then
+# fzf's key bindings fail to restore the zle option without a terminal, as in OpenCode's ! shell
+if command -v fzf &> /dev/null && [[ -t 0 ]]; then
   source <(fzf --zsh)
 fi
 
