@@ -25,10 +25,11 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Removed files
 
-79 files removed from folders that stay.
+80 files removed from folders that stay.
 
 | File | Was |
 | --- | --- |
+| `.github/workflows/mise-toolchain.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/.github/workflows/mise-toolchain.yml) |
 | `.github/workflows/quickshell-lint.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/.github/workflows/quickshell-lint.yml) |
 | `.gitmodules` | [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/.gitmodules) |
 | `docs/public/illustrations/desktop.svg` | [desktop](https://github.com/timmo001/dotfiles/blob/3944d78c18624c488e1efb77e34b28d144a62214/docs/public/illustrations/desktop.svg) |
