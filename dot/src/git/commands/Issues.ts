@@ -1,22 +1,7 @@
 import { Effect } from "effect";
-import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { GitIssues, type IssueQuery } from "../services/GitIssues.js";
 import { handleCommandError } from "./rows.js";
 import { markOffSchedule } from "./workSchedule.js";
-
-/** Open the tracked issue page. */
-export const issuesOpenShell = Effect.fn("issues.openShell")(function* (
-  repo: string | undefined,
-) {
-  const executor = yield* CommandExecutor;
-  yield* executor.run("omarchy-shell", [
-    "shell",
-    "summon",
-    "timmo.git",
-    JSON.stringify({ view: "issues", repo }),
-  ]);
-  yield* executor.run("omarchy-shell", ["timmo.git", "issues", repo ?? ""]);
-}, handleCommandError("dot git issues"));
 
 /** Read tracked issues, returning JSON for the Git panel. */
 export const issuesQuery = Effect.fn("issues.query")(function* (

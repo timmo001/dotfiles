@@ -115,10 +115,6 @@ export const fansRun = Effect.gen(function* () {
     Option.none(),
   );
 
-  const refreshPanel = executor
-    .exitCode("omarchy-shell", ["-q", "timmo.services", "refresh"])
-    .pipe(Effect.ignore);
-
   const onSignal = () => Deferred.doneUnsafe(stop, Effect.void);
 
   yield* Effect.acquireRelease(
@@ -149,7 +145,6 @@ export const fansRun = Effect.gen(function* () {
             `[ERROR] Could not restore motherboard fan control (liquidctl exit ${restored})`,
           );
       yield* fs.remove(STATUS_FILE, { force: true }).pipe(Effect.ignore);
-      yield* refreshPanel;
     }),
   );
 
@@ -176,8 +171,6 @@ export const fansRun = Effect.gen(function* () {
 
     if (Option.getOrUndefined(previous)?.summary !== summary)
       yield* Console.log(`[${health.toUpperCase()}] ${summary}`);
-
-    if (Option.getOrUndefined(previous)?.health !== health) yield* refreshPanel;
   });
 
   /** Set every channel, returning those liquidctl rejected. */

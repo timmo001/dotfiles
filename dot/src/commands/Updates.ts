@@ -46,15 +46,6 @@ const decodeStatus = Schema.decodeUnknownOption(
   Schema.fromJsonString(CachedStatus),
 );
 
-const decodeBackoff = Schema.decodeUnknownOption(
-  Schema.Tuple([Schema.Int, Schema.Int]),
-);
-
-const AUR_HTTP_FAILURE_PATTERNS = [
-  /\bstatus\b[^0-9]*\b[45][0-9]{2}\b/i,
-  /\bhttp(?:\/\d+(?:\.\d+)?)?\b[^0-9]*\b[45][0-9]{2}\b/i,
-] as const;
-
 const current: BarStatus = {
   text: "\uF487 0",
   tooltip: "Watched packages are up to date",
@@ -98,7 +89,6 @@ const paths = Effect.fn("Updates.paths")(function* (options: UpdatesOptions) {
       join(config.publicDotfiles, ".dot-public-packages"),
     cache: join(directory, "package-updates.json"),
     lock: join(directory, "package-updates.lock"),
-    backoff: join(directory, "package-updates.backoff"),
   };
 });
 
@@ -132,7 +122,6 @@ const query = Effect.fn("Updates.query")(
 const packages = Effect.fn("Updates.packages")(function* (
   options: UpdatesOptions,
   locations: Effect.Success<ReturnType<typeof paths>>,
-  scheduled: boolean,
 ) {
   const fs = yield* FileSystem.FileSystem;
 
@@ -142,93 +131,32 @@ const packages = Effect.fn("Updates.packages")(function* (
 
   if (Option.isNone(manifest)) return unavailable;
 
-  const watched = manifest.value.split("\n").flatMap((line) => {
-    const name = line.trim().split(/\s+/, 1)[0];
+  const watched = new Set(
+    manifest.value.split("\n").flatMap((line) => {
+      const name = line.trim().split(/\s+/, 1)[0];
 
-    return name && !name.startsWith("#") ? [name] : [];
-  });
+      return name && !name.startsWith("#") ? [name] : [];
+    }),
+  );
 
-  const repoPackages: string[] = [];
-  const aurPackages: string[] = [];
+  const result = yield* query("apt", ["list", "--upgradable"], options.timeout);
 
-  for (const name of watched) {
-    if (
-      (yield* query("pacman", ["-Qnq", "--", name], options.timeout)).code === 0
-    )
-      repoPackages.push(name);
-    else if (
-      (yield* query("pacman", ["-Qmq", "--", name], options.timeout)).code === 0
-    )
-      aurPackages.push(name);
-  }
-
-  const repoResult =
-    repoPackages.length > 0
-      ? yield* query("pacman", ["-Quq", "--", ...repoPackages], options.timeout)
-      : { code: 0, stdout: "", stderr: "" };
-
-  let aurResult = { code: 0, stdout: "", stderr: "" };
-
-  if (aurPackages.length > 0) {
-    const now = Math.floor((yield* Clock.currentTimeMillis) / 1000);
-
-    const saved = yield* fs
-      .readFileString(locations.backoff)
-      .pipe(Effect.orElseSucceed(() => "0 0"));
-
-    const [failures, until] = Option.getOrElse(
-      decodeBackoff(saved.trim().split(/\s+/).map(Number)),
-      () => [0, 0],
-    );
-
-    if (scheduled && now < until) {
-      aurResult = { code: 75, stdout: "", stderr: "AUR updates backed off" };
-    } else {
-      aurResult = yield* query(
-        "yay",
-        ["-Quaq", "--", ...aurPackages],
-        options.timeout,
-      );
-
-      if (
-        (aurResult.code === 0 || aurResult.code === 1) &&
-        aurResult.stderr.trim() === ""
-      ) {
-        yield* fs.remove(locations.backoff, { force: true });
-      } else if (
-        AUR_HTTP_FAILURE_PATTERNS.some((pattern) =>
-          pattern.test(aurResult.stderr),
-        )
-      ) {
-        const nextFailures = Math.min(5, Math.max(0, failures) + 1);
-        const seconds = Math.min(21600, 1800 * 2 ** (nextFailures - 1));
-        yield* fs.writeFileString(
-          locations.backoff,
-          `${nextFailures} ${now + seconds}\n`,
-          { mode: 0o600 },
-        );
-      }
-    }
-  }
+  if (result.code !== 0) return unavailable;
 
   const updates = [
     ...new Set(
-      `${repoResult.stdout}\n${aurResult.stdout}`
+      result.stdout
         .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean),
+        .flatMap((line) => /^([^/\s]+)\//.exec(line.trim())?.[1] ?? [])
+        .filter((name) => watched.has(name)),
     ),
   ].sort();
 
-  const aurAvailable =
-    (aurResult.code === 0 || aurResult.code === 1) &&
-    aurResult.stderr.trim() === "";
-
-  if (updates.length === 0) return aurAvailable ? current : unavailable;
+  if (updates.length === 0) return current;
 
   return {
     text: `\uF487 ${updates.length}`,
-    tooltip: `Watched package updates:\n${updates.join("\n")}${aurAvailable ? "" : "\n\nAUR updates unavailable"}`,
+    tooltip: `Watched package updates:\n${updates.join("\n")}`,
     class: "updates",
   } satisfies BarStatus;
 });
@@ -309,10 +237,9 @@ const skillsMessage = (status: SkillsStatus | null) => {
   return `Skills are ${plural(status.behind, "commit")} behind${names}`;
 };
 
-/** Refresh Dotfiles status and optionally packages, respecting scheduled AUR backoff. */
+/** Refresh Dotfiles status and optionally packages. */
 export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
   options: UpdatesOptions,
-  scheduled = false,
   dotOnly = false,
 ) {
   const fs = yield* FileSystem.FileSystem;
@@ -340,7 +267,7 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
 
         const packageStatus = dotOnly
           ? (previous?.packageStatus ?? unavailable)
-          : yield* packages(options, locations, scheduled);
+          : yield* packages(options, locations);
 
         const packagesCheckedAt = dotOnly
           ? (previous?.packagesCheckedAt ?? 0)
@@ -415,7 +342,6 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
           { mode: 0o600 },
         );
         yield* fs.rename(`${locations.cache}.tmp`, locations.cache);
-        yield* query("omarchy-shell", ["-q", "timmo.updates", "refresh"], 5);
       }),
     (acquired) =>
       acquired
@@ -456,7 +382,6 @@ export const updatesStatus = Effect.fn("Updates.status")(function* (
           [
             "updates",
             "refresh",
-            "--scheduled",
             "--package-file",
             locations.packageFile,
             "--cache-dir",

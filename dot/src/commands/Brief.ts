@@ -26,12 +26,6 @@ import {
 } from "../brief/score.js";
 import { trackedCheckouts, type TrackedCheckout } from "../brief/repos.js";
 import {
-  gitItemFromGitHubUrl,
-  gitItemKey,
-  gitItemPanelMarkdown,
-  listedGitItems,
-} from "../git/itemLinks.js";
-import {
   briefStateDir,
   readLastReport,
   readResolutions,
@@ -92,28 +86,16 @@ const choiceLabel = (number: string, item: ScoredItem, names: RepoNames) =>
     .slice(0, 100);
 
 /** Icon, repository and linked title, shared by numbered and work-time lines. */
-function itemTitle(
-  item: BriefItem,
-  names: RepoNames,
-  listed: ReadonlySet<string>,
-) {
+function itemTitle(item: BriefItem, names: RepoNames) {
   const ref = issueNumber(item);
 
-  const gitItem = gitItemFromGitHubUrl(item.url);
-
-  const panel =
-    gitItem && listed.has(gitItemKey(gitItem))
-      ? ` ${gitItemPanelMarkdown(gitItem)}`
-      : "";
-
-  return `${icon(item)} **${escapeMarkdown(repoName(item, names))}** · [${escapeMarkdown(`${ref ? `#${ref} ` : ""}${item.title}`)}](${item.url})${panel}`;
+  return `${icon(item)} **${escapeMarkdown(repoName(item, names))}** · [${escapeMarkdown(`${ref ? `#${ref} ` : ""}${item.title}`)}](${item.url})`;
 }
 
 function renderItem(
   number: string,
   item: ScoredItem,
   names: RepoNames,
-  listed: ReadonlySet<string>,
   showModel: boolean,
 ): string[] {
   const facts = [
@@ -125,7 +107,7 @@ function renderItem(
   ].filter(Boolean);
 
   return [
-    `- **${number}.** ${itemTitle(item, names, listed)} · ${facts.join(" · ")}`,
+    `- **${number}.** ${itemTitle(item, names)} · ${facts.join(" · ")}`,
     ...(item.why
       ? [`  - ${item.why}${showModel ? ` _(${item.whyModel})_` : ""}`]
       : []),
@@ -234,7 +216,6 @@ function renderWorkSection(
   section: WorkSection,
   tags: AreaTags,
   names: RepoNames,
-  listed: ReadonlySet<string>,
 ) {
   const emoji = section.tagged ? tags.sections.get(section.name) : undefined;
 
@@ -249,7 +230,7 @@ function renderWorkSection(
         ...facts,
       ].filter(Boolean);
 
-      return `- ${itemTitle(item, names, listed)}${extra.map((fact) => ` · ${fact}`).join("")}`;
+      return `- ${itemTitle(item, names)}${extra.map((fact) => ` · ${fact}`).join("")}`;
     }),
     ...(section.footer ? [section.footer] : []),
     "",
@@ -259,7 +240,6 @@ function renderWorkSection(
 function renderReport(
   items: readonly ScoredItem[],
   names: RepoNames,
-  listed: ReadonlySet<string>,
   workTime: boolean,
   model: string,
   work?: {
@@ -287,7 +267,7 @@ function renderReport(
     "🟣 PR · ⚪ draft PR · 🟢 issue · 🔴 failing CI · 🔵 notification";
 
   const extra = (work?.sections ?? []).flatMap((section) =>
-    renderWorkSection(section, work?.tags ?? NO_TAGS, names, listed),
+    renderWorkSection(section, work?.tags ?? NO_TAGS, names),
   );
 
   if (items.length === 0)
@@ -317,7 +297,7 @@ function renderReport(
           `## ${section}`,
           "",
           ...inSection.flatMap(([number, item]) =>
-            renderItem(number, item, names, listed, reasonModels.length > 1),
+            renderItem(number, item, names, reasonModels.length > 1),
           ),
           "",
         ]
@@ -507,18 +487,9 @@ const run = Effect.fn("brief.run")(function* (options: {
 
   const names = yield* trackedCheckouts(allItems.map((item) => item.repo));
 
-  const listed = yield* listedGitItems(
-    allItems.flatMap((item) => {
-      const gitItem = gitItemFromGitHubUrl(item.url);
-
-      return gitItem ? [gitItem] : [];
-    }),
-  );
-
   const { body, numbered } = renderReport(
     scored,
     names,
-    listed,
     workTime,
     brief.decisionModel,
     work && { since: work.since, days, sections, tags },

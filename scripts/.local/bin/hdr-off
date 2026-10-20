@@ -1,4 +1,0 @@
-#!/bin/bash
-
-# For launchers that take a script path, such as Heroic's after launch script.
-dot hdr off || true

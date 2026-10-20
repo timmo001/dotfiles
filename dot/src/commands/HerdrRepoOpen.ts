@@ -15,7 +15,6 @@ import {
   Schedule,
   Schema,
 } from "effect";
-import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { join, resolve } from "path";
 import { ENV, envString } from "../lib/env.js";
 import { localHerdrAttachment } from "../lib/herdrAttachment.js";
@@ -31,10 +30,6 @@ import {
   resolveOpenCodeExecutable,
   switchHerdrModel,
 } from "./HerdrModel.js";
-
-const READINESS_SCHEDULE = Schedule.recurs(49).pipe(
-  Schedule.addDelay(() => Effect.succeed("100 millis")),
-);
 
 /** Shared Herdr server socket used by repository workspaces. */
 export const DEFAULT_SOCKET_PATH = join(CONFIG_DIR, "herdr", "herdr.sock");
@@ -88,7 +83,7 @@ export interface HerdrRepoOpenOptions {
   readonly draft?: string;
   /** Place a new workspace after the last one whose label starts with this prefix; defaults to a leading [tag] or an existing whole-word label prefix. */
   readonly afterPrefix?: string;
-  /** Leave the current view focused and do not open a terminal client. */
+  /** Leave the current view focused. */
   readonly noFocus?: boolean;
   /** Print the selected resources and launch outcome as JSON. */
   readonly json?: boolean;
@@ -96,14 +91,10 @@ export interface HerdrRepoOpenOptions {
   readonly pickerCache?: string;
 }
 
-/** Runtime controls used to test Herdr client readiness deterministically. */
+/** Runtime controls used to test Herdr client detection deterministically. */
 export interface HerdrRepoOpenRuntime {
-  /** Retry schedule for waiting on the foreground Herdr client. */
-  readonly readinessSchedule?: Schedule.Schedule<number>;
   /** Probe that reports whether Herdr has a foreground terminal client. */
   readonly foregroundClientReady?: Effect.Effect<boolean>;
-  /** Start the tiled Herdr terminal without waiting for it to exit. */
-  readonly launchTerminal?: Effect.Effect<void, HerdrRepoOpenError>;
 }
 
 /** Domain error raised by the Herdr repository opener. */
@@ -113,11 +104,6 @@ export class HerdrRepoOpenError extends Schema.TaggedError<HerdrRepoOpenError>()
     message: Schema.String,
     exitCode: Schema.Union([Schema.Literal(1), Schema.Literal(2)]),
   },
-) {}
-
-class TerminalNotReady extends Schema.TaggedError<TerminalNotReady>()(
-  "TerminalNotReady",
-  {},
 ) {}
 
 function fail(message: string, exitCode: 1 | 2 = 1): never {
@@ -211,7 +197,6 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 ) {
   const executor = yield* CommandExecutor;
   const herdr = yield* HerdrSdk;
-  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
   const pickerEntries = yield* readPickerCache(options);
 
   const label =
@@ -346,68 +331,11 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 
   const socketPath = herdr.config.socketPath;
 
-  const clientReady =
-    runtime.foregroundClientReady ?? localHerdrAttachment(socketPath);
-
-  const launchTerminal =
-    runtime.launchTerminal ??
-    spawner
-      .spawn(
-        ChildProcess.make(
-          "uwsm",
-          [
-            "app",
-            "--",
-            "ghostty-host-config",
-            "-e",
-            "herdr",
-            "session",
-            "attach",
-            "default",
-          ],
-          {
-            stdin: "ignore",
-            stdout: "ignore",
-            stderr: "ignore",
-            detached: true,
-          },
-        ),
-      )
-      .pipe(
-        Effect.flatMap((child) => child.unref),
-        Effect.asVoid,
-        Effect.scoped,
-        Effect.mapError(
-          (error) =>
-            new HerdrRepoOpenError({
-              message: `Could not launch the Herdr terminal: ${formatCause(error)}`,
-              exitCode: 1,
-            }),
-        ),
-      );
-
-  const initiallyReady = options.noFocus || (yield* clientReady);
-
-  if (!initiallyReady) {
-    yield* launchTerminal;
-
-    const terminalReady = clientReady.pipe(
-      Effect.filterOrFail(
-        (ready) => ready,
-        () => new TerminalNotReady(),
-      ),
-      Effect.retry(runtime.readinessSchedule ?? READINESS_SCHEDULE),
-      Effect.mapError(
-        () =>
-          new HerdrRepoOpenError({
-            message: "Herdr terminal client did not become ready",
-            exitCode: 1,
-          }),
-      ),
-    );
-
-    yield* terminalReady;
-  }
+  // A server has no terminal to open, so focus only moves when a client is
+  // already attached; otherwise the workspace opens in the background.
+  const focus =
+    !options.noFocus &&
+    (yield* runtime.foregroundClientReady ?? localHerdrAttachment(socketPath));
 
   const workspaces = yield* herdr.workspaces.list();
 
@@ -595,7 +523,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
     }
   }
 
-  if (!options.noFocus) {
+  if (focus) {
     yield* herdr.workspaces.focus(workspaceId);
 
     if (tabId) yield* herdr.tabs.focus(tabId);

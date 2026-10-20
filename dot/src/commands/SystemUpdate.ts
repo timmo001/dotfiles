@@ -10,8 +10,6 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 
 const TOPGRADE_UPDATES = [
   ["Topgrade: Yazi", "yazi", false],
-  ["Topgrade: ProtonPlus", "protonplus", false],
-  ["Topgrade: Firmware", "firmware", false],
   ["Topgrade: Rustup", "rustup", false],
   ["Topgrade: TLDR", "tldr", false],
   ["Topgrade: Neovim", "vim", false],
@@ -24,6 +22,7 @@ const TOPGRADE_UPDATES = [
 /** Steps `dot update system --step` accepts, in display order. */
 export const UPDATE_STEPS = [
   "dotfiles",
+  "apt",
   "github-cli",
   ...TOPGRADE_UPDATES.map(([, value]) => value),
 ] as const;
@@ -36,6 +35,7 @@ const UPDATE_CHOICES: ReadonlyArray<{
   readonly selected: boolean;
 }> = [
   { title: "Dotfiles", value: "dotfiles", selected: true },
+  { title: "Apt packages", value: "apt", selected: true },
   { title: "GitHub CLI extensions", value: "github-cli", selected: true },
   ...TOPGRADE_UPDATES.map(([title, value, selected]) => ({
     title,
@@ -99,15 +99,41 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
   automatic: boolean,
   baseEnv: Readonly<Record<string, string>>,
   summaryFile: string,
+  selfUpdate: boolean,
 ) {
   if (selectedSet.has("dotfiles")) {
     section("Dotfiles");
 
     const exitCode = yield* runChild(
       "dot",
-      ["update", "--summary-file", summaryFile],
+      [
+        "update",
+        ...(selfUpdate ? [] : ["--no-self-update"]),
+        "--summary-file",
+        summaryFile,
+      ],
       baseEnv,
     );
+
+    if (exitCode !== 0) {
+      process.exitCode = exitCode;
+
+      return;
+    }
+  }
+
+  if (selectedSet.has("apt")) {
+    section("Apt Packages");
+
+    let exitCode = yield* runChild("sudo", ["apt-get", "update"], baseEnv);
+
+    if (exitCode === 0) {
+      exitCode = yield* runChild(
+        "sudo",
+        ["apt-get", "upgrade", ...(automatic ? ["-y"] : [])],
+        baseEnv,
+      );
+    }
 
     if (exitCode !== 0) {
       process.exitCode = exitCode;
@@ -172,28 +198,12 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
   if (refreshExitCode !== 0) process.exitCode = refreshExitCode;
 });
 
-/**
- * Hand a plain run over to `omarchy update`. Its post-update hook runs this
- * command again with `--omarchy-hook`, which selects and runs the other steps
- * while Omarchy still holds its single sudo authorisation.
- */
+/** Select and run system maintenance steps in their fixed display order. */
 export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
   readonly yes: boolean;
   readonly steps: readonly UpdateChoice[];
-  readonly omarchyHook: boolean;
+  readonly selfUpdate: boolean;
 }) {
-  if (!options.omarchyHook && options.steps.length === 0) {
-    const exitCode = yield* runChild(
-      "omarchy",
-      ["update", ...(options.yes ? ["-y"] : [])],
-      {},
-    );
-
-    if (exitCode !== 0) process.exitCode = exitCode;
-
-    return;
-  }
-
   const automatic =
     options.yes ||
     process.stdin.isTTY !== true ||
@@ -218,6 +228,7 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
   if (selected.length === 0) return;
 
   const fs = yield* FileSystem.FileSystem;
+  const selectedSet = new Set<UpdateChoice>(selected);
   const baseEnv = yield* temporarySudoEnvironment();
 
   const summaryFile = join(
@@ -235,7 +246,11 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
     Effect.ignore,
   );
 
-  yield* runSteps(new Set(selected), automatic, baseEnv, summaryFile).pipe(
-    Effect.ensuring(printSummary),
-  );
+  yield* runSteps(
+    selectedSet,
+    automatic,
+    baseEnv,
+    summaryFile,
+    options.selfUpdate,
+  ).pipe(Effect.ensuring(printSummary));
 }, Effect.scoped);

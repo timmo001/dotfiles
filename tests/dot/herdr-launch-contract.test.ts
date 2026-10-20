@@ -76,7 +76,6 @@ async function launch(options: {
 
     return yield* openHerdrRepo({ label: "fixture", directory, tabLabel: "Action", command: "lazygit", ...options.request }, {
       foregroundClientReady: options.request?.noFocus ? Effect.die("Background launch checked the terminal client") : Effect.succeed(true),
-      launchTerminal: Effect.die("Unexpected terminal launch"),
     }).pipe(Effect.provideService(HerdrSdk, {
       ...sdk,
       agents: { ...sdk.agents,

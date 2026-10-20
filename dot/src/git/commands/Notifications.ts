@@ -14,17 +14,6 @@ import { handleCommandError, writeJsonLine, writeText } from "./rows.js";
 
 const handleNotificationError = handleCommandError("dot git notifications");
 
-/** Open the GitHub notifications view in the Omarchy shell. */
-export const notificationsOpenShell = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  yield* executor.run("omarchy-shell", [
-    "shell",
-    "summon",
-    "timmo.git",
-    '{"view":"notifications"}',
-  ]);
-}).pipe(Effect.withSpan("notifications.openShell"), handleNotificationError);
-
 /** Machine output: status bar JSON. */
 export const notificationsBarJson = (opts?: GitNotificationQueryOptions) =>
   Effect.gen(function* () {

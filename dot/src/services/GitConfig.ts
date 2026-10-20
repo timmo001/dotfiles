@@ -36,7 +36,6 @@ const REPO_KEYS = new Set([
   "notes_remote",
   "opencode_mcp",
   "opencode_skills",
-  "omarchy_components",
   "browser",
   "review_search",
   "activity",
@@ -90,21 +89,6 @@ export interface GitRepoNotificationConfig extends GitRepoCheckConfig {
   /** Status-bar output filters. */
   readonly bar: GitRepoNotificationBarConfig;
 }
-
-/** Shared Omarchy panel components copied into a standalone plugin checkout. */
-export interface GitRepoOmarchyComponents {
-  /** Plugin directory relative to the repository root. */
-  readonly directory: string;
-  /** Component names copied from the dotfiles components directory. */
-  readonly components: readonly string[];
-}
-
-const OmarchyComponentsSettings = Schema.Struct({
-  directory: Schema.String,
-  components: Schema.NonEmptyArray(
-    Schema.String.check(Schema.isPattern(/^[A-Z][A-Za-z0-9]*$/)),
-  ),
-});
 
 /** One fallback lint command run by `dot agent lint`. */
 export const AgentLintCommand = Schema.Struct({
@@ -170,16 +154,12 @@ export const LinkSiteRule = Schema.Struct({
   ),
   /** Browser name from `browsers`, or `work-time` for `work` during work time and `personal` otherwise. */
   browser: Schema.NonEmptyString,
-  /** Hyprland workspace the link opens on, in a window of the browser already there or a new one moved there. */
-  workspace: Schema.optionalKey(Schema.Int.check(Schema.isGreaterThan(0))),
-  /** `OMARCHY_HOST` values the rule applies on; omitted applies on every host. */
-  hosts: Schema.optionalKey(Schema.NonEmptyArray(Schema.NonEmptyString)),
 });
 
 /** Decoded {@link LinkSiteRule}. */
 export type LinkSiteRule = typeof LinkSiteRule.Type;
 
-/** Default browser routing for links opened through `dot link open`. */
+/** Default browser routing for links, as the daily brief reports it. */
 export const LinkSettings = Schema.Struct({
   /** Browser for links no site rule or repository selects, and for anything that is not a single link. */
   personal: Schema.NonEmptyString,
@@ -187,30 +167,6 @@ export const LinkSettings = Schema.Struct({
   work: Schema.optionalKey(Schema.NonEmptyString),
   /** Per-site overrides, checked in order before repository browsers. */
   sites: Schema.optionalKey(Schema.Array(LinkSiteRule)),
-  /** Window class pattern for each browser, used to find its windows on a site rule's workspace. */
-  window_classes: Schema.optionalKey(
-    Schema.Record(
-      Schema.String,
-      Schema.NonEmptyString.check(
-        Schema.makeFilter((pattern) => {
-          try {
-            new RegExp(pattern);
-
-            return undefined;
-          } catch {
-            return "must be a valid regular expression";
-          }
-        }),
-      ),
-    ),
-  ),
-  /** The dot links Chromium extension. */
-  extension: Schema.optionalKey(
-    Schema.Struct({
-      /** Browser user data directories, such as `~/.config/chromium`, that get the extension's native messaging host. */
-      user_data_dirs: Schema.Array(Schema.NonEmptyString),
-    }),
-  ),
 });
 
 /** Decoded {@link LinkSettings}. */
@@ -253,8 +209,6 @@ export interface GitManagedRepo {
   readonly opencodeMcp?: Readonly<Record<string, boolean>>;
   /** OpenCode skills allowed (true) or denied (false) for this repository; unlisted skills keep the global permission. */
   readonly opencodeSkills?: Readonly<Record<string, boolean>>;
-  /** Shared Omarchy components synced by dot omarchy plugin sync components. */
-  readonly omarchyComponents?: GitRepoOmarchyComponents;
   /** Named browser for repository web actions; omitted uses the desktop default. */
   readonly browser?: string;
   /** GitHub pull request search used by dot pr queue; the repository qualifier is added when missing. */
@@ -538,29 +492,11 @@ function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
       for (const [location, browser] of [
         ["root.links.personal", links.personal],
         ["root.links.work", links.work],
-        ...Object.keys(links.window_classes ?? {}).map(
-          (name) => [`root.links.window_classes.${name}`, name] as const,
-        ),
       ] as const) {
         if (browser !== undefined && !Object.hasOwn(browsers, browser))
           diagnostics.push(
             `${location} references unknown browser: ${browser}`,
           );
-      }
-
-      for (const [index, rule] of (links.sites ?? []).entries()) {
-        if (rule.workspace === undefined) continue;
-
-        const placed =
-          rule.browser === WORK_TIME_BROWSER
-            ? [links.personal, ...(links.work ? [links.work] : [])]
-            : [rule.browser];
-
-        for (const browser of placed)
-          if (!Object.hasOwn(links.window_classes ?? {}, browser))
-            diagnostics.push(
-              `root.links.sites[${index}] sets a workspace, which needs root.links.window_classes.${browser}`,
-            );
       }
     } catch (error) {
       diagnostics.push(`root.links: ${formatError(error)}`);
@@ -752,12 +688,6 @@ function parseRepo(
           Schema.Record(Schema.NonEmptyString, Schema.Boolean),
         )(value.opencode_skills);
 
-  const omarchyComponents = parseOmarchyComponents(
-    value.omarchy_components,
-    `${location}.omarchy_components`,
-    diagnostics,
-  );
-
   const browser = optionalString(
     value.browser,
     `${location}.browser`,
@@ -824,7 +754,6 @@ function parseRepo(
       ...(notesRemote && { notesRemote }),
       ...(Object.keys(opencodeMcp).length > 0 && { opencodeMcp }),
       ...(Object.keys(opencodeSkills).length > 0 && { opencodeSkills }),
-      ...(omarchyComponents && { omarchyComponents }),
       ...(browser && { browser }),
       ...(reviewSearch && { reviewSearch }),
       activity,
@@ -834,36 +763,6 @@ function parseRepo(
       ...(releases && { releases }),
     },
   ];
-}
-
-function parseOmarchyComponents(
-  value: JsonValue,
-  location: string,
-  diagnostics: string[],
-): GitRepoOmarchyComponents | undefined {
-  if (value === undefined) return undefined;
-
-  try {
-    const settings = Schema.decodeUnknownSync(OmarchyComponentsSettings)(
-      value,
-      { onExcessProperty: "error" },
-    );
-
-    if (
-      settings.directory.startsWith("/") ||
-      settings.directory.split("/").includes("..")
-    )
-      throw new Error("directory must be repository-relative");
-
-    if (new Set(settings.components).size !== settings.components.length)
-      throw new Error("components must be unique");
-
-    return settings;
-  } catch (error) {
-    diagnostics.push(`${location}: ${formatError(error)}`);
-
-    return undefined;
-  }
 }
 
 function parseAgentLint(

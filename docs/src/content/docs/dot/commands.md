@@ -17,25 +17,21 @@ Run one-time first-use machine setup
 dot init [flags]
 ```
 
-Run the one-time first-use setup workflow for a fresh machine. Init prepares repos, stow links, mise tools, packages, and machine hooks, and trusts mise configs in tracked repos. After init completes, reboot so the Omarchy session picks up host env, then run dot doctor. Before the bounded workflow starts, init updates or clones the optional private overlay according to DOT_ALLOW_PRIVATE. Use dot update for ongoing maintenance.
+Run the one-time first-use setup workflow for a fresh machine. Init prepares repos, stow links, mise tools, apt packages, the firewall and the login shell, and trusts mise configs in tracked repos. After init completes, enable lingering so user services run without a login, log in again, then run dot doctor. Before the bounded workflow starts, init updates or clones the optional private overlay according to DOT_ALLOW_PRIVATE. Use dot update for ongoing maintenance.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-| `--noninteractive` | Skip the Hypr host questionnaire for this run |
-| `--interactive` | Enable the Hypr host questionnaire when no host is selected |
 | `--force` | Re-run init even if the machine looks initialised |
-| `--host` `<string>` | Hypr host to link before stow |
 | `--log` `<path>` | Init log path (default: ~/.local/state/dot/init.log) |
 | `--help` `-h` | Show help information |
 
 **Examples**
 
 ```bash
-dot init --noninteractive
-dot init --host laptop --noninteractive
-dot init --force --noninteractive
+dot init
+dot init --force
 ```
 
 ## `dot install`
@@ -62,11 +58,11 @@ Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: pass
 dot update <subcommand> [flags]
 ```
 
-A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, installs missing public Arch/AUR packages, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and refreshes shell modules. It never restarts the shell: the running shell applies a changed generated config or deployed Omarchy plugin itself. It finishes with a summary of updated repositories and every completed or skipped step, in order.
+A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and starts the doctor check. It finishes with a summary of updated repositories and every completed or skipped step, in order.
 
-Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip full-update package reconciliation, agents sync, and init-marker backfill.
+Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip agents sync and init-marker backfill.
 
-Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands, skipping the dotfiles rebuild and stow. Herdr plugins are refreshed only inside Herdr. The Git panel uses --no-reload to skip agent reload and module refresh.
+Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands, skipping the dotfiles rebuild and stow. Herdr plugins are refreshed only inside Herdr. --no-reload skips the agent reload and doctor check.
 
 **Options**
 
@@ -92,28 +88,51 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 1   Fatal workflow failure
 2   Update check could not finish
 10  Update check found pulls, pending pins or stow changes
-11  Legacy Hypr migration is required
 ```
 
 ### `dot update system`
 
+<<<<<<< HEAD
 Run omarchy update, which then runs the Dotfiles and Topgrade updates
+||||||| parent of b3f8fabf (Remove the desktop code from dot and switch packages to apt)
+Select and run Dotfiles, Omarchy, and Topgrade updates
+=======
+Select and run Dotfiles, apt, and Topgrade updates
+>>>>>>> b3f8fabf (Remove the desktop code from dot and switch packages to apt)
 
 ```text
 dot update system [flags]
 ```
 
+<<<<<<< HEAD
 Hand over to omarchy update. Its post-update hook runs dot update system --omarchy-hook, which selects and runs the other steps in order: Dotfiles, GitHub CLI extensions, and Topgrade, while Omarchy still holds its sudo authorisation, so the whole update asks for the password once. Interactive runs pre-select Dotfiles and GitHub CLI extensions; Topgrade steps start unselected. Non-interactive runs and --yes select every step. Cancelling the prompt skips them.
 
 --step runs only the steps given, here and without omarchy update.
+||||||| parent of b3f8fabf (Remove the desktop code from dot and switch packages to apt)
+Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
+
+Under Herdr, when Omarchy and other steps are selected, this pane first pulls the public and private dotfiles and rebuilds dot when Dotfiles is selected. The other steps then run in a pane split off to the right, which stays open when they finish and doesn't pull the dotfiles again, while this pane runs the Omarchy update, so both can ask for authentication straight away.
+=======
+Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, apt packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
+>>>>>>> b3f8fabf (Remove the desktop code from dot and switch packages to apt)
 
 **Options**
 
 | Option | Description |
 | --- | --- |
+<<<<<<< HEAD
 | `--yes` | Run omarchy update with -y, and select every other update without prompting |
 | `--step` `<choice>` | Run only this step here, without omarchy update or prompting; repeat for several (choices: dotfiles, github-cli, yazi, protonplus, firmware, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
 | `--omarchy-hook` | Internal: run from Omarchy's post-update hook to select and run the other updates |
+||||||| parent of b3f8fabf (Remove the desktop code from dot and switch packages to apt)
+| `--yes` | Select every update without prompting |
+| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, omarchy, github-cli, yazi, protonplus, firmware, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
+| `--no-self-update` | Internal: the dotfiles are already pulled, so dot update skips its self-update |
+=======
+| `--yes` | Select every update without prompting |
+| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, apt, github-cli, yazi, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
+| `--no-self-update` | Skip dot update's self-update pull when the dotfiles are already pulled |
+>>>>>>> b3f8fabf (Remove the desktop code from dot and switch packages to apt)
 | `--help` `-h` | Show help information |
 
 **Examples**
@@ -365,13 +384,13 @@ dot status run --title 'Core' --url https://dev.example.localhost --setup 'scrip
 
 ## `dot updates`
 
-Check watched package, Dotfiles and skills updates for the status bar
+Check watched package, Dotfiles and skills updates
 
 ```text
 dot updates <subcommand> [flags]
 ```
 
-Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched repository/AUR packages, all dot-managed repositories and whether the managed skills checkout is behind timmo001/skills main, writes the cache atomically under a shared lock, and notifies the Omarchy shell. status --json prints the cached sections and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --package-file, --cache-dir and --timeout to override defaults.
+Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched apt packages, all dot-managed repositories and whether the managed skills checkout is behind timmo001/skills main, and writes the cache atomically under a shared lock. status --json prints the cached sections and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Use --package-file, --cache-dir and --timeout to override defaults.
 
 **Options**
 
@@ -410,7 +429,7 @@ dot updates status --json
 
 ### `dot updates refresh`
 
-Refresh package, Dotfiles and skills status and notify the shell
+Refresh package, Dotfiles and skills status
 
 ```text
 dot updates refresh [flags]
@@ -423,7 +442,6 @@ dot updates refresh [flags]
 | `--package-file` `<path>` | Watched package list (default: public dotfiles manifest) |
 | `--cache-dir` `<path>` | Status cache directory (default: XDG status-bar cache) |
 | `--timeout` `<integer>` | Maximum seconds for each external check |
-| `--scheduled` | Respect the AUR request backoff |
 | `--dot-only` | Refresh only Dotfiles status, keeping cached package status |
 | `--help` `-h` | Show help information |
 
@@ -611,7 +629,7 @@ dot services investigate [flags] <unit>
 
 | Option | Description |
 | --- | --- |
-| `--agent` `<string>` | Installed launcher from dot herdr agents, such as opencode2; required unless --print |
+| `--agent` `<string>` | Installed launcher from dot herdr agents, such as opencode2 |
 | `--modifiers` `<integer>` | Qt keyboard modifier bitmask, as for dot herdr repo open |
 | `--print` | Print the investigation brief instead of opening the agent |
 | `--help` `-h` | Show help information |
@@ -859,193 +877,6 @@ dot stow [flags]
 | `--private` | Stow private dotfiles only |
 | `--help` `-h` | Show help information |
 
-## `dot omarchy`
-
-Manage Omarchy plugins and the shell layout
-
-```text
-dot omarchy <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-### `dot omarchy plugin`
-
-Manage Omarchy plugin submodules. The manage-omarchy-plugin compatibility wrapper may pass trailing 0/1 confirmation and commit-offer values to update and remove.
-
-```text
-dot omarchy plugin <subcommand> [flags]
-```
-
-Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.
-
-For a repository that keeps its plugin in a subfolder, pass add --path with that folder. The submodule holds the whole repository, and the registry's path entry tells stow and update which folder to validate and deploy.
-
-sync components copies the shared panel components in omarchy/.config/omarchy/components into the plugin directories set by omarchy_components entries in the private dot-git.yml, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Exit codes**
-
-```text
-0   Managed operation completed or was skipped
-1   Managed operation failed
-20  Plugin is unmanaged; continue with Omarchy's normal operation
-```
-
-**Examples**
-
-```bash
-dot omarchy plugin update timmo.clock --yes
-dot omarchy plugin remove timmo.clock
-dot omarchy plugin sync components --check
-```
-
-#### `dot omarchy plugin add`
-
-Import a validated plugin checkout
-
-```text
-dot omarchy plugin add [flags] <id> <url> <checkout>
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--path` `<string>` | Plugin directory inside the checkout, for repositories that keep the plugin in a subfolder |
-| `--section` `<choice>` | (choices: left, center, right) |
-| `--before` `<string>` | Place before this plugin |
-| `--after` `<string>` | Place after this plugin |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<id>` | Plugin ID |
-| `<url>` | Plugin Git remote |
-| `<checkout>` | Validated live plugin checkout |
-
-#### `dot omarchy plugin update`
-
-Update one or all managed plugins
-
-```text
-dot omarchy plugin update [flags] [<id>] [<confirm>]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--yes` | Update without confirmation |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<id>` | Managed plugin ID |
-| `<confirm>` | Compatibility confirmation value |
-
-#### `dot omarchy plugin remove`
-
-Remove a managed plugin
-
-```text
-dot omarchy plugin remove [flags] <id> [<confirm>] [<save>]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--yes` | Remove without confirmation |
-| `--no-commit-offer` | Do not offer the optional git commit handoff |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<id>` | Managed plugin ID |
-| `<confirm>` | Compatibility confirmation value |
-| `<save>` | Compatibility commit-offer value |
-
-#### `dot omarchy plugin sync`
-
-Sync shared files into plugin checkouts
-
-```text
-dot omarchy plugin sync <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-#### `dot omarchy plugin sync components`
-
-Copy shared panel components into standalone plugin checkouts
-
-```text
-dot omarchy plugin sync components [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--check` | Report out-of-date copies without writing |
-| `--help` `-h` | Show help information |
-
-### `dot omarchy shell`
-
-Manage the Omarchy shell
-
-```text
-dot omarchy shell <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-#### `dot omarchy shell config`
-
-Regenerate the Omarchy shell layout
-
-```text
-dot omarchy shell config [flags]
-```
-
-Regenerate ~/.config/omarchy/shell.json from Omarchy's shipped default and the host-specific dotfiles layout without running the full stow flow.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot omarchy shell config
-```
-
 ## `dot session`
 
 Inspect and move agent sessions
@@ -1282,7 +1113,7 @@ dot firewall
 
 ## `dot doctor`
 
-Run parallel health checks for dependencies, repositories, stow integrity, services, packages, browser configuration, hardware video, firewall rules, and OpenCode/Herdr integration. A timestamped report is always written under ~/.local/state/dot/logs/.
+Run parallel health checks for dependencies, repositories, stow integrity, services, apt packages, firewall rules, and OpenCode/Herdr integration. A timestamped report is always written under ~/.local/state/dot/logs/.
 
 ```text
 dot doctor [flags]
@@ -1301,9 +1132,8 @@ Run health checks on the dotfiles system. All checks run in parallel and each se
 ```text
 Dependencies and configured gh extensions
 Repositories, origin HEAD, git config, and stow integrity
-OpenCode, Herdr, notifications, timers, and UWSM integration
-Omarchy host links, browser flags/extensions, and hardware video
-Public/private packages, pacman hooks, and managed firewall rules
+OpenCode, Herdr, notifications, timers, and registered services
+Public/private apt packages, managed firewall rules, and Syncthing
 ```
 
 **Exit codes**
@@ -1329,7 +1159,7 @@ dot clean [flags]
 
 ## `dot agent`
 
-Agent harness tooling: instruction sync, linting, tools and detection
+Agent harness tooling: instruction sync, linting and detection
 
 ```text
 dot agent <subcommand> [flags]
@@ -1451,30 +1281,6 @@ dot agent oxlint --force src/example.ts
 dot agent oxlint --opt-in
 ```
 
-### `dot agent tools`
-
-List the dot commands exposed to agents as Code Mode tools
-
-```text
-dot agent tools [flags]
-```
-
-List the dot commands that the OpenCode cli-tools plugin exposes as typed Code Mode tools under tools.dot.*. The list is opt-in and kept in dot/src/commands/AgentTools.ts; each entry's input schema is generated from the command's arguments and flags. --json prints the manifest the plugin reads: tool name, command path, summary, read or write access, pinned state, timeout, whether the command has --json, the input JSON Schema, and how each input maps back to an argument or flag. Write tools ask for permission through dot.write.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--json` | Print the tool manifest as JSON |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot agent tools
-dot agent tools --json
-```
-
 ### `dot agent detect`
 
 Detect whether an AI coding agent is running dot
@@ -1558,92 +1364,6 @@ Regenerate the notes capture repository picker from repositories with GitHub not
 
 ```bash
 dot notes capture sync
-```
-
-## `dot setup`
-
-Set up pacman package repositories
-
-```text
-dot setup <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-### `dot setup private`
-
-Set up private package sources
-
-```text
-dot setup private <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-#### `dot setup private repo`
-
-Sync and register the private pacman repository
-
-```text
-dot setup private repo [flags]
-```
-
-Sync the private Arch package repo mirror, write the private pacman repo snippet, and add the Include line to /etc/pacman.conf when it is missing. This repairs Omarchy pacman.conf refreshes that remove local repository includes. Privileged writes prefer pkexec and fall back to sudo.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot setup private repo
-```
-
-### `dot setup public`
-
-Set up public package sources
-
-```text
-dot setup public <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-#### `dot setup public repo`
-
-Trust and register the public timmo pacman repository
-
-```text
-dot setup public repo [flags]
-```
-
-Download the public signing key, require its pinned full fingerprint, locally sign it in pacman's keyring, and register the signed [timmo] repository before the other package repositories. The command fails before changing trust or pacman configuration when the repository is unavailable or the downloaded fingerprint does not match.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot setup public repo
 ```
 
 ## `dot git`
@@ -1739,35 +1459,6 @@ dot git log show [flags]
 | `--changes` `<choice>` | Preview uncommitted changes including untracked files, commits not pushed upstream, or fetched commits not pulled yet (choices: uncommitted, unpushed, incoming) |
 | `--help` `-h` | Show help information |
 
-### `dot git web`
-
-Open a Git web action using the repository's configured browser
-
-```text
-dot git web [flags]
-```
-
-Resolves repository browser settings from dot-git.yml, including linked worktrees. URL-only actions use the GitHub repository in the URL. Named browsers are argument lists under browsers; each repository can select one with browser, or work-time for links.work during work hours and links.personal otherwise. When links is set, links.sites rules come first and unselected links follow the same routing as dot link open. Without links or a selection, uses the desktop default, and --work-time selects the work browser during work hours outside calendar leave. --browser overrides the selection. The Git panel uses --work-time for web actions and --browser work for Alt+Enter and Alt+click.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--path` `<string>` | Repository directory; defaults to the current directory when no URL is supplied |
-| `--url` `<string>` | Web URL; defaults to the repository's GitHub page |
-| `--browser` `<string>` | Override the repository browser with a name from dot-git.yml |
-| `--work-time` | Use the work browser during work time, otherwise the desktop default |
-| `--actions` | Open the repository's GitHub Actions page |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot git web
-dot git web --browser work
-dot git web --url https://github.com/example/project/issues/1
-```
-
 ### `dot git commit`
 
 Commit staged changes through the guarded gateway. Subjects must be one line, have no trailing full stop, and stay within the hard length limit. Explicit --path scopes never imply git add -A; --amend keeps the existing message unless --message is supplied.
@@ -1835,7 +1526,7 @@ dot git commit -m "Preview only" --dry-run
 
 ### `dot git notifications`
 
-Open the authenticated GitHub notification inbox. Without output, query or action flags, this opens the Omarchy shell panel. --all and --participating return filtered bar JSON.
+Read the authenticated GitHub notification inbox as JSON. --all and --participating filter it.
 
 ```text
 dot git notifications <subcommand> [flags]
@@ -1947,7 +1638,6 @@ Local reviews require the displayed snapshot ID. Finding overrides follow exact 
 | `--scheduled` | Check only in a due cron minute, once per minute |
 | `--refresh` | Fetch now, bypassing the schedule and cache |
 | `--notify` | Send eligible desktop notifications with review actions |
-| `--open` | Open the release review in the Omarchy shell |
 | `--panel-json` | Complete JSON review snapshots, including quiet changes and errors |
 | `--help` `-h` | Show help information |
 
@@ -2038,7 +1728,6 @@ Opt in with issues.enabled in private dot-git.yml. Open issues exclude pull requ
 | --- | --- |
 | `--repo` `<string>` | Select an enabled repository by name or GitHub slug |
 | `--refresh` | Fetch now instead of using the five-minute cache |
-| `--open` | Open the tracked issue page in the Git panel |
 | `--panel-json` | Return enabled repositories and their open issues as JSON |
 | `--help` `-h` | Show help information |
 
@@ -2047,106 +1736,7 @@ Opt in with issues.enabled in private dot-git.yml. Open issues exclude pull requ
 ```bash
 dot git issues --panel-json
 dot git issues --refresh
-dot git issues --open
 ```
-
-## `dot link`
-
-Route links to the work or personal browser, or to the Git panel
-
-```text
-dot link <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-### `dot link open`
-
-Open a link in the work or personal browser, or a dot:// link in the Git panel
-
-```text
-dot link open [flags] [<args...>]
-```
-
-Routes a single HTTP or HTTPS link using links in dot-git.yml: the first matching links.sites rule, then the browser of the tracked repository a GitHub link belongs to, otherwise links.personal. A site rule or repository can select work-time, which opens links.work during work time outside calendar leave and links.personal otherwise. A site rule can be limited to some OMARCHY_HOST values with hosts, and can set a Hyprland workspace: the link opens in the browser's window there that was focused last, found by its links.window_classes pattern, or in a new window moved there. With --background, a link placed on a workspace leaves focus and the cursor where they were; link-open-background runs this for PLANNOTATOR_BROWSER, so reviews Plannotator opens by itself don't pull focus. Anything else, including no arguments, goes to links.personal unchanged. The link-browser desktop entry runs this as the default web browser, so xdg-open and Omarchy's browser launcher use it. A dot://git/issue/<owner>/<repo>/<number> or dot://git/pull/... link opens that item in the Git panel when the panel lists it, and its GitHub page through the same routing otherwise; the dot-link desktop entry handles the dot:// scheme. Failures are also sent as a desktop notification.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--background` | Leave focus and the cursor where they are, for links opened by tools rather than by you |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<args>` | One link, or browser arguments passed after -- |
-
-**Examples**
-
-```bash
-dot link open https://github.com/home-assistant/frontend
-dot link open --background http://localhost:38080/
-dot link open dot://git/issue/timmo001/dotfiles/1076
-dot link open -- --incognito
-```
-
-### `dot link git`
-
-Print the dot:// links that open GitHub issues and pull requests in the Git panel
-
-```text
-dot link git [flags] <urls...>
-```
-
-Read-only. For each URL, reports the dot://git/<issue|pull>/<owner>/<repo>/<number> link (null when the URL isn't a GitHub issue or pull request), whether the Git panel lists the item, read from the panel's cache, and, when it does, a Markdown icon link to put after the GitHub link. Agents add that icon link wherever they share GitHub issue and pull request links. Prints JSON with --json or when run under an AI agent, otherwise one line per URL.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--json` | Print JSON (the default under an AI agent) |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<urls>` | GitHub issue or pull request URLs |
-
-**Examples**
-
-```bash
-dot link git https://github.com/timmo001/dotfiles/issues/1079
-dot link git https://github.com/timmo001/dotfiles/pull/1080 --json
-```
-
-### `dot link native-host`
-
-Native messaging host for the dot links Chromium extension
-
-```text
-dot link native-host [flags] [<origin...>]
-```
-
-Chromium runs this through the link-native-host wrapper; it isn't for running by hand. Reads one length-prefixed JSON request on stdin: resolve {url} replies with the page's dot:// link, whether the Git panel lists it, counting a pull request's tabs such as /changes, and the name of its tracked checkout, open {url} opens it in the Git panel and fails rather than opening the browser when the panel doesn't list it, review {url} opens a pull request, from any of its tabs, in a Plannotator review through uwsm-app, agent {url} starts an OpenCode agent on an issue or pull request in its tracked checkout through dot herdr repo open, with a prompt that loads the repository's matching skills and differs for items you opened, are assigned or (for issues) own the repository of, and clear-deps starts dot-notifications-dismiss.service now instead of waiting for its timer. dot stow builds the extension in chromium-extension/ and writes the host manifest into each browser in links.extension.user_data_dirs in dot-git.yml.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<origin>` | The calling extension's origin, which Chromium passes and this ignores |
 
 ## `dot mcp`
 
@@ -2182,66 +1772,6 @@ Regenerate each active harness's native MCP config from the private spec (mcp.ym
 
 ```bash
 dot mcp sync
-```
-
-## `dot private`
-
-Work with the private package repository
-
-```text
-dot private <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-### `dot private pkg`
-
-Manage private packages
-
-```text
-dot private pkg <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-#### `dot private pkg publish`
-
-Build and publish a private package
-
-```text
-dot private pkg publish [flags] <package-name>
-```
-
-Build and publish a mapped private package into the private pacman repo.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--no-git` | Skip package repo commit and push |
-| `--skip-build` | Publish an existing artifact |
-| `--install` | Install after publishing |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<package-name>` | Mapped private package name |
-
-**Examples**
-
-```bash
-dot private pkg publish my-package --install
-dot private pkg publish --skip-build --no-git my-package
 ```
 
 ## `dot skills`
@@ -2566,8 +2096,8 @@ Ranks tracked repositories from private dot-git.yml by fuzzy match on name, alia
 **Examples**
 
 ```bash
-dot repo search pacman
-dot repo search omarchy clock
+dot repo search dotfiles
+dot repo search home assistant
 dot repo search notse --limit 3 --json
 dot repo search ha --all
 ```
@@ -2659,7 +2189,6 @@ Follow every GitHub Actions run on each pull request's head commit, including Co
 | `--interval` `<integer>` | Seconds between polls |
 | `--log-lines` `<integer>` | Trailing failed-log lines kept per job; 0 keeps everything |
 | `--output` `<path>` | Report path (default: ~/.local/state/dot/pr-watch/<repo>-<prs>-<time>.md) |
-| `--json` | Print one JSON summary at the end, with progress on stderr |
 | `--help` `-h` | Show help information |
 
 **Arguments**
@@ -2767,7 +2296,6 @@ Opt in with pull_requests.enabled in private dot-git.yml. Open PRs include draft
 | --- | --- |
 | `--repo` `<string>` | Select an enabled repository by name or GitHub slug |
 | `--refresh` | Fetch now instead of using the five-minute cache |
-| `--open` | Open the tracked pull request page in the Git panel |
 | `--ignore` `<integer>` | Hide a PR locally from the panel and counters; requires --repo |
 | `--panel-json` | Return enabled repositories and their open pull requests as JSON |
 | `--help` `-h` | Show help information |
@@ -2777,7 +2305,6 @@ Opt in with pull_requests.enabled in private dot-git.yml. Open PRs include draft
 ```bash
 dot pr list --panel-json
 dot pr list --refresh
-dot pr list --open
 ```
 
 ## `dot brief`
@@ -2934,109 +2461,6 @@ dot report list [flags]
 dot report list
 ```
 
-## `dot launch`
-
-Launch desktop apps
-
-```text
-dot launch <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-### `dot launch floating`
-
-Launch floating windows
-
-```text
-dot launch floating <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-#### `dot launch floating webapp`
-
-Launch one Omarchy webapp and place its new window in the target monitor's bottom-right corner, or reposition an existing window with --address. Width and height must be positive integers; margins must be non-negative.
-
-```text
-dot launch floating webapp [flags] [<url>]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--monitor` `<string>` | Target monitor |
-| `--workspace` `<string>` | Target workspace |
-| `--width` `<integer>` | Window width |
-| `--height` `<integer>` | Window height |
-| `--right-margin` `<integer>` | Right margin |
-| `--bottom-margin` `<integer>` | Bottom margin |
-| `--address` `<string>` | Existing window address |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<url>` | Webapp URL to launch |
-
-**Exit codes**
-
-```text
-0  Window placed and its address printed
-1  Launch detection, Hyprland query, or placement failed
-2  Invalid arguments
-```
-
-## `dot plannotator`
-
-Plannotator tooling
-
-```text
-dot plannotator <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-### `dot plannotator inbox`
-
-Open the Plannotator Inbox in its own window, starting it first when it is stopped
-
-```text
-dot plannotator inbox [flags]
-```
-
-Runs plannotator inbox --background, which starts a stopped Inbox detached and prints the running one's loopback URL, then opens that address in a Qt WebEngine window (~/.local/share/plannotator-inbox/Inbox.qml, run by the qml runtime). A running window is raised instead of duplicated. --url opens another base address, such as an HTTPS front in front of the Inbox; without it, the window opens the Inbox's own loopback URL, which needs no login. The Inbox is still started first. --thread shows one thread (the Inbox's #thread= fragment), in the running window when there is one. The timmo.plannotator-inbox bar plugin, dot workspace setup and the Plannotator Inbox desktop entry run this. Failures are also sent as a desktop notification.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--url` `<string>` | Base address the Inbox window opens instead of the Inbox's own loopback URL |
-| `--thread` `<string>` | Open one thread by its id |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot plannotator inbox
-dot plannotator inbox --thread thr_01
-dot plannotator inbox --url https://inbox.plannotator.localhost
-```
-
 ## `dot herdr`
 
 Manage the shared Herdr server and repository workspaces
@@ -3053,7 +2477,7 @@ dot herdr <subcommand> [flags]
 
 ### `dot herdr start`
 
-Start the default Herdr server with the desktop autostart launch context
+Start the default Herdr server through herdr.service
 
 ```text
 dot herdr start [flags]
@@ -3677,19 +3101,18 @@ dot ha logs serve --follow
 
 ## `dot reload`
 
-Reload the desktop shell and services, or selected parts
+Reload services, or selected parts
 
 ```text
 dot reload [flags] [<part...>]
 ```
 
-Reload parts of the desktop that can go stale after suspend or a change. With no parts, reloads everything except agents. agents reloads the OpenCode service's config and, through Herdr, types /reload-plugins into idle Claude Code sessions and /reload into idle Pi sessions; busy sessions are left alone, and dot update runs it after a full update. keyboard re-arms the keyboard backlight. upnext rechecks Up Next sources, restarting its service if the recheck fails; it runs alongside the other parts because the YouTube check takes several seconds. shell clears a workspace mutation lock left by a dot workspace command stuck on a shell menu, regenerates shell.json, restarts the Omarchy shell and refreshes shell modules. updates refreshes available updates. doctor starts the dot doctor check.
+Reload parts that can go stale after a change. With no parts, reloads everything except agents. agents reloads the OpenCode service's config and, through Herdr, types /reload-plugins into idle Claude Code sessions and /reload into idle Pi sessions; busy sessions are left alone, and dot update runs it after a full update. updates refreshes available updates. doctor starts the dot doctor check.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-| `--no-auto-open` | Do not open auto-open live channels during the upnext recheck |
 | `--help` `-h` | Show help information |
 
 **Arguments**
@@ -3702,64 +3125,9 @@ Reload parts of the desktop that can go stale after suspend or a change. With no
 
 ```bash
 dot reload
-dot reload --no-auto-open
-dot reload shell
-dot reload shell updates
+dot reload updates
 dot reload agents
 ```
-
-## `dot workspace`
-
-Set up and lay out desktop workspaces
-
-```text
-dot workspace <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-### `dot workspace setup`
-
-Launch or reuse desktop apps and rebuild the workspace layout
-
-```text
-dot workspace setup [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--sleep` `<number>` | Wait before running setup logic |
-| `--mode` `<choice>` | Use the work or normal layout instead of detecting work time (choices: work, normal) |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot workspace setup
-dot workspace setup --mode=work
-dot workspace setup --mode=normal
-```
-
-### `dot workspace relayout`
-
-Apply or capture a Hyprland workspace layout
-
-```text
-dot workspace relayout [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--edit` | Capture or overwrite a preset |
-| `--help` `-h` | Show help information |
 
 ## `dot help`
 

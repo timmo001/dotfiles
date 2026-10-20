@@ -1,5 +1,5 @@
 import { Effect, type FileSystem } from "effect";
-import { basename, dirname, join, relative, resolve } from "path";
+import { dirname, join, resolve } from "path";
 import { lstatOrNull, readDirectoryOrNull, readLinkOrNull } from "./fsProbe.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -11,22 +11,11 @@ import {
 } from "./stowFolders.js";
 import { displayPath, HOME_DIR } from "./paths.js";
 import { foldOpencodePluginFolders } from "./opencodePluginFolders.js";
-import { ensureHyprConfigLink, ensureHyprHostLink } from "./omarchyHost.js";
 import {
-  omarchyPluginSourcePaths,
-  omarchyPluginSubmodules,
-  stageOmarchyPlugin,
-  swapOmarchyPlugin,
-  type StagedOmarchyPlugin,
-} from "./omarchyPluginDeployment.js";
-import {
-  backupLegacyGhosttyRepo,
   backupUnmanagedStowTargets,
   findExternalSkillSymlinks,
   formatBackupMove,
   removeExternalSymlinks,
-  removeLegacyUwsmRepo,
-  removeRetiredPrivateCrashHook,
   removeRetiredPublicStowLinks,
   removeStaleSkillSymlinks,
   restoreExternalSymlinks,
@@ -43,8 +32,6 @@ export interface StowCounts {
   public: number;
   /** Private packages stowed. */
   private: number;
-  /** Omarchy plugins deployed as real-file copies. */
-  deployed: number;
   /** Live targets moved to a backup directory. */
   backedUp: number;
   /** Retired links or repositories removed. */
@@ -53,7 +40,7 @@ export interface StowCounts {
 
 /** Create zeroed {@link StowCounts}. */
 export function emptyStowCounts(): StowCounts {
-  return { public: 0, private: 0, deployed: 0, backedUp: 0, removed: 0 };
+  return { public: 0, private: 0, backedUp: 0, removed: 0 };
 }
 
 /** Extra stow flags for the private agents folder. */
@@ -65,7 +52,7 @@ const AGENTS_PRIVATE_IGNORES = [
 ];
 
 /** Packages with per-package stow handling that cannot share a batch. */
-const UNBATCHED_FOLDERS = new Set(["agents", "hypr", "omarchy"]);
+const UNBATCHED_FOLDERS = new Set(["agents"]);
 
 /**
  * Run one stow command for a package, failing with a logged
@@ -95,62 +82,16 @@ export const runStow = Effect.fn("stow.run")(function* (
   });
 });
 
-/** Home-relative plugin paths that are deployed rather than stowed. */
-const pluginTargets = Effect.fn("stow.pluginTargets")(function* (
-  repoDir: string,
-) {
-  return (yield* omarchyPluginSubmodules(repoDir)).map((source) =>
-    relative(join(repoDir, "omarchy"), source),
-  );
-});
-
-/**
- * Remove or back up retired links and cloned repositories that would
- * otherwise conflict with stowing the public packages.
- */
+/** Remove retired links that would otherwise conflict with stowing the public packages. */
 export const removeRetiredStowState = Effect.fn("stow.removeRetiredState")(
   function* (counts: StowCounts) {
     const config = yield* Config;
     const log = yield* OutputLog;
     const style = cliStyler();
 
-    if (config.privateDotfiles) {
-      const privateDotfiles = config.privateDotfiles;
-
-      const removedPrivateCrashHook = yield* Effect.sync(() =>
-        removeRetiredPrivateCrashHook(privateDotfiles),
-      );
-
-      if (removedPrivateCrashHook) {
-        yield* log.info(
-          `${style.warn("Migrated")} crash hook to public stow ${style.dim(displayPath(removedPrivateCrashHook))}`,
-        );
-      }
-    }
-
     for (const path of removeRetiredPublicStowLinks(config.publicDotfiles)) {
       yield* log.info(
         `${style.warn("Removed")} retired stow link ${style.dim(displayPath(path))}`,
-      );
-      counts.removed++;
-    }
-
-    const legacyGhosttyMove = yield* Effect.sync(() =>
-      backupLegacyGhosttyRepo(config.publicDotfiles),
-    );
-
-    if (legacyGhosttyMove) {
-      yield* log.info(
-        `${style.warn("Backed up")} retired Ghostty repo ${style.dim(formatBackupMove(legacyGhosttyMove))}`,
-      );
-      counts.backedUp++;
-    }
-
-    const removedLegacyUwsm = yield* Effect.sync(() => removeLegacyUwsmRepo());
-
-    if (removedLegacyUwsm) {
-      yield* log.info(
-        `${style.warn("Removed")} retired UWSM repo ${style.dim(displayPath(removedLegacyUwsm))}`,
       );
       counts.removed++;
     }
@@ -159,7 +100,7 @@ export const removeRetiredStowState = Effect.fn("stow.removeRetiredState")(
 
 /**
  * Move unmanaged live files that block a repository's packages into its
- * backup directory. Deployed Omarchy plugins are always left alone.
+ * backup directory.
  */
 export const backupUnmanagedTargets = Effect.fn("stow.backupUnmanaged")(
   function* (
@@ -167,19 +108,13 @@ export const backupUnmanagedTargets = Effect.fn("stow.backupUnmanaged")(
     counts: StowCounts,
     extraIgnored: readonly string[] = [],
   ) {
-    const config = yield* Config;
     const log = yield* OutputLog;
     const style = cliStyler();
 
-    const folders = (yield* listStowFolders(repoDir, config)).sort();
-    const pluginTargetList = yield* pluginTargets(repoDir);
+    const folders = (yield* listStowFolders(repoDir)).sort();
 
     const moves = yield* Effect.sync(() =>
-      backupUnmanagedStowTargets(
-        repoDir,
-        folders,
-        new Set([...extraIgnored, ...pluginTargetList]),
-      ),
+      backupUnmanagedStowTargets(repoDir, folders, new Set(extraIgnored)),
     );
 
     for (const move of moves) {
@@ -196,8 +131,7 @@ export const backupUnmanagedTargets = Effect.fn("stow.backupUnmanaged")(
  *
  * Plain packages restow together, one stow process per folding mode. Stow
  * aborts before changing anything on a conflict, so a failed batch falls back
- * to per-package runs that name the failing package. `hypr` is never
- * unstowed, and Omarchy plugins are deployed as real-file copies.
+ * to per-package runs that name the failing package.
  *
  * @param adopt Pass `--adopt` for the public repository during install.
  */
@@ -207,10 +141,9 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
   counts: StowCounts,
   options: { readonly adopt?: boolean } = {},
 ) {
-  const config = yield* Config;
   const log = yield* OutputLog;
   const launcher = yield* Launcher;
-  const folders = (yield* listStowFolders(repoDir, config)).sort();
+  const folders = (yield* listStowFolders(repoDir)).sort();
   const repoDisplayPath = displayPath(repoDir);
   const style = cliStyler();
   const adoptFlags = options.adopt ? ["--adopt"] : [];
@@ -221,52 +154,9 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
 
   const stowFolder = (folder: string) =>
     Effect.gen(function* () {
-      const isHypr = folder === "hypr";
-
-      const plugins =
-        folder === "omarchy" ? yield* omarchyPluginSubmodules(repoDir) : [];
-
-      const pluginPaths =
-        plugins.length > 0
-          ? yield* omarchyPluginSourcePaths(repoDir)
-          : new Map<string, string>();
-
-      const pluginIgnores = plugins.map(
-        (source) =>
-          `--ignore='^\\.config/omarchy/plugins/${basename(source).replaceAll(".", "\\.")}($|/)'`,
-      );
-
-      // Validate and stage changed plugins before touching the live tree, so
-      // the stow below and every plugin swap land together. The shell then
-      // reloads its plugins once instead of once per slow validation.
-      const staged: StagedOmarchyPlugin[] = [];
-
-      for (const checkout of plugins) {
-        const id = basename(checkout);
-
-        const plugin = yield* stageOmarchyPlugin(
-          join(checkout, pluginPaths.get(id) ?? ""),
-          join(HOME_DIR, ".config/omarchy/plugins", id),
-        );
-
-        if (plugin) staged.push(plugin);
-      }
-
-      // Never unstow hypr: Hyprland watches its live config and auto-reloads
-      // on change. Removing the symlinks (even briefly) drops Hyprland into
-      // emergency mode, and it may regenerate a stub real config file
-      // that then blocks the restow. Repair the link atomically instead and
-      // let the idempotent stow below fill in any missing files with no gap.
-      if (isHypr) yield* ensureHyprConfigLink(repoDir, log);
-
-      // Other packages restow in one stow run, which cancels the removal of
-      // links it would recreate. Unchanged links stay untouched, so watchers
-      // such as the Omarchy shell's plugin reload only see real changes.
-      const flags: string[] = [
-        ...(isHypr ? [] : ["-R"]),
-        ...pluginIgnores,
-        ...adoptFlags,
-      ];
+      // Restow in one stow run, which cancels the removal of links it would
+      // recreate, so unchanged links stay untouched.
+      const flags: string[] = ["-R", ...adoptFlags];
 
       let externalLinks: ExternalSymlink[] = [];
 
@@ -310,37 +200,7 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
       counts[scope]++;
 
       if (folder === "agents") yield* foldOpencodePluginFolders(repoDir);
-
-      const deployed = [];
-
-      for (const plugin of staged) {
-        deployed.push(yield* swapOmarchyPlugin(plugin, repoDir));
-      }
-
-      for (const { target, backup } of deployed) {
-        yield* log.success(
-          `Deployed Omarchy plugin ${style.dim(displayPath(target))}`,
-        );
-        counts.deployed++;
-
-        if (backup)
-          yield* log.info(
-            `  ${style.dim(`Previous plugin saved: ${displayPath(backup)}`)}`,
-          );
-      }
-
-      // Apply any added or changed config and clear any prior emergency state.
-      // Ignore failure: Hyprland may not be running (headless, SSH).
-      if (isHypr) {
-        yield* ensureHyprHostLink(config, log);
-        yield* launcher
-          .silent("hyprctl reload")
-          .pipe(
-            Effect.andThen(log.success("Reloaded Hyprland")),
-            Effect.ignore,
-          );
-      }
-    }).pipe(Effect.scoped);
+    });
 
   const batched = folders.filter((folder) => !UNBATCHED_FOLDERS.has(folder));
 
