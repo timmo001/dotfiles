@@ -5,7 +5,6 @@ import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
 import { ensureStowInstalled } from "../lib/packageSetup.js";
-import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
 import { listStowFolders } from "../lib/stowFolders.js";
 import {
   backupConflictingPublicTargets,
@@ -85,10 +84,7 @@ export const install = Effect.gen(function* () {
   // Committed-wins pre-pass: move live files that differ from their committed
   // source out of the way so the public `--adopt` stow symlinks the committed
   // config instead of overwriting the repo with stock leftovers.
-  const publicFolders = (yield* listStowFolders(
-    config.publicDotfiles,
-    config,
-  )).sort();
+  const publicFolders = (yield* listStowFolders(config.publicDotfiles)).sort();
 
   const protectedTargets = yield* Effect.sync(() =>
     backupConflictingPublicTargets(config.publicDotfiles, publicFolders),
@@ -122,11 +118,6 @@ export const install = Effect.gen(function* () {
     log,
   );
 
-  yield* log.section("Omarchy Shell Config");
-
-  if (yield* applyOmarchyShellConfig)
-    actions.push("Regenerated Omarchy shell config");
-
   if (config.canUsePrivate && config.privateDotfiles) {
     yield* log.section("Install Private Dotfiles");
     yield* backupUnmanagedTargets(config.privateDotfiles, counts);
@@ -143,9 +134,6 @@ export const install = Effect.gen(function* () {
       .filter((action) => action.status === "done")
       .map((action) => action.message),
   );
-
-  if (counts.deployed > 0)
-    actions.push(`Deployed ${plural(counts.deployed, "Omarchy plugin")}`);
 
   if (counts.backedUp > 0)
     actions.push(`Backed up ${plural(counts.backedUp, "existing file")}`);

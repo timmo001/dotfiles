@@ -26,15 +26,10 @@ const AGENTS_PRIVATE_IGNORED_ENTRIES = new Set([
   ".gitignore",
 ]);
 
-const LEGACY_GHOSTTY_REPO_SLUG = "timmo001/omarchy-ghostty";
-
-const LEGACY_UWSM_REPO_SLUG = "timmo001/omarchy-uwsm";
-
 const RETIRED_PUBLIC_STOW_PATHS = [
   "bash/.local/share/bash-completion/completions/context",
   "fish/.config/fish/completions/context.fish",
   "zsh/.local/share/zsh/site-functions/_context",
-  "scripts/.local/bin/waybar",
   "scripts/.local/bin/browser-control-extension-sync",
   "scripts/.local/bin/reload-ui-monitor",
   "scripts/.local/bin/reload-ui",
@@ -47,39 +42,11 @@ const RETIRED_PUBLIC_STOW_PATHS = [
   "scripts/.local/bin/with-popup-loading",
   "scripts/.local/bin/system-quick-benchmark",
   "scripts/.local/bin/system-resource-leak-check",
-  "scripts/.local/share/omarchy/bin/waybar",
   "systemd/.config/systemd/user/dot-reload-ui-monitor.service",
   "systemd/.config/systemd/user/dot-doctor-startup.service",
   "systemd/.config/systemd/user/dot-doctor-startup.timer",
   "systemd/.config/dot/services.d/dot-doctor-startup.json",
-  "hypr/.config/hypr/hyprland.conf",
-  "hypr/.config/hypr/hypridle.conf",
-  "hypr/.config/hypr/hyprlock.conf",
-  "hypr/.config/hypr/autostart.conf",
-  "hypr/.config/hypr/bindings.conf",
-  "hypr/.config/hypr/envs.conf",
-  "hypr/.config/hypr/float-app.conf",
-  "hypr/.config/hypr/input.conf",
-  "hypr/.config/hypr/looknfeel.conf",
-  "hypr/.config/hypr/monitors.conf",
-  "hypr/.config/hypr/bin/hyprsunset-clear-dim",
-  "hypr/.config/hypr/bin/hyprsunset-dim-step",
-  "hypr/.config/hypr/bin/hyprsunset-toggle-dim",
-  "hypr/.config/hypr/bin/timmo-setup-url-handler",
-  "omarchy/.config/omarchy/plugins/omaconnect",
   "pitchfork/.config/pitchfork",
-  ...["desktop", "laptop"].flatMap((host) =>
-    [
-      "autostart.conf",
-      "bindings.conf",
-      "envs.conf",
-      "hypridle.conf",
-      "hyprlock.conf",
-      "input.conf",
-      "looknfeel.conf",
-      "monitors.conf",
-    ].map((file) => `hypr/.config/hypr/hosts/${host}/${file}`),
-  ),
 ] as const;
 
 /** Stored external symlink for save/restore around stow. */
@@ -157,35 +124,6 @@ export function removeRetiredPublicStowLinks(
   return removed;
 }
 
-/** Remove the retired private owner before the public crash hook takes over. */
-export function removeRetiredPrivateCrashHook(
-  privateDotfiles: string,
-  homeDir = HOME_DIR,
-): string | null {
-  const target = join(homeDir, ".config", "omarchy", "hooks", "agent-crash");
-
-  const retiredSource = join(
-    privateDotfiles,
-    "omarchy-hooks",
-    ".config",
-    "omarchy",
-    "hooks",
-    "agent-crash",
-  );
-
-  try {
-    if (!lstatSync(target).isSymbolicLink()) return null;
-
-    if (resolve(dirname(target), readlinkSync(target)) !== retiredSource)
-      return null;
-    unlinkSync(target);
-
-    return target;
-  } catch {
-    return null;
-  }
-}
-
 /** Backup unmanaged targets that would block stow from owning active packages. */
 export function backupUnmanagedStowTargets(
   repoDir: string,
@@ -219,38 +157,13 @@ export function backupUnmanagedStowTargets(
   return moves;
 }
 
-/** Back up the retired cloned Ghostty Omarchy repo before stow owns it. */
-export function backupLegacyGhosttyRepo(
-  publicDotfiles: string,
-): BackupMove | null {
-  const source = join(HOME_DIR, ".config", "ghostty");
-
-  if (!isLegacyGhosttyRepo(source)) return null;
-
-  return backupFileIfUnmanaged(
-    source,
-    join(publicDotfiles, "backup", ".config"),
-  );
-}
-
-/** Remove the retired UWSM fork before the stowed Quattro override takes over. */
-export function removeLegacyUwsmRepo(
-  source = join(HOME_DIR, ".config", "uwsm"),
-): string | null {
-  if (!isGitRepoWithSlug(source, LEGACY_UWSM_REPO_SLUG)) return null;
-
-  rmSync(source, { recursive: true });
-
-  return source;
-}
-
 /**
  * Back up live public stow targets whose content differs from their committed
  * repo source before an `--adopt` stow, returning their home-relative display
  * paths.
  *
  * `stow --adopt` imports any real file found at a target into the repo,
- * overwriting committed config (for example stock files written by an Omarchy
+ * overwriting committed config (for example stock files written by a package
  * upgrade). Moving the conflicting live file to `backup/` first leaves the
  * target absent, so adopt creates a symlink to the committed source instead of
  * clobbering it. Symlinks and identical files are left untouched, so a
@@ -365,30 +278,6 @@ function backupBlockingParentTargets(
 function targetAlreadyOwnedBySource(source: string, target: string): boolean {
   try {
     return realpathSync(source) === realpathSync(target);
-  } catch {
-    return false;
-  }
-}
-
-function isLegacyGhosttyRepo(source: string): boolean {
-  return isGitRepoWithSlug(source, LEGACY_GHOSTTY_REPO_SLUG);
-}
-
-function isGitRepoWithSlug(source: string, slug: string): boolean {
-  try {
-    const stat = lstatSync(source);
-
-    if (!stat.isDirectory()) return false;
-  } catch {
-    return false;
-  }
-
-  const gitConfig = join(source, ".git", "config");
-
-  if (!existsSync(gitConfig)) return false;
-
-  try {
-    return readFileSync(gitConfig, "utf8").includes(slug);
   } catch {
     return false;
   }

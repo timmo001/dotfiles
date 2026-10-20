@@ -1,16 +1,12 @@
 import { Effect, FileSystem, Match, Option, Schedule, Schema } from "effect";
-import { ChildProcess, ChildProcessSpawner } from "effect/process";
-import { join } from "path";
 import { ENV, envFlag } from "../lib/env.js";
-import { STATE_DIR } from "../lib/paths.js";
 import { plural } from "../lib/runSummary.js";
 import { formatCause } from "../lib/schema.js";
-import {
-  acquireWorkspaceMutationLock,
-  releaseWorkspaceMutationLock,
-} from "../lib/workspaceMutationLock.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
+
+/** systemd user unit that runs the default Herdr server. */
+const HERDR_UNIT = "herdr.service";
 
 class HerdrServerError extends Schema.TaggedError<HerdrServerError>()(
   "HerdrServerError",
@@ -317,45 +313,14 @@ const checkPanes = Effect.fn("HerdrServer.checkPanes")(function* (
 });
 
 const launch = Effect.gen(function* () {
-  const logPath = join(STATE_DIR, "herdr-restart.log");
-  const fs = yield* FileSystem.FileSystem;
-  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+  const executor = yield* CommandExecutor;
 
-  return yield* Effect.gen(function* () {
-    yield* fs.makeDirectory(STATE_DIR, { recursive: true });
-    yield* fs.writeFileString(logPath, "", { flag: "a", mode: 0o600 });
-
-    const child = yield* spawner.spawn(
-      ChildProcess.make(
-        "sh",
-        [
-          "-c",
-          'exec "$@" >>"$0" 2>&1',
-          logPath,
-          "env",
-          ...cleanEnvironmentArgs(),
-          "uwsm-app",
-          "-s",
-          "b",
-          "--",
-          "env",
-          "USAGEBAR_DISABLE_BROWSER_COOKIES=1",
-          "herdr",
-          "server",
-        ],
-        { stdin: "ignore", stdout: "ignore", stderr: "ignore", detached: true },
-      ),
-    );
-
-    yield* child.unref.pipe(Effect.asVoid);
-
-    return child;
-  }).pipe(
-    Effect.scoped,
+  yield* executor.run("systemctl", ["--user", "start", HERDR_UNIT]).pipe(
+    Effect.timeout("30 seconds"),
     Effect.mapError(
       (error) =>
         new HerdrServerError({
-          message: `Could not launch Herdr: ${formatCause(error)}. See ${logPath}.`,
+          message: `Could not start ${HERDR_UNIT}: ${formatCause(error)}. See journalctl --user -u ${HERDR_UNIT}.`,
         }),
     ),
   );
@@ -369,9 +334,8 @@ const reportError = Effect.fn("HerdrServer.reportError")(function* (error: {
   process.exitCode = 1;
 });
 
-/** Start the default Herdr server with the desktop autostart launch context. */
+/** Start the default Herdr server through its systemd user unit. */
 export const herdrStart = launch.pipe(
-  Effect.asVoid,
   Effect.catchTag("HerdrServerError", reportError),
 );
 
@@ -386,35 +350,12 @@ export const herdrServerAction = Effect.fn("herdrServerAction")(
       });
     }
 
-    for (const command of [
-      "herdr",
-      "fuser",
-      "ps",
-      ...(action === "restart" && !options.check ? ["uwsm-app"] : []),
-    ]) {
+    for (const command of ["herdr", "fuser", "ps"]) {
       if (!Bun.which(command))
         return yield* new HerdrServerError({
           message: `Missing command: ${command}.`,
         });
     }
-
-    yield* Effect.acquireRelease(
-      Effect.try({
-        try: () =>
-          acquireWorkspaceMutationLock(
-            (message) =>
-              new HerdrServerError({
-                message: message.replaceAll(
-                  "workspace mutation",
-                  "Herdr server change",
-                ),
-              }),
-            join(STATE_DIR, "dot", "herdr-server.lock"),
-          ),
-        catch: (error) => new HerdrServerError({ message: formatCause(error) }),
-      }),
-      (path) => Effect.sync(() => releaseWorkspaceMutationLock(path)),
-    );
 
     const { sessions } = yield* Schema.decodeEffect(Sessions)(
       yield* run("herdr", ["session", "list", "--json"]),
@@ -478,17 +419,9 @@ export const herdrServerAction = Effect.fn("herdrServerAction")(
       return;
     }
 
-    const child = yield* launch;
+    yield* launch;
 
     const ready = Effect.gen(function* () {
-      if (
-        !(yield* child.isRunning.pipe(Effect.orDie)) &&
-        (yield* child.exitCode.pipe(Effect.orDie)) !== 0
-      )
-        return yield* new HerdrServerError({
-          message: "Herdr failed to start.",
-        });
-
       if ((yield* herdrServerPid(session.socket_path)) === pid)
         return yield* new HerdrServerError({
           message: "The old server is still running.",
@@ -509,13 +442,13 @@ export const herdrServerAction = Effect.fn("herdrServerAction")(
       Effect.mapError(
         () =>
           new HerdrServerError({
-            message: `Herdr has not become ready. See ${join(STATE_DIR, "herdr-restart.log")}.`,
+            message: `Herdr has not become ready. See journalctl --user -u ${HERDR_UNIT}.`,
           }),
       ),
     );
 
     yield* output.info(
-      `Herdr restarted (v${response.result.snapshot.version}). Reattach with Super+Q.`,
+      `Herdr restarted (v${response.result.snapshot.version}). Reattach with herdr --remote.`,
     );
   },
   (effect) =>

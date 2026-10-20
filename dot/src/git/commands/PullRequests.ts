@@ -1,26 +1,10 @@
 import { Effect } from "effect";
-import { CommandExecutor } from "../../services/CommandExecutor.js";
 import {
   GitPullRequests,
   type PullRequestQuery,
 } from "../services/GitPullRequests.js";
 import { handleCommandError, writeText } from "./rows.js";
 import { markOffSchedule } from "./workSchedule.js";
-
-/** Open the tracked PR page. */
-export const pullRequestsOpenShell = Effect.fn("pullRequests.openShell")(
-  function* (repo: string | undefined) {
-    const executor = yield* CommandExecutor;
-    yield* executor.run("omarchy-shell", [
-      "shell",
-      "summon",
-      "timmo.git",
-      JSON.stringify({ view: "pulls", repo }),
-    ]);
-    yield* executor.run("omarchy-shell", ["timmo.git", "pulls", repo ?? ""]);
-  },
-  handleCommandError("dot pr list"),
-);
 
 /** Tracked PRs for every enabled repository, as `--panel-json` prints them. */
 export const pullRequestsValue = Effect.fn("pullRequests.value")(function* (

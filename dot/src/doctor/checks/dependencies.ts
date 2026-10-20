@@ -15,13 +15,8 @@ const TOOLS: readonly ToolDef[] = [
   { name: "stow", purpose: "dotfile linking", required: true },
   { name: "bash", purpose: "dot runtime", required: true },
   {
-    name: "omarchy-pkg-add",
-    purpose: "dot init/install installs stow when missing",
-    required: false,
-  },
-  {
-    name: "omarchy-pkg-aur-add",
-    purpose: "dot init installs missing AUR packages",
+    name: "apt-get",
+    purpose: "dot init/install installs missing packages",
     required: false,
   },
   {
@@ -30,19 +25,8 @@ const TOOLS: readonly ToolDef[] = [
     required: false,
   },
   {
-    name: "yay",
-    purpose: "used by omarchy-pkg-aur-add and AUR version checks",
-    required: false,
-  },
-  {
     name: "gh",
     purpose: "GitHub notifications",
-    required: false,
-  },
-  { name: "gum", purpose: "interactive init questionnaire", required: false },
-  {
-    name: "omarchy",
-    purpose: "desktop workflow notifications",
     required: false,
   },
 ];
@@ -73,16 +57,6 @@ export const checkDependencies = Effect.gen(function* () {
       });
     }
   }
-
-  // wpctl is informational only
-  const wpctlExit = yield* executor.exitCode("which", ["wpctl"]);
-  results.push({
-    severity: "ok",
-    message:
-      wpctlExit === 0
-        ? "wpctl is available (optional daily 5am volume reset on PipeWire/WirePlumber)"
-        : "wpctl is missing (optional daily 5am volume reset on PipeWire/WirePlumber)",
-  });
 
   // gh authentication check
   const ghAvailable = yield* github.isAvailable;

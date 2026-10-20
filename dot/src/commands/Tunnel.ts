@@ -133,8 +133,6 @@ export const tunnelRun = Effect.fn("Tunnel.run")(
       Option.none(),
     );
 
-    const refreshPanel = refreshServicesPanel;
-
     const onSignal = () => Deferred.doneUnsafe(stop, Effect.void);
 
     yield* Effect.acquireRelease(
@@ -174,8 +172,6 @@ export const tunnelRun = Effect.fn("Tunnel.run")(
 
       if (previous?.summary !== summary)
         yield* Console.log(`[${health.toUpperCase()}] ${summary}`);
-
-      if (previous?.health !== health) yield* refreshPanel;
     });
 
     const readSecret = (path: string) =>
@@ -348,7 +344,6 @@ export const tunnelRun = Effect.fn("Tunnel.run")(
       Effect.gen(function* () {
         yield* stopCloudflared;
         yield* fs.remove(statusFile, { force: true }).pipe(Effect.ignore);
-        yield* refreshPanel;
       }),
     );
 

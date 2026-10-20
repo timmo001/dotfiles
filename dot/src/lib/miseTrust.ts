@@ -52,10 +52,10 @@ function isMiseConfigPath(relativePath: string): boolean {
 /**
  * Build the deduped set of repositories dot tracks, as absolute paths.
  *
- * Covers public dotfiles, private dotfiles, notes, the Omarchy diff repos, and
+ * Covers public dotfiles, private dotfiles, notes, and
  * every repo declared in the private `dot-git.yml` (not schedule-gated). Only
  * existing git checkouts are returned; on a machine without private dotfiles
- * this degrades to the public dotfiles, notes, and Omarchy repos.
+ * this degrades to the public dotfiles and notes.
  */
 const trackedRepoRoots = Effect.fn("MiseTrust.trackedRepoRoots")(function* (
   config: ConfigService,
@@ -69,12 +69,6 @@ const trackedRepoRoots = Effect.fn("MiseTrust.trackedRepoRoots")(function* (
   add(config.publicDotfiles);
   add(config.privateDotfiles);
   add(config.notesDir);
-
-  if (config.omarchy.enabled) {
-    for (const repoName of config.omarchy.diffRepos) {
-      add(join(config.omarchy.repoBase, repoName));
-    }
-  }
 
   for (const repo of managedGitRepos(config.gitConfig)) {
     add(repo.path);
