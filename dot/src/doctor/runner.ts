@@ -18,7 +18,7 @@ import { checkGitConfig } from "../git/doctor/gitConfig.js";
 import { checkOriginHead } from "../git/doctor/originHead.js";
 import {
   checkGitNotifications,
-  checkDoctorNotify,
+  checkDoctorTimer,
   checkDependencyService,
   checkNotesCaptureDaemon,
   checkRegisteredServices,
@@ -73,7 +73,7 @@ const sections: readonly SectionDef[] = [
   { name: "GitHub MCP auth", check: checkGithubMcpAuth },
   { name: "Git config include", check: checkGitConfig },
   { name: "Git notification checks", check: checkGitNotifications },
-  { name: "Doctor notification", check: checkDoctorNotify },
+  { name: "Doctor timer", check: checkDoctorTimer },
   { name: "Dependency service", check: checkDependencyService },
   { name: "Notes capture daemon", check: checkNotesCaptureDaemon },
   { name: "Registered services", check: checkRegisteredServices },
