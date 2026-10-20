@@ -66,7 +66,7 @@ Check these from a local session on the server. Items tied to a file are also ma
 
 ### Tools
 
-- [ ] Neovim config assumes the LazyVim base that Omarchy installs. Install LazyVim, or drop the `neovim` package
+- [x] Neovim gets the same LazyVim setup as Omarchy's `omarchy-nvim`: the LazyVim starter, Omarchy's options and plugins, and a fixed Tokyo Night theme in place of Omarchy's theme link and hot reload
 
 ### Services
 
@@ -78,11 +78,11 @@ Check these from a local session on the server. Items tied to a file are also ma
 
 ### Herdr
 
-- [ ] Check whether the desktop Herdr swallows the `alt+x` prefix when the server is attached from inside it
+- [x] Check whether the desktop Herdr swallows the `alt+x` prefix when the server is attached from inside it
 - [ ] Check whether sounds play on the client when attached remotely
 - [ ] Check the Plannotator review binding from a remote client, and where reviews open now `PLANNOTATOR_BROWSER` is unset
 - [ ] Check the `dotfiles.dot-links` plugin: `file://` links open Neovim in Herdr, but `dot://` links target the desktop Git panel
-- [ ] Confirm the `herdr-lazy` plugins all work headless
+- [x] Confirm the `herdr-lazy` plugins all work headless
 
 ### Branch upkeep
 
