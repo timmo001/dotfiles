@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - distro/arch-omarchy-quattro
+      - distro/ubuntu-server
     paths:
       - 'dot/**'
       - 'mise.toml'
