@@ -4,7 +4,7 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import type { DiffRepo } from "../types.js";
 import { CONFIG_DIR } from "./paths.js";
-import { listStowFolders, requiresNoFolding } from "./stowFolders.js";
+import { requiresNoFolding, selectedStowFolders } from "./stowFolders.js";
 
 const HerdrPlugins = Schema.Array(
   Schema.Struct({
@@ -149,7 +149,7 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
 
     if (repo.category !== "dotfiles") return pending;
 
-    for (const folder of (yield* listStowFolders(repo.path)).sort()) {
+    for (const folder of (yield* selectedStowFolders(repo.path)).sort()) {
       const flags = ["--simulate", "--verbose"];
 
       if (yield* requiresNoFolding(repo.path, folder))
