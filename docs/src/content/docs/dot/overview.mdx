@@ -5,10 +5,10 @@ sidebar:
   label: Overview
 ---
 
-`dot` is the compiled CLI for these dotfiles ([Bun](https://bun.sh) + [Effect](https://effect.website) v4), stowed to `~/.local/bin/dot`. It owns setup, sync, stow, health checks, desktop helpers, and the git tooling used day to day. Related commands are grouped under a shared first word, such as `dot git commit` and `dot agent lint`.
+`dot` is the compiled CLI for these dotfiles ([Bun](https://bun.sh) + [Effect](https://effect.website) v4), stowed to `~/.local/bin/dot`. It owns setup, sync, stow, health checks, server helpers, and the git tooling used day to day. Related commands are grouped under a shared first word, such as `dot git commit` and `dot agent lint`.
 
 :::note[On the server]
-This is the same `dot` as the desktop. Its desktop, Omarchy and pacman commands are listed below but do not apply here yet. See the [server overview](/server/overview/#still-open).
+The desktop commands are removed on this branch. See the [server overview](/server/overview/) for what changed.
 :::
 
 ## Setup and maintenance
@@ -16,7 +16,7 @@ This is the same `dot` as the desktop. Its desktop, Omarchy and pacman commands 
 | Command | Purpose |
 | --- | --- |
 | `dot init` | First-use setup on a fresh machine |
-| `dot up` | Check everything, pick what to update, then run it, handing system packages to `omarchy update` |
+| `dot up` | Check everything, pick what to update, then run it: dotfiles, mise tools, gh extensions, apt and release packages |
 | `dot deps` | Native grouped dependency discovery, validation, and publish |
 | `dot updates` | Watched package and Dotfiles status for the bar |
 | `dot services` | Monitor registered user services and timers |
@@ -24,8 +24,6 @@ This is the same `dot` as the desktop. Its desktop, Omarchy and pacman commands 
 | `dot doctor` | Parallel health checks and a saved report |
 | `dot snapshot` | CPU and memory snapshot with a filtered process tree |
 | `dot firewall` | Reconcile managed ufw rules |
-| `dot setup public repo` | Trust and register the public timmo pacman repository |
-| `dot setup private repo` | Sync and register the private pacman repository |
 | `dot clean` | Remove stowed links / reverse setup side effects |
 | `dot completions` | Regenerate shell completions |
 
@@ -45,16 +43,14 @@ This is the same `dot` as the desktop. Its desktop, Omarchy and pacman commands 
 
 Managed-repo lists, browser choices, and notification rules live in the private `dot-git.yml` overlay. Branch and stack context for agents come from the separate [context](https://context.timmo.dev) tool.
 
-## Desktop
+## Server
 
 | Command | Purpose |
 | --- | --- |
-| `dot workspace setup` | Launch or reuse apps and rebuild work/normal layouts |
-| `dot workspace relayout` | Apply or capture a ratio-based layout on the active workspace |
-| `dot omarchy shell config` | Regenerate `shell.json` without a full stow |
-| `dot omarchy plugin` | Add, update, or remove Omarchy bar plugins |
+| `dot server serve` | Serve the server dashboard |
 | `dot herdr` | Shared Herdr server, repo workspaces, and attached context |
-| `dot launch floating webapp` | Open a floating webapp window |
+| `dot tunnel` | Run shared Cloudflare tunnels on one machine at a time |
+| `dot fans` | Control chassis fans from a Home Assistant temperature |
 
 ## Agents and tooling
 
@@ -65,7 +61,6 @@ Managed-repo lists, browser choices, and notification rules live in the private 
 | `dot run` | Run a command with a deadline and process-group cleanup |
 | `dot skills` | Check and apply skill updates from the skills repo |
 | `dot notes capture sync` | Sync notes-capture repository wiring |
-| `dot private pkg publish` | Publish a package to the private pacman repo |
 | `dot agent detect` | Detect whether the current process is under an AI agent |
 | `dot agent lint` | Run a repository's configured lint commands on changed files |
 | `dot agent oxlint` | Optional advisory Oxlint pass on changed lines |

@@ -60,7 +60,7 @@ properties:
               type: integer
               minimum: 1
             hosts:
-              description: OMARCHY_HOST values the rule applies on; omitted applies on every host.
+              description: Hostnames the rule applies on; omitted applies on every host.
               type: array
               minItems: 1
               items:
