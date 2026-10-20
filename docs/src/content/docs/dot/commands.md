@@ -36,7 +36,7 @@ dot init --force
 
 ## `dot install`
 
-Ensure prerequisites, then backup/adopt dotfiles
+Ensure prerequisites, backup/adopt dotfiles and install the pinned OpenCode release
 
 ```text
 dot install [flags]
