@@ -23,17 +23,23 @@ import { installOpencodePluginDependencies } from "../lib/opencodePlugins.js";
 import { cliStyler } from "../lib/ansi.js";
 import { plural } from "../lib/runSummary.js";
 import { syncSkills } from "../lib/externalSkills.js";
+import { CommandExecutor } from "../services/CommandExecutor.js";
+
+/** OpenCode's tool in the stowed global mise config, pinned to a release there. */
+const OPENCODE_MISE_TOOL = "npm:@opencode/cli";
 
 /**
  * Install dotfiles: backup existing files, then stow with `--adopt`.
  *
  * Ensures stow is installed, backs up known conflict files and retired cloned
- * config repos, then stows public and private dotfiles.
+ * config repos, stows public dotfiles, installs the pinned OpenCode release
+ * with mise, then stows private dotfiles.
  */
 export const install = Effect.gen(function* () {
   const config = yield* Config;
   const log = yield* OutputLog;
   const launcher = yield* Launcher;
+  const executor = yield* CommandExecutor;
   const style = cliStyler();
   const actions: string[] = [];
   const counts = emptyStowCounts();
@@ -106,6 +112,20 @@ export const install = Effect.gen(function* () {
     launcher,
     log,
   );
+
+  yield* log.section("OpenCode");
+
+  if ((yield* executor.exitCode("which", ["mise"])) !== 0) {
+    yield* log.warn("Skipping the OpenCode update (mise is not installed)");
+  } else if (
+    (yield* executor.inherit("mise", ["install", OPENCODE_MISE_TOOL], {
+      cwd: HOME_DIR,
+    })) === 0
+  ) {
+    actions.push("Installed the pinned OpenCode release");
+  } else {
+    yield* log.warn(`mise install ${OPENCODE_MISE_TOOL} failed`);
+  }
 
   if (config.canUsePrivate && config.privateDotfiles) {
     yield* log.section("Install Private Dotfiles");

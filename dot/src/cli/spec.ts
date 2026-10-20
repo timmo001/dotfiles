@@ -198,7 +198,7 @@ const installCommand = describe(
       Effect.flatMap((actions) => logRunSummary("Summary", actions)),
     ),
   ),
-  "Ensure prerequisites, then backup/adopt dotfiles",
+  "Ensure prerequisites, backup/adopt dotfiles and install the pinned OpenCode release",
 );
 
 const systemUpdateCommand = describe(
