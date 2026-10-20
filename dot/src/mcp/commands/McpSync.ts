@@ -14,7 +14,9 @@ import { join } from "path";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { Config } from "../../services/Config.js";
 import { OutputLog } from "../../services/OutputLog.js";
-import { displayPath } from "../../lib/paths.js";
+import { CONFIG_DIR, displayPath } from "../../lib/paths.js";
+import { readTextOrNull } from "../../lib/fsProbe.js";
+import { readPrivateSelection } from "../../lib/privateSelection.js";
 import { cliStyler } from "../../lib/ansi.js";
 import { plural } from "../../lib/runSummary.js";
 import {
@@ -165,6 +167,85 @@ function buildHarnessConfig(
   return decodeJson(config);
 }
 
+/** OpenCode's untracked global config layer, loaded after `opencode.json`. */
+const OPENCODE_MACHINE_CONFIG = join(CONFIG_DIR, "opencode", "opencode.jsonc");
+
+/**
+ * Keep the MCP servers `.dot-private.yml` excludes off this machine without
+ * touching the shared generated configs: OpenCode gets them as disabled in its
+ * untracked `opencode.jsonc` layer, and the returned spec, used for Claude
+ * Code, disables them. Without the file, the spec is returned unchanged and
+ * `opencode.jsonc` is left alone.
+ */
+const syncMachineExcludes = Effect.fn("McpSync.machineExcludes")(function* (
+  spec: McpSyncSpec,
+  publicDotfiles: string,
+) {
+  const log = yield* OutputLog;
+  const selection = yield* readPrivateSelection(publicDotfiles);
+
+  if (selection === null) return spec;
+
+  const exclude = selection.mcpExclude;
+
+  for (const name of exclude) {
+    if (!spec.servers.some((server) => server.name === name))
+      yield* log.warn(`Unknown MCP server in .dot-private.yml: ${name}`);
+  }
+
+  const machineSpec: McpSyncSpec = {
+    servers: spec.servers.map((server) =>
+      exclude.has(server.name) ? { ...server, enabled: {} } : server,
+    ),
+  };
+
+  const text = yield* readTextOrNull(OPENCODE_MACHINE_CONFIG);
+
+  const existing = yield* Effect.try(() =>
+    decodeJsonObject(text === null ? {} : Bun.JSONC.parse(text)),
+  ).pipe(Effect.option);
+
+  if (existing._tag === "None") {
+    yield* log.warn(
+      `Skipped excluding MCP servers: ${displayPath(OPENCODE_MACHINE_CONFIG)} is not a JSON object`,
+    );
+
+    return machineSpec;
+  }
+
+  const servers = Object.fromEntries(
+    Object.entries(buildMcpEntries(machineSpec, "opencode")).filter(([name]) =>
+      exclude.has(name),
+    ),
+  );
+
+  const count = Object.keys(servers).length;
+
+  const layer: MutableJsonConfig = {
+    $schema: "https://opencode.ai/config.json",
+    ...existing.value,
+  };
+
+  if (count > 0) layer.mcp = { servers };
+  else Reflect.deleteProperty(layer, "mcp");
+
+  yield* Effect.sync(() =>
+    writeFileAtomic(OPENCODE_MACHINE_CONFIG, formatJson(decodeJson(layer)), {
+      createDirectory: true,
+    }),
+  );
+
+  if (count > 0) {
+    const style = cliStyler();
+
+    yield* log.success(
+      `${style.accent("opencode")} ${plural(count, "server")} excluded ${style.dim(displayPath(OPENCODE_MACHINE_CONFIG))}`,
+    );
+  }
+
+  return machineSpec;
+});
+
 /**
  * Regenerate every active harness's MCP config from the private spec.
  *
@@ -229,7 +310,9 @@ export const mcpSync = Effect.gen(function* () {
     );
   }
 
-  const claude = yield* syncClaudeMcp(spec);
+  const claude = yield* syncClaudeMcp(
+    yield* syncMachineExcludes(spec, config.publicDotfiles),
+  );
 
   if (claude === null) {
     yield* log.info("Skipped claude (CLI not installed)");
