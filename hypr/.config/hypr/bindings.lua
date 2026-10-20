@@ -111,6 +111,7 @@ end
 -- Terminal
 hl.unbind("SUPER + RETURN")
 o.bind("SUPER + RETURN", "Terminal", terminal .. " --working-directory=$(omarchy-cmd-terminal-cwd)")
+hl.unbind("SUPER + Q")
 o.bind("SUPER + Q", "Herdr", terminal .. " -e herdr session attach default")
 o.bind(
   "SUPER + SHIFT + Q",
