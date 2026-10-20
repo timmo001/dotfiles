@@ -35,9 +35,10 @@ mise run serve:server:logs     # follow its logs
 mise run serve:server:restart  # rebuild and restart after a pull
 ```
 
-There is no auth yet, so it trusts the LAN. Planned next, auth first:
+Everything except `/api/health` needs a login with the token in `~/.config/dot/server/token`, which the private `systemd--nas` secret file writes from 1Password. It is still plain HTTP, so keep it on the LAN. Planned next:
 
-- [ ] Auth
+- [x] Auth: a token login with a password field, so 1Password saves it
+- [ ] Reach it from outside the house over HTTPS through a NAS Cloudflare tunnel, optionally behind Cloudflare Access
 - [ ] Run `dot update` and other maintenance tasks from the dashboard, with live output in a web terminal
 - [ ] Summaries of the nightly `compose-up` logs
 
