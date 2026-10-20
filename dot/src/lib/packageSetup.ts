@@ -108,6 +108,7 @@ function installWithApt(
     const exitCode = yield* runElevated("apt-get", [
       "install",
       "-y",
+      "--no-install-recommends",
       ...packages,
     ]);
 
