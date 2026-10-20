@@ -154,16 +154,12 @@ export const LinkSiteRule = Schema.Struct({
   ),
   /** Browser name from `browsers`, or `work-time` for `work` during work time and `personal` otherwise. */
   browser: Schema.NonEmptyString,
-  /** Hyprland workspace the link opens on, in a window of the browser already there or a new one moved there. */
-  workspace: Schema.optionalKey(Schema.Int.check(Schema.isGreaterThan(0))),
-  /** `OMARCHY_HOST` values the rule applies on; omitted applies on every host. */
-  hosts: Schema.optionalKey(Schema.NonEmptyArray(Schema.NonEmptyString)),
 });
 
 /** Decoded {@link LinkSiteRule}. */
 export type LinkSiteRule = typeof LinkSiteRule.Type;
 
-/** Default browser routing for links opened through `dot link open`. */
+/** Default browser routing for links, as the daily brief reports it. */
 export const LinkSettings = Schema.Struct({
   /** Browser for links no site rule or repository selects, and for anything that is not a single link. */
   personal: Schema.NonEmptyString,
@@ -171,30 +167,6 @@ export const LinkSettings = Schema.Struct({
   work: Schema.optionalKey(Schema.NonEmptyString),
   /** Per-site overrides, checked in order before repository browsers. */
   sites: Schema.optionalKey(Schema.Array(LinkSiteRule)),
-  /** Window class pattern for each browser, used to find its windows on a site rule's workspace. */
-  window_classes: Schema.optionalKey(
-    Schema.Record(
-      Schema.String,
-      Schema.NonEmptyString.check(
-        Schema.makeFilter((pattern) => {
-          try {
-            new RegExp(pattern);
-
-            return undefined;
-          } catch {
-            return "must be a valid regular expression";
-          }
-        }),
-      ),
-    ),
-  ),
-  /** The dot links Chromium extension. */
-  extension: Schema.optionalKey(
-    Schema.Struct({
-      /** Browser user data directories, such as `~/.config/chromium`, that get the extension's native messaging host. */
-      user_data_dirs: Schema.Array(Schema.NonEmptyString),
-    }),
-  ),
 });
 
 /** Decoded {@link LinkSettings}. */
@@ -520,29 +492,11 @@ function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
       for (const [location, browser] of [
         ["root.links.personal", links.personal],
         ["root.links.work", links.work],
-        ...Object.keys(links.window_classes ?? {}).map(
-          (name) => [`root.links.window_classes.${name}`, name] as const,
-        ),
       ] as const) {
         if (browser !== undefined && !Object.hasOwn(browsers, browser))
           diagnostics.push(
             `${location} references unknown browser: ${browser}`,
           );
-      }
-
-      for (const [index, rule] of (links.sites ?? []).entries()) {
-        if (rule.workspace === undefined) continue;
-
-        const placed =
-          rule.browser === WORK_TIME_BROWSER
-            ? [links.personal, ...(links.work ? [links.work] : [])]
-            : [rule.browser];
-
-        for (const browser of placed)
-          if (!Object.hasOwn(links.window_classes ?? {}, browser))
-            diagnostics.push(
-              `root.links.sites[${index}] sets a workspace, which needs root.links.window_classes.${browser}`,
-            );
       }
     } catch (error) {
       diagnostics.push(`root.links: ${formatError(error)}`);

@@ -13,7 +13,7 @@ import {
 } from "effect";
 import { FetchHttpClient, HttpClient } from "effect/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
-import { CommandExecutor, exitStatus } from "../services/CommandExecutor.js";
+import { exitStatus } from "../services/CommandExecutor.js";
 import { CONFIG_DIR, STATE_DIR } from "../lib/paths.js";
 import { type ReportedStatus, writeReportedStatus } from "./Services.js";
 
@@ -119,7 +119,6 @@ export const tunnelRun = Effect.fn("Tunnel.run")(
 
     const fs = yield* FileSystem.FileSystem;
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-    const executor = yield* CommandExecutor;
     const http = yield* HttpClient.HttpClient;
     const tokenFile = join(TUNNELS_DIR, `${name}.token`);
     const statusFile = join(STATE_DIR, "dot", "tunnels", name, "status.json");
@@ -129,10 +128,6 @@ export const tunnelRun = Effect.fn("Tunnel.run")(
     const lastReport = yield* Ref.make<Option.Option<ReportedStatus>>(
       Option.none(),
     );
-
-    const refreshPanel = executor
-      .exitCode("omarchy-shell", ["-q", "timmo.services", "refresh"])
-      .pipe(Effect.ignore);
 
     const onSignal = () => Deferred.doneUnsafe(stop, Effect.void);
 
@@ -173,8 +168,6 @@ export const tunnelRun = Effect.fn("Tunnel.run")(
 
       if (previous?.summary !== summary)
         yield* Console.log(`[${health.toUpperCase()}] ${summary}`);
-
-      if (previous?.health !== health) yield* refreshPanel;
     });
 
     const readSecret = (path: string) =>
@@ -347,7 +340,6 @@ export const tunnelRun = Effect.fn("Tunnel.run")(
       Effect.gen(function* () {
         yield* stopCloudflared;
         yield* fs.remove(statusFile, { force: true }).pipe(Effect.ignore);
-        yield* refreshPanel;
       }),
     );
 

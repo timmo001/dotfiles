@@ -1,5 +1,0 @@
-#!/bin/bash
-
-# For launchers that take a script path, such as Heroic's before launch script.
-# Never block the launch when HDR can't be switched.
-dot hdr on || true

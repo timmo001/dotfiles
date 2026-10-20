@@ -63,7 +63,7 @@ function fixture(pages: ReturnType<typeof thread>[][]) {
     exitCode: () => Effect.succeed(0), inherit: () => Effect.succeed(0) });
 
   const config = Config.of({ publicDotfiles: "/example/dotfiles", privateDotfiles: null, canUsePrivate: false, privateReason: "fixture",
-    notesDir: "/example/notes", omarchy: { repoBase: "/example", diffRepos: [], worktreeRepos: [], worktreeBranches: [], expectedBranches: {}, enabled: false },
+    notesDir: "/example/notes",
     gitConfig: emptyDotGitConfig("fixture.yml"), mcpConfig: emptyMcpConfig("fixture.yml"), cacheDir: "/example/cache", stateDir: "/example/state", logDir: "/example/log" });
 
   const run = <A, E>(program: Effect.Effect<A, E, GitNotifications>) => Effect.runPromise(program.pipe(

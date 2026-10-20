@@ -1,17 +1,15 @@
 import { NodeFileSystem } from "@effect/platform-node";
 import { Api } from "@timmo001/effect-gh";
 import { Effect } from "effect";
-import { join, resolve } from "path";
+import { join } from "path";
 import {
   CommandExecutor,
   type CommandExecutorService,
 } from "../../services/CommandExecutor.js";
-import { Config } from "../../services/Config.js";
 import { GitHub } from "../../git/services/GitHub.js";
 import { pathExists } from "../../lib/fsProbe.js";
 import { spawnCaptured } from "../../lib/spawnText.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
-import { resolvedOmarchyHost } from "../../lib/omarchyHost.js";
 import {
   collectServiceStatus,
   readRegisteredServices,
@@ -19,10 +17,6 @@ import {
 import type { CheckResult } from "../types.js";
 
 const DOCTOR_TIMER_UNIT = "dot-doctor.timer";
-
-const DAILY_VOLUME_ZERO_TIMER_UNIT = "daily-volume-zero.timer";
-
-const LOCAL_BIN_DIR = join(HOME_DIR, ".local", "bin");
 
 const DOCTOR_NOTIFY_SCRIPT = join(
   HOME_DIR,
@@ -347,176 +341,3 @@ export const checkRegisteredServices = Effect.gen(function* () {
 
   return results;
 }).pipe(Effect.provide(NodeFileSystem.layer));
-
-/** Check daily volume reset timer (laptop-only, informational) */
-export const checkDailyVolumeReset = Effect.gen(function* () {
-  const config = yield* Config;
-  const executor = yield* CommandExecutor;
-  const results: CheckResult[] = [];
-  const host = yield* resolvedOmarchyHost(config) ?? "unset";
-
-  const script = join(HOME_DIR, ".local", "bin", "daily-volume-zero");
-  const serviceUnit = userSystemdUnitPath("daily-volume-zero.service");
-  const timerUnit = userSystemdUnitPath(DAILY_VOLUME_ZERO_TIMER_UNIT);
-
-  if (yield* pathExists(script)) {
-    results.push({
-      severity: "ok",
-      message: `Daily volume reset script found: ${displayPath(script)}`,
-    });
-  } else {
-    results.push({
-      severity: "ok",
-      message: `Daily volume reset script missing or not executable: ${displayPath(script)}`,
-    });
-  }
-
-  if (yield* pathExists(serviceUnit)) {
-    results.push({
-      severity: "ok",
-      message: `Daily volume reset service unit file found: ${displayPath(serviceUnit)}`,
-    });
-  } else {
-    const detail =
-      host === "laptop"
-        ? "Run dot stow (or dot install) to link systemd user units if you want this optional timer"
-        : `Daily volume reset is laptop-only; not linking it for OMARCHY_HOST=${host}`;
-
-    results.push({
-      severity: "ok",
-      message: `Daily volume reset service unit file missing: ${displayPath(serviceUnit)}`,
-      detail,
-    });
-  }
-
-  if (yield* pathExists(timerUnit)) {
-    results.push({
-      severity: "ok",
-      message: `Daily volume reset timer unit file found: ${displayPath(timerUnit)}`,
-    });
-  } else {
-    const detail =
-      host === "laptop"
-        ? "Run dot stow (or dot install) to link systemd user units if you want this optional timer"
-        : `Daily volume reset is laptop-only; not linking it for OMARCHY_HOST=${host}`;
-
-    results.push({
-      severity: "ok",
-      message: `Daily volume reset timer unit file missing: ${displayPath(timerUnit)}`,
-      detail,
-    });
-  }
-
-  const hasSystemctl = (yield* executor.exitCode("which", ["systemctl"])) === 0;
-
-  if (hasSystemctl) {
-    const enabled = yield* executor.exitCode("systemctl", [
-      "--user",
-      "is-enabled",
-      DAILY_VOLUME_ZERO_TIMER_UNIT,
-    ]);
-
-    if (enabled === 0) {
-      results.push({
-        severity: "ok",
-        message: `Daily volume reset timer enabled: ${DAILY_VOLUME_ZERO_TIMER_UNIT}`,
-      });
-    } else {
-      const detail =
-        host === "laptop"
-          ? `Enable with: systemctl --user enable --now ${DAILY_VOLUME_ZERO_TIMER_UNIT}`
-          : `Daily volume reset is laptop-only; leave it disabled for OMARCHY_HOST=${host}`;
-
-      results.push({
-        severity: "ok",
-        message: `Daily volume reset timer is disabled: ${DAILY_VOLUME_ZERO_TIMER_UNIT}`,
-        detail,
-      });
-    }
-
-    const active = yield* executor.exitCode("systemctl", [
-      "--user",
-      "is-active",
-      DAILY_VOLUME_ZERO_TIMER_UNIT,
-    ]);
-
-    if (active === 0) {
-      results.push({
-        severity: "ok",
-        message: `Daily volume reset timer active: ${DAILY_VOLUME_ZERO_TIMER_UNIT}`,
-      });
-    } else {
-      results.push({
-        severity: "ok",
-        message: `Daily volume reset timer is not active: ${DAILY_VOLUME_ZERO_TIMER_UNIT}`,
-      });
-    }
-  } else {
-    results.push({
-      severity: "ok",
-      message: "Skipping daily volume reset timer checks (systemctl not found)",
-    });
-  }
-
-  return results;
-});
-
-/** Extract the colon-separated PATH entries from `systemctl --user show-environment` output. */
-function userEnvironmentPathEntries(
-  showEnvironment: string,
-): readonly string[] {
-  const pathLine = showEnvironment
-    .split("\n")
-    .find((line) => line.startsWith("PATH="));
-
-  if (!pathLine) return [];
-
-  return pathLine.slice("PATH=".length).split(":").filter(Boolean);
-}
-
-/**
- * Check that ~/.local/bin is on the uwsm/systemd user-environment PATH.
- *
- * `uwsm app` resolves binaries against the systemd user-environment PATH, which
- * is seeded by Omarchy's package-owned UWSM bootstrap (not the login shell).
- * Stowed ~/.local/bin shims only resolve when that PATH includes ~/.local/bin.
- */
-export const checkLocalBinPath = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  const hasSystemctl = (yield* executor.exitCode("which", ["systemctl"])) === 0;
-
-  if (!hasSystemctl) {
-    return [
-      {
-        severity: "warn",
-        message: "Skipping uwsm session PATH check (systemctl not found)",
-      },
-    ] satisfies CheckResult[];
-  }
-
-  const showEnvironment = yield* executor
-    .run("systemctl", ["--user", "show-environment"])
-    .pipe(Effect.orElseSucceed(() => ""));
-
-  const onPath = userEnvironmentPathEntries(showEnvironment).some(
-    (entry) => resolve(entry) === LOCAL_BIN_DIR,
-  );
-
-  if (onPath) {
-    return [
-      {
-        severity: "ok",
-        message: `~/.local/bin is on the uwsm session PATH: ${displayPath(LOCAL_BIN_DIR)}`,
-      },
-    ] satisfies CheckResult[];
-  }
-
-  return [
-    {
-      severity: "warn",
-      message: "~/.local/bin is not on the uwsm session PATH",
-      detail:
-        "Relaunch Hyprland so the package-owned Omarchy UWSM bootstrap refreshes the session environment",
-    },
-  ] satisfies CheckResult[];
-});

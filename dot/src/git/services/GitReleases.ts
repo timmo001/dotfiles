@@ -18,6 +18,7 @@ import {
   type GitManagedRepo,
 } from "../../services/GitConfig.js";
 import { formatCause } from "../../lib/schema.js";
+import { notify } from "../../lib/notify.js";
 import { Api } from "@timmo001/effect-gh";
 import { GitHub } from "./GitHub.js";
 import {
@@ -220,7 +221,6 @@ export const deliverReleaseNotification = Effect.fn("GitReleases.deliver")(
           settings.notifications.cooldown_minutes * 60000)
     )
       return current;
-    const executor = yield* CommandExecutor;
 
     const finding =
       snapshot.findings.find(
@@ -233,25 +233,10 @@ export const deliverReleaseNotification = Effect.fn("GitReleases.deliver")(
         ? `${finding.detail}: ${finding.reason}`
         : "Unreleased changes need review";
 
-    const sent = yield* executor
-      .run("omarchy", [
-        "notification",
-        "send",
-        "--app-name",
-        "Git releases",
-        "--urgency",
-        "normal",
-        `${snapshot.name}: ${snapshot.suggestion} release suggested`,
-        `Changes: ${reason.replace(/\s+/g, " ").slice(0, 180)}`,
-        "--exec",
-        "dot",
-        "git",
-        "releases",
-        "--open",
-        "--repo",
-        snapshot.repo,
-      ])
-      .pipe(Effect.timeout("15 seconds"), Effect.result);
+    const sent = yield* notify(
+      `${snapshot.name}: ${snapshot.suggestion} release suggested`,
+      `Changes: ${reason.replace(/\s+/g, " ").slice(0, 180)}`,
+    ).pipe(Effect.timeout("15 seconds"), Effect.result);
 
     if (Result.isFailure(sent))
       return {
