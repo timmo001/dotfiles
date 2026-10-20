@@ -2,7 +2,7 @@
 
 This branch, `distro/ubuntu-server`, is a stripped-down copy of the dotfiles for a headless Ubuntu server. It keeps the terminal and service tooling and drops everything that needs a desktop. The server also hosts a Herdr session that other machines attach to.
 
-It branches from `distro/arch-omarchy-quattro`. Pull shared changes across with a merge, then drop anything desktop-only again.
+It branches from `distro/arch-omarchy-quattro` and rebases onto it to pick up shared changes. Look ahead at what is coming, bring in what the server wants and blindly keep the server side for everything else. `AGENTS.md` has the steps.
 
 ## What stays
 
