@@ -1,6 +1,9 @@
 import { Effect } from "effect";
 import { pathExists } from "../../lib/fsProbe.js";
-import { listStowFolders, requiresNoFolding } from "../../lib/stowFolders.js";
+import {
+  requiresNoFolding,
+  selectedStowFolders,
+} from "../../lib/stowFolders.js";
 import { displayPath } from "../../lib/paths.js";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
@@ -28,7 +31,7 @@ export const checkStow = Effect.gen(function* () {
 
   const checkRepo = (repoDir: string, scope: string) =>
     Effect.gen(function* () {
-      const folders = [...(yield* listStowFolders(repoDir))].sort();
+      const folders = [...(yield* selectedStowFolders(repoDir))].sort();
 
       for (const folder of folders) {
         const extraArgs: string[] = [];

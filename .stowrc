@@ -11,6 +11,7 @@
 --ignore=\.dot-public-packages
 --ignore=\.dot-public-deb-releases\.yml
 --ignore=\.dot-skills\.yml
+--ignore=\.dot-private\.yml
 --ignore=\.dot-gh-extensions
 --ignore=^/\.opencode
 --ignore=^/\.claude-plugin
