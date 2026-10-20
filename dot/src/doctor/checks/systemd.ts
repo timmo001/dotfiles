@@ -8,8 +8,7 @@ import {
 } from "../../services/CommandExecutor.js";
 import { GitHub } from "../../git/services/GitHub.js";
 import { pathExists } from "../../lib/fsProbe.js";
-import { spawnCaptured } from "../../lib/spawnText.js";
-import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
+import { CONFIG_DIR, displayPath } from "../../lib/paths.js";
 import {
   collectServiceStatus,
   readRegisteredServices,
@@ -18,46 +17,9 @@ import type { CheckResult } from "../types.js";
 
 const DOCTOR_TIMER_UNIT = "dot-doctor.timer";
 
-const DOCTOR_NOTIFY_SCRIPT = join(
-  HOME_DIR,
-  ".local",
-  "bin",
-  "dot-doctor-notify",
-);
-
 function userSystemdUnitPath(unit: string): string {
   return join(CONFIG_DIR, "systemd", "user", unit);
 }
-
-const executableExists = Effect.fn("Systemd.executableExists")(function* (
-  path: string,
-) {
-  const result = yield* spawnCaptured("test", ["-x", path]).pipe(
-    Effect.orElseSucceed(() => ({ exitCode: 1 })),
-  );
-
-  return result.exitCode === 0;
-});
-
-const addExecutablePresenceCheck = Effect.fn("Systemd.addExecutableCheck")(
-  function* (
-    results: CheckResult[],
-    path: string,
-    okMessage: string,
-    warnMessage: string,
-    detail?: string,
-  ) {
-    results.push(
-      (yield* executableExists(path))
-        ? { severity: "ok", message: okMessage }
-        : {
-            severity: "warn",
-            message: warnMessage,
-            ...(detail && { detail }),
-          },
-    );
-  },
-);
 
 const addFilePresenceCheck = Effect.fn("Systemd.addFileCheck")(function* (
   results: CheckResult[],
@@ -127,10 +89,6 @@ const checkRequiredUserUnit = (
   });
 
 interface RequiredUserUnitSetup {
-  readonly scriptPath: string;
-  readonly scriptOkMessage: string;
-  readonly scriptWarnMessage: string;
-  readonly scriptDetail?: string;
   readonly unitPath: string;
   readonly unitOkMessage: string;
   readonly unitWarnMessage: string;
@@ -145,13 +103,6 @@ const checkRequiredUserUnitSetup = (setup: RequiredUserUnitSetup) =>
     const results: CheckResult[] = [];
     const enableDetail = `Enable with: systemctl --user enable --now ${setup.unit}`;
 
-    yield* addExecutablePresenceCheck(
-      results,
-      setup.scriptPath,
-      setup.scriptOkMessage,
-      setup.scriptWarnMessage,
-      setup.scriptDetail,
-    );
     yield* addFilePresenceCheck(
       results,
       setup.unitPath,
@@ -215,11 +166,8 @@ export const checkGitNotifications = Effect.gen(function* () {
   return results;
 });
 
-/** Check the doctor notification timer */
-export const checkDoctorNotify = checkRequiredUserUnitSetup({
-  scriptPath: DOCTOR_NOTIFY_SCRIPT,
-  scriptOkMessage: `Doctor notify script found: ${displayPath(DOCTOR_NOTIFY_SCRIPT)}`,
-  scriptWarnMessage: `Doctor notify script missing or not executable: ${displayPath(DOCTOR_NOTIFY_SCRIPT)}`,
+/** Check the doctor timer */
+export const checkDoctorTimer = checkRequiredUserUnitSetup({
   unitPath: userSystemdUnitPath(DOCTOR_TIMER_UNIT),
   unitOkMessage: `Doctor timer unit file found: ${displayPath(userSystemdUnitPath(DOCTOR_TIMER_UNIT))}`,
   unitWarnMessage: `Doctor timer unit file missing: ${displayPath(userSystemdUnitPath(DOCTOR_TIMER_UNIT))}`,
