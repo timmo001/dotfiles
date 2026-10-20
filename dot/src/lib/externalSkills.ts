@@ -1,7 +1,11 @@
 import { Effect, FileSystem, Option, Schema } from "effect";
 import { dirname, join, resolve } from "path";
 import { displayPath, HOME_DIR } from "./paths.js";
-import { ensureSkillsCheckout, SKILLS_CHECKOUT } from "./skillsMaintenance.js";
+import {
+  ensureSkillsCheckout,
+  installSkillsCheckoutTools,
+  SKILLS_CHECKOUT,
+} from "./skillsMaintenance.js";
 import {
   lstatOrNull,
   pathExists,
@@ -394,6 +398,27 @@ export const syncSkills = Effect.gen(function* () {
 
   if (cloned)
     actions.push(notable(`Cloned skills to ${displayPath(SKILLS_CHECKOUT)}`));
+
+  // A fresh clone has none of its pinned tools yet, and the external install
+  // runs the Agent Skills CLI from them.
+  const checkoutTools = yield* installSkillsCheckoutTools.pipe(
+    Effect.catch((error) =>
+      log
+        .warn(
+          `Could not install the skills checkout's mise tools: ${error.message}`,
+        )
+        .pipe(Effect.as(null)),
+    ),
+  );
+
+  if (!checkoutTools)
+    actions.push(warn("Could not install the skills checkout's mise tools"));
+  else if (checkoutTools.length > 0)
+    actions.push(
+      notable(
+        `Installed ${plural(checkoutTools.length, "skills checkout tool")}`,
+      ),
+    );
 
   actions.push(yield* installExternalSkills(config.publicDotfiles));
 
