@@ -74,7 +74,7 @@ Check these from a local session on the server. Items tied to a file are also ma
 - [x] Once `ha-bridge` runs here, name the automation that controls the NAS in `AGENTS.md`
 - [x] Leave `dot-notifications-dismiss.timer` to the desktops. Its units are removed here, so `dot stow` has nothing to enable
 - [x] Move the nightly `compose-up` crontab line to the private `systemd--nas` timer, at 02:00 inside the maintenance window
-- [ ] Send failure notifications somewhere other than the journal (ntfy or Home Assistant)
+- [x] Failure notifications: none needed. Triage collects failed units and journal errors from the NAS for the next day
 
 ### Herdr
 
@@ -86,7 +86,7 @@ Check these from a local session on the server. Items tied to a file are also ma
 
 ### Branch upkeep
 
-- [ ] Automate the rebase onto `distro/arch-omarchy-quattro`, like the `dot-deps` and `skill-updates-agent` jobs: a timer runs an unattended agent that follows "Updating From The Desktop Branch" in `AGENTS.md`, keeps wanted changes, drops desktop-only ones, runs the checks and force-pushes with `--force-with-lease`, and stops with a report when a conflict needs a decision
+- [ ] Automate the rebase onto `distro/arch-omarchy-quattro`: the Server rebase workflow force-pushes a clean rebase that adds no files and passes the checks, and otherwise opens an issue for the `server-rebase` skill in OpenCode. The workflow must live on the desktop branch, since pushes there run that branch's workflows
 
 ### Private overlay
 
