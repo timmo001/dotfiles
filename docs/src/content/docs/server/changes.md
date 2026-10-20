@@ -112,7 +112,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Changed files
 
-85 files in both branches with different contents.
+87 files in both branches with different contents.
 
 | File | Compare |
 | --- | --- |
@@ -152,6 +152,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `dot/src/commands/Update.ts` | [diff](https://github.com/timmo001/dotfiles/compare/5750bff5fba666c338621c3a693f3b820fe60362...distro/ubuntu-server#diff-23b76ef1ea8ed1e689ae05780e93e0c0b0e6282d67616db9aec0c4dd98c21059), [desktop](https://github.com/timmo001/dotfiles/blob/5750bff5fba666c338621c3a693f3b820fe60362/dot/src/commands/Update.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/commands/Update.ts) |
 | `dot/src/commands/Updates.ts` | [diff](https://github.com/timmo001/dotfiles/compare/5750bff5fba666c338621c3a693f3b820fe60362...distro/ubuntu-server#diff-0e69ba27770c2b60115cfab343cfc82104d0ab007757537c6c66c961dc0cc3e1), [desktop](https://github.com/timmo001/dotfiles/blob/5750bff5fba666c338621c3a693f3b820fe60362/dot/src/commands/Updates.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/commands/Updates.ts) |
 | `dot/src/doctor/checks/dependencies.ts` | [diff](https://github.com/timmo001/dotfiles/compare/5750bff5fba666c338621c3a693f3b820fe60362...distro/ubuntu-server#diff-718970d3f67a86476829dbbb38415ebdfafc2ad80293619c96344698ea5363de), [desktop](https://github.com/timmo001/dotfiles/blob/5750bff5fba666c338621c3a693f3b820fe60362/dot/src/doctor/checks/dependencies.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/doctor/checks/dependencies.ts) |
+| `dot/src/doctor/checks/firewall.ts` | [diff](https://github.com/timmo001/dotfiles/compare/5750bff5fba666c338621c3a693f3b820fe60362...distro/ubuntu-server#diff-d71b6e802d21906ef33d7138b61e031f6969766199a1193ce9164bb913cfa57c), [desktop](https://github.com/timmo001/dotfiles/blob/5750bff5fba666c338621c3a693f3b820fe60362/dot/src/doctor/checks/firewall.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/doctor/checks/firewall.ts) |
 | `dot/src/doctor/checks/packages.ts` | [diff](https://github.com/timmo001/dotfiles/compare/5750bff5fba666c338621c3a693f3b820fe60362...distro/ubuntu-server#diff-1d380a1a2dca5e3c4418c3d70e7f960de57cbee45c2eb0f984a239a34d07a514), [desktop](https://github.com/timmo001/dotfiles/blob/5750bff5fba666c338621c3a693f3b820fe60362/dot/src/doctor/checks/packages.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/doctor/checks/packages.ts) |
 | `dot/src/doctor/checks/stow.ts` | [diff](https://github.com/timmo001/dotfiles/compare/5750bff5fba666c338621c3a693f3b820fe60362...distro/ubuntu-server#diff-08d72f1c2abf4107aa90b26cce0243d25041b690534af436d3a96120791db629), [desktop](https://github.com/timmo001/dotfiles/blob/5750bff5fba666c338621c3a693f3b820fe60362/dot/src/doctor/checks/stow.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/doctor/checks/stow.ts) |
 | `dot/src/doctor/checks/systemd.ts` | [diff](https://github.com/timmo001/dotfiles/compare/5750bff5fba666c338621c3a693f3b820fe60362...distro/ubuntu-server#diff-6a6572b1b6eacc74cce64eec065bec04383529fc0b37af44f555f2cc4437965f), [desktop](https://github.com/timmo001/dotfiles/blob/5750bff5fba666c338621c3a693f3b820fe60362/dot/src/doctor/checks/systemd.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/doctor/checks/systemd.ts) |
@@ -165,6 +166,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `dot/src/lib/aptPackages.ts` (was `dot/src/lib/archPackages.ts`) | [diff](https://github.com/timmo001/dotfiles/compare/5750bff5fba666c338621c3a693f3b820fe60362...distro/ubuntu-server#diff-ce4a8dde23f5abc5916440737fe5c0f8707a1731292660eeeda2ba35c509a107), [desktop](https://github.com/timmo001/dotfiles/blob/5750bff5fba666c338621c3a693f3b820fe60362/dot/src/lib/archPackages.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/aptPackages.ts) |
 | `dot/src/lib/env.ts` | [diff](https://github.com/timmo001/dotfiles/compare/5750bff5fba666c338621c3a693f3b820fe60362...distro/ubuntu-server#diff-a0574922bb080de9f606b225b2910eab1d1dcfd244ae35afdb36fc02cd1ccd66), [desktop](https://github.com/timmo001/dotfiles/blob/5750bff5fba666c338621c3a693f3b820fe60362/dot/src/lib/env.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/env.ts) |
 | `dot/src/lib/externalSkills.ts` | [diff](https://github.com/timmo001/dotfiles/compare/5750bff5fba666c338621c3a693f3b820fe60362...distro/ubuntu-server#diff-e5e2642358129323d42bc8e99d2ec3748865f9236449b87d63d72e286b0cb2f4), [desktop](https://github.com/timmo001/dotfiles/blob/5750bff5fba666c338621c3a693f3b820fe60362/dot/src/lib/externalSkills.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/externalSkills.ts) |
+| `dot/src/lib/firewallSetup.ts` | [diff](https://github.com/timmo001/dotfiles/compare/5750bff5fba666c338621c3a693f3b820fe60362...distro/ubuntu-server#diff-025aa00d5c978d36561681e300080c9b6f325845a19809a3cf54e55370b2d790), [desktop](https://github.com/timmo001/dotfiles/blob/5750bff5fba666c338621c3a693f3b820fe60362/dot/src/lib/firewallSetup.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/firewallSetup.ts) |
 | `dot/src/lib/git.ts` | [diff](https://github.com/timmo001/dotfiles/compare/5750bff5fba666c338621c3a693f3b820fe60362...distro/ubuntu-server#diff-ab9155ee5ef178fd2f93aca9d1cf3ef5567a70007b989d76ed6782e3b29e2714), [desktop](https://github.com/timmo001/dotfiles/blob/5750bff5fba666c338621c3a693f3b820fe60362/dot/src/lib/git.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/git.ts) |
 | `dot/src/lib/initState.ts` | [diff](https://github.com/timmo001/dotfiles/compare/5750bff5fba666c338621c3a693f3b820fe60362...distro/ubuntu-server#diff-776232c21b2f4ae5ea198b760a762474b1f55ac799af55f2e5f9a41008478265), [desktop](https://github.com/timmo001/dotfiles/blob/5750bff5fba666c338621c3a693f3b820fe60362/dot/src/lib/initState.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/initState.ts) |
 | `dot/src/lib/linkBrowser.ts` | [diff](https://github.com/timmo001/dotfiles/compare/5750bff5fba666c338621c3a693f3b820fe60362...distro/ubuntu-server#diff-24927383655c04c921b542a3f8a31d7c6b9798b3cbf59c7348cba77cd167aa5d), [desktop](https://github.com/timmo001/dotfiles/blob/5750bff5fba666c338621c3a693f3b820fe60362/dot/src/lib/linkBrowser.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/linkBrowser.ts) |
@@ -204,7 +206,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-35 files only on this branch.
+37 files only on this branch.
 
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-private.yml)
 - [`.dot-public-deb-releases.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-public-deb-releases.yml)
@@ -235,9 +237,11 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`server/vite.config.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/vite.config.ts)
 - [`systemd/.config/dot/services.d/herdr.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/dot/services.d/herdr.yml)
 - [`systemd/.config/dot/services.d/ollama.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/dot/services.d/ollama.yml)
+- [`systemd/.config/dot/services.d/ollaya.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/dot/services.d/ollaya.yml)
 - [`systemd/.config/dot/services.d/system-bridge.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/dot/services.d/system-bridge.yml)
 - [`systemd/.config/systemd/user/ha-bridge.service`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/ha-bridge.service)
 - [`systemd/.config/systemd/user/herdr.service`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/herdr.service)
 - [`systemd/.config/systemd/user/ollama.service`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/ollama.service)
+- [`systemd/.config/systemd/user/ollaya.service`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/ollaya.service)
 - [`systemd/.config/systemd/user/system-bridge.service`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/system-bridge.service)
 - [`systemd/.config/systemd/user/triage-agent.service`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/systemd/user/triage-agent.service)
