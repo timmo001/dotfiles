@@ -10,7 +10,28 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Keep it terminal and service tooling only. Do not add packages that need a graphical session.
 - The server hosts Herdr for remote clients through `systemd/.config/systemd/user/herdr.service`.
 - `SERVER.md` tracks what changed and what is still unknown. Open items are also marked `TODO(ubuntu-server)` in place. Resolve them on the real server and tick them off.
-- `dot/` still assumes Omarchy and pacman. Sections below that mention Omarchy, Hypr or pacman describe that shared code, not packages on this branch.
+- The desktop code (Omarchy, Hyprland, UWSM, Ghostty, pacman, AUR, browser) is removed from `dot/`, not gated. Don't add it back.
+
+### Updating From The Desktop Branch
+
+The branch rebases onto `origin/distro/arch-omarchy-quattro`. Look ahead before rebasing, bring in only what the server wants, and blindly ignore the rest.
+
+1. Look ahead at what is coming:
+
+   ```bash
+   git fetch origin
+   git log --oneline --stat HEAD..origin/distro/arch-omarchy-quattro
+   git diff --name-status HEAD...origin/distro/arch-omarchy-quattro
+   ```
+
+2. Sort each incoming change:
+   - Wanted: shared `dot` core, terminal tools, agent and OpenCode config, Herdr, services, docs framework, CI. Anything that would also work headless on Ubuntu.
+   - Not wanted: anything for Omarchy, Hyprland, UWSM, Ghostty, Quickshell, pacman, AUR, browsers or a graphical session, and changes to code this branch removed.
+3. Rebase with `git rebase origin/distro/arch-omarchy-quattro` (enable `rerere` so repeat resolutions replay).
+4. Resolve wanted changes properly, adapting them to apt and systemd where needed.
+5. Resolve everything else blindly without reading it: keep the server side. In a rebase the server commits are "theirs", so use `git checkout --theirs <path>`, and `git rm <path>` when the desktop changed a file this branch deleted.
+6. After the rebase, delete unwanted files the desktop added without a conflict (the `A` lines from step 1), since they arrive silently.
+7. Regenerate the distro diff page and run the checks under Validation, then push with `--force-with-lease`.
 
 ## Scope
 
@@ -68,7 +89,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 ## Omarchy Host Overrides
 
-Not used on this branch. The Hyprland, UWSM, Ghostty and Omarchy packages are removed. The `dot` code that handles them is unchanged so merges from the desktop branch stay simple.
+Not used on this branch. The Hyprland, UWSM, Ghostty and Omarchy packages and the `dot` code that handled them are removed. See "Updating From The Desktop Branch" for keeping them out on each rebase.
 
 ## Stow Rules
 
