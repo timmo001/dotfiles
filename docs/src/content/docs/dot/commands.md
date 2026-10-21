@@ -58,7 +58,7 @@ Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: pass
 dot update <subcommand> [flags]
 ```
 
-A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and starts the doctor check. On the server branch it then runs dot update branch unless --no-branch is given. It finishes with a summary of updated repositories and every completed or skipped step, in order.
+A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and starts the doctor check. It finishes with a summary of updated repositories and every completed or skipped step, in order.
 
 Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip agents sync and init-marker backfill.
 
@@ -76,7 +76,6 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--check-all` | Also check development repos for pulls, skipping local work |
 | `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
-| `--no-branch` | Skip the final branch update, which opens an agent to rebase behind server and cloud branches |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
 | `--summary-file` `<string>` | Internal: write the final summary to this file instead of printing it |
 | `--started-at` `<integer>` | Internal: epoch ms the run started, for the summary timing |
@@ -93,21 +92,71 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 
 ### `dot update system`
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+Run omarchy update, which then runs the Dotfiles and Topgrade updates
+||||||| parent of b3f8fabf (Remove the desktop code from dot and switch packages to apt)
+Select and run Dotfiles, Omarchy, and Topgrade updates
+=======
+Select and run Dotfiles, apt, and Topgrade updates
+>>>>>>> b3f8fabf (Remove the desktop code from dot and switch packages to apt)
+||||||| parent of dbf63804 (Add the dot server serve dashboard, run through pitchfork)
+Select and run Dotfiles, apt, and Topgrade updates
+=======
+Select and run Dotfiles, apt, release package and Topgrade updates
+>>>>>>> dbf63804 (Add the dot server serve dashboard, run through pitchfork)
+||||||| parent of a7845bd0 (Run compose-up natively as dot compose up and a system update step)
+Select and run Dotfiles, apt, release package and Topgrade updates
+=======
 Select and run Dotfiles, apt, release package, compose-up and Topgrade updates
+>>>>>>> a7845bd0 (Run compose-up natively as dot compose up and a system update step)
 
 ```text
 dot update system [flags]
 ```
 
-Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, compose-up, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select Dotfiles, apt packages, release packages, GitHub CLI extensions, and compose-up; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates. When Dotfiles runs, dot update branch runs last.
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+Hand over to omarchy update. Its post-update hook runs dot update system --omarchy-hook, which selects and runs the other steps in order: Dotfiles, GitHub CLI extensions, and Topgrade, while Omarchy still holds its sudo authorisation, so the whole update asks for the password once. Interactive runs pre-select Dotfiles and GitHub CLI extensions; Topgrade steps start unselected. Non-interactive runs and --yes select every step. Cancelling the prompt skips them.
+
+--step runs only the steps given, here and without omarchy update.
+||||||| parent of b3f8fabf (Remove the desktop code from dot and switch packages to apt)
+Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
+
+Under Herdr, when Omarchy and other steps are selected, this pane first pulls the public and private dotfiles and rebuilds dot when Dotfiles is selected. The other steps then run in a pane split off to the right, which stays open when they finish and doesn't pull the dotfiles again, while this pane runs the Omarchy update, so both can ask for authentication straight away.
+=======
+Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, apt packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
+>>>>>>> b3f8fabf (Remove the desktop code from dot and switch packages to apt)
+||||||| parent of dbf63804 (Add the dot server serve dashboard, run through pitchfork)
+Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, apt packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
+=======
+Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. Interactive runs pre-select Dotfiles, apt packages, release packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
+>>>>>>> dbf63804 (Add the dot server serve dashboard, run through pitchfork)
+||||||| parent of a7845bd0 (Run compose-up natively as dot compose up and a system update step)
+Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. Interactive runs pre-select Dotfiles, apt packages, release packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
+=======
+Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, compose-up, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select Dotfiles, apt packages, release packages, GitHub CLI extensions, and compose-up; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
+>>>>>>> a7845bd0 (Run compose-up natively as dot compose up and a system update step)
 
 **Options**
 
 | Option | Description |
 | --- | --- |
+<<<<<<< HEAD
+| `--yes` | Run omarchy update with -y, and select every other update without prompting |
+| `--step` `<choice>` | Run only this step here, without omarchy update or prompting; repeat for several (choices: dotfiles, github-cli, yazi, protonplus, firmware, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
+| `--omarchy-hook` | Internal: run from Omarchy's post-update hook to select and run the other updates |
+||||||| parent of b3f8fabf (Remove the desktop code from dot and switch packages to apt)
+| `--yes` | Select every update without prompting |
+| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, omarchy, github-cli, yazi, protonplus, firmware, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
+| `--no-self-update` | Internal: the dotfiles are already pulled, so dot update skips its self-update |
+=======
 | `--yes` | Select every update without prompting |
 | `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, apt, releases, github-cli, compose, yazi, rustup, tldr, vim, claude_code, claude_code_plugins, uv) |
 | `--no-self-update` | Skip dot update's self-update pull when the dotfiles are already pulled |
+>>>>>>> b3f8fabf (Remove the desktop code from dot and switch packages to apt)
 | `--help` `-h` | Show help information |
 
 **Examples**
@@ -118,29 +167,7 @@ dot update system --yes
 dot update system --step dotfiles --step github-cli
 ```
 
-### `dot update branch`
-
-Open an agent to rebase the distro branches when they are behind
-
-```text
-dot update branch [flags]
-```
-
-Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fast-forwards the permanent distro/cloud and distro/opencode-app worktrees at ~/.local/share/dot/dotfiles-cloud and ~/.local/share/dot/dotfiles-opencode-app, then checks whether distro/ubuntu-server is behind distro/arch-omarchy-quattro or either of those is behind distro/ubuntu-server, ignoring commits that only regenerate the distro diff page. When one is, it opens an OpenCode agent named branch-update in Herdr to follow the rebase steps in AGENTS.md, check and push. Nothing opens when all are up to date, a rebase is already in progress, the agent is already open, or dot runs under an agent. A full dot update and dot update system run it last; --no-branch skips it.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot update branch
-```
-
-## `dot deps`
+### `dot up dotfiles`
 
 Pull the public and private dotfiles and their pinned submodules, and rebuild dot when its source moved. Never prompts, so it can run in the background.
 
@@ -483,7 +510,7 @@ Pull and start compose files, then prune unused Docker data
 dot compose up [flags] [<file...>]
 ```
 
-Reads ~/.config/dot/compose.yml: directory (compose files), optional envFile (sourced with bash; its exported variables reach docker compose) and optional pruneAfterHours (default 720). For each file, runs docker compose pull then up -d --remove-orphans, carrying on past a failed file, then runs docker system prune -af for data older than pruneAfterHours. Its messages and Docker's output are also written to the run's log in ~/.local/state/dot/logs. dot update system offers it as a step when the config exists.
+Reads ~/.config/dot/compose.yml: directory (compose files), optional envFile (sourced with bash; its exported variables reach docker compose) and optional pruneAfterHours (default 720). For each file, runs docker compose pull then up -d --remove-orphans, carrying on past a failed file, then runs docker system prune -af for data older than pruneAfterHours. dot update system offers it as a step when the config exists.
 
 **Options**
 
@@ -1229,6 +1256,240 @@ dot fans run [flags]
 
 ```bash
 dot fans run
+```
+
+## `dot hdr`
+
+Switch the primary monitor between HDR and SDR
+
+```text
+dot hdr <subcommand> [flags]
+```
+
+The primary monitor is HDMI-A-2 on the desktop host and the focused monitor elsewhere. On sets 10-bit output with HDR colour management and doubled SDR brightness, and saves the setting so a Hyprland reload keeps it; off restores 8-bit sRGB. Either does nothing when the monitor is already there. The hdr-on and hdr-off scripts wrap these for launchers that take a script path, such as a desktop entry for a video app. Games use dot game, which turns HDR on as part of gaming mode.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot hdr on
+dot hdr off
+```
+
+### `dot hdr on`
+
+Switch the primary monitor to HDR
+
+```text
+dot hdr on [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot hdr on
+```
+
+### `dot hdr off`
+
+Switch the primary monitor back to SDR
+
+```text
+dot hdr off [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot hdr off
+```
+
+## `dot game`
+
+Pause heavy background services and turn on HDR while gaming
+
+```text
+dot game <subcommand> [flags]
+```
+
+Gaming mode stops the user units listed in ~/.config/dot/gaming.yml that are running, waiting up to 15 seconds for them to exit, and turns HDR on unless it already is or --sdr is given. It stays on while anything holds it: each dot game run or dot game launch process, or dot game on until dot game off. When the last holder exits it starts the stopped units again and turns HDR off if it turned it on. Holders that died are dropped on the next call, so a killed wrapper can't keep services stopped. State lives in $XDG_RUNTIME_DIR/dot-game.json.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot game launch steam://rungameid/1086940
+dot game on
+dot game off
+```
+
+### `dot game on`
+
+Turn gaming mode on until dot game off
+
+```text
+dot game on [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--sdr` | Leave HDR alone, for games that look wrong in it |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot game on
+dot game on --sdr
+```
+
+### `dot game off`
+
+Turn gaming mode off now and put everything back
+
+```text
+dot game off [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot game off
+```
+
+### `dot game run`
+
+Run a game's command in gaming mode
+
+```text
+dot game run [flags] <command> [<args...>]
+```
+
+Gaming mode stays on until the command exits, then everything it changed is put back. dot game run exits with the game's exit code; SIGINT, SIGTERM and SIGHUP are passed on to the game's process group. game-run wraps it for launchers: Heroic's wrapper (dot game sync sets it) and Steam's launch options (game-run %command%).
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--sdr` | Leave HDR alone, for games that look wrong in it |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<command>` | The game's executable, after -- |
+| `<args>` | Arguments passed unchanged to the game |
+
+**Examples**
+
+```bash
+dot game run -- %command%
+game-run %command%
+```
+
+### `dot game launch`
+
+Launch a game by its store URL in gaming mode
+
+```text
+dot game launch [flags] <url>
+```
+
+Steam games are opened through Steam, and gaming mode is held until Steam's reaper process for the app exits; a game that hasn't started within 10 minutes ends it. Heroic games are only opened, since game-run holds gaming mode for them. Lutris games run through lutris with LUTRIS_SKIP_INIT=1 and hold gaming mode until it exits. Game desktop files and the Games panel launch through this.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--sdr` | Leave HDR alone, for games that look wrong in it |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<url>` | A steam://rungameid/, heroic://launch? or lutris:rungameid/ URL |
+
+**Examples**
+
+```bash
+dot game launch steam://rungameid/1086940
+dot game launch "heroic://launch?appName=1495134320&runner=gog"
+```
+
+### `dot game list`
+
+List game shortcuts and whether gaming mode is on
+
+```text
+dot game list [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print JSON for the Games panel |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot game list
+dot game list --json
+```
+
+### `dot game sync`
+
+Make every game shortcut and Heroic game launch in gaming mode
+
+```text
+dot game sync [flags]
+```
+
+Rewrites the Steam, Heroic and Lutris game desktop files in ~/.local/share/applications to run dot game launch, keeping the store URL in X-Dot-Game-Url. Sets Heroic's default and per-game wrapper to game-run, and clears hdr-on and hdr-off launch scripts that it replaces. Only changed files are written. dot-game-sync.path runs it whenever those directories change.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot game sync
 ```
 
 ## `dot tunnel`
