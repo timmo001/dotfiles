@@ -1,25 +1,13 @@
 ---
 title: Stow Packages
-description: Short blurbs for the other stowed packages in this repo.
+description: The few packages the cloud build keeps, and why it drops the rest.
 ---
 
-Everything below is applied with `dot stow`. Dedicated pages cover [Herdr](/server/herdr/), [Agents](/agents/overview/), [OpenCode](/agents/opencode/overview/), and [Pi](/agents/pi/). The rest stay as one-line blurbs. The desktop-only packages live on the [desktop build](https://dotfiles.timmo.dev/stow/).
+A cloud session VM never runs `dot stow`, so this build drops the shell, editor, terminal and service packages the [server build](https://ubuntu-server.dotfiles.timmo.dev/stow/) stows. What's left is only what the build, tests and docs still read. See the [cloud overview](/cloud/overview/) for what a session gets instead.
 
-| Package | Why it exists |
+| Package | Why it stays |
 | --- | --- |
-| `agents/` | Shared OpenCode assets; see [OpenCode](/agents/opencode/overview/) |
-| `bash/`, `fish/`, `zsh/` | Shell config and `dot` completions |
-| `dotfiles-skills/` | Global skills tied to these paths or private overlays; see [Skills](/agents/skills/) |
-| `editorconfig/` | Shared editor formatting baseline |
-| `fastfetch/` | System info display config |
-| `lazygit/` | [Lazygit](https://github.com/jesseduffield/lazygit) custom commands wired to `dot` git helpers |
-| `mise/` | Global [mise](https://mise.jdx.dev) config for this machine class |
-| `neovim/` | [Neovim](https://neovim.io) editor config |
-| `pi/` | Pi companion config; see [Pi](/agents/pi/) |
-| `ripgrep/` | Default ripgrep flags |
-| `scripts/` | `~/.local/bin` helpers and local Herdr plugins |
-| `starship/` | [Starship](https://starship.rs) prompt config |
-| `systemd/` | User units (timers and services), including the Herdr server |
-| `tmux/` | Terminal multiplexer fallback config |
-| `yazi/` | [Yazi](https://yazi-rs.github.io) file manager plugins and config |
-
+| `agents/` | Shared OpenCode assets, which the docs generators and tests read; see [OpenCode](/agents/opencode/overview/) |
+| `dotfiles-skills/` | Global skills tied to these paths or private overlays, validated by lint; see [Skills](/agents/skills/) |
+| `mise/` | Global [mise](https://mise.jdx.dev) config, read by the dependency tooling and its tests |
+| `scripts/` | Untracked: where `dot` and `skill-maintenance` are built |

@@ -1,7 +1,0 @@
----
-unit: triage-agent.service
-label: Triage agent (collection)
-restartLimit:
-  count: 3
-  within: 1 hour
-repository: timmo001/triage
