@@ -41,7 +41,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Removed files
 
-53 files removed from folders that stay.
+55 files removed from folders that stay.
 
 | File | Was |
 | --- | --- |
@@ -50,11 +50,13 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `.gitmodules` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/.gitmodules) |
 | `docs/public/illustrations/desktop.svg` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/public/illustrations/desktop.svg) |
 | `docs/src/content/docs/agents/cursor.mdx` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/agents/cursor.mdx) |
+| `docs/src/content/docs/agents/pi.mdx` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/agents/pi.mdx) |
 | `docs/src/content/docs/desktop/ghostty.mdx` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/desktop/ghostty.mdx) |
 | `docs/src/content/docs/desktop/herdr.mdx` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/desktop/herdr.mdx) |
 | `docs/src/content/docs/desktop/hyprland.mdx` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/desktop/hyprland.mdx) |
 | `docs/src/content/docs/desktop/omarchy-shell.mdx` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/desktop/omarchy-shell.mdx) |
 | `docs/src/content/docs/desktop/uwsm.mdx` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/desktop/uwsm.mdx) |
+| `docs/src/content/docs/development/home-assistant.mdx` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/development/home-assistant.mdx) |
 | `dot/src/commands/LaunchFloatingWebapp.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/dot/src/commands/LaunchFloatingWebapp.ts) |
 | `dot/src/commands/LinkGit.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/dot/src/commands/LinkGit.ts) |
 | `dot/src/commands/LinkNativeHost.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/dot/src/commands/LinkNativeHost.ts) |
@@ -101,7 +103,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Changed files
 
-93 files in both branches with different contents.
+94 files in both branches with different contents.
 
 | File | Compare |
 | --- | --- |
@@ -121,10 +123,11 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `docs/package.json` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-adfa337ce44dc2902621da20152a048dac41878cf3716dfc4cc56d03aa212a56), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/package.json), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/package.json) |
 | `docs/README.md` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-0b5ca119d2be595aa307d34512d9679e49186307ef94201e4b3dfa079aa89938), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/README.md), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/README.md) |
 | `docs/scripts/generate-og.mjs` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-9a92fad27ffa6fd09cd74abcc46484ca51f0560221c54342d9ede2d7f8b63313), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/scripts/generate-og.mjs), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/scripts/generate-og.mjs) |
+| `docs/src/content/docs/agents/opencode/overview.mdx` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-4aec8cdc7f6f6a4bd2a971e72f49aff55a3554393d3b4793a554f3cfb9d545e2), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/agents/opencode/overview.mdx), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/src/content/docs/agents/opencode/overview.mdx) |
 | `docs/src/content/docs/agents/opencode/plugins.md` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-bf5bd8f7797f8569e89cf5b574063d63e272a3bb4c1b5620979cb3071568a5f6), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/agents/opencode/plugins.md), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/src/content/docs/agents/opencode/plugins.md) |
 | `docs/src/content/docs/agents/overview.mdx` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-89a4f150193805859ff0c939eb92faab51a8710ca5934ca331158f7aa18fe0e6), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/agents/overview.mdx), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/src/content/docs/agents/overview.mdx) |
+| `docs/src/content/docs/agents/skills.mdx` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-d4e88b9fabaa7ec0a34fe6cf253e4aef48ccbd9a5dbf1769fa6c11689203971c), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/agents/skills.mdx), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/src/content/docs/agents/skills.mdx) |
 | `docs/src/content/docs/configuration.mdx` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-759a344d87bf5050ab5150ae8c44ccbf21f4d6c6641cb1f2bddc4865dc2db81a), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/configuration.mdx), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/src/content/docs/configuration.mdx) |
-| `docs/src/content/docs/development/home-assistant.mdx` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-e9143afe61f36ed68b9089336e45fe3782c4399873f0858b2fc08e672eaa05fb), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/development/home-assistant.mdx), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/src/content/docs/development/home-assistant.mdx) |
 | `docs/src/content/docs/distros.mdx` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-7a0d2246c1816cdf8345c80bc81b02ae973285d572623e212b6f6171c49a9db0), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/distros.mdx), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/src/content/docs/distros.mdx) |
 | `docs/src/content/docs/dot/commands.md` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-2c25d597c9d7f966a26949d3ad9eee7308912fc51b09c0163adff83192f54f7b), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/dot/commands.md), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/src/content/docs/dot/commands.md) |
 | `docs/src/content/docs/dot/overview.mdx` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-d6595cf86c04f99fff3090576ec215daa2c1df8f0619fb41e298ef9c47d9f470), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/docs/src/content/docs/dot/overview.mdx), [server](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/src/content/docs/dot/overview.mdx) |
@@ -201,7 +204,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-35 files only on this branch.
+33 files only on this branch.
 
 - [`.agents/skills/cloud-rebase/SKILL.md`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.agents/skills/cloud-rebase/SKILL.md)
 - [`.agents/skills/server-rebase/SKILL.md`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.agents/skills/server-rebase/SKILL.md)
@@ -214,9 +217,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`cloud/claude/settings.json`](https://github.com/timmo001/dotfiles/blob/distro/cloud/cloud/claude/settings.json)
 - [`cloud/setup.sh`](https://github.com/timmo001/dotfiles/blob/distro/cloud/cloud/setup.sh)
 - [`docs/scripts/generate-distro-diff.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/scripts/generate-distro-diff.ts)
-- [`docs/src/content/docs/cloud/overview.mdx`](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/src/content/docs/cloud/overview.mdx)
-- [`docs/src/content/docs/server/herdr.mdx`](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/src/content/docs/server/herdr.mdx)
-- [`docs/src/content/docs/server/overview.mdx`](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/src/content/docs/server/overview.mdx)
+- [`docs/src/content/docs/claude/overview.mdx`](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/src/content/docs/claude/overview.mdx)
 - [`dot/src/commands/CloudSetup.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/commands/CloudSetup.ts)
 - [`dot/src/lib/debReleases.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/lib/debReleases.ts)
 - [`dot/src/lib/notify.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/lib/notify.ts)
