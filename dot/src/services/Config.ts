@@ -19,6 +19,7 @@ import {
   STATE_DIR,
   expandHomePath,
 } from "../lib/paths.js";
+import { withAttachedCheckouts } from "../lib/cloudSession.js";
 import { ENV, envString } from "../lib/env.js";
 import { readPrivateSelection } from "../lib/privateSelection.js";
 
@@ -112,7 +113,7 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
       const repoSelection = (yield* readPrivateSelection(publicDotfiles))
         ?.repos;
 
-      const gitConfig: DotGitConfig =
+      const gitConfig: DotGitConfig = yield* withAttachedCheckouts(
         repoSelection === null || repoSelection === undefined
           ? loadedGitConfig
           : {
@@ -122,7 +123,8 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
                   repo.machines?.includes(repoSelection.machine) ?? false,
               ),
               shallowClones: repoSelection.shallow,
-            };
+            },
+      );
 
       const mcpConfigFile =
         envString(ENV.DOT_MCP_CONFIG_FILE) ?? defaultMcpConfigPath(privatePath);
