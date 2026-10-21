@@ -39,7 +39,7 @@ zoxide = "0.10.0"
 just = "1.59.0"
 uv = "0.13.3"
 [tools."npm:@opencode/cli"]
-version = "2.1.1"
+version = "2.1.2"
 allow_builds = ["@opencode/cli"]
 
 [tools."aqua:herdrdev/herdr"]
