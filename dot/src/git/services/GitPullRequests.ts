@@ -22,8 +22,10 @@ import {
   isFailedCheck,
   isPendingCheck,
 } from "../../lib/pullRequestSearch.js";
+import { isAttachedCheckout, isCloudSession } from "../../lib/cloudSession.js";
 import { formatCause } from "../../lib/schema.js";
 import { GitHub } from "./GitHub.js";
+import { restOpenPullRequests } from "./restPullRequests.js";
 import {
   searchRepositories,
   SearchAuthor,
@@ -97,7 +99,8 @@ const RemotePullRequest = Schema.Struct({
   }),
 });
 
-type RemotePullRequest = typeof RemotePullRequest.Type;
+/** An open pull request as the search returns it. */
+export type RemotePullRequest = typeof RemotePullRequest.Type;
 
 const PULL_REQUEST_FIELDS = `... on PullRequest {
   number title url isDraft updatedAt
@@ -281,9 +284,13 @@ export class GitPullRequests extends Context.Service<
               "Ignoring a pull request requires --repo and a positive PR number",
           });
 
+        const cloud = isCloudSession();
+
         const repositories = managedGitRepos(config.gitConfig).filter(
           (repo) =>
             repo.pullRequests?.enabled &&
+            // A cloud session can only reach the repositories attached to it.
+            (!cloud || isAttachedCheckout(repo.path)) &&
             (!options.repo ||
               [repo.name, repo.github].some(
                 (name) => name.toLowerCase() === options.repo?.toLowerCase(),
@@ -313,21 +320,24 @@ export class GitPullRequests extends Context.Service<
                 ),
               );
 
-        const fetched = due.length
-          ? yield* searchRepositories(
-              github,
-              due.map((repo) => ({
-                repo: repo.github,
-                mine: repo.pullRequests?.scope === "mine",
-              })),
-              {
+        const searches = due.map((repo) => ({
+          repo: repo.github,
+          mine: repo.pullRequests?.scope === "mine",
+        }));
+
+        const failure = "Could not fetch open pull requests";
+
+        // Cloud sessions block GitHub GraphQL, so they list over REST.
+        const fetched = !due.length
+          ? new Map<string, Result.Result<RemotePullRequest[], string>>()
+          : cloud
+            ? yield* restOpenPullRequests(github, searches, failure)
+            : yield* searchRepositories(github, searches, {
                 qualifiers: "is:pr is:open",
                 fields: PULL_REQUEST_FIELDS,
                 node: RemotePullRequest,
-                failure: "Could not fetch open pull requests",
-              },
-            )
-          : new Map<string, Result.Result<RemotePullRequest[], string>>();
+                failure,
+              });
 
         return yield* Effect.forEach(
           repositories,
