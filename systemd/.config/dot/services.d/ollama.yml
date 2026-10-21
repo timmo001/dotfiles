@@ -1,7 +1,0 @@
----
-unit: ollama.service
-label: Ollama
-restartLimit:
-  count: 3
-  within: 1 hour
-repository: ollama/ollama
