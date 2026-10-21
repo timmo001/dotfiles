@@ -33,5 +33,5 @@ if [[ "$needs_sudo" -eq 1 ]]; then
   args+=(--sudoloop)
 fi
 
-/usr/bin/topgrade "${args[@]}"
+topgrade-cli "${args[@]}"
 exit $?

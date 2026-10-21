@@ -5,7 +5,7 @@ pre_sudo = false
 # The wrapper enables this only for runs containing privileged steps
 sudo_loop = false
 
-# topgrade-bin is AUR-managed; don't self-update over pacman
+# mise manages topgrade; don't self-update over its install
 no_self_update = true
 
 # Disable specific steps
