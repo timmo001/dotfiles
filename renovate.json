@@ -94,6 +94,16 @@
       "groupName": "OpenCode 2",
       "groupSlug": "opencode-2",
       "minimumReleaseAge": "2 hours"
+    },
+    {
+      "description": "Read yt-dlp's zero-padded date versions.",
+      "matchDepNames": ["github:yt-dlp/yt-dlp"],
+      "versioning": "loose"
+    },
+    {
+      "description": "Only follow Biome CLI releases, not the other packages released from the same repository.",
+      "matchDepNames": ["aqua:biomejs/biome"],
+      "extractVersion": "^@biomejs/biome@(?<version>.+)$"
     }
   ]
 }

@@ -186,7 +186,10 @@ function comparable(
   version: string,
   versioning: string | null | undefined,
 ): string | null {
-  if (versioning === "loose") return semver.coerce(version)?.version ?? null;
+  if (versioning === "loose")
+    return (
+      semver.coerce(version.replace(/(^|[.v])0+(?=\d)/g, "$1"))?.version ?? null
+    );
 
   return (
     semver.valid(version) ??

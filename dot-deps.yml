@@ -14134,6 +14134,20 @@ policy:
           minimumReleaseAge: "2 hours"
           groupName: "OpenCode 2"
           groupSlug: "opencode-2"
+      - description:
+          - "Read yt-dlp's zero-padded date versions."
+        match:
+          dependencies:
+            - "github:yt-dlp/yt-dlp"
+        set:
+          versioning: "loose"
+      - description:
+          - "Only follow Biome CLI releases, not the other packages released from the same repository."
+        match:
+          dependencies:
+            - "aqua:biomejs/biome"
+        set:
+          extractVersion: "^@biomejs/biome@(?<version>.+)$"
     regexManagers:
       - files:
           - "/^\\.github/actions/setup-mise/action\\.yml$/"
@@ -14717,7 +14731,7 @@ import:
   leaveToRenovate:
     - "arch/quickshell"
   resolverVersion: "44.126.1"
-  overrideHash: "6d97e2f628ae9302f823b5a7c2df1974edf10f361b600899ed4a00c5bc3c6c99"
+  overrideHash: "7b25f9e61d05d1b059655f763541b5a158703f4997149b2cf920f8518c897678"
   baseDiagnostics:
     - path: "presets.description"
       disposition: "ignored"
