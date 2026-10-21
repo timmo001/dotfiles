@@ -43,7 +43,7 @@ jobs:
 
       - name: Commit the page if it changed
         run: |
-          page=docs/src/content/docs/server/changes.md
+          page=docs/src/content/docs/changes.md
           if git diff --quiet -- "$page"; then
             echo "The page is current"
             exit 0

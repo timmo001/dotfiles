@@ -9,7 +9,7 @@ import { distroById, distros } from '../distros.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = path.resolve(root, '..');
-const outFile = path.join(root, 'src/content/docs/server/changes.md');
+const outFile = path.join(root, 'src/content/docs/changes.md');
 const blobBase = 'https://github.com/timmo001/dotfiles/blob';
 
 const current = distroById(currentDistro);
@@ -89,7 +89,7 @@ for (const change of changes) {
 
 const code = (text: string) => `\`${text}\``;
 const baseLink = (file: string) => `[desktop](${blobBase}/${mergeBase}/${file})`;
-const headLink = (file: string) => `[server](${blobBase}/${current.branch}/${file})`;
+const headLink = (file: string) => `[${current.id}](${blobBase}/${current.branch}/${file})`;
 // GitHub anchors each file in a compare view by the SHA-256 of its path.
 const diffLink = (file: string) =>
   `[diff](https://github.com/timmo001/dotfiles/compare/${mergeBase}...${current.branch}#diff-${new Bun.CryptoHasher('sha256').update(file).digest('hex')})`;

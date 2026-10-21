@@ -57,7 +57,7 @@ export default defineConfig(
           label: 'This branch',
           items: [
             '/stow',
-            '/server/changes',
+            '/changes',
           ],
         },
       ],
@@ -82,6 +82,7 @@ export default defineConfig(
       { from: '/cursor', to: '/distros', status: 301 },
       { from: '/agents/cursor', to: '/distros', status: 301 },
       { from: '/server', to: '/', status: 301 },
+      { from: '/server/changes', to: '/changes', status: 301 },
       { from: '/agents-llms', to: '/', status: 301 },
       // Desktop pages only exist on the desktop build; the Distros page links there.
       { from: '/hyprland', to: '/distros', status: 301 },
