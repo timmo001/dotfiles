@@ -1,7 +1,9 @@
 import { Console, Effect, FileSystem, Schema } from "effect";
 import { join } from "path";
+import { ENV, envString, setEnv, unsetEnv } from "../lib/env.js";
 import { HOME_DIR } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
+import { OutputLog } from "../services/OutputLog.js";
 
 /** Path of the optional compose config; `dot compose up` needs it. */
 export const COMPOSE_CONFIG = join(HOME_DIR, ".config", "dot", "compose.yml");
@@ -65,9 +67,37 @@ const sourcedEnvironment = Effect.fn("Compose.sourcedEnvironment")(function* (
 });
 
 /**
+ * Copy child process output into the log file for the rest of the scope,
+ * restoring the previous settings afterwards.
+ */
+const teeChildOutput = (logFile: string) =>
+  Effect.acquireRelease(
+    Effect.sync(() => {
+      const previous = {
+        file: envString(ENV.DOT_LOG_FILE),
+        tee: envString(ENV.DOT_TEE_INHERIT_LOG),
+      };
+
+      setEnv(ENV.DOT_LOG_FILE, logFile);
+      setEnv(ENV.DOT_TEE_INHERIT_LOG, "1");
+
+      return previous;
+    }),
+    (previous) =>
+      Effect.sync(() => {
+        if (previous.file === undefined) unsetEnv(ENV.DOT_LOG_FILE);
+        else setEnv(ENV.DOT_LOG_FILE, previous.file);
+
+        if (previous.tee === undefined) unsetEnv(ENV.DOT_TEE_INHERIT_LOG);
+        else setEnv(ENV.DOT_TEE_INHERIT_LOG, previous.tee);
+      }),
+  );
+
+/**
  * Pull and start each compose file, then prune unused Docker data. Runs every
  * `*.yml` in the configured directory, or only the given files. A failed file
- * does not stop the rest. Returns the exit code of the first failure, or 0.
+ * does not stop the rest. Its messages and Docker's output also go to the
+ * run's dot log. Returns the exit code of the first failure, or 0.
  */
 export const composeUp = Effect.fn("Compose.up")(function* (
   files: readonly string[],
@@ -75,7 +105,11 @@ export const composeUp = Effect.fn("Compose.up")(function* (
   const config = yield* loadConfig;
   const fs = yield* FileSystem.FileSystem;
   const executor = yield* CommandExecutor;
+  const output = yield* OutputLog;
   const directory = expandHome(config.directory);
+
+  yield* output.section("Compose Up");
+  yield* teeChildOutput(output.logFile);
 
   const env =
     config.envFile === undefined
@@ -93,7 +127,7 @@ export const composeUp = Effect.fn("Compose.up")(function* (
   let failed = 0;
 
   for (const file of targets) {
-    yield* Console.log(`\n[INFO] ${file}`);
+    yield* output.info(file);
 
     const pulled = yield* executor.inherit(
       "docker",
@@ -111,14 +145,14 @@ export const composeUp = Effect.fn("Compose.up")(function* (
         : pulled;
 
     if (exitCode !== 0) {
-      yield* Console.error(`[ERROR] ${file} failed (exit ${exitCode})`);
+      yield* output.error(`${file} failed (exit ${exitCode})`);
       failed ||= exitCode;
     }
   }
 
   const hours = config.pruneAfterHours ?? 30 * 24;
 
-  yield* Console.log(`\n[INFO] Pruning unused Docker data over ${hours}h old`);
+  yield* output.info(`Pruning unused Docker data over ${hours}h old`);
 
   const pruned = yield* executor.inherit(
     "docker",
@@ -126,8 +160,10 @@ export const composeUp = Effect.fn("Compose.up")(function* (
     { env },
   );
 
+  yield* output.info(`Log: ${output.logFile}`);
+
   return failed || pruned;
-});
+}, Effect.scoped);
 
 /** Run {@link composeUp} as a command, reporting failures and the exit code. */
 export const composeUpCommand = (files: readonly string[]) =>
