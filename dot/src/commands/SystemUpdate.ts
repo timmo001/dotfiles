@@ -3,6 +3,7 @@ import { Console, Effect, FileSystem, Scope } from "effect";
 import { Prompt } from "effect/cli";
 import { tmpdir } from "os";
 import { join } from "path";
+import { COMPOSE_CONFIG, composeUp } from "./Compose.js";
 import { isAgent } from "../lib/agent.js";
 import { cliStyler } from "../lib/ansi.js";
 import { updateDebReleases } from "../lib/debReleases.js";
@@ -14,7 +15,6 @@ const TOPGRADE_UPDATES = [
   ["Topgrade: Rustup", "rustup", false],
   ["Topgrade: TLDR", "tldr", false],
   ["Topgrade: Neovim", "vim", false],
-  ["Topgrade: Containers", "containers", false],
   ["Topgrade: Claude Code", "claude_code", false],
   ["Topgrade: Claude Code plugins", "claude_code_plugins", false],
   ["Topgrade: uv", "uv", false],
@@ -26,20 +26,26 @@ export const UPDATE_STEPS = [
   "apt",
   "releases",
   "github-cli",
+  "compose",
   ...TOPGRADE_UPDATES.map(([, value]) => value),
 ] as const;
 
 type UpdateChoice = (typeof UPDATE_STEPS)[number];
 
-const UPDATE_CHOICES: ReadonlyArray<{
+const updateChoices = (
+  compose: boolean,
+): ReadonlyArray<{
   readonly title: string;
   readonly value: UpdateChoice;
   readonly selected: boolean;
-}> = [
+}> => [
   { title: "Dotfiles", value: "dotfiles", selected: true },
   { title: "Apt packages", value: "apt", selected: true },
   { title: "GitHub release packages", value: "releases", selected: true },
   { title: "GitHub CLI extensions", value: "github-cli", selected: true },
+  ...(compose
+    ? [{ title: "Compose up", value: "compose" as const, selected: true }]
+    : []),
   ...TOPGRADE_UPDATES.map(([title, value, selected]) => ({
     title,
     value,
@@ -183,6 +189,22 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
     }
   }
 
+  if (selectedSet.has("compose")) {
+    section("Compose Up");
+
+    const exitCode = yield* composeUp([]).pipe(
+      Effect.catch((error) =>
+        Console.error(`[ERROR] ${error.message}`).pipe(Effect.as(1)),
+      ),
+    );
+
+    if (exitCode !== 0) {
+      process.exitCode = exitCode;
+
+      return;
+    }
+  }
+
   const topgrade = TOPGRADE_UPDATES.flatMap(([, value]) =>
     selectedSet.has(value) ? [value] : [],
   );
@@ -228,15 +250,21 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
     process.stdin.isTTY !== true ||
     process.stdout.isTTY !== true;
 
+  const fs = yield* FileSystem.FileSystem;
+
+  const choices = updateChoices(
+    yield* fs.exists(COMPOSE_CONFIG).pipe(Effect.orElseSucceed(() => false)),
+  );
+
   const selected =
     options.steps.length > 0
       ? options.steps
       : automatic
-        ? UPDATE_CHOICES.map(({ value }) => value)
+        ? choices.map(({ value }) => value)
         : yield* Prompt.run(
             Prompt.MultiSelect({
               message: "Choose updates:",
-              choices: UPDATE_CHOICES,
+              choices,
             }),
           ).pipe(
             Effect.catchTag("QuitError", () => Effect.succeed([])),
@@ -246,7 +274,6 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
 
   if (selected.length === 0) return;
 
-  const fs = yield* FileSystem.FileSystem;
   const selectedSet = new Set<UpdateChoice>(selected);
   const baseEnv = yield* temporarySudoEnvironment();
 
