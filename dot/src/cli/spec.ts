@@ -51,6 +51,7 @@ import { prReviews } from "../commands/PrReviews.js";
 import { prWatch } from "../commands/PrWatch.js";
 import { editSkillConsumer, runSkillsMaintenance } from "../commands/Skills.js";
 import { runCommand } from "../commands/Run.js";
+import { composeUpCommand } from "../commands/Compose.js";
 import { httpForward } from "../commands/HttpForward.js";
 import { serverServe } from "../server/Serve.js";
 import {
@@ -226,7 +227,7 @@ const systemUpdateCommand = describe(
     ({ yes, step, noSelfUpdate }) =>
       systemUpdate({ yes, steps: step, selfUpdate: !noSelfUpdate }),
   ),
-  "Select and run Dotfiles, apt, release package and Topgrade updates",
+  "Select and run Dotfiles, apt, release package, compose-up and Topgrade updates",
   [
     "dot update system",
     "dot update system --yes",
@@ -234,7 +235,7 @@ const systemUpdateCommand = describe(
   ],
   {
     description:
-      "Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. Interactive runs pre-select Dotfiles, apt packages, release packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.",
+      "Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, compose-up, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select Dotfiles, apt packages, release packages, GitHub CLI extensions, and compose-up; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.",
   },
 );
 
@@ -627,6 +628,34 @@ const statusRunCommand = describe(
 const statusCommand = describe(
   Command.make("status").pipe(Command.withSubcommands([statusRunCommand])),
   "Run work under a pinned terminal status header",
+);
+
+const composeCommand = describe(
+  Command.make("compose").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "up",
+          {
+            files: Argument.String("file").pipe(
+              Argument.atLeast(0),
+              Argument.withDescription(
+                "Compose files to run (default: every *.yml in the configured directory)",
+              ),
+            ),
+          },
+          ({ files }) => composeUpCommand(files),
+        ),
+        "Pull and start compose files, then prune unused Docker data",
+        ["dot compose up", "dot compose up ~/containers/compose/media.yml"],
+        {
+          description:
+            "Reads ~/.config/dot/compose.yml: directory (compose files), optional envFile (sourced with bash; its exported variables reach docker compose) and optional pruneAfterHours (default 720). For each file, runs docker compose pull then up -d --remove-orphans, carrying on past a failed file, then runs docker system prune -af for data older than pruneAfterHours. dot update system offers it as a step when the config exists.",
+        },
+      ),
+    ]),
+  ),
+  "Manage Docker compose stacks",
 );
 
 const runCommandSpec = describe(
@@ -3221,6 +3250,7 @@ export const dotCommand = describe(
       updateCommand,
       dependenciesCommand,
       runCommandSpec,
+      composeCommand,
       httpCommand,
       serverCommand,
       statusCommand,

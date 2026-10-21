@@ -94,6 +94,7 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 Run omarchy update, which then runs the Dotfiles and Topgrade updates
 ||||||| parent of b3f8fabf (Remove the desktop code from dot and switch packages to apt)
 Select and run Dotfiles, Omarchy, and Topgrade updates
@@ -105,11 +106,17 @@ Select and run Dotfiles, apt, and Topgrade updates
 =======
 Select and run Dotfiles, apt, release package and Topgrade updates
 >>>>>>> dbf63804 (Add the dot server serve dashboard, run through pitchfork)
+||||||| parent of a7845bd0 (Run compose-up natively as dot compose up and a system update step)
+Select and run Dotfiles, apt, release package and Topgrade updates
+=======
+Select and run Dotfiles, apt, release package, compose-up and Topgrade updates
+>>>>>>> a7845bd0 (Run compose-up natively as dot compose up and a system update step)
 
 ```text
 dot update system [flags]
 ```
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 Hand over to omarchy update. Its post-update hook runs dot update system --omarchy-hook, which selects and runs the other steps in order: Dotfiles, GitHub CLI extensions, and Topgrade, while Omarchy still holds its sudo authorisation, so the whole update asks for the password once. Interactive runs pre-select Dotfiles and GitHub CLI extensions; Topgrade steps start unselected. Non-interactive runs and --yes select every step. Cancelling the prompt skips them.
@@ -127,6 +134,11 @@ Select maintenance steps interactively, then run them in order: Dotfiles, apt pa
 =======
 Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. Interactive runs pre-select Dotfiles, apt packages, release packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
 >>>>>>> dbf63804 (Add the dot server serve dashboard, run through pitchfork)
+||||||| parent of a7845bd0 (Run compose-up natively as dot compose up and a system update step)
+Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. Interactive runs pre-select Dotfiles, apt packages, release packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
+=======
+Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, compose-up, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select Dotfiles, apt packages, release packages, GitHub CLI extensions, and compose-up; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
+>>>>>>> a7845bd0 (Run compose-up natively as dot compose up and a system update step)
 
 **Options**
 
@@ -142,7 +154,7 @@ Select maintenance steps interactively, then run them in order: Dotfiles, apt pa
 | `--no-self-update` | Internal: the dotfiles are already pulled, so dot update skips its self-update |
 =======
 | `--yes` | Select every update without prompting |
-| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, apt, releases, github-cli, yazi, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
+| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, apt, releases, github-cli, compose, yazi, rustup, tldr, vim, claude_code, claude_code_plugins, uv) |
 | `--no-self-update` | Skip dot update's self-update pull when the dotfiles are already pulled |
 >>>>>>> b3f8fabf (Remove the desktop code from dot and switch packages to apt)
 | `--help` `-h` | Show help information |
@@ -300,6 +312,49 @@ Child exit code on completion
 
 ```bash
 dot run --timeout '5 minutes' -- opencode2 run --standalone 'Process this capture'
+```
+
+## `dot compose`
+
+Manage Docker compose stacks
+
+```text
+dot compose <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot compose up`
+
+Pull and start compose files, then prune unused Docker data
+
+```text
+dot compose up [flags] [<file...>]
+```
+
+Reads ~/.config/dot/compose.yml: directory (compose files), optional envFile (sourced with bash; its exported variables reach docker compose) and optional pruneAfterHours (default 720). For each file, runs docker compose pull then up -d --remove-orphans, carrying on past a failed file, then runs docker system prune -af for data older than pruneAfterHours. dot update system offers it as a step when the config exists.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<file>` | Compose files to run (default: every *.yml in the configured directory) |
+
+**Examples**
+
+```bash
+dot compose up
+dot compose up ~/containers/compose/media.yml
 ```
 
 ## `dot http`
