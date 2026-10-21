@@ -213,7 +213,7 @@ Panel {
     open: root.opened
     focusTarget: filterController
     contentWidth: panel.fittedContentWidth(Style.space(520))
-    contentHeight: panel.fittedContentHeight(contentColumn.implicitHeight, Style.space(670))
+    contentHeight: panel.fittedContentHeight(contentColumn.implicitHeight, panel.screenH * 0.8)
 
     PanelComponents.FilterablePanel {
       id: filterController
