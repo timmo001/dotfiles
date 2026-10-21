@@ -33,7 +33,7 @@ The script clones this branch, installs mise and the pinned toolchain, builds `d
 - [`dot`](https://cloud.dotfiles.timmo.dev/dot/overview/) · [command reference](https://cloud.dotfiles.timmo.dev/dot/commands/)
 - [Agents](https://cloud.dotfiles.timmo.dev/agents/overview/) · [skills](https://cloud.dotfiles.timmo.dev/agents/skills/)
 - [OpenCode](https://cloud.dotfiles.timmo.dev/agents/opencode/overview/) · [agents](https://cloud.dotfiles.timmo.dev/agents/opencode/agents/) · [commands](https://cloud.dotfiles.timmo.dev/agents/opencode/commands/) · [plugins](https://cloud.dotfiles.timmo.dev/agents/opencode/plugins/)
-- [Stow packages](https://cloud.dotfiles.timmo.dev/stow/) · [changes from the desktop](https://cloud.dotfiles.timmo.dev/server/changes/)
+- [Stow packages](https://cloud.dotfiles.timmo.dev/stow/) · [changes from the desktop](https://cloud.dotfiles.timmo.dev/changes/)
 
 Detail lives in code and `--help`. The site stays a short what-and-why reference.
 
