@@ -1,72 +1,51 @@
 ---
 title: Overview
-description: A headless Ubuntu server build of my dotfiles, with a shared Herdr session.
+description: My dotfiles for cloud agent environments, starting with Claude Code cloud sessions.
 ---
 
-The headless [Ubuntu Server](https://ubuntu.com/server) build of my dotfiles. It is a cut-down copy of the [Omarchy desktop](https://dotfiles.timmo.dev/) setup with the terminal and service tooling only, and it hosts a [Herdr](/server/herdr/) session that other machines attach to. [GNU Stow](https://www.gnu.org/software/stow/) links each package into place, and a compiled `dot` CLI sets up, updates and checks the machine. Private machine details live in a separate overlay.
-
-:::tip[Cloud build]
-This is the cloud build: the server build described below, with a layer for Claude Code cloud sessions. See the [cloud overview](/cloud/overview/).
-:::
-
-:::note[Work in progress]
-This build is ahead of the real server. See the [server overview](/server/overview/) for what is still open.
-:::
+The cloud build of my dotfiles, for agent sessions that run in a short-lived cloud VM rather than on one of my machines. It starts with [Claude Code cloud sessions](https://code.claude.com/docs/en/claude-code-on-the-web). It is the [Ubuntu server](https://ubuntu-server.dotfiles.timmo.dev/) build cut down to what a session uses: the compiled `dot` CLI, its pinned toolchain, my Claude Code settings and instructions, and the shared skills. Nothing is stowed and no services run.
 
 ```bash
-# Pull, refresh config, re-stow and rebuild
-dot update
-
-# Run the health checks and save a report
-dot doctor
+# The cloud environment's setup script
+curl -fsSL https://raw.githubusercontent.com/timmo001/dotfiles/distro/cloud/cloud/setup.sh | bash
 ```
 
 :::caution[Personal setup]
-These docs and the public dotfiles are for reference. They are tuned for my machines and a private overlay that is not public, so installation is not recommended. Have your agents borrow the ideas you want instead.
+These docs and the public dotfiles are for reference. They are tuned for my own cloud environment and a private overlay that is not public, so pointing your setup script at them is not recommended. Have your agents borrow the ideas you want instead.
 :::
 
-## How it fits together
+## How a session gets set up
 
-<div style={{ display: "flex", flexWrap: "wrap", gap: "1.5rem", justifyContent: "center", margin: "1.5rem 0" }}>
-  <figure style={{ margin: 0, width: "9rem", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-    <img src="/illustrations/stow.svg" alt="" width="120" height="120" />
-    <figcaption>Stow links the packages into place</figcaption>
-  </figure>
-  <figure style={{ margin: 0, width: "9rem", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-    <img src="/logo-dark.svg" alt="" width="120" height="120" />
-    <figcaption><code>dot</code> sets up and maintains the machine</figcaption>
-  </figure>
-  <figure style={{ margin: 0, width: "9rem", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-    <img src="/illustrations/agents.svg" alt="" width="120" height="120" />
-    <figcaption>Agents share skills and guidance</figcaption>
-  </figure>
-</div>
+| Stage | What happens |
+| --- | --- |
+| Setup script | Runs once per environment: clones this branch, installs mise and the toolchain, builds `dot` and runs `dot cloud setup`. The environment snapshots the result |
+| Session start | A Claude Code hook pulls the latest branch, clones the private overlay and adds the global agent instructions |
+| Session | `dot`, `mise`, the skills and the instructions are ready; repositories attached to the session are cloned under `/home/user` |
 
 ## Core
 
 | Page | Why |
 | --- | --- |
-| [Getting started](/getting-started/) | Bootstrap the server |
-| [Configuration](/configuration/) | Private overlay, packages, and tracked app config |
-| [Distros](/distros/) | The desktop build and any others, with their own docs sites |
-| [`dot` CLI](/dot/overview/) | Setup, sync, stow, doctor, and git helpers ([command reference](/dot/commands/)) |
-| [Stow packages](/stow/) | One-line blurbs for everything else that is stowed |
-
-## Server
-
-| Page | Why |
-| --- | --- |
-| [Overview](/server/overview/) | What this build keeps, drops, and still has open |
-| [Herdr](/server/herdr/) | Shared agent session that remote clients attach to |
+| [Getting started](/getting-started/) | Create the cloud environment and check it works |
+| [Claude Code](/claude/overview/) | Settings, instructions, skills and the session start hook |
+| [Configuration](/configuration/) | What the private overlay provides in a session |
+| [Distros](/distros/) | The desktop and server builds, with their own docs sites |
+| [`dot` CLI](/dot/overview/) | The commands that are useful in a session ([command reference](/dot/commands/)) |
 
 ## Agents
 
 | Page | Why |
 | --- | --- |
-| [Overview](/agents/overview/) | How OpenCode, skills, and companions fit together |
+| [Overview](/agents/overview/) | How Claude Code, OpenCode and the skills fit together |
 | [Skills](/agents/skills/) | Shared catalogue and repo-local skills |
-| [OpenCode](/agents/opencode/overview/) | Primary coding-agent harness |
-| [Pi](/agents/pi/) | Lightweight companion agent |
+| [OpenCode](/agents/opencode/overview/) | The OpenCode config this repo publishes |
+
+## This branch
+
+| Page | Why |
+| --- | --- |
+| [Stow packages](/stow/) | The few packages kept, and why the rest are gone |
+| [Changes from the desktop](/server/changes/) | Every file this branch removes, changes or adds |
 
 ## Machine-readable docs
 
@@ -74,9 +53,9 @@ Build-time [llms.txt](https://llmstxt.org) bundles and a read-only docs MCP, gen
 
 | URL | Use |
 | --- | --- |
-| https://ubuntu-server.dotfiles.timmo.dev/llms.txt | Compact page index |
-| https://ubuntu-server.dotfiles.timmo.dev/llms-full.txt | Full docs bundle |
-| https://ubuntu-server.dotfiles.timmo.dev/mcp | Hosted MCP (search, page and navigation) |
+| https://cloud.dotfiles.timmo.dev/llms.txt | Compact page index |
+| https://cloud.dotfiles.timmo.dev/llms-full.txt | Full docs bundle |
+| https://cloud.dotfiles.timmo.dev/mcp | Hosted MCP (search, page and navigation) |
 | `/{route}.md` | One page as Markdown |
 
-Ask AI on the site is off. For live repo state, use [context](https://context.timmo.dev) rather than these static bundles.
+Ask AI on the site is off.

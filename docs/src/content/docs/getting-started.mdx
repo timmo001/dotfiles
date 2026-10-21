@@ -1,40 +1,35 @@
 ---
 title: Getting Started
-description: Bootstrap the Ubuntu server and keep it in sync.
+description: Create a Claude Code cloud environment that runs this build, and check it works.
 ---
 
-How I stand up the [Ubuntu Server](https://ubuntu.com/server) machine. Personal setup; not a turnkey install for other people. See the [open items](/server/overview/#still-open) for what is still to do.
+How I set up a [cloud environment](https://code.claude.com/docs/en/cloud-environments) for Claude Code sessions. Personal setup; not a turnkey install for other people.
 
-## Bootstrap
+## Create the environment
 
-```bash
-# Public source of truth; stow packages live under this checkout
-git clone --branch distro/ubuntu-server git@github.com:timmo001/dotfiles.git ~/.config/dotfiles
+1. At [claude.ai/code](https://claude.ai/code), open the environment selector under the message box and pick **New environment**, or open an existing one's settings. In a running session, it's **Edit cloud environment** under the session title.
+2. Keep **Trusted** network access. Everything the script fetches comes from GitHub, npm, PyPI or nodejs.org.
+3. Paste the setup script:
 
-# Private overlay clone during init needs an authenticated gh
-gh auth status || gh auth login
+   ```bash
+   #!/bin/bash
+   curl -fsSL https://raw.githubusercontent.com/timmo001/dotfiles/distro/cloud/cloud/setup.sh | bash
+   ```
 
-cd ~/.config/dotfiles
+4. Give the session access to the private overlay, either by attaching `timmo001/dotfiles-private` to sessions or with the Claude GitHub App installed on it. Without it, sessions get the cloud notes but not my global agent instructions or tracked repositories.
 
-# Allow this repo's mise.toml, then install the pinned toolchain
-mise trust
-mise install
+Keep it a personal environment rather than an organisation-shared one: it writes my own instructions into the VM.
 
-# Build the checked-out binary before it is on PATH
-mise run dot:build
+## Caching
 
-# First-use setup (pulls private overlay when gh auth works)
-~/.config/dotfiles/scripts/.local/bin/dot init
-```
+The setup script runs in the first session, takes about a minute, and the environment snapshots the result. It runs again only when the script or allowed hosts change, or after the cache expires in about a week. The [session start hook](/claude/overview/#session-start) keeps a snapshot current between rebuilds, so branch changes reach the next session without editing the script.
 
-## Ongoing
+## Check it works
 
-```bash
-# Health checks for the local setup
-dot doctor
-
-# Pull, stow, and rebuild
-dot update
-```
-
-Command detail is in `dot --help` and the [command reference](/dot/commands/).
+| Check | Expect |
+| --- | --- |
+| `/context` | `/root/.claude/CLAUDE.md` under Memory files |
+| `head -1 ~/.claude/CLAUDE.md` | Two sources: the cloud notes and the private `AGENTS.md` |
+| `dot repo list` | The tracked repositories from the private overlay |
+| `~/.local/state/dot/cloud-setup.log` | The setup script's output |
+| `~/.local/state/dot/cloud-rebuild.log` | The last background rebuild after the hook pulled new commits |

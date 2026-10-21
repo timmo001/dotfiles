@@ -8,7 +8,7 @@ const distro = distroById(currentDistro);
 export default defineConfig(
   docsConfig({
     title: 'Dotfiles',
-    description: 'A headless Ubuntu server build of my dotfiles, with a shared Herdr session.',
+    description: 'My dotfiles for cloud agent environments, starting with Claude Code cloud sessions.',
     site: distro.site,
     github: {
       owner: 'timmo001',
@@ -20,6 +20,12 @@ export default defineConfig(
       sidebar: [
         '/',
         '/getting-started',
+        {
+          label: 'Claude Code',
+          items: [
+            '/claude/overview',
+          ],
+        },
         '/configuration',
         '/distros',
         {
@@ -27,27 +33,6 @@ export default defineConfig(
           items: [
             '/dot/overview',
             '/dot/commands',
-          ],
-        },
-        {
-          label: 'Cloud',
-          items: [
-            '/cloud/overview',
-          ],
-        },
-        {
-          label: 'Server',
-          items: [
-            '/server/overview',
-            '/server/herdr',
-            '/server/changes',
-          ],
-        },
-        '/stow',
-        {
-          label: 'Development',
-          items: [
-            '/development/home-assistant',
           ],
         },
         {
@@ -68,7 +53,13 @@ export default defineConfig(
             '/agents/opencode/plugins',
           ],
         },
-        '/agents/pi',
+        {
+          label: 'This branch',
+          items: [
+            '/stow',
+            '/server/changes',
+          ],
+        },
       ],
     },
     redirects: [
@@ -83,14 +74,14 @@ export default defineConfig(
       { from: '/reference/agents', to: '/agents/opencode/agents', status: 301 },
       { from: '/reference/commands', to: '/agents/opencode/commands', status: 301 },
       { from: '/reference/plugins', to: '/agents/opencode/plugins', status: 301 },
-      { from: '/other-agents/pi', to: '/agents/pi', status: 301 },
+      { from: '/other-agents/pi', to: '/agents/overview', status: 301 },
       { from: '/other-agents/cursor', to: '/distros', status: 301 },
       { from: '/other-agents/agents-llms', to: '/', status: 301 },
       { from: '/agents/agents-llms', to: '/', status: 301 },
-      { from: '/pi', to: '/agents/pi', status: 301 },
+      { from: '/pi', to: '/agents/overview', status: 301 },
       { from: '/cursor', to: '/distros', status: 301 },
       { from: '/agents/cursor', to: '/distros', status: 301 },
-      { from: '/server', to: '/server/overview', status: 301 },
+      { from: '/server', to: '/', status: 301 },
       { from: '/agents-llms', to: '/', status: 301 },
       // Desktop pages only exist on the desktop build; the Distros page links there.
       { from: '/hyprland', to: '/distros', status: 301 },
@@ -101,8 +92,8 @@ export default defineConfig(
       { from: '/desktop/ghostty', to: '/distros', status: 301 },
       { from: '/desktop/uwsm', to: '/distros', status: 301 },
       { from: '/desktop/omarchy-shell', to: '/distros', status: 301 },
-      { from: '/herdr', to: '/server/herdr', status: 301 },
-      { from: '/desktop/herdr', to: '/server/herdr', status: 301 },
+      { from: '/herdr', to: '/', status: 301 },
+      { from: '/desktop/herdr', to: '/', status: 301 },
     ],
     theme: {
       accent: {
