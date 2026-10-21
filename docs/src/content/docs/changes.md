@@ -204,7 +204,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-33 files only on this branch.
+34 files only on this branch.
 
 - [`.agents/skills/cloud-rebase/SKILL.md`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.agents/skills/cloud-rebase/SKILL.md)
 - [`.agents/skills/server-rebase/SKILL.md`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.agents/skills/server-rebase/SKILL.md)
@@ -219,6 +219,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`docs/scripts/generate-distro-diff.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/scripts/generate-distro-diff.ts)
 - [`docs/src/content/docs/claude/overview.mdx`](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/src/content/docs/claude/overview.mdx)
 - [`dot/src/commands/CloudSetup.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/commands/CloudSetup.ts)
+- [`dot/src/lib/cloudSession.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/lib/cloudSession.ts)
 - [`dot/src/lib/debReleases.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/lib/debReleases.ts)
 - [`dot/src/lib/notify.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/lib/notify.ts)
 - [`dot/src/lib/privateSelection.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/lib/privateSelection.ts)
