@@ -54,7 +54,7 @@ The branch rebases onto `origin/distro/arch-omarchy-quattro`. Look ahead before 
 4. Resolve wanted changes properly, adapting them to apt and systemd where needed.
 5. Resolve everything else blindly without reading it: keep the server side. In a rebase the server commits are "theirs", so use `git checkout --theirs <path>`, and `git rm <path>` when the desktop changed a file this branch deleted.
 6. After the rebase, delete unwanted files the desktop added without a conflict (the `A` lines from step 1), since they arrive silently.
-7. Run the checks under Validation, then push with `--force-with-lease`. If `docs/src/content/docs/server/changes.md` conflicts, take either side: the Distro diff workflow regenerates and commits it after the push.
+7. Run the checks under Validation, then push with `--force-with-lease`. If `docs/src/content/docs/changes.md` conflicts, take either side: the Distro diff workflow regenerates and commits it after the push.
 
 `distro/cloud` builds on this branch. Every push here starts the Cloud rebase workflow, which rebases it onto the result or opens its own issue; that branch's `AGENTS.md` and `cloud-rebase` skill own it.
 
