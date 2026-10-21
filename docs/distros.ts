@@ -35,6 +35,13 @@ export const distros = [
     branch: 'distro/ubuntu-server',
     site: 'ubuntu-server.dotfiles.timmo.dev',
   },
+  {
+    id: 'cloud',
+    label: 'Cloud',
+    description: 'Cloud agent environments, starting with Claude Code',
+    branch: 'distro/cloud',
+    site: 'cloud.dotfiles.timmo.dev',
+  },
 ] as const satisfies readonly Distro[];
 
 /** Look up a distro by ID, failing the build on an unknown one. */
