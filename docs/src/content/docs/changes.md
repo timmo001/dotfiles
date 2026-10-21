@@ -103,7 +103,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Changed files
 
-94 files in both branches with different contents.
+95 files in both branches with different contents.
 
 | File | Compare |
 | --- | --- |
@@ -165,6 +165,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `dot/src/git/commands/PullRequests.ts` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-8c53aacbc0d2d6d317a3c6696ba4c77caa532e79995f734720bc1c395117c4f6), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/dot/src/git/commands/PullRequests.ts), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/git/commands/PullRequests.ts) |
 | `dot/src/git/release/types.ts` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-a9e928e80d7bc79d21430640dc730dd41560824eba50f60003371d9cc0856c88), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/dot/src/git/release/types.ts), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/git/release/types.ts) |
 | `dot/src/git/services/DotDiff.ts` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-d142a64314cd2891ef4244666dcf819921f795dc1e8473dbea61c0095b343038), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/dot/src/git/services/DotDiff.ts), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/git/services/DotDiff.ts) |
+| `dot/src/git/services/GitPullRequests.ts` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-054c9666a0bf8c7aeb202233f0fff17f93c7682294182376a4c8f4ec8273594e), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/dot/src/git/services/GitPullRequests.ts), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/git/services/GitPullRequests.ts) |
 | `dot/src/index.ts` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-bc072944755f1740968a1c0fc0b1d9135f20b5bf1cf59fb2d233b3a913b7896c), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/dot/src/index.ts), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/index.ts) |
 | `dot/src/lib/aptPackages.ts` (was `dot/src/lib/archPackages.ts`) | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-ce4a8dde23f5abc5916440737fe5c0f8707a1731292660eeeda2ba35c509a107), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/dot/src/lib/archPackages.ts), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/lib/aptPackages.ts) |
 | `dot/src/lib/env.ts` | [diff](https://github.com/timmo001/dotfiles/compare/13ddb38af149789c29f800b21e40f46bece4f0cb...distro/cloud#diff-a0574922bb080de9f606b225b2910eab1d1dcfd244ae35afdb36fc02cd1ccd66), [desktop](https://github.com/timmo001/dotfiles/blob/13ddb38af149789c29f800b21e40f46bece4f0cb/dot/src/lib/env.ts), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/lib/env.ts) |
@@ -204,7 +205,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-34 files only on this branch.
+35 files only on this branch.
 
 - [`.agents/skills/cloud-rebase/SKILL.md`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.agents/skills/cloud-rebase/SKILL.md)
 - [`.agents/skills/server-rebase/SKILL.md`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.agents/skills/server-rebase/SKILL.md)
@@ -219,6 +220,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`docs/scripts/generate-distro-diff.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/scripts/generate-distro-diff.ts)
 - [`docs/src/content/docs/claude/overview.mdx`](https://github.com/timmo001/dotfiles/blob/distro/cloud/docs/src/content/docs/claude/overview.mdx)
 - [`dot/src/commands/CloudSetup.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/commands/CloudSetup.ts)
+- [`dot/src/git/services/restPullRequests.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/git/services/restPullRequests.ts)
 - [`dot/src/lib/cloudSession.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/lib/cloudSession.ts)
 - [`dot/src/lib/debReleases.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/lib/debReleases.ts)
 - [`dot/src/lib/notify.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/lib/notify.ts)
