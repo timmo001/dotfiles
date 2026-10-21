@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=OpenCode
+TryExec=opencode-desktop
+Exec=opencode-desktop --no-sandbox %U
+Terminal=false
+Type=Application
+Icon=ai.opencode.desktop
+StartupWMClass=ai.opencode.desktop
+MimeType=x-scheme-handler/opencode;
+Categories=Development;
