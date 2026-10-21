@@ -19,6 +19,7 @@ import {
   expandHomePath,
 } from "../lib/paths.js";
 import { cliStyler } from "../lib/ansi.js";
+import { CLOUD_CHECKOUTS_DIR } from "../lib/cloudSession.js";
 import { syncSkills } from "../lib/externalSkills.js";
 import {
   backupFileIfUnmanaged,
@@ -42,7 +43,7 @@ const PRIVATE_REPOSITORY_URL =
   "https://github.com/timmo001/dotfiles-private.git";
 
 /** Where a cloud session checks out the private repository when attached. */
-const ATTACHED_PRIVATE_DOTFILES = "/home/user/dotfiles-private";
+const ATTACHED_PRIVATE_DOTFILES = join(CLOUD_CHECKOUTS_DIR, "dotfiles-private");
 
 /** Where dot looks for the private dotfiles, cloned or linked by cloud setup. */
 const PRIVATE_CLONE = expandHomePath(
