@@ -12,3 +12,4 @@ The Server rebase workflow force-pushes a clean rebase by itself. It opens or up
 3. Ask the user about any change you can't sort into wanted or not wanted from those rules. Don't guess.
 4. Run the checks under Validation in `AGENTS.md`, then push with `git push --force-with-lease`. This is the one push the skill may make without being asked, since the issue is the request.
 5. Close the issue with a comment naming the desktop commit you rebased onto and anything you dropped or adapted.
+6. The push starts the Cloud rebase workflow for `distro/cloud`. Mention any open "Rebase distro/cloud onto the server branch" issue it leaves, but don't work on it here.
