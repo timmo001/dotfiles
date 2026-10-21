@@ -387,8 +387,10 @@ const syncPrivateDotfiles = Effect.fn("CloudSetup.syncPrivate")(function* (
  * Code reads CLAUDE.md before this hook runs, so the hook clones the private
  * dotfiles, rewrites CLAUDE.md for later reloads such as compaction, and
  * passes the global instructions to this session as additional context when
- * the CLAUDE.md it started with did not have them. It prints nothing else
- * and never fails, so a broken hook can't block a session.
+ * the CLAUDE.md it started with did not have them. When the private
+ * repository is not attached, the proxy can't serve it, so the context asks
+ * the agent to attach it and re-run setup instead. It prints nothing else and
+ * never fails, so a broken hook can't block a session.
  */
 export const cloudSessionStart = Effect.gen(function* () {
   if (envString(ENV.CLAUDE_CODE_REMOTE) !== "true") return;
@@ -410,13 +412,22 @@ export const cloudSessionStart = Effect.gen(function* () {
       writeFileAtomic(CLAUDE_INSTRUCTIONS, content, { createDirectory: true }),
     );
 
-  if (global === null || hasGlobalInstructions(loaded)) return;
+  if (hasGlobalInstructions(loaded)) return;
 
-  const additionalContext = [
-    "Global agent instructions from the private dotfiles. They were missing from ~/.claude/CLAUDE.md when this session started and apply as if they were in it, after its Cloud Session notes:",
-    "",
-    global.trimEnd(),
-  ].join("\n");
+  // The session's GitHub proxy only serves attached repositories, so without
+  // the private one attached nothing here can fetch it: ask the agent to.
+  const additionalContext =
+    global === null
+      ? [
+          "The private dotfiles (timmo001/dotfiles-private) are not attached to this cloud session, so the global agent instructions and tracked repositories from them are missing.",
+          "Before other work, attach them with the add_repo tool (owner timmo001, repo dotfiles-private, read access), then run `dot cloud setup --force` and read ~/.claude/CLAUDE.md: the global instructions after its Cloud Session notes apply to this session.",
+          "If add_repo is refused, tell the user once that this session runs without their global instructions, and to select timmo001/dotfiles-private when starting cloud sessions.",
+        ].join(" ")
+      : [
+          "Global agent instructions from the private dotfiles. They were missing from ~/.claude/CLAUDE.md when this session started and apply as if they were in it, after its Cloud Session notes:",
+          "",
+          global.trimEnd(),
+        ].join("\n");
 
   yield* Effect.sync(() => {
     process.stdout.write(
