@@ -39,6 +39,14 @@ zig = "0.15.2"
 zoxide = "0.10.0"
 just = "1.59.0"
 uv = "0.13.3"
+"aqua:biomejs/biome" = "2.5.15"
+"aqua:jesseduffield/lazydocker" = "0.25.2"
+"aqua:vi/websocat" = "1.14.1"
+"aqua:sxyazi/yazi" = "26.9.1"
+"aqua:fastfetch-cli/fastfetch" = "2.70.0"
+"aqua:tealdeer-rs/tealdeer" = "1.9.0"
+"aqua:tree-sitter/tree-sitter" = "0.27.1"
+"aqua:neovim/neovim" = "0.12.6"
 [tools."npm:@opencode/cli"]
 version = "2.1.2"
 allow_builds = ["@opencode/cli"]
@@ -146,6 +154,12 @@ version_list_url = "https://opencode.ai/update/api/latest/desktop/opencode"
 version_json_path = ".version"
 format = "raw"
 bin = "opencode-desktop"
+
+[tools."github:yt-dlp/yt-dlp"]
+version = "2026.08.19"
+asset_pattern = "yt-dlp_linux"
+format = "raw"
+bin = "yt-dlp"
 
 # Zsh plugin with no release assets; .zshrc sources it from the latest install.
 [tools."http:fzf-tab"]
