@@ -190,11 +190,7 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
   }
 
   if (selectedSet.has("compose")) {
-    const exitCode = yield* composeUp([]).pipe(
-      Effect.catch((error) =>
-        Console.error(`[ERROR] ${error.message}`).pipe(Effect.as(1)),
-      ),
-    );
+    const exitCode = yield* composeUp([]);
 
     if (exitCode !== 0) {
       process.exitCode = exitCode;
