@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=GitHub Copilot
+Comment=GitHub Copilot desktop app
+TryExec=github-copilot
+Exec=github-copilot %u
+Icon=github-copilot
+Type=Application
+Terminal=false
+StartupNotify=true
+StartupWMClass=github
+MimeType=x-scheme-handler/github-app;x-scheme-handler/ghapp;x-scheme-handler/gh;
+Categories=Development;
