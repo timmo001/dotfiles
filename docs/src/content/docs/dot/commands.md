@@ -92,20 +92,20 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 
 ### `dot update system`
 
-Select and run Dotfiles, apt, release package and Topgrade updates
+Select and run Dotfiles, apt, release package, compose-up and Topgrade updates
 
 ```text
 dot update system [flags]
 ```
 
-Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. Interactive runs pre-select Dotfiles, apt packages, release packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
+Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, compose-up, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select Dotfiles, apt packages, release packages, GitHub CLI extensions, and compose-up; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
 | `--yes` | Select every update without prompting |
-| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, apt, releases, github-cli, yazi, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
+| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, apt, releases, github-cli, compose, yazi, rustup, tldr, vim, claude_code, claude_code_plugins, uv) |
 | `--no-self-update` | Skip dot update's self-update pull when the dotfiles are already pulled |
 | `--help` `-h` | Show help information |
 
@@ -262,6 +262,49 @@ Child exit code on completion
 
 ```bash
 dot run --timeout '5 minutes' -- opencode2 run --standalone 'Process this capture'
+```
+
+## `dot compose`
+
+Manage Docker compose stacks
+
+```text
+dot compose <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot compose up`
+
+Pull and start compose files, then prune unused Docker data
+
+```text
+dot compose up [flags] [<file...>]
+```
+
+Reads ~/.config/dot/compose.yml: directory (compose files), optional envFile (sourced with bash; its exported variables reach docker compose) and optional pruneAfterHours (default 720). For each file, runs docker compose pull then up -d --remove-orphans, carrying on past a failed file, then runs docker system prune -af for data older than pruneAfterHours. dot update system offers it as a step when the config exists.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<file>` | Compose files to run (default: every *.yml in the configured directory) |
+
+**Examples**
+
+```bash
+dot compose up
+dot compose up ~/containers/compose/media.yml
 ```
 
 ## `dot http`
