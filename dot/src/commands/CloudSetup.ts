@@ -191,7 +191,7 @@ const writeClaudeInstructions = Effect.fn("CloudSetup.writeInstructions")(
 
     if (global === null)
       yield* log.warn(
-        "Private dotfiles are not available yet, so CLAUDE.md has the cloud notes only; the session start hook adds the rest",
+        "Private dotfiles are not available yet, so CLAUDE.md has the cloud notes only; the session start hook adds the rest once timmo001/dotfiles-private is attached to the session",
       );
 
     if ((yield* readTextOrNull(target)) === content) {
@@ -325,45 +325,46 @@ const refreshPublicDotfiles = Effect.fn("CloudSetup.refreshPublic")(function* (
 });
 
 /**
- * Clone the private dotfiles, or reset an existing clone to the remote. With
- * no credentials, as in the setup script, link the attached checkout
- * instead. Failures are ignored: the cloud notes alone still apply.
+ * Link the private dotfiles to the checkout attached to the session, so dot
+ * and the working copy never drift apart. Without one, clone them, or reset
+ * an existing clone to the remote. A clone made before the repository was
+ * attached is replaced by the link. Failures are ignored: the cloud notes
+ * alone still apply.
  */
 const syncPrivateDotfiles = Effect.fn("CloudSetup.syncPrivate")(function* (
   directory: string,
 ) {
   const fs = yield* FileSystem.FileSystem;
+  const link = yield* readLinkOrNull(directory);
 
-  if ((yield* lstatOrNull(join(directory, ".git"))) === null) {
-    // A link left to an attached checkout this VM no longer has.
-    if ((yield* readLinkOrNull(directory)) !== null)
-      yield* fs.remove(directory);
+  // The attached checkout is the session's own working copy; leave it alone.
+  if (link === ATTACHED_PRIVATE_DOTFILES) return;
 
-    if (
-      (yield* git([
-        "clone",
-        "--quiet",
-        "--depth=1",
-        PRIVATE_REPOSITORY_URL,
-        directory,
-      ])) !== null
-    )
-      return;
+  if ((yield* lstatOrNull(join(ATTACHED_PRIVATE_DOTFILES, ".git"))) !== null) {
+    // dot's own clone or link, never a working copy, so it is safe to replace.
+    if ((yield* lstatOrNull(directory)) !== null)
+      yield* fs.remove(directory, { recursive: true });
 
-    // dot reads its tracked repositories and other private config from this
-    // path, so point it at the attached checkout when cloning failed.
-    if (
-      (yield* lstatOrNull(join(ATTACHED_PRIVATE_DOTFILES, ".git"))) !== null
-    ) {
-      yield* fs.makeDirectory(dirname(directory), { recursive: true });
-      yield* fs.symlink(ATTACHED_PRIVATE_DOTFILES, directory);
-    }
+    yield* fs.makeDirectory(dirname(directory), { recursive: true });
+    yield* fs.symlink(ATTACHED_PRIVATE_DOTFILES, directory);
 
     return;
   }
 
-  // The attached checkout is the session's own working copy; leave it alone.
-  if ((yield* readLinkOrNull(directory)) !== null) return;
+  if ((yield* lstatOrNull(join(directory, ".git"))) === null) {
+    // A link left to an attached checkout this VM no longer has.
+    if (link !== null) yield* fs.remove(directory);
+
+    yield* git([
+      "clone",
+      "--quiet",
+      "--depth=1",
+      PRIVATE_REPOSITORY_URL,
+      directory,
+    ]);
+
+    return;
+  }
 
   if (
     (yield* git([
