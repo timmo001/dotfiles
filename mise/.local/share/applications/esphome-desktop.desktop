@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Name=ESPHome Device Builder
+Comment=Desktop application for ESPHome
+TryExec=esphome-desktop
+Exec=esphome-desktop
+Icon=esphome-desktop
+Type=Application
+Terminal=false
+StartupNotify=true
+StartupWMClass=esphome-desktop
+Categories=Development;
