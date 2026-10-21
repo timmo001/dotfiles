@@ -1,25 +1,14 @@
 ---
 title: Agents
-description: How OpenCode, skills, and companion harnesses fit together.
+description: How Claude Code, OpenCode and the shared skills fit together in this build.
 sidebar:
   label: Overview
 ---
 
-Coding agents in this setup share skills and AGENTS guidance. [OpenCode](https://opencode.ai) is the primary harness; Pi is a thinner companion. Shared skills live in a separate repo. `dot` keeps a checkout detached at the latest `main` and links it into `~/.agents/skills/`.
+[Claude Code](/claude/overview/) is the harness a cloud session runs. Shared skills live in a separate repo: `dot` keeps a checkout at `~/.local/share/dot/skills`, detached at the latest `main`, and links it into `~/.agents/skills/` and `~/.claude/skills/`. The [OpenCode](/agents/opencode/overview/) config is still published from this repo, though a session doesn't run OpenCode.
 
 | Piece | Why |
 | --- | --- |
+| [Claude Code](/claude/overview/) | Settings, instructions, skills and the session start hook |
 | [Skills](/agents/skills/) | Shared catalogue plus repo-local skills |
-| [OpenCode](/agents/opencode/overview/) | Day-to-day sessions, slash commands, plugins, Herdr panes |
-| [Pi](/agents/pi/) | Lightweight companion sessions |
-
-## Shared wiring
-
-| Mechanism | Role |
-| --- | --- |
-| `dot agent sync` | Mirror global AGENTS into other harness instruction files |
-| `dot mcp sync` | Regenerate MCP configs from the private overlay; OpenCode repos opt in per checkout |
-| `dot skills` | Check and apply updates from the skills repo |
-| `~/.agents/skills/` | Shared skills linked from the latest skills repo `main` |
-
-OpenCode owns the full agent, command, and plugin stack. Pi reuses skills and AGENTS, not that stack.
+| [OpenCode](/agents/opencode/overview/) | Published OpenCode agents, commands and plugins |
