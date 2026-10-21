@@ -177,22 +177,25 @@ export const gitLog = Effect.fn("gitLog.print")(function* (
   refresh: boolean,
   panelJson: boolean,
 ) {
+  const config = yield* Config;
   const repositories = yield* queryGitLog(refresh);
 
   const text = panelJson
     ? JSON.stringify({ repositories }) + "\n"
-    : repositories
-        .map((repo) =>
-          [
-            `${repo.name}${repo.branch ? ` (${repo.branch})` : ""}`,
-            ...(repo.error ? [`  ${repo.error}`] : []),
-            ...repo.commits.map(
-              (commit) =>
-                `  ${commit.sha.slice(0, 7)}${commit.incoming ? " ↓" : ""} ${commit.subject}`,
-            ),
-          ].join("\n"),
-        )
-        .join("\n\n") + "\n";
+    : repositories.length === 0
+      ? `No tracked repositories${config.canUsePrivate ? "" : `: ${config.privateReason}`}\n`
+      : repositories
+          .map((repo) =>
+            [
+              `${repo.name}${repo.branch ? ` (${repo.branch})` : ""}`,
+              ...(repo.error ? [`  ${repo.error}`] : []),
+              ...repo.commits.map(
+                (commit) =>
+                  `  ${commit.sha.slice(0, 7)}${commit.incoming ? " ↓" : ""} ${commit.subject}`,
+              ),
+            ].join("\n"),
+          )
+          .join("\n\n") + "\n";
 
   // The CLI exits explicitly, so wait until the whole snapshot is flushed.
   yield* writeOutput(text);
