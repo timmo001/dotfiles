@@ -1,7 +1,0 @@
----
-unit: system-bridge.service
-label: System Bridge
-restartLimit:
-  count: 3
-  within: 1 hour
-repository: timmo001/system-bridge
