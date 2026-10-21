@@ -1,0 +1,28 @@
+---
+title: Claude Code
+description: The Claude Code settings, instructions, skills and hook a cloud session gets.
+sidebar:
+  label: Overview
+---
+
+[Claude Code](https://code.claude.com/docs) reads user-level config from `~/.claude/` in a cloud session VM like anywhere else, so `dot cloud setup` puts mine there during the [setup script](/getting-started/). The desktop config lives in the private overlay and expects my machines, so the cloud build keeps its own.
+
+| Piece | Source | Why |
+| --- | --- | --- |
+| `~/.claude/settings.json` | Link to `cloud/claude/settings.json` | A few permission rules and the session start hook, without the desktop hooks that need stowed OpenCode config and [Plannotator](https://github.com/backnotprop/plannotator) |
+| `~/.claude/CLAUDE.md` | `cloud/claude/CLAUDE.md`, then the private global `AGENTS.md` | Notes on what the VM has and lacks, ahead of my usual instructions; the notes win where the two disagree |
+| `~/.claude/skills/` | Links into `~/.agents/skills/` | The shared [skills](/agents/skills/), minus `pkexec-root`, which needs PolicyKit |
+| `~/.config/dotfiles-private` | Clone, or link to the attached checkout | Private config `dot` reads, such as the tracked repositories |
+
+## Session start
+
+The setup script runs before a session has GitHub access, so it can't clone the private overlay unless the session attaches it, and the snapshot it leaves can be days old. The settings run `dot cloud session-start` as a [SessionStart hook](https://code.claude.com/docs/en/hooks#sessionstart) once the session has access:
+
+| Step | Why |
+| --- | --- |
+| Reset `~/.config/dotfiles` to the latest `distro/cloud` | Picks up branch changes without rebuilding the environment; `dot` rebuilds in the background when commits arrived |
+| Clone the private overlay | Falls back to a link to the attached checkout |
+| Rewrite `CLAUDE.md` | So reloads such as compaction see the global instructions |
+| Pass the global instructions as additional context | Claude Code reads `CLAUDE.md` before hooks run, so a session that started without them gets them this way |
+
+The hook prints nothing else and never fails, so a problem can't stop a session starting. Outside a cloud session it does nothing.

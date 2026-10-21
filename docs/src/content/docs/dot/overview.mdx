@@ -1,67 +1,29 @@
 ---
 title: The dot Command
-description: The CLI for setup, sync, and git helpers across managed repos.
+description: The dotfiles CLI, and the commands that are useful in a cloud session.
 sidebar:
   label: Overview
 ---
 
-`dot` is the compiled CLI for these dotfiles ([Bun](https://bun.sh) + [Effect](https://effect.website) v4), stowed to `~/.local/bin/dot`. It owns setup, sync, stow, health checks, server helpers, and the git tooling used day to day. Related commands are grouped under a shared first word, such as `dot git commit` and `dot agent lint`.
+`dot` is the compiled CLI for these dotfiles ([Bun](https://bun.sh) + [Effect](https://effect.website) v4). The setup script builds it from this branch and links it to `~/.local/bin/dot`. It carries the server's commands, but most of them set up or maintain a real machine, so only a few are useful in a session.
 
-:::note[On the server]
-The desktop commands are removed on this branch. See the [server overview](/server/overview/) for what changed.
-:::
-
-## Setup and maintenance
+## In a session
 
 | Command | Purpose |
 | --- | --- |
-| `dot init` | First-use setup on a fresh machine |
-| `dot up` | Check everything, pick what to update, then run it: dotfiles, mise tools, gh extensions, apt and release packages |
-| `dot deps` | Native grouped dependency discovery, validation, and publish |
-| `dot updates` | Watched package and Dotfiles status for the bar |
-| `dot services` | Monitor registered user services and timers |
-| `dot stow` | Stow only (public and/or private) |
-| `dot doctor` | Parallel health checks and a saved report |
-| `dot snapshot` | CPU and memory snapshot with a filtered process tree |
-| `dot firewall` | Reconcile managed ufw rules |
-| `dot clean` | Remove stowed links / reverse setup side effects |
-| `dot completions` | Regenerate shell completions |
-
-## Git and repos
-
-| Command | Purpose |
-| --- | --- |
-| `dot git diff` | Dirty / ahead / behind state across managed repos |
-| `dot git commit` | Guarded commits instead of raw `git commit` |
-| `dot git notifications` | GitHub notification inbox for the shell and CLI |
-| `dot git web` | Open GitHub URLs in the configured browser |
-| `dot git issues` | Opt-in open issue tracking for the Git panel |
-| `dot git log` | Cached recent commits across managed repos for the Git panel |
-| `dot pr` | Watch PR checks and reviews, print a PR's reviews, list reviewable PRs and recent activity, or track open PRs for the Git panel |
-| `dot repo` | List or fuzzy-search tracked repos, or induct a local repo after a preview |
-
-Managed-repo lists, browser choices, and notification rules live in the private `dot-git.yml` overlay. Branch and stack context for agents come from the separate [context](https://context.timmo.dev) tool.
-
-## Server
-
-| Command | Purpose |
-| --- | --- |
-| `dot server serve` | Serve the server dashboard |
-| `dot herdr` | Shared Herdr server, repo workspaces, and attached context |
-| `dot tunnel` | Run shared Cloudflare tunnels on one machine at a time |
-| `dot fans` | Control chassis fans from a Home Assistant temperature |
-
-## Agents and tooling
-
-| Command | Purpose |
-| --- | --- |
-| `dot agent sync` | Mirror global AGENTS into agent harness instruction files |
-| `dot mcp sync` | Regenerate MCP configs from private `mcp.yml` |
-| `dot run` | Run a command with a deadline and process-group cleanup |
-| `dot skills` | Check and apply skill updates from the skills repo |
-| `dot notes capture sync` | Sync notes-capture repository wiring |
+| `dot cloud setup` | Link the Claude Code settings, write the instructions and link the skills; the setup script runs it |
+| `dot cloud session-start` | The session start hook; see [Claude Code](/claude/overview/#session-start) |
+| `dot repo` | List or fuzzy-search the tracked repositories |
+| `dot git diff` | Dirty, ahead and behind state across the repositories on disk |
+| `dot skills` | Validate, import and update skills, run from a skills checkout |
 | `dot agent detect` | Detect whether the current process is under an AI agent |
 | `dot agent lint` | Run a repository's configured lint commands on changed files |
-| `dot agent oxlint` | Optional advisory Oxlint pass on changed lines |
+| `dot run` | Run a command with a deadline and process-group cleanup |
+
+Commands that read GitHub through `gh` GraphQL, such as parts of `dot pr`, fail in a session, because the session's GitHub proxy blocks GraphQL.
+
+## Machine commands
+
+`dot init`, `update`, `stow`, `doctor`, `services`, `herdr` and the other setup, service and desktop helpers expect a machine with stowed config and user services. Leave them for the [server](https://ubuntu-server.dotfiles.timmo.dev/dot/overview/) and [desktop](https://dotfiles.timmo.dev/dot/overview/) builds.
 
 Full flags and subcommands: [Command Reference](/dot/commands/) (generated from `dot/src/cli/spec.ts`), `dot --help`, or `dot help <command>`.
