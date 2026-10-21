@@ -16,8 +16,10 @@ no_self_update = true
 # - github_cli_extensions: run natively by dot update system
 # - mise: handled by dot update
 # - system: apt runs natively in dot update system
+# - containers: compose-up runs natively in dot update system
 disable = [
   "system",
+  "containers",
   "github_cli_extensions",
   "mise",
   "cursor",
