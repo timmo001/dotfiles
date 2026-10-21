@@ -83,6 +83,7 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
                 "--ignore=package\\.json",
                 "--ignore=bun\\.lock",
                 "--ignore=\\.gitignore",
+                "--ignore=omarchy$",
               ]),
         );
       }

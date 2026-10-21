@@ -46,6 +46,7 @@ export const checkStow = Effect.gen(function* () {
             "--ignore=package\\.json",
             "--ignore=bun\\.lock",
             "--ignore=\\.gitignore",
+            "--ignore='omarchy$'",
           );
         }
 
