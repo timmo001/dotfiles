@@ -111,6 +111,9 @@ jobs:
         run: |
           git push --force-with-lease="$SERVER:${{ steps.rebase.outputs.server_head }}" origin "HEAD:$SERVER"
           gh workflow run distro-diff.yml --ref "$SERVER"
+          # GITHUB_TOKEN pushes don't start workflows, so start the cloud
+          # branch's rebase onto the server branch from here.
+          gh workflow run cloud-rebase.yml --ref "$SERVER"
           number=$(gh issue list --state open --search "in:title \"$ISSUE_TITLE\"" --json number --jq '.[0].number')
           if [ -n "$number" ]; then
             gh issue close "$number" --reason completed --comment "Rebased cleanly onto \`$(git rev-parse --short "origin/$BASE")\` and pushed."
