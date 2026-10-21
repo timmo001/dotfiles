@@ -23,7 +23,6 @@ import { withStepTimeout, withTimeoutOption } from "./lib/workflowStep.js";
 import { DotDiff } from "./git/services/DotDiff.js";
 import { GitHub } from "./git/services/GitHub.js";
 import { GitNotifications } from "./git/services/GitNotifications.js";
-import { GitReleases } from "./git/services/GitReleases.js";
 import { GitPullRequests } from "./git/services/GitPullRequests.js";
 import { GitIssues } from "./git/services/GitIssues.js";
 import { GitStaging } from "./git/services/GitStaging.js";
@@ -186,7 +185,6 @@ await prepareInit();
 const CliLayers = Launcher.layer.pipe(
   Layer.provideMerge(DotDiff.layer),
   Layer.provideMerge(GitNotifications.layer),
-  Layer.provideMerge(GitReleases.layer),
   Layer.provideMerge(GitPullRequests.layer),
   Layer.provideMerge(GitIssues.layer),
   Layer.provideMerge(GitStaging.layer),
