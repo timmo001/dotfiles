@@ -1,9 +1,0 @@
----
-unit: upkeep-worker.service
-label: Upkeep worker
-restartLimit:
-  count: 3
-  within: 1 hour
-repository: timmo001/upkeep
-status:
-  file: $XDG_STATE_HOME/upkeep/worker-status.json

@@ -1,6 +1,0 @@
----
-unit: herdr.service
-label: Herdr
-restartLimit:
-  count: 3
-  within: 1 hour
