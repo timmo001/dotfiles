@@ -1,4 +1,4 @@
-import { Console, Effect, FileSystem, Schema } from "effect";
+import { Cause, Effect, FileSystem, Schema } from "effect";
 import { join } from "path";
 import { ENV, envString, setEnv, unsetEnv } from "../lib/env.js";
 import { HOME_DIR } from "../lib/paths.js";
@@ -47,7 +47,7 @@ const sourcedEnvironment = Effect.fn("Compose.sourcedEnvironment")(function* (
   const executor = yield* CommandExecutor;
 
   const output = yield* executor
-    .run("bash", ["-c", '. "$1" && env -0', "dot-compose", file])
+    .run("bash", ["-c", '. "$1"; env -0', "dot-compose", file])
     .pipe(
       Effect.mapError(
         (error) =>
@@ -96,25 +96,65 @@ const teeChildOutput = (logFile: string) =>
 /**
  * Pull and start each compose file, then prune unused Docker data. Runs every
  * `*.yml` in the configured directory, or only the given files. A failed file
- * does not stop the rest. Its messages and Docker's output also go to the
+ * does not stop the rest. Each step, any error and Docker's output go to the
  * run's dot log. Returns the exit code of the first failure, or 0.
  */
 export const composeUp = Effect.fn("Compose.up")(function* (
   files: readonly string[],
 ) {
-  const config = yield* loadConfig;
-  const fs = yield* FileSystem.FileSystem;
-  const executor = yield* CommandExecutor;
   const output = yield* OutputLog;
-  const directory = expandHome(config.directory);
 
   yield* output.section("Compose Up");
   yield* teeChildOutput(output.logFile);
 
-  const env =
-    config.envFile === undefined
-      ? {}
-      : yield* sourcedEnvironment(expandHome(config.envFile));
+  const exitCode = yield* composeSteps(files).pipe(
+    Effect.catchCause((cause) => {
+      const error = Cause.squash(cause);
+
+      return output
+        .error(
+          error instanceof ComposeError ? error.message : Cause.pretty(cause),
+        )
+        .pipe(Effect.as(1));
+    }),
+  );
+
+  if (exitCode === 0) yield* output.success("Compose up succeeded");
+  else yield* output.error(`Compose up failed (exit ${exitCode})`);
+
+  yield* output.info(`Log: ${output.logFile}`);
+
+  return exitCode;
+}, Effect.scoped);
+
+const composeSteps = Effect.fn("Compose.steps")(function* (
+  files: readonly string[],
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const executor = yield* CommandExecutor;
+  const output = yield* OutputLog;
+
+  yield* output.info(`Config: ${COMPOSE_CONFIG}`);
+
+  const config = yield* loadConfig;
+  const directory = expandHome(config.directory);
+  const hours = config.pruneAfterHours ?? 30 * 24;
+
+  yield* output.info(`Directory: ${directory}`);
+  yield* output.info(`Prune after: ${hours}h`);
+
+  let env: Record<string, string> = {};
+
+  if (config.envFile === undefined) yield* output.info("Env file: none");
+  else {
+    const envFile = expandHome(config.envFile);
+
+    yield* output.info(`Loading env file ${envFile}`);
+    env = yield* sourcedEnvironment(envFile);
+    yield* output.success(
+      `Loaded env file (${Object.keys(env).length} variables)`,
+    );
+  }
 
   const targets =
     files.length > 0
@@ -124,61 +164,72 @@ export const composeUp = Effect.fn("Compose.up")(function* (
           .sort()
           .map((name) => join(directory, name));
 
+  yield* output.info(
+    `Found ${targets.length} compose file${targets.length === 1 ? "" : "s"}`,
+  );
+
+  for (const file of targets) yield* output.info(`  ${file}`);
+
+  const failures: string[] = [];
   let failed = 0;
 
-  for (const file of targets) {
-    yield* output.info(file);
+  for (const [index, file] of targets.entries()) {
+    const label = `[${index + 1}/${targets.length}] ${file}`;
 
-    const pulled = yield* executor.inherit(
-      "docker",
-      ["compose", "--file", file, "pull"],
-      { env },
-    );
+    yield* output.section(label);
 
-    const exitCode =
-      pulled === 0
-        ? yield* executor.inherit(
-            "docker",
-            ["compose", "--file", file, "up", "-d", "--remove-orphans"],
-            { env },
-          )
-        : pulled;
+    let exitCode = 0;
 
-    if (exitCode !== 0) {
-      yield* output.error(`${file} failed (exit ${exitCode})`);
+    for (const [step, args] of [
+      ["Pull", ["compose", "--file", file, "pull"]],
+      ["Up", ["compose", "--file", file, "up", "-d", "--remove-orphans"]],
+    ] as const) {
+      yield* output.info(`${step}: docker ${args.join(" ")}`);
+      exitCode = yield* executor.inherit("docker", args, { env });
+
+      if (exitCode !== 0) {
+        yield* output.error(`${step} failed (exit ${exitCode})`);
+        break;
+      }
+
+      yield* output.success(`${step} done`);
+    }
+
+    if (exitCode === 0) yield* output.success(`${label} is up`);
+    else {
+      yield* output.error(`${label} failed (exit ${exitCode})`);
+      failures.push(file);
       failed ||= exitCode;
     }
   }
 
-  const hours = config.pruneAfterHours ?? 30 * 24;
+  yield* output.section("Docker Prune");
 
-  yield* output.info(`Pruning unused Docker data over ${hours}h old`);
+  const pruneArgs = ["system", "prune", "-af", "--filter", `until=${hours}h`];
 
-  const pruned = yield* executor.inherit(
-    "docker",
-    ["system", "prune", "-af", "--filter", `until=${hours}h`],
-    { env },
+  yield* output.info(`docker ${pruneArgs.join(" ")}`);
+
+  const pruned = yield* executor.inherit("docker", pruneArgs, { env });
+
+  if (pruned === 0) yield* output.success("Prune done");
+  else yield* output.error(`Prune failed (exit ${pruned})`);
+
+  yield* output.section("Compose Summary");
+  yield* output.info(
+    `${targets.length - failures.length} of ${targets.length} compose files up`,
   );
 
-  yield* output.info(`Log: ${output.logFile}`);
+  for (const file of failures) yield* output.error(`Failed: ${file}`);
 
   return failed || pruned;
-}, Effect.scoped);
+});
 
-/** Run {@link composeUp} as a command, reporting failures and the exit code. */
+/** Run {@link composeUp} as a command, setting the exit code on failure. */
 export const composeUpCommand = (files: readonly string[]) =>
   composeUp(files).pipe(
-    Effect.catchTag("ComposeError", (error) =>
-      Console.error(`[ERROR] ${error.message}`).pipe(Effect.as(1)),
-    ),
-    Effect.orDie,
     Effect.flatMap((exitCode) =>
       Effect.sync(() => {
         if (exitCode !== 0) process.exitCode = exitCode;
-
-        console.log(
-          `[RESULT] Compose up ${exitCode === 0 ? "succeeded" : `failed (exit ${exitCode})`}`,
-        );
       }),
     ),
   );
