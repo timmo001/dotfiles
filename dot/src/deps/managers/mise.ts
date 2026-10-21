@@ -55,7 +55,10 @@ const upstreams = {
   ollama: "ollama/ollama",
   actionlint: "rhysd/actionlint",
   yamllint: "adrienverge/yamllint",
+  "http:opencode-desktop": "anomalyco/opencode",
 };
+
+const tagged = ["go", "python", "http:opencode-desktop"];
 
 /** Read backend-specific mise pins without executing mise or repository hooks. */
 export const extractMise = Effect.fn("Dependencies.extractMise")(function* (
@@ -133,7 +136,7 @@ export const extractMise = Effect.fn("Dependencies.extractMise")(function* (
           : crate
             ? "crate"
             : repository
-              ? archive || ["go", "python"].includes(name)
+              ? archive || tagged.includes(name)
                 ? "github-tags"
                 : "github-releases"
               : name === "android-sdk"

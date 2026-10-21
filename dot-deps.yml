@@ -14125,6 +14125,15 @@ policy:
             - "mise/.config/mise/config.toml"
         set:
           allowedVersions: "<3.15"
+      - description:
+          - "Update OpenCode Desktop with the other OpenCode 2 packages."
+        match:
+          dependencies:
+            - "http:opencode-desktop"
+        set:
+          minimumReleaseAge: "2 hours"
+          groupName: "OpenCode 2"
+          groupSlug: "opencode-2"
     regexManagers:
       - files:
           - "/^\\.github/actions/setup-mise/action\\.yml$/"
@@ -14708,7 +14717,7 @@ import:
   leaveToRenovate:
     - "arch/quickshell"
   resolverVersion: "44.126.1"
-  overrideHash: "68b78d2b973522fefa419f8c96804fb6e162f893277a7a5b88b6282fe6bab81c"
+  overrideHash: "6d97e2f628ae9302f823b5a7c2df1974edf10f361b600899ed4a00c5bc3c6c99"
   baseDiagnostics:
     - path: "presets.description"
       disposition: "ignored"
