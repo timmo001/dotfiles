@@ -374,7 +374,8 @@ export function gitRefreshRemoteHead(
 const PULL_FETCH_TIMEOUT = Duration.seconds(20);
 
 /**
- * Fast-forward a repository without stashing or rebasing local work. Returns
+ * Fast-forward a repository without stashing or rebasing local work, or follow
+ * a force-pushed upstream when HEAD holds no commits of its own. Returns
  * true only when the pull succeeds. The network fetch runs first through
  * {@link gitRemoteOutput}, so it is prompt-free and retried after transient
  * connection failures; the fast-forward and submodule checkout then run
@@ -417,9 +418,14 @@ export function gitPullFastForward(
       return false;
     }
 
+    // When the upstream branch was rebased and force-pushed, a fast-forward is
+    // impossible. If HEAD is only an earlier upstream tip (no local commits of
+    // its own, per the upstream reflog), move to the new upstream with
+    // reset --keep, which keeps uncommitted work and refuses on overlap.
+    // Genuine local commits are never rebased or merged.
     const exitCode = yield* launcher
       .stream(
-        "git merge --quiet --ff-only --no-autostash --no-edit '@{u}' && git submodule --quiet sync --recursive && GIT_TERMINAL_PROMPT=0 git submodule --quiet update --init --recursive --checkout --jobs=8",
+        "{ git merge --quiet --ff-only --no-autostash --no-edit '@{u}' || { test \"$(git merge-base --fork-point '@{u}' HEAD)\" = \"$(git rev-parse HEAD)\" && echo 'Upstream was rewritten; moving to it' >&2 && git reset --quiet --keep '@{u}'; }; } && git submodule --quiet sync --recursive && GIT_TERMINAL_PROMPT=0 git submodule --quiet update --init --recursive --checkout --jobs=8",
         { cwd: repoPath },
       )
       .pipe(Effect.orElseSucceed(() => 1));
