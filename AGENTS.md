@@ -37,6 +37,8 @@ The branch rebases onto `origin/distro/arch-omarchy-quattro`. Look ahead before 
 6. After the rebase, delete unwanted files the desktop added without a conflict (the `A` lines from step 1), since they arrive silently.
 7. Run the checks under Validation, then push with `--force-with-lease`. If `docs/src/content/docs/server/changes.md` conflicts, take either side: the Distro diff workflow regenerates and commits it after the push.
 
+`distro/cloud` builds on this branch. Every push here starts the Cloud rebase workflow, which rebases it onto the result or opens its own issue; that branch's `AGENTS.md` and `cloud-rebase` skill own it.
+
 ## Scope
 
 - This repo is the public dotfiles source at `~/.config/dotfiles`.
