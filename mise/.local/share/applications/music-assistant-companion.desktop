@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Name=Music Assistant
+Comment=Music Assistant Companion App
+TryExec=music-assistant-companion
+Exec=music-assistant-companion
+Icon=music-assistant-companion
+Type=Application
+Terminal=false
+StartupNotify=true
+StartupWMClass=music-assistant-companion
+Categories=AudioVideo;Audio;
