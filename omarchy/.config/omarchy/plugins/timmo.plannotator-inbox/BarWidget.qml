@@ -34,8 +34,11 @@ BarWidget {
   readonly property color warningColor: "#e5c07b"
   readonly property color mutedColor: "#9b9b9b"
   readonly property bool ready: !!monitor && monitor.loaded
-  readonly property bool shown: !ready || !monitor.installed || !monitor.running
-    || showWhenEmpty || monitor.attentionCount > 0 || opened
+  readonly property bool hideWhenQuiet: setting("hideWhenQuiet", false)
+  property bool quiet: false
+  readonly property bool shown: (!ready || !monitor.installed || !monitor.running
+    || showWhenEmpty || monitor.attentionCount > 0 || opened)
+    && !(hideWhenQuiet && quiet && !opened)
   readonly property color displayColor: {
     if (!ready || !monitor.installed || !monitor.running || monitor.errorText !== "") return mutedColor
     if (monitor.stoppedCount > 0) return bar ? bar.urgent : Commons.Color.urgent
@@ -127,6 +130,17 @@ BarWidget {
   onSettingsChanged: { injectPanel(); injectSettings() }
   onMonitorChanged: { injectPanel(); injectSettings() }
   onActiveInstanceChanged: injectSettings()
+
+  FileView {
+    path: root.hideWhenQuiet ? Quickshell.env("XDG_RUNTIME_DIR") + "/dot-herdr-context.json" : ""
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: {
+      try { root.quiet = JSON.parse(text()).quiet === true } catch (error) { root.quiet = false }
+    }
+    onLoadFailed: root.quiet = false
+  }
 
   Loader {
     id: panelLoader

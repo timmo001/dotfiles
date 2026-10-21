@@ -7,6 +7,7 @@ Item {
 
   property var shell: null
   property var herdrContext: null
+  property bool quiet: false
   property bool contextRefreshing: false
   signal contextUpdating()
   signal contextUpdated()
@@ -932,11 +933,13 @@ Item {
     onLoaded: {
       var value = null
       try { value = JSON.parse(text()) } catch (error) {}
+      root.quiet = !!value && value.quiet === true
       root.applyHerdrContext(value)
       root.contextRefreshing = false
       contextRefreshTimeout.stop()
     }
     onLoadFailed: {
+      root.quiet = false
       root.applyHerdrContext(null)
       root.contextRefreshing = false
       contextRefreshTimeout.stop()

@@ -151,8 +151,11 @@ BarWidget {
     }
   }
 
-  visible: activeInstance
-  implicitWidth: activeInstance ? button.implicitWidth : 0
+  readonly property bool hideWhenQuiet: setting("hideWhenQuiet", false)
+  readonly property bool shown: !(hideWhenQuiet && git && git.quiet && !opened)
+
+  visible: activeInstance && shown
+  implicitWidth: activeInstance && shown ? button.implicitWidth : 0
   implicitHeight: button.implicitHeight
 
   onBarChanged: injectPanel()

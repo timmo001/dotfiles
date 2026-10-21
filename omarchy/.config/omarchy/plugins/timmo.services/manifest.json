@@ -22,7 +22,8 @@
     "defaultSection": "center",
     "defaults": {
       "primaryOnly": false,
-      "primaryOutput": ""
+      "primaryOutput": "",
+      "hideWhenQuiet": false
     },
     "schema": [
       {
@@ -37,6 +38,13 @@
         "label": "Primary output",
         "defaultValue": "",
         "description": "Optional output name used when primary output only is enabled."
+      },
+      {
+        "key": "hideWhenQuiet",
+        "type": "boolean",
+        "label": "Hide overnight",
+        "defaultValue": false,
+        "description": "Hide during the workspace context's quiet hours while no Herdr terminal is attached."
       }
     ]
   }

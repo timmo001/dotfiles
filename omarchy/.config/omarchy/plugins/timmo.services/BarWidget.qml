@@ -104,13 +104,28 @@ BarWidget {
     panel.service = root.monitor
   }
 
-  visible: activeInstance
-  implicitWidth: activeInstance ? button.implicitWidth : 0
+  readonly property bool hideWhenQuiet: setting("hideWhenQuiet", false)
+  property bool quiet: false
+  readonly property bool shown: !(hideWhenQuiet && quiet && !opened)
+
+  visible: activeInstance && shown
+  implicitWidth: activeInstance && shown ? button.implicitWidth : 0
   implicitHeight: button.implicitHeight
 
   onBarChanged: injectPanel()
   onSettingsChanged: injectPanel()
   onMonitorChanged: injectPanel()
+
+  FileView {
+    path: root.hideWhenQuiet ? Quickshell.env("XDG_RUNTIME_DIR") + "/dot-herdr-context.json" : ""
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: {
+      try { root.quiet = JSON.parse(text()).quiet === true } catch (error) { root.quiet = false }
+    }
+    onLoadFailed: root.quiet = false
+  }
 
   Loader {
     id: panelLoader

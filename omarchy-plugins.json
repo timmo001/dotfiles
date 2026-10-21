@@ -36,7 +36,11 @@
     {
       "id": "timmo.git",
       "placement": { "section": "center", "after": "timmo.upnext" },
-      "settings": { "revealOnHover": true, "primaryOnly": true },
+      "settings": {
+        "revealOnHover": true,
+        "primaryOnly": true,
+        "hideWhenQuiet": true
+      },
       "hosts": {
         "desktop": { "primaryOutput": "HDMI-A-2" },
         "laptop": { "primaryOutput": "eDP-1" }
@@ -47,6 +51,7 @@
       "placement": { "section": "center", "before": "omarchy.system-update" },
       "settings": {
         "primaryOnly": true,
+        "hideWhenQuiet": true,
         "run": "dot updates status",
         "interval": 60000,
         "refreshTarget": "timmo.updates",
@@ -102,7 +107,7 @@
     {
       "id": "timmo.services",
       "placement": { "section": "center", "after": "timmo.notes" },
-      "settings": { "primaryOnly": true },
+      "settings": { "primaryOnly": true, "hideWhenQuiet": true },
       "hosts": {
         "desktop": { "primaryOutput": "HDMI-A-2" },
         "laptop": { "primaryOutput": "eDP-1" }
@@ -158,7 +163,11 @@
     {
       "id": "timmo.plannotator-inbox",
       "placement": { "section": "center", "after": "timmo.git" },
-      "settings": { "primaryOnly": true, "showWhenEmpty": false },
+      "settings": {
+        "primaryOnly": true,
+        "showWhenEmpty": false,
+        "hideWhenQuiet": true
+      },
       "hosts": {
         "desktop": { "primaryOutput": "HDMI-A-2" },
         "laptop": { "primaryOutput": "eDP-1" }

@@ -25,6 +25,7 @@
 //   iconScale      Scale the glyph for stock-sized icon widgets
 //   primaryOnly    Only run and render on the preferred output
 //   primaryOutput  Preferred output name, falling back to the first screen
+//   hideWhenQuiet  Hide while timmo.workspace-context reports quiet hours
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -54,6 +55,8 @@ BarWidget {
   readonly property bool stockIconSize: setting("stockIconSize", false)
   readonly property real iconScale: setting("iconScale", 1)
   readonly property bool primaryOnly: setting("primaryOnly", false)
+  readonly property bool hideWhenQuiet: setting("hideWhenQuiet", false)
+  property bool quiet: false
   readonly property string preferredOutput: setting("primaryOutput", "")
   readonly property string currentOutput: {
     var window = root.QsWindow ? root.QsWindow.window : null
@@ -104,9 +107,10 @@ BarWidget {
   // is not hidden by class, or a class-hidden value revealed by hovering the
   // center cluster. Drives `visible`/`implicitWidth` so hidden modules remain
   // collapsed while refreshing instead of briefly showing their placeholder.
-  readonly property bool shown: (!root.hiddenByClass
+  readonly property bool shown: ((!root.hiddenByClass
     && ((root.loading && root.loadingText !== "") || root.displayText !== ""))
-    || root.hoverRevealed
+    || root.hoverRevealed)
+    && !(root.hideWhenQuiet && root.quiet)
 
   function withoutZeroValue(text) {
     return text.replace(/(?:^|\s+)[+-]?0+(?:\.0+)?$/, "").trim()
@@ -187,6 +191,17 @@ BarWidget {
   visible: root.activeInstance && root.shown
   implicitWidth: root.activeInstance && root.shown ? button.implicitWidth : 0
   implicitHeight: button.implicitHeight
+
+  FileView {
+    path: root.hideWhenQuiet ? Quickshell.env("XDG_RUNTIME_DIR") + "/dot-herdr-context.json" : ""
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: {
+      try { root.quiet = JSON.parse(text()).quiet === true } catch (error) { root.quiet = false }
+    }
+    onLoadFailed: root.quiet = false
+  }
 
   Process {
     id: proc

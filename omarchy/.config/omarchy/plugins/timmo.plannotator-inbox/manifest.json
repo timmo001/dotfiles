@@ -23,7 +23,8 @@
       "url": "",
       "interval": 60000,
       "live": true,
-      "showWhenEmpty": true
+      "showWhenEmpty": true,
+      "hideWhenQuiet": false
     },
     "schema": [
       {
@@ -66,6 +67,13 @@
         "label": "Show when nothing waits",
         "defaultValue": true,
         "description": "Keep the icon in the bar while no thread waits on you."
+      },
+      {
+        "key": "hideWhenQuiet",
+        "type": "boolean",
+        "label": "Hide overnight",
+        "defaultValue": false,
+        "description": "Hide during the workspace context's quiet hours while no Herdr terminal is attached."
       }
     ]
   }
