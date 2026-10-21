@@ -1,22 +1,20 @@
 ---
 title: Configuration
-description: Private overlay, packages, and tracked app config.
+description: What the public branch and the private overlay each provide in a cloud session.
 ---
 
-Behaviour prefers CLI flags. Environment variables cover process context and secrets. Machine-specific and private data stay in `~/.config/dotfiles-private`.
+Behaviour prefers CLI flags. Environment variables cover process context and secrets. Private data stays in `~/.config/dotfiles-private`, which a session clones or links once it can reach it.
 
 | Piece | Why |
 | --- | --- |
-| Private overlay | Host-only config, secrets, package lists, browser checks, `dot-git.yml` |
-| Public packages | apt packages listed in `.dot-public-packages`; command-line tools come from mise |
-| Stow packages | App config in this repo; see [Stow packages](/stow/) and the Server / Agents pages |
-| Env vars | `DOT_*` and `DOTFILES_*` influence `dot` and session tooling. Host-specific private packages (`<name>--<host>`) follow the machine's hostname |
+| `cloud/` | The setup script and the Claude Code settings and notes; see [Claude Code](/claude/overview/) |
+| `.dot-skills.yml` | Shared skills not linked in a session (only `pkexec-root`) |
+| `.dot-private.yml` | Which parts of the private overlay apply; this build drops the server's repository filter so every tracked repository can be looked up |
+| Private overlay | Global agent instructions and `dot-git.yml` |
 
-| Private file (typical) | Role |
+| Private file | Role in a session |
 | --- | --- |
-| `dot-git.yml` | Managed repos, shortcuts, notifications, activity, PR tracking, and OpenCode MCP opt-ins |
-| Package manifests | Private install lists |
-| Browser checks | Machine-specific doctor expectations |
-| MCP spec (`mcp.yml`) | Source for `dot mcp sync` |
+| `agents/.config/opencode/AGENTS.md` | Global agent instructions, added to `~/.claude/CLAUDE.md` |
+| `dot-git.yml` | Tracked repositories for `dot repo`, plus PR and issue tracking settings |
 
-Prefer reading the stowed source and private YAML over expanding this page further. Flags and env details live in `dot --help` and code.
+Their paths follow my machines' layout, so a repository attached to a session is under `/home/user` instead, and the rest aren't cloned. Flags and env details live in `dot --help` and code.

@@ -12,7 +12,7 @@ Reusable agent workflows live in [timmo001/skills](https://github.com/timmo001/s
 | `dotfiles-skills/` | Global skills tied to dotfiles paths or private overlays |
 | `dot skills` | Validate, import, and update skills from the standalone repo |
 
-Edit reusable skills in `~/repos/skills` and push to `main`; the next `dot update` picks them up. Do not edit the managed checkout or live `~/.agents/skills` directly.
+Edit reusable skills in the skills repo and push to `main`; the next cloud environment build, or `dot update` on a machine, picks them up. In a session, `dot cloud setup` also links them into `~/.claude/skills/`. Do not edit the managed checkout or live `~/.agents/skills` directly.
 
 ## Local skills
 
@@ -21,5 +21,7 @@ Repo-only skills under `.agents/skills/` (registered via `skills.paths` in `open
 | Skill | Role |
 | --- | --- |
 | `dotfiles-docs` | Author and maintain the Blume docs site (`docs/`, dotfiles.timmo.dev) |
+| `cloud-rebase` | Finish rebasing `distro/cloud` onto the server branch when the Cloud rebase workflow can't |
+| `server-rebase` | Inherited from the server branch, for rebasing it onto the desktop |
 
 Harness overview: [Agents](/agents/overview/). OpenCode layers and catalogues: [OpenCode](/agents/opencode/overview/).
