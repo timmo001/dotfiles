@@ -156,7 +156,7 @@ format = "raw"
 bin = "opencode-desktop"
 
 [tools."github:yt-dlp/yt-dlp"]
-version = "2026.08.19"
+version = "2026.10.21"
 asset_pattern = "yt-dlp_linux"
 format = "raw"
 bin = "yt-dlp"
