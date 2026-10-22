@@ -534,14 +534,31 @@ const httpForwardCommand = describe(
       target: Flag.String("target").pipe(
         Flag.withDescription("Origin to forward to, such as http://host:8123"),
       ),
+      corsOrigin: text(
+        "cors-origin",
+        "Origin the target allows, presented upstream for origins under --cors-suffix",
+      ),
+      corsSuffix: text(
+        "cors-suffix",
+        "Hostname suffix of HTTPS origins to present as --cors-origin",
+      ),
     },
-    httpForward,
+    ({ port, target, corsOrigin, corsSuffix }) =>
+      httpForward({
+        port,
+        target,
+        corsOrigin: optional(corsOrigin),
+        corsSuffix: optional(corsSuffix),
+      }),
   ),
   "Forward HTTP and websockets to another server without proxy headers",
-  ["dot http forward --port 8126 --target http://homeassistant.local:8123"],
+  [
+    "dot http forward --port 8126 --target http://homeassistant.local:8123",
+    "dot http forward --port 8126 --target http://homeassistant.local:8123 --cors-origin https://serve.ha-frontend.localhost --cors-suffix .ha-frontend.localhost",
+  ],
   {
     description:
-      "Listens on 127.0.0.1 and forwards HTTP requests and websockets to the target origin, dropping Host and X-Forwarded-* headers so a server that doesn't trust this machine as a proxy accepts them. Use it behind a local HTTPS proxy, such as a pitchfork daemon, to reach a plain HTTP server from an HTTPS page.",
+      "Listens on 127.0.0.1 and forwards HTTP requests and websockets to the target origin, dropping Host and X-Forwarded-* headers so a server that doesn't trust this machine as a proxy accepts them. Use it behind a local HTTPS proxy, such as a pitchfork daemon, to reach a plain HTTP server from an HTTPS page. With --cors-origin and --cors-suffix, requests from an HTTPS origin under the suffix reach the target as coming from --cors-origin, and the allowed origin in the response is set back to theirs, for targets whose CORS list only matches exact origins.",
   },
 );
 
@@ -3401,15 +3418,27 @@ const homeAssistantCoreCommand = describe(
               "latest",
               "Rebase dev onto upstream/dev and push it during setup",
             ),
+            fresh: bool(
+              "fresh",
+              "In a frontend worktree, throw its dev instance's config away and start again",
+            ),
+            onboarding: bool(
+              "onboarding",
+              "In a frontend worktree, leave its dev instance's onboarding for you to do",
+            ),
             background: homeAssistantBackground,
           },
           coreDev,
         ),
         "Run Core serving the local frontend build",
-        ["dot homeassistant core dev", "dot ha c dev --latest --background"],
+        [
+          "dot homeassistant core dev",
+          "dot ha c dev --latest --background",
+          "dot ha c dev --fresh",
+        ],
         {
           description:
-            "Runs setup, then starts the Core pitchfork daemon, which starts the frontend build it depends on. Stops the frontend serve daemon first after asking. Under an agent, it skips setup, Herdr and prompts, and only starts the daemon when nothing conflicts.",
+            "Runs setup, then starts the Core pitchfork daemon, which starts the frontend build it depends on. Stops the frontend serve daemon first after asking. Under an agent, it skips setup, Herdr and prompts, and only starts the daemon when nothing conflicts. In a linked frontend worktree, it starts a throwaway Core dev instance for that worktree instead, at https://dev.<worktree>.ha-frontend.localhost: Core from the Core checkout's virtual environment, serving the worktree's own watch build, with its config in <worktree>/.ha-dev/config copied from frontend.worktree.config, and onboarding done with the user dev and password dev. It runs in the background, and --latest is refused there.",
         },
       ),
       describe(
@@ -3485,7 +3514,7 @@ const homeAssistantFrontendCommand = describe(
         ],
         {
           description:
-            "Writes the Core URL for the serve daemon, starts the target's own daemon when it has one, then starts the serve daemon. Stops the frontend build daemon first after asking.",
+            "Writes the Core URL for the serve daemon, starts the target's own daemon when it has one, then starts the serve daemon. Stops the frontend build daemon first after asking. In a linked frontend worktree, it starts that worktree's own serve daemon at https://serve.<worktree>.ha-frontend.localhost.",
         },
       ),
       describe(
@@ -3592,7 +3621,7 @@ const homeAssistantCommand = describe(
   ["dot ha c dev", "dot ha f serve prod", "dot ha status"],
   {
     description:
-      "Runs the pitchfork daemons and frontend suites behind the Home Assistant dev setup, configured in $XDG_CONFIG_HOME/dot/homeassistant.yml. Interactive runs go through dot status run and, under Herdr, open in the repository's workspace. Under an agent, commands skip setup, Herdr and prompts: they reuse a running daemon and fail with a message instead of stopping a conflicting one.",
+      "Runs the pitchfork daemons and frontend suites behind the Home Assistant dev setup, configured in $XDG_CONFIG_HOME/dot/homeassistant.yml. Interactive runs go through dot status run and, under Herdr, open in the repository's workspace. Under an agent, commands skip setup, Herdr and prompts: they reuse a running daemon and fail with a message instead of stopping a conflicting one. Commands act on the frontend checkout they run in: in a linked worktree, core, build and serve are that worktree's own daemons, under the pitchfork namespace ha-frontend-<worktree> from a generated, untracked pitchfork.local.toml, and stop with no targets only stops those. status with no targets also lists every worktree's daemons.",
   },
 );
 

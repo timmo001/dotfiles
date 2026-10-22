@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import {
   HerdrSdk,
   herdrSdkLayerFromOptions,
@@ -22,8 +22,12 @@ export class HomeAssistantError extends Schema.TaggedError<HomeAssistantError>()
 
 const CONFIG_FILE = join(CONFIG_DIR, "dot", "homeassistant.yml");
 
-/** Arguments for the serve daemon, read by its pitchfork `run` script. */
-const SERVE_ARGS_FILE = join(STATE_DIR, "dot", "homeassistant", "serve.args");
+/**
+ * Arguments for a checkout's serve daemon, read by its pitchfork `run` script
+ * through `{{ namespace }}`.
+ */
+const serveArgsFile = (namespace: string) =>
+  join(STATE_DIR, "dot", "homeassistant", `${namespace}.serve.args`);
 
 const Repository = Schema.Struct({
   directory: Schema.String,
@@ -50,6 +54,8 @@ const HomeAssistantConfig = Schema.Struct({
       url: Schema.String,
       targets: Schema.Record(Schema.String, ServeTarget),
     }),
+    /** Template copied into a worktree's throwaway Core dev instance. */
+    worktree: Schema.optional(Schema.Struct({ config: Schema.String })),
   }),
 });
 
@@ -101,6 +107,9 @@ const loadConfig = Effect.gen(function* () {
     frontend: {
       ...config.frontend,
       directory: expandHomePath(config.frontend.directory),
+      ...(config.frontend.worktree && {
+        worktree: { config: expandHomePath(config.frontend.worktree.config) },
+      }),
     },
   } satisfies HomeAssistantConfig;
 }).pipe(Effect.withSpan("HomeAssistant.loadConfig"));
@@ -108,6 +117,280 @@ const loadConfig = Effect.gen(function* () {
 const fail = (message: string) => new HomeAssistantError({ message });
 
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+
+/** A linked frontend worktree with its own pitchfork namespace and daemons. */
+interface Worktree {
+  readonly directory: string;
+  /** The worktree's hostname label, from its directory name. */
+  readonly label: string;
+  /** `<main namespace>-<label>`, such as `ha-frontend-fix-logs`. */
+  readonly namespace: string;
+}
+
+// A worktree label takes precedence over a daemon name in pitchfork's
+// hostnames, so these would shadow the main checkout's daemons
+const RESERVED_LABELS = new Set(["build", "dev", "serve"]);
+
+// Kept out of `git status` in every worktree through the shared info/exclude
+const WORKTREE_IGNORES = ["/pitchfork.local.toml", "/.ha-dev/"];
+
+const namespaceOf = (daemon: string) => daemon.split("/")[0];
+
+/**
+ * Put a daemon and worktree label in front of a main checkout URL's project,
+ * matching pitchfork's `<daemon>.<worktree>.<project>.<tld>` hostnames.
+ */
+const worktreeUrl = (url: string, daemon: string, label: string) => {
+  const parsed = new URL(url);
+
+  parsed.hostname = [
+    daemon,
+    label,
+    ...parsed.hostname.split(".").slice(1),
+  ].join(".");
+
+  return parsed.origin;
+};
+
+const gitOut = Effect.fn("HomeAssistant.gitOut")(function* (
+  cwd: string,
+  args: readonly string[],
+) {
+  const executor = yield* CommandExecutor;
+
+  return yield* executor.run("git", args, { cwd }).pipe(
+    Effect.map((output) => output.trim()),
+    Effect.orElseSucceed(() => ""),
+  );
+});
+
+const gitCommonDir = (cwd: string) =>
+  gitOut(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+
+const worktreeOf = Effect.fn("HomeAssistant.worktreeOf")(function* (
+  config: HomeAssistantConfig,
+  directory: string,
+) {
+  const label = basename(directory)
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-|-$/g, "");
+
+  if (label === "" || RESERVED_LABELS.has(label))
+    return yield* fail(
+      `The worktree ${directory} would get the hostname label "${label}", which clashes with the main checkout's daemons. Use a different worktree directory name.`,
+    );
+
+  return {
+    directory,
+    label,
+    namespace: `${namespaceOf(config.frontend.serve.daemon)}-${label}`,
+  } satisfies Worktree;
+});
+
+/**
+ * The linked frontend worktree this command runs in, or `undefined` for the
+ * main checkout and anywhere outside the frontend repository.
+ */
+const resolveWorktree = Effect.fn("HomeAssistant.resolveWorktree")(function* (
+  config: HomeAssistantConfig,
+) {
+  const cwd = process.cwd();
+  const main = config.frontend.directory;
+  const top = yield* gitOut(cwd, ["rev-parse", "--show-toplevel"]);
+
+  if (top === "" || top === main) return undefined;
+
+  const [common, mainCommon] = yield* Effect.all([
+    gitCommonDir(cwd),
+    gitCommonDir(main),
+  ]);
+
+  if (common === "" || common !== mainCommon) return undefined;
+
+  return yield* worktreeOf(config, top);
+});
+
+/**
+ * The config as seen from a worktree: its own directory and daemons, with
+ * `core` as its throwaway Core dev instance.
+ */
+const worktreeConfig = (
+  config: HomeAssistantConfig,
+  worktree: Worktree,
+): HomeAssistantConfig => {
+  const { serve } = config.frontend;
+  const daemon = (name: string) => `${worktree.namespace}/${name}`;
+
+  return {
+    core: {
+      ...config.core,
+      daemon: daemon("dev"),
+      url: worktreeUrl(serve.url, "dev", worktree.label),
+    },
+    frontend: {
+      ...config.frontend,
+      directory: worktree.directory,
+      build: daemon("build"),
+      serve: {
+        ...serve,
+        daemon: daemon("serve"),
+        url: worktreeUrl(serve.url, "serve", worktree.label),
+      },
+    },
+  };
+};
+
+/**
+ * The config for the checkout this command runs in, with the main checkout's
+ * config as `base`.
+ */
+const loadCheckout = Effect.gen(function* () {
+  const base = yield* loadConfig;
+  const worktree = yield* resolveWorktree(base);
+
+  return {
+    base,
+    worktree,
+    config: worktree ? worktreeConfig(base, worktree) : base,
+  };
+}).pipe(Effect.withSpan("HomeAssistant.loadCheckout"));
+
+/** Mark a title with the worktree it runs in. */
+const titled = (title: string, worktree: Worktree | undefined) =>
+  worktree ? `${title} [${worktree.label}]` : title;
+
+const PitchforkProjects = Schema.fromJsonString(
+  Schema.Array(
+    Schema.Struct({
+      namespace: Schema.String,
+      config: Schema.Array(Schema.String),
+    }),
+  ),
+);
+
+/**
+ * Write the worktree's `pitchfork.local.toml`: its namespace, the main
+ * checkout's registered pitchfork config and `frontend-worktree.toml` beside
+ * it. Nothing is registered with pitchfork, so its global config is untouched.
+ */
+const ensureWorktreeConfig = Effect.fn("HomeAssistant.ensureWorktreeConfig")(
+  function* (base: HomeAssistantConfig, worktree: Worktree) {
+    const executor = yield* CommandExecutor;
+    const fs = yield* FileSystem.FileSystem;
+    const namespace = namespaceOf(base.frontend.serve.daemon);
+
+    const projects = yield* executor
+      .run("pitchfork", ["config", "list", "--json"])
+      .pipe(
+        Effect.flatMap(Schema.decodeEffect(PitchforkProjects)),
+        Effect.mapError(() =>
+          fail("Could not read pitchfork config list --json"),
+        ),
+      );
+
+    const main = projects.find((project) => project.namespace === namespace)
+      ?.config[0];
+
+    if (main === undefined)
+      return yield* fail(`No pitchfork config is registered for ${namespace}`);
+
+    const extra = join(dirname(main), "frontend-worktree.toml");
+
+    const read = (path: string) =>
+      fs
+        .readFileString(path)
+        .pipe(Effect.mapError(() => fail(`Could not read ${path}`)));
+
+    const content = [
+      `# Generated by dot homeassistant from ${main} and ${extra}. Changes are overwritten.`,
+      `namespace = "${worktree.namespace}"`,
+      "",
+      yield* read(main),
+      yield* read(extra),
+    ].join("\n");
+
+    const target = join(worktree.directory, "pitchfork.local.toml");
+
+    const current = yield* fs
+      .readFileString(target)
+      .pipe(Effect.orElseSucceed(() => ""));
+
+    if (current !== content) writeFileAtomic(target, content);
+
+    const exclude = join(
+      yield* gitCommonDir(worktree.directory),
+      "info",
+      "exclude",
+    );
+
+    const excluded = yield* fs
+      .readFileString(exclude)
+      .pipe(Effect.orElseSucceed(() => ""));
+
+    const lines = excluded.split("\n");
+    const missing = WORKTREE_IGNORES.filter((line) => !lines.includes(line));
+
+    if (missing.length > 0)
+      writeFileAtomic(
+        exclude,
+        `${excluded}${excluded === "" || excluded.endsWith("\n") ? "" : "\n"}${missing.join("\n")}\n`,
+        { createDirectory: true },
+      );
+  },
+);
+
+/** Install a new worktree's dependencies, which only touches node_modules. */
+const ensureBootstrapped = Effect.fn("HomeAssistant.ensureBootstrapped")(
+  function* (worktree: Worktree) {
+    const executor = yield* CommandExecutor;
+    const fs = yield* FileSystem.FileSystem;
+
+    if (yield* fs.exists(join(worktree.directory, "node_modules"))) return;
+
+    const exitCode = yield* executor.inherit("script/bootstrap", [], {
+      cwd: worktree.directory,
+    });
+
+    if (exitCode !== 0)
+      return yield* fail(`script/bootstrap exited with ${exitCode}`);
+  },
+);
+
+/** Linked frontend worktrees that `dot homeassistant` has set up. */
+const frontendWorktrees = Effect.fn("HomeAssistant.frontendWorktrees")(
+  function* (base: HomeAssistantConfig) {
+    const fs = yield* FileSystem.FileSystem;
+
+    const directories = (yield* gitOut(base.frontend.directory, [
+      "worktree",
+      "list",
+      "--porcelain",
+    ]))
+      .split("\n")
+      .filter((line) => line.startsWith("worktree "))
+      .map((line) => line.slice("worktree ".length))
+      .filter((directory) => directory !== base.frontend.directory);
+
+    const worktrees: Worktree[] = [];
+
+    for (const directory of directories) {
+      const configured = yield* fs
+        .exists(join(directory, "pitchfork.local.toml"))
+        .pipe(Effect.orElseSucceed(() => false));
+
+      if (!configured) continue;
+
+      const worktree = yield* worktreeOf(base, directory).pipe(
+        Effect.orElseSucceed(() => undefined),
+      );
+
+      if (worktree) worktrees.push(worktree);
+    }
+
+    return worktrees;
+  },
+);
 
 /**
  * Abort a rebase left in progress by a failed pull or rebase.
@@ -304,7 +587,7 @@ const ensureNoConflicts = Effect.fn("HomeAssistant.ensureNoConflicts")(
       if ((yield* daemonStatus(conflict)) !== "running") continue;
 
       return yield* fail(
-        `${conflict} is running and can't run alongside ${what}. Ask the user before stopping it with dot homeassistant stop.`,
+        `${conflict} is running and can't run alongside ${what}. ${isAgent() ? "Ask the user before stopping it with" : "Stop it first with"} dot homeassistant stop.`,
       );
     }
   },
@@ -317,7 +600,10 @@ const ensureNoConflicts = Effect.fn("HomeAssistant.ensureNoConflicts")(
 const ensureNoRunningSuites = Effect.fn("HomeAssistant.ensureNoRunningSuites")(
   function* (what: string, except?: FrontendSuite) {
     const executor = yield* CommandExecutor;
-    const { frontend } = yield* loadConfig;
+
+    const {
+      config: { frontend },
+    } = yield* loadCheckout;
 
     const running = yield* Effect.filter(
       SUITE_NAMES.filter((suite) => suite !== except),
@@ -344,7 +630,12 @@ const ensureNoRunningSuites = Effect.fn("HomeAssistant.ensureNoRunningSuites")(
 );
 
 const startDaemonAsAgent = Effect.fn("HomeAssistant.startDaemonAsAgent")(
-  function* (daemon: string, url: string, conflicts: readonly string[]) {
+  function* (
+    daemon: string,
+    url: string,
+    conflicts: readonly string[],
+    cwd?: string,
+  ) {
     const executor = yield* CommandExecutor;
 
     yield* ensureNoConflicts(conflicts, daemon);
@@ -352,7 +643,9 @@ const startDaemonAsAgent = Effect.fn("HomeAssistant.startDaemonAsAgent")(
     if ((yield* daemonStatus(daemon)) === "running")
       return yield* Console.log(`${daemon} is already running at ${url}`);
 
-    const exitCode = yield* executor.inherit("pitchfork", ["start", daemon]);
+    const exitCode = yield* executor.inherit("pitchfork", ["start", daemon], {
+      cwd,
+    });
 
     if (exitCode !== 0)
       return yield* fail(`pitchfork start ${daemon} exited with ${exitCode}`);
@@ -481,16 +774,217 @@ export const coreSetup = Effect.fn("HomeAssistant.coreSetup")(
 const backgroundSplit = (background: boolean, split?: Split) =>
   split ?? (background ? { direction: "right" as const } : undefined);
 
-/** Start Core serving the local frontend build. */
+const OnboardingSteps = Schema.Array(
+  Schema.Struct({ step: Schema.String, done: Schema.Boolean }),
+);
+
+const AuthCode = Schema.Struct({ auth_code: Schema.String });
+
+const AccessToken = Schema.Struct({ access_token: Schema.String });
+
+/**
+ * Onboard a worktree's dev instance through Core's onboarding API, as the
+ * frontend's onboarding does, with the user `dev` and password `dev`.
+ */
+const onboardDevInstance = Effect.fn("HomeAssistant.onboardDevInstance")(
+  function* (daemon: string) {
+    const executor = yield* CommandExecutor;
+
+    const status = yield* executor
+      .run("pitchfork", ["status", daemon])
+      .pipe(Effect.orElseSucceed(() => ""));
+
+    const port = /^Port:\s*(\d+)/m.exec(status)?.[1];
+
+    if (port === undefined)
+      return yield* fail(`Could not find ${daemon}'s port in pitchfork status`);
+
+    const origin = `http://127.0.0.1:${port}`;
+    const clientId = `${origin}/`;
+
+    const call = <S extends Schema.Top>(
+      schema: S,
+      path: string,
+      init?: RequestInit,
+    ) =>
+      Effect.tryPromise(async () => {
+        const response = await fetch(`${origin}${path}`, init);
+        const text = await response.text();
+
+        // Core removes the onboarding views once every step is done
+        if (path === "/api/onboarding" && response.status === 404) return [];
+
+        if (!response.ok) throw new Error(`${response.status} ${text}`);
+
+        const parsed: unknown = JSON.parse(text);
+
+        return parsed;
+      }).pipe(
+        Effect.flatMap(Schema.decodeUnknownEffect(schema)),
+        Effect.mapError((error) =>
+          fail(`Onboarding ${daemon} failed at ${path}: ${error.message}`),
+        ),
+      );
+
+    const post = (
+      body: Readonly<Record<string, string>>,
+      token?: string,
+    ): RequestInit => ({
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(token && { authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify(body),
+    });
+
+    const pending = (yield* call(OnboardingSteps, "/api/onboarding"))
+      .filter((step) => !step.done)
+      .map((step) => step.step);
+
+    if (pending.length === 0) return;
+
+    if (!pending.includes("user"))
+      return yield* Console.log(
+        `${daemon} is part way through onboarding, so it is left for you to finish.`,
+      );
+
+    const { auth_code } = yield* call(
+      AuthCode,
+      "/api/onboarding/users",
+      post({
+        name: "Dev",
+        username: "dev",
+        password: "dev",
+        client_id: clientId,
+        language: "en",
+      }),
+    );
+
+    const { access_token } = yield* call(AccessToken, "/auth/token", {
+      method: "POST",
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code: auth_code,
+        client_id: clientId,
+      }),
+    });
+
+    for (const step of ["core_config", "analytics"])
+      if (pending.includes(step))
+        yield* call(
+          Schema.Unknown,
+          `/api/onboarding/${step}`,
+          post({}, access_token),
+        );
+
+    if (pending.includes("integration"))
+      yield* call(
+        AuthCode,
+        "/api/onboarding/integration",
+        post(
+          { client_id: clientId, redirect_uri: `${clientId}?auth_callback=1` },
+          access_token,
+        ),
+      );
+
+    yield* Console.log(`Onboarded ${daemon}. Sign in as dev, password dev.`);
+  },
+);
+
+/**
+ * Start a worktree's throwaway Core dev instance, which serves the worktree's
+ * own watch build from its own config in `.ha-dev/config`.
+ */
+const worktreeCoreDev = Effect.fn("HomeAssistant.worktreeCoreDev")(function* (
+  base: HomeAssistantConfig,
+  worktree: Worktree,
+  config: HomeAssistantConfig,
+  options: {
+    readonly latest: boolean;
+    readonly fresh?: boolean;
+    readonly onboarding?: boolean;
+  },
+) {
+  const executor = yield* CommandExecutor;
+  const fs = yield* FileSystem.FileSystem;
+  const { core } = config;
+
+  if (options.latest)
+    return yield* fail(
+      "--latest rebases the shared Core checkout, so run it from the main frontend checkout instead.",
+    );
+
+  const template = base.frontend.worktree?.config;
+
+  if (template === undefined)
+    return yield* fail(
+      `Set frontend.worktree.config in ${CONFIG_FILE} to the config folder copied into a worktree's dev instance.`,
+    );
+
+  const hass = join(base.core.directory, ".venv", "bin", "hass");
+
+  if (!(yield* fs.exists(hass)))
+    return yield* fail(
+      `${hass} is missing. ${isAgent() ? "Ask the user to run" : "Run"} dot homeassistant core setup first.`,
+    );
+
+  yield* ensureWorktreeConfig(base, worktree);
+  yield* ensureBootstrapped(worktree);
+  yield* ensureNoRunningSuites(core.daemon);
+
+  const instance = join(worktree.directory, ".ha-dev");
+
+  if (options.fresh) {
+    if ((yield* daemonStatus(core.daemon)) === "running")
+      yield* executor.inherit("pitchfork", ["stop", core.daemon], {
+        cwd: worktree.directory,
+      });
+
+    yield* fs.remove(instance, { recursive: true, force: true });
+  }
+
+  if (!(yield* fs.exists(join(instance, "config")))) {
+    yield* fs.makeDirectory(instance, { recursive: true });
+    yield* fs.copy(template, join(instance, "config"));
+  }
+
+  yield* startDaemonAsAgent(
+    core.daemon,
+    core.url,
+    [config.frontend.serve.daemon],
+    worktree.directory,
+  );
+
+  if (!options.onboarding) yield* onboardDevInstance(core.daemon);
+});
+
+/**
+ * Start Core serving the local frontend build. In a frontend worktree, start
+ * the worktree's throwaway Core dev instance instead.
+ */
 export const coreDev = Effect.fn("HomeAssistant.coreDev")(function* (options: {
   readonly latest: boolean;
   readonly background: boolean;
+  readonly fresh?: boolean;
+  readonly onboarding?: boolean;
   readonly noFocus?: boolean;
   readonly split?: Split;
 }) {
-  const config = yield* loadConfig;
+  const { base, worktree, config } = yield* loadCheckout;
   const { core } = config;
   const conflicts = [config.frontend.serve.daemon];
+
+  if (worktree) {
+    yield* worktreeCoreDev(base, worktree, config, options);
+
+    return undefined;
+  }
+
+  if (options.fresh || options.onboarding)
+    return yield* fail(
+      "--fresh and --onboarding only apply to a frontend worktree's dev instance.",
+    );
 
   yield* ensureNoRunningSuites(core.daemon);
 
@@ -526,23 +1020,29 @@ export const frontendDev = Effect.fn("HomeAssistant.frontendDev")(
     readonly attach: boolean;
     readonly split?: Split;
   }) {
-    const config = yield* loadConfig;
+    const { base, worktree, config } = yield* loadCheckout;
     const { frontend } = config;
     const conflicts = [frontend.serve.daemon];
 
+    if (worktree) yield* ensureWorktreeConfig(base, worktree);
+
     yield* ensureNoRunningSuites(frontend.build);
 
-    if (isAgent())
+    if (isAgent()) {
+      if (worktree) yield* ensureBootstrapped(worktree);
+
       return yield* startDaemonAsAgent(
         frontend.build,
         config.core.url,
         conflicts,
+        frontend.directory,
       );
+    }
 
     yield* launch(
       frontend,
       {
-        title: "HA Frontend Dev",
+        title: titled("HA Frontend Dev", worktree),
         url: config.core.url,
         via: "HA Core",
         setup: "script/bootstrap",
@@ -567,7 +1067,7 @@ export const frontendServe = Effect.fn("HomeAssistant.frontendServe")(
     readonly background: boolean;
   }) {
     const executor = yield* CommandExecutor;
-    const config = yield* loadConfig;
+    const { base, worktree, config } = yield* loadCheckout;
     const { frontend } = config;
     const { serve } = frontend;
     const conflicts = [frontend.build];
@@ -593,6 +1093,19 @@ export const frontendServe = Effect.fn("HomeAssistant.frontendServe")(
 
     yield* ensureNoRunningSuites(serve.daemon);
 
+    if (worktree) {
+      yield* ensureWorktreeConfig(base, worktree);
+
+      if (isAgent()) yield* ensureBootstrapped(worktree);
+
+      // Only forwarders started by dot, such as ha-core/prod, accept any
+      // worktree's origin
+      if (target?.daemon === undefined)
+        yield* Console.log(
+          `${target ? target.url : "The Core it connects to"} must allow ${serve.url} in its http cors_allowed_origins.`,
+        );
+    }
+
     if (
       target?.daemon !== undefined &&
       (yield* daemonStatus(target.daemon)) !== "running"
@@ -609,20 +1122,26 @@ export const frontendServe = Effect.fn("HomeAssistant.frontendServe")(
     }
 
     writeFileAtomic(
-      SERVE_ARGS_FILE,
+      serveArgsFile(namespaceOf(serve.daemon)),
       target ? `-c ${quote(target.url)}\n` : "\n",
       { createDirectory: true },
     );
 
     if (isAgent())
-      return yield* startDaemonAsAgent(serve.daemon, serve.url, conflicts);
+      return yield* startDaemonAsAgent(
+        serve.daemon,
+        serve.url,
+        conflicts,
+        frontend.directory,
+      );
 
     yield* launch(
       frontend,
       {
-        title: target
-          ? `HA Frontend Serve (${target.title})`
-          : "HA Frontend Serve",
+        title: titled(
+          target ? `HA Frontend Serve (${target.title})` : "HA Frontend Serve",
+          worktree,
+        ),
         url: serve.url,
         setup: "script/bootstrap",
         pitchfork: serve.daemon,
@@ -647,7 +1166,7 @@ const frontendLocked = Effect.fn("HomeAssistant.frontendLocked")(function* (
   suite?: FrontendSuite,
   background = false,
 ) {
-  const config = yield* loadConfig;
+  const { worktree, config } = yield* loadCheckout;
   const { frontend } = config;
   const conflicts = frontendDaemons(config);
 
@@ -662,7 +1181,7 @@ const frontendLocked = Effect.fn("HomeAssistant.frontendLocked")(function* (
   yield* launch(
     frontend,
     {
-      title,
+      title: titled(title, worktree),
       setup: setup ? "script/bootstrap" : undefined,
       conflicts,
       attach: false,
@@ -718,7 +1237,10 @@ export const frontendTestE2e = Effect.fn("HomeAssistant.frontendTestE2e")(
  */
 export const homeAssistantDev = Effect.fn("HomeAssistant.dev")(
   function* (options: { readonly background: boolean }) {
-    if (isAgent()) {
+    const { worktree } = yield* loadCheckout;
+
+    // A worktree's dev instance starts its build through depends
+    if (isAgent() || worktree) {
       yield* coreDev({ latest: false, background: true });
 
       return;
@@ -782,10 +1304,11 @@ const allTargets = (config: HomeAssistantConfig) => {
 const selectTargets = Effect.fn("HomeAssistant.selectTargets")(function* (
   names: readonly string[],
 ) {
-  const config = yield* loadConfig;
+  const { base, worktree, config } = yield* loadCheckout;
   const targets = allTargets(config);
 
-  if (names.length === 0) return { config, selected: [...targets.values()] };
+  if (names.length === 0)
+    return { base, worktree, config, selected: [...targets.values()] };
 
   const selected: Target[] = [];
 
@@ -800,7 +1323,7 @@ const selectTargets = Effect.fn("HomeAssistant.selectTargets")(function* (
     selected.push(target);
   }
 
-  return { config, selected };
+  return { base, worktree, config, selected };
 });
 
 const suiteCommand = (suite: FrontendSuite, flag: string) => [
@@ -808,19 +1331,30 @@ const suiteCommand = (suite: FrontendSuite, flag: string) => [
   flag,
 ];
 
-/** Show the state of the Home Assistant daemons and frontend suites. */
+const printDaemonStatus = Effect.fn("HomeAssistant.printDaemonStatus")(
+  function* (name: string, url: string | undefined) {
+    const status = yield* daemonStatus(name);
+
+    yield* Console.log(`${name}  ${status}${url ? `  ${url}` : ""}`);
+  },
+);
+
+/**
+ * Show the state of the Home Assistant daemons and frontend suites. With no
+ * names, list the main checkout's and every frontend worktree's.
+ */
 export const homeAssistantStatus = Effect.fn("HomeAssistant.status")(function* (
   names: readonly string[],
 ) {
   const executor = yield* CommandExecutor;
-  const { config, selected } = yield* selectTargets(names);
+  const selection = yield* selectTargets(names);
+  const all = names.length === 0;
+  const config = all ? selection.base : selection.config;
+  const selected = all ? [...allTargets(config).values()] : selection.selected;
 
   for (const target of selected) {
     if (target.kind === "daemon") {
-      const status = yield* daemonStatus(target.name);
-      yield* Console.log(
-        `${target.name}  ${status}${target.url ? `  ${target.url}` : ""}`,
-      );
+      yield* printDaemonStatus(target.name, target.url);
       continue;
     }
 
@@ -828,21 +1362,46 @@ export const homeAssistantStatus = Effect.fn("HomeAssistant.status")(function* (
       cwd: config.frontend.directory,
     });
   }
+
+  if (!all) return;
+
+  for (const worktree of yield* frontendWorktrees(config)) {
+    const view = worktreeConfig(config, worktree);
+
+    yield* Console.log(`\n${worktree.directory}`);
+
+    for (const name of ["core", "build", "serve"]) {
+      const target = allTargets(view).get(name);
+
+      if (target?.kind === "daemon")
+        yield* printDaemonStatus(target.name, target.url);
+    }
+  }
 });
 
-/** Stop Home Assistant daemons and frontend suites; all of them by default. */
+/**
+ * Stop Home Assistant daemons and frontend suites; by default, all of the
+ * current checkout's. A worktree leaves the shared serve target daemons alone.
+ */
 export const homeAssistantStop = Effect.fn("HomeAssistant.stop")(function* (
   names: readonly string[],
 ) {
   const executor = yield* CommandExecutor;
-  const { config, selected } = yield* selectTargets(names);
+  const { worktree, config, selected } = yield* selectTargets(names);
 
   const daemons = selected.flatMap((target) =>
-    target.kind === "daemon" ? [target.name] : [],
+    target.kind === "daemon" &&
+    (worktree === undefined ||
+      names.length > 0 ||
+      target.name.startsWith(`${worktree.namespace}/`))
+      ? [target.name]
+      : [],
   );
 
   if (daemons.length > 0)
-    yield* executor.inherit("pitchfork", ["stop", ...daemons]);
+    yield* executor.inherit("pitchfork", ["stop", ...daemons], {
+      cwd: config.frontend.directory,
+    });
 
   for (const target of selected)
     if (target.kind === "suite")
