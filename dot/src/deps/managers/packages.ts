@@ -133,17 +133,10 @@ export const extractPackages = Effect.fn("Dependencies.extractPackages")(
           continue;
         }
 
-        const referenced = current.startsWith("$")
-          ? (manifest.dependencies?.[current.slice(1)] ??
-            manifest.devDependencies?.[current.slice(1)])
-          : undefined;
+        // A "$name" override follows the referenced dependency, so it is never planned on its own.
+        if (current.startsWith("$")) continue;
 
-        const dependency = packageDependency(
-          file,
-          name,
-          referenced ?? current,
-          type,
-        );
+        const dependency = packageDependency(file, name, current, type);
 
         const resolution = lock?.packages[name]?.[0];
 
