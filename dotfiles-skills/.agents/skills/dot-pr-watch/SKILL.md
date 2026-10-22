@@ -19,7 +19,7 @@ metadata:
 
 ## Run
 
-1. Start it with the shell tool's `background: true`, from the pull request's checkout or with `--repo owner/name`. Pass several numbers for a stack, e.g. `dot pr watch 101 102 103`.
+1. Start it with the shell tool's `background: true`, from the pull request's checkout or with `--repo owner/name`. For independent pull requests, start one watch per pull request. A watch over several pull requests shares one `--stop-on` (feedback on any of them stops all) and only completes once every one has settled. Pass several numbers only for a stack, e.g. `dot pr watch 101 102 103`, or when watching without `--stop-on` for the full picture.
 2. Choose when the watch should end:
    - `--stop-on failure` when a quick fix is likely, such as lint, format, types or a unit test in changed code. It exits as soon as a job or check fails, even if other runs are still going.
    - Prefer `--stop-on review` when review feedback is the next thing to act on, before slow suites like end-to-end tests finish. Reviews are fetched alongside CI, so it exits within seconds when an open thread at startup is current and unanswered (not outdated, no replies). Otherwise it stops on a newly observed review with open threads or review body findings; it does not stop for answered or outdated threads already present, so a watch started after pushing fixes still follows CI.
