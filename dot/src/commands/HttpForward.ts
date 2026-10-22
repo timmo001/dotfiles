@@ -12,6 +12,10 @@ export interface HttpForwardOptions {
   readonly port: number;
   /** Origin to forward to, for example `http://homeassistant.local:8123`. */
   readonly target: string;
+  /** Origin the target allows, presented upstream for origins under `corsSuffix`. */
+  readonly corsOrigin?: string;
+  /** Hostname suffix of HTTPS origins to present as `corsOrigin`. */
+  readonly corsSuffix?: string;
 }
 
 interface SocketData {
@@ -57,6 +61,28 @@ const isSendableCloseCode = (code: number) =>
   code === 1000 || (code >= 3000 && code <= 4999);
 
 /**
+ * Whether an origin is an HTTPS origin under `corsSuffix`, to present upstream
+ * as `corsOrigin`, for a target whose CORS list only matches exact origins.
+ */
+const isAliasedOrigin = (
+  origin: string | null,
+  options: HttpForwardOptions,
+): origin is string => {
+  if (
+    origin === null ||
+    options.corsOrigin === undefined ||
+    options.corsSuffix === undefined ||
+    origin === options.corsOrigin ||
+    !URL.canParse(origin)
+  )
+    return false;
+
+  const url = new URL(origin);
+
+  return url.protocol === "https:" && url.hostname.endsWith(options.corsSuffix);
+};
+
+/**
  * Forward HTTP requests and websockets from a local port to another server,
  * without proxy headers, so a local HTTPS proxy can front a plain HTTP server
  * elsewhere on the network.
@@ -75,6 +101,13 @@ export const httpForward = Effect.fn("HttpForward")(function* (
       message: "--target must be an http:// or https:// URL",
     });
 
+  if ((options.corsOrigin === undefined) !== (options.corsSuffix === undefined))
+    return yield* new HttpForwardError({
+      message: "--cors-origin and --cors-suffix go together",
+    });
+
+  const corsOrigin = options.corsOrigin;
+
   const socketTarget = new URL(target);
   socketTarget.protocol = target.protocol === "https:" ? "wss:" : "ws:";
 
@@ -92,6 +125,10 @@ export const httpForward = Effect.fn("HttpForward")(function* (
           async fetch(request, server) {
             const url = new URL(request.url);
             const path = url.pathname + url.search;
+            const origin = request.headers.get("origin");
+
+            const aliased =
+              corsOrigin !== undefined && isAliasedOrigin(origin, options);
 
             if (request.headers.get("upgrade")?.toLowerCase() === "websocket")
               return server.upgrade(request, {
@@ -100,8 +137,18 @@ export const httpForward = Effect.fn("HttpForward")(function* (
                   // Keep cookies so session-authenticated sockets, such as
                   // Home Assistant ingress, still authenticate upstream
                   headers: Object.fromEntries(
-                    [...request.headers].filter(
-                      ([name]) => !droppedSocketHeaders.has(name),
+                    [...request.headers].flatMap(
+                      ([name, value]): [string, string][] =>
+                        droppedSocketHeaders.has(name)
+                          ? []
+                          : [
+                              [
+                                name,
+                                aliased && name === "origin"
+                                  ? corsOrigin
+                                  : value,
+                              ],
+                            ],
                     ),
                   ),
                   protocols:
@@ -123,6 +170,8 @@ export const httpForward = Effect.fn("HttpForward")(function* (
 
             headers.set("accept-encoding", "identity");
 
+            if (aliased) headers.set("origin", corsOrigin);
+
             try {
               const response = await fetch(new URL(path, target), {
                 method: request.method,
@@ -136,6 +185,16 @@ export const httpForward = Effect.fn("HttpForward")(function* (
               for (const [name, value] of response.headers)
                 if (!droppedResponseHeaders.has(name))
                   responseHeaders.append(name, value);
+
+              // Hand the browser back its own origin
+              if (
+                aliased &&
+                responseHeaders.get("access-control-allow-origin") ===
+                  corsOrigin
+              ) {
+                responseHeaders.set("access-control-allow-origin", origin);
+                responseHeaders.append("vary", "Origin");
+              }
 
               return new Response(response.body, {
                 status: response.status,
