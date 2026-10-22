@@ -60,7 +60,7 @@ version = "1.3.0"
 minimum_release_age = "2h"
 
 [tools."github:backnotprop/plannotator"]
-version = "0.28.25"
+version = "0.28.26"
 minimum_release_age = "2h"
 
 [tools."github:plannotator/plannotator-tui"]
