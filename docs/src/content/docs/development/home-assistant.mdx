@@ -53,8 +53,30 @@ Port 443 already reaches pitchfork's proxy (listening on 8443), so the URLs need
 - Every `dot ha frontend` command takes the frontend's build lock, so it asks to stop the `build` and `serve` daemons first. Lint, format, type checks and unit tests don't take the lock and stay plain `pnpm`.
 
 :::note
-Pitchfork doesn't pass the caller's environment to a daemon. `dot ha f serve` writes the Core URL to `~/.local/state/dot/homeassistant/serve.args`, and the `serve` daemon reads it when it starts.
+Pitchfork doesn't pass the caller's environment to a daemon. `dot ha f serve` writes the Core URL to `~/.local/state/dot/homeassistant/<namespace>.serve.args`, and the `serve` daemon reads it when it starts.
 :::
+
+## Worktrees
+
+Each linked worktree of the frontend can run its own servers next to the main checkout's, so a second session can browser test its own branch without waiting for the shared checkout. `dot ha` works out which checkout it runs in, and in a worktree `core`, `build` and `serve` are that worktree's own daemons:
+
+| Target | Daemon | URL |
+| --- | --- | --- |
+| `core` | `ha-frontend-<worktree>/dev` | `https://dev.<worktree>.ha-frontend.localhost` |
+| `build` | `ha-frontend-<worktree>/build` | Through the worktree's Core |
+| `serve` | `ha-frontend-<worktree>/serve` | `https://serve.<worktree>.ha-frontend.localhost` |
+
+`<worktree>` is the worktree's directory name in lowercase, with anything other than letters and digits turned into `-`. `build`, `dev` and `serve` are refused, as they would shadow the main checkout's hostnames.
+
+- `dot ha core dev` (or `dot ha dev`) starts a throwaway Core dev instance for the worktree. It runs Core from the Core checkout's virtual environment, serves the worktree's own watch build, and keeps its config in `<worktree>/.ha-dev/config`, copied from `frontend.worktree.config` the first time. Onboarding is done for it with the user `dev` and password `dev`. It always runs in the background, and `--latest` is refused.
+- `--fresh` throws the instance's config away and starts again. `--onboarding` leaves onboarding for you, for testing onboarding itself.
+- `dot ha f serve [target]` starts the worktree's own `serve`. `ha-core/prod` accepts any worktree's origin; any other Core must allow the worktree's serve URL in its CORS allowed origins.
+- `dot ha status` lists the main checkout's targets, then each worktree's. `dot ha stop` with no targets in a worktree only stops that worktree's daemons.
+- The gallery, demo and e2e suites stay on the main checkout, as their ports are fixed.
+
+Nothing is registered with pitchfork. The first `dot ha` command in a worktree writes `pitchfork.local.toml` there, with the namespace `ha-frontend-<worktree>`, the main checkout's `frontend.toml` and `frontend-worktree.toml`, and adds it and `.ha-dev/` to the repository's `info/exclude`. A new worktree gets `script/bootstrap` first when it has no `node_modules`. Removing the worktree removes its instance.
+
+Core keeps its HTTP settings in `.storage/http` rather than YAML, so `frontend-worktree-dev.sh` writes that file before every start, with the port pitchfork picked and trust for the proxy on `127.0.0.1`. Logins still go through the login page: `trusted_networks` can't tell this machine from anything else coming through the proxy.
 
 ## Core behind the proxy
 
@@ -70,7 +92,7 @@ Core only registers the frontend routes if `hass_frontend` exists when it starts
 
 ## Agents
 
-Agents use the same `dot ha` commands. Under an agent, `dot ha` skips setup, Herdr tabs and prompts: it reuses a running daemon, runs suites in the background, and fails with a message instead of stopping a conflicting daemon. `dot ha core setup` and `dot ha logs --follow` refuse to run. The Home Assistant workspace `AGENTS.md` tells agents not to run `hass`, `pnpm dev`, `pnpm dev:serve` or `pnpm build` directly, and to ask before stopping or swapping a running daemon.
+Agents use the same `dot ha` commands. Under an agent, `dot ha` skips setup, Herdr tabs and prompts: it reuses a running daemon, runs suites in the background, and fails with a message instead of stopping a conflicting daemon. `dot ha core setup` and `dot ha logs --follow` refuse to run. The Home Assistant workspace `AGENTS.md` tells agents not to run `hass`, `pnpm dev`, `pnpm dev:serve` or `pnpm build` directly, and to ask before stopping or swapping a running daemon. It also tells them they can ask to move into a frontend worktree to browser test on its own instance when the main checkout is busy.
 
 ## Pitchfork config
 
@@ -106,10 +128,13 @@ retry = true
 stop_signal = { signal = "SIGTERM", timeout = "60s" }
 
 [daemons.prod]
-run = "exec dot http forward --port 8126 --target http://homeassistant.local:8123"
+run = "exec dot http forward --port 8126 --target http://homeassistant.local:8123 --cors-origin https://serve.ha-frontend.localhost --cors-suffix .ha-frontend.localhost"
 port = 8126
 ready_port = 8126
+retry = true
 ```
+
+`--cors-origin` and `--cors-suffix` present a worktree's `https://serve.<worktree>.ha-frontend.localhost` origin to prod as the main serve origin, which prod already allows, and hand the browser back its own origin in the response.
 
 `home-assistant/frontend.toml`:
 
@@ -120,12 +145,43 @@ ready_output = { pattern = "Build done", timeout = "10m" }
 
 [daemons.serve]
 run = """
-args="${XDG_STATE_HOME:-$HOME/.local/state}/dot/homeassistant/serve.args"
+args="${XDG_STATE_HOME:-$HOME/.local/state}/dot/homeassistant/{{ namespace }}.serve.args"
 eval "set -- $(cat "$args" 2>/dev/null)"
-exec env HA_DEV_BACKGROUND=0 pnpm dev:serve --fetch-translations "$@"
+exec env HA_DEV_BACKGROUND=0 pnpm dev:serve --fetch-translations -p "$PORT" "$@"
 """
-port = 8124
-ready_port = { port = 8124, timeout = "10m" }
+port = { expect = [8124], bump = 10 }
+ready_cmd = { run = 'curl -fsS -o /dev/null "http://127.0.0.1:$PORT/"', timeout = "10m" }
+```
+
+The main checkout keeps 8124 while it's free; a worktree's `serve` is bumped off it.
+
+`home-assistant/frontend-worktree.toml`, only used in worktrees' `pitchfork.local.toml`:
+
+```toml
+[daemons.dev]
+run = 'exec "$HOME/.config/pitchfork/home-assistant/frontend-worktree-dev.sh"'
+depends = ["build"]
+port = { expect = [8140], bump = 10 }
+ready_cmd = { run = 'curl -fsS -o /dev/null "http://127.0.0.1:$PORT/manifest.json"', timeout = "5m" }
+retry = true
+stop_signal = { signal = "SIGTERM", timeout = "60s" }
+```
+
+`home-assistant/frontend-worktree-dev.sh` writes `.ha-dev/config/.storage/http` with Core's own `HTTP_STORAGE_SCHEMA` (the port, `use_x_forwarded_for` and trusted proxies `127.0.0.1/32` and `::1/128`), then runs `hass -c .ha-dev/config` with `HA_DEV_FRONTEND` set to the worktree.
+
+The instance template, `~/.config/dot/homeassistant/dev-config/configuration.yaml`:
+
+```yaml
+default_config:
+
+homeassistant:
+  name: Dev (worktree)
+
+frontend:
+  development_repo: !env_var HA_DEV_FRONTEND
+
+demo:
+kitchen_sink:
 ```
 
 ## dot config
@@ -142,6 +198,8 @@ frontend:
   directory: ~/repos/home-assistant/frontend
   workspace: "[HA] Frontend"
   build: ha-frontend/build
+  worktree:
+    config: ~/.config/dot/homeassistant/dev-config
   serve:
     daemon: ha-frontend/serve
     url: https://serve.ha-frontend.localhost
