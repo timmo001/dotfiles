@@ -134,6 +134,14 @@ const RESERVED_LABELS = new Set(["build", "dev", "serve"]);
 // Kept out of `git status` in every worktree through the shared info/exclude
 const WORKTREE_IGNORES = ["/pitchfork.local.toml", "/.ha-dev/"];
 
+/** Ignored files in the main checkout that each worktree links to. */
+const WORKTREE_SHARED_FILES = [
+  "translations/token.json",
+  "opencode.json",
+  ".opencode-playwright.json",
+  ".opencode/opencode.jsonc",
+];
+
 const namespaceOf = (daemon: string) => daemon.split("/")[0];
 
 /**
@@ -273,6 +281,7 @@ const PitchforkProjects = Schema.fromJsonString(
  * Write the worktree's `pitchfork.local.toml`: its namespace, the main
  * checkout's registered pitchfork config and `frontend-worktree.toml` beside
  * it. Nothing is registered with pitchfork, so its global config is untouched.
+ * Also links the main checkout's ignored shared files into the worktree.
  */
 const ensureWorktreeConfig = Effect.fn("HomeAssistant.ensureWorktreeConfig")(
   function* (base: HomeAssistantConfig, worktree: Worktree) {
@@ -337,6 +346,19 @@ const ensureWorktreeConfig = Effect.fn("HomeAssistant.ensureWorktreeConfig")(
         `${excluded}${excluded === "" || excluded.endsWith("\n") ? "" : "\n"}${missing.join("\n")}\n`,
         { createDirectory: true },
       );
+
+    // Ignored files a worktree needs from the main checkout: the GitHub token
+    // the build fetches nightly translations with (it otherwise stops at a
+    // device login) and the project's OpenCode config and MCP servers
+    for (const file of WORKTREE_SHARED_FILES) {
+      const source = join(base.frontend.directory, file);
+      const target = join(worktree.directory, file);
+
+      if ((yield* fs.exists(source)) && !(yield* fs.exists(target))) {
+        yield* fs.makeDirectory(dirname(target), { recursive: true });
+        yield* fs.symlink(source, target);
+      }
+    }
   },
 );
 
@@ -1359,7 +1381,7 @@ export const homeAssistantStatus = Effect.fn("HomeAssistant.status")(function* (
     }
 
     yield* executor.inherit("pnpm", suiteCommand(target.suite, "--status"), {
-      cwd: config.frontend.directory,
+      cwd: selection.base.frontend.directory,
     });
   }
 
@@ -1387,13 +1409,12 @@ export const homeAssistantStop = Effect.fn("HomeAssistant.stop")(function* (
   names: readonly string[],
 ) {
   const executor = yield* CommandExecutor;
-  const { worktree, config, selected } = yield* selectTargets(names);
+  const { base, worktree, config, selected } = yield* selectTargets(names);
+  const all = worktree === undefined || names.length > 0;
 
   const daemons = selected.flatMap((target) =>
     target.kind === "daemon" &&
-    (worktree === undefined ||
-      names.length > 0 ||
-      target.name.startsWith(`${worktree.namespace}/`))
+    (all || target.name.startsWith(`${worktree.namespace}/`))
       ? [target.name]
       : [],
   );
@@ -1403,11 +1424,13 @@ export const homeAssistantStop = Effect.fn("HomeAssistant.stop")(function* (
       cwd: config.frontend.directory,
     });
 
-  for (const target of selected)
-    if (target.kind === "suite")
-      yield* executor.inherit("pnpm", suiteCommand(target.suite, "--stop"), {
-        cwd: config.frontend.directory,
-      });
+  // Suites only run from the main checkout
+  if (all)
+    for (const target of selected)
+      if (target.kind === "suite")
+        yield* executor.inherit("pnpm", suiteCommand(target.suite, "--stop"), {
+          cwd: base.frontend.directory,
+        });
 });
 
 /** Print or follow a daemon's or suite's logs. */
@@ -1416,7 +1439,7 @@ export const homeAssistantLogs = Effect.fn("HomeAssistant.logs")(function* (
   options: { readonly follow: boolean; readonly lines: number },
 ) {
   const executor = yield* CommandExecutor;
-  const { config, selected } = yield* selectTargets([name]);
+  const { base, selected } = yield* selectTargets([name]);
   const [target] = selected;
 
   if (options.follow && isAgent())
@@ -1436,12 +1459,12 @@ export const homeAssistantLogs = Effect.fn("HomeAssistant.logs")(function* (
 
   if (options.follow)
     return yield* executor.inherit("pnpm", [...args, "--follow"], {
-      cwd: config.frontend.directory,
+      cwd: base.frontend.directory,
     });
 
   // The frontend prints the whole log file, so keep only the last lines.
   const output = yield* executor.run("pnpm", args, {
-    cwd: config.frontend.directory,
+    cwd: base.frontend.directory,
     mergeStderr: true,
   });
 
