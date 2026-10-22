@@ -50,12 +50,12 @@
   "system.logout-ordered": {
     "icon": "󰍃",
     "label": "Logout",
-    "action": "omarchy-system-logout"
+    "action": "omarchy-system logout"
   },
   "system.reboot-ordered": {
     "icon": "󰜉",
     "label": "Reboot",
-    "action": "omarchy-system-reboot"
+    "action": "omarchy-system reboot"
   },
   // reboot-to sets the next boot with sudo, so it runs in a terminal for the
   // password. Each entry only shows on machines with that boot entry.
@@ -84,6 +84,6 @@
   "system.shutdown-ordered": {
     "icon": "󰐥",
     "label": "Shutdown",
-    "action": "omarchy-system-shutdown"
+    "action": "omarchy-system shutdown"
   }
 }
