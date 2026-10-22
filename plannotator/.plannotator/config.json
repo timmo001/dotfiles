@@ -33,7 +33,11 @@
     "opencode": true,
     "pi": true
   },
-  "inboxReminder": false,
+  "inboxReminder": {
+    "claude-code": true,
+    "pi": false,
+    "opencode": true
+  },
   "inboxSound": {
     "dialogShownFor": "0.28.16",
     "volume": 50
