@@ -31,7 +31,6 @@ rust = "1.99.1"
 shellcheck = "0.11.0"
 shfmt = "3.14.1"
 starship = "1.27.0"
-"aqua:topgrade-rs/topgrade" = "17.14.0"
 usage = "7.1.2"
 watchexec = "2.8.0"
 yq = "4.54.1"
@@ -64,113 +63,11 @@ minimum_release_age = "2h"
 version = "0.9.4"
 minimum_release_age = "2h"
 
-[tools."github:home-assistant/installer"]
-version = "0.0.0-alpha.4"
-prerelease = true
-asset_pattern = "Home.Assistant.Installer_*_amd64.AppImage"
-format = "raw"
-bin = "home-assistant-installer"
-
-[tools."github:esphome/esphome-desktop"]
-version = "1.1.3"
-asset_pattern = "ESPHome.Device.Builder_*_amd64.AppImage"
-format = "raw"
-bin = "esphome-desktop"
-
-[tools."github:music-assistant/desktop-app"]
-version = "0.7.2"
-asset_pattern = "Music.Assistant_*_amd64.AppImage"
-format = "raw"
-bin = "music-assistant-companion"
-
-[tools."github:AlexxIT/go2rtc"]
-version = "1.9.14"
-asset_pattern = "go2rtc_linux_amd64"
-format = "raw"
-bin = "go2rtc"
-
-[tools."github:github/app"]
-version = "1.1.32"
-asset_pattern = "GitHub-Copilot-linux-x64.AppImage"
-format = "raw"
-bin = "github-copilot"
-
 # Renamed so the topgrade wrapper in ~/.local/bin stays first on PATH.
 [tools."github:topgrade-rs/topgrade"]
 version = "17.14.1"
 asset_pattern = "topgrade-v*-x86_64-unknown-linux-musl.tar.gz"
 rename_exe = "topgrade-cli"
-
-[tools."github:storytold/photocraft"]
-version = "0.15.1"
-asset_pattern = "photocraft-*-linux-x86_64.tar.gz"
-strip_components = 1
-bin_path = "bin"
-
-[tools."github:storytold/vectorcraft"]
-version = "0.16.0"
-asset_pattern = "vectorcraft-[0-9]*-linux-x86_64.tar.gz"
-strip_components = 1
-bin_path = "bin"
-
-[tools."github:storytold/effectcraft"]
-version = "0.16.0"
-asset_pattern = "effectcraft-[0-9]*-linux-x86_64.tar.gz"
-strip_components = 1
-bin_path = "bin"
-
-[tools."github:storytold/filmcraft"]
-version = "0.12.0"
-asset_pattern = "filmcraft-[0-9]*-linux-x86_64.tar.gz"
-strip_components = 1
-bin_path = "bin"
-
-[tools."github:storytold/lightcraft"]
-version = "0.13.0"
-asset_pattern = "lightcraft-[0-9]*-linux-x86_64.tar.gz"
-strip_components = 1
-bin_path = "bin"
-
-[tools."github:Vysp3r/ProtonPlus"]
-version = "0.6.8"
-asset_pattern = "ProtonPlus-*-anylinux-x86_64.AppImage"
-format = "raw"
-bin = "protonplus"
-
-# plezy.sh sets LD_LIBRARY_PATH for the bundled libraries and execs the plezy binary beside it.
-# The tarball ships it and crashpad_handler without the executable bit.
-[tools."github:edde746/plezy"]
-version = "2.24.0"
-asset_pattern = "plezy-linux-x64.tar.gz"
-filter_bins = "plezy.sh"
-postinstall = 'chmod 755 "$MISE_TOOL_INSTALL_PATH/plezy.sh" "$MISE_TOOL_INSTALL_PATH/lib/crashpad_handler"'
-
-# The bundled adb stays off PATH so the Android SDK's adb is used.
-[tools."github:Genymobile/scrcpy"]
-version = "5.0.1"
-asset_pattern = "scrcpy-linux-x86_64-v*.tar.gz"
-filter_bins = "scrcpy"
-
-# The v2 desktop app is only published on opencode.ai, not GitHub releases.
-[tools."http:opencode-desktop"]
-version = "2.1.4"
-url = "https://opencode.ai/files/bin/{{ version }}/opencode-desktop-linux-x86_64.AppImage"
-version_list_url = "https://opencode.ai/update/api/latest/desktop/opencode"
-version_json_path = ".version"
-format = "raw"
-bin = "opencode-desktop"
-
-[tools."github:bambulab/BambuStudio"]
-version = "02.08.02.61"
-asset_pattern = "BambuStudio_ubuntu24.04-v*.AppImage"
-format = "raw"
-bin = "bambu-studio"
-
-[tools."github:yt-dlp/yt-dlp"]
-version = "2026.10.21"
-asset_pattern = "yt-dlp_linux"
-format = "raw"
-bin = "yt-dlp"
 
 # Zsh plugin with no release assets; .zshrc sources it from the latest install.
 [tools."http:fzf-tab"]
