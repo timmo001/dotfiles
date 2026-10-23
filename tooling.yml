@@ -22,7 +22,7 @@ tools:
     reviewed: v2.103.0
     review: Check the gh calls in dot through @timmo001/effect-gh and the GitHub credential command in mise/.config/mise/config.toml.
   - repo: anomalyco/opencode
-    reviewed: v2.1.2
+    reviewed: v2.1.3
     tags: ^v2\.
     review: Check the OpenCode config, agents, commands and plugins under agents/.config/opencode, and the dot commands and doctor checks that drive OpenCode. Plugins run on OpenCode's own Effect, so keep the plugins' effect and @effect/platform-node pins on the versions it uses.
   - repo: Effect-TS/effect
