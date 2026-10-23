@@ -2,7 +2,7 @@ import { NodeServices } from "@effect/platform-node";
 import { join } from "node:path";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { acquireFileLock } from "../../lib/fileLock.js";
-import { Effect, FileSystem, Schema } from "effect";
+import { Array as Arr, Effect, FileSystem, Schema } from "effect";
 import { CACHE_DIR, DATA_DIR, STATE_DIR } from "../../lib/paths.js";
 import { formatCause } from "../../lib/schema.js";
 import { evidenceId } from "./changes.js";
@@ -264,7 +264,98 @@ export const saveReleaseReview = Effect.fn("releases.saveReview")(function* (
   });
 });
 
-/** Serialise scans and reviews with a kernel lock released even after a crash. */
+const isDecisionsConflict = (name: string) =>
+  name.startsWith("decisions.sync-conflict-") && name.endsWith(".json");
+
+/**
+ * Add decisions from Syncthing conflict copies back into `decisions.json`.
+ *
+ * When two machines change a repository's decisions before they sync,
+ * Syncthing keeps the copy changed last and renames the other
+ * `decisions.sync-conflict-<date>-<time>-<device>.json`. The kept file wins
+ * where both decided the same finding; the copy's other decisions are added
+ * back and the copy is removed. A copy that can't be read is left for the next
+ * run.
+ */
+export const mergeDecisionConflicts = Effect.fn(
+  "releases.mergeDecisionConflicts",
+)(function* (paths: ReturnType<typeof releasePaths>) {
+  const fs = yield* FileSystem.FileSystem;
+
+  const read = (file: string) =>
+    fs
+      .readFileString(file)
+      .pipe(
+        Effect.flatMap(
+          Schema.decodeEffect(Schema.fromJsonString(ReleaseDecisions)),
+        ),
+      );
+
+  yield* Effect.gen(function* () {
+    if (!(yield* fs.exists(paths.data))) return;
+
+    // Names start with the conflict's date and time, so this is oldest first.
+    const names = (yield* fs.readDirectory(paths.data))
+      .filter(isDecisionsConflict)
+      .sort();
+
+    if (names.length === 0) return;
+
+    const copies = Arr.getSomes(
+      yield* Effect.forEach(names, (name) =>
+        read(join(paths.data, name)).pipe(
+          Effect.map((decisions) => ({
+            file: join(paths.data, name),
+            decisions,
+          })),
+          Effect.option,
+        ),
+      ),
+    );
+
+    if (copies.length === 0) return;
+
+    const main = join(paths.data, DECISIONS_FILE);
+
+    const kept: ReleaseDecisions = (yield* fs.exists(main))
+      ? yield* read(main)
+      : { findings: {}, overall: null };
+
+    // The kept file wins, then the newest copy.
+    const findings: ReleaseDecisions["findings"] = copies.reduceRight(
+      (merged, copy) => ({ ...copy.decisions.findings, ...merged }),
+      kept.findings,
+    );
+
+    yield* saveReleaseDocument(paths.data, DECISIONS_FILE, {
+      findings: Object.fromEntries(
+        Object.entries(findings).sort(([a], [b]) => a.localeCompare(b)),
+      ),
+      overall:
+        kept.overall ??
+        copies.findLast((copy) => copy.decisions.overall !== null)?.decisions
+          .overall ??
+        null,
+    });
+
+    yield* Effect.forEach(copies, (copy) => fs.remove(copy.file), {
+      discard: true,
+    });
+  }).pipe(
+    Effect.mapError(
+      (error) =>
+        new ReleaseError({
+          message: `Could not merge release decision conflicts: ${formatCause(error)}`,
+        }),
+    ),
+  );
+});
+
+/**
+ * Serialise scans and reviews with a kernel lock released even after a crash.
+ * Decisions synced in conflict from another machine are merged once the lock
+ * is held.
+ */
 export function withReleaseLock<A, E, R>(
   paths: ReturnType<typeof releasePaths>,
   effect: Effect.Effect<A, E, R>,
@@ -283,6 +374,10 @@ export function withReleaseLock<A, E, R>(
                 : `Could not lock release state: ${error.message}`,
           }),
       ),
+    );
+
+    yield* mergeDecisionConflicts(paths).pipe(
+      Effect.provide(NodeServices.layer),
     );
 
     return yield* effect;

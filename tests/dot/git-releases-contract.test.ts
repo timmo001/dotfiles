@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Clock, Effect, type Layer, Stream } from "../../dot/node_modules/effect/dist/index.js";
@@ -747,6 +747,25 @@ test("atomic locked persistence retains a failed scan's snapshot and concurrent 
     expect(JSON.parse(readFileSync(join(paths.state, "review.json"), "utf8"))).not.toHaveProperty("findings");
     expect(saved.cache.snapshot?.id).toBe(current.id);
     expect(releaseNotificationState(current, saved.review, settings(), true).pending).toBeNull();
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("decisions from Syncthing conflict copies are merged back and the copies removed", async () => {
+  const root = mkdtempSync(join(tmpdir(), "release-conflict-"));
+  const paths = releasePaths("example/project", root, root, root);
+  const overall = { comparisonId: "comparison", impact: "minor" as const };
+
+  try {
+    mkdirSync(paths.data, { recursive: true });
+    writeFileSync(join(paths.data, "decisions.json"), JSON.stringify({ findings: { shared: "patch", kept: "none" }, overall: null }));
+    writeFileSync(join(paths.data, "decisions.sync-conflict-20261020-090000-AAAAAAA.json"), JSON.stringify({ findings: { shared: "major", older: "patch", both: "patch" }, overall }));
+    writeFileSync(join(paths.data, "decisions.sync-conflict-20261021-090000-BBBBBBB.json"), JSON.stringify({ findings: { both: "minor" }, overall: null }));
+
+    const { review } = await runP(withReleaseLock(paths, readReleaseState(paths)));
+
+    expect(review.findings).toEqual({ both: "minor", kept: "none", older: "patch", shared: "patch" });
+    expect(review.overall).toEqual(overall);
+    expect(readdirSync(paths.data).filter((name) => name.includes("sync-conflict"))).toEqual([]);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
