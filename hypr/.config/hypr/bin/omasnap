@@ -1,6 +1,0 @@
-#!/bin/bash
-
-# Hyprland already scales the overlay; the session-wide QT_SCALE_FACTOR would scale it twice.
-export QT_SCALE_FACTOR=1
-
-exec /usr/bin/omasnap "$@"
