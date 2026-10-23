@@ -1,6 +1,6 @@
 [tools]
 node = "26.12.1"
-bun = "1.4.3"
+bun = "1.4.4"
 "npm:markdownlint-cli2" = "0.24.0"
 actionlint = "1.7.12"
 yamllint = "1.38.0"
