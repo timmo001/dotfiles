@@ -163,6 +163,12 @@ version_json_path = ".version"
 format = "raw"
 bin = "opencode-desktop"
 
+[tools."github:bambulab/BambuStudio"]
+version = "02.08.02.61"
+asset_pattern = "BambuStudio_ubuntu24.04-v*.AppImage"
+format = "raw"
+bin = "bambu-studio"
+
 [tools."github:yt-dlp/yt-dlp"]
 version = "2026.10.21"
 asset_pattern = "yt-dlp_linux"
