@@ -105,7 +105,7 @@ asset_pattern = "topgrade-v*-x86_64-unknown-linux-musl.tar.gz"
 rename_exe = "topgrade-cli"
 
 [tools."github:storytold/photocraft"]
-version = "0.13.0"
+version = "0.14.0"
 asset_pattern = "photocraft-*-linux-x86_64.tar.gz"
 strip_components = 1
 bin_path = "bin"
