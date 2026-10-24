@@ -730,6 +730,7 @@ export class DependencyGithub extends Context.Service<
                     tag_name: Schema.String,
                     published_at: Schema.NullOr(Schema.String),
                     draft: Schema.Boolean,
+                    prerelease: Schema.Boolean,
                   }),
                 ),
               ),
@@ -743,7 +744,10 @@ export class DependencyGithub extends Context.Service<
                 releases: releases.map((release) => ({
                   version: release.tag_name,
                   ...Record.filter(
-                    { date: release.published_at ?? undefined },
+                    {
+                      date: release.published_at ?? undefined,
+                      prerelease: release.prerelease || undefined,
+                    },
                     Predicate.isNotUndefined,
                   ),
                 })),

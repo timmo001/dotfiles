@@ -35,6 +35,8 @@ export const Release = Schema.Struct({
   version: Schema.String,
   digest: Schema.optionalKey(Schema.String),
   date: Schema.optionalKey(Schema.String),
+  /** The provider marks this release as a prerelease, whatever its version string says. */
+  prerelease: Schema.optionalKey(Schema.Boolean),
 });
 
 /** Decoded provider release. */

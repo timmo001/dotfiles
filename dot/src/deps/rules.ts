@@ -430,9 +430,10 @@ export function selectRelease(
     if (
       !git &&
       candidateSettings.ignoreUnstable !== false &&
-      version &&
-      semver.prerelease(version) &&
-      !(current && semver.prerelease(current))
+      (release.prerelease ||
+        (version &&
+          semver.prerelease(version) &&
+          !(current && semver.prerelease(current))))
     )
       continue;
 
