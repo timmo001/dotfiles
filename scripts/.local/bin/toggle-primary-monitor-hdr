@@ -31,12 +31,20 @@ if ((transform != 0)); then
   monitor_spec+=", transform = $transform"
 fi
 
+# Read by monitors.lua so a Hyprland reload (such as from dot stow) keeps HDR on.
+# Lives in the runtime dir so it ends with the session.
+state_file="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/hypr-hdr-monitor.lua"
+
 if jq -e --arg monitor "$monitor" \
   '.[] | select(.name == $monitor and (.colorManagementPreset == "hdr" or (.currentFormat == "XRGB2101010" and .sdrBrightness == 2)))' \
   <<<"$state" >/dev/null; then
+  rm -f "$state_file"
   hyprctl eval "hl.monitor({ $monitor_spec, bitdepth = 8, cm = \"srgb\", sdrbrightness = 1.0 })"
   omarchy notification send -g "󰍹" --app-name "Display" "HDR disabled" "Restored SDR colour and brightness for $monitor."
 else
-  hyprctl eval "hl.monitor({ $monitor_spec, bitdepth = 10, cm = \"hdr\", sdrbrightness = 2.0$hdr_luminance })"
+  hdr_monitor="hl.monitor({ $monitor_spec, bitdepth = 10, cm = \"hdr\", sdrbrightness = 2.0$hdr_luminance })"
+  printf '%s\n' "$hdr_monitor" >"$state_file.tmp"
+  mv "$state_file.tmp" "$state_file"
+  hyprctl eval "$hdr_monitor"
   omarchy notification send -g "󰍹" --app-name "Display" "HDR enabled" "$monitor is using 10-bit HDR with the full BT.2020 colour gamut."
 fi
