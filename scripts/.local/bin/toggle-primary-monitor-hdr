@@ -7,8 +7,11 @@ if ! state=$(hyprctl -j monitors); then
   exit 1
 fi
 
+hdr_luminance=""
 if [[ ${OMARCHY_HOST:-} == desktop ]]; then
   monitor=HDMI-A-2
+  # AORUS FO32U2P in its Peak 1000 HDR mode; the EDID only reports the True Black 400 peak.
+  hdr_luminance=", min_luminance = 0, max_luminance = 1000, max_avg_luminance = 277"
 else
   monitor=$(jq -r '[.[] | select(.focused)][0].name // empty' <<<"$state")
 fi
@@ -34,6 +37,6 @@ if jq -e --arg monitor "$monitor" \
   hyprctl eval "hl.monitor({ $monitor_spec, bitdepth = 8, cm = \"srgb\", sdrbrightness = 1.0 })"
   omarchy notification send -g "󰍹" --app-name "Display" "HDR disabled" "Restored SDR colour and brightness for $monitor."
 else
-  hyprctl eval "hl.monitor({ $monitor_spec, bitdepth = 10, cm = \"hdr\", sdrbrightness = 2.0 })"
+  hyprctl eval "hl.monitor({ $monitor_spec, bitdepth = 10, cm = \"hdr\", sdrbrightness = 2.0$hdr_luminance })"
   omarchy notification send -g "󰍹" --app-name "Display" "HDR enabled" "$monitor is using 10-bit HDR with the full BT.2020 colour gamut."
 fi
