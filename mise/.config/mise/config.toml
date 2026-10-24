@@ -140,6 +140,14 @@ asset_pattern = "ProtonPlus-*-anylinux-x86_64.AppImage"
 format = "raw"
 bin = "protonplus"
 
+# plezy.sh sets LD_LIBRARY_PATH for the bundled libraries and execs the plezy binary beside it.
+# The tarball ships it and crashpad_handler without the executable bit.
+[tools."github:edde746/plezy"]
+version = "2.24.0"
+asset_pattern = "plezy-linux-x64.tar.gz"
+filter_bins = "plezy.sh"
+postinstall = 'chmod 755 "$MISE_TOOL_INSTALL_PATH/plezy.sh" "$MISE_TOOL_INSTALL_PATH/lib/crashpad_handler"'
+
 # The bundled adb stays off PATH so the Android SDK's adb is used.
 [tools."github:Genymobile/scrcpy"]
 version = "5.0.1"
