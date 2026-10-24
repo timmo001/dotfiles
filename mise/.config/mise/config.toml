@@ -93,7 +93,7 @@ format = "raw"
 bin = "go2rtc"
 
 [tools."github:github/app"]
-version = "1.1.30"
+version = "1.1.31"
 asset_pattern = "GitHub-Copilot-linux-x64.AppImage"
 format = "raw"
 bin = "github-copilot"
