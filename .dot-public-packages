@@ -31,6 +31,7 @@ system-bridge-git
 thunar
 triage-git
 upnext-git
+xorg-xsetroot
 zsh
 zsh-autosuggestions
 zsh-fast-syntax-highlighting
