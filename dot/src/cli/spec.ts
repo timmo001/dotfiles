@@ -2015,48 +2015,6 @@ const agentSyncCommand = describe(
   },
 );
 
-const agentPermissionCommand = describe(
-  Command.make("permission").pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make("hook", {}, () =>
-          Effect.promise(
-            () => import("../commands/ClaudePermissionHook.js"),
-          ).pipe(Effect.flatMap((module) => module.claudePermissionHook)),
-        ),
-        "Enforce OpenCode permission rules in Claude Code",
-        ["dot agent permission hook < event.json"],
-        {
-          description:
-            "Claude Code PreToolUse hook. Reads the hook event from stdin, maps the tool call onto OpenCode actions (shell, read, edit, external_directory, MCP server tools, webfetch, websearch, todowrite), and evaluates the permissions in ~/.config/opencode/opencode.json, followed by any opencode.json in the directories from below home down to the session directory, with OpenCode's semantics: the last matching rule wins and each part of a compound shell command is checked. Prints allow, ask or deny for Claude Code, or nothing when no rule decides so Claude Code's own prompting applies.",
-        },
-      ),
-    ]),
-  ),
-  "Apply OpenCode permissions to other agent harnesses",
-);
-
-const agentReviewCommand = describe(
-  Command.make("review").pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make("hook", {}, () =>
-          Effect.promise(() => import("../commands/ClaudeReviewHook.js")).pipe(
-            Effect.flatMap((module) => module.claudeReviewHook),
-          ),
-        ),
-        "Hold Claude Code to the change-review-handoff skill",
-        ["dot agent review hook < event.json"],
-        {
-          description:
-            "Claude Code Stop hook. Reads the hook event from stdin and the session transcript it names. When the current turn edited files outside /tmp and ~/.claude, and nothing after the last edit opened a Plannotator review, loaded change-review-handoff or messaged the Plannotator Inbox, it blocks the stop once and tells the agent to hand the change off or say why it does not apply. A repeated stop in the same turn always goes through.",
-        },
-      ),
-    ]),
-  ),
-  "Hold agent harnesses to the change review handoff",
-);
-
 const notesCommand = describe(
   Command.make("notes").pipe(
     Command.withSubcommands([
@@ -3007,8 +2965,6 @@ const agentCommand = describe(
       agentLintCommand,
       agentOxlintCommand,
       isAgent,
-      agentPermissionCommand,
-      agentReviewCommand,
     ]),
   ),
   "Agent harness tooling: instruction sync, linting and detection",

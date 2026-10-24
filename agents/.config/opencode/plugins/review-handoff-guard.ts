@@ -5,7 +5,6 @@
 import { Plugin } from "@opencode/plugin/effect";
 import { Effect, Option, Schema, Stream } from "effect";
 
-/** Shared with `dot agent review hook` for Claude Code; keep them in step. */
 const REVIEW_NUDGE =
   "You changed files in this turn but have not handed the change off for review. " +
   "Apply the change-review-handoff skill now. " +
