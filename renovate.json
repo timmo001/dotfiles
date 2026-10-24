@@ -101,6 +101,12 @@
       "versioning": "loose"
     },
     {
+      "description": "Read Bambu Studio's zero-padded four-part versions.",
+      "matchDepNames": ["github:bambulab/BambuStudio"],
+      "versioning": "loose",
+      "extractVersion": "^v?(?<version>.+)$"
+    },
+    {
       "description": "Only follow Biome CLI releases, not the other packages released from the same repository.",
       "matchDepNames": ["aqua:biomejs/biome"],
       "extractVersion": "^@biomejs/biome@(?<version>.+)$"

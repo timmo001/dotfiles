@@ -14142,6 +14142,14 @@ policy:
         set:
           versioning: "loose"
       - description:
+          - "Read Bambu Studio's zero-padded four-part versions."
+        match:
+          dependencies:
+            - "github:bambulab/BambuStudio"
+        set:
+          versioning: "loose"
+          extractVersion: "^v?(?<version>.+)$"
+      - description:
           - "Only follow Biome CLI releases, not the other packages released from the same repository."
         match:
           dependencies:
@@ -14731,7 +14739,7 @@ import:
   leaveToRenovate:
     - "arch/quickshell"
   resolverVersion: "44.126.1"
-  overrideHash: "7b25f9e61d05d1b059655f763541b5a158703f4997149b2cf920f8518c897678"
+  overrideHash: "16858a98ff721048dff0b5f54b70f8aa7de9ff618c0c54d50bba4ea9987b8508"
   baseDiagnostics:
     - path: "presets.description"
       disposition: "ignored"
