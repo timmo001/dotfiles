@@ -111,7 +111,7 @@ strip_components = 1
 bin_path = "bin"
 
 [tools."github:storytold/vectorcraft"]
-version = "0.15.0"
+version = "0.16.0"
 asset_pattern = "vectorcraft-[0-9]*-linux-x86_64.tar.gz"
 strip_components = 1
 bin_path = "bin"
