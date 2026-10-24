@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Runs inside omarchy update while it still holds sudo, so the dotfiles and
+# Topgrade updates don't ask for the password again.
+args=(update system --omarchy-hook)
+[[ -z ${OMARCHY_UPDATE_UNATTENDED:-} ]] || args+=(--yes)
+
+dot "${args[@]}"

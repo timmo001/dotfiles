@@ -241,22 +241,25 @@ const systemUpdateCommand = describe(
   Command.make(
     "system",
     {
-      yes: bool("yes", "Select every update without prompting"),
+      yes: bool(
+        "yes",
+        "Run omarchy update with -y, and select every other update without prompting",
+      ),
       step: Flag.Literals("step", UPDATE_STEPS).pipe(
         Flag.atLeast(0),
         Flag.withDescription(
-          "Run only this step without prompting; repeat for several",
+          "Run only this step here, without omarchy update or prompting; repeat for several",
         ),
       ),
-      noSelfUpdate: bool(
-        "no-self-update",
-        "Internal: the dotfiles are already pulled, so dot update skips its self-update",
+      omarchyHook: bool(
+        "omarchy-hook",
+        "Internal: run from Omarchy's post-update hook to select and run the other updates",
       ),
     },
-    ({ yes, step, noSelfUpdate }) =>
-      systemUpdate({ yes, steps: step, selfUpdate: !noSelfUpdate }),
+    ({ yes, step, omarchyHook }) =>
+      systemUpdate({ yes, steps: step, omarchyHook }),
   ),
-  "Select and run Dotfiles, Omarchy, and Topgrade updates",
+  "Run omarchy update, which then runs the Dotfiles and Topgrade updates",
   [
     "dot update system",
     "dot update system --yes",
@@ -264,7 +267,7 @@ const systemUpdateCommand = describe(
   ],
   {
     description:
-      "Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.\n\nUnder Herdr, when Omarchy and other steps are selected, this pane first pulls the public and private dotfiles and rebuilds dot when Dotfiles is selected. The other steps then run in a pane split off to the right, which stays open when they finish and doesn't pull the dotfiles again, while this pane runs the Omarchy update, so both can ask for authentication straight away.",
+      "Hand over to omarchy update. Its post-update hook runs dot update system --omarchy-hook, which selects and runs the other steps in order: Dotfiles, GitHub CLI extensions, and Topgrade, while Omarchy still holds its sudo authorisation, so the whole update asks for the password once. Interactive runs pre-select Dotfiles and GitHub CLI extensions; Topgrade steps start unselected. Non-interactive runs and --yes select every step. Cancelling the prompt skips them.\n\n--step runs only the steps given, here and without omarchy update.",
   },
 );
 
