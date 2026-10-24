@@ -117,7 +117,7 @@ strip_components = 1
 bin_path = "bin"
 
 [tools."github:storytold/effectcraft"]
-version = "0.15.0"
+version = "0.16.0"
 asset_pattern = "effectcraft-[0-9]*-linux-x86_64.tar.gz"
 strip_components = 1
 bin_path = "bin"
