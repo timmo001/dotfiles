@@ -41,12 +41,14 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Removed files
 
-80 files removed from folders that stay.
+82 files removed from folders that stay.
 
 | File | Was |
 | --- | --- |
+| `.github/workflows/cloud-rebase.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/6cc394dade830fc232e8c42ab91e5a0b58454ddd/.github/workflows/cloud-rebase.yml) |
 | `.github/workflows/mise-toolchain.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/6cc394dade830fc232e8c42ab91e5a0b58454ddd/.github/workflows/mise-toolchain.yml) |
 | `.github/workflows/quickshell-lint.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/6cc394dade830fc232e8c42ab91e5a0b58454ddd/.github/workflows/quickshell-lint.yml) |
+| `.github/workflows/server-rebase.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/6cc394dade830fc232e8c42ab91e5a0b58454ddd/.github/workflows/server-rebase.yml) |
 | `.gitmodules` | [desktop](https://github.com/timmo001/dotfiles/blob/6cc394dade830fc232e8c42ab91e5a0b58454ddd/.gitmodules) |
 | `docs/public/illustrations/desktop.svg` | [desktop](https://github.com/timmo001/dotfiles/blob/6cc394dade830fc232e8c42ab91e5a0b58454ddd/docs/public/illustrations/desktop.svg) |
 | `docs/src/content/docs/agents/cursor.mdx` | [desktop](https://github.com/timmo001/dotfiles/blob/6cc394dade830fc232e8c42ab91e5a0b58454ddd/docs/src/content/docs/agents/cursor.mdx) |
@@ -229,10 +231,8 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-35 files only on this branch.
+33 files only on this branch.
 
-- [`.agents/skills/cloud-rebase/SKILL.md`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.agents/skills/cloud-rebase/SKILL.md)
-- [`.agents/skills/server-rebase/SKILL.md`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.agents/skills/server-rebase/SKILL.md)
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.dot-private.yml)
 - [`.dot-public-deb-releases.yml`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.dot-public-deb-releases.yml)
 - [`.dot-skills.yml`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.dot-skills.yml)
