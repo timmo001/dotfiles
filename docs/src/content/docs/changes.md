@@ -134,7 +134,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Changed files
 
-92 files in both branches with different contents.
+93 files in both branches with different contents.
 
 | File | Compare |
 | --- | --- |
@@ -183,6 +183,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `dot/src/commands/Updates.ts` | [diff](https://github.com/timmo001/dotfiles/compare/28bcc4973b816668fced7206c1208be41adac405...distro/cloud#diff-0e69ba27770c2b60115cfab343cfc82104d0ab007757537c6c66c961dc0cc3e1), [desktop](https://github.com/timmo001/dotfiles/blob/28bcc4973b816668fced7206c1208be41adac405/dot/src/commands/Updates.ts), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/commands/Updates.ts) |
 | `dot/src/doctor/checks/dependencies.ts` | [diff](https://github.com/timmo001/dotfiles/compare/28bcc4973b816668fced7206c1208be41adac405...distro/cloud#diff-718970d3f67a86476829dbbb38415ebdfafc2ad80293619c96344698ea5363de), [desktop](https://github.com/timmo001/dotfiles/blob/28bcc4973b816668fced7206c1208be41adac405/dot/src/doctor/checks/dependencies.ts), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/doctor/checks/dependencies.ts) |
 | `dot/src/doctor/checks/firewall.ts` | [diff](https://github.com/timmo001/dotfiles/compare/28bcc4973b816668fced7206c1208be41adac405...distro/cloud#diff-d71b6e802d21906ef33d7138b61e031f6969766199a1193ce9164bb913cfa57c), [desktop](https://github.com/timmo001/dotfiles/blob/28bcc4973b816668fced7206c1208be41adac405/dot/src/doctor/checks/firewall.ts), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/doctor/checks/firewall.ts) |
+| `dot/src/doctor/checks/herdr.ts` | [diff](https://github.com/timmo001/dotfiles/compare/28bcc4973b816668fced7206c1208be41adac405...distro/cloud#diff-1ca054d9b2eabd21b504d05b5053e16a05663d0f9575b11e9b911e22d1bb3472), [desktop](https://github.com/timmo001/dotfiles/blob/28bcc4973b816668fced7206c1208be41adac405/dot/src/doctor/checks/herdr.ts), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/doctor/checks/herdr.ts) |
 | `dot/src/doctor/checks/packages.ts` | [diff](https://github.com/timmo001/dotfiles/compare/28bcc4973b816668fced7206c1208be41adac405...distro/cloud#diff-1d380a1a2dca5e3c4418c3d70e7f960de57cbee45c2eb0f984a239a34d07a514), [desktop](https://github.com/timmo001/dotfiles/blob/28bcc4973b816668fced7206c1208be41adac405/dot/src/doctor/checks/packages.ts), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/doctor/checks/packages.ts) |
 | `dot/src/doctor/checks/pitchfork.ts` | [diff](https://github.com/timmo001/dotfiles/compare/28bcc4973b816668fced7206c1208be41adac405...distro/cloud#diff-7a20470e7d8922ea6716dcb7c2b80eba271fab5cbebf4cb655020151aee5bf02), [desktop](https://github.com/timmo001/dotfiles/blob/28bcc4973b816668fced7206c1208be41adac405/dot/src/doctor/checks/pitchfork.ts), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/doctor/checks/pitchfork.ts) |
 | `dot/src/doctor/checks/stow.ts` | [diff](https://github.com/timmo001/dotfiles/compare/28bcc4973b816668fced7206c1208be41adac405...distro/cloud#diff-08d72f1c2abf4107aa90b26cce0243d25041b690534af436d3a96120791db629), [desktop](https://github.com/timmo001/dotfiles/blob/28bcc4973b816668fced7206c1208be41adac405/dot/src/doctor/checks/stow.ts), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/doctor/checks/stow.ts) |
@@ -233,12 +234,13 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-34 files only on this branch.
+35 files only on this branch.
 
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.dot-private.yml)
 - [`.dot-public-deb-releases.yml`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.dot-public-deb-releases.yml)
 - [`.dot-skills.yml`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.dot-skills.yml)
 - [`.github/workflows/distro-diff.yml`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.github/workflows/distro-diff.yml)
+- [`agents/.config/opencode/instructions/server.md`](https://github.com/timmo001/dotfiles/blob/distro/cloud/agents/.config/opencode/instructions/server.md)
 - [`cloud/claude/CLAUDE.md`](https://github.com/timmo001/dotfiles/blob/distro/cloud/cloud/claude/CLAUDE.md)
 - [`cloud/claude/settings.json`](https://github.com/timmo001/dotfiles/blob/distro/cloud/cloud/claude/settings.json)
 - [`cloud/setup.sh`](https://github.com/timmo001/dotfiles/blob/distro/cloud/cloud/setup.sh)
