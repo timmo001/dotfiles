@@ -10,10 +10,11 @@ compatibility: Requires the dot CLI and the host's configured OpenCode 2 launche
 ## Query The Right Session
 
 1. For yourself, take the exact `Current conversation session ID` from the
-   harness's injected environment context. It is prompt context, not a promised
-   shell environment variable. Do not infer identity from the current directory,
-   focused pane, latest session or transcript title. If the ID is unavailable,
-   ask for it rather than inspecting an arbitrary session.
+   harness's injected environment context. When the prompt does not include it,
+   OpenCode 2's shell tool sets `OPENCODE_SESSION_ID` for every command, so run
+   `dot session status "$OPENCODE_SESSION_ID" --json`. Do not infer identity
+   from the current directory, focused pane, latest session or transcript title.
+   Ask for the ID only if both sources are missing.
 2. Run `dot session status <session-id> --json`. Use the same command with an
    explicitly supplied ID for another session. Herdr's reported OpenCode session
    ID is also suitable when inspecting an already identified worker.
