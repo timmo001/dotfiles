@@ -92,71 +92,21 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 
 ### `dot update system`
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-Run omarchy update, which then runs the Dotfiles and Topgrade updates
-||||||| parent of b3f8fabf (Remove the desktop code from dot and switch packages to apt)
-Select and run Dotfiles, Omarchy, and Topgrade updates
-=======
-Select and run Dotfiles, apt, and Topgrade updates
->>>>>>> b3f8fabf (Remove the desktop code from dot and switch packages to apt)
-||||||| parent of dbf63804 (Add the dot server serve dashboard, run through pitchfork)
-Select and run Dotfiles, apt, and Topgrade updates
-=======
-Select and run Dotfiles, apt, release package and Topgrade updates
->>>>>>> dbf63804 (Add the dot server serve dashboard, run through pitchfork)
-||||||| parent of a7845bd0 (Run compose-up natively as dot compose up and a system update step)
-Select and run Dotfiles, apt, release package and Topgrade updates
-=======
 Select and run Dotfiles, apt, release package, compose-up and Topgrade updates
->>>>>>> a7845bd0 (Run compose-up natively as dot compose up and a system update step)
 
 ```text
 dot update system [flags]
 ```
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-Hand over to omarchy update. Its post-update hook runs dot update system --omarchy-hook, which selects and runs the other steps in order: Dotfiles, GitHub CLI extensions, and Topgrade, while Omarchy still holds its sudo authorisation, so the whole update asks for the password once. Interactive runs pre-select Dotfiles and GitHub CLI extensions; Topgrade steps start unselected. Non-interactive runs and --yes select every step. Cancelling the prompt skips them.
-
---step runs only the steps given, here and without omarchy update.
-||||||| parent of b3f8fabf (Remove the desktop code from dot and switch packages to apt)
-Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, Omarchy, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
-
-Under Herdr, when Omarchy and other steps are selected, this pane first pulls the public and private dotfiles and rebuilds dot when Dotfiles is selected. The other steps then run in a pane split off to the right, which stays open when they finish and doesn't pull the dotfiles again, while this pane runs the Omarchy update, so both can ask for authentication straight away.
-=======
-Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, apt packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
->>>>>>> b3f8fabf (Remove the desktop code from dot and switch packages to apt)
-||||||| parent of dbf63804 (Add the dot server serve dashboard, run through pitchfork)
-Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub CLI extensions, and Topgrade. Interactive runs pre-select Dotfiles, apt packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
-=======
-Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. Interactive runs pre-select Dotfiles, apt packages, release packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
->>>>>>> dbf63804 (Add the dot server serve dashboard, run through pitchfork)
-||||||| parent of a7845bd0 (Run compose-up natively as dot compose up and a system update step)
-Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. Interactive runs pre-select Dotfiles, apt packages, release packages, and GitHub CLI extensions; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
-=======
 Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, compose-up, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select Dotfiles, apt packages, release packages, GitHub CLI extensions, and compose-up; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
->>>>>>> a7845bd0 (Run compose-up natively as dot compose up and a system update step)
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-<<<<<<< HEAD
-| `--yes` | Run omarchy update with -y, and select every other update without prompting |
-| `--step` `<choice>` | Run only this step here, without omarchy update or prompting; repeat for several (choices: dotfiles, github-cli, yazi, protonplus, firmware, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
-| `--omarchy-hook` | Internal: run from Omarchy's post-update hook to select and run the other updates |
-||||||| parent of b3f8fabf (Remove the desktop code from dot and switch packages to apt)
-| `--yes` | Select every update without prompting |
-| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, omarchy, github-cli, yazi, protonplus, firmware, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
-| `--no-self-update` | Internal: the dotfiles are already pulled, so dot update skips its self-update |
-=======
 | `--yes` | Select every update without prompting |
 | `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, apt, releases, github-cli, compose, yazi, rustup, tldr, vim, claude_code, claude_code_plugins, uv) |
 | `--no-self-update` | Skip dot update's self-update pull when the dotfiles are already pulled |
->>>>>>> b3f8fabf (Remove the desktop code from dot and switch packages to apt)
 | `--help` `-h` | Show help information |
 
 **Examples**
@@ -855,69 +805,6 @@ dot fans run [flags]
 
 ```bash
 dot fans run
-```
-
-## `dot hdr`
-
-Switch the primary monitor between HDR and SDR
-
-```text
-dot hdr <subcommand> [flags]
-```
-
-The primary monitor is HDMI-A-2 on the desktop host and the focused monitor elsewhere. On sets 10-bit output with HDR colour management and doubled SDR brightness, and saves the setting so a Hyprland reload keeps it; off restores 8-bit sRGB. Either does nothing when the monitor is already there. The hdr-on and hdr-off scripts wrap these for launchers that take a script path, such as Heroic's per-game before and after launch scripts.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot hdr on
-dot hdr off
-```
-
-### `dot hdr on`
-
-Switch the primary monitor to HDR
-
-```text
-dot hdr on [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot hdr on
-```
-
-### `dot hdr off`
-
-Switch the primary monitor back to SDR
-
-```text
-dot hdr off [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot hdr off
 ```
 
 ## `dot tunnel`
