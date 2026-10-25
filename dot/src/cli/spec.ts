@@ -3381,7 +3381,7 @@ const reloadCommand = describe(
   ["dot reload", "dot reload updates", "dot reload agents"],
   {
     description:
-      "Reload parts that can go stale after a change. With no parts, reloads everything except agents. agents reloads the OpenCode service's config and, through Herdr, types /reload-plugins into idle Claude Code sessions and /reload into idle Pi sessions; busy sessions are left alone, and dot update runs it after a full update. updates refreshes available updates. doctor starts the dot doctor check.",
+      "Reload parts that can go stale after a change. With no parts, reloads everything except agents. agents reloads the OpenCode service's config and, through Herdr, types /reload-plugins into idle Claude Code sessions and /reload into idle Pi sessions; busy sessions are left alone, and dot update runs it after a full update. updates refreshes available updates.",
   },
 );
 
