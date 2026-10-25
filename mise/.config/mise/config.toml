@@ -55,14 +55,6 @@ minimum_release_age = "2h"
 version = "1.4.0"
 minimum_release_age = "2h"
 
-[tools."github:backnotprop/plannotator"]
-version = "0.28.30"
-minimum_release_age = "2h"
-
-[tools."github:plannotator/plannotator-tui"]
-version = "0.9.4"
-minimum_release_age = "2h"
-
 # Renamed so the topgrade wrapper in ~/.local/bin stays first on PATH.
 [tools."github:topgrade-rs/topgrade"]
 version = "17.14.1"

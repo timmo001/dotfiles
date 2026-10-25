@@ -214,12 +214,6 @@ export VISUAL=nvim
 export REACT_EDITOR=nvim
 
 # ------------------------------
-# Plannotator
-# ------------------------------
-# There is no browser here, so Plannotator prints the review URL. Open it from
-# a client through an SSH port forward, or use the Plannotator TUI.
-
-# ------------------------------
 # GPG
 # ------------------------------
 export GPG_TTY="$(tty)"

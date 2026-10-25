@@ -28,6 +28,16 @@ mcp:
     - cloudflare-builds
     - cloudflare-observability
 
+# opencode: settings dot mcp sync layers over the shared OpenCode config in
+# the untracked ~/.config/opencode/opencode.jsonc. Plannotator needs a browser
+# this server doesn't have, so its plugin and the review handoff nudge are
+# removed, and the server instructions say to report in chat instead.
+opencode:
+  plugins:
+    - -plannotator
+    - -review-handoff-guard
+  instructions:
+    - ~/.config/opencode/instructions/server.md
 # syncthing.exclude: folder IDs from the private syncthing.yml kept off this
 # machine. dot stow removes them from Syncthing if they were added before, and
 # leaves their files on disk. The NAS media folders are already shared by the
