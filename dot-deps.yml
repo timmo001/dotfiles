@@ -14711,7 +14711,7 @@ import:
   leaveToRenovate:
     - "arch/quickshell"
   resolverVersion: "44.126.1"
-  overrideHash: "16858a98ff721048dff0b5f54b70f8aa7de9ff618c0c54d50bba4ea9987b8508"
+  overrideHash: "645320c56f71a9480ddd849f6672f4039b0dbb063f9d31f7aa0d7afe647c2054"
   baseDiagnostics:
     - path: "presets.description"
       disposition: "ignored"
