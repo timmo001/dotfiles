@@ -7,9 +7,6 @@ const PrivateSelectionFile = Schema.Struct({
   mcp: Schema.optionalKey(
     Schema.Struct({ exclude: Schema.Array(Schema.String) }),
   ),
-  syncthing: Schema.optionalKey(
-    Schema.Struct({ exclude: Schema.Array(Schema.String) }),
-  ),
   opencode: Schema.optionalKey(
     Schema.Struct({
       plugins: Schema.optionalKey(Schema.Array(Schema.String)),
@@ -46,8 +43,6 @@ export interface PrivateSelection {
   readonly stow: ReadonlySet<string> | null;
   /** MCP servers from the private spec this machine keeps disabled. */
   readonly mcpExclude: ReadonlySet<string>;
-  /** Syncthing folder IDs from the private config this machine leaves out. */
-  readonly syncthingExclude: ReadonlySet<string>;
   /** OpenCode plugins and instructions changed on this machine. */
   readonly opencode: OpenCodeLayer;
   /** Tracked repositories to keep, or `null` to keep them all. */
@@ -69,25 +64,21 @@ export const readPrivateSelection = Effect.fn("PrivateSelection.read")(
 
     return yield* Effect.try(() => Bun.YAML.parse(text)).pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(PrivateSelectionFile)),
-      Effect.map(
-        ({ stow, mcp, syncthing, opencode, repos }): PrivateSelection => ({
-          stow: stow === undefined ? null : new Set(stow),
-          mcpExclude: new Set(mcp?.exclude),
-          syncthingExclude: new Set(syncthing?.exclude),
-          opencode: {
-            plugins: opencode?.plugins ?? [],
-            instructions: opencode?.instructions ?? [],
-          },
-          repos:
-            repos === undefined
-              ? null
-              : { machine: repos.machine, shallow: repos.shallow ?? false },
-        }),
-      ),
+      Effect.map(({ stow, mcp, opencode, repos }): PrivateSelection => ({
+        stow: stow === undefined ? null : new Set(stow),
+        mcpExclude: new Set(mcp?.exclude),
+        opencode: {
+          plugins: opencode?.plugins ?? [],
+          instructions: opencode?.instructions ?? [],
+        },
+        repos:
+          repos === undefined
+            ? null
+            : { machine: repos.machine, shallow: repos.shallow ?? false },
+      })),
       Effect.orElseSucceed((): PrivateSelection => ({
         stow: new Set(),
         mcpExclude: new Set(),
-        syncthingExclude: new Set(),
         opencode: { plugins: [], instructions: [] },
         repos: { machine: "", shallow: true },
       })),
