@@ -9,7 +9,7 @@
 --ignore=AGENTS.md
 --ignore=\.github
 --ignore=\.dot-public-packages
---ignore=\.dot-public-deb-releases\.yml
+--ignore=\.dot-public-tools
 --ignore=\.dot-skills\.yml
 --ignore=\.dot-private\.yml
 --ignore=\.dot-gh-extensions

@@ -11,7 +11,6 @@ import {
   pendingGroups,
   PendingStatus,
   skills,
-  tools,
 } from "../lib/pendingUpdates.js";
 
 const BarStatus = Schema.Struct({
@@ -114,8 +113,8 @@ const render = (status: PendingStatus) => {
 };
 
 /**
- * Refresh the update status. `quick` keeps the cached apt and release package
- * status, for the end of `dot update`.
+ * Refresh the update status. `quick` keeps the previous full check's time,
+ * for the end of `dot update`.
  */
 export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
   options: UpdatesOptions,
@@ -150,7 +149,6 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
                 {
                   dot: dotfiles(options.timeout),
                   skills: skills(options.timeout),
-                  tools: tools(options.timeout),
                   gh: ghExtensions(),
                 },
                 { concurrency: "unbounded" },

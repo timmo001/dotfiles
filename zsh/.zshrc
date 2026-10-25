@@ -35,7 +35,7 @@ fi
 # ------------------------------
 # Zsh plugins
 # autosuggestions and syntax highlighting come from apt (see
-# .dot-public-packages); fzf-tab comes from the global mise config.
+# .dot-public-packages); fzf-tab is optional, from a mise http: install
 # fzf-tab needs compinit first and must load before the widget-wrapping plugins.
 # ------------------------------
 autoload -Uz compinit && compinit

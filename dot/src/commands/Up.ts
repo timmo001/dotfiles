@@ -1,7 +1,7 @@
 /**
  * @file `dot up`: check everything, pick what to run, then run it in order:
- * dotfiles, mise tools, gh extensions, missing packages, the apt and release
- * package system update and compose up, then the distro branch update.
+ * dotfiles, gh extensions and compose up, then the distro branch update. The
+ * OpenCode app installs and updates system packages and tools itself.
  */
 
 import { Extension } from "@timmo001/effect-gh";
@@ -10,7 +10,6 @@ import { Cause, Clock, Duration, Effect, FileSystem } from "effect";
 import { Prompt } from "effect/cli";
 import { DotDiff } from "../git/services/DotDiff.js";
 import { cliStyler, type Styler } from "../lib/ansi.js";
-import { updateDebReleases } from "../lib/debReleases.js";
 import { gitOutput } from "../lib/git.js";
 import { SKILLS_CHECKOUT } from "../lib/skillsMaintenance.js";
 import { ENV, envString } from "../lib/env.js";
@@ -18,7 +17,6 @@ import { formatCause } from "../lib/schema.js";
 import { DEFAULT_SOCKET_PATH, openHerdrRepo } from "./HerdrRepoOpen.js";
 import { branchUpdate } from "./BranchUpdate.js";
 import { COMPOSE_CONFIG, composeUp } from "./Compose.js";
-import { installMissingPackages } from "../lib/packageSetup.js";
 import {
   checkAll,
   groupLines,
@@ -43,7 +41,6 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import {
   CORE_CHECK_CATEGORIES,
-  refreshTools,
   update,
   UP_GROUPS,
   UPDATE_CHECK_AVAILABLE_EXIT,
@@ -65,23 +62,9 @@ const GROUP_INFO: Record<
     description:
       "Pull the dotfiles and tracked repositories, stow, rebuild dot and move the skills checkout",
   },
-  tools: {
-    title: "Mise tools",
-    description:
-      "Install missing mise tools and upgrade the rest, with no release delay",
-  },
   gh: {
     title: "gh extensions",
     description: "Install missing gh extensions and upgrade the others",
-  },
-  packages: {
-    title: "Missing packages",
-    description: "Install apt packages from the public and private lists",
-  },
-  system: {
-    title: "System",
-    description:
-      "Update and upgrade apt packages, then install newer GitHub release packages",
   },
   compose: {
     title: "Compose",
@@ -100,14 +83,9 @@ const groupWork = (groups: readonly PendingGroup[]) => {
       return group ? groupLines(group) : [];
     });
 
-  const packages = byId.get("packages");
-
   return {
     dotfiles: lines("dotfiles", "skills"),
-    tools: lines("tools"),
     gh: lines("gh"),
-    packages: (packages?.missing ?? []).map((name) => `${name} (missing)`),
-    system: [...(packages?.pending ?? []), ...lines("releases")],
     compose: [],
   } satisfies Record<UpGroup, readonly string[]>;
 };
@@ -188,7 +166,7 @@ const interactive = () =>
   process.stdin.isTTY === true && process.stdout.isTTY === true;
 
 /**
- * Without a terminal, prompts such as the group picker and sudo hang, so once
+ * Without a terminal, the group picker hangs, so once
  * the check finds work, rerun `dot up` in a Herdr tab in the dotfiles
  * workspace, where the user can answer them and an agent can read the pane.
  * Fails the run when Herdr can't open one.
@@ -329,40 +307,6 @@ const pickGroups = Effect.fn("Up.pick")(function* (
   );
 });
 
-/** Update and upgrade apt packages, then install newer GitHub release packages. */
-const systemUpdate = Effect.fn("Up.system")(function* (yes: boolean) {
-  const executor = yield* CommandExecutor;
-  const log = yield* OutputLog;
-
-  for (const args of [
-    ["apt-get", "update"],
-    ["apt-get", "upgrade", ...(yes ? ["-y"] : [])],
-  ]) {
-    const exitCode = yield* executor.inherit("sudo", args);
-
-    if (exitCode !== 0) {
-      process.exitCode = exitCode;
-
-      return [warn(`sudo ${args.join(" ")} exited ${exitCode}`)];
-    }
-  }
-
-  yield* log.section("GitHub Release Packages");
-
-  const released = yield* updateDebReleases.pipe(
-    Effect.catch((error) => log.error(error.message).pipe(Effect.as(1))),
-  );
-
-  if (released !== 0) process.exitCode = released;
-
-  return [
-    notable("Upgraded apt packages"),
-    released === 0
-      ? done("Release packages up to date")
-      : warn(`Release package install exited ${released}`),
-  ];
-});
-
 const ghUpgrade = Effect.gen(function* () {
   const exitCode = yield* Extension.upgradeAll({
     interactive: true,
@@ -379,28 +323,6 @@ const ghUpgrade = Effect.gen(function* () {
     ? done("Upgraded gh extensions")
     : warn(`gh extension upgrade exited ${exitCode}`);
 }).pipe(Effect.withSpan("Up.gh"));
-
-/** Install the missing apt packages from the public and private lists. */
-const installPackages = Effect.gen(function* () {
-  const log = yield* OutputLog;
-
-  return yield* Effect.all([
-    installMissingPackages({ scope: "public" }),
-    installMissingPackages({ scope: "private" }),
-  ]).pipe(
-    Effect.as(done("Installed missing packages")),
-    Effect.catch((error) =>
-      log.error(error.message).pipe(
-        Effect.tap(() =>
-          Effect.sync(() => {
-            process.exitCode = 1;
-          }),
-        ),
-        Effect.as(warn("Could not install missing packages")),
-      ),
-    ),
-  );
-}).pipe(Effect.withSpan("Up.packages"));
 
 /** Hand behind distro branches to a rebase agent, unless --no-branch. */
 const updateBranches = (opts: UpOptions) =>
@@ -483,7 +405,6 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
         groups: ordered,
         yes: true,
         inUp: true,
-        upgradeTools: picked.has("tools"),
       });
 
       // The restarted binary carries on with the picked groups.
@@ -492,21 +413,8 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
       updatedRepos.push(...result.updatedRepos);
       miseToolChanges.push(...result.miseToolChanges);
       actions.push(...result.completedActions);
-    } else if (group === "tools") {
-      if (picked.has("dotfiles")) {
-        yield* log.info("Upgraded with the dotfiles");
-        continue;
-      }
-
-      const refreshed = yield* refreshTools(true);
-      miseToolChanges.push(...refreshed.tools);
-      actions.push(...refreshed.actions);
     } else if (group === "gh") {
       actions.push(yield* ghUpgrade);
-    } else if (group === "packages") {
-      actions.push(yield* installPackages);
-    } else if (group === "system") {
-      actions.push(...(yield* systemUpdate(opts.yes === true)));
     } else {
       const exitCode = yield* composeUp([]);
 

@@ -194,14 +194,7 @@ export interface UpdateRun {
 }
 
 /** What `dot up` can run, in the order it runs them. */
-export const UP_GROUPS = [
-  "dotfiles",
-  "tools",
-  "gh",
-  "packages",
-  "system",
-  "compose",
-] as const;
+export const UP_GROUPS = ["dotfiles", "gh", "compose"] as const;
 
 /** One kind of work `dot up` can run. */
 export type UpGroup = (typeof UP_GROUPS)[number];

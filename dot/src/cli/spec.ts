@@ -254,10 +254,7 @@ const updateCommand = describe(
         "check-all",
         "Also check development repos for pulls, skipping local work",
       ),
-      yes: bool(
-        "yes",
-        "Run every group with work without asking, and pass -y to apt-get upgrade",
-      ),
+      yes: bool("yes", "Run every group with work without asking"),
       force: bool("force", "Offer every group, even with nothing pending"),
       group: Flag.Literals("group", UP_GROUPS).pipe(
         Flag.atLeast(0),
@@ -345,11 +342,11 @@ const updateCommand = describe(
         return yield* up({ ...options, groups: group, yes, force });
       }),
   ).pipe(Command.withSubcommands([branchUpdateCommand])),
-  "Check everything, pick what to update, then run it: dotfiles, mise tools, gh extensions, missing packages, apt and release packages, and compose up. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at and --group flags carry a run across the self-update restart.",
+  "Check everything, pick what to update, then run it: dotfiles, gh extensions and compose up. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at and --group flags carry a run across the self-update restart.",
   ["dot up", "dot up --check", "dot up --yes", "dot up --stow"],
   {
     description:
-      "dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and gh extensions. It saves the result for the status cache, lists it, then asks which groups to run, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order, each numbered with a one-line description:\n\n1. Dotfiles: pulls the public dotfiles, rebuilds and relaunches dot, scans and pulls tracked repositories, moves the skills checkout to the latest skills main, syncs MCP config, stows, installs mise tools, refreshes agent runtimes, syncs agent instructions, reloads agents and starts the doctor check. Pulls are fast-forward-only and never stash or rebase.\n2. Mise tools: installs missing tools and runs mise up with no release delay.\n3. gh extensions: installs missing ones and upgrades the rest.\n4. Missing packages: installs apt packages from the public and private lists.\n5. System: runs apt-get update and upgrade (with -y under --yes), then installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs.\n6. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.\n\nOn the server branch it then runs dot up branch unless --no-branch is given. It finishes with a summary of updated repositories, mise tools and every step.\n\n--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands. --no-reload skips the agent reload and doctor check.",
+      "dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout and gh extensions. System packages and tools come from the OpenCode app, which updates them itself. It saves the result for the status cache, lists it, then asks which groups to run, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order, each numbered with a one-line description:\n\n1. Dotfiles: pulls the public dotfiles, rebuilds and relaunches dot, scans and pulls tracked repositories, moves the skills checkout to the latest skills main, syncs MCP config, stows, installs mise tools, refreshes agent runtimes, syncs agent instructions, reloads agents and starts the doctor check. Pulls are fast-forward-only and never stash or rebase.\n2. gh extensions: installs missing ones and upgrades the rest.\n3. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.\n\nIt then runs dot up branch unless --no-branch is given. It finishes with a summary of updated repositories, mise tools and every step.\n\n--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands. --no-reload skips the agent reload and doctor check.",
     sections: [
       {
         title: "Exit codes",
@@ -752,7 +749,7 @@ const updatesCommand = describe(
             ...updateRefreshFlags,
             quick: bool(
               "quick",
-              "Skip the apt and release package checks, keeping their cached status",
+              "Keep the previous full check's time, so the background refresh stays on schedule",
             ),
           },
           (input) =>
@@ -773,7 +770,7 @@ const updatesCommand = describe(
   ["dot updates status", "dot updates refresh"],
   {
     description:
-      "Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks the dotfiles and dot-managed repositories, the managed skills checkout against timmo001/skills main, outdated and missing mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and missing gh extensions. It writes the cache atomically under a shared lock. status --json prints the cached status, its groups and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Use --cache-dir and --timeout to override defaults.",
+      "Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks the dotfiles and dot-managed repositories, the managed skills checkout against timmo001/skills main and missing gh extensions. It writes the cache atomically under a shared lock. status --json prints the cached status, its groups and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Use --cache-dir and --timeout to override defaults.",
   },
 );
 
