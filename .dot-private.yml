@@ -1,20 +1,19 @@
 ---
-# What this server takes from the private dotfiles, which stay on their main
-# branch.
+# What this machine, the OpenCode app in Home Assistant, takes from the private
+# dotfiles, which stay on their main branch.
 #
-# stow: the private stow packages dot links. Anything not listed, such as the
-# Omarchy, UWSM and desktop service packages, is left alone, and links already
-# made for a package removed from the list are unstowed.
+# stow: the private stow packages dot links. Anything not listed is left alone,
+# and links already made for a package removed from the list are unstowed.
+# agents is left out: its opencode.json and AGENTS.md would replace the app's
+# own, which it links to /config on every start. dot mcp sync layers the
+# private OpenCode config and AGENTS.md into opencode.jsonc instead.
 stow:
-  - agents
   - dot-config
   - git
   - git--nas
   - herdr
   - scripts
-  - systemd--nas
   - triage
-  - triage--nas
   - zsh
 
 # mcp.exclude: servers from the private mcp.yml kept off this machine. dot mcp
@@ -25,29 +24,18 @@ mcp:
   exclude:
     - chrome-devtools
     - cloudflare-api
+    - playwright
 
 # opencode: settings dot mcp sync layers over the shared OpenCode config in
-# the untracked ~/.config/opencode/opencode.jsonc. Plannotator needs a browser
-# this server doesn't have, so the private config's plugin is removed, and the
-# server instructions say to report in chat instead.
+# the untracked ~/.config/opencode/opencode.jsonc. There's no browser for
+# Plannotator here, so the private config's plugin is removed.
 opencode:
   plugins:
     - -plannotator
-  instructions:
-    - ~/.config/opencode/instructions/server.md
-# syncthing.exclude: folder IDs from the private syncthing.yml kept off this
-# machine. dot stow removes them from Syncthing if they were added before, and
-# leaves their files on disk. The NAS media folders are already shared by the
-# Syncthing container in nas-containers.
-syncthing:
-  exclude:
-    - nas01-documents
-    - nas01-music
-    - nas01-pictures
 
 # repos: this machine clones, pulls and checks the repositories in the
 # private dot-git.yml whose machines list includes machine. With shallow,
 # missing ones are cloned with --depth=1.
 repos:
-  machine: server
+  machine: opencode-app
   shallow: true
