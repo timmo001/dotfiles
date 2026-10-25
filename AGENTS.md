@@ -4,43 +4,17 @@ Repository-specific instructions for coding agents working in this public dotfil
 
 Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGENTS.md`. This file should only describe this repo's source layout, stow workflow, repo-local commands, and validation expectations. Don't catalogue skills or commands here: skills self-document via their injected `description`, commands via their frontmatter and the generated docs reference. Keep only repo facts and routing those don't capture.
 
-## Ubuntu Server Branch
+## OpenCode App Branch
 
-- This is `distro/ubuntu-server`, a headless build for an Ubuntu server. It has no desktop packages: no Hyprland, UWSM, Ghostty or Omarchy.
-- Keep it terminal and service tooling only. Do not add packages that need a graphical session.
-- The server (hostname `nas`, NVIDIA GPU) is not always on. Home Assistant powers it through `switch.nas`: `automation.server_turn_on_at_01_30` turns it on at 01:50 for the maintenance and backup window, and `automation.server_turn_off_at_05_30` runs `script.turn_off_nas_when_inactive` from 03:00, which cuts the power once `sensor.nas_activity` (active downloads) has been 0 for 2 minutes. Agent sessions and long jobs running then are cut off with it. Don't move scheduled jobs, reports or anything that must run reliably onto it; keep them on the machine that already owns them. Before changing its power, wake or sleep behaviour, read or change those through `ha-bridge` (`ha-bridge-cli` skill) rather than working around them locally. Treat it as a headless desktop, not a laptop.
-- The server hosts Herdr for remote clients through `systemd/.config/systemd/user/herdr.service`.
-- Sessions here run headless over SSH or Herdr, with no browser to open. Plannotator is off: the server has no Plannotator binaries, code, Herdr plugins or keys, and `.dot-private.yml` removes the private config's OpenCode plugin and loads `agents/.config/opencode/instructions/server.md`, which says to report in chat. Don't add Plannotator back here, and treat incoming Plannotator changes from the desktop as not wanted.
-- The desktop code (Omarchy, Hyprland, UWSM, Ghostty, pacman, AUR, browser) is removed from `dot/`, not gated. Don't add it back.
-- Packages come from apt (`.dot-public-packages`) and the global mise config. Release `.deb` packages such as System Bridge are listed in `.dot-public-deb-releases.yml` and installed by `dot up`.
-- `.dot-skills.yml` lists the authored skills `dot` does not link on the server. Add desktop-only skills there as they appear.
-- `.dot-private.yml` lists the private stow packages `dot` links on the server; the private repository stays on its main branch. A missing file stows all of them, an invalid one stows none, and packages dropped from the list are unstowed. Its `mcp.exclude` servers are disabled in the untracked `~/.config/opencode/opencode.jsonc` and left out of Claude Code by `dot mcp sync`, which also writes its `opencode` plugin operations and instruction files into that layer, and the server clones (shallow), pulls and checks only the `dot-git.yml` repositories whose `machines` list includes its `repos.machine`; the private `dot-git.yml` and `mcp.yml` are otherwise shared as they are.
-- `dot server serve` (`dot/src/server/`) serves the dashboard in `server/` (Vite, Lit, Tailwind). Pitchfork runs it as the `server` daemon in `pitchfork.toml`; manage it with the `serve:server*` mise tasks, and check the dashboard with `mise run server:typecheck ::: server:format:check ::: server:build`.
-
-### Updating From The Desktop Branch
-
-The branch rebases onto `origin/distro/arch-omarchy-quattro`. Look ahead before rebasing, bring in only what the server wants, and blindly ignore the rest.
-
-1. Look ahead at what is coming:
-
-   ```bash
-   git fetch origin
-   git log --oneline --stat HEAD..origin/distro/arch-omarchy-quattro
-   git diff --name-status HEAD...origin/distro/arch-omarchy-quattro
-   ```
-
-2. Sort each incoming change:
-   - Wanted: shared `dot` core, terminal tools, agent and OpenCode config, Herdr, services, docs framework, CI. Anything that would also work headless on Ubuntu.
-   - Not wanted: anything for Omarchy, Hyprland, UWSM, Ghostty, Quickshell, pacman, AUR, browsers, Plannotator or a graphical session, and changes to code this branch removed.
-3. Rebase with `git rebase origin/distro/arch-omarchy-quattro` (enable `rerere` so repeat resolutions replay).
-4. Resolve wanted changes properly, adapting them to apt and systemd where needed.
-5. Resolve everything else blindly without reading it: keep the server side. In a rebase the server commits are "theirs", so use `git checkout --theirs <path>`, and `git rm <path>` when the desktop changed a file this branch deleted.
-6. After the rebase, delete unwanted files the desktop added without a conflict (the `A` lines from step 1), since they arrive silently.
-7. Run the checks under Validation, then push with `--force-with-lease`. If `docs/src/content/docs/server/changes.md` conflicts, take either side: the Distro diff workflow regenerates and commits it after the push.
-
-`distro/cloud` and `distro/opencode-app` build on this branch, in permanent worktrees at `~/.local/share/dot/dotfiles-cloud` and `~/.local/share/dot/dotfiles-opencode-app`. Each branch's `AGENTS.md` owns what it takes. Rebase them with `git rebase --fork-point origin/distro/ubuntu-server`, so only their own commits replay after this branch is force-pushed; a plain `git rebase origin/distro/ubuntu-server` replays the old server commits too.
-
-`dot up branch` runs last in `dot up`. When any of these branches is behind, it opens an OpenCode agent named `branch-update` in Herdr to follow these steps and push. Commits that only regenerate the distro diff page don't count as behind. It never opens one under an agent, during a rebase, or while `branch-update` is open; `--no-branch` skips it.
+- This is `distro/opencode-app`, for the OpenCode app in Home Assistant: a Debian container, run as root without systemd or sudo, that's reset on every start. Only `$HOME` (`/data/home`), `/config`, `/share` and `/homeassistant` survive a restart.
+- It's based on `distro/ubuntu-server`, so it inherits that branch's headless trimming. Code and config still left from the NAS (systemd units, Ollama, Syncthing, firewall, Herdr service) still need cutting down. Rebase it with `git rebase --fork-point origin/distro/ubuntu-server`, so only this branch's own commits replay after the server branch is force-pushed.
+- Plannotator is off, as on the server, and so are Pi and OpenTunnel: OpenCode here is the app, and the app runs its own tunnel. Don't add them back.
+- The app installs system packages and tools, not `dot`. `.dot-public-packages` lists Debian packages for the app's `system_packages` option, and `.dot-public-tools` lists entries for its `tools` option, without versions so the app keeps them on the latest. `dot init` and `dot doctor` read the options from the Supervisor and say what to add; they never run apt or install tools themselves.
+- When something new is needed, add it to the matching list. If it's useful to anyone using the app, also add it to the app's defaults in `~/repos/app-opencode` (`opencode/config.yaml` and `opencode_manager/config.yaml`, plus `DOCS.md`). An existing install keeps its own options, so the user still adds it by hand either way.
+- The app owns `~/.config/mise/config.toml` and the `opencode.json`, `AGENTS.md` and `skills` links in `~/.config/opencode`, all pointing into `/config`. Don't stow over them; this branch has no global mise config package.
+- `.dot-skills.yml` lists the authored skills `dot` does not link here, such as desktop-only ones.
+- `.dot-private.yml` lists the private stow packages and repos `dot` uses here; the private repository stays on its main branch.
+- Never restart or update OpenCode or the app; ask the user.
 
 ## Scope
 

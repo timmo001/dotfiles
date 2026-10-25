@@ -1,15 +1,11 @@
 /**
- * @file Checks for everything `dot up` updates or installs: dotfiles, skills,
- * mise tools, agent plugins, apt packages, GitHub release packages and gh
- * extensions. The status cache and `dot up` share these checks.
+ * @file Checks for everything `dot up` updates or installs: dotfiles, skills
+ * and gh extensions. The OpenCode app updates system packages and tools
+ * itself. The status cache and `dot up` share these checks.
  */
 
-import { Extension } from "@timmo001/effect-gh";
-import { Effect, Match, Option, Schema } from "effect";
-import { lines, query, type QueryResult } from "./boundedQuery.js";
-import { HOME_DIR } from "./paths.js";
-import { missingListedPackages } from "./packageSetup.js";
-import { pendingDebReleases } from "./debReleases.js";
+import { Effect, Match, Schema } from "effect";
+import { query, type QueryResult } from "./boundedQuery.js";
 import { Config } from "../services/Config.js";
 import {
   ghExtensionsListPath,
@@ -17,7 +13,6 @@ import {
   loadGhExtensions,
 } from "./ghExtensions.js";
 import { SKILLS_CHECKOUT } from "./skillsMaintenance.js";
-import { pendingAgentPlugins } from "./agentRuntime.js";
 
 export { query, type QueryResult };
 
@@ -28,8 +23,6 @@ export const DotState = Schema.Literals(["current", "available", "unknown"]);
 export const DotStatus = Schema.Struct({
   state: DotState,
   pending: Schema.Array(Schema.String),
-  /** Repositories behind their upstream whose local work blocks the pull. */
-  blocked: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
 /** Dotfiles check result. */
@@ -44,53 +37,11 @@ export const SkillsStatus = Schema.Struct({
 /** How far the managed skills checkout is behind skills `main`. */
 export interface SkillsStatus extends Schema.Schema.Type<typeof SkillsStatus> {}
 
-/** A mise tool with a newer version than the one installed. */
-export const OutdatedTool = Schema.Struct({
-  name: Schema.String,
-  current: Schema.String,
-  latest: Schema.String,
-});
-
-/** A mise tool with a newer version than the one installed. */
-export interface OutdatedTool extends Schema.Schema.Type<typeof OutdatedTool> {}
-
-/** Global mise tools with a newer version, and those not installed. */
-export const ToolsStatus = Schema.Struct({
-  outdated: Schema.Array(OutdatedTool),
-  missing: Schema.Array(Schema.String),
-});
-
-/** Global mise tools with a newer version, and those not installed. */
-export interface ToolsStatus extends Schema.Schema.Type<typeof ToolsStatus> {}
-
-/** Pending apt upgrades, and listed packages not installed. */
-export const PackagesStatus = Schema.Struct({
-  /** `name old -> new` lines from `apt list --upgradable`. */
-  pending: Schema.Array(Schema.String),
-  /** Packages from the public and private lists that aren't installed. */
-  missing: Schema.Array(Schema.String),
-  /** Whether the upgrade check ran. */
-  repoChecked: Schema.Boolean,
-});
-
-/** Pending apt upgrades, and listed packages not installed. */
-export interface PackagesStatus extends Schema.Schema.Type<
-  typeof PackagesStatus
-> {}
-
 /** Every pending update and missing install, with null for a check that couldn't run. */
 export const PendingStatus = Schema.Struct({
   dot: DotStatus,
   skills: Schema.NullOr(SkillsStatus),
-  tools: Schema.NullOr(ToolsStatus),
-  packages: PackagesStatus,
-  /** GitHub release packages with a newer release, as `name old -> new`. */
-  releases: Schema.NullOr(Schema.Array(Schema.String)),
-  /** Pi and OpenCode plugins with an update. */
-  plugins: Schema.optionalKey(Schema.NullOr(Schema.Array(Schema.String))),
   gh: Schema.NullOr(Schema.Array(Schema.String)),
-  /** Installed gh extensions with an upgrade, as `name old -> new`. */
-  ghUpgrades: Schema.optionalKey(Schema.NullOr(Schema.Array(Schema.String))),
 });
 
 /** Every pending update and missing install, with null for a check that couldn't run. */
@@ -98,34 +49,27 @@ export interface PendingStatus extends Schema.Schema.Type<
   typeof PendingStatus
 > {}
 
-/** Read the items `dot update --check` lists under its "N <kind> updates:" heading. */
-const listedItems = (output: string, kind: "pending" | "blocked") => {
+/** Read the items `dot update --check` lists under its "N pending updates:" heading. */
+const pendingItems = (output: string) => {
   const all = output.split("\n").map((line) => line.trim());
-  const heading = new RegExp(`^\\d+ ${kind} updates:$`);
-  const start = all.findIndex((line) => heading.test(line));
+  const start = all.findIndex((line) => /^\d+ pending updates:$/.test(line));
 
   if (start === -1) return [];
 
   const items = all.slice(start + 1);
 
   const end = items.findIndex(
-    (line) =>
-      line === "" ||
-      line.startsWith("Run `dot ") ||
-      /^\d+ \w+ updates:$/.test(line),
+    (line) => line === "" || line.startsWith("Run `dot "),
   );
 
   return end === -1 ? items : items.slice(0, end);
 };
 
-/**
- * Check the dotfiles and every tracked repository with `dot up --check-all`,
- * as the dotfiles group pulls them all.
- */
+/** Check the dotfiles and core repositories with `dot up --check-repos`. */
 export const dotfiles = Effect.fn("PendingUpdates.dotfiles")(function* (
   timeout: number,
 ) {
-  const result = yield* query("dot", ["up", "--check-all"], timeout);
+  const result = yield* query("dot", ["up", "--check-repos"], timeout);
 
   const state = Match.value(result.code).pipe(
     Match.when(0, () => "current" as const),
@@ -135,8 +79,7 @@ export const dotfiles = Effect.fn("PendingUpdates.dotfiles")(function* (
 
   return {
     state,
-    pending: state === "available" ? listedItems(result.stdout, "pending") : [],
-    blocked: listedItems(result.stdout, "blocked"),
+    pending: state === "available" ? pendingItems(result.stdout) : [],
   } satisfies DotStatus;
 });
 
@@ -188,123 +131,9 @@ export const skills = Effect.fn("PendingUpdates.skills")(function* (
   return { behind, changed } satisfies SkillsStatus;
 });
 
-const MiseOutdated = Schema.fromJsonString(
-  Schema.Record(
-    Schema.String,
-    Schema.Struct({
-      current: Schema.NullOr(Schema.String),
-      latest: Schema.String,
-    }),
-  ),
-);
-
-const MiseMissing = Schema.fromJsonString(
-  Schema.Record(
-    Schema.String,
-    Schema.Array(
-      Schema.Struct({
-        version: Schema.String,
-        broken: Schema.optionalKey(Schema.Boolean),
-      }),
-    ),
-  ),
-);
-
 /**
- * Check the global mise tools. Tools pinned to a version only move when the
- * pin does, so only tools requesting a range or `latest` can be outdated.
- */
-export const tools = Effect.fn("PendingUpdates.tools")(function* (
-  timeout: number,
-) {
-  const [outdated, missing] = yield* Effect.all(
-    [
-      query("mise", ["outdated", "--json"], timeout, HOME_DIR),
-      query("mise", ["ls", "--missing", "--json"], timeout, HOME_DIR),
-    ],
-    { concurrency: 2 },
-  );
-
-  if (outdated.code !== 0 || missing.code !== 0) return null;
-
-  const decoded = yield* Effect.all([
-    Schema.decodeEffect(MiseOutdated)(outdated.stdout),
-    Schema.decodeEffect(MiseMissing)(missing.stdout),
-  ]).pipe(Effect.option);
-
-  if (Option.isNone(decoded)) return null;
-
-  const [outdatedTools, missingTools] = decoded.value;
-
-  return {
-    outdated: Object.entries(outdatedTools)
-      .flatMap(([name, { current, latest }]) =>
-        current && current !== latest ? [{ name, current, latest }] : [],
-      )
-      .sort((a, b) => a.name.localeCompare(b.name)),
-    // A broken install symlink is listed as missing, but `mise install` leaves it alone.
-    missing: Object.entries(missingTools)
-      .flatMap(([name, versions]) =>
-        versions.some(({ broken }) => !broken) ? [name] : [],
-      )
-      .sort(),
-  } satisfies ToolsStatus;
-});
-
-/** One `apt list --upgradable` line, such as `git/noble-updates 1:2.43.1 amd64 [upgradable from: 1:2.43.0]`. */
-const APT_UPGRADABLE =
-  /^([^/\s]+)\/\S+\s+(\S+)\s+\S+\s+\[upgradable from: ([^\]]+)\]/;
-
-/**
- * Check every pending apt upgrade from the cached package lists, and the
- * public and private package lists for packages that aren't installed.
- */
-export const packages = Effect.fn("PendingUpdates.packages")(function* (
-  timeout: number,
-) {
-  const [repo, publicMissing, privateMissing] = yield* Effect.all(
-    [
-      query("apt", ["list", "--upgradable"], timeout),
-      missingListedPackages("public"),
-      missingListedPackages("private"),
-    ],
-    { concurrency: "unbounded" },
-  );
-
-  const repoChecked = repo.code === 0;
-
-  const pending = repoChecked
-    ? lines(repo.stdout)
-        .flatMap((line) => {
-          const match = APT_UPGRADABLE.exec(line);
-
-          return match ? [`${match[1]} ${match[3]} -> ${match[2]}`] : [];
-        })
-        .sort()
-    : [];
-
-  return {
-    pending,
-    missing: [
-      ...new Set([...(publicMissing ?? []), ...(privateMissing ?? [])]),
-    ].sort(),
-    repoChecked,
-  } satisfies PackagesStatus;
-});
-
-/** GitHub release packages with a newer release than the one installed. */
-export const releases = Effect.fn("PendingUpdates.releases")(function* (
-  timeout: number,
-) {
-  return yield* pendingDebReleases.pipe(
-    Effect.timeoutOption(`${timeout} seconds`),
-    Effect.map(Option.getOrNull),
-  );
-});
-
-/**
- * Configured gh extensions that aren't installed. Upgrades to installed ones
- * come from {@link ghUpgrades}.
+ * Configured gh extensions that aren't installed. Upgrades have no typed
+ * dry run, so `dot up` upgrades every extension instead of checking first.
  */
 export const ghExtensions = Effect.fn("PendingUpdates.ghExtensions")(
   function* () {
@@ -321,38 +150,10 @@ export const ghExtensions = Effect.fn("PendingUpdates.ghExtensions")(
   },
 );
 
-/** Installed gh extensions with an upgrade, from gh's dry run, or null when it fails. */
-export const ghUpgrades = (timeout: number) =>
-  Extension.checkUpgrades({ timeout: `${timeout} seconds` }).pipe(
-    Effect.map((upgrades) =>
-      upgrades
-        .filter((upgrade) => upgrade.status === "upgraded")
-        .map((upgrade) => `${upgrade.name} ${upgrade.from} -> ${upgrade.to}`),
-    ),
-    Effect.orElseSucceed(() => null),
-  );
-
-/** Pi and OpenCode plugins with an update, or null when the check fails. */
-export const agentPlugins = (timeout: number) =>
-  pendingAgentPlugins.pipe(
-    Effect.timeoutOrElse({
-      duration: `${timeout} seconds`,
-      orElse: () => Effect.succeed(null),
-    }),
-    Effect.orElseSucceed(() => null),
-  );
-
 /** One kind of pending work, as the bar, the OpenCode footer and `dot up` show it. */
 export interface PendingGroup {
   /** Stable identifier. */
-  readonly id:
-    | "dotfiles"
-    | "skills"
-    | "tools"
-    | "plugins"
-    | "packages"
-    | "releases"
-    | "gh";
+  readonly id: "dotfiles" | "skills" | "gh";
   /** Display title. */
   readonly title: string;
   /** Nerd Font glyph for the bar. */
@@ -383,7 +184,7 @@ export const pendingGroups = (
         ? ["Updates available"]
         : status.dot.pending,
     missing: [],
-    blocked: status.dot.blocked ?? [],
+    blocked: [],
     unknown: status.dot.state === "unknown",
   },
   {
@@ -401,51 +202,13 @@ export const pendingGroups = (
     unknown: status.skills === null,
   },
   {
-    id: "tools",
-    title: "mise tools",
-    icon: "\uF0AD",
-    pending: (status.tools?.outdated ?? []).map(
-      ({ name, current, latest }) => `${name} ${current} -> ${latest}`,
-    ),
-    missing: status.tools?.missing ?? [],
-    blocked: [],
-    unknown: status.tools === null,
-  },
-  {
-    id: "plugins",
-    title: "Agent plugins",
-    icon: "\uF1E6",
-    pending: status.plugins ?? [],
-    missing: [],
-    blocked: [],
-    unknown: status.plugins === null,
-  },
-  {
-    id: "packages",
-    title: "Packages",
-    icon: "\uF487",
-    pending: status.packages.pending,
-    missing: status.packages.missing,
-    blocked: [],
-    unknown: !status.packages.repoChecked,
-  },
-  {
-    id: "releases",
-    title: "Release packages",
-    icon: "\uF0ED",
-    pending: status.releases ?? [],
-    missing: [],
-    blocked: [],
-    unknown: status.releases === null,
-  },
-  {
     id: "gh",
     title: "gh extensions",
     icon: "\uF408",
-    pending: status.ghUpgrades ?? [],
+    pending: [],
     missing: status.gh ?? [],
     blocked: [],
-    unknown: status.gh === null || status.ghUpgrades === null,
+    unknown: status.gh === null,
   },
 ];
 
@@ -468,12 +231,7 @@ export const checkAll = Effect.fn("PendingUpdates.checkAll")(function* (
     {
       dot: dotfiles(timeout),
       skills: skills(timeout),
-      tools: tools(timeout),
-      packages: packages(timeout),
-      releases: releases(timeout),
-      plugins: agentPlugins(timeout),
       gh: ghExtensions(),
-      ghUpgrades: ghUpgrades(timeout),
     },
     { concurrency: "unbounded" },
   );

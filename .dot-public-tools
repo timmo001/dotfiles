@@ -1,0 +1,56 @@
+# mise tools this machine needs from the OpenCode app's tools option, written
+# as option entries. No versions: the app installs the latest and keeps it up
+# to date. dot only checks the option and the app's image and says what to add.
+# One entry per line, comments and blank lines are ignored.
+
+# Built into the app's image.
+aqua:neovim/neovim
+bun
+gh
+github:timmo001/ha-bridge
+github:timmo001/triage
+jq
+node
+ripgrep
+
+# In the app's default tools option.
+bat
+deno
+eza
+fd
+fzf
+go
+hyperfine
+just
+lazygit
+npm:skills
+pitchfork
+pnpm
+python
+shellcheck
+shfmt
+starship
+uv
+watchexec
+yq
+zoxide
+
+# Added to the app's default tools option, but an existing install keeps its
+# own list, so these still need adding by hand.
+usage
+
+# Personal, so add these to the option by hand.
+aqua:1password/cli
+aqua:coder/boo
+aqua:earendil-works/pi
+aqua:herdrdev/herdr
+aqua:sxyazi/yazi
+gdu
+github:anomalyco/opentunnel
+github:backnotprop/plannotator
+github:plannotator/plannotator-tui
+github:timmo001/context
+github:timmo001/notes
+gum
+npm:rift-snapshot
+rust
