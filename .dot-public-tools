@@ -43,12 +43,11 @@ zoxide
 usage
 
 # Personal, so add these to the option by hand.
-aqua:1password/cli
+1password
 aqua:coder/boo
 aqua:sxyazi/yazi
 gdu
 github:timmo001/context
 github:timmo001/notes
 gum
-npm:rift-snapshot
 rust
