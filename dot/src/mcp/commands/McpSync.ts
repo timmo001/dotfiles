@@ -10,7 +10,7 @@
  * {@link file://./../../commands/AgentsSync.ts}.
  */
 import { Effect, FileSystem, Option, Schema } from "effect";
-import { join } from "path";
+import { dirname, join } from "path";
 import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { Config } from "../../services/Config.js";
 import { OutputLog } from "../../services/OutputLog.js";
@@ -171,16 +171,75 @@ function buildHarnessConfig(
 const OPENCODE_MACHINE_CONFIG = join(CONFIG_DIR, "opencode", "opencode.jsonc");
 
 /**
+ * Private OpenCode settings this machine can't use: the plugins need a browser
+ * or the Claude CLI, and the shell may not be installed.
+ */
+const MACHINE_UNSUPPORTED_KEYS: ReadonlySet<string> = new Set([
+  "plugins",
+  "shell",
+]);
+
+/** Permission actions that assume the desktop, such as the Plannotator Inbox taking questions. */
+const MACHINE_UNSUPPORTED_ACTIONS: ReadonlySet<string> = new Set(["question"]);
+
+/**
+ * The private OpenCode config for a machine that doesn't stow the private
+ * `agents` package, such as the OpenCode app, whose `opencode.json` is its
+ * own. Leaves out the settings this machine can't use and adds the private
+ * `AGENTS.md` to its instructions.
+ */
+const privateOpenCodeLayer = Effect.fn("McpSync.privateOpenCodeLayer")(
+  function* (privateDotfiles: string) {
+    const opencodeConfig = join(
+      privateDotfiles,
+      HARNESS_RELATIVE_PATH.opencode,
+    );
+
+    const privateConfig = yield* readJsonObject(opencodeConfig);
+
+    const permissions = Schema.decodeUnknownSync(
+      Schema.Array(Schema.Record(Schema.String, Schema.Json)),
+    )(privateConfig.permissions ?? []).filter(
+      (rule) =>
+        !(
+          isString(rule.action) && MACHINE_UNSUPPORTED_ACTIONS.has(rule.action)
+        ),
+    );
+
+    const instructions = [
+      ...Schema.decodeUnknownSync(Schema.Array(Schema.String))(
+        privateConfig.instructions ?? [],
+      ),
+      join(dirname(opencodeConfig), "AGENTS.md"),
+    ];
+
+    const layer: MutableJsonConfig = {
+      ...Object.fromEntries(
+        Object.entries(privateConfig).filter(
+          ([key]) => !MACHINE_UNSUPPORTED_KEYS.has(key),
+        ),
+      ),
+      permissions,
+      instructions,
+    };
+
+    return layer;
+  },
+);
+
+/**
  * Keep the MCP servers `.dot-private.yml` excludes off this machine without
  * touching the shared generated configs: OpenCode gets them as disabled in its
  * untracked `opencode.jsonc` layer, and the returned spec, used for Claude
  * Code, disables them. The same layer carries the file's `opencode` plugin
- * operations and instructions. Without the file, the spec is returned
- * unchanged and `opencode.jsonc` is left alone.
+ * operations and instructions, and the private OpenCode config when the
+ * private `agents` package isn't stowed. Without the file, the spec is
+ * returned unchanged and `opencode.jsonc` is left alone.
  */
 const syncMachineExcludes = Effect.fn("McpSync.machineExcludes")(function* (
   spec: McpSyncSpec,
   publicDotfiles: string,
+  privateDotfiles: string,
 ) {
   const log = yield* OutputLog;
   const selection = yield* readPrivateSelection(publicDotfiles);
@@ -214,23 +273,43 @@ const syncMachineExcludes = Effect.fn("McpSync.machineExcludes")(function* (
     return machineSpec;
   }
 
+  const privateLayer =
+    selection.stow !== null && !selection.stow.has("agents")
+      ? yield* privateOpenCodeLayer(privateDotfiles)
+      : null;
+
   const servers = Object.fromEntries(
-    Object.entries(buildMcpEntries(machineSpec, "opencode")).filter(([name]) =>
-      exclude.has(name),
+    Object.entries(buildMcpEntries(machineSpec, "opencode")).filter(
+      ([name]) => privateLayer !== null || exclude.has(name),
     ),
   );
 
-  const count = Object.keys(servers).length;
+  const count = Object.keys(servers).filter((name) => exclude.has(name)).length;
 
   const layer: MutableJsonConfig = {
     $schema: "https://opencode.ai/config.json",
     ...existing.value,
+    ...privateLayer,
   };
 
-  if (count > 0) layer.mcp = { servers };
+  if (Object.keys(servers).length > 0)
+    layer.mcp = { ...decodeJsonObject(layer.mcp ?? {}), servers };
   else Reflect.deleteProperty(layer, "mcp");
 
-  const { plugins, instructions } = selection.opencode;
+  const { plugins } = selection.opencode;
+
+  const instructions = [
+    ...new Set([
+      ...(privateLayer === null
+        ? []
+        : Schema.decodeUnknownSync(Schema.Array(Schema.String))(
+            privateLayer.instructions,
+          )),
+      ...selection.opencode.instructions,
+    ]),
+  ];
+
+  if (privateLayer !== null) Reflect.deleteProperty(layer, "shell");
 
   if (plugins.length > 0) layer.plugins = [...plugins];
   else Reflect.deleteProperty(layer, "plugins");
@@ -256,7 +335,7 @@ const syncMachineExcludes = Effect.fn("McpSync.machineExcludes")(function* (
     const style = cliStyler();
 
     yield* log.success(
-      `${style.accent("opencode")} ${plural(plugins.length, "plugin change")}, ${plural(instructions.length, "instruction file")} ${style.dim(displayPath(OPENCODE_MACHINE_CONFIG))}`,
+      `${style.accent("opencode")} ${privateLayer === null ? "" : "private config, "}${plural(plugins.length, "plugin change")}, ${plural(instructions.length, "instruction file")} ${style.dim(displayPath(OPENCODE_MACHINE_CONFIG))}`,
     );
   }
 
@@ -328,7 +407,7 @@ export const mcpSync = Effect.gen(function* () {
   }
 
   const claude = yield* syncClaudeMcp(
-    yield* syncMachineExcludes(spec, config.publicDotfiles),
+    yield* syncMachineExcludes(spec, config.publicDotfiles, privateDotfiles),
   );
 
   if (claude === null) {
