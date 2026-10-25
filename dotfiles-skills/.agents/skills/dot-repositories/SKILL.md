@@ -1,6 +1,6 @@
 ---
 name: dot-repositories
-description: Find tracked local repositories with `dot repo list`, `dot repo list --open`, or the fuzzy `dot repo search`, induct new ones with `dot repo induct`, and open them in agents through the shared dot Herdr launcher. Use whenever the user names a repository, refers to one by its purpose, or says things like "look at my dotfiles", "my skills", "my ha repos" or "check my tracked repos for x", asks which repositories are tracked or wants one tracked, and for cross-repository work involving dotfiles or skills, open-in-agent requests, and approved workers in another project workspace. Shares the prefix+s picker and Omarchy Git panel launch path.
+description: Find, track and open local repositories with `dot repo list`, `dot repo search`, `dot repo induct` and the dot Herdr launcher. Use whenever the user names a repository or describes one by purpose, asks what is tracked, wants one tracked or opened in an agent, or for cross-repository work.
 compatibility: Repository discovery requires dotfiles repository configuration; launching requires dot, Herdr, and the herdr skill.
 metadata:
   author: timmo001

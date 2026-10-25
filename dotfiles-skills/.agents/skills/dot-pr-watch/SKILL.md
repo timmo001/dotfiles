@@ -1,12 +1,10 @@
 ---
 name: dot-pr-watch
 description: >
-  Watch a pull request's CI runs, external checks and Copilot or other reviews
-  with `dot pr watch` in an OpenCode 2 background shell, then triage failures
-  and validate review threads and review body findings from its report. Use after pushing to a pull
-  request, when asked to watch CI or checks, wait for a Copilot review, or
-  follow up on pull request feedback. Read-only on GitHub: drafts replies and
-  asks before resolving anything.
+  Watch a pull request's CI, checks and Copilot or other reviews with
+  `dot pr watch` in a background shell, then triage failures and validate
+  review findings. Use after pushing to a pull request or when asked to watch
+  CI or follow up on review feedback.
 license: Apache-2.0
 compatibility: Designed for OpenCode 2 background shells. Requires the dot CLI from timmo001/dotfiles, an authenticated GitHub CLI and network access to GitHub.
 metadata:

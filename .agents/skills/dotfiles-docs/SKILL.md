@@ -1,6 +1,6 @@
 ---
 name: dotfiles-docs
-description: Author and maintain the Blume docs site (docs/, dotfiles.timmo.dev) in this public dotfiles repo. Use when editing, writing, updating, reviewing, or pruning hand-written docs pages, blume.config.ts navigation, README docs links, or docs/AGENTS.md; when deciding whether a behaviour change needs a docs edit; or when documenting Omarchy, Hyprland, Herdr, Ghostty, OpenCode, or other local customisations without rewriting upstream manuals.
+description: Author and maintain the Blume docs site (docs/, dotfiles.timmo.dev) in this repo. Use when editing or pruning docs pages, blume.config.ts navigation, README docs links or docs/AGENTS.md, or deciding whether a change needs a docs edit.
 metadata:
   author: timmo001
 ---

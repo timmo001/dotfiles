@@ -2,10 +2,8 @@
 name: dot-pr-queue
 description: >
   Find reviewable pull requests and catch up on what was merged, closed or
-  opened in a repository with `dot pr queue`, then rank or summarise them the
-  way the user wants. Use when asked which pull requests are reviewable, why the
-  open pull request count changed, what to review next, or what happened or was
-  missed over a period such as today, yesterday or the weekend. Read-only.
+  opened with `dot pr queue`. Use when asked what to review next, why the open
+  pull request count changed, or what happened over a period.
 license: Apache-2.0
 compatibility: Requires the dot CLI from timmo001/dotfiles, an authenticated GitHub CLI and network access to GitHub. The default review search comes from private dot-git.yml.
 metadata:
