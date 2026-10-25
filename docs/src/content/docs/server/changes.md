@@ -25,12 +25,14 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Removed files
 
-125 files removed from folders that stay.
+127 files removed from folders that stay.
 
 | File | Was |
 | --- | --- |
+| `.github/workflows/cloud-rebase.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/00d28cf7d540151bd98a17270da79ebf9c6c4179/.github/workflows/cloud-rebase.yml) |
 | `.github/workflows/mise-toolchain.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/00d28cf7d540151bd98a17270da79ebf9c6c4179/.github/workflows/mise-toolchain.yml) |
 | `.github/workflows/quickshell-lint.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/00d28cf7d540151bd98a17270da79ebf9c6c4179/.github/workflows/quickshell-lint.yml) |
+| `.github/workflows/server-rebase.yml` | [desktop](https://github.com/timmo001/dotfiles/blob/00d28cf7d540151bd98a17270da79ebf9c6c4179/.github/workflows/server-rebase.yml) |
 | `.gitmodules` | [desktop](https://github.com/timmo001/dotfiles/blob/00d28cf7d540151bd98a17270da79ebf9c6c4179/.gitmodules) |
 | `docs/public/illustrations/desktop.svg` | [desktop](https://github.com/timmo001/dotfiles/blob/00d28cf7d540151bd98a17270da79ebf9c6c4179/docs/public/illustrations/desktop.svg) |
 | `docs/src/content/docs/agents/cursor.mdx` | [desktop](https://github.com/timmo001/dotfiles/blob/00d28cf7d540151bd98a17270da79ebf9c6c4179/docs/src/content/docs/agents/cursor.mdx) |
@@ -264,9 +266,8 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-56 files only on this branch.
+55 files only on this branch.
 
-- [`.agents/skills/server-rebase/SKILL.md`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.agents/skills/server-rebase/SKILL.md)
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-private.yml)
 - [`.dot-public-deb-releases.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-public-deb-releases.yml)
 - [`.dot-skills.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-skills.yml)
