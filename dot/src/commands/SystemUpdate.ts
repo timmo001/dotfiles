@@ -118,6 +118,7 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
       [
         "update",
         ...(selfUpdate ? [] : ["--no-self-update"]),
+        "--no-branch",
         "--summary-file",
         summaryFile,
       ],
@@ -231,6 +232,9 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
   );
 
   if (refreshExitCode !== 0) process.exitCode = refreshExitCode;
+
+  if (selectedSet.has("dotfiles"))
+    yield* runChild("dot", ["update", "branch"], baseEnv);
 });
 
 /** Select and run system maintenance steps in their fixed display order. */

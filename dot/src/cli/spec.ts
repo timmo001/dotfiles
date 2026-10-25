@@ -87,6 +87,7 @@ import {
 } from "../commands/SessionQueue.js";
 import { repos, searchRepos } from "../commands/Repos.js";
 import { systemUpdate, UPDATE_STEPS } from "../commands/SystemUpdate.js";
+import { branchUpdate } from "../commands/BranchUpdate.js";
 import { update, updateCheck, updateRepositories } from "../commands/Update.js";
 import { RELOAD_PARTS, reload } from "../commands/Reload.js";
 import { configureFirewallRules } from "../lib/firewallSetup.js";
@@ -235,7 +236,17 @@ const systemUpdateCommand = describe(
   ],
   {
     description:
-      "Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, compose-up, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select Dotfiles, apt packages, release packages, GitHub CLI extensions, and compose-up; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.",
+      "Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, compose-up, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select Dotfiles, apt packages, release packages, GitHub CLI extensions, and compose-up; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates. When Dotfiles runs, dot update branch runs last.",
+  },
+);
+
+const branchUpdateCommand = describe(
+  Command.make("branch", {}, () => Effect.asVoid(branchUpdate)),
+  "Open an agent to rebase the server and cloud branches when they are behind",
+  ["dot update branch"],
+  {
+    description:
+      "Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fast-forwards the permanent distro/cloud worktree at ~/.local/share/dot/dotfiles-cloud, then checks whether distro/ubuntu-server is behind distro/arch-omarchy-quattro or distro/cloud is behind distro/ubuntu-server. When one is, it opens an OpenCode agent named branch-update in Herdr to follow the rebase steps in AGENTS.md, check and push. Nothing opens when both are up to date, a rebase is already in progress, the agent is already open, or dot runs under an agent. A full dot update and dot update system run it last; --no-branch skips it.",
   },
 );
 
@@ -271,6 +282,10 @@ const updateCommand = describe(
         "Skip the internal self-update phase, which pulls the public and private dotfiles",
       ),
       noReload: bool("no-reload", "Skip agent reload and module refresh"),
+      noBranch: bool(
+        "no-branch",
+        "Skip the final branch update, which opens an agent to rebase behind server and cloud branches",
+      ),
       postHookRepo: Flag.String("post-hook-repo").pipe(
         Flag.atLeast(0),
         Flag.withDescription("Internal post-hook repository"),
@@ -292,6 +307,7 @@ const updateCommand = describe(
       checkAll,
       noSelfUpdate,
       noReload,
+      noBranch,
       postHookRepo,
       pull,
       repo,
@@ -330,17 +346,18 @@ const updateCommand = describe(
           app,
           selfUpdate: !noSelfUpdate,
           reload: !noReload,
+          branch: !noBranch,
           postHookRepos: postHookRepo,
           summaryFile: optional(summaryFile),
           startedAt: optional(startedAt),
         });
       }),
-  ).pipe(Command.withSubcommands([systemUpdateCommand])),
+  ).pipe(Command.withSubcommands([systemUpdateCommand, branchUpdateCommand])),
   "Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update, --post-hook-repo and --started-at flags support the active self-update handoff; internal --summary-file lets update system print the summary last.",
   [],
   {
     description:
-      "A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and starts the doctor check. It finishes with a summary of updated repositories and every completed or skipped step, in order.\n\nPhase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip agents sync and init-marker backfill.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands, skipping the dotfiles rebuild and stow. Herdr plugins are refreshed only inside Herdr. --no-reload skips the agent reload and doctor check.",
+      "A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and starts the doctor check. On the server branch it then runs dot update branch unless --no-branch is given. It finishes with a summary of updated repositories and every completed or skipped step, in order.\n\nPhase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip agents sync and init-marker backfill.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands, skipping the dotfiles rebuild and stow. Herdr plugins are refreshed only inside Herdr. --no-reload skips the agent reload and doctor check.",
     sections: [
       {
         title: "Exit codes",
