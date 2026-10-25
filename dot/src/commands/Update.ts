@@ -6,6 +6,7 @@ import { OutputLog } from "../services/OutputLog.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { DotDiff, recordUpstreamFetch } from "../git/services/DotDiff.js";
 import { stow as runStow } from "./Stow.js";
+import { branchUpdate } from "./BranchUpdate.js";
 import {
   reloadAgents,
   restartStalePitchforkDaemons,
@@ -166,6 +167,8 @@ export interface UpdateOptions {
   readonly selfUpdate?: boolean;
   /** Reload agents and start the doctor check after applying changes. */
   readonly reload?: boolean;
+  /** Hand behind server or cloud branches to a rebase agent at the end of a full update. */
+  readonly branch?: boolean;
   /** Repository names already pulled before restart, for post-hook handling. */
   readonly postHookRepos?: readonly string[];
   /** Write the final summary to this file instead of printing it. */
@@ -571,6 +574,7 @@ function restartUpdateArgs(
     ...selectedUpdateFlags(opts),
     DISABLE_SELF_UPDATE_ARG,
     ...(opts?.reload === false ? ["--no-reload"] : []),
+    ...(opts?.branch === false ? ["--no-branch"] : []),
     ...(opts?.postHookRepos ?? []).flatMap((name) => [
       POST_HOOK_REPO_ARG,
       name,
@@ -1759,6 +1763,12 @@ export const update = (updateOpts?: UpdateOptions) =>
         ? done("Refreshed the update status")
         : warn(`Update status refresh failed (exit ${refreshExitCode})`),
     );
+
+    if (opts.branch === false) {
+      completedActions.push(skip("Branch update skipped (--no-branch)"));
+    } else if (isFullUpdate) {
+      completedActions.push(yield* branchUpdate);
+    }
 
     yield* opts.summaryFile
       ? writeUpdateSummary(

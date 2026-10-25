@@ -58,7 +58,7 @@ Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: pass
 dot update <subcommand> [flags]
 ```
 
-A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and starts the doctor check. It finishes with a summary of updated repositories and every completed or skipped step, in order.
+A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and starts the doctor check. On the server branch it then runs dot update branch unless --no-branch is given. It finishes with a summary of updated repositories and every completed or skipped step, in order.
 
 Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip agents sync and init-marker backfill.
 
@@ -76,6 +76,7 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--check-all` | Also check development repos for pulls, skipping local work |
 | `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
+| `--no-branch` | Skip the final branch update, which opens an agent to rebase behind server and cloud branches |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
 | `--summary-file` `<string>` | Internal: write the final summary to this file instead of printing it |
 | `--started-at` `<integer>` | Internal: epoch ms the run started, for the summary timing |
@@ -98,7 +99,7 @@ Select and run Dotfiles, apt, release package, compose-up and Topgrade updates
 dot update system [flags]
 ```
 
-Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, compose-up, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select Dotfiles, apt packages, release packages, GitHub CLI extensions, and compose-up; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates.
+Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, compose-up, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select Dotfiles, apt packages, release packages, GitHub CLI extensions, and compose-up; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates. When Dotfiles runs, dot update branch runs last.
 
 **Options**
 
@@ -115,6 +116,28 @@ Select maintenance steps interactively, then run them in order: Dotfiles, apt pa
 dot update system
 dot update system --yes
 dot update system --step dotfiles --step github-cli
+```
+
+### `dot update branch`
+
+Open an agent to rebase the server and cloud branches when they are behind
+
+```text
+dot update branch [flags]
+```
+
+Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fast-forwards the permanent distro/cloud worktree at ~/.local/share/dot/dotfiles-cloud, then checks whether distro/ubuntu-server is behind distro/arch-omarchy-quattro or distro/cloud is behind distro/ubuntu-server. When one is, it opens an OpenCode agent named branch-update in Herdr to follow the rebase steps in AGENTS.md, check and push. Nothing opens when both are up to date, a rebase is already in progress, the agent is already open, or dot runs under an agent. A full dot update and dot update system run it last; --no-branch skips it.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot update branch
 ```
 
 ## `dot deps`
