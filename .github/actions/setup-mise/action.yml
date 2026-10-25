@@ -16,7 +16,7 @@ runs:
       env:
         # Follows Omarchy's mise-bin package through Renovate. Kept out of
         # mise.toml so local runs don't demand the newest patch.
-        MISE_VERSION: "2026.10.18"
+        MISE_VERSION: "2026.10.19"
       run: printf 'version=%s\n' "$MISE_VERSION" >> "$GITHUB_OUTPUT"
 
     - name: Setup mise
