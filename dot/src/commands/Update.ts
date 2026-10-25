@@ -288,10 +288,21 @@ const safePull = (
     const fs = yield* FileSystem.FileSystem;
     const style = cliStyler();
 
-    // Clear a stale index lock; skip if held by a running git process.
-    const lockFile = join(path, ".git", "index.lock");
+    // Clear a stale index lock; skip if held by a running git process. Git
+    // resolves the path, since `.git` is a file in a linked worktree.
+    const lockFile = yield* gitOutput([
+      "-C",
+      path,
+      "rev-parse",
+      "--path-format=absolute",
+      "--git-path",
+      "index.lock",
+    ]).pipe(
+      Effect.map((output) => output.trim()),
+      Effect.orElseSucceed(() => join(path, ".git", "index.lock")),
+    );
 
-    if (yield* fs.exists(lockFile).pipe(Effect.orDie)) {
+    if (yield* fs.exists(lockFile).pipe(Effect.orElseSucceed(() => false))) {
       const held = yield* executor.exitCode("fuser", [lockFile]);
 
       if (held === 0) {
@@ -1192,33 +1203,6 @@ const restoreHerdrPlugins = Effect.gen(function* () {
   return done("Restored and linked Herdr plugins");
 });
 
-/** Start the doctor check after an update. */
-const startDoctorCheck = Effect.gen(function* () {
-  const log = yield* OutputLog;
-  const executor = yield* CommandExecutor;
-
-  yield* log.section("Doctor Check");
-
-  const doctorExitCode = yield* executor.exitCode("systemctl", [
-    "--user",
-    "start",
-    "--no-block",
-    "dot-doctor.service",
-  ]);
-
-  if (doctorExitCode !== 0) {
-    yield* log.warn(
-      `dot doctor check failed to start (exit ${doctorExitCode})`,
-    );
-
-    return warn(`dot doctor check failed to start (exit ${doctorExitCode})`);
-  }
-
-  yield* log.success("Started dot doctor check");
-
-  return done("Started the doctor check");
-});
-
 /** Exit code from `dot update --check` when in-scope updates are available. */
 export const UPDATE_CHECK_AVAILABLE_EXIT = 10;
 
@@ -1843,32 +1827,6 @@ export const update = (updateOpts?: UpdateOptions) =>
       if (!reloaded) {
         completedActions.push(warn("Agent reload timed out"));
       }
-    }
-
-    if (opts?.reload === false) {
-      completedActions.push(skip("Doctor check skipped (--no-reload)"));
-    } else {
-      const refreshed = yield* withStepTimeout(
-        "Doctor Check",
-        STEP_TIMEOUT_SECONDS.uiReload,
-        startDoctorCheck.pipe(
-          Effect.map((recap) => {
-            completedActions.push(recap);
-          }),
-        ),
-      );
-
-      if (!refreshed) {
-        completedActions.push(warn("Doctor check start timed out"));
-      }
-    }
-
-    if (opts.inUp) {
-      return {
-        updatedRepos,
-        miseToolChanges,
-        completedActions,
-      } satisfies UpdateRun;
     }
 
     const executor = yield* CommandExecutor;
