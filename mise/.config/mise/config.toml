@@ -48,7 +48,7 @@ uv = "latest"
 "aqua:tealdeer-rs/tealdeer" = "latest"
 "aqua:tree-sitter/tree-sitter" = "latest"
 # Pre-1.0: plugins track the minor.
-"aqua:neovim/neovim" = "0.12"
+"aqua:neovim/neovim" = "0.12.6"
 # Keep the OpenCode 2 packages on one version: tests/opencode/plugin-effect-version.test.ts aligns the plugins' Effect packages with them.
 [tools."npm:@opencode/cli"]
 version = "2.1.4"
