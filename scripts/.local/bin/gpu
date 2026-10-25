@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# Pull like the Git panel; dot offers git pull origin if the pull fails. The
+# zsh function of the same name does the same, for shells that read .zshrc.
+
+set -euo pipefail
+
+if (($# == 0)) && command -v dot >/dev/null && repo=$(git rev-parse --show-toplevel 2>/dev/null); then
+  exec dot update --repo "$repo"
+fi
+
+exec git pull origin "$@"
