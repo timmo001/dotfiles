@@ -1,11 +1,10 @@
 import { Effect } from "effect";
 import { reloadAgents } from "../lib/agentRuntime.js";
-import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { updatesRefresh } from "./Updates.js";
 
 /** Parts that `dot reload` can reload. */
-export const RELOAD_PARTS = ["updates", "doctor", "agents"] as const;
+export const RELOAD_PARTS = ["updates", "agents"] as const;
 
 /** One reloadable part. */
 export type ReloadPart = (typeof RELOAD_PARTS)[number];
@@ -31,22 +30,6 @@ const updates = Effect.gen(function* () {
   );
 }).pipe(Effect.withSpan("Reload.updates"));
 
-const doctor = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  const log = yield* OutputLog;
-
-  const exitCode = yield* executor.exitCode("systemctl", [
-    "--user",
-    "start",
-    "--no-block",
-    "dot-doctor.service",
-  ]);
-
-  yield* exitCode === 0
-    ? log.success("Started dot doctor check")
-    : log.warn(`dot doctor check failed to start (exit ${exitCode})`);
-}).pipe(Effect.withSpan("Reload.doctor"));
-
 /** Reload the selected parts, or all of them except agents. */
 export const reload = Effect.fn("reload")(function* (options: ReloadOptions) {
   const log = yield* OutputLog;
@@ -58,8 +41,6 @@ export const reload = Effect.fn("reload")(function* (options: ReloadOptions) {
   yield* log.section("Reload");
 
   if (selected.has("updates")) yield* updates;
-
-  if (selected.has("doctor")) yield* doctor;
 
   if (selected.has("agents")) yield* reloadAgents;
 });
