@@ -14,6 +14,9 @@ import { mcpSync } from "../../dot/src/mcp/commands/McpSync.js";
 
 const directories: string[] = [];
 
+const parseGenerated = (content: string) =>
+  JSON.parse(content.replace(/^(\/\/.*\n)+/, ""));
+
 afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true });
 });
@@ -103,7 +106,7 @@ test("repository opt-ins are private, idempotent and removed when deselected", a
   writeFileSync(join(directory, "opencode.json"), '{"model":"keep/me"}\n');
   await sync(true);
   const content = readFileSync(target, "utf8");
-  const parsed = JSON.parse(content.slice(content.indexOf("\n") + 1));
+  const parsed = parseGenerated(content);
   expect(parsed.mcp.servers.browser.disabled).toBe(false);
   expect(parsed.mcp.servers.browser.command).toEqual(["node", "fixture.js"]);
   expect(Bun.spawnSync(["git", "-C", directory, "check-ignore", "-q", ".opencode/opencode.jsonc"]).exitCode).toBe(0);
@@ -155,7 +158,7 @@ test("global MCP sync repairs V1 output and stays V2 on repeated syncs", async (
     { action: "docs_*", resource: "*", effect: "deny" },
   ]);
   const repo = readFileSync(target, "utf8");
-  expect(JSON.parse(repo.slice(repo.indexOf("\n") + 1)).mcp.servers.browser).toEqual({
+  expect(parseGenerated(repo).mcp.servers.browser).toEqual({
     ...config.mcp.servers.browser, disabled: false,
   });
 
