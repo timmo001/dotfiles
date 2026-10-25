@@ -226,7 +226,7 @@ const systemUpdateCommand = describe(
     ({ yes, step, noSelfUpdate }) =>
       systemUpdate({ yes, steps: step, selfUpdate: !noSelfUpdate }),
   ),
-  "Select and run Dotfiles, apt, release package, compose-up and Topgrade updates",
+  "Select and run Dotfiles, GitHub CLI extension and compose-up updates",
   [
     "dot update system",
     "dot update system --yes",
@@ -234,7 +234,7 @@ const systemUpdateCommand = describe(
   ],
   {
     description:
-      "Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, compose-up, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select Dotfiles, apt packages, release packages, GitHub CLI extensions, and compose-up; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates. When Dotfiles runs, dot update branch runs last.",
+      "Select maintenance steps interactively, then run them in order: Dotfiles, GitHub CLI extensions and compose-up. System packages and tools come from the OpenCode app, which updates them itself. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select every step. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates. When Dotfiles runs, dot update branch runs last.",
   },
 );
 

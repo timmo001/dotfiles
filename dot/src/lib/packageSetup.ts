@@ -5,15 +5,15 @@ import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
-import { CONFIG_DIR, HOME_DIR, displayPath } from "./paths.js";
-import { runElevated } from "./elevatedCommand.js";
 import { ENV, envString } from "./env.js";
+import { loadPackageLists } from "./aptPackages.js";
 import {
-  isPackageInstalled,
-  loadPackageList,
-  loadPackageLists,
-} from "./aptPackages.js";
-import { pathExists } from "./fsProbe.js";
+  type AppRequirements,
+  appRequirementInstructions,
+  hasMissingAppRequirements,
+  missingAppRequirements,
+  publicAppRequirements,
+} from "./appOptions.js";
 import type { ConfigService } from "../services/Config.js";
 
 /** Domain error for package setup failures. */
@@ -24,187 +24,61 @@ class PackageSetupError extends Schema.TaggedError<PackageSetupError>()(
   },
 ) {}
 
-/** Apt package list scope handled by init. */
+/** Package list scope handled by init. */
 export type PackageScope = "public" | "private";
 
-function publicPackageListPath(config: ConfigService): string {
-  return (
-    envString(ENV.DOT_PUBLIC_PACKAGES_FILE) ??
-    join(config.publicDotfiles, ".dot-public-packages")
-  );
-}
-
-function privatePackageListPaths(config: ConfigService): readonly string[] {
+/** Private Debian packages for the app's `system_packages` option. */
+export function privateAppRequirements(config: ConfigService): AppRequirements {
   const override = envString(ENV.DOT_PRIVATE_PACKAGES_FILE);
 
-  if (override) return [override];
+  if (override) return { packages: loadPackageLists([override]), tools: [] };
 
-  if (!config.privateDotfiles) return [];
+  if (!config.privateDotfiles) return { packages: [], tools: [] };
 
   const base = join(config.privateDotfiles, ".dot-private-packages");
 
-  return [base, `${base}--${hostname()}`];
+  return {
+    packages: loadPackageLists([base, `${base}--${hostname()}`]),
+    tools: [],
+  };
 }
 
-function fail(message: string): Effect.Effect<never, PackageSetupError> {
-  return Effect.fail(new PackageSetupError({ message }));
-}
-
-function commandAvailable(
-  command: string,
-): Effect.Effect<boolean, never, CommandExecutor> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-
-    return (yield* executor.exitCode("which", [command])) === 0;
-  });
-}
-
-function missingPackages(
-  config: ConfigService,
-  scope: PackageScope,
-): Effect.Effect<
-  readonly string[],
-  PackageSetupError,
-  CommandExecutor | FileSystem.FileSystem
-> {
-  return Effect.gen(function* () {
-    const filePath =
-      scope === "public"
-        ? publicPackageListPath(config)
-        : privatePackageListPaths(config)[0];
-
-    if (!filePath) return yield* fail(`Missing ${scope} package list path`);
-
-    if (!(yield* pathExists(filePath))) {
-      return yield* fail(
-        `Missing ${scope} package list: ${displayPath(filePath)}`,
-      );
-    }
-
-    const packages =
-      scope === "private"
-        ? loadPackageLists(privatePackageListPaths(config))
-        : loadPackageList(filePath);
-
-    const missing: string[] = [];
-
-    for (const packageName of packages) {
-      if (!(yield* isPackageInstalled(packageName))) missing.push(packageName);
-    }
-
-    return missing;
-  });
-}
-
-function installWithApt(
-  packages: readonly string[],
-): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
-  return Effect.gen(function* () {
-    const log = yield* OutputLog;
-
-    yield* log.info(`Installing: ${packages.join(" ")}`);
-
-    const exitCode = yield* runElevated("apt-get", [
-      "install",
-      "-y",
-      "--no-install-recommends",
-      ...packages,
-    ]);
-
-    if (exitCode !== 0) {
-      return yield* fail(
-        `apt-get install ${packages.join(" ")} exited ${exitCode}`,
-      );
-    }
-  });
-}
-
-function ensureCommand(
-  command: string,
-  packageName: string,
-): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
-  return Effect.gen(function* () {
-    if (yield* commandAvailable(command)) return;
-
-    yield* installWithApt([packageName]);
-
-    if (!(yield* commandAvailable(command)))
-      return yield* fail(`${command} is still unavailable after installation`);
-  });
-}
-
-/** Ensure GNU Stow is installed before dotfiles can be linked. */
+/**
+ * Ensure GNU Stow is installed before dotfiles can be linked. The app installs
+ * it from its `system_packages` option, so a missing one stops here.
+ */
 export const ensureStowInstalled: Effect.Effect<
   void,
   PackageSetupError,
   CommandExecutor | OutputLog
 > = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
 
   yield* log.section("Setup Prerequisites");
 
-  if (yield* commandAvailable("stow")) {
+  if ((yield* executor.exitCode("which", ["stow"])) === 0) {
     yield* log.info(cliStyler().dim("stow is already installed"));
 
     return;
   }
 
-  yield* ensureCommand("stow", "stow");
-});
-
-const miseConfigExists = Effect.fn("PackageSetup.miseConfigExists")(
-  function* () {
-    for (const filePath of [
-      envString(ENV.MISE_GLOBAL_CONFIG_FILE),
-      join(CONFIG_DIR, "mise", "config.toml"),
-      join(CONFIG_DIR, "mise", "config.json"),
-      join(HOME_DIR, ".mise.toml"),
-      join(HOME_DIR, ".tool-versions"),
-    ]) {
-      if (filePath !== undefined && (yield* pathExists(filePath))) return true;
-    }
-
-    return false;
-  },
-);
-
-/** Ensure mise is installed and install stowed mise-managed tool versions. */
-export const installMiseTools: Effect.Effect<
-  void,
-  PackageSetupError,
-  CommandExecutor | OutputLog | FileSystem.FileSystem
-> = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  const log = yield* OutputLog;
-
-  yield* log.section("Install Mise Tools");
-
-  if (!(yield* miseConfigExists())) {
-    yield* log.info(
-      cliStyler().dim("No mise config found; skipping mise install"),
-    );
-
-    return;
-  }
-
-  yield* ensureCommand("mise", "mise");
-
-  const exitCode = yield* executor.inherit("mise", ["install"], {
-    cwd: HOME_DIR,
+  return yield* new PackageSetupError({
+    message:
+      "stow isn't installed. Add stow to the app's system_packages option, then restart the app",
   });
-
-  if (exitCode !== 0) {
-    return yield* fail(`mise install exited ${exitCode}`);
-  }
 });
 
-/** Install missing apt packages listed for the given scope. */
-export function installMissingPackages(opts: {
+/**
+ * Check the app's options provide the packages and tools listed for the given
+ * scope, and say what to add when they don't. dot never installs them itself:
+ * the app does, from its options, on start.
+ */
+export function checkAppRequirements(opts: {
   readonly scope: PackageScope;
 }): Effect.Effect<
   void,
-  PackageSetupError,
+  never,
   Config | CommandExecutor | OutputLog | FileSystem.FileSystem
 > {
   return Effect.gen(function* () {
@@ -218,15 +92,35 @@ export function installMissingPackages(opts: {
       return;
     }
 
-    const missing = yield* missingPackages(config, opts.scope);
+    const requirements =
+      opts.scope === "public"
+        ? publicAppRequirements(config)
+        : privateAppRequirements(config);
 
-    if (missing.length === 0) {
-      yield* log.info(cliStyler().dim(`${label} packages already installed`));
+    if (requirements.packages.length === 0 && requirements.tools.length === 0) {
+      yield* log.info(cliStyler().dim(`No ${opts.scope} packages or tools`));
 
       return;
     }
 
-    yield* log.section(`Install ${opts.scope} packages`);
-    yield* installWithApt(missing);
+    const missing = yield* missingAppRequirements(requirements).pipe(
+      Effect.catchTag("AppOptionsError", (error) =>
+        log.warn(error.message).pipe(Effect.as(null)),
+      ),
+    );
+
+    if (missing === null) return;
+
+    if (!hasMissingAppRequirements(missing)) {
+      yield* log.info(
+        cliStyler().dim(`${label} packages and tools come from the app`),
+      );
+
+      return;
+    }
+
+    for (const line of appRequirementInstructions(missing)) {
+      yield* log.warn(line);
+    }
   });
 }

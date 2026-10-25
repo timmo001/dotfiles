@@ -93,20 +93,20 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 
 ### `dot update system`
 
-Select and run Dotfiles, apt, release package, compose-up and Topgrade updates
+Select and run Dotfiles, GitHub CLI extension and compose-up updates
 
 ```text
 dot update system [flags]
 ```
 
-Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, compose-up, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select Dotfiles, apt packages, release packages, GitHub CLI extensions, and compose-up; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates. When Dotfiles runs, dot update branch runs last.
+Select maintenance steps interactively, then run them in order: Dotfiles, GitHub CLI extensions and compose-up. System packages and tools come from the OpenCode app, which updates them itself. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select every step. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates. When Dotfiles runs, dot update branch runs last.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
 | `--yes` | Select every update without prompting |
-| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, apt, releases, github-cli, compose, yazi, rustup, tldr, vim, claude_code, claude_code_plugins, uv) |
+| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, github-cli, compose) |
 | `--no-self-update` | Skip dot update's self-update pull when the dotfiles are already pulled |
 | `--help` `-h` | Show help information |
 

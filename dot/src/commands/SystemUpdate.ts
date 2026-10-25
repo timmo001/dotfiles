@@ -1,34 +1,16 @@
 import { Extension } from "@timmo001/effect-gh";
-import { Console, Effect, FileSystem, Scope } from "effect";
+import { Effect, FileSystem, Scope } from "effect";
 import { Prompt } from "effect/cli";
 import { tmpdir } from "os";
 import { join } from "path";
 import { COMPOSE_CONFIG, composeUp } from "./Compose.js";
 import { isAgent } from "../lib/agent.js";
 import { cliStyler } from "../lib/ansi.js";
-import { updateDebReleases } from "../lib/debReleases.js";
 import { HOME_DIR } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
-const TOPGRADE_UPDATES = [
-  ["Topgrade: Yazi", "yazi", false],
-  ["Topgrade: Rustup", "rustup", false],
-  ["Topgrade: TLDR", "tldr", false],
-  ["Topgrade: Neovim", "vim", false],
-  ["Topgrade: Claude Code", "claude_code", false],
-  ["Topgrade: Claude Code plugins", "claude_code_plugins", false],
-  ["Topgrade: uv", "uv", false],
-] as const;
-
 /** Steps `dot update system --step` accepts, in display order. */
-export const UPDATE_STEPS = [
-  "dotfiles",
-  "apt",
-  "releases",
-  "github-cli",
-  "compose",
-  ...TOPGRADE_UPDATES.map(([, value]) => value),
-] as const;
+export const UPDATE_STEPS = ["dotfiles", "github-cli", "compose"] as const;
 
 type UpdateChoice = (typeof UPDATE_STEPS)[number];
 
@@ -40,17 +22,10 @@ const updateChoices = (
   readonly selected: boolean;
 }> => [
   { title: "Dotfiles", value: "dotfiles", selected: true },
-  { title: "Apt packages", value: "apt", selected: true },
-  { title: "GitHub release packages", value: "releases", selected: true },
   { title: "GitHub CLI extensions", value: "github-cli", selected: true },
   ...(compose
     ? [{ title: "Compose up", value: "compose" as const, selected: true }]
     : []),
-  ...TOPGRADE_UPDATES.map(([title, value, selected]) => ({
-    title,
-    value,
-    selected,
-  })),
 ];
 
 function section(title: string): void {
@@ -105,7 +80,6 @@ const runChild = Effect.fn("SystemUpdate.runChild")(function* (
 
 const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
   selectedSet: ReadonlySet<UpdateChoice>,
-  automatic: boolean,
   baseEnv: Readonly<Record<string, string>>,
   summaryFile: string,
   selfUpdate: boolean,
@@ -123,42 +97,6 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
         summaryFile,
       ],
       baseEnv,
-    );
-
-    if (exitCode !== 0) {
-      process.exitCode = exitCode;
-
-      return;
-    }
-  }
-
-  if (selectedSet.has("apt")) {
-    section("Apt Packages");
-
-    let exitCode = yield* runChild("sudo", ["apt-get", "update"], baseEnv);
-
-    if (exitCode === 0) {
-      exitCode = yield* runChild(
-        "sudo",
-        ["apt-get", "upgrade", ...(automatic ? ["-y"] : [])],
-        baseEnv,
-      );
-    }
-
-    if (exitCode !== 0) {
-      process.exitCode = exitCode;
-
-      return;
-    }
-  }
-
-  if (selectedSet.has("releases")) {
-    section("GitHub Release Packages");
-
-    const exitCode = yield* updateDebReleases(baseEnv).pipe(
-      Effect.catch((error) =>
-        Console.error(`[ERROR] ${error.message}`).pipe(Effect.as(1)),
-      ),
     );
 
     if (exitCode !== 0) {
@@ -192,29 +130,6 @@ const runSteps = Effect.fn("SystemUpdate.runSteps")(function* (
 
   if (selectedSet.has("compose")) {
     const exitCode = yield* composeUp([]);
-
-    if (exitCode !== 0) {
-      process.exitCode = exitCode;
-
-      return;
-    }
-  }
-
-  const topgrade = TOPGRADE_UPDATES.flatMap(([, value]) =>
-    selectedSet.has(value) ? [value] : [],
-  );
-
-  if (topgrade.length > 0) {
-    section("Topgrade");
-
-    const args =
-      topgrade.length === TOPGRADE_UPDATES.length
-        ? automatic
-          ? ["-y"]
-          : []
-        : ["--only", ...topgrade];
-
-    const exitCode = yield* runChild("topgrade", args, baseEnv);
 
     if (exitCode !== 0) {
       process.exitCode = exitCode;
@@ -290,11 +205,7 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
     Effect.ignore,
   );
 
-  yield* runSteps(
-    selectedSet,
-    automatic,
-    baseEnv,
-    summaryFile,
-    options.selfUpdate,
-  ).pipe(Effect.ensuring(printSummary));
+  yield* runSteps(selectedSet, baseEnv, summaryFile, options.selfUpdate).pipe(
+    Effect.ensuring(printSummary),
+  );
 }, Effect.scoped);
