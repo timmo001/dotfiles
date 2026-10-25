@@ -174,8 +174,9 @@ const OPENCODE_MACHINE_CONFIG = join(CONFIG_DIR, "opencode", "opencode.jsonc");
  * Keep the MCP servers `.dot-private.yml` excludes off this machine without
  * touching the shared generated configs: OpenCode gets them as disabled in its
  * untracked `opencode.jsonc` layer, and the returned spec, used for Claude
- * Code, disables them. Without the file, the spec is returned unchanged and
- * `opencode.jsonc` is left alone.
+ * Code, disables them. The same layer carries the file's `opencode` plugin
+ * operations and instructions. Without the file, the spec is returned
+ * unchanged and `opencode.jsonc` is left alone.
  */
 const syncMachineExcludes = Effect.fn("McpSync.machineExcludes")(function* (
   spec: McpSyncSpec,
@@ -229,6 +230,14 @@ const syncMachineExcludes = Effect.fn("McpSync.machineExcludes")(function* (
   if (count > 0) layer.mcp = { servers };
   else Reflect.deleteProperty(layer, "mcp");
 
+  const { plugins, instructions } = selection.opencode;
+
+  if (plugins.length > 0) layer.plugins = [...plugins];
+  else Reflect.deleteProperty(layer, "plugins");
+
+  if (instructions.length > 0) layer.instructions = [...instructions];
+  else Reflect.deleteProperty(layer, "instructions");
+
   yield* Effect.sync(() =>
     writeFileAtomic(OPENCODE_MACHINE_CONFIG, formatJson(decodeJson(layer)), {
       createDirectory: true,
@@ -240,6 +249,14 @@ const syncMachineExcludes = Effect.fn("McpSync.machineExcludes")(function* (
 
     yield* log.success(
       `${style.accent("opencode")} ${plural(count, "server")} excluded ${style.dim(displayPath(OPENCODE_MACHINE_CONFIG))}`,
+    );
+  }
+
+  if (plugins.length > 0 || instructions.length > 0) {
+    const style = cliStyler();
+
+    yield* log.success(
+      `${style.accent("opencode")} ${plural(plugins.length, "plugin change")}, ${plural(instructions.length, "instruction file")} ${style.dim(displayPath(OPENCODE_MACHINE_CONFIG))}`,
     );
   }
 
