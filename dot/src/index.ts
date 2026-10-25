@@ -207,7 +207,6 @@ const NATIVE_COMMAND_TIMEOUT_SECONDS = {
   "setup private repo": 10 * 60,
   "setup public repo": 3 * 60,
   "private pkg publish": 30 * 60,
-  firewall: 3 * 60,
   skills: 2 * 60 * 60,
   "agent sync": 2 * 60,
   "mcp sync": 2 * 60,

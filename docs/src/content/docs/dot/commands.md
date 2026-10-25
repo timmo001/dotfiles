@@ -1106,31 +1106,9 @@ dot snapshot --limit 40
 dot snapshot --min-memory-mib 50
 ```
 
-## `dot firewall`
-
-Reconcile managed ufw firewall rules
-
-```text
-dot firewall [flags]
-```
-
-Ensure the managed ufw allow rules are present with their exact source, destination, interface/direction, and purpose comment. Missing rules are added, stale-comment rules are deleted and re-added, then ufw is reloaded once. A source-restricted rule does not satisfy a managed any-source rule.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot firewall
-```
-
 ## `dot doctor`
 
-Run parallel health checks for dependencies, repositories, stow integrity, services, apt packages, firewall rules, and OpenCode/Herdr integration. A timestamped report is always written under ~/.local/state/dot/logs/.
+Run parallel health checks for dependencies, repositories, stow integrity, the app's packages and tools, and OpenCode/Herdr integration. A timestamped report is always written under ~/.local/state/dot/logs/.
 
 ```text
 dot doctor [flags]
@@ -1149,8 +1127,8 @@ Run health checks on the dotfiles system. All checks run in parallel and each se
 ```text
 Dependencies and configured gh extensions
 Repositories, origin HEAD, git config, and stow integrity
-OpenCode, Herdr, notifications, timers, and registered services
-Public/private apt packages, managed firewall rules, and Syncthing
+OpenCode, Herdr, notifications, and the session queue
+Public/private app packages and tools
 ```
 
 **Exit codes**
