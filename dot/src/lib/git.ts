@@ -99,6 +99,21 @@ export function gitOutput(
   });
 }
 
+/**
+ * Whether the global Git config includes `path`, in whichever file Git uses
+ * (`~/.gitconfig` or `~/.config/git/config`).
+ */
+export function gitGlobalIncludes(
+  path: string,
+): Effect.Effect<boolean, never, CommandExecutor> {
+  return gitOutput(["config", "--global", "--get-all", "include.path"]).pipe(
+    Effect.map((output) =>
+      output.split("\n").some((line) => line.trim() === path),
+    ),
+    Effect.orElseSucceed(() => false),
+  );
+}
+
 /** Default hard timeout for a networked git command (ls-remote, fetch, set-head). */
 export const GIT_REMOTE_TIMEOUT = Duration.seconds(10);
 
