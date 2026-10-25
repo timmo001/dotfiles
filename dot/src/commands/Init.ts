@@ -8,11 +8,8 @@ import { OutputLog } from "../services/OutputLog.js";
 import { Launcher } from "../services/Launcher.js";
 import { agentsSync } from "./AgentsSync.js";
 import { install } from "./Install.js";
-import { runElevated, withSudoKeepAlive } from "../lib/elevatedCommand.js";
-import { gitRequired } from "../lib/git.js";
+import { gitGlobalIncludes, gitRequired } from "../lib/git.js";
 import { checkAppRequirements } from "../lib/packageSetup.js";
-import { ensureLocalesGenerated } from "../lib/localeSetup.js";
-import { configureFirewallRules } from "../lib/firewallSetup.js";
 import { installGhExtensions } from "../lib/ghExtensions.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { ensureGlobalHkHooks } from "../lib/gitHooks.js";
@@ -32,24 +29,16 @@ import type { ConfigService } from "../services/Config.js";
 
 const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
 
-const DOCTOR_TIMER_UNIT = "dot-doctor.timer";
-
-const ETC_SHELLS = "/etc/shells";
-
 /** Upper bound (seconds) for each init phase. */
 const INIT_STEP_TIMEOUT_SECONDS = {
-  locale: 3 * 60,
   install: 5 * 60,
   gitHooks: 60,
   publicPackages: 60,
-  firewall: 3 * 60,
   ghExtensions: 5 * 60,
-  loginShell: 2 * 60,
   privatePackages: 60,
   privateRepos: 10 * 60,
   miseTrust: 2 * 60,
   git: 2 * 60,
-  doctorTimer: 60,
   agents: 2 * 60,
 } as const;
 
@@ -115,20 +104,7 @@ const isManagedSymlink = Effect.fn("init.isManagedSymlink")(function* (
   return target ? isManagedTarget(target, config) : false;
 });
 
-const gitConfigIncludesManagedPath = Effect.fn(
-  "init.gitConfigIncludesManagedPath",
-)(function* () {
-  const fs = yield* FileSystem.FileSystem;
-  const gitConfigFile = join(CONFIG_DIR, "git", "config");
-
-  if (!(yield* pathExists(gitConfigFile))) return false;
-
-  const content = yield* fs
-    .readFileString(gitConfigFile)
-    .pipe(Effect.mapError(fsError));
-
-  return content.includes(`path = ${GIT_INCLUDE_PATH}`);
-});
+const gitConfigIncludesManagedPath = () => gitGlobalIncludes(GIT_INCLUDE_PATH);
 
 const existingInitSignals = Effect.fn("init.existingInitSignals")(function* (
   config: ConfigService,
@@ -155,7 +131,11 @@ const existingInitSignals = Effect.fn("init.existingInitSignals")(function* (
 function assertFreshInitTarget(
   config: ConfigService,
   force: boolean,
-): Effect.Effect<void, InitError, FileSystem.FileSystem | OutputLog> {
+): Effect.Effect<
+  void,
+  InitError,
+  CommandExecutor | FileSystem.FileSystem | OutputLog
+> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
     const completeMarker = initCompleteMarker(config);
@@ -243,52 +223,6 @@ function configureGitInclude(
   });
 }
 
-function runUserSystemctl(
-  args: readonly string[],
-): Effect.Effect<void, InitError, CommandExecutor> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    const exitCode = yield* executor.inherit("systemctl", ["--user", ...args]);
-
-    if (exitCode !== 0) {
-      return yield* fail(
-        `systemctl --user ${args.join(" ")} exited ${exitCode}`,
-      );
-    }
-  });
-}
-
-function enableUserUnit(
-  unit: string,
-  sectionTitle: string,
-): Effect.Effect<
-  void,
-  InitError,
-  CommandExecutor | FileSystem.FileSystem | OutputLog
-> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    const log = yield* OutputLog;
-    const unitPath = join(CONFIG_DIR, "systemd", "user", unit);
-
-    yield* log.section(sectionTitle);
-
-    if ((yield* executor.exitCode("which", ["systemctl"])) !== 0) {
-      yield* log.warn(`Skipping ${unit} (systemctl not found)`);
-
-      return;
-    }
-
-    if (!(yield* pathExists(unitPath))) {
-      return yield* fail(`Missing systemd user unit: ${displayPath(unitPath)}`);
-    }
-
-    yield* runUserSystemctl(["daemon-reload"]);
-    yield* runUserSystemctl(["enable", "--now", unit]);
-    yield* log.success(`Enabled ${cliStyler().accent(unit)}`);
-  });
-}
-
 function syncAgentsStrict(): Effect.Effect<
   void,
   unknown,
@@ -335,152 +269,6 @@ function setupPrivatePackages(
   });
 }
 
-/** Resolve the absolute zsh path on PATH, or null when zsh is not installed. */
-function resolveZshPath(): Effect.Effect<
-  string | null,
-  never,
-  CommandExecutor
-> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-
-    const output = yield* executor
-      .run("which", ["zsh"])
-      .pipe(Effect.orElseSucceed(() => ""));
-
-    const path = output.trim();
-
-    return path.length > 0 ? path : null;
-  });
-}
-
-/** Read the current user's login shell from the passwd database. */
-function currentLoginShell(): Effect.Effect<
-  string | null,
-  never,
-  CommandExecutor
-> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    const uid = process.getuid?.();
-
-    if (uid === undefined) return null;
-
-    const output = yield* executor
-      .run("getent", ["passwd", String(uid)])
-      .pipe(Effect.orElseSucceed(() => ""));
-
-    const fields = output.trim().split(":");
-
-    return fields.length >= 7 ? fields[6] : null;
-  });
-}
-
-/** Resolve the current user's login name for chsh. */
-function currentUsername(): Effect.Effect<
-  string | null,
-  never,
-  CommandExecutor
-> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-
-    const output = yield* executor
-      .run("id", ["-un"])
-      .pipe(Effect.orElseSucceed(() => ""));
-
-    const name = output.trim();
-
-    return name.length > 0 ? name : null;
-  });
-}
-
-/** Whether the given shell path is already registered in /etc/shells. */
-const shellRegisteredInEtcShells = Effect.fn("init.shellRegistered")(function* (
-  shellPath: string,
-) {
-  const fs = yield* FileSystem.FileSystem;
-
-  if (!(yield* pathExists(ETC_SHELLS))) return false;
-
-  const content = yield* fs
-    .readFileString(ETC_SHELLS)
-    .pipe(Effect.mapError(fsError));
-
-  return content
-    .split("\n")
-    .map((line) => line.trim())
-    .includes(shellPath);
-});
-
-/**
- * Ensure zsh is the user's login shell.
- *
- * Idempotent: registers zsh in /etc/shells only when missing and only runs
- * chsh when the current login shell is not already zsh. Privileged steps use
- * the shared elevated-command pattern. Skips with a warning when zsh is absent.
- */
-function ensureLoginShellZsh(): Effect.Effect<
-  void,
-  InitError,
-  CommandExecutor | FileSystem.FileSystem | OutputLog
-> {
-  return Effect.gen(function* () {
-    const log = yield* OutputLog;
-    yield* log.section("Login Shell");
-
-    const zshPath = yield* resolveZshPath();
-
-    if (!zshPath) {
-      yield* log.warn("Skipping login shell setup (zsh not found on PATH)");
-
-      return;
-    }
-
-    if (!(yield* shellRegisteredInEtcShells(zshPath))) {
-      const exitCode = yield* runElevated("sh", [
-        "-c",
-        'printf "%s\\n" "$1" >> "$2"',
-        "sh",
-        zshPath,
-        ETC_SHELLS,
-      ]);
-
-      if (exitCode !== 0) {
-        return yield* fail(
-          `Failed to register ${zshPath} in ${ETC_SHELLS} (exit ${exitCode})`,
-        );
-      }
-
-      yield* log.success(`Registered ${zshPath} in ${ETC_SHELLS}`);
-    }
-
-    const loginShell = yield* currentLoginShell();
-
-    if (loginShell === zshPath) {
-      yield* log.info(cliStyler().dim(`Login shell is already ${zshPath}`));
-
-      return;
-    }
-
-    const username = yield* currentUsername();
-
-    if (!username) {
-      return yield* fail("Unable to determine current username for chsh");
-    }
-
-    const exitCode = yield* runElevated("chsh", ["-s", zshPath, username]);
-
-    if (exitCode !== 0) {
-      return yield* fail(`chsh -s ${zshPath} ${username} exited ${exitCode}`);
-    }
-
-    yield* log.success(
-      `Set login shell to ${cliStyler().accent(zshPath)} for ${username}`,
-    );
-  });
-}
-
 /** Run the one-time first-use setup workflow for a fresh machine. */
 export function init(
   options: InitOptions,
@@ -523,11 +311,6 @@ export function init(
       );
 
     yield* step(
-      "Locale",
-      INIT_STEP_TIMEOUT_SECONDS.locale,
-      ensureLocalesGenerated,
-    );
-    yield* step(
       "Install Dotfiles",
       INIT_STEP_TIMEOUT_SECONDS.install,
       install.pipe(
@@ -547,19 +330,9 @@ export function init(
       checkAppRequirements({ scope: "public" }),
     );
     yield* step(
-      "Configure Firewall",
-      INIT_STEP_TIMEOUT_SECONDS.firewall,
-      configureFirewallRules,
-    );
-    yield* step(
       "Install GitHub CLI Extensions",
       INIT_STEP_TIMEOUT_SECONDS.ghExtensions,
       installGhExtensions,
-    );
-    yield* step(
-      "Login Shell",
-      INIT_STEP_TIMEOUT_SECONDS.loginShell,
-      ensureLoginShellZsh(),
     );
     yield* step(
       "Check Private App Packages",
@@ -580,11 +353,6 @@ export function init(
       "Configure Git",
       INIT_STEP_TIMEOUT_SECONDS.git,
       configureGitInclude(config),
-    );
-    yield* step(
-      "Enable Doctor Timer",
-      INIT_STEP_TIMEOUT_SECONDS.doctorTimer,
-      enableUserUnit(DOCTOR_TIMER_UNIT, "Enable Doctor Timer"),
     );
     yield* step(
       "Sync Agents",
@@ -610,14 +378,9 @@ export function init(
     );
     yield* log.info("");
     yield* log.info(style.label("Next steps"));
-    yield* log.info(
-      `  Run ${style.command("loginctl enable-linger")} so user services such as Herdr run without a login`,
-    );
-    yield* log.info(
-      `  Log in again to pick up the new login shell, then run ${style.command("dot doctor")}`,
-    );
+    yield* log.info(`  Run ${style.command("dot doctor")}`);
     yield* log.info(
       `  For ongoing maintenance, run ${style.command("dot update")}`,
     );
-  }).pipe(withSudoKeepAlive);
+  });
 }

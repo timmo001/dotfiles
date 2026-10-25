@@ -6,7 +6,6 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { GitHub } from "../git/services/GitHub.js";
 import { checkDependencies } from "./checks/dependencies.js";
 import { checkGhExtensions } from "./checks/ghExtensions.js";
-import { checkLocale } from "./checks/locale.js";
 import { checkZshKeybindings } from "./checks/zshKeybindings.js";
 import { checkRepos, checkPrivateAccess } from "./checks/repos.js";
 import { checkStow } from "./checks/stow.js";
@@ -18,17 +17,11 @@ import { checkGithubMcpAuth } from "./checks/githubMcpAuth.js";
 import { checkGitConfig } from "../git/doctor/gitConfig.js";
 import { checkOriginHead } from "../git/doctor/originHead.js";
 import { checkGitSigning } from "../git/doctor/gitSigning.js";
-import {
-  checkGitNotifications,
-  checkDoctorTimer,
-  checkRegisteredServices,
-} from "./checks/systemd.js";
+import { checkGitNotifications } from "./checks/systemd.js";
 import {
   checkPublicPackages,
   checkPrivatePackages,
 } from "./checks/packages.js";
-import { checkFirewall } from "./checks/firewall.js";
-import { checkSyncthing } from "./checks/syncthing.js";
 import { checkSessionQueue } from "./checks/sessionQueue.js";
 import { withTimeoutOption } from "../lib/workflowStep.js";
 import type { CheckResult, CheckSection, DoctorReport } from "./types.js";
@@ -62,7 +55,6 @@ interface SectionDef {
 const sections: readonly SectionDef[] = [
   { name: "Dependency checks", check: checkDependencies },
   { name: "gh extension checks", check: checkGhExtensions },
-  { name: "Locale", check: checkLocale },
   { name: "Zsh key bindings", check: checkZshKeybindings },
   { name: "Repository checks", check: checkRepos },
   { name: "Git hooks", check: checkGitHooks },
@@ -75,8 +67,6 @@ const sections: readonly SectionDef[] = [
   { name: "Git config include", check: checkGitConfig },
   { name: "Git commit signing", check: checkGitSigning },
   { name: "Git notification checks", check: checkGitNotifications },
-  { name: "Doctor timer", check: checkDoctorTimer },
-  { name: "Registered services", check: checkRegisteredServices },
   { name: "Private access", check: checkPrivateAccess },
   { name: "App packages and tools", check: checkPublicPackages },
   {
@@ -84,8 +74,6 @@ const sections: readonly SectionDef[] = [
     check: checkPrivatePackages,
     requiresPrivate: true,
   },
-  { name: "Firewall rules", check: checkFirewall },
-  { name: "Syncthing", check: checkSyncthing },
   { name: "Session queue", check: checkSessionQueue },
 ];
 
