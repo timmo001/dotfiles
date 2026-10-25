@@ -14117,15 +14117,6 @@ policy:
         set:
           allowedVersions: "<25"
       - description:
-          - "Hold global Python on 3.14 until pyyaml publishes Python 3.15 wheels for yamllint."
-        match:
-          dependencies:
-            - "python"
-          files:
-            - "mise/.config/mise/config.toml"
-        set:
-          allowedVersions: "<3.15"
-      - description:
           - "Update OpenCode Desktop with the other OpenCode 2 packages."
         match:
           dependencies:

@@ -83,12 +83,6 @@
       "allowedVersions": "<25"
     },
     {
-      "description": "Hold global Python on 3.14 until pyyaml publishes Python 3.15 wheels for yamllint.",
-      "matchFileNames": ["mise/.config/mise/config.toml"],
-      "matchDepNames": ["python"],
-      "allowedVersions": "<3.15"
-    },
-    {
       "description": "Update OpenCode Desktop with the other OpenCode 2 packages.",
       "matchDepNames": ["http:opencode-desktop"],
       "groupName": "OpenCode 2",
