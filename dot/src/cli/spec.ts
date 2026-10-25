@@ -242,11 +242,11 @@ const systemUpdateCommand = describe(
 
 const branchUpdateCommand = describe(
   Command.make("branch", {}, () => Effect.asVoid(branchUpdate)),
-  "Open an agent to rebase the server and cloud branches when they are behind",
+  "Open an agent to rebase the distro branches when they are behind",
   ["dot update branch"],
   {
     description:
-      "Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fast-forwards the permanent distro/cloud worktree at ~/.local/share/dot/dotfiles-cloud, then checks whether distro/ubuntu-server is behind distro/arch-omarchy-quattro or distro/cloud is behind distro/ubuntu-server. When one is, it opens an OpenCode agent named branch-update in Herdr to follow the rebase steps in AGENTS.md, check and push. Nothing opens when both are up to date, a rebase is already in progress, the agent is already open, or dot runs under an agent. A full dot update and dot update system run it last; --no-branch skips it.",
+      "Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fast-forwards the permanent distro/cloud and distro/opencode-app worktrees at ~/.local/share/dot/dotfiles-cloud and ~/.local/share/dot/dotfiles-opencode-app, then checks whether distro/ubuntu-server is behind distro/arch-omarchy-quattro or either of those is behind distro/ubuntu-server, ignoring commits that only regenerate the distro diff page. When one is, it opens an OpenCode agent named branch-update in Herdr to follow the rebase steps in AGENTS.md, check and push. Nothing opens when all are up to date, a rebase is already in progress, the agent is already open, or dot runs under an agent. A full dot update and dot update system run it last; --no-branch skips it.",
   },
 );
 
