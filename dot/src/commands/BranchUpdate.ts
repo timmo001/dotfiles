@@ -177,7 +177,7 @@ const openBranchAgent = Effect.fn("BranchUpdate.openAgent")(function* (
   yield* openHerdrRepo({
     label: basename(repo),
     directory: repo,
-    layout: "tab",
+    layout: "vertical",
     agent: "opencode2",
     agentName: AGENT_NAME,
     prompt: agentPrompt(repo, serverBehind, children),
