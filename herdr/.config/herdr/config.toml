@@ -181,7 +181,7 @@ command = "timmo.mascot.toggle"
 description = "toggle mascot"
 
 [theme]
-name = "catppuccin"
+name = "tokyo-night"
 auto_switch = false
 
 [ui]
@@ -247,7 +247,7 @@ rows = [
 ]
 
 [ui.toast]
-delivery = "herdr"
+delivery = "system"
 
 [ui.toast.herdr]
 position = "top-right"
