@@ -28,7 +28,7 @@ pnpm = "latest"
 # Hold on 3.14 until pyyaml publishes Python 3.15 wheels for yamllint.
 python = "3.15.1"
 ripgrep = "latest"
-rust = "1"
+rust = "1.99.1"
 shellcheck = "latest"
 shfmt = "latest"
 starship = "latest"
