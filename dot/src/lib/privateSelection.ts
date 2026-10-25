@@ -10,6 +10,12 @@ const PrivateSelectionFile = Schema.Struct({
   syncthing: Schema.optionalKey(
     Schema.Struct({ exclude: Schema.Array(Schema.String) }),
   ),
+  opencode: Schema.optionalKey(
+    Schema.Struct({
+      plugins: Schema.optionalKey(Schema.Array(Schema.String)),
+      instructions: Schema.optionalKey(Schema.Array(Schema.String)),
+    }),
+  ),
   repos: Schema.optionalKey(
     Schema.Struct({
       machine: Schema.NonEmptyString,
@@ -26,6 +32,14 @@ export interface RepoSelection {
   readonly shallow: boolean;
 }
 
+/** OpenCode settings this machine layers over the shared config. */
+export interface OpenCodeLayer {
+  /** Plugin operations, such as `-plannotator` to remove a shared plugin. */
+  readonly plugins: readonly string[];
+  /** Extra instruction files loaded on this machine. */
+  readonly instructions: readonly string[];
+}
+
 /** What this machine takes from the private dotfiles, per `.dot-private.yml`. */
 export interface PrivateSelection {
   /** Private stow packages to link, or `null` to link them all. */
@@ -34,6 +48,8 @@ export interface PrivateSelection {
   readonly mcpExclude: ReadonlySet<string>;
   /** Syncthing folder IDs from the private config this machine leaves out. */
   readonly syncthingExclude: ReadonlySet<string>;
+  /** OpenCode plugins and instructions changed on this machine. */
+  readonly opencode: OpenCodeLayer;
   /** Tracked repositories to keep, or `null` to keep them all. */
   readonly repos: RepoSelection | null;
 }
@@ -53,19 +69,26 @@ export const readPrivateSelection = Effect.fn("PrivateSelection.read")(
 
     return yield* Effect.try(() => Bun.YAML.parse(text)).pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(PrivateSelectionFile)),
-      Effect.map(({ stow, mcp, syncthing, repos }): PrivateSelection => ({
-        stow: stow === undefined ? null : new Set(stow),
-        mcpExclude: new Set(mcp?.exclude),
-        syncthingExclude: new Set(syncthing?.exclude),
-        repos:
-          repos === undefined
-            ? null
-            : { machine: repos.machine, shallow: repos.shallow ?? false },
-      })),
+      Effect.map(
+        ({ stow, mcp, syncthing, opencode, repos }): PrivateSelection => ({
+          stow: stow === undefined ? null : new Set(stow),
+          mcpExclude: new Set(mcp?.exclude),
+          syncthingExclude: new Set(syncthing?.exclude),
+          opencode: {
+            plugins: opencode?.plugins ?? [],
+            instructions: opencode?.instructions ?? [],
+          },
+          repos:
+            repos === undefined
+              ? null
+              : { machine: repos.machine, shallow: repos.shallow ?? false },
+        }),
+      ),
       Effect.orElseSucceed((): PrivateSelection => ({
         stow: new Set(),
         mcpExclude: new Set(),
         syncthingExclude: new Set(),
+        opencode: { plugins: [], instructions: [] },
         repos: { machine: "", shallow: true },
       })),
     );
