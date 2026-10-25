@@ -732,6 +732,69 @@ dot fans run [flags]
 dot fans run
 ```
 
+## `dot hdr`
+
+Switch the primary monitor between HDR and SDR
+
+```text
+dot hdr <subcommand> [flags]
+```
+
+The primary monitor is HDMI-A-2 on the desktop host and the focused monitor elsewhere. On sets 10-bit output with HDR colour management and doubled SDR brightness, and saves the setting so a Hyprland reload keeps it; off restores 8-bit sRGB. Either does nothing when the monitor is already there. The hdr-on and hdr-off scripts wrap these for launchers that take a script path, such as Heroic's per-game before and after launch scripts.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot hdr on
+dot hdr off
+```
+
+### `dot hdr on`
+
+Switch the primary monitor to HDR
+
+```text
+dot hdr on [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot hdr on
+```
+
+### `dot hdr off`
+
+Switch the primary monitor back to SDR
+
+```text
+dot hdr off [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot hdr off
+```
+
 ## `dot tunnel`
 
 Run shared Cloudflare tunnels on one machine at a time

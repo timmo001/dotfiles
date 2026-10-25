@@ -9,7 +9,7 @@
 
 require("hypr.host.monitors")
 
--- Reapply HDR set by toggle-primary-monitor-hdr, so a reload doesn't drop it.
+-- Reapply HDR set by dot hdr on, so a reload doesn't drop it.
 local runtime_dir = os.getenv("XDG_RUNTIME_DIR")
 local hdr_monitor = runtime_dir and loadfile(runtime_dir .. "/hypr-hdr-monitor.lua")
 if hdr_monitor then

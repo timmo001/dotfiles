@@ -52,6 +52,7 @@ import {
   servicesStatus,
 } from "../commands/Services.js";
 import { fansRun } from "../commands/Fans.js";
+import { hdr } from "../commands/Hdr.js";
 import { tunnelRun } from "../commands/Tunnel.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { prQueue } from "../commands/PrQueue.js";
@@ -906,6 +907,29 @@ const fansCommand = describe(
   {
     description:
       "Reads ~/.config/dot/fans.yml: entity (a Home Assistant temperature sensor), device (a liquidctl --match string), channels (a list such as fan1 and fan2), ramp ({ from, to } in °C) and speed ({ min, max } in percent). Watches the entity through ha-bridge and ramps the channels linearly from speed.min at ramp.from to speed.max at ramp.to, in 5% steps. An unavailable or non-numeric reading, no reading within 30 seconds, or a stopped watcher sets speed.max until readings resume; the watcher restarts after 15 seconds. Health is written to $XDG_STATE_HOME/dot/fans/status.json for the status field of a dot services descriptor. Stopping hands the device back to motherboard control with liquidctl initialize.",
+  },
+);
+
+const hdrCommand = describe(
+  Command.make("hdr").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make("on", {}, () => hdr("on")),
+        "Switch the primary monitor to HDR",
+        ["dot hdr on"],
+      ),
+      describe(
+        Command.make("off", {}, () => hdr("off")),
+        "Switch the primary monitor back to SDR",
+        ["dot hdr off"],
+      ),
+    ]),
+  ),
+  "Switch the primary monitor between HDR and SDR",
+  ["dot hdr on", "dot hdr off"],
+  {
+    description:
+      "The primary monitor is HDMI-A-2 on the desktop host and the focused monitor elsewhere. On sets 10-bit output with HDR colour management and doubled SDR brightness, and saves the setting so a Hyprland reload keeps it; off restores 8-bit sRGB. Either does nothing when the monitor is already there. The hdr-on and hdr-off scripts wrap these for launchers that take a script path, such as Heroic's per-game before and after launch scripts.",
   },
 );
 
@@ -3701,6 +3725,7 @@ export const dotCommand = describe(
       updatesCommand,
       servicesCommand,
       fansCommand,
+      hdrCommand,
       tunnelCommand,
       stowCommand,
       omarchyCommand,
