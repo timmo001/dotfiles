@@ -42,13 +42,9 @@ usage
 # Personal, so add these to the option by hand.
 aqua:1password/cli
 aqua:coder/boo
-aqua:earendil-works/pi
 aqua:herdrdev/herdr
 aqua:sxyazi/yazi
 gdu
-github:anomalyco/opentunnel
-github:backnotprop/plannotator
-github:plannotator/plannotator-tui
 github:timmo001/context
 github:timmo001/notes
 gum
