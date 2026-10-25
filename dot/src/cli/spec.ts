@@ -94,7 +94,6 @@ import {
   UP_GROUPS,
 } from "../commands/Update.js";
 import { RELOAD_PARTS, reload } from "../commands/Reload.js";
-import { configureFirewallRules } from "../lib/firewallSetup.js";
 import { diffBarJson, diffPanelJson, diffRaw } from "../git/commands/Diff.js";
 import { gitCommitRaw } from "../git/commands/Commit.js";
 import { gitLog, gitLogShow } from "../git/commands/Log.js";
@@ -1726,17 +1725,8 @@ const simpleCommands = [
     },
   ),
   describe(
-    Command.make("firewall", {}, () => configureFirewallRules),
-    "Reconcile managed ufw firewall rules",
-    ["dot firewall"],
-    {
-      description:
-        "Ensure the managed ufw allow rules are present with their exact source, destination, interface/direction, and purpose comment. Missing rules are added, stale-comment rules are deleted and re-added, then ufw is reloaded once. A source-restricted rule does not satisfy a managed any-source rule.",
-    },
-  ),
-  describe(
     Command.make("doctor", {}, () => doctor),
-    "Run parallel health checks for dependencies, repositories, stow integrity, services, apt packages, firewall rules, and OpenCode/Herdr integration. A timestamped report is always written under ~/.local/state/dot/logs/.",
+    "Run parallel health checks for dependencies, repositories, stow integrity, the app's packages and tools, and OpenCode/Herdr integration. A timestamped report is always written under ~/.local/state/dot/logs/.",
     [],
     {
       description:
@@ -1747,8 +1737,8 @@ const simpleCommands = [
           lines: [
             "Dependencies and configured gh extensions",
             "Repositories, origin HEAD, git config, and stow integrity",
-            "OpenCode, Herdr, notifications, timers, and registered services",
-            "Public/private apt packages, managed firewall rules, and Syncthing",
+            "OpenCode, Herdr, notifications, and the session queue",
+            "Public/private app packages and tools",
           ],
         },
         {
