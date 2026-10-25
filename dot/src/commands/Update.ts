@@ -101,7 +101,6 @@ const LOCAL_HERDR_PLUGINS = [
   "yazi",
   "repository-picker",
   "mise-task-runner",
-  "plannotator",
   "dot-links",
 ] as const;
 

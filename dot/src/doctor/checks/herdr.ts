@@ -12,7 +12,6 @@ const REQUIRED_LOCAL_PLUGINS = [
   "dotfiles.yazi",
   "dotfiles.repository-picker",
   "dotfiles.mise-task-runner",
-  "dotfiles.plannotator",
   "dotfiles.dot-links",
 ] as const;
 

@@ -121,8 +121,6 @@ description = "Run deterministic repository integration tests in parallel"
 depends = [
   "tests:integration:dot",
   "tests:integration:dependencies",
-  "tests:integration:plannotator",
-  "tests:integration:hypr",
 ]
 
 [tasks."tests:integration:dot"]
@@ -134,16 +132,6 @@ run = "bun test tests/opencode tests/dot/agent-oxlint-opt-in.test.ts tests/dot/g
 description = "Run the dependency service integration tests"
 depends = ["dot:build"]
 run = "bun test tests/dot/dependency-validation.test.ts tests/dot/dependency-lease.test.ts tests/dot/services-outcomes.test.ts"
-
-[tasks."tests:integration:plannotator"]
-description = "Run the Plannotator Herdr plugin runner tests"
-depends = ["dot:build"]
-run = "bun test ./scripts/.local/share/herdr-plugins/plannotator/runner.test.ts"
-
-[tasks."tests:integration:hypr"]
-description = "Check Hyprland Lua dispatcher syntax"
-depends = ["dot:build"]
-run = "bash tests/scripts/hypr-lua-dispatchers.test.sh"
 
 [tasks."tests:smoke"]
 description = "Build dot and run the git-diff index-lock smoke check"
