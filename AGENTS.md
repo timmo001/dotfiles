@@ -38,9 +38,9 @@ The branch rebases onto `origin/distro/arch-omarchy-quattro`. Look ahead before 
 6. After the rebase, delete unwanted files the desktop added without a conflict (the `A` lines from step 1), since they arrive silently.
 7. Run the checks under Validation, then push with `--force-with-lease`. If `docs/src/content/docs/server/changes.md` conflicts, take either side: the Distro diff workflow regenerates and commits it after the push.
 
-`distro/cloud` builds on this branch; that branch's `AGENTS.md` owns rebasing it. Its permanent worktree is `~/.local/share/dot/dotfiles-cloud`.
+`distro/cloud` and `distro/opencode-app` build on this branch, in permanent worktrees at `~/.local/share/dot/dotfiles-cloud` and `~/.local/share/dot/dotfiles-opencode-app`. Each branch's `AGENTS.md` owns what it takes. Rebase them with `git rebase --fork-point origin/distro/ubuntu-server`, so only their own commits replay after this branch is force-pushed; a plain `git rebase origin/distro/ubuntu-server` replays the old server commits too.
 
-`dot update branch` runs last in a full `dot update` and in `dot update system`. When either branch is behind, it opens an OpenCode agent named `branch-update` in Herdr to follow these steps and push. It never opens one under an agent, during a rebase, or while `branch-update` is open; `--no-branch` skips it.
+`dot update branch` runs last in a full `dot update` and in `dot update system`. When any of these branches is behind, it opens an OpenCode agent named `branch-update` in Herdr to follow these steps and push. Commits that only regenerate the distro diff page don't count as behind. It never opens one under an agent, during a rebase, or while `branch-update` is open; `--no-branch` skips it.
 
 ## Scope
 
