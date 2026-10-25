@@ -15,11 +15,6 @@ const TOOLS: readonly ToolDef[] = [
   { name: "stow", purpose: "dotfile linking", required: true },
   { name: "bash", purpose: "dot runtime", required: true },
   {
-    name: "apt-get",
-    purpose: "dot init/install installs missing packages",
-    required: false,
-  },
-  {
     name: "mise",
     purpose: "managed Bun, Node, pnpm, and language tool versions",
     required: false,

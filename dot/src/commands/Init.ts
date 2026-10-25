@@ -10,10 +10,7 @@ import { agentsSync } from "./AgentsSync.js";
 import { install } from "./Install.js";
 import { runElevated, withSudoKeepAlive } from "../lib/elevatedCommand.js";
 import { gitRequired } from "../lib/git.js";
-import {
-  installMissingPackages,
-  installMiseTools,
-} from "../lib/packageSetup.js";
+import { checkAppRequirements } from "../lib/packageSetup.js";
 import { ensureLocalesGenerated } from "../lib/localeSetup.js";
 import { configureFirewallRules } from "../lib/firewallSetup.js";
 import { installGhExtensions } from "../lib/ghExtensions.js";
@@ -43,13 +40,12 @@ const ETC_SHELLS = "/etc/shells";
 const INIT_STEP_TIMEOUT_SECONDS = {
   locale: 3 * 60,
   install: 5 * 60,
-  mise: 10 * 60,
   gitHooks: 60,
-  publicPackages: 30 * 60,
+  publicPackages: 60,
   firewall: 3 * 60,
   ghExtensions: 5 * 60,
   loginShell: 2 * 60,
-  privatePackages: 30 * 60,
+  privatePackages: 60,
   privateRepos: 10 * 60,
   miseTrust: 2 * 60,
   git: 2 * 60,
@@ -335,7 +331,7 @@ function setupPrivatePackages(
       return;
     }
 
-    yield* installMissingPackages({ scope: "private" });
+    yield* checkAppRequirements({ scope: "private" });
   });
 }
 
@@ -541,19 +537,14 @@ export function init(
       ),
     );
     yield* step(
-      "Install Mise Tools",
-      INIT_STEP_TIMEOUT_SECONDS.mise,
-      installMiseTools,
-    );
-    yield* step(
       "Install Git Hooks",
       INIT_STEP_TIMEOUT_SECONDS.gitHooks,
       Effect.asVoid(ensureGlobalHkHooks),
     );
     yield* step(
-      "Install Public Packages",
+      "Check App Packages And Tools",
       INIT_STEP_TIMEOUT_SECONDS.publicPackages,
-      installMissingPackages({ scope: "public" }),
+      checkAppRequirements({ scope: "public" }),
     );
     yield* step(
       "Configure Firewall",
@@ -571,7 +562,7 @@ export function init(
       ensureLoginShellZsh(),
     );
     yield* step(
-      "Setup Private Packages",
+      "Check Private App Packages",
       INIT_STEP_TIMEOUT_SECONDS.privatePackages,
       setupPrivatePackages(config),
     );

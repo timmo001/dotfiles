@@ -13,11 +13,15 @@ import { agentsSync } from "../commands/AgentsSync.js";
 import { agentOxlint } from "../commands/AgentOxlint.js";
 import { agentLint } from "../commands/AgentLint.js";
 import { agentTools } from "../commands/AgentTools.js";
-import { repoHook } from "../commands/RepoHook.js";
 import { repoInduct } from "../commands/RepoInduct.js";
 import { clean } from "../commands/Clean.js";
 import { completions } from "../commands/Completions.js";
 import { doctor } from "../commands/Doctor.js";
+import {
+  importRenovate,
+  previewDependencies,
+  serviceDependencies,
+} from "../commands/Dependencies.js";
 import { herdrModel, herdrRepoOpen } from "../commands/HerdrRepoOpen.js";
 import { installedHerdrAgents } from "../commands/HerdrAgents.js";
 import { herdrContext } from "../commands/HerdrContext.js";
@@ -28,7 +32,6 @@ import { install } from "../commands/Install.js";
 import { isAgentCommand } from "../commands/IsAgent.js";
 import { notesCaptureSync } from "../commands/NotesCaptureSync.js";
 import { updatesRefresh, updatesStatus } from "../commands/Updates.js";
-import { workTime } from "../commands/WorkTime.js";
 import {
   servicesInvestigate,
   servicesLogs,
@@ -83,16 +86,12 @@ import {
 } from "../commands/SessionQueue.js";
 import { repos, searchRepos } from "../commands/Repos.js";
 import { up, upCheck } from "../commands/Up.js";
-import { upStage } from "../commands/UpStage.js";
-import { reserveStdout } from "../lib/jsonStdout.js";
 import { branchUpdate } from "../commands/BranchUpdate.js";
 import {
   update,
   updateCheck,
   updateRepositories,
   UP_GROUPS,
-  UP_STAGES,
-  type UpStage,
 } from "../commands/Update.js";
 import { RELOAD_PARTS, reload } from "../commands/Reload.js";
 import { configureFirewallRules } from "../lib/firewallSetup.js";
@@ -102,11 +101,17 @@ import { gitLog, gitLogShow } from "../git/commands/Log.js";
 import { pullRequestsQuery } from "../git/commands/PullRequests.js";
 import { issuesQuery } from "../git/commands/Issues.js";
 import {
+  releasesAction,
+  releasesPublish,
+  releasesQuery,
+} from "../git/commands/Releases.js";
+import {
   notificationsBarJson,
   notificationsMarkRead,
 } from "../git/commands/Notifications.js";
 import { notificationsDismiss } from "../git/commands/NotificationDismiss.js";
 import type { GitNotificationQueryOptions } from "../types.js";
+import { resolve } from "path";
 
 /** Additional documentation sections attached to executable commands. */
 export interface CliDocs {
@@ -218,65 +223,6 @@ const branchUpdateCommand = describe(
   },
 );
 
-const STAGE_DESCRIPTIONS: Record<UpStage, string> = {
-  dotfiles:
-    "Pull the public and private dotfiles and their pinned submodules, and rebuild dot when its source moved",
-  stow: "Generate completions, sync MCP config and skills, and stow",
-  skills:
-    "Move the skills checkout to the latest main, rebuild skill-maintenance and relink skills",
-  repos:
-    "Pull tracked repositories that are behind, leaving any with work in progress alone; name repositories to pull just those",
-  tools: "Install missing mise tools, upgrade the rest and prune removed ones",
-  plugins: "Update the Pi and OpenCode plugins",
-  herdr:
-    "Restore pinned Herdr plugins and sync the saved Herdr and hc machines",
-  agents: "Sync agent instructions and reload running agents",
-  shell: "Start the doctor check",
-};
-
-const stageJson = bool(
-  "json",
-  "Print the result as JSON on stdout, with the log on stderr",
-);
-
-const upStageCommand = (stage: UpStage) =>
-  describe(
-    Command.make(
-      stage,
-      {
-        json: stageJson,
-        repos: Argument.String("repo").pipe(
-          Argument.variadic(),
-          Argument.withDescription(
-            stage === "repos"
-              ? "Repository paths to pull, instead of every safe one"
-              : "Not used by this stage",
-          ),
-        ),
-      },
-      ({ json, repos }) =>
-        Effect.suspend(() => {
-          if (stage !== "repos" && repos.length > 0)
-            return Effect.fail(
-              new CliError.InvalidValue({
-                option: "repo",
-                value: repos.join(", "),
-                kind: "argument",
-                expected: "no arguments; only dot up repos takes repositories",
-              }),
-            );
-
-          if (json) reserveStdout();
-
-          return upStage(stage, { repos, json });
-        }),
-    ),
-    `${STAGE_DESCRIPTIONS[stage]}. Never prompts, so it can run in the background.`,
-    stage === "repos"
-      ? ["dot up repos", "dot up repos ~/repos/upkeep", "dot up repos --json"]
-      : [`dot up ${stage}`, `dot up ${stage} --json`],
-  );
-
 const updateCommand = describe(
   Command.make(
     "up",
@@ -284,7 +230,7 @@ const updateCommand = describe(
       repo: Flag.String("repo").pipe(
         Flag.atLeast(0),
         Flag.withDescription(
-          "Fast-forward this repository when local work can be preserved, then run its post-update command; repeat for a batch. Pulled dotfiles only rebuild dot, leaving stow and the rest to dot up",
+          "Fast-forward this repository when local work can be preserved, then run its post-update command; repeat for a batch. Changed dotfiles also rebuild and stow",
         ),
       ),
       pull: bool("pull", "Run the repository pull phase only"),
@@ -308,27 +254,12 @@ const updateCommand = describe(
         "check-all",
         "Also check development repos for pulls, skipping local work",
       ),
-      yes: bool(
-        "yes",
-        "Run every group with work without asking, and pass -y to apt-get upgrade",
-      ),
+      yes: bool("yes", "Run every group with work without asking"),
       force: bool("force", "Offer every group, even with nothing pending"),
       group: Flag.Literals("group", UP_GROUPS).pipe(
         Flag.atLeast(0),
         Flag.withDescription(
           "Internal: the groups picked before a restart handoff",
-        ),
-      ),
-      declined: Flag.Literals("declined", UP_GROUPS).pipe(
-        Flag.atLeast(0),
-        Flag.withDescription(
-          "Internal: the groups offered but not picked before a restart handoff",
-        ),
-      ),
-      changed: Flag.Literals("changed", UP_GROUPS).pipe(
-        Flag.atLeast(0),
-        Flag.withDescription(
-          "Internal: the stages that changed something before a restart handoff",
         ),
       ),
       noSelfUpdate: bool(
@@ -353,11 +284,9 @@ const updateCommand = describe(
     },
     ({
       app,
-      changed,
       check,
       checkAll,
       checkRepos,
-      declined,
       force,
       group,
       noSelfUpdate,
@@ -381,8 +310,6 @@ const updateCommand = describe(
             noSelfUpdate ||
             postHookRepo.length > 0 ||
             group.length > 0 ||
-            declined.length > 0 ||
-            changed.length > 0 ||
             Option.isSome(startedAt)
           )
             return yield* new CliError.InvalidValue({
@@ -393,7 +320,7 @@ const updateCommand = describe(
                 "--repo with only --pull or --no-reload, without other update phase, check or internal flags",
             });
 
-          return yield* updateRepositories(repo, pull, true);
+          return yield* updateRepositories(repo, !noReload, pull);
         }
 
         if (checkRepos || checkAll)
@@ -412,26 +339,14 @@ const updateCommand = describe(
         if (pull || onlyStow || app)
           return yield* update({ ...options, pull, stow: onlyStow, app });
 
-        return yield* up({
-          ...options,
-          groups: group,
-          declined,
-          changed,
-          yes,
-          force,
-        });
+        return yield* up({ ...options, groups: group, yes, force });
       }),
-  ).pipe(
-    Command.withSubcommands([
-      ...UP_STAGES.map(upStageCommand),
-      branchUpdateCommand,
-    ]),
-  ),
-  "Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell), then gh extensions, missing packages, apt and release packages, and compose up; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.",
+  ).pipe(Command.withSubcommands([branchUpdateCommand])),
+  "Check everything, pick what to update, then run it: dotfiles, gh extensions and compose up. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at and --group flags carry a run across the self-update restart.",
   ["dot up", "dot up --check", "dot up --yes", "dot up --stow"],
   {
     description:
-      "dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and gh extensions. It saves the result for the status cache, lists it, then asks which groups to run, offering only those with work, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order:\n\n1. Stages: dotfiles, skills, repos, stow, tools, plugins, herdr, agents and shell, as `dot up <stage>` runs them. A stage that wasn't offered still runs when an earlier one changed something it applies: stow and Herdr after a dotfiles pull that brings new links or Herdr pins, tools after a dotfiles pull that brings mise changes, plugins after a tools upgrade, agents after a dotfiles pull or changed skills or plugins, and the shell after any change; stow, tools, plugins and Herdr are checked again first. A stage offered and left unticked never runs.\n2. gh extensions: installs missing ones and upgrades the rest.\n3. Missing packages: installs apt packages from the public and private lists.\n4. System: runs apt-get update and upgrade (with -y under --yes), then installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs.\n5. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.\n\nOn the server branch it then runs dot up branch unless --no-branch is given. It finishes with a summary of updated repositories, mise tools and every step, then runs dot up --check to report what is still pending. dot up <stage>, the phase flags and --repo end the same way, except with --json.\n\n--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Pulled public dotfiles also rebuild dot; stow, agent instructions and the rest of a dotfiles pull are left to dot up, which the closing check lists. Add --pull to only pull and run post-update commands.",
+      "dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout and gh extensions. System packages and tools come from the OpenCode app, which updates them itself. It saves the result for the status cache, lists it, then asks which groups to run, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order, each numbered with a one-line description:\n\n1. Dotfiles: pulls the public dotfiles, rebuilds and relaunches dot, scans and pulls tracked repositories, moves the skills checkout to the latest skills main, syncs MCP config, stows, installs mise tools, refreshes agent runtimes, syncs agent instructions, reloads agents and starts the doctor check. Pulls are fast-forward-only and never stash or rebase.\n2. gh extensions: installs missing ones and upgrades the rest.\n3. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.\n\nIt then runs dot up branch unless --no-branch is given. It finishes with a summary of updated repositories, mise tools and every step.\n\n--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands. --no-reload skips the agent reload and doctor check.",
     sections: [
       {
         title: "Exit codes",
@@ -456,6 +371,134 @@ const runDuration = (name: string, description: string) =>
     ),
     Flag.withDescription(description),
   );
+
+const dependenciesCommand = describe(
+  Command.make(
+    "deps",
+    {
+      repository: Argument.String("repository").pipe(Argument.withDefault("")),
+      dryRun: bool(
+        "dry-run",
+        "Discover updates without running scripts, installing packages or publishing",
+      ),
+      all: bool(
+        "all",
+        "Bypass open-PR inventory and exclusion only; leave PRs untouched",
+      ),
+      target: Flag.String("target").pipe(
+        Flag.withDefault(""),
+        Flag.withDescription(
+          "Remote target branch (default: repository default branch)",
+        ),
+      ),
+      timeout: runDuration(
+        "timeout",
+        "Deadline per command/provider lookup (default: 30 seconds)",
+      ).pipe(Flag.withDefault(30000)),
+      concurrency: Flag.Int("concurrency").pipe(
+        Flag.withDefault(4),
+        Flag.filter(
+          (value) => value >= 1 && value <= 16,
+          () => "Concurrency must be between 1 and 16",
+        ),
+        Flag.withDescription(
+          "Maximum concurrent groups, lookups, PR inspections or check commands, 1-16 (default: 4)",
+        ),
+      ),
+    },
+    (input) =>
+      previewDependencies({
+        ...input,
+        directory: process.cwd(),
+        ...(input.repository
+          ? { repository: input.repository }
+          : { repository: undefined }),
+        ...(input.target ? { target: input.target } : { target: undefined }),
+      }),
+  ).pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "service",
+          {
+            config: Flag.String("config").pipe(
+              Flag.withDefault(""),
+              Flag.withDescription(
+                "Service YAML config (default: $XDG_CONFIG_HOME/dot/dependency-service.yml)",
+              ),
+            ),
+            dryRun: bool(
+              "dry-run",
+              "Validate local service configuration and trust without running updates or writing to Git",
+            ),
+            noCooldown: bool(
+              "no-cooldown",
+              "Run even if the shared interval is not due; an active claim still blocks the run",
+            ),
+          },
+          serviceDependencies,
+        ),
+        "Run one cross-machine dependency service interval",
+        [
+          "dot deps service --dry-run",
+          "dot deps service",
+          "dot deps service --no-cooldown",
+        ],
+        {
+          description:
+            "Run configured repositories sequentially under one Git-backed service claim. Configuration supplies coordinationRepository, repositories, intervalMinutes and concurrency. Every repository requires host trust. Shared state prevents overlapping machine runs and records the next eligible interval. Repository/target claims also cover manual dot deps runs. Claims renew every 30 seconds and expire after two minutes; a lost claim interrupts work, and dependency publication atomically checks its target claim. State is stored on dedicated dot-deps-state branches. The user timer runs hourly at ten past, except between 01:00 and 07:00. Exit status 2 means completed with unsuccessful update groups (warning); 3 means the shared interval was skipped. --no-cooldown ignores the shared interval and each repository's interval but never an active claim; `dot services start dot-deps.timer` applies it to that one start automatically. Startup, policy and service failures exit 1. Local configuration validation with --dry-run performs no remote writes. Policy is read from published target commits, so repository policies must be pushed before enabling the service.",
+        },
+      ),
+      describe(
+        Command.make("import").pipe(
+          Command.withSubcommands([
+            describe(
+              Command.make(
+                "renovate",
+                {
+                  directory: Argument.String("directory").pipe(
+                    Argument.withDefault("."),
+                  ),
+                  source: Flag.String("source").pipe(
+                    Flag.withDefault("renovate.json"),
+                    Flag.withDescription(
+                      "Repository-relative Renovate JSON file (default: renovate.json)",
+                    ),
+                  ),
+                  timeout: runDuration(
+                    "timeout",
+                    "Deadline per import pass (default: 5 minutes)",
+                  ).pipe(Flag.withDefault(5 * 60 * 1000)),
+                },
+                importRenovate,
+              ),
+              "Import Renovate policy into dot-deps.yml with an editor schema",
+              [
+                "dot deps import renovate",
+                "dot deps import renovate /path/to/repository",
+              ],
+              {
+                description:
+                  "Create dot-deps.yml and its editor schema from a repository's JSON Renovate config, migrating an existing dot-deps.json policy. The first import resolves presets with an isolated, pinned Renovate runtime. Later imports replace explicit override sections, including edits within them, while preserving the native base policy and local check mappings. Unsupported settings are recorded as publication blockers. Importing creates no commits or PRs. Ordinary previews use the saved native policy without running Renovate or refreshing presets.",
+              },
+            ),
+          ]),
+        ),
+        "Import dependency policy from other tools",
+      ),
+    ]),
+  ),
+  "Validate and publish grouped native dependency updates",
+  [
+    "dot deps --dry-run",
+    "dot deps owner/repository --dry-run",
+    "dot deps --dry-run --all --target main",
+  ],
+  {
+    description:
+      "Read native policy and manifests from a pinned remote target, preserving the caller's checkout. Exclude whole groups covered by any open dependency PR, including failed, pending and draft PRs. --all bypasses only PR inventory and exclusion. --dry-run discovers updates without repository scripts, installs, checks or writes to Git. Bare dot deps starts groups by priority and prepares and validates them concurrently in isolated worktrees, bounded by --concurrency. Check commands share the same concurrency cap across groups; setup and shared Git operations are serialised. A command's optional skipFor exclusions apply only when every updated dependency matches; mixed or unknown groups retain checks. The first ready group takes the publication slot and publishes one checked commit without creating PRs or waiting for hosted CI. Host permissions are read from $XDG_CONFIG_HOME/dot/dependencies.yml (default ~/.config/dot/dependencies.yml), keyed by owner/repository with trusted and allowBypass booleans. Required hosted checks must have equivalent validation.checks mappings; protected direct pushes require explicit allowBypass permission and existing account rights. Workflow edits require a credential with workflow write access. Unsupported policy remains blocking. Git-backed claims serialise each repository/target across machines and service or manual runs. Publication atomically advances the ownership record and target; target movement rebuilds and revalidates, up to three attempts per group. Failed work and per-group logs remain under $XDG_STATE_HOME/dot/dependencies. Clean published worktrees are removed, including submodules. Setup/check mutations and commit-hook mutations prevent publication. Independent groups continue after failures, including groups sharing files; a partial run exits non-zero. A normal invocation authorises passing updates, regardless of Renovate automerge policy.",
+  },
+);
 
 const httpForwardCommand = describe(
   Command.make(
@@ -706,7 +749,7 @@ const updatesCommand = describe(
             ...updateRefreshFlags,
             quick: bool(
               "quick",
-              "Skip the apt and release package checks, keeping their cached status",
+              "Keep the previous full check's time, so the background refresh stays on schedule",
             ),
           },
           (input) =>
@@ -727,7 +770,7 @@ const updatesCommand = describe(
   ["dot updates status", "dot updates refresh"],
   {
     description:
-      "Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks the dotfiles and dot-managed repositories, the managed skills checkout against timmo001/skills main, outdated and missing mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and missing gh extensions. It writes the cache atomically under a shared lock. status --json prints the cached status, its groups and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Use --cache-dir and --timeout to override defaults.",
+      "Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks the dotfiles and dot-managed repositories, the managed skills checkout against timmo001/skills main and missing gh extensions. It writes the cache atomically under a shared lock. status --json prints the cached status, its groups and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Use --cache-dir and --timeout to override defaults.",
   },
 );
 
@@ -752,7 +795,7 @@ const servicesCommand = describe(
           servicesStart(unit),
         ),
         "Run a registered job now, or restart a long-running service",
-        ["dot services start dot-doctor.timer"],
+        ["dot services start dot-deps.timer"],
       ),
       describe(
         Command.make("stop", { unit: serviceUnit }, ({ unit }) =>
@@ -790,8 +833,8 @@ const servicesCommand = describe(
               ),
               "Print the journal output of a registered job's most recent runs, newest first, with its latest run log",
               [
-                "dot services run logs dot-doctor.timer",
-                "dot services run logs dot-doctor.timer --count 5 | wl-copy",
+                "dot services run logs dot-deps.timer",
+                "dot services run logs skill-updates-agent.timer --count 5 | wl-copy",
               ],
             ),
           ]),
@@ -834,14 +877,16 @@ const servicesCommand = describe(
             ),
         ),
         "Open an agent in a registered job's repository, briefed with its recent runs, logs, file locations and commands to investigate them",
-        ["dot services investigate dot-doctor.timer --agent opencode2"],
+        [
+          "dot services investigate skill-updates-agent.timer --agent opencode2",
+        ],
       ),
       describe(
         Command.make("notify", { unit: serviceUnit }, ({ unit }) =>
           servicesNotify(unit),
         ),
         "Notify when a registered job has failed (used by OnFailure=)",
-        ["dot services notify dot-doctor.service"],
+        ["dot services notify dot-deps.service"],
       ),
       describe(
         Command.make("schedule").pipe(
@@ -870,7 +915,7 @@ const servicesCommand = describe(
     ]),
   ),
   "Monitor registered systemd user services and timers",
-  ["dot services status", "dot services logs dot-doctor.timer"],
+  ["dot services status", "dot services logs dot-deps.timer"],
   {
     description:
       'Each job registers itself with a YAML descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour", counted from the latest of the last completed run, the last boot or resume, and one interval before the first calendar run due after those, so sleep, power off and gaps in the schedule are not missed runs), restartLimit ({ count, within }) for long-running services, notify, logs ({ dir, file }) for jobs that keep their own run logs, and repository (a GitHub owner/repo slug from dot-git.yml) naming the repository that logs and agents open in. A long-running service can add status ({ file }) pointing at a JSON file it writes with health ("ok", "warning", "degraded" or "failed"), summary and updated (epoch milliseconds); while systemd sees the service as healthy, a report from its current run replaces the health and summary. Without repository, the repository containing the unit\'s executable is used, falling back to the public dotfiles. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations retain the last completed outcome. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. A job can summarise each run by printing a line containing "[RESULT] " followed by a short outcome; the last such line per invocation becomes that run\'s summary in status, run logs, notifications and the timmo.services panel. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel. Timer services with ExecCondition=dot services schedule check run only at their calendar times, or within --grace of one, not as later catch-up runs after boot or resume; those runs show as skipped. dot services start always runs them.',
@@ -1109,6 +1154,173 @@ const gitIssuesCommand = describe(
   },
 );
 
+const releaseActionFlags = {
+  repo: Flag.String("repo").pipe(
+    Flag.withDescription("Configured repository name or GitHub slug"),
+  ),
+  snapshot: Flag.String("snapshot").pipe(
+    Flag.withDescription(
+      "Exact displayed snapshot ID; stale selections are rejected",
+    ),
+  ),
+  panelJson: bool("panel-json", "Return the updated complete JSON snapshot"),
+};
+
+const gitReleasesCommand = describe(
+  Command.make(
+    "releases",
+    {
+      repo: text("repo", "Select an enabled repository by name or GitHub slug"),
+      scheduled: bool(
+        "scheduled",
+        "Check only in a due cron minute, once per minute",
+      ),
+      refresh: bool("refresh", "Fetch now, bypassing the schedule and cache"),
+      notify: bool(
+        "notify",
+        "Send eligible desktop notifications with review actions",
+      ),
+      panelJson: bool(
+        "panel-json",
+        "Complete JSON review snapshots, including quiet changes and errors",
+      ),
+    },
+    ({ repo, scheduled, refresh, notify, panelJson }) =>
+      releasesQuery(
+        { repo: optional(repo), scheduled, refresh, notify },
+        panelJson,
+      ),
+  ).pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "review",
+          {
+            ...releaseActionFlags,
+            findings: Flag.String("finding").pipe(
+              Flag.atLeast(0),
+              Flag.withDescription(
+                "Finding ID, or overall for the current release-relevant comparison (default); repeatable to set several findings at once",
+              ),
+            ),
+            impact: Flag.Literals("impact", [
+              "none",
+              "patch",
+              "minor",
+              "major",
+              "auto",
+            ]).pipe(
+              Flag.withDescription(
+                "Local release impact; auto clears the override",
+              ),
+            ),
+          },
+          ({ repo, snapshot, findings, impact, panelJson }) =>
+            releasesAction(
+              {
+                repo,
+                snapshot,
+                targets: findings.length ? findings : ["overall"],
+                impact,
+              },
+              panelJson,
+            ),
+        ),
+        "Review exact local release evidence without publishing anything",
+      ),
+      describe(
+        Command.make(
+          "publish",
+          {
+            ...releaseActionFlags,
+            interactive: bool(
+              "interactive",
+              "Explain, confirm and run the release in this terminal, with an optional log pager",
+            ),
+            panelJson: bool(
+              "panel-json",
+              "Stream JSON progress and the final plan or release result",
+            ),
+            confirm: text(
+              "confirm",
+              "Execute the exact plan ID returned by the preview",
+            ),
+            notesFile: text(
+              "notes-file",
+              "Markdown file with hand-written release notes, read at preview and again at confirmation",
+            ),
+            notesMode: Flag.Literals("notes-mode", ["prepend", "replace"]).pipe(
+              Flag.optional,
+              Flag.withDescription(
+                "Put --notes-file before the generated notes (prepend, default) or use it alone (replace)",
+              ),
+            ),
+          },
+          ({
+            repo,
+            snapshot,
+            confirm,
+            panelJson,
+            interactive,
+            notesFile,
+            notesMode,
+          }) =>
+            releasesPublish(
+              {
+                repo,
+                snapshot,
+                confirm: optional(confirm),
+                notesFile: optional(notesFile),
+                notesMode: optional(notesMode),
+              },
+              panelJson,
+              interactive,
+            ),
+        ),
+        "Preview version changes, validation, pushes and release notes. --interactive explains and confirms in the terminal; --confirm PLAN executes a reviewed plan with live progress. --notes-file supplies hand-written notes.",
+        [],
+        {
+          description:
+            "Requires an explicit private releases.publish recipe. The preview is read-only. Confirmation binds the reviewed snapshot, version files, commands and target. Preparation runs in an isolated worktree. Only agreed version changes, plus any releases.publish.generated_files the commands regenerate (such as a lockfile), are committed through dot git commit, then the version commit and tag are pushed atomically. GitHub release notes are generated from the previous stable release (or the full history for a first release), unless --notes-file supplies hand-written notes. The file must exist and not be empty; its text is shown in the preview and bound to the plan, so pass the same --notes-file on confirmation and an edited file needs a new preview. --notes-mode prepend (default) puts the file before the generated notes, editing the release straight after creation; replace uses only the file. Progress includes command output and a saved log. Release creation does not wait for GitHub publication jobs; follow the returned Actions URL. Failed preparation is retained for inspection. Refresh and preview again after resolving a failure.",
+        },
+      ),
+    ]),
+  ),
+  "Compare enabled repositories with their latest published stable release, explain impact and retain local reviews.",
+  [
+    "dot git releases",
+    "dot git releases --refresh --panel-json",
+    "dot git releases --scheduled --notify --panel-json",
+    "dot git releases --open --repo example/project",
+    "dot git releases review --repo example/project --snapshot ID --finding FINDING --impact patch",
+    "dot git releases review --repo example/project --snapshot ID --finding ONE --finding TWO --impact none",
+    "dot git releases review --repo example/project --snapshot ID --impact auto",
+    "dot git releases publish --repo example/project --snapshot ID --notes-file notes.md",
+    "dot git releases publish --repo example/project --snapshot ID --notes-file notes.md --notes-mode replace --confirm PLAN",
+  ],
+  {
+    description:
+      "Read the last local snapshot, collecting one on first use. --refresh fetches immutable release and branch refs immediately; --scheduled follows each repository's local-time cron and records attempted minutes. Draft and prerelease releases are excluded. Before the first stable release, the comparison covers the full history with the same quiet rules, and the first version is 0.1.0 (1.0.0 for a major impact), today's CalVer or the upstream fork base. Failed checks retain previous evidence marked stale; with --refresh the output is still printed, then the command exits non-zero naming each repository that could not be refreshed. Quiet changes remain inspectable. Desktop notifications require --notify and honour configured minimum impact and cooldown. --open opens the release review, optionally selected by --repo, without fetching.\n\nLocal reviews require the displayed snapshot ID. Finding overrides follow exact evidence; an overall override follows the release-relevant comparison. Changed evidence invalidates its review. Use --impact auto to clear an override. Extra CI-only commits do not repeat delivery. Incomplete or stale evidence cannot be reviewed.",
+    sections: [
+      {
+        title: "Policy",
+        lines: [
+          "Optional releases config selects oxlint-rules or system-bridge and a watched branch.",
+          "Private overrides precede preset rules; the first match wins for each fact.",
+          "Match paths with globs, change_types, exact dependencies, roles, submodules or explicit subjects regexes.",
+          "Selectors are ANDed; values within each selector are ORed. Explicit path overrides match either rename endpoint.",
+          "Preset rename impact is the highest affected old/new boundary; both endpoints must be quiet for a quiet rename.",
+          "Subject selectors follow surviving source lines or individual structured values, excluding reverted intent.",
+          "Each net fact is classified once; any attributed subject can match the first applicable ordered rule.",
+          "Every override supplies impact (none/patch/minor/major) and a readable reason.",
+          "Dependency versions never imply consumer minor or major changes.",
+          "Notification enabled/minimum_impact/cooldown_minutes are stored for future explicit delivery.",
+        ],
+      },
+    ],
+  },
+);
+
 const gitCommitCommand = describe(
   Command.make(
     "commit",
@@ -1218,7 +1430,7 @@ const notificationDismissCommand = describe(
               mode: optional(mode),
             }),
         ),
-        "Review unread merged Renovate/Dependabot updates regardless of CI results. All-mode excludes unverifiable CI and exits 2 when some notifications could not be inspected but nothing failed. Opening GitHub returns to the review without dismissing anything. Upkeep's notifications job runs all-mode every 15 minutes; upkeep run notifications queues it now.",
+        "Review unread merged Renovate/Dependabot updates regardless of CI results. All-mode excludes unverifiable CI and exits 2 when some notifications could not be inspected but nothing failed. Opening GitHub returns to the review without dismissing anything. The dot-notifications-dismiss.timer user timer runs all-mode every 15 minutes; dot services start dot-notifications-dismiss.timer runs it now.",
       ),
       describe(
         Command.make("remaining", notificationReviewFlags, ({ repo, dryRun }) =>
@@ -1293,6 +1505,7 @@ const gitCommand = describe(
       gitLogCommand,
       gitCommitCommand,
       gitNotificationsCommand,
+      gitReleasesCommand,
       gitIssuesCommand,
     ]),
   ),
@@ -1513,15 +1726,6 @@ const simpleCommands = [
     },
   ),
   describe(
-    Command.make("work-time", {}, () => workTime),
-    "Print whether it's work time now, as JSON",
-    ["dot work-time"],
-    {
-      description:
-        'Print {"work": true} during work hours from the private work schedule, unless calendar leave is active, otherwise {"work": false}. A missing schedule counts as outside work time. Notes go to stderr, so stdout is always the JSON line.',
-    },
-  ),
-  describe(
     Command.make("firewall", {}, () => configureFirewallRules),
     "Reconcile managed ufw firewall rules",
     ["dot firewall"],
@@ -1605,11 +1809,11 @@ const setupCommand = describe(
           Command.withSubcommands([
             describe(
               Command.make("machines", {}, () => setupHerdrMachines),
-              "Save the Herdr SSH machines from the private machine list in Herdr and hc",
+              "Save the Herdr SSH machines from the private machine list",
               ["dot setup herdr machines"],
               {
                 description:
-                  "Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's saved-machine catalog (~/.local/state/herdr/client/endpoints.json), in the list's order and with its profile IDs, labels, SSH targets and sessions, so every device has the same machines. A machine whose host is this device's hostname is left out, so a device never lists itself. Herdr keeps the catalog in client state rather than config, so dot stow can't link it. A machine this device already has keeps its enabled state, so toggles survive; enabled in the list only applies when it's added. Machines the list doesn't name are kept after it. Open Herdr clients pick up the change. When the Herdr app's core (hc) is installed, it also adds each listed machine hc doesn't have yet with hc machine add --install, named from its label in lowercase (\"[HA] SSH\" is ha-ssh), and an ssh:// target with a port goes through --via. A machine that can't be reached is tried again next time. dot up runs the same steps and only reports them when they save or add machines or fail, so a device without the list, or whose machines already match, sees nothing. Host keys and remote installs for Herdr stay with Herdr: run herdr machine reconnect <label> once for a new machine.",
+                  "Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's saved-machine catalog (~/.local/state/herdr/client/endpoints.json), in the list's order and with its profile IDs, labels, SSH targets and sessions, so every device has the same machines. A machine whose host is this device's hostname is left out, so a device never lists itself. Herdr keeps the catalog in client state rather than config, so dot stow can't link it. A machine this device already has keeps its enabled state, so toggles survive; enabled in the list only applies when it's added. Machines the list doesn't name are kept after it. Open Herdr clients pick up the change. dot up runs the same step and only reports it when it saves machines or fails, so a device without the list, or whose machines already match, sees nothing. Host keys and remote installs stay with Herdr: run herdr machine reconnect <label> once for a new machine.",
               },
             ),
           ]),
@@ -1651,6 +1855,56 @@ const skillsImport = describe(
   "Import or refresh a reviewed skill snapshot",
 );
 
+const skillsAgentGitHub = describe(
+  Command.make(
+    "github",
+    {
+      skillsDir: pathFlag(
+        "skills-dir",
+        "Use this Skills checkout",
+        "directory",
+      ),
+    },
+    ({ skillsDir }) =>
+      runSkillsMaintenance([
+        "updates-agent",
+        "github",
+        ...(Option.isSome(skillsDir)
+          ? ["--skills-dir", resolve(skillsDir.value)]
+          : []),
+      ]),
+  ),
+  "Run GitHub skill update automation",
+);
+
+const skillsAgentDevice = describe(
+  Command.make(
+    "device",
+    {
+      configPath: Flag.Path("config", { pathType: "file" }).pipe(
+        Flag.withDescription("Use this YAML config"),
+      ),
+      runId: text("run-id", "Wait for this workflow run"),
+    },
+    ({ configPath, runId }) =>
+      runSkillsMaintenance([
+        "updates-agent",
+        "device",
+        "--config",
+        resolve(configPath),
+        ...(Option.isSome(runId) ? ["--run-id", runId.value] : []),
+      ]),
+  ),
+  "Run local device skill update automation",
+);
+
+const skillsUpdatesAgent = describe(
+  Command.make("agent").pipe(
+    Command.withSubcommands([skillsAgentGitHub, skillsAgentDevice]),
+  ),
+  "Run skill update automation",
+);
+
 const skillsUpdates = describe(
   Command.make(
     "updates",
@@ -1672,7 +1926,7 @@ const skillsUpdates = describe(
         ...(noCommit ? ["--no-commit"] : []),
         ...(skipReview ? ["--skip-review"] : []),
       ]),
-  ),
+  ).pipe(Command.withSubcommands([skillsUpdatesAgent])),
   "Check/apply imported skill updates",
   [
     "dot skills updates --json",
@@ -1898,6 +2152,14 @@ const repoInductCommand = describe(
         "opencode-mcp",
         "Space- or comma-separated OpenCode MCP overrides: name turns a server on, !name turns it off; empty for none",
       ),
+      releaseTemplate: text(
+        "release-template",
+        "Private release template name from dot-git-presets.yml, or none",
+      ),
+      releaseBranch: text(
+        "release-branch",
+        "Branch compared with the published release (default: the template's branch, then origin's default branch)",
+      ),
       noninteractive: bool(
         "noninteractive",
         "Use flags and preset defaults without questions; preview by default",
@@ -1929,6 +2191,8 @@ const repoInductCommand = describe(
         notesRemote: optional(input.notesRemote),
         agentLint: optional(input.agentLint),
         opencodeMcp: optional(input.opencodeMcp),
+        releaseTemplate: optional(input.releaseTemplate),
+        releaseBranch: optional(input.releaseBranch),
         noninteractive: input.noninteractive,
         commit: input.commit,
       }),
@@ -1941,7 +2205,7 @@ const repoInductCommand = describe(
   ],
   {
     description:
-      "The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use dot agent oxlint --opt-in to enable their agent pass.",
+      "The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity, including an optional release watching template from its release_templates. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use dot agent oxlint --opt-in to enable their agent pass.",
   },
 );
 
@@ -2015,42 +2279,15 @@ const repoSearchCommand = describe(
   },
 );
 
-const repoHookCommand = describe(
-  Command.make(
-    "hook",
-    {
-      path: Argument.Path("path", { pathType: "directory" }).pipe(
-        Argument.optional,
-      ),
-      from: text(
-        "from",
-        "HEAD before the pull; skip when the pull did not move it",
-      ),
-    },
-    ({ path, from }) =>
-      repoHook({ path: optional(path), from: optional(from) }),
-  ),
-  "Offer to run a tracked repository's post-update command",
-  [
-    "dot repo hook",
-    'before=$(git rev-parse HEAD); git pull && dot repo hook --from "$before"',
-  ],
-  {
-    description:
-      "Looks up the repository containing path (default: the working directory) in private dot-git.yml and, when it has a post_update command, asks whether to run it from the repository root, as dot up does after pulling. With --from, does nothing when HEAD still matches that revision. Untracked repositories and ones without a post_update command exit quietly. Outside a terminal or under an AI agent it only prints the command. The gpu shell function and lazygit's p binding run it after a plain git pull.",
-  },
-);
-
 const repoCommand = describe(
   Command.make("repo").pipe(
     Command.withSubcommands([
       repoListCommand,
       repoSearchCommand,
       repoInductCommand,
-      repoHookCommand,
     ]),
   ),
-  "List, induct and run hooks for tracked repositories in private dot-git.yml",
+  "List and induct tracked repositories in private dot-git.yml",
 );
 
 const prWatchCommand = describe(
@@ -2074,7 +2311,7 @@ const prWatchCommand = describe(
         "timeout",
         "Overall watch deadline (default: 60 minutes)",
       ).pipe(Flag.withDefault(60 * 60 * 1000)),
-      interval: integer("interval", "Seconds between polls", 30).pipe(
+      interval: integer("interval", "Seconds between polls", 20).pipe(
         Flag.filter(
           (value) => value >= 5,
           () => "Interval must be at least 5 seconds",
@@ -2210,29 +2447,19 @@ const prReviewsCommand = describe(
         ),
       ),
       repo: text("repo", "Repository slug when the PRs are elsewhere"),
-      branch: text(
-        "branch",
-        "Read the open pull request with this head branch instead",
-      ),
       json: bool("json", "Print the review state as JSON instead of Markdown"),
     },
-    (input) =>
-      prReviews({
-        ...input,
-        repo: optional(input.repo),
-        branch: optional(input.branch),
-      }),
+    (input) => prReviews({ ...input, repo: optional(input.repo) }),
   ),
   "Print a pull request's reviews and review threads once",
   [
     "dot pr reviews",
     "dot pr reviews --json",
     "dot pr reviews 54322 54325 --repo home-assistant/frontend",
-    "dot pr reviews --branch fix-logs --repo home-assistant/frontend --json",
   ],
   {
     description:
-      "Fetch each pull request's latest reviews, every review thread with its comments, and bot reviews still requested, then exit. Markdown matches the review dump in dot pr watch reports: reviews newest first, unresolved threads with every comment in full, and resolved or minimized threads with only their replies. --branch finds the open pull request whose head is that branch of the repository (not a fork's) in the same GraphQL query as its reviews, for pollers that would otherwise look the pull request up first; with no open pull request it prints none and exits 0. --json prints { pullRequests } with number, title, url, owner, name, repo, head, openThreads, botRequests, reviews and threads for each pull request (empty when --branch has no open pull request). Read-only; exits 1 when a pull request cannot be resolved or fetched.",
+      "Fetch each pull request's latest reviews, every review thread with its comments, and bot reviews still requested, then exit. Markdown matches the review dump in dot pr watch reports: reviews newest first, unresolved threads with every comment in full, and resolved or minimized threads with only their replies. --json prints { pullRequests } with number, title, url, owner, name, repo, head, openThreads, botRequests, reviews and threads for each pull request. Read-only; exits 1 when a pull request cannot be resolved or fetched.",
   },
 );
 
@@ -2478,7 +2705,7 @@ const herdrRepoOpenCommand = describe(
         tabLabel: optional(tabLabel),
       }),
   ),
-  "Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Use --agent to resolve the launcher, label and kind from dot herdr agents; it cannot be combined with a command or --agent-kind. With --agent opencode2, --model creates an OpenCode session on a uniquely matched model before launching the full TUI and sending any prompt. Agent launches wait for readiness and verify the selected kind before naming or prompting. --prompt-file reads the prompt from a file before anything is launched and cannot be combined with --prompt. --no-focus leaves the current view alone. --after-prefix places a newly created workspace after the last workspace whose label starts with the prefix, keeping related workspaces together. Without it, a new workspace whose label starts with a [tag] joins that tag's group, and one whose label extends an existing one by a whole word (Dotfiles Private after Dotfiles) joins that group. A herdr_after label in dot-git.yml takes priority: the workspace opens straight after the nearest open workspace in its herdr_after chain, or straight before the first open workspace that chains back to it. A linked Git worktree of a checkout opens through Herdr's worktree open instead, grouped under its repository with Herdr's label, and reuses its workspace when already open. --json reports resource IDs, creation flags, agent details, model and whether the prompt was sent. Without a command or --agent, focus the workspace; an empty command opens a shell using the selected layout.",
+  "Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Use --agent to resolve the launcher, label and kind from dot herdr agents; it cannot be combined with a command or --agent-kind. With --agent opencode2, --model creates an OpenCode session on a uniquely matched model before launching the full TUI and sending any prompt. Agent launches wait for readiness and verify the selected kind before naming or prompting. --prompt-file reads the prompt from a file before anything is launched and cannot be combined with --prompt. --no-focus leaves the current view alone. --after-prefix places a newly created workspace after the last workspace whose label starts with the prefix, keeping related workspaces together. Without it, a new workspace whose label starts with a [tag] joins that tag's group, and one whose label extends an existing one by a whole word (Dotfiles Private after Dotfiles) joins that group. A herdr_after label in dot-git.yml takes priority: the workspace opens straight after the nearest open workspace in its herdr_after chain, or straight before the first open workspace that chains back to it. --json reports resource IDs, creation flags, agent details, model and whether the prompt was sent. Without a command or --agent, focus the workspace; an empty command opens a shell using the selected layout.",
   [],
   {
     sections: [
@@ -2851,24 +3078,11 @@ const homeAssistantCommand = describe(
         ["dot ha status", "dot ha status core serve"],
       ),
       describe(
-        Command.make(
-          "stop",
-          {
-            targets: Argument.String("target").pipe(
-              Argument.variadic(),
-              Argument.withDescription(
-                "core, build, serve, a serve target with a daemon, gallery, demo, e2e, or all",
-              ),
-            ),
-          },
-          ({ targets }) => homeAssistantStop(targets),
+        Command.make("stop", { targets: homeAssistantTargets }, ({ targets }) =>
+          homeAssistantStop(targets),
         ),
         "Stop Home Assistant dev servers",
-        ["dot ha stop", "dot ha stop gallery", "dot ha stop all"],
-        {
-          description:
-            "With no targets, or all, stops every server the checkout owns. Under an agent, the targets must be named, or all given, so a bare stop can't take down every server.",
-        },
+        ["dot ha stop", "dot ha stop gallery"],
       ),
       describe(
         Command.make(
@@ -2952,6 +3166,7 @@ export const dotCommand = describe(
       initCommand,
       installCommand,
       updateCommand,
+      dependenciesCommand,
       runCommandSpec,
       composeCommand,
       httpCommand,

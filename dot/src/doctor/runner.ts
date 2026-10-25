@@ -78,9 +78,9 @@ const sections: readonly SectionDef[] = [
   { name: "Doctor timer", check: checkDoctorTimer },
   { name: "Registered services", check: checkRegisteredServices },
   { name: "Private access", check: checkPrivateAccess },
-  { name: "Public package checks", check: checkPublicPackages },
+  { name: "App packages and tools", check: checkPublicPackages },
   {
-    name: "Private package checks",
+    name: "Private app packages",
     check: checkPrivatePackages,
     requiresPrivate: true,
   },
