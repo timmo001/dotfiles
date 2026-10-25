@@ -17,10 +17,6 @@
       "branch": "v2.1.4",
       "description": "Use for OpenCode config, agents, commands, skills, and plugin behaviour"
     },
-    "skills": {
-      "path": "~/repos/skills",
-      "description": "Use for portable agent skills linked into this repo"
-    },
     "quickshell": {
       "repository": "quickshell-mirror/quickshell",
       "description": "Use for upstream Quickshell QML types, WlrLayershell/layer-shell, IpcHandler, reloadable config, and the qs CLI when customising the Omarchy shell bar widgets"
