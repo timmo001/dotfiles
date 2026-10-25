@@ -310,7 +310,7 @@ export function appendGitRepository(
 
   if (repo.releases) Object.assign(entry, { releases: repo.releases });
 
-  if (repo.opencodeMcp?.length)
+  if (repo.opencodeMcp && Object.keys(repo.opencodeMcp).length)
     Object.assign(entry, { opencode_mcp: repo.opencodeMcp });
   const newline = source.includes("\r\n") ? "\r\n" : "\n";
 
@@ -356,10 +356,12 @@ export function appendGitRepository(
       : [`    post_update: ${JSON.stringify(repo.postUpdate)}`]),
     `    agent_oxlint: ${entry.agent_oxlint}`,
     ...(agentLint ? nested("agent_lint", agentLint) : []),
-    ...(repo.opencodeMcp?.length
+    ...(repo.opencodeMcp && Object.keys(repo.opencodeMcp).length
       ? [
           "    opencode_mcp:",
-          ...repo.opencodeMcp.map((name) => `      - ${JSON.stringify(name)}`),
+          ...Object.entries(repo.opencodeMcp).map(
+            ([name, enabled]) => `      ${JSON.stringify(name)}: ${enabled}`,
+          ),
         ]
       : []),
     ...(repo.pullRequests

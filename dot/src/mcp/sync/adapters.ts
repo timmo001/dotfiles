@@ -134,18 +134,18 @@ function splitCommand(command: readonly string[]) {
   return { command: command[0] ?? "", args: command.slice(1) };
 }
 
-/** Render explicit repository opt-ins using native OpenCode V2 config. */
+/** Render repository on and off overrides using native OpenCode V2 config. */
 export function buildRepoMcpEntries(
   spec: McpSyncSpec,
-  names: readonly string[],
+  selections: Readonly<Record<string, boolean>>,
 ): JsonObject {
   return Object.fromEntries(
-    names.map((name) => {
+    Object.entries(selections).map(([name, enabled]) => {
       const server = spec.servers.find((entry) => entry.name === name);
 
       if (!server) throw new Error(`Unknown MCP server: ${name}`);
 
-      return [name, renderOpencodeEntry(server, true)];
+      return [name, renderOpencodeEntry(server, enabled)];
     }),
   );
 }

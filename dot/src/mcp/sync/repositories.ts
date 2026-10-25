@@ -8,6 +8,7 @@ import { displayPath } from "../../lib/paths.js";
 import { cliStyler } from "../../lib/ansi.js";
 import { buildRepoMcpEntries } from "./adapters.js";
 import { formatJson } from "./formatJson.js";
+import { serverEnabledFor } from "./spec.js";
 
 const CONFIG_PATH = ".opencode/opencode.jsonc";
 
@@ -60,8 +61,21 @@ export const syncRepoMcpConfigs = Effect.gen(function* () {
   const manifest = join(stateDir, "mcp-repositories.json");
 
   const selected = gitConfig.repositories.filter(
-    (repo) => repo.opencodeMcp?.length,
+    (repo) => Object.keys(repo.opencodeMcp ?? {}).length > 0,
   );
+
+  for (const repo of selected) {
+    for (const [name, enabled] of Object.entries(repo.opencodeMcp ?? {})) {
+      const server = mcpConfig.spec.servers.find(
+        (entry) => entry.name === name,
+      );
+
+      if (server && serverEnabledFor(server, "opencode") === enabled)
+        yield* log.warn(
+          `${repo.name} sets ${name} to ${enabled}, which is already its mcp.yml default`,
+        );
+    }
+  }
 
   const configs = yield* Effect.try({
     try: () =>
@@ -74,7 +88,7 @@ export const syncRepoMcpConfigs = Effect.gen(function* () {
               mcp: {
                 servers: buildRepoMcpEntries(
                   mcpConfig.spec,
-                  repo.opencodeMcp ?? [],
+                  repo.opencodeMcp ?? {},
                 ),
               },
             }),

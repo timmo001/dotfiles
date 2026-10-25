@@ -2091,7 +2091,7 @@ Regenerate MCP configs for all harnesses from the spec
 dot mcp sync [flags]
 ```
 
-Regenerate each active harness's native MCP config from the private spec (mcp.yml). Repository opencode_mcp lists in dot-git.yml opt into named servers using generated, Git-ignored .opencode/opencode.jsonc files; removing an opt-in removes its generated config. Existing unowned or tracked configs are preserved and reported as conflicts. Global configs are written into the stowed private source tree; run dot stow after. Claude Code's user scope is updated through the claude CLI instead of a file. Some agent harnesses are documented stubs and are not written.
+Regenerate each active harness's native MCP config from the private spec (mcp.yml). Repository opencode_mcp maps in dot-git.yml turn named servers on (true) or off (false) for that checkout using generated, Git-ignored .opencode/opencode.jsonc files; unlisted servers keep their mcp.yml default, and removing every override removes the generated config. Existing unowned or tracked configs are preserved and reported as conflicts. Global configs are written into the stowed private source tree; run dot stow after. Claude Code's user scope is updated through the claude CLI instead of a file. Some agent harnesses are documented stubs and are not written.
 
 **Options**
 
@@ -2525,7 +2525,7 @@ The terminal wizard asks for Normal (first and default) or Home Assistant, then 
 | `--machines` `<string>` | Space- or comma-separated machines that want the repository; empty for none (default: the preset's) |
 | `--notes-remote` `<string>` | Git remote for notes; empty for none (default: upstream when present) |
 | `--agent-lint` `<string>` | Agent lint command, split on spaces; empty for none |
-| `--opencode-mcp` `<string>` | Space- or comma-separated OpenCode MCP servers; empty for none |
+| `--opencode-mcp` `<string>` | Space- or comma-separated OpenCode MCP overrides: name turns a server on, !name turns it off; empty for none |
 | `--release-template` `<string>` | Private release template name from dot-git-presets.yml, or none |
 | `--release-branch` `<string>` | Branch compared with the published release (default: the template's branch, then origin's default branch) |
 | `--noninteractive` | Use flags and preset defaults without questions; preview by default |

@@ -219,12 +219,12 @@ $defs:
         pattern: "^[A-Za-z0-9._-]+$"
         description: Git remote notes resolves this checkout against; dot update writes it to the checkout's local notes.remote config.
       opencode_mcp:
-        type: array
-        uniqueItems: true
-        items:
-          type: string
+        type: object
+        additionalProperties:
+          type: boolean
+        propertyNames:
           minLength: 1
-        description: MCP server names from mcp.yml enabled for this repository by dot mcp sync.
+        description: OpenCode MCP servers from mcp.yml turned on (true) or off (false) for this repository by dot mcp sync. Unlisted servers keep their mcp.yml default.
       omarchy_components:
         type: object
         additionalProperties: false

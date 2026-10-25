@@ -36,7 +36,9 @@ const Preset = Schema.Struct({
   agent_oxlint: Schema.Boolean,
   agent_lint: Schema.optionalKey(Schema.NullOr(Schema.String)),
   browser: Schema.optionalKey(Schema.NullOr(Schema.String)),
-  opencode_mcp: Schema.optionalKey(Schema.Array(Schema.String)),
+  opencode_mcp: Schema.optionalKey(
+    Schema.Record(Schema.String, Schema.Boolean),
+  ),
   pull_requests: Schema.optionalKey(Schema.Boolean),
   issues: Schema.optionalKey(Schema.Boolean),
   release_template: Schema.optionalKey(Schema.NullOr(Schema.String)),
@@ -153,6 +155,19 @@ function askBoolean(message: string, initial: boolean) {
 }
 
 const splitList = (value: string) => value.split(/[\s,]+/).filter(Boolean);
+
+// "name" turns a server on and "!name" turns it off for the repository.
+const parseMcpSelections = (value: string) =>
+  Object.fromEntries(
+    splitList(value).map((item) =>
+      item.startsWith("!") ? [item.slice(1), false] : [item, true],
+    ),
+  );
+
+const formatMcpSelections = (selections: Readonly<Record<string, boolean>>) =>
+  Object.entries(selections)
+    .map(([name, enabled]) => (enabled ? name : `!${name}`))
+    .join(" ");
 
 /** Collect, preview and optionally commit a new entry; return null on preview or cancellation. */
 export const inductRepository = Effect.fn("repoInduct.run")(
@@ -348,8 +363,8 @@ export const inductRepository = Effect.fn("repoInduct.run")(
       agentLint: agentLintFor(options.agentLint ?? preset.agent_lint ?? ""),
       opencodeMcp:
         options.opencodeMcp === undefined
-          ? (preset.opencode_mcp ?? [])
-          : splitList(options.opencodeMcp),
+          ? (preset.opencode_mcp ?? {})
+          : parseMcpSelections(options.opencodeMcp),
       pullRequests:
         (options.pullRequests ?? preset.pull_requests ?? false)
           ? { enabled: true }
@@ -448,10 +463,10 @@ export const inductRepository = Effect.fn("repoInduct.run")(
           false,
         );
 
-        const opencodeMcp = splitList(
+        const opencodeMcp = parseMcpSelections(
           yield* askText(
-            "OpenCode MCP servers (spaces or commas, blank for none)",
-            (answers.opencodeMcp ?? []).join(" "),
+            "OpenCode MCP overrides: name turns on, !name turns off (blank for none)",
+            formatMcpSelections(answers.opencodeMcp ?? {}),
             false,
           ),
         );

@@ -31,7 +31,7 @@ repositories:
   - name: Fixture
     path: ${directory}
     github: example/fixture
-    opencode_mcp: ${enabled ? "\n      - browser" : "[]"}
+    opencode_mcp: ${enabled ? "\n      browser: true" : "{}"}
     activity:
       enabled: false
       schedule: '* * * * *'

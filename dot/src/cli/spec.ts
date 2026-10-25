@@ -2472,7 +2472,7 @@ const repoInductCommand = describe(
       ),
       opencodeMcp: text(
         "opencode-mcp",
-        "Space- or comma-separated OpenCode MCP servers; empty for none",
+        "Space- or comma-separated OpenCode MCP overrides: name turns a server on, !name turns it off; empty for none",
       ),
       releaseTemplate: text(
         "release-template",
@@ -3749,7 +3749,7 @@ export const dotCommand = describe(
               ["dot mcp sync"],
               {
                 description:
-                  "Regenerate each active harness's native MCP config from the private spec (mcp.yml). Repository opencode_mcp lists in dot-git.yml opt into named servers using generated, Git-ignored .opencode/opencode.jsonc files; removing an opt-in removes its generated config. Existing unowned or tracked configs are preserved and reported as conflicts. Global configs are written into the stowed private source tree; run dot stow after. Claude Code's user scope is updated through the claude CLI instead of a file. Some agent harnesses are documented stubs and are not written.",
+                  "Regenerate each active harness's native MCP config from the private spec (mcp.yml). Repository opencode_mcp maps in dot-git.yml turn named servers on (true) or off (false) for that checkout using generated, Git-ignored .opencode/opencode.jsonc files; unlisted servers keep their mcp.yml default, and removing every override removes the generated config. Existing unowned or tracked configs are preserved and reported as conflicts. Global configs are written into the stowed private source tree; run dot stow after. Claude Code's user scope is updated through the claude CLI instead of a file. Some agent harnesses are documented stubs and are not written.",
               },
             ),
           ]),

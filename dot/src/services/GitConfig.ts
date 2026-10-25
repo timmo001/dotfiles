@@ -248,8 +248,8 @@ export interface GitManagedRepo {
   readonly agentLint?: AgentLintSettings;
   /** Git remote notes resolves this checkout against, written to its local `notes.remote` config. */
   readonly notesRemote?: string;
-  /** MCP server names explicitly enabled for this repository by dot mcp sync. */
-  readonly opencodeMcp?: readonly string[];
+  /** OpenCode MCP servers turned on (true) or off (false) for this repository; unlisted servers keep their mcp.yml default. */
+  readonly opencodeMcp?: Readonly<Record<string, boolean>>;
   /** Shared Omarchy components synced by dot omarchy plugin sync components. */
   readonly omarchyComponents?: GitRepoOmarchyComponents;
   /** Named browser for repository web actions; omitted uses the desktop default. */
@@ -737,15 +737,10 @@ function parseRepo(
 
   const opencodeMcp =
     value.opencode_mcp === undefined
-      ? []
-      : Schema.decodeUnknownSync(Schema.Array(Schema.NonEmptyString))(
-          value.opencode_mcp,
-        );
-
-  if (new Set(opencodeMcp).size !== opencodeMcp.length)
-    diagnostics.push(
-      `${location}.opencode_mcp must contain unique server names`,
-    );
+      ? {}
+      : Schema.decodeUnknownSync(
+          Schema.Record(Schema.NonEmptyString, Schema.Boolean),
+        )(value.opencode_mcp);
 
   const omarchyComponents = parseOmarchyComponents(
     value.omarchy_components,
@@ -817,7 +812,7 @@ function parseRepo(
       agentOxlint,
       ...(agentLint && { agentLint }),
       ...(notesRemote && { notesRemote }),
-      ...(opencodeMcp.length > 0 && { opencodeMcp }),
+      ...(Object.keys(opencodeMcp).length > 0 && { opencodeMcp }),
       ...(omarchyComponents && { omarchyComponents }),
       ...(browser && { browser }),
       ...(reviewSearch && { reviewSearch }),
