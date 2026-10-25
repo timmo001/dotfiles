@@ -17,11 +17,11 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 ### Updating From The Server Branch
 
-The branch rebases onto `origin/distro/ubuntu-server`; the Cloud rebase workflow does it when dispatched and opens a "Rebase distro/cloud onto the server branch" issue when it can't. Follow the same steps as Updating From The Desktop Branch below, with these changes:
+The branch rebases onto `origin/distro/ubuntu-server`. Follow the same steps as Updating From The Desktop Branch below, with these changes:
 
 - Look ahead and rebase against `origin/distro/ubuntu-server` instead of the desktop branch.
 - Wanted: everything the server takes, apart from server-only machine setup that can't run in a cloud VM, such as systemd units, ufw rules and NAS power handling.
-- Resolve blindly by keeping the cloud side, and push with `--force-with-lease`. The `cloud-rebase` skill has the steps.
+- Resolve blindly by keeping the cloud side, and push with `--force-with-lease`.
 
 ## Ubuntu Server Branch
 
