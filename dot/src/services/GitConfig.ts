@@ -35,6 +35,7 @@ const REPO_KEYS = new Set([
   "agent_lint",
   "notes_remote",
   "opencode_mcp",
+  "opencode_skills",
   "omarchy_components",
   "browser",
   "review_search",
@@ -250,6 +251,8 @@ export interface GitManagedRepo {
   readonly notesRemote?: string;
   /** OpenCode MCP servers turned on (true) or off (false) for this repository; unlisted servers keep their mcp.yml default. */
   readonly opencodeMcp?: Readonly<Record<string, boolean>>;
+  /** OpenCode skills allowed (true) or denied (false) for this repository; unlisted skills keep the global permission. */
+  readonly opencodeSkills?: Readonly<Record<string, boolean>>;
   /** Shared Omarchy components synced by dot omarchy plugin sync components. */
   readonly omarchyComponents?: GitRepoOmarchyComponents;
   /** Named browser for repository web actions; omitted uses the desktop default. */
@@ -742,6 +745,13 @@ function parseRepo(
           Schema.Record(Schema.NonEmptyString, Schema.Boolean),
         )(value.opencode_mcp);
 
+  const opencodeSkills =
+    value.opencode_skills === undefined
+      ? {}
+      : Schema.decodeUnknownSync(
+          Schema.Record(Schema.NonEmptyString, Schema.Boolean),
+        )(value.opencode_skills);
+
   const omarchyComponents = parseOmarchyComponents(
     value.omarchy_components,
     `${location}.omarchy_components`,
@@ -813,6 +823,7 @@ function parseRepo(
       ...(agentLint && { agentLint }),
       ...(notesRemote && { notesRemote }),
       ...(Object.keys(opencodeMcp).length > 0 && { opencodeMcp }),
+      ...(Object.keys(opencodeSkills).length > 0 && { opencodeSkills }),
       ...(omarchyComponents && { omarchyComponents }),
       ...(browser && { browser }),
       ...(reviewSearch && { reviewSearch }),

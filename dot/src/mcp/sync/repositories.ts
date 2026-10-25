@@ -41,7 +41,7 @@ const rememberRepositories = Effect.fn("McpSync.rememberRepositories")(
     }),
 );
 
-/** Reconcile generated, Git-ignored repository MCP configs with private opt-ins. */
+/** Reconcile generated, Git-ignored repository OpenCode configs with private MCP and skill overrides. */
 export const syncRepoMcpConfigs = Effect.gen(function* () {
   const { gitConfig, mcpConfig, stateDir } = yield* Config;
   const executor = yield* CommandExecutor;
@@ -61,7 +61,9 @@ export const syncRepoMcpConfigs = Effect.gen(function* () {
   const manifest = join(stateDir, "mcp-repositories.json");
 
   const selected = gitConfig.repositories.filter(
-    (repo) => Object.keys(repo.opencodeMcp ?? {}).length > 0,
+    (repo) =>
+      Object.keys(repo.opencodeMcp ?? {}).length > 0 ||
+      Object.keys(repo.opencodeSkills ?? {}).length > 0,
   );
 
   for (const repo of selected) {
@@ -85,12 +87,23 @@ export const syncRepoMcpConfigs = Effect.gen(function* () {
           HEADER +
             formatJson({
               $schema: "https://opencode.ai/config.json",
-              mcp: {
-                servers: buildRepoMcpEntries(
-                  mcpConfig.spec,
-                  repo.opencodeMcp ?? {},
+              ...(Object.keys(repo.opencodeSkills ?? {}).length > 0 && {
+                permissions: Object.entries(repo.opencodeSkills ?? {}).map(
+                  ([name, enabled]) => ({
+                    action: "skill",
+                    resource: name,
+                    effect: enabled ? "allow" : "deny",
+                  }),
                 ),
-              },
+              }),
+              ...(Object.keys(repo.opencodeMcp ?? {}).length > 0 && {
+                mcp: {
+                  servers: buildRepoMcpEntries(
+                    mcpConfig.spec,
+                    repo.opencodeMcp ?? {},
+                  ),
+                },
+              }),
             }),
         ]),
       ),

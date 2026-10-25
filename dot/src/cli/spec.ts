@@ -3749,7 +3749,7 @@ export const dotCommand = describe(
               ["dot mcp sync"],
               {
                 description:
-                  "Regenerate each active harness's native MCP config from the private spec (mcp.yml). Repository opencode_mcp maps in dot-git.yml turn named servers on (true) or off (false) for that checkout using generated, Git-ignored .opencode/opencode.jsonc files; unlisted servers keep their mcp.yml default, and removing every override removes the generated config. Existing unowned or tracked configs are preserved and reported as conflicts. Global configs are written into the stowed private source tree; run dot stow after. Claude Code's user scope is updated through the claude CLI instead of a file. Some agent harnesses are documented stubs and are not written.",
+                  "Regenerate each active harness's native MCP config from the private spec (mcp.yml). Repository opencode_mcp maps in dot-git.yml turn named servers on (true) or off (false) for that checkout using generated, Git-ignored .opencode/opencode.jsonc files; unlisted servers keep their mcp.yml default. Repository opencode_skills maps allow (true) or deny (false) named skills in the same file, so skills denied globally can be listed only where they are useful. Removing every override removes the generated config. Existing unowned or tracked configs are preserved and reported as conflicts. Global configs are written into the stowed private source tree; run dot stow after. Claude Code's user scope is updated through the claude CLI instead of a file. Some agent harnesses are documented stubs and are not written.",
               },
             ),
           ]),

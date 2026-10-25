@@ -225,6 +225,13 @@ $defs:
         propertyNames:
           minLength: 1
         description: OpenCode MCP servers from mcp.yml turned on (true) or off (false) for this repository by dot mcp sync. Unlisted servers keep their mcp.yml default.
+      opencode_skills:
+        type: object
+        additionalProperties:
+          type: boolean
+        propertyNames:
+          minLength: 1
+        description: OpenCode skills allowed (true) or denied (false) for this repository by dot mcp sync. Unlisted skills keep the global permission.
       omarchy_components:
         type: object
         additionalProperties: false

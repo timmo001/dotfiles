@@ -15,7 +15,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 ## Private Repositories
 
-- Optional private config drives per-user behaviour; shared code must not hardcode it. `dot-git-presets.yml` holds induction defaults. `dot-git.yml` holds repositories, browser selections, opt-in `links`, `pull_requests` and `issues` tracking, and `opencode_mcp` per-repository MCP on and off overrides (rendered by `dot mcp sync` into Git-ignored `.opencode/opencode.jsonc`).
+- Optional private config drives per-user behaviour; shared code must not hardcode it. `dot-git-presets.yml` holds induction defaults. `dot-git.yml` holds repositories, browser selections, opt-in `links`, `pull_requests` and `issues` tracking, and `opencode_mcp` per-repository MCP and `opencode_skills` skill on and off overrides (rendered by `dot mcp sync` into Git-ignored `.opencode/opencode.jsonc`).
 - `link-browser.desktop` is the default web browser and runs `dot link open`; `dot doctor` warns when it drifts.
 
 ## Key Paths
