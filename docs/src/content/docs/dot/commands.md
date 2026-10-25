@@ -1082,7 +1082,7 @@ Read-only OpenCode 2 session inspection through the configured launcher. Pass th
 
 | Argument | Description |
 | --- | --- |
-| `<session-id>` | Exact OpenCode 2 session ID from the agent's injected context |
+| `<session-id>` | Exact OpenCode 2 session ID from the agent's injected context or $OPENCODE_SESSION_ID |
 
 **Examples**
 

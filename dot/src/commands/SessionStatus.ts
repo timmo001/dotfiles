@@ -157,7 +157,7 @@ export const readSessionStatus = Effect.fn("readSessionStatus")(function* (
   if (!SESSION_ID_PATTERN.test(sessionId))
     return yield* new SessionStatusError({
       message:
-        "Use the exact OpenCode session ID from the injected environment context",
+        "Use the exact OpenCode session ID from the injected environment context or $OPENCODE_SESSION_ID",
       exitCode: 2,
     });
 

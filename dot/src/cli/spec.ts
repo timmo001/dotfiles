@@ -1826,7 +1826,7 @@ const sessionCommand = describe(
           {
             sessionId: Argument.String("session-id").pipe(
               Argument.withDescription(
-                "Exact OpenCode 2 session ID from the agent's injected context",
+                "Exact OpenCode 2 session ID from the agent's injected context or $OPENCODE_SESSION_ID",
               ),
             ),
             warnAt: Flag.Finite("warn-at").pipe(
