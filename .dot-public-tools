@@ -13,6 +13,9 @@ jq
 node
 ripgrep
 
+# Herdr will come with the app's image too, once timmo001/app-opencode#8 lands.
+# Until then the Herdr config is stowed but has nothing to run it.
+
 # In the app's default tools option.
 bat
 deno
@@ -42,7 +45,6 @@ usage
 # Personal, so add these to the option by hand.
 aqua:1password/cli
 aqua:coder/boo
-aqua:herdrdev/herdr
 aqua:sxyazi/yazi
 gdu
 github:timmo001/context
