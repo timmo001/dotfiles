@@ -200,7 +200,7 @@ const initCommand = describe(
   ["dot init", "dot init --force"],
   {
     description:
-      "Run the one-time first-use setup workflow for a fresh machine. Init prepares repos, stow links, mise tools, apt packages, the firewall and the login shell, and trusts mise configs in tracked repos. After init completes, enable lingering so user services run without a login, log in again, then run dot doctor. Before the bounded workflow starts, init updates or clones the optional private overlay according to DOT_ALLOW_PRIVATE. Use dot up for ongoing maintenance.",
+      "Run the one-time first-use setup workflow for a fresh machine. Init prepares repos and stow links, checks the app's packages and tools, installs gh extensions, adds the managed Git config include, and trusts mise configs in tracked repos. The app owns the locale, login shell, firewall and services, so init leaves them alone. After init completes, run dot doctor. Before the bounded workflow starts, init updates or clones the optional private overlay according to DOT_ALLOW_PRIVATE. Use dot update for ongoing maintenance.",
   },
 );
 
