@@ -247,7 +247,7 @@ rows = [
 ]
 
 [ui.toast]
-delivery = "system"
+delivery = "herdr"
 
 [ui.toast.herdr]
 position = "top-right"

@@ -48,7 +48,11 @@
       "claude-code",
       "codex",
       "pi",
-      "opencode"
+      "opencode",
+      "cursor"
     ]
+  },
+  "theme": {
+    "dark": "plannotator"
   }
 }
