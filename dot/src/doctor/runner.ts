@@ -18,6 +18,7 @@ import { checkPitchforkProxy } from "./checks/pitchfork.js";
 import { checkGithubMcpAuth } from "./checks/githubMcpAuth.js";
 import { checkGitConfig } from "../git/doctor/gitConfig.js";
 import { checkOriginHead } from "../git/doctor/originHead.js";
+import { checkGitSigning } from "../git/doctor/gitSigning.js";
 import {
   checkGitNotifications,
   checkDoctorNotify,
@@ -90,6 +91,7 @@ const sections: readonly SectionDef[] = [
   { name: "pitchfork proxy", check: checkPitchforkProxy },
   { name: "GitHub MCP auth", check: checkGithubMcpAuth },
   { name: "Git config include", check: checkGitConfig },
+  { name: "Git commit signing", check: checkGitSigning },
   { name: "Git notification checks", check: checkGitNotifications },
   { name: "Doctor notification", check: checkDoctorNotify },
   { name: "Dependency service", check: checkDependencyService },
