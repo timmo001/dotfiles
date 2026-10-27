@@ -1,0 +1,50 @@
+// Pre-push checks for changed file types. Each step runs the repository task
+// CI runs, so the scopes match. There is no pre-commit hook: `dot git commit`
+// owns commit-time checks. Run them by hand with `hk check`.
+amends "package://github.com/jdx/hk/releases/download/v2.9.0/hk@2.9.0#/Config.pkl"
+
+local lint = new Mapping<String, Step> {
+  ["oxlint"] {
+    glob = List("**/*.{ts,mts,cts,js,mjs,cjs}")
+    check = "mise run lint:oxlint"
+  }
+  ["markdown"] {
+    glob = List("**/*.md")
+    check = "mise run lint:markdown"
+  }
+  ["yaml"] {
+    glob = List("**/*.{yml,yaml}")
+    check = "mise run lint:yaml"
+  }
+  ["json"] {
+    glob = List("**/*.json")
+    check = "mise run lint:json"
+  }
+  ["shell"] {
+    types = List("shell")
+    check = "mise run lint:shell"
+  }
+  ["actions"] {
+    glob = List(".github/workflows/*.{yml,yaml}")
+    check = "mise run lint:actions"
+  }
+  ["dot-typecheck"] {
+    glob = List("dot/**/*.ts")
+    check = "mise run dot:typecheck"
+  }
+  ["dot-format"] {
+    glob = List("dot/**/*.ts")
+    check = "mise run dot:format:check"
+  }
+}
+
+hooks {
+  ["pre-push"] {
+    fix = false
+    stash = "none"
+    steps = lint
+  }
+  ["check"] {
+    steps = lint
+  }
+}

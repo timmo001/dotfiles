@@ -17,6 +17,7 @@
 --ignore=^/opencode.json
 --ignore=^/mise\.toml
 --ignore=^/mise\.lock
+--ignore=^/hk\.pkl
 --ignore=^/pitchfork\.toml
 --ignore=^/\.mise
 --ignore=^/\.markdownlint-cli2\.cjs
