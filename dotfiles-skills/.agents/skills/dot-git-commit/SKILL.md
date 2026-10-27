@@ -107,6 +107,15 @@ dot git commit -m "<subject>" --dry-run       # preview, change nothing
   your recommendation), then ask (see `asking-questions`) whether to fix them
   first, commit anyway with `--skip-agent-oxlint`, or stop. If they choose a
   fix, show it and retry the commit only once they confirm it.
+- Git hooks always run; the gateway never passes `--no-verify`. A pre-commit
+  hook that rewrites and re-stages files (lint-staged fixers, scripts that run
+  `git add`) can widen a `--path` commit beyond the listed files, and leave
+  staged files you did not list holding their pre-hook content, so the next
+  commit would undo the hook's edits. The gateway warns after the commit with
+  the `git restore --staged` command that fixes the index; run it and mention
+  the warning in the report. In repositories with such hooks, commit the staged
+  set instead of using `--path`. The agent Oxlint pass above is the gateway's
+  own check, separate from any repository hooks.
 - The gateway refuses to commit to the base branch of a repo you do not own
   (owners in `git config dot.owner`), so you do not commit to, say, `dev` on
   `home-assistant/frontend`. This also applies to a fork kept for upstream PRs

@@ -1,3 +1,4 @@
+import { relative, resolve } from "node:path";
 import { Effect, FileSystem, Schema } from "effect";
 import { gitOutput } from "../../lib/git.js";
 import { plural } from "../../lib/runSummary.js";
@@ -410,6 +411,85 @@ const checkAgentOxlint = Effect.fn("gitCommit.checkAgentOxlint")(
   },
 );
 
+/** Split git's newline-separated path output into non-empty paths. */
+const splitPaths = (output: string) =>
+  output.split("\n").filter((path) => path.length > 0);
+
+/**
+ * After a `--path` commit, warn when a pre-commit hook changed it. A hook that
+ * rewrites and re-stages files puts them in the commit even when `--path` did
+ * not list them, and restoring the other staged entries afterwards puts back
+ * their pre-hook content, so the index then undoes the hook's edits. A
+ * committed path whose index entry differs from HEAD can only come from that,
+ * so the warning names those paths and the restore that matches the index to
+ * the commit. Amends only check listed paths, because HEAD then also holds the
+ * original commit's files.
+ */
+const warnHookRestaging = Effect.fn("gitCommit.warnHookRestaging")(
+  function* (input: {
+    readonly paths: readonly string[];
+    readonly amend: boolean;
+  }) {
+    if (!(yield* readGit(["hook", "list", "pre-commit"]))) return;
+
+    const committed = splitPaths(
+      yield* readGit([
+        "diff-tree",
+        "--root",
+        "--no-commit-id",
+        "--name-only",
+        "-r",
+        "HEAD",
+      ]),
+    );
+
+    if (committed.length === 0) return;
+
+    const top = yield* readGit(["rev-parse", "--show-toplevel"]);
+
+    const listed = input.paths.map(
+      (path) => relative(top, resolve(path)) || ".",
+    );
+
+    const inScope = (path: string) =>
+      listed.some(
+        (scope) =>
+          scope === "." || path === scope || path.startsWith(`${scope}/`),
+      );
+
+    const added = input.amend ? [] : committed.filter((path) => !inScope(path));
+    const checked = input.amend ? committed.filter(inScope) : committed;
+
+    if (checked.length === 0) return;
+
+    const stale = splitPaths(
+      yield* readGit([
+        "diff",
+        "--cached",
+        "--name-only",
+        "HEAD",
+        "--",
+        ...checked.map((path) => `:(top,literal)${path}`),
+      ]),
+    );
+
+    if (added.length === 0 && stale.length === 0) return;
+
+    const notes = [
+      added.length > 0
+        ? `It added ${added.join(", ")}, which --path did not list.`
+        : "",
+      stale.length > 0
+        ? `The index still holds the pre-hook version of ${stale.join(", ")}; run git restore --staged -- ${stale.join(" ")} to match it to the commit.`
+        : "",
+    ].filter(Boolean);
+
+    yield* writeStderr(
+      `[dot git commit] warning: the pre-commit hook changed this commit. ${notes.join(" ")}\n`,
+    );
+  },
+);
+
 /**
  * CLI entry point: the safe commit gateway agents use instead of raw
  * `git commit`. Validates the subject against the style guards, commits either
@@ -525,6 +605,8 @@ export function gitCommitRaw(
     );
 
     if (scoped) {
+      yield* warnHookRestaging({ paths: options.paths, amend: options.amend });
+
       const leftOut = yield* readGit([
         "diff",
         "--name-only",
