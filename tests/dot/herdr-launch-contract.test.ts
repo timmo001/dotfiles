@@ -34,6 +34,7 @@ async function launch(options: {
   workspaceExists?: boolean;
   detectedKind?: string;
   nameTaken?: boolean;
+  opencode2?: string;
   onResult?: (result: Effect.Success<ReturnType<typeof openHerdrRepo>>) => void;
 } = {}) {
   const panes = options.panes ?? [idlePane()];
@@ -123,7 +124,7 @@ async function launch(options: {
       run: (command, args) => {
         if (command === "herdr" && args?.join(" ") === "integration status") return record("executor.run", "opencode: current\n", command, args);
 
-        if (command === "mise" && args?.join(" ") === "which opencode2") return record("executor.run", "/fixture/opencode2", command, args);
+        if (command === "mise" && args?.join(" ") === "which opencode2") return record("executor.run", options.opencode2 ?? "/fixture/opencode2", command, args);
 
         if (command === "test" && args?.[0] === "-x") return record("executor.run", "", command, args);
 
@@ -216,6 +217,23 @@ test.each([
   expect(calls.find(call => call.method === "executor.create")?.input).toEqual(["api", "post", "/api/session", "--data", JSON.stringify({ location: { directory }, model: { id: "claude-opus-5.5", providerID: "github-copilot", variant: selected.includes("#") ? "low" : undefined } })]);
   expect(calls.find(call => call.method === "panes.sendInput")?.input).toMatchObject({ text: `${HOME_DIR}/.local/bin/opencode2 --session ses_fixture` });
   expect(calls.findIndex(call => call.method === "executor.create")).toBeLessThan(calls.findIndex(call => call.method === "agents.prompt"));
+});
+
+const shimInstall = "/fixture/mise/installs/npm-opencode-cli/2.2.0/node_modules";
+
+test.each([
+  { argv: [`${shimInstall}/.bin/../.mise/@opencode+cli@2.2.0/node_modules/@opencode/cli/bin/opencode.exe`, "--session", "ses_fixture"], verified: true },
+  { argv: ["/fixture/mise/installs/opencode/latest/node_modules/.bin/../opencode-ai/bin/opencode"], verified: false },
+  { argv: ["opencode2"], verified: false },
+])("OpenCode 2 is verified through the install its shim execs into: %j", async ({ argv, verified }) => {
+  const opened = launch({
+    request: { command: undefined, agent: "opencode2", noFocus: true },
+    opencode2: `${shimInstall}/.bin/opencode2`,
+    processInfo: (id, read) => shellInfo(id, read > 2 ? { pid: 99, name: "opencode.exe", argv } : {}),
+  });
+
+  if (verified) await expect(opened).resolves.toBeDefined();
+  else await expect(opened).rejects.toThrow("OpenCode 2 did not start through the expected runtime");
 });
 
 test("unknown and conflicting variants fail before creating a session", async () => {

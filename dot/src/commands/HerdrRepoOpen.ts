@@ -16,7 +16,7 @@ import {
   Schema,
 } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
-import { basename, dirname, join, resolve } from "path";
+import { join, resolve } from "path";
 import { ENV, envString } from "../lib/env.js";
 import { localHerdrAttachment } from "../lib/herdrAttachment.js";
 import { CACHE_DIR, CONFIG_DIR, HOME_DIR } from "../lib/paths.js";
@@ -27,6 +27,8 @@ import { SESSION_ID_PATTERN } from "./SessionStatus.js";
 import {
   createHerdrModelSession,
   HerdrModelError,
+  paneRunsOpenCode,
+  resolveOpenCodeExecutable,
   switchHerdrModel,
 } from "./HerdrModel.js";
 
@@ -326,16 +328,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 
   if (agentKind && command === join(HOME_DIR, ".local", "bin", "opencode2")) {
     yield* executor.run("test", ["-x", command]);
-    expectedExecutable = (yield* executor.run("mise", ["which", "opencode2"], {
-      cwd: options.directory,
-    })).trim();
-
-    if (
-      !expectedExecutable.startsWith("/") ||
-      expectedExecutable.includes("\n")
-    )
-      return fail("OpenCode 2 verification did not return an executable path");
-    yield* executor.run("test", ["-x", expectedExecutable]);
+    expectedExecutable = yield* resolveOpenCodeExecutable(options.directory);
   }
 
   const selected =
@@ -632,32 +625,11 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
     if (Option.getOrUndefined(agent.agent) !== agentKind)
       return fail(`The selected ${agentKind} agent did not start`);
 
-    if (expectedExecutable) {
-      const processes =
-        (yield* herdr.panes.processInfo(targetPane)).foregroundProcesses ?? [];
-
-      // A node_modules/.bin shim execs into its package, replacing argv.
-      const installRoot =
-        basename(dirname(expectedExecutable)) === ".bin"
-          ? `${dirname(dirname(expectedExecutable))}/`
-          : undefined;
-
-      if (
-        !processes.some((process) =>
-          Option.exists(process.argv, (argv) =>
-            argv.some((arg) => {
-              const path = resolve(arg);
-
-              return (
-                path === expectedExecutable ||
-                (installRoot !== undefined && path.startsWith(installRoot))
-              );
-            }),
-          ),
-        )
-      )
-        return fail("OpenCode 2 did not start through the expected runtime");
-    }
+    if (
+      expectedExecutable &&
+      !(yield* paneRunsOpenCode(targetPane, expectedExecutable))
+    )
+      return fail("OpenCode 2 did not start through the expected runtime");
 
     if (agentName !== undefined)
       agent = yield* herdr.agents.rename({ paneId: targetPane }, agentName);

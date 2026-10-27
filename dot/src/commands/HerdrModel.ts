@@ -1,6 +1,6 @@
 import { HerdrSdk, type Agent, type PaneId } from "@timmo001/effect-herdr";
 import { Effect, Option, Schedule, Schema } from "effect";
-import { join } from "path";
+import { basename, dirname, isAbsolute, join, resolve } from "path";
 import { HOME_DIR } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
@@ -194,34 +194,69 @@ export const createHerdrModelSession = Effect.fn("herdr.model.create")(
   },
 );
 
+/** Resolve the executable the opencode2 launcher runs for a directory. */
+export const resolveOpenCodeExecutable = Effect.fn("herdr.model.executable")(
+  function* (directory: string) {
+    const executor = yield* CommandExecutor;
+
+    const executable = (yield* executor.run("mise", ["which", "opencode2"], {
+      cwd: directory,
+    })).trim();
+
+    if (!executable.startsWith("/") || executable.includes("\n"))
+      return invalid(
+        "OpenCode 2 verification did not return an executable path",
+      );
+
+    yield* executor.run("test", ["-x", executable]);
+
+    return executable;
+  },
+);
+
+/** Whether a pane's foreground processes run the given OpenCode 2 executable. */
+export const paneRunsOpenCode = Effect.fn("herdr.model.paneRunsOpenCode")(
+  function* (paneId: PaneId, executable: string) {
+    const herdr = yield* HerdrSdk;
+
+    const processes =
+      (yield* herdr.panes.processInfo(paneId)).foregroundProcesses ?? [];
+
+    // A node_modules/.bin shim execs into its package, replacing argv.
+    const installRoot =
+      basename(dirname(executable)) === ".bin"
+        ? `${dirname(dirname(executable))}/`
+        : undefined;
+
+    return processes.some((process) =>
+      Option.exists(process.argv, (argv) =>
+        argv.some((arg) => {
+          if (!isAbsolute(arg)) return false;
+
+          const path = resolve(arg);
+
+          return (
+            path === executable ||
+            (installRoot !== undefined && path.startsWith(installRoot))
+          );
+        }),
+      ),
+    );
+  },
+);
+
 /** Verify that a Herdr agent is the configured OpenCode 2 runtime. */
 export const verifyHerdrOpenCode = Effect.fn("herdr.model.verify")(function* (
   agent: Agent,
   paneId: PaneId,
   directory: string,
 ) {
-  const executor = yield* CommandExecutor;
-
   if (Option.getOrUndefined(agent.agent) !== "opencode")
     return invalid("The selected agent is not OpenCode");
 
-  const expected = (yield* executor.run("mise", ["which", "opencode2"], {
-    cwd: directory,
-  })).trim();
+  const executable = yield* resolveOpenCodeExecutable(directory);
 
-  if (!expected.startsWith("/") || expected.includes("\n"))
-    return invalid("OpenCode 2 verification did not return an executable path");
-
-  const herdr = yield* HerdrSdk;
-
-  const processes =
-    (yield* herdr.panes.processInfo(paneId)).foregroundProcesses ?? [];
-
-  if (
-    !processes.some((process) =>
-      Option.exists(process.argv, (argv) => argv.includes(expected)),
-    )
-  )
+  if (!(yield* paneRunsOpenCode(paneId, executable)))
     return invalid("The selected agent did not start through OpenCode 2");
 });
 
