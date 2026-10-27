@@ -19,7 +19,7 @@ tools:
     reviewed: v0.3.2
     review: Check the custom bar plugin QML under omarchy/.config/omarchy/plugins, the qmllint setup in .github/workflows/quickshell-lint.yml, and the omarchy-shell-quickshell skill's Quickshell notes (reload semantics, IpcHandler, the qs CLI).
   - repo: cli/cli
-    reviewed: v2.103.2
+    reviewed: v2.103.3
     review: Check the gh calls in dot through @timmo001/effect-gh and the GitHub credential command in mise/.config/mise/config.toml.
   - repo: anomalyco/opencode
     reviewed: v2.1.4
