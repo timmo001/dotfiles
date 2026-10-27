@@ -1,0 +1,5 @@
+# Skip aube's low-download, new-name and similar-name checks for every package,
+# including mise npm: tools. npm's download counts are unreliable and new
+# packages of my own would otherwise prompt or fail. The malicious-package
+# advisory check still runs.
+allowedUnpopularPackages = ["*"]
