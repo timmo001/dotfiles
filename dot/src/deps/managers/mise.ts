@@ -37,6 +37,7 @@ const upstreams = {
   fd: "sharkdp/fd",
   fzf: "junegunn/fzf",
   gdu: "dundee/gdu",
+  hk: "jdx/hk",
   jq: "jqlang/jq",
   lazygit: "jesseduffield/lazygit",
   pitchfork: "jdx/pitchfork",
