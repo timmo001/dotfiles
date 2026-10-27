@@ -1,0 +1,403 @@
+---
+title: "[HA] Hass removal status"
+description: >-
+  Home Assistant frontend components still taking the broad hass object
+  instead of narrow Lit contexts. Counts come from static analysis of the
+  latest dev branch, so treat them as a guide.
+
+inbox:
+  project: ~/repos/home-assistant/frontend
+  thread: "[HA] Hass removal report"
+
+work_time_only: true
+
+models:
+  summary:
+    models:
+      - github-copilot/claude-sonnet-5.5#low
+    timeout: 2 minutes
+  decision: winnow:e4b
+
+sections:
+  - id: hass
+    type: code
+    title: Files still holding hass
+    description: >-
+      A file holds hass when it declares a decorated hass: HomeAssistant
+      field, and is migrated when it consumes contexts without one.
+      Containers that own and provide hass are tagged as allowed.
+    repository: home-assistant/frontend
+    branch: dev
+    include:
+      - src/**/*.ts
+    patterns:
+      old: >-
+        (?:@property\((?:[^()]|\([^()]*\))*\)|@state\(\))\s*(?:(?:public|protected|private)\s+)?(?:readonly\s+)?hass\s*[!?]?\s*:\s*HomeAssistant\b|^\s*(?:(?:public|protected|private)\s+)?(?:readonly\s+)?hass!\s*:\s*HomeAssistant\b
+      new: >-
+        @consume\(|consumeEntityState|consumeEntityRegistryEntry|consumeLocalize|consumeContext\(|ContextSubscriptionController
+    buckets:
+      - id: todo
+        label: Not started
+        tone: bad
+        has:
+          - old
+        lacks:
+          - new
+      - id: partial
+        label: Partial
+        tone: warn
+        has:
+          - old
+          - new
+      - id: done
+        label: Migrated
+        tone: good
+        has:
+          - new
+        lacks:
+          - old
+    groups:
+      - prefix: src/panels/lovelace/cards/
+        label: Lovelace cards
+      - prefix: src/panels/lovelace/badges/
+        label: Lovelace badges
+      - prefix: src/panels/lovelace/heading-badges/
+        label: Lovelace heading badges
+      - prefix: src/panels/lovelace/card-features/
+        label: Lovelace card features
+      - prefix: src/panels/lovelace/entity-rows/
+        label: Lovelace entity rows
+      - prefix: src/panels/lovelace/special-rows/
+        label: Lovelace special rows
+      - prefix: src/panels/lovelace/elements/
+        label: Lovelace picture elements
+      - prefix: src/panels/lovelace/header-footer/
+        label: Lovelace header and footer
+      - prefix: src/panels/lovelace/editor/
+        label: Lovelace editors
+      - prefix: src/panels/lovelace/strategies/
+        label: Lovelace strategies
+      - prefix: src/panels/lovelace/components/
+        label: Lovelace components
+      - prefix: src/panels/lovelace/
+        label: Lovelace views and other
+      - prefix: src/panels/config/
+        label: Config panel
+      - prefix: src/panels/
+        label: Other panels
+      - prefix: src/components/ha-selector/
+        label: Selectors
+      - prefix: src/components/
+        label: Shared components
+      - prefix: src/dialogs/more-info/
+        label: More-info dialog
+      - prefix: src/dialogs/
+        label: Other dialogs
+      - prefix: src/state-summary/
+        label: State summary rows
+      - prefix: src/state-control/
+        label: State controls
+      - prefix: src/
+        label: Layouts, onboarding and misc
+    allowed:
+      - src/panels/lovelace/cards/hui-card.ts
+      - src/panels/lovelace/badges/hui-badge.ts
+      - src/panels/lovelace/heading-badges/hui-heading-badge.ts
+      - src/panels/lovelace/card-features/hui-card-feature.ts
+      - src/panels/lovelace/card-features/hui-card-features.ts
+      - src/panels/lovelace/cards/hui-stack-card.ts
+      - src/panels/lovelace/cards/hui-picture-elements-card.ts
+      - src/panels/lovelace/cards/hui-entity-filter-card.ts
+      - src/panels/lovelace/elements/hui-conditional-element.ts
+      - src/components/ha-form/ha-form.ts
+      - src/components/ha-selector/ha-selector.ts
+      - src/dialogs/more-info/ha-more-info-dialog.ts
+      - src/dialogs/more-info/more-info-content.ts
+      - src/components/ha-sidebar.ts
+      - src/state-summary/state-card-content.ts
+      - src/layouts/hass-error-screen.ts
+    metrics:
+      reads: this\.hass\b
+    lists:
+      - title: Partial files with 3 or fewer hass reads left
+        bucket: partial
+        max:
+          reads: 3
+
+  - id: next
+    type: dependencies
+    title: Next viable candidates
+    description: >-
+      What stops each remaining file moving to contexts today: a child it
+      binds .hass on that still needs it, a data helper typed hass:
+      HomeAssistant, or nothing at all. Routers, mixins and other containers
+      are set aside.
+    of: hass
+    buckets:
+      - todo
+      - partial
+    property: hass
+    broad_type: HomeAssistant
+    contexts:
+      states:
+        - states
+      services:
+        - services
+      registries:
+        - entities
+        - devices
+        - areas
+        - floors
+      i18n:
+        - localize
+        - locale
+        - language
+        - loadBackendTranslation
+        - loadFragmentTranslation
+        - translationMetadata
+        - selectedLanguage
+      api:
+        - callService
+        - callApi
+        - callApiRaw
+        - callWS
+        - sendWS
+        - fetchWithAuth
+      formatters:
+        - formatEntityState
+        - formatEntityStateToParts
+        - formatEntityAttributeValue
+        - formatEntityAttributeValueToParts
+        - formatEntityAttributeName
+        - formatEntityName
+      connection:
+        - connection
+        - connected
+        - hassUrl
+        - debugConnection
+      ui:
+        - themes
+        - selectedTheme
+        - panels
+        - panelUrl
+        - dockedSidebar
+        - kioskMode
+        - enableShortcuts
+        - vibrate
+        - suspendWhenHidden
+      config:
+        - config
+        - user
+        - auth
+        - userData
+        - systemData
+    narrowable:
+      - api
+    ignore_helpers:
+      - fireEvent
+      - html
+      - computeRTL
+      - memoize
+      - handleAction
+      - documentationUrl
+    containers:
+      paths:
+        - src/layouts/**
+        - src/mixins/**
+        - src/state/**
+        - src/managers/**
+        - "**/*-mixin.ts"
+        - "**/ha-panel-custom.ts"
+      patterns:
+        - HassRouterPage
+    notes:
+      - id: action
+        label: Swap handleAction after the handler fix
+        pattern: handleAction\(\s*this,\s*this\.hass
+        tone: warn
+      - id: passes
+        label: Passes hass on, check
+        pattern: \w+\.hass\s*=\s*this\.hass|hass:\s*this\.hass|\.\.\.this\.hass|\(\s*[^()]*this\.hass!?\s*\)
+        tone: neutral
+    prerequisites:
+      - title: state-info and hui-generic-entity-row
+        text: >-
+          They're the only thing blocking two whole folders.
+          hui-generic-entity-row also calls `handleAction`, which can become a
+          `hass-action` event once the handler fix is in.
+        blockers:
+          - state-info
+          - hui-generic-entity-row
+      - title: Unused hass on the page layouts
+        text: >-
+          `hass-subpage`, `hass-tabs-subpage`, `hass-tabs-subpage-data-table`
+          and `hass-loading-screen` declare `hass` but never read it. Remove the
+          bindings first, then the fields, as the tabs subpage comments ask.
+          `hass-error-screen` keeps its field for the custom panel iframe.
+        bindings:
+          - hass-subpage
+          - hass-tabs-subpage
+          - hass-tabs-subpage-data-table
+          - hass-loading-screen
+      - title: Narrow API-only data helpers
+        text: >-
+          Retype helpers that only call `callWS`, `callApi` or similar to
+          `Pick<HomeAssistant, "callWS">` or `HomeAssistantApi`. It only
+          changes the type: callers passing full `hass` keep compiling, and
+          migrated callers can pass the `apiContext` value.
+        category: helper
+      - title: Fix the hass-action handler, then replace handleAction(this, this.hass, …)
+        text: >-
+          The handler in `src/state/action-mixin.ts` runs actions from the
+          root, so `fire-dom-event` fires `ll-custom` outside the dashboard.
+          Pass `ev.composedPath()[0]` as the node, then swap each badge, row or
+          element to fire `hass-action`.
+        note: action
+      - title: The ha-form chain
+        text: >-
+          `ha-form` only forwards `hass` to `ha-selector`, which forwards it to
+          the selectors. Work order: selectors, then `ha-selector`, then
+          `ha-form`. The login and onboarding pages provide only i18n contexts,
+          so whatever they consume must work there.
+        blockers:
+          - ha-form
+          - ha-selector
+    lists:
+      - title: Shared components and Lovelace leaves ready now
+        description: >-
+          Read only what existing contexts cover and don't bind `.hass` on a
+          child that still needs it. Fewest reads first.
+        categories:
+          - ready
+        prefixes:
+          - src/components/
+          - src/dialogs/
+          - src/panels/lovelace/components/
+          - src/state-summary/
+          - src/panels/lovelace/special-rows/
+          - src/panels/lovelace/entity-rows/
+          - src/panels/lovelace/cards/
+          - src/panels/lovelace/elements/
+          - src/panels/lovelace/badges/
+          - src/panels/lovelace/heading-badges/
+          - src/panels/lovelace/header-footer/
+      - title: Never-read hass fields
+        description: The field and its bindings can go.
+        categories:
+          - unused
+      - title: Small direct changes
+        description: >-
+          Panels and editors ready now with 5 or fewer reads that don't pass
+          `hass` on.
+        categories:
+          - ready
+        exclude_prefixes:
+          - src/components/
+          - src/dialogs/
+          - src/panels/lovelace/components/
+          - src/state-summary/
+          - src/panels/lovelace/special-rows/
+          - src/panels/lovelace/entity-rows/
+          - src/panels/lovelace/cards/
+          - src/panels/lovelace/elements/
+          - src/panels/lovelace/badges/
+          - src/panels/lovelace/heading-badges/
+          - src/panels/lovelace/header-footer/
+          - src/panels/lovelace/views/
+          - src/panels/lovelace/sections/
+        max_reads: 5
+        exclude_notes:
+          - passes
+        grouped: true
+
+  - id: open-prs
+    type: github
+    title: Open PRs
+    query: repo:home-assistant/frontend is:pr is:open hass OR context OR contexts OR consume in:title
+    decide:
+      about: removing or narrowing the hass property in components, or moving them to Lit contexts
+      min: 0.25
+    files_for: hass
+
+  - id: merged-prs
+    type: github
+    title: Merged since last run
+    query: repo:home-assistant/frontend is:pr is:merged merged:>={since} hass OR context OR contexts OR consume in:title
+    decide:
+      about: removing or narrowing the hass property in components, or moving them to Lit contexts
+      min: 0.25
+
+  - id: compat
+    type: checks
+    title: Compatibility check
+    description: >-
+      Reasons a candidate can't simply drop hass yet. A finding shows while
+      its pattern still holds, and turns resolved once the code moves on.
+    repository: home-assistant/frontend
+    branch: dev
+    checks:
+      - title: hass-error-screen keeps hass for the custom panel iframe
+        file: src/layouts/hass-error-screen.ts
+        pattern: Fallback for the custom panel iframe
+        expect: match
+        finding: >-
+          Keep its hass field. The custom panel iframe has no context
+          provider, and custom-panel.ts sets errorScreen.hass directly.
+        verdict: Keep the field
+        tone: bad
+      - title: hass-tabs-subpage keeps hass for callers
+        file: src/layouts/hass-tabs-subpage.ts
+        pattern: Unread, kept for callers
+        expect: match
+        finding: >-
+          The field is unread but kept for callers. Remove the .hass bindings
+          first, then the field, or lit-analyzer reports unknown properties.
+        verdict: Bindings first
+        tone: warn
+      - title: hass-tabs-subpage-data-table keeps hass for callers
+        file: src/layouts/hass-tabs-subpage-data-table.ts
+        pattern: Unread, kept for callers
+        expect: match
+        finding: >-
+          The field is unread but kept for callers. Remove the .hass bindings
+          first, then the field.
+        verdict: Bindings first
+        tone: warn
+      - title: hass-subpage still declares an unread hass
+        file: src/layouts/hass-subpage.ts
+        pattern: '@property\([^)]*\)\s*public hass'
+        expect: match
+        finding: >-
+          hass-subpage never reads hass. Removing the field and its bindings
+          clears the most common .hass= in config pages.
+        verdict: Safe
+        tone: good
+      - title: hass-loading-screen still declares an unread hass
+        file: src/layouts/hass-loading-screen.ts
+        pattern: '@property\([^)]*\)\s*public hass'
+        expect: match
+        finding: hass-loading-screen never reads hass, so the field and its bindings can go.
+        verdict: Safe
+        tone: good
+      - title: hass-action runs actions from the root
+        file: src/state/action-mixin.ts
+        pattern: composedPath\(\)
+        expect: no-match
+        finding: >-
+          The hass-action handler calls handleAction with the root element,
+          so fire-dom-event fires ll-custom outside hui-root. ha-panel-home's
+          Add integration and Assign area buttons stop working once their
+          cards swap handleAction for hass-action. Pass ev.composedPath()[0]
+          as the node before more swaps.
+        verdict: Behaviour change
+        tone: bad
+      - title: The login page subclasses ha-form
+        file: src/auth/ha-auth-form.ts
+        pattern: extends HaForm
+        expect: match
+        finding: >-
+          The login and onboarding pages only provide i18n contexts, so
+          ha-form, ha-selector and the text, country and timezone selectors
+          must work without states, registries, config or API contexts.
+        verdict: Constraint
+        tone: warn
