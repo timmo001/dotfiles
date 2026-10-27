@@ -29,6 +29,7 @@ import { ensureLocalesGenerated } from "../lib/localeSetup.js";
 import { configureFirewallRules } from "../lib/firewallSetup.js";
 import { installGhExtensions } from "../lib/ghExtensions.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
+import { ensureGlobalHkHooks } from "../lib/gitHooks.js";
 import { trustTrackedMiseConfigs } from "../lib/miseTrust.js";
 import { withStepTimeout } from "../lib/workflowStep.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
@@ -67,6 +68,7 @@ const INIT_STEP_TIMEOUT_SECONDS = {
   hostLinks: 60,
   install: 5 * 60,
   mise: 10 * 60,
+  gitHooks: 60,
   publicPackages: 30 * 60,
   publicRepo: 3 * 60,
   firewall: 3 * 60,
@@ -870,6 +872,11 @@ export function init(
       "Install Mise Tools",
       INIT_STEP_TIMEOUT_SECONDS.mise,
       installMiseTools,
+    );
+    yield* step(
+      "Install Git Hooks",
+      INIT_STEP_TIMEOUT_SECONDS.gitHooks,
+      Effect.asVoid(ensureGlobalHkHooks),
     );
     yield* step(
       "Setup Public Package Repository",

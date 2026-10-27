@@ -22,6 +22,7 @@ import {
   installSkillsCheckoutTools,
 } from "../lib/skillsMaintenance.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
+import { ensureGlobalHkHooks } from "../lib/gitHooks.js";
 import { trustRepoMiseConfigs } from "../lib/miseTrust.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import { cliStyler } from "../lib/ansi.js";
@@ -121,6 +122,7 @@ const STEP_TIMEOUT_SECONDS = {
   pull: 8 * 60,
   stow: 3 * 60,
   miseInstall: 10 * 60,
+  gitHooks: 60,
   agentRuntimes: 3 * 60,
   rebuild: 5 * 60,
   herdrPlugins: 5 * 60,
@@ -1679,6 +1681,16 @@ export const update = (updateOpts?: UpdateOptions) =>
         "Prune Mise Tools",
         STEP_TIMEOUT_SECONDS.miseInstall,
         pruneRemovedMiseTools.pipe(Effect.map(recordMiseStep)),
+      );
+
+      yield* requiredUpdateStep(
+        "Git Hooks",
+        STEP_TIMEOUT_SECONDS.gitHooks,
+        ensureGlobalHkHooks.pipe(
+          Effect.map((recap) => {
+            completedActions.push(recap);
+          }),
+        ),
       );
 
       const refreshed = yield* withStepTimeout(

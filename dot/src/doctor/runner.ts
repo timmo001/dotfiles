@@ -10,6 +10,7 @@ import { checkLocale } from "./checks/locale.js";
 import { checkZshKeybindings } from "./checks/zshKeybindings.js";
 import { checkRepos, checkPrivateAccess } from "./checks/repos.js";
 import { checkStow } from "./checks/stow.js";
+import { checkGitHooks } from "./checks/gitHooks.js";
 import { checkOpencode } from "./checks/opencode.js";
 import { resolvedOmarchyHost } from "../lib/omarchyHost.js";
 import { checkHerdr } from "./checks/herdr.js";
@@ -81,6 +82,7 @@ const sections: readonly SectionDef[] = [
   { name: "Locale", check: checkLocale },
   { name: "Zsh key bindings", check: checkZshKeybindings },
   { name: "Repository checks", check: checkRepos },
+  { name: "Git hooks", check: checkGitHooks },
   { name: "Origin HEAD freshness", check: checkOriginHead },
   { name: "Stow integrity", check: checkStow },
   { name: "OpenCode location checks", check: checkOpencode },
