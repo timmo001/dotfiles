@@ -16,7 +16,6 @@ import {
 import { syncSkills } from "../lib/externalSkills.js";
 import { applySyncthingConfig } from "../lib/syncthing.js";
 import { applySecretFiles } from "../lib/secretFiles.js";
-import { enableDefaultUnits } from "../lib/userUnits.js";
 import {
   backupUnmanagedTargets,
   emptyStowCounts,
@@ -128,7 +127,6 @@ export const stow = (opts?: {
       yield* backupUnmanagedTargets(config.publicDotfiles, counts);
       yield* stowRepo(config.publicDotfiles, "public", counts);
       actions.push(done(`Stowed ${plural(counts.public, "public package")}`));
-      actions.push(...(yield* enableDefaultUnits));
     }
 
     if (runPrivate) {
