@@ -57,15 +57,17 @@ herdr notification show "Code Mode job" --body "$label $result" --sound "$sound"
 exit "$code"
 `;
 
-/** A shell command that blocks until the job ends, then prints its exit code, stdout and the end of stderr. */
+/** A shell command that streams the job's stdout and stderr as they're written, then prints its exit code once it ends. */
 const followCommand = (job: Job) => {
   const directory = jobDirectory(job.id);
 
   return [
-    `until [ -e '${directory}/exit' ] || ! systemctl --user is-active --quiet '${job.unit}'; do sleep 5; done`,
+    `tail -q -n +1 -F '${directory}/stdout' '${directory}/stderr' 2>/dev/null & t=$!`,
+    `until [ -e '${directory}/exit' ] || ! systemctl --user is-active --quiet '${job.unit}'; do sleep 2; done`,
+    `sleep 1`,
+    `kill $t 2>/dev/null`,
+    `wait $t 2>/dev/null`,
     `echo "${job.tool} ${job.id} exit $(cat '${directory}/exit' 2>/dev/null || echo stopped)"`,
-    `cat '${directory}/stdout'`,
-    `tail -n 20 '${directory}/stderr'`,
   ].join("; ");
 };
 
@@ -169,7 +171,7 @@ const StartInput = Schema.Struct({
 const startTool = (namespaces: readonly CliNamespace[]): ClientTool => ({
   name: "start",
   description:
-    "Start a CLI-backed Code Mode tool as a detached job and return its id at once. It keeps running through OpenCode restarts and shows a Herdr notification when it ends. Run the returned follow command in a background shell so the job's end wakes the session; don't wait on the job in the same turn.",
+    "Start a CLI-backed Code Mode tool as a detached job and return its id at once. It keeps running through OpenCode restarts and shows a Herdr notification when it ends. Run the returned follow command, unchanged, in a background shell: it streams the job's output live and its end wakes the session. Don't wait on the job in the same turn.",
   access: "write",
   pinned: true,
   timeout: "30 seconds",
