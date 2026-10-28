@@ -1,6 +1,6 @@
 import { HerdrSdk, herdrSdkLayerFromOptions } from "@timmo001/effect-herdr";
 import { Duration, Effect, FileSystem, Option, Schema } from "effect";
-import { dirname, join } from "path";
+import { dirname, join, resolve } from "path";
 import { DEFAULT_SOCKET_PATH } from "../commands/HerdrRepoOpen.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -61,7 +61,8 @@ const miseInstalls = Effect.fn("agentRuntime.miseInstalls")(function* (
 /**
  * Restart running pitchfork daemons whose process is a mise-installed binary
  * other than the version mise now resolves in the daemon's directory, so
- * pitchfork relaunches them on the current install.
+ * pitchfork relaunches them on the current install. Daemons launched by a
+ * path that already resolves to their binary are left alone.
  */
 export const restartStalePitchforkDaemons = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
@@ -108,8 +109,25 @@ export const restartStalePitchforkDaemons = Effect.gen(function* () {
 
     if (!installs || !path.startsWith(`${installs.root}/`)) continue;
 
-    if (deleted || !installs.paths.some((dir) => path.startsWith(`${dir}/`)))
-      stale.push(id);
+    if (!deleted && installs.paths.some((dir) => path.startsWith(`${dir}/`)))
+      continue;
+
+    // A daemon launched by path, such as a virtual environment's python,
+    // relaunches on the same binary, so restarting it can't help
+    const [launcher = ""] = (yield* fs
+      .readFileString(`/proc/${pid}/cmdline`)
+      .pipe(Effect.orElseSucceed(() => ""))).split("\0");
+
+    if (
+      !deleted &&
+      launcher.includes("/") &&
+      (yield* fs
+        .realPath(resolve(cwd.value, launcher))
+        .pipe(Effect.orElseSucceed(() => undefined))) === path
+    )
+      continue;
+
+    stale.push(id);
   }
 
   if (!stale.length) {
