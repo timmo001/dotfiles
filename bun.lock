@@ -7,7 +7,7 @@
       "devDependencies": {
         "@oxlint/plugins": "1.90.0",
         "@timmo001/oxlint-rules": "0.6.3",
-        "@types/chrome": "0.3.6",
+        "@types/chrome": "0.3.7",
         "oxlint": "1.90.0",
         "oxlint-tsgolint": "7.0.2005",
         "typescript": "^7.0.0",
@@ -69,7 +69,7 @@
 
     "@timmo001/oxlint-rules": ["@timmo001/oxlint-rules@0.6.3", "", { "peerDependencies": { "@oxlint/plugins": "1.88.0", "oxlint": "1.88.0" }, "bin": { "oxlint-rules": "dist/cli.js" } }, "sha512-DxIid4Bu5t8bLuWcAIZlikLVLabSrJ1ai2siFB+E+7HdY3TPMgsUU44/Is+9RAQYVH8LEYjOQFVedH5MOXL5YQ=="],
 
-    "@types/chrome": ["@types/chrome@0.3.6", "", { "dependencies": { "@types/har-format": "*" } }, "sha512-NXCrCBefCHCKMVbkaxfBQqyP766Wg85S2FQhixCCxq7AtjJwoEaja2y5NSqCzpihIi9mPqhaF5RuybTnrdYD2Q=="],
+    "@types/chrome": ["@types/chrome@0.3.7", "", { "dependencies": { "@types/har-format": "*" } }, "sha512-jWZgbHqWbTL1a5+PoyN0OJutNyejWgyZ5MdcvKo6iJE1TNRtXR3FxsC4WzNl52yZWPidfWC8NV/VUNZf+OFKcA=="],
 
     "@types/har-format": ["@types/har-format@1.2.16", "", {}, "sha512-fluxdy7ryD3MV6h8pTfTYpy/xQzCFC7m89nOH9y94cNqJ1mDIDPut7MnRHI3F6qRmh/cT2fUjG1MLdCNb4hE9A=="],
 
