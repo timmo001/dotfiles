@@ -2,8 +2,8 @@
   color-scheme: light dark;
   --muted: color-mix(in srgb, currentColor 65%, transparent);
   --border: color-mix(in srgb, currentColor 18%, transparent);
-  --hover: color-mix(in srgb, currentColor 8%, transparent);
   --danger: #e5534b;
+  --accent: #4493f8;
 }
 
 body {
@@ -41,16 +41,20 @@ button {
   cursor: pointer;
 }
 
+button:enabled {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
 button:hover:enabled {
-  background: var(--hover);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 button:disabled {
+  border-style: dashed;
+  opacity: 0.45;
   cursor: not-allowed;
-}
-
-button:disabled .label {
-  opacity: 0.5;
 }
 
 .label {
@@ -59,7 +63,12 @@ button:disabled .label {
 
 .detail {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+button:disabled .detail {
+  font-style: italic;
 }
 
 #status {
