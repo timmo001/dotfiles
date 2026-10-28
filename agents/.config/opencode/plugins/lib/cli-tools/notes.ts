@@ -135,7 +135,7 @@ export const notesTools: readonly CliTool[] = [
     input: Schema.Struct({
       name: Schema.String.annotate({ description: "Note name" }),
       content: Schema.String.annotate({ description: "The note body" }),
-      description: Schema.optionalKey(Schema.String).annotate({ description: "Note description" }),
+      description: Schema.String.annotate({ description: "Note description" }),
       repository: Schema.String.annotate({
         description: "Repository scope for the new note, such as timmo001/dotfiles, from targets or context",
       }),
@@ -150,7 +150,8 @@ export const notesTools: readonly CliTool[] = [
         "--stdin",
         "--name",
         input.name,
-        ...valueFlag("description", input.description),
+        "--description",
+        input.description,
         "--repository",
         input.repository,
         "--kind",
