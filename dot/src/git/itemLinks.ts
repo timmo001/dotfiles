@@ -17,6 +17,8 @@ const DEEP_LINK = new RegExp(`^/(issue|pull)/${SLUG}/(\\d{1,9})/?$`);
 
 const GITHUB_PATH = new RegExp(`^/${SLUG}/(issues|pull)/(\\d{1,9})/?$`);
 
+const GITHUB_PULL_PATH = new RegExp(`^/${SLUG}/pull/(\\d{1,9})(?:/.*)?$`);
+
 /** Parse `dot://git/issue/<owner>/<repo>/<n>` or `dot://git/pull/...`. */
 export function parseGitItemLink(link: string): GitItem | undefined {
   const url = URL.parse(link);
@@ -44,6 +46,19 @@ export function gitItemFromGitHubUrl(link: string): GitItem | undefined {
         repo,
         number: Number(number),
       }
+    : undefined;
+}
+
+/** The pull request a GitHub URL points at, from any of its tabs, such as `/changes`. */
+export function pullRequestFromGitHubUrl(link: string): GitItem | undefined {
+  const url = URL.parse(link);
+
+  if (url?.hostname !== "github.com") return undefined;
+
+  const [, repo, number] = GITHUB_PULL_PATH.exec(url.pathname) ?? [];
+
+  return repo && number
+    ? { kind: "pull", repo, number: Number(number) }
     : undefined;
 }
 

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "dot links",
   "version": "1.0.0",
-  "description": "Open GitHub issues and pull requests in the Git panel through dot.",
+  "description": "Open GitHub issues and pull requests in the Git panel, and review pull requests in Plannotator, through dot.",
   "permissions": ["contextMenus", "nativeMessaging", "tabs"],
   "background": {
     "service_worker": "dist/background.js"

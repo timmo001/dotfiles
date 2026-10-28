@@ -2055,7 +2055,7 @@ Native messaging host for the dot links Chromium extension
 dot link native-host [flags] [<origin...>]
 ```
 
-Chromium runs this through the link-native-host wrapper; it isn't for running by hand. Reads one length-prefixed JSON request on stdin: resolve {url} replies with the page's dot:// link and whether the Git panel lists it, open {url} opens it in the Git panel and fails rather than opening the browser when the panel doesn't list it. dot stow builds the extension in chromium-extension/ and writes the host manifest into each browser in links.extension.user_data_dirs in dot-git.yml.
+Chromium runs this through the link-native-host wrapper; it isn't for running by hand. Reads one length-prefixed JSON request on stdin: resolve {url} replies with the page's dot:// link and whether the Git panel lists it, open {url} opens it in the Git panel and fails rather than opening the browser when the panel doesn't list it, review {url} opens a pull request, from any of its tabs, in a Plannotator review through uwsm-app. dot stow builds the extension in chromium-extension/ and writes the host manifest into each browser in links.extension.user_data_dirs in dot-git.yml.
 
 **Options**
 

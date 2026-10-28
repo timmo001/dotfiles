@@ -2,7 +2,11 @@ const HOST_NAME = "dev.timmo.dot_links";
 
 const MENU_ID = "open-in-git-panel";
 
+const REVIEW_MENU_ID = "review-in-plannotator";
+
 const GITHUB_PAGES = "https://github.com/*";
+
+const GITHUB_PULL_PAGES = "https://github.com/*/*/pull/*";
 
 const CACHE_MS = 60_000;
 
@@ -27,7 +31,7 @@ type DotReply =
   | { readonly ok: false; readonly error: string };
 
 async function sendToDot(message: {
-  readonly type: "resolve" | "open";
+  readonly type: "resolve" | "open" | "review";
   readonly url: string;
 }): Promise<Extract<DotReply, { ok: true }>> {
   const reply: DotReply | undefined = await chrome.runtime.sendNativeMessage(
@@ -114,6 +118,18 @@ async function openInPanel(tab: chrome.tabs.Tab | undefined): Promise<void> {
   await refreshTab(tab);
 }
 
+async function reviewInPlannotator(
+  tab: chrome.tabs.Tab | undefined,
+): Promise<void> {
+  if (!isGitHubPage(tab?.url)) return;
+
+  try {
+    await sendToDot({ type: "review", url: tab.url });
+  } catch (error: unknown) {
+    console.error("Could not open the pull request in Plannotator.", error);
+  }
+}
+
 function setUp(): void {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
@@ -122,6 +138,13 @@ function setUp(): void {
       contexts: ["page", "frame", "selection", "link"],
       documentUrlPatterns: [GITHUB_PAGES],
       enabled: false,
+    });
+
+    chrome.contextMenus.create({
+      id: REVIEW_MENU_ID,
+      title: "Review in Plannotator",
+      contexts: ["page", "frame", "selection", "link"],
+      documentUrlPatterns: [GITHUB_PULL_PAGES],
     });
 
     void refreshActiveTab();
@@ -138,6 +161,8 @@ chrome.action.onClicked.addListener((tab) => void openInPanel(tab));
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === MENU_ID) void openInPanel(tab);
+
+  if (info.menuItemId === REVIEW_MENU_ID) void reviewInPlannotator(tab);
 });
 
 chrome.tabs.onActivated.addListener(() => void refreshActiveTab());

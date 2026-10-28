@@ -1,18 +1,22 @@
 import { Effect, Option, Schema, Stdio, Stream } from "effect";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import {
   gitItemFromGitHubUrl,
+  gitItemGitHubUrl,
   gitItemKey,
   gitItemLink,
   listedGitItems,
   openGitItemInPanel,
+  pullRequestFromGitHubUrl,
 } from "../git/itemLinks.js";
+import { HOME_DIR } from "../lib/paths.js";
 
 const MAX_MESSAGE_BYTES = 1024 * 1024;
 
 /** A request from the dot links extension about the page in a tab. */
 const NativeRequest = Schema.fromJsonString(
   Schema.Struct({
-    type: Schema.Literals(["resolve", "open"]),
+    type: Schema.Literals(["resolve", "open", "review"]),
     url: Schema.String,
   }),
 );
@@ -106,6 +110,43 @@ const writeReply = Effect.fn("LinkNativeHost.writeReply")(function* (
 
 const answer = Effect.gen(function* () {
   const request = yield* readRequest;
+
+  if (request.type === "review") {
+    const pull = pullRequestFromGitHubUrl(request.url);
+
+    if (!pull)
+      return yield* new NativeHostError({ message: "Not a pull request" });
+
+    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+
+    // uwsm-app puts the review in its own unit, so it outlives this host and
+    // Chromium's process group.
+    yield* spawner
+      .spawn(
+        ChildProcess.make(
+          "uwsm-app",
+          ["--", "plannotator", "review", gitItemGitHubUrl(pull)],
+          {
+            cwd: HOME_DIR,
+            stdin: "ignore",
+            stdout: "ignore",
+            stderr: "ignore",
+            detached: true,
+          },
+        ),
+      )
+      .pipe(
+        Effect.flatMap((child) => child.unref),
+        Effect.asVoid,
+        Effect.scoped,
+        Effect.mapError(
+          () => new NativeHostError({ message: "Could not start Plannotator" }),
+        ),
+      );
+
+    return { ok: true } satisfies NativeReply;
+  }
+
   const item = gitItemFromGitHubUrl(request.url);
 
   if (request.type === "resolve") {
@@ -137,6 +178,7 @@ const answer = Effect.gen(function* () {
  * host. Answers one request on stdin, in Chromium's length-prefixed JSON:
  * `resolve` reports a page's `dot://` link and whether the Git panel lists it,
  * and `open` opens it in the Git panel, never falling back to the browser.
+ * `review` opens a pull request in a Plannotator review, from any of its tabs.
  * Stdout carries only the reply.
  */
 export const linkNativeHost = answer.pipe(
