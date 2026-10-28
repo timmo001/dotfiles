@@ -11,6 +11,7 @@ Plugins provide context, evidence, or enforcement hooks for OpenCode. Server plu
 
 | Plugin | Description |
 | --- | --- |
+| [`cli-tools`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/cli-tools.ts) | Exposes the dot, Context and Notes CLIs as typed Code Mode tools |
 | [`commit-context`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/commit-context.ts) | Injects session-attributed commit scope into commit command prompts |
 | [`context-capture`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/context-capture.ts) | Opt-in capture of the assembled starter context for token profiling |
 | [`env-protection`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/env-protection.ts) | Blocks direct access to .env files, and any extra secret files listed in env-protection.yml, to prevent leaking secrets |
