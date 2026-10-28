@@ -5,7 +5,7 @@
     "": {
       "name": "opencode-plugins",
       "dependencies": {
-        "@timmo001/effect-gh": "0.7.1",
+        "@timmo001/effect-gh": "0.8.0",
         "@timmo001/effect-ha-bridge": "1.4.1",
         "@timmo001/effect-herdr": "0.9.0-timmo001.4",
         "@timmo001/effect-system-bridge": "5.21.1",
@@ -300,7 +300,7 @@
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
-    "@timmo001/effect-gh": ["@timmo001/effect-gh@0.7.1", "", { "peerDependencies": { "effect": "4.0.6" } }, "sha512-BXfHxbLknmHbwdxU6UlrPo8LOIE3ZrZ/6YYYdWxJvgTIwvMZpUFKzCZJA2aHtuiwPZ6ICZHW4ZyeQ8fT3RnvJQ=="],
+    "@timmo001/effect-gh": ["@timmo001/effect-gh@0.8.0", "", { "dependencies": { "graphql": "17.0.2" }, "peerDependencies": { "effect": "4.0.7" } }, "sha512-Yfdp3RDr5DWs4jQ7MaPoMPd/l62M6rtFfYt1LpwnbvQj0PwQUIPsCimjFpyCAb5yiEYNvsoAkFXSFCFuGNA6uw=="],
 
     "@timmo001/effect-ha": ["@timmo001/effect-ha@1.4.1", "", { "peerDependencies": { "effect": "4.0.4" } }, "sha512-zzaF8jmMzDnNyF8blw9KhIyvcqBKYbO0e0Zb6FMzR1CKG86eGGesc3AXfL+xqjstzTkl6UxTPk8tkFoST/sy9A=="],
 
@@ -507,6 +507,8 @@
     "google-logging-utils": ["google-logging-utils@1.2.0", "", {}, "sha512-WE9av4wKDZgRjBwgVUabocx8T6/7o3Ca1Fat46FXDhXVAFibzNadedcOXrdgd1Kzmk8tsk/9ZH89Wyf/SqeZ3A=="],
 
     "graceful-fs": ["graceful-fs@4.2.11", "", {}, "sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ=="],
+
+    "graphql": ["graphql@17.0.2", "", {}, "sha512-FRWbddMxfkjiB7z+aQDWIR+E34xo9I8c9mtK2RPv8PmMzKRvrdsreHL/Ui/TmwHJfhHChEtsFPyMHKI+xuarQQ=="],
 
     "gtoken": ["gtoken@8.0.0", "", { "dependencies": { "gaxios": "^7.0.0", "jws": "^4.0.0" } }, "sha512-+CqsMbHPiSTdtSO14O51eMNlrp9N79gmeqmXeouJOhfucAedHw9noVe/n5uJk3tbKE6a+6ZCQg3RPhVhHByAIw=="],
 

@@ -6,7 +6,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@timmo001/effect-gh": "0.7.1",
+    "@timmo001/effect-gh": "0.8.0",
     "@timmo001/effect-ha-bridge": "1.4.1",
     "@timmo001/effect-herdr": "0.9.0-timmo001.4",
     "@timmo001/effect-system-bridge": "5.21.1",
