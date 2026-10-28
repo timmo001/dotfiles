@@ -8,7 +8,7 @@
         "@timmo001/effect-gh": "0.8.0",
         "@timmo001/effect-ha-bridge": "1.4.1",
         "@timmo001/effect-herdr": "0.9.0-timmo001.4",
-        "@timmo001/effect-system-bridge": "5.21.1",
+        "@timmo001/effect-system-bridge": "5.22.0",
         "@timmo001/effect-triage-client": "0.20.0",
         "@timmo001/effect-upnext": "2.2.0",
       },
@@ -308,7 +308,7 @@
 
     "@timmo001/effect-herdr": ["@timmo001/effect-herdr@0.9.0-timmo001.4", "", { "dependencies": { "@effect/platform-node-shared": "4.0.6", "ajv": "8.20.0", "effect": "4.0.6" } }, "sha512-dWEkLWiZO0eswSFJZupNK4zuMNGNZPfHx58sVxxf3TvJW46bhqt1DPqgSFeHG2G9CuIiqcQNrvHDpBJ3cY4dXQ=="],
 
-    "@timmo001/effect-system-bridge": ["@timmo001/effect-system-bridge@5.21.1", "", { "peerDependencies": { "effect": "4.0.6" } }, "sha512-YLA4fPUeRBd2T39IQGXo/jabC5AucCNaB4XJGWHFTQtIW3Uihx5imcF2lRoyUONU5uQBm9Yxzn4tYOagmWhkcA=="],
+    "@timmo001/effect-system-bridge": ["@timmo001/effect-system-bridge@5.22.0", "", { "peerDependencies": { "effect": "4.0.6" } }, "sha512-uoBVEM618TZDJmTIqQHis7q1oxHWNTHMzn246b30XmZYDMrowhVkp49rtdZh6+yLt1wZGS/thdg1tpok0F3nxQ=="],
 
     "@timmo001/effect-triage": ["@timmo001/effect-triage@0.20.0", "", { "peerDependencies": { "effect": "4.0.5" } }, "sha512-RNzuhr7dbffbxQ79gZXGpAzSp/2g4MaLWetGxYVy1mRSGNCOIebUHCI9bWbuvKmIp4C2KrQz7AzZMSyqliefjg=="],
 
