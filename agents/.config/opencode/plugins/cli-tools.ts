@@ -255,6 +255,7 @@ export default Plugin.define({
       yield* context.tool.hook("execute.after", (event) =>
         Effect.sync(() => {
           if (event.tool !== "shell" && event.tool !== "bash") return;
+
           if (event.status !== "completed") return;
 
           const args = argRecord(event.input);
