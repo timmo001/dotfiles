@@ -12,13 +12,12 @@
     "prepare": "effect-tsgo patch --typescript --force=false"
   },
   "dependencies": {
-    "@effect/platform-node": "4.1.4",
-    "@timmo001/effect-gh": "0.13.2",
-    "@timmo001/effect-ha-bridge": "1.8.0",
-    "@timmo001/effect-herdr": "0.9.0-timmo001.6",
-    "@timmo001/effect-upnext": "2.3.0",
-    "@timmo001/groundwork-report": "0.27.0",
-    "effect": "4.1.4",
+    "@effect/platform-node": "4.1.1",
+    "@timmo001/effect-gh": "0.9.2",
+    "@timmo001/effect-ha-bridge": "1.5.0",
+    "@timmo001/effect-herdr": "0.9.0-timmo001.5",
+    "effect": "4.1.1",
+    "fast-xml-parser": "^5.11.1",
     "fuse.js": "7.5.0",
     "semver": "^7.8.5",
     "smol-toml": "^1.8.0"
