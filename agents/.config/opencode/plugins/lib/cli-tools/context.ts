@@ -34,7 +34,8 @@ const tool = clientTools(Layer.empty);
 export const contextNamespace: ClientNamespace = {
   kind: "client",
   command: "context",
-  description: "The Context CLI: git branch context and tech-stack detection for the session's directory.",
+  description:
+    "Branch context and tech-stack detection through @timmo001/effect-context, in-process, for the session's directory.",
   available: commandExists("git"),
   tools: [
     tool({

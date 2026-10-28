@@ -40,7 +40,7 @@ export const notesNamespace: ClientNamespace = {
   kind: "client",
   command: "notes",
   description:
-    "The Notes CLI: read, search and change the repository's Markdown notes and handoffs. Changes are committed and pushed.",
+    "Repository notes through @timmo001/effect-notes, in-process: read, search and change the repository's Markdown notes and handoffs. Changes are committed and pushed.",
   available: commandExists("git"),
   tools: [
     tool({
