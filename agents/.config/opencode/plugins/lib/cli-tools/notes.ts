@@ -29,17 +29,12 @@ export const notesTools: readonly CliTool[] = [
   }),
   defineCliTool({
     name: "context",
-    description: "Resolve the project-note context for the session's repository.",
+    description:
+      "Resolve the project-note context for the session's repository: its owner/repo slug, notes path and notes.",
     access: "read",
     json: true,
-    input: Schema.Struct({
-      command: Schema.optionalKey(Schema.String).annotate({
-        description: "Integration command name requesting context",
-      }),
-    }),
-    invocation: (input) => ({
-      args: ["context", "--json", ...valueFlag("command", input.command)],
-    }),
+    input: Schema.Struct({}),
+    invocation: () => ({ args: ["context", "--json", "--command", "codemode"] }),
   }),
   defineCliTool({
     name: "list",
@@ -141,11 +136,11 @@ export const notesTools: readonly CliTool[] = [
       name: Schema.String.annotate({ description: "Note name" }),
       content: Schema.String.annotate({ description: "The note body" }),
       description: Schema.optionalKey(Schema.String).annotate({ description: "Note description" }),
-      repository: Schema.optionalKey(Schema.String).annotate({
-        description: "Repository scope for the new note (default: the session's repository)",
+      repository: Schema.String.annotate({
+        description: "Repository scope for the new note, such as timmo001/dotfiles, from targets or context",
       }),
       kind: Schema.optionalKey(Schema.Literals(["note", "handoff"])).annotate({
-        description: "Note template kind",
+        description: "Note template kind (default: note)",
       }),
     }),
     invocation: (input) => ({
@@ -156,8 +151,10 @@ export const notesTools: readonly CliTool[] = [
         "--name",
         input.name,
         ...valueFlag("description", input.description),
-        ...valueFlag("repository", input.repository),
-        ...valueFlag("kind", input.kind),
+        "--repository",
+        input.repository,
+        "--kind",
+        input.kind ?? "note",
       ],
       stdin: input.content,
     }),
