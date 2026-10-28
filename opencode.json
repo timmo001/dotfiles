@@ -166,11 +166,6 @@
     },
     {
       "action": "read",
-      "resource": "~/.plannotator/**",
-      "effect": "allow"
-    },
-    {
-      "action": "read",
       "resource": "~/repos/skills",
       "effect": "allow"
     },
@@ -282,11 +277,6 @@
     {
       "action": "edit",
       "resource": "~/.local/share/zsh/site-functions/**",
-      "effect": "deny"
-    },
-    {
-      "action": "edit",
-      "resource": "~/.plannotator/**",
       "effect": "deny"
     },
     {
@@ -447,11 +437,6 @@
     {
       "action": "external_directory",
       "resource": "~/.local/share/zsh/site-functions/**",
-      "effect": "allow"
-    },
-    {
-      "action": "external_directory",
-      "resource": "~/.plannotator/**",
       "effect": "allow"
     },
     {
