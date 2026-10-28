@@ -18,6 +18,9 @@ export const CliInput = Schema.Record(Schema.String, Schema.Json);
 /** Tool input as JSON, before each tool decodes it with its own schema. */
 export type CliInput = typeof CliInput.Type;
 
+/** Reject keys a tool doesn't take, so a misspelt option fails instead of being dropped. */
+const strictInput = { onExcessProperty: "error" } as const;
+
 /** One CLI command exposed as a Code Mode tool. */
 export interface CliTool {
   readonly name: string;
@@ -50,7 +53,7 @@ export const defineCliTool = <S extends Schema.Codec<any, any>>(tool: {
   pinned: tool.pinned ?? false,
   timeout: tool.timeout ?? "2 minutes",
   invocation: (input) =>
-    Schema.decodeUnknownEffect(tool.input)(input).pipe(
+    Schema.decodeUnknownEffect(tool.input)(input, strictInput).pipe(
       Effect.map(tool.invocation),
       Effect.mapError(
         (error) => new Tool.Error({ message: `Invalid input for ${tool.name}: ${error.message}` }),
@@ -169,7 +172,7 @@ export const clientTools =
     input: tool.input,
     available: tool.available,
     prepare: (input, context) =>
-      Schema.decodeUnknownEffect(tool.input)(input).pipe(
+      Schema.decodeUnknownEffect(tool.input)(input, strictInput).pipe(
         Effect.mapError(
           (error) => new Tool.Error({ message: `Invalid input for ${tool.name}: ${error.message}` }),
         ),
@@ -231,6 +234,7 @@ export const runCliText = (
     readonly stdin?: string;
     readonly timeout?: Duration.Input;
     readonly exitCodes?: readonly number[];
+    readonly mergeStderr?: boolean;
   } = {},
 ) =>
   runCli(command, args, { ...options, timeout: options.timeout ?? "2 minutes" }).pipe(
@@ -256,6 +260,7 @@ export const runCliOutput = (
     readonly timeout?: Duration.Input;
     readonly json?: boolean;
     readonly exitCodes?: readonly number[];
+    readonly mergeStderr?: boolean;
   } = {},
 ) =>
   runCliText(command, args, options).pipe(
@@ -285,7 +290,13 @@ export interface CliRun {
 export const runCli = (
   command: string,
   args: readonly string[],
-  options: { readonly cwd?: string; readonly stdin?: string; readonly timeout: Duration.Input },
+  options: {
+    readonly cwd?: string;
+    readonly stdin?: string;
+    readonly timeout: Duration.Input;
+    /** Interleave stderr into stdout, for commands such as test runners that report on stderr. */
+    readonly mergeStderr?: boolean;
+  },
 ) =>
   Effect.gen(function* () {
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
@@ -303,6 +314,15 @@ export const runCli = (
         stderr: "pipe",
       }),
     );
+
+    if (options.mergeStderr) {
+      const [all, exitCode] = yield* Effect.all(
+        [proc.all.pipe(Stream.decodeText(), Stream.mkString), proc.exitCode],
+        { concurrency: "unbounded" },
+      );
+
+      return { stdout: all, stderr: "", exitCode: Number(exitCode) } satisfies CliRun;
+    }
 
     const [stdout, stderr, exitCode] = yield* Effect.all(
       [

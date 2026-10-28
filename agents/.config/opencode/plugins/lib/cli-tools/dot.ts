@@ -39,6 +39,16 @@ const invocation =
   (argv: readonly string[], params: readonly (typeof Param.Type)[], json: boolean) =>
   (input: CliInput) =>
     Schema.decodeUnknownEffect(Input)(input).pipe(
+      Effect.mapError((error) => new Tool.Error({ message: `Invalid input: ${error.message}` })),
+      Effect.filterOrFail(
+        (record) => Object.keys(record).every((key) => params.some((param) => param.key === key)),
+        (record) => {
+          const unknown = Object.keys(record).filter((key) => !params.some((param) => param.key === key));
+          const known = params.map((param) => param.key).join(", ") || "none";
+
+          return new Tool.Error({ message: `Unknown input ${unknown.join(", ")}; this tool takes: ${known}` });
+        },
+      ),
       Effect.map((record) => {
         const flags: string[] = [];
         const positional: string[] = [];
@@ -60,7 +70,6 @@ const invocation =
           args: [...argv, ...positional, ...flags, ...(json ? ["--json"] : [])],
         };
       }),
-      Effect.mapError((error) => new Tool.Error({ message: `Invalid input: ${error.message}` })),
     );
 
 /**

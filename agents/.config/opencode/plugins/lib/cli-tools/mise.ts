@@ -15,8 +15,17 @@ const tools = Schema.Array(Schema.String).annotate({ description: "Tools such as
 const cwd = (input: { readonly directory?: string }, context: { readonly directory: string }) =>
   input.directory ?? context.directory;
 
-const mise = (args: readonly string[], dir: string, options: { json?: boolean; timeout?: Duration.Input } = {}) =>
-  runCliOutput("mise", ["--yes", ...args], { cwd: dir, json: options.json, timeout: options.timeout });
+const mise = (
+  args: readonly string[],
+  dir: string,
+  options: { json?: boolean; timeout?: Duration.Input; mergeStderr?: boolean } = {},
+) =>
+  runCliOutput("mise", ["--yes", ...args], {
+    cwd: dir,
+    json: options.json,
+    timeout: options.timeout,
+    mergeStderr: options.mergeStderr,
+  });
 
 const Variables = Schema.Record(Schema.String, Schema.String);
 
@@ -110,7 +119,7 @@ export const miseNamespace: ClientNamespace = {
         mise(
           ["run", ...input.tasks.flatMap((task, index) => [...(index > 0 ? [":::"] : []), task.name, ...(task.args ?? [])])],
           cwd(input, context),
-          { timeout: "30 minutes" },
+          { timeout: "30 minutes", mergeStderr: true },
         ),
     }),
     tool({
