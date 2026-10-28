@@ -94,8 +94,9 @@ export function itemAgentPrompt(
         : [
             `Review pull request ${name}: ${url}`,
             SKILLS,
-            `Read it remotely without switching branches: \`${view} --json title,body,state,author,reviews,comments\`, \`gh pr diff ${item.number} --repo ${item.repo}\` and \`gh pr checks ${item.number} --repo ${item.repo}\`. Present your findings before anything else.`,
-            `${UNTRUSTED("pull request")} Don't post a review or comment on GitHub without asking me first.`,
+            `Read it in full first: \`${view} --json title,body,state,author,reviews,comments\`, its review threads, \`gh pr diff ${item.number} --repo ${item.repo}\` and \`gh pr checks ${item.number} --repo ${item.repo}\`.`,
+            `Then test it locally in a worktree on its head rather than switching the main checkout: fetch it with \`git fetch <remote for ${item.repo}> pull/${item.number}/head:pr-${item.number} --force\`, create the worktree the way the repository's skills and AGENTS.md say (such as \`herdr worktree\` under Herdr) and move this session into it. When the change is visible or interactive, browser test it with the repository's browser skill and compare against the base branch; you have my go-ahead for both. Tell me before removing the worktree.`,
+            `Present your findings before anything else. ${UNTRUSTED("pull request")} Don't post a review or comment on GitHub without asking me first.`,
           ]
       : ownership.mine
         ? [
