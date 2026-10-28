@@ -1,0 +1,9 @@
+// Hokum's configuration. The settings window edits this file too, keeping your comments.
+// Reference: https://github.com/anomalyco/hokum/blob/dev/docs/theming.md
+// The Omarchy theme is rendered from omarchy/.config/omarchy/themed/hokum.kdl.tpl on every
+// theme change, and Hokum reloads it when the file changes.
+theme "~/.local/state/omarchy/current/theme/hokum.kdl"
+
+behaviour {
+    stay 4
+}
