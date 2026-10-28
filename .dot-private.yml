@@ -9,6 +9,7 @@ stow:
   - agents
   - dot-config
   - git
+  - git--nas
   - herdr
   - scripts
   - systemd--nas
