@@ -48,10 +48,13 @@ export const upnextNamespace: ClientNamespace = {
       description: "Check every source, or one, for new items now. With open, live channels set to auto-open are opened.",
       access: "write",
       timeout: "5 minutes",
-      input: RecheckRequest,
+      input: Schema.Struct({
+        source: RecheckRequest.fields.source,
+        open: Schema.optionalKey(Schema.Boolean).annotate({ description: "Open live channels set to auto-open; false by default" }),
+      }),
       resource: (input) => (input.open ? "open" : "check"),
       summary: (input) => `recheck ${input.source ?? "every source"}${input.open ? " and open live channels" : ""}`,
-      run: (input) => withUpnext((client) => client.Recheck(input)),
+      run: (input) => withUpnext((client) => client.Recheck({ ...input, open: input.open ?? false })),
     }),
     tool({
       name: "queue_add",
