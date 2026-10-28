@@ -5,15 +5,15 @@
 import { Plugin } from "@opencode/plugin/effect";
 import { Tool } from "@opencode/schema/tool";
 import { Effect, Result, Schema } from "effect";
-import { contextTools } from "./lib/cli-tools/context";
-import { ghNamespace } from "./lib/cli-tools/gh";
+import { contextNamespace } from "./lib/cli-tools/context";
+import { ghJobs, ghNamespace } from "./lib/cli-tools/gh";
 import { haBridgeNamespace } from "./lib/cli-tools/ha-bridge";
 import { herdrNamespace } from "./lib/cli-tools/herdr";
 import { hyprctlNamespace } from "./lib/cli-tools/hyprctl";
 import { loadDotTools } from "./lib/cli-tools/dot";
 import { jobsNamespace } from "./lib/cli-tools/jobs";
 import { miseNamespace } from "./lib/cli-tools/mise";
-import { notesTools } from "./lib/cli-tools/notes";
+import { notesNamespace } from "./lib/cli-tools/notes";
 import { omarchyNamespace } from "./lib/cli-tools/omarchy";
 import { pitchforkNamespace } from "./lib/cli-tools/pitchfork";
 import { systemBridgeNamespace } from "./lib/cli-tools/system-bridge";
@@ -48,19 +48,8 @@ export default Plugin.define({
             "The dot dotfiles CLI: tracked repositories, pull request queues, sessions, services, Herdr, skills and machine health.",
           tools: Result.isSuccess(dotTools) ? dotTools.success : [],
         },
-        {
-          kind: "cli",
-          command: "context",
-          description: "The Context CLI: git branch context and tech-stack detection for the session's directory.",
-          tools: contextTools,
-        },
-        {
-          kind: "cli",
-          command: "notes",
-          description:
-            "The Notes CLI: read, search and change the repository's Markdown notes and handoffs. Changes are committed and pushed.",
-          tools: notesTools,
-        },
+        notesNamespace,
+        contextNamespace,
         triageNamespace,
         ghNamespace,
         herdrNamespace,
@@ -76,7 +65,10 @@ export default Plugin.define({
 
       const namespaces: readonly Namespace[] = [
         ...ownNamespaces,
-        jobsNamespace(ownNamespaces.filter((namespace): namespace is CliNamespace => namespace.kind === "cli")),
+        jobsNamespace([
+          ...ownNamespaces.filter((namespace): namespace is CliNamespace => namespace.kind === "cli"),
+          ghJobs,
+        ]),
       ];
 
       // OpenCode's prompt only shows the action for plugin permissions, so the action names the

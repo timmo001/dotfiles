@@ -1,5 +1,7 @@
-import { Schema } from "effect";
-import { type CliTool, defineCliTool, switchFlag, valueFlag } from "./tool";
+import { ContextLayer, gitContext, stackContext } from "@timmo001/effect-context";
+import { Effect, Layer, Schema } from "effect";
+import { resolve } from "node:path";
+import { type ClientNamespace, clientTools, commandExists } from "./tool";
 
 const optionalBoolean = (description: string) =>
   Schema.optionalKey(Schema.Boolean).annotate({ description });
@@ -22,47 +24,52 @@ const GitInput = Schema.Struct({
 
 const StackInput = Schema.Struct({
   dir: Schema.optionalKey(Schema.String).annotate({
-    description: "Directory to inspect (default: the session's directory)",
+    description: "Directory to inspect, relative to the session's directory (default: the session's directory)",
   }),
 });
 
-/** Context CLI commands exposed as Code Mode tools. */
-export const contextTools: readonly CliTool[] = [
-  defineCliTool({
-    name: "git",
-    description:
-      "Branch context for the session's repository: branch and base, HEAD, ahead/behind, pull request, working-tree status, branch work scope and recent commits.",
-    access: "read",
-    pinned: true,
-    json: true,
-    input: GitInput,
-    invocation: (input) => ({
-      args: [
-        "git",
-        "--json",
-        ...switchFlag("comments", input.comments),
-        ...switchFlag("reviews", input.reviews),
-        ...switchFlag("labels", input.labels),
-        ...switchFlag("checks", input.checks),
-        ...switchFlag("no-description", input.noDescription),
-        ...switchFlag("no-pr", input.noPr),
-        ...switchFlag("remotes", input.remotes),
-        ...switchFlag("no-branch-metadata", input.noBranchMetadata),
-        ...switchFlag("no-status", input.noStatus),
-        ...switchFlag("no-work-scope", input.noWorkScope),
-        ...valueFlag("since", input.since),
-      ],
+const tool = clientTools(Layer.empty);
+
+/** Git branch and tech-stack context, run in-process through @timmo001/effect-context. */
+export const contextNamespace: ClientNamespace = {
+  kind: "client",
+  command: "context",
+  description: "The Context CLI: git branch context and tech-stack detection for the session's directory.",
+  available: commandExists("git"),
+  tools: [
+    tool({
+      name: "git",
+      description:
+        "Branch context for the session's repository: branch and base, HEAD, ahead/behind, pull request, working-tree status, branch work scope and recent commits.",
+      access: "read",
+      pinned: true,
+      input: GitInput,
+      run: (input, { directory }) =>
+        gitContext({
+          cwd: directory,
+          comments: input.comments ?? false,
+          reviews: input.reviews ?? false,
+          labels: input.labels ?? false,
+          checks: input.checks ?? false,
+          description: !(input.noDescription ?? false),
+          pullRequest: !(input.noPr ?? false),
+          remoteDetails: input.remotes ?? false,
+          branchMetadata: !(input.noBranchMetadata ?? false),
+          status: !(input.noStatus ?? false),
+          workScope: !(input.noWorkScope ?? false),
+          since: input.since,
+        }).pipe(Effect.provide(ContextLayer.make({ cwd: directory }))),
     }),
-  }),
-  defineCliTool({
-    name: "stack",
-    description:
-      "Deterministic tech-stack summary for a directory: languages, ecosystems, tooling and frameworks.",
-    access: "read",
-    json: true,
-    input: StackInput,
-    invocation: (input) => ({
-      args: ["stack", "--json", ...(input.dir === undefined ? [] : [input.dir])],
+    tool({
+      name: "stack",
+      description:
+        "Deterministic tech-stack summary for a directory: languages, ecosystems, tooling and frameworks.",
+      access: "read",
+      input: StackInput,
+      run: (input, { directory }) =>
+        stackContext({ root: resolve(directory, input.dir ?? ".") }).pipe(
+          Effect.provide(ContextLayer.make({ cwd: directory })),
+        ),
     }),
-  }),
-];
+  ],
+};
