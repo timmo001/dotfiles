@@ -63,7 +63,7 @@ const toGhError = (cause: unknown): Tool.Error => {
 
   if (cause instanceof GhCommandError)
     return new Tool.Error({
-      message: `gh exited ${cause.exitCode}\n${tailLines(cause.stderr || cause.stdout)}`,
+      message: `gh exited ${cause.exitCode}\n${tailLines([cause.stderr, cause.stdout].filter(Boolean).join("\n"))}`,
       error: cause,
     });
 
@@ -138,7 +138,7 @@ const ghTool = <S extends Schema.Codec<any, any>, A, E>(tool: {
               classified?.resource ?? (tool.resource === undefined ? repo || undefined : tool.resource(decoded, repo)),
             summary: `${tool.name}${repo ? ` ${repo}` : ""}\n${preview(input)}`,
             run: tool.run(decoded, { cwd: context.directory, repo }).pipe(
-              Effect.map(plain),
+              Effect.map((output) => (output === undefined ? { ok: true } : plain(output))),
               Effect.provide(ghLayer),
               Effect.mapError(toGhError),
               Effect.timeoutOrElse({
@@ -160,6 +160,33 @@ const restTarget = (repo: string) => {
 
   return parts.length === 3 ? { path: parts.slice(1).join("/"), hostname: parts[0] } : { path: repo };
 };
+
+/** A REST request under `repos/OWNER/REPO` of [HOST/]OWNER/REPO; `path` follows the repository, such as `/forks`. */
+const repoRequest = (repo: string, path: string, request: Omit<Api.Request, "endpoint">): Api.Request => {
+  const target = restTarget(repo);
+  const endpoint = `repos/${target.path}${path}`;
+
+  return target.hostname === undefined ? { ...request, endpoint } : { ...request, endpoint, hostname: target.hostname };
+};
+
+const RepositoryResponse = Schema.Struct({
+  full_name: Schema.String,
+  html_url: Schema.String,
+  private: Schema.Boolean,
+  default_branch: Schema.String,
+});
+
+const repositorySummary = (response: typeof RepositoryResponse.Type) => ({
+  repo: response.full_name,
+  url: response.html_url,
+  private: response.private,
+  defaultBranch: response.default_branch,
+});
+
+const flag = (name: string, value: string | undefined) => (value === undefined ? [] : [`--${name}=${value}`]);
+
+const flags = (name: string, values: readonly string[] | undefined) =>
+  (values ?? []).map((value) => `--${name}=${value}`);
 
 const repo = Schema.optionalKey(Schema.String).annotate({
   description: "OWNER/REPO, or HOST/OWNER/REPO. Defaults to the session directory's repository",
@@ -263,21 +290,11 @@ const attach = Effect.fn("gh.attach")(function* (
 const attachOne = (text: string, attachments: AttachmentList, call: GhCall, upload: string | undefined) =>
   attach([text], attachments, call, upload).pipe(Effect.map((texts) => texts[0] ?? text));
 
-const postComment = (repo: string, issue: number, text: string, cwd: string) => {
-  const { path, hostname } = restTarget(repo);
-
-  const request: Api.Request = {
-    endpoint: `repos/${path}/issues/${issue}/comments`,
-    method: "POST",
-    body: { body: text },
-    options: { cwd },
-  };
-
-  return Api.json(
-    hostname === undefined ? request : { ...request, hostname },
+const postComment = (repo: string, issue: number, text: string, cwd: string) =>
+  Api.json(
+    repoRequest(repo, `/issues/${issue}/comments`, { method: "POST", body: { body: text }, options: { cwd } }),
     Schema.Struct({ id: Schema.Int, html_url: Schema.String }),
   ).pipe(Effect.map((comment) => ({ id: comment.id, url: comment.html_url })));
-};
 
 /** An API endpoint with owners, repositories, numbers and SHAs as placeholders, so "always allow" covers its shape. */
 const endpointPattern = (endpoint: string) =>
@@ -367,7 +384,7 @@ export const ghNamespace: ClientNamespace = {
   kind: "client",
   command: "gh",
   description:
-    "GitHub through the gh CLI: pull requests and their reviews, review threads and comments, issues, discussions, releases, Actions runs and code search. `repo` defaults to the session directory's repository. Text writes take `attachments` ([{ path, alt }]), uploaded and swapped in for their local paths, including in reviews, inline review comments and discussions. Prefer the typed tools; `api` (REST) and `graphql` are the escape hatches, and run without asking for GET and HEAD requests and query-only documents.",
+    "GitHub through the gh CLI: repositories (create, edit, fork, delete, read files), pull requests and their reviews, review threads and comments, issues, discussions, labels, releases, Actions runs and search. `repo` defaults to the session directory's repository. Text writes take `attachments` ([{ path, alt }]), uploaded and swapped in for their local paths, including in reviews, inline review comments and discussions. Prefer the typed tools; `api` (REST) and `graphql` are the escape hatches, and run without asking for GET and HEAD requests and query-only documents.",
   available: commandExists("gh"),
   tools: [
     ghTool({
@@ -575,6 +592,151 @@ export const ghNamespace: ClientNamespace = {
         ).pipe(Effect.map((response) => response.resources)),
     }),
     ghTool({
+      name: "repo_list",
+      description: "List an owner's repositories, or yours, most recently pushed first.",
+      access: "read",
+      repo: "none",
+      input: Schema.Struct({
+        owner: Schema.optionalKey(Schema.String).annotate({ description: "A user or organisation. Defaults to you" }),
+        limit: Schema.optionalKey(Schema.Int),
+        visibility: Schema.optionalKey(Schema.Literals(["public", "private", "internal"])),
+        archived: Schema.optionalKey(Schema.Boolean).annotate({
+          description: "Only archived repositories when true, only unarchived ones when false",
+        }),
+        fork: Schema.optionalKey(Schema.Boolean).annotate({
+          description: "Only forks when true, only sources when false",
+        }),
+        language: Schema.optionalKey(Schema.String),
+        topic: Schema.optionalKey(Schema.String),
+      }),
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.json(
+            [
+              "repo",
+              "list",
+              ...(input.owner === undefined ? [] : [input.owner]),
+              "--json=nameWithOwner,description,url,visibility,isArchived,isFork,defaultBranchRef,pushedAt",
+              `--limit=${input.limit ?? 30}`,
+              ...flag("visibility", input.visibility),
+              ...(input.archived === undefined ? [] : [input.archived ? "--archived" : "--no-archived"]),
+              ...(input.fork === undefined ? [] : [input.fork ? "--fork" : "--source"]),
+              ...flag("language", input.language),
+              ...flag("topic", input.topic),
+            ],
+            Schema.Unknown,
+            { cwd: call.cwd },
+          ),
+        ),
+    }),
+    ghTool({
+      name: "repo_read_file",
+      description: "Read a file from a repository on GitHub, at its default branch or a ref, without cloning it.",
+      access: "read",
+      input: Schema.Struct({
+        repo,
+        path: Schema.String.annotate({ description: "The file's path in the repository" }),
+        ref: Schema.optionalKey(Schema.String).annotate({ description: "A branch, tag or commit" }),
+      }),
+      run: (input, call) =>
+        Api.text(
+          repoRequest(call.repo, `/contents/${input.path.split("/").map(encodeURIComponent).join("/")}`, {
+            method: "GET",
+            headers: { Accept: "application/vnd.github.raw" },
+            query: input.ref === undefined ? {} : { ref: input.ref },
+            options: { cwd: call.cwd },
+          }),
+        ),
+    }),
+    ghTool({
+      name: "label_list",
+      description: "List a repository's labels with their colour and description.",
+      access: "read",
+      input: Schema.Struct({ repo, limit: Schema.optionalKey(Schema.Int) }),
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.json(
+            ["label", "list", `--repo=${call.repo}`, "--json=name,color,description", `--limit=${input.limit ?? 100}`],
+            Schema.Unknown,
+            { cwd: call.cwd },
+          ),
+        ),
+    }),
+    ghTool({
+      name: "workflow_list",
+      description: "List a repository's Actions workflows with their ID, file path and state.",
+      access: "read",
+      input: Schema.Struct({ repo, all: Schema.optionalKey(Schema.Boolean).annotate({ description: "Include disabled workflows" }) }),
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.json(
+            ["workflow", "list", `--repo=${call.repo}`, "--json=id,name,path,state", ...(input.all ? ["--all"] : [])],
+            Schema.Unknown,
+            { cwd: call.cwd },
+          ),
+        ),
+    }),
+    ghTool({
+      name: "search_issues",
+      description:
+        "Search issues or pull requests across GitHub with GitHub search syntax, such as is:open author:@me, optionally in one owner or repository.",
+      access: "read",
+      repo: "none",
+      input: Schema.Struct({
+        query: Schema.String,
+        type: Schema.optionalKey(Schema.Literals(["issues", "prs"])).annotate({ description: "issues by default" }),
+        owner: Schema.optionalKey(Schema.String),
+        repo: Schema.optionalKey(Schema.String).annotate({ description: "Only this OWNER/REPO" }),
+        state: Schema.optionalKey(Schema.Literals(["open", "closed"])),
+        limit: Schema.optionalKey(Schema.Int),
+      }),
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.json(
+            [
+              "search",
+              input.type ?? "issues",
+              "--json=number,title,url,state,repository,author,labels,updatedAt",
+              `--limit=${input.limit ?? 30}`,
+              ...flag("owner", input.owner),
+              ...flag("repo", input.repo),
+              ...flag("state", input.state),
+              "--",
+              input.query,
+            ],
+            Schema.Unknown,
+            { cwd: call.cwd },
+          ),
+        ),
+    }),
+    ghTool({
+      name: "search_repos",
+      description: "Search repositories across GitHub with GitHub search syntax, optionally in one owner.",
+      access: "read",
+      repo: "none",
+      input: Schema.Struct({
+        query: Schema.String,
+        owner: Schema.optionalKey(Schema.String),
+        limit: Schema.optionalKey(Schema.Int),
+      }),
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.json(
+            [
+              "search",
+              "repos",
+              "--json=fullName,description,url,visibility,isArchived,stargazersCount,updatedAt",
+              `--limit=${input.limit ?? 30}`,
+              ...flag("owner", input.owner),
+              "--",
+              input.query,
+            ],
+            Schema.Unknown,
+            { cwd: call.cwd },
+          ),
+        ),
+    }),
+    ghTool({
       name: "run_list",
       description: "List recent Actions runs, 20 by default, newest first.",
       access: "read",
@@ -658,21 +820,27 @@ export const ghNamespace: ClientNamespace = {
           if (input.labels !== undefined && input.labels.length > 0)
             yield* PullRequest.edit(created.url, { repository: call.repo, addLabels: input.labels }, { cwd: call.cwd });
 
-          return created;
+          return { number: Number(created.url.split("/").at(-1)), url: created.url };
         }),
     }),
     ghTool({
       name: "pr_edit",
-      description: "Change a pull request's title, body, labels or assignees.",
+      description: "Change a pull request's title, body, base, labels, assignees or requested reviewers.",
       access: "write",
       input: Schema.Struct({
         repo,
         number: selector,
         title: Schema.optionalKey(Schema.String),
         body: Schema.optionalKey(body("description")),
+        base: Schema.optionalKey(Schema.String).annotate({ description: "The branch to merge into" }),
         addLabels: Schema.optionalKey(Schema.Array(Schema.String)),
         removeLabels: Schema.optionalKey(Schema.Array(Schema.String)),
         addAssignees: Schema.optionalKey(Schema.Array(Schema.String)),
+        removeAssignees: Schema.optionalKey(Schema.Array(Schema.String)),
+        addReviewers: Schema.optionalKey(Schema.Array(Schema.String)).annotate({
+          description: "Users, or OWNER/TEAM for teams, to request a review from",
+        }),
+        removeReviewers: Schema.optionalKey(Schema.Array(Schema.String)),
         attachments: Attachments,
         uploadRepository,
       }),
@@ -681,8 +849,107 @@ export const ghNamespace: ClientNamespace = {
           const text =
             input.body === undefined ? undefined : yield* attachOne(input.body, attachments, call, upload);
 
-          yield* PullRequest.edit(pr, { ...input, body: text, repository: call.repo }, { cwd: call.cwd });
+          const changes = [
+            ...flag("title", input.title),
+            ...flag("body", text),
+            ...flag("base", input.base),
+            ...flags("add-label", input.addLabels),
+            ...flags("remove-label", input.removeLabels),
+            ...flags("add-assignee", input.addAssignees),
+            ...flags("remove-assignee", input.removeAssignees),
+            ...flags("add-reviewer", input.addReviewers),
+            ...flags("remove-reviewer", input.removeReviewers),
+          ];
+
+          if (changes.length === 0) return yield* new Tool.Error({ message: "Nothing to change" });
+
+          yield* withGh((gh) =>
+            gh.execute(["pr", "edit", `--repo=${call.repo}`, ...changes, "--", String(pr)], { cwd: call.cwd }),
+          );
         }),
+    }),
+    ghTool({
+      name: "pr_ready",
+      description: "Mark a draft pull request ready for review, or turn it back into a draft with draft.",
+      access: "write",
+      input: Schema.Struct({
+        repo,
+        number: selector,
+        draft: Schema.optionalKey(Schema.Boolean).annotate({ description: "Convert to a draft instead" }),
+      }),
+      resource: (input, repo) => `${repo}${input.draft ? " draft" : ""}`,
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.execute(
+            ["pr", "ready", `--repo=${call.repo}`, ...(input.draft ? ["--undo"] : []), "--", String(input.number)],
+            { cwd: call.cwd },
+          ),
+        ).pipe(Effect.asVoid),
+    }),
+    ghTool({
+      name: "pr_close",
+      description: "Close a pull request without merging, optionally with a comment and deleting its branch.",
+      access: "write",
+      input: Schema.Struct({
+        repo,
+        number: selector,
+        comment: Schema.optionalKey(Schema.String),
+        deleteBranch: Schema.optionalKey(Schema.Boolean),
+      }),
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.execute(
+            [
+              "pr",
+              "close",
+              `--repo=${call.repo}`,
+              ...flag("comment", input.comment),
+              ...(input.deleteBranch ? ["--delete-branch"] : []),
+              "--",
+              String(input.number),
+            ],
+            { cwd: call.cwd },
+          ),
+        ).pipe(Effect.asVoid),
+    }),
+    ghTool({
+      name: "pr_reopen",
+      description: "Reopen a closed pull request, optionally with a comment.",
+      access: "write",
+      input: Schema.Struct({ repo, number: selector, comment: Schema.optionalKey(Schema.String) }),
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.execute(
+            ["pr", "reopen", `--repo=${call.repo}`, ...flag("comment", input.comment), "--", String(input.number)],
+            { cwd: call.cwd },
+          ),
+        ).pipe(Effect.asVoid),
+    }),
+    ghTool({
+      name: "pr_checkout",
+      description:
+        "Check out a pull request's branch in the session directory's checkout, fetching it from a fork when needed.",
+      access: "write",
+      repo: "local",
+      input: Schema.Struct({
+        repo,
+        number: selector,
+        branch: Schema.optionalKey(Schema.String).annotate({ description: "The local branch name to use" }),
+      }),
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.execute(
+            [
+              "pr",
+              "checkout",
+              ...(call.repo ? [`--repo=${call.repo}`] : []),
+              ...flag("branch", input.branch),
+              "--",
+              String(input.number),
+            ],
+            { cwd: call.cwd },
+          ),
+        ).pipe(Effect.map((output) => (output.stdout + output.stderr).trim())),
     }),
     ghTool({
       name: "pr_comment",
@@ -883,11 +1150,12 @@ export const ghNamespace: ClientNamespace = {
           Effect.flatMap((text) =>
             Issue.create({ repo: call.repo, title: input.title, body: text, labels: input.labels }, { cwd: call.cwd }),
           ),
+          Effect.map((created) => ({ number: Number(created.url.split("/").at(-1)), url: created.url })),
         ),
     }),
     ghTool({
       name: "issue_edit",
-      description: "Change an issue's title, body or labels.",
+      description: "Change an issue's title, body, labels, assignees or milestone.",
       access: "write",
       input: Schema.Struct({
         repo,
@@ -896,6 +1164,9 @@ export const ghNamespace: ClientNamespace = {
         body: Schema.optionalKey(body("issue")),
         addLabels: Schema.optionalKey(Schema.Array(Schema.String)),
         removeLabels: Schema.optionalKey(Schema.Array(Schema.String)),
+        addAssignees: Schema.optionalKey(Schema.Array(Schema.String)),
+        removeAssignees: Schema.optionalKey(Schema.Array(Schema.String)),
+        milestone: Schema.optionalKey(Schema.String).annotate({ description: "The milestone's title" }),
         attachments: Attachments,
         uploadRepository,
       }),
@@ -904,7 +1175,21 @@ export const ghNamespace: ClientNamespace = {
           const text =
             input.body === undefined ? undefined : yield* attachOne(input.body, attachments, call, upload);
 
-          yield* Issue.edit(issue, { ...input, body: text, repo: call.repo }, { cwd: call.cwd });
+          const changes = [
+            ...flag("title", input.title),
+            ...flag("body", text),
+            ...flags("add-label", input.addLabels),
+            ...flags("remove-label", input.removeLabels),
+            ...flags("add-assignee", input.addAssignees),
+            ...flags("remove-assignee", input.removeAssignees),
+            ...flag("milestone", input.milestone),
+          ];
+
+          if (changes.length === 0) return yield* new Tool.Error({ message: "Nothing to change" });
+
+          yield* withGh((gh) =>
+            gh.execute(["issue", "edit", `--repo=${call.repo}`, ...changes, "--", String(issue)], { cwd: call.cwd }),
+          );
         }),
     }),
     ghTool({
@@ -945,6 +1230,19 @@ export const ghNamespace: ClientNamespace = {
               "--",
               String(input.number),
             ],
+            { cwd: call.cwd },
+          ),
+        ).pipe(Effect.asVoid),
+    }),
+    ghTool({
+      name: "issue_reopen",
+      description: "Reopen a closed issue, optionally with a comment.",
+      access: "write",
+      input: Schema.Struct({ repo, number: number("issue"), comment: Schema.optionalKey(Schema.String) }),
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.execute(
+            ["issue", "reopen", `--repo=${call.repo}`, ...flag("comment", input.comment), "--", String(input.number)],
             { cwd: call.cwd },
           ),
         ).pipe(Effect.asVoid),
@@ -1050,6 +1348,267 @@ export const ghNamespace: ClientNamespace = {
         force: Schema.optionalKey(Schema.Boolean),
       }),
       run: (input, call) => Label.create({ ...input, repo: call.repo }, { cwd: call.cwd }),
+    }),
+    ghTool({
+      name: "label_delete",
+      description: "Delete a label from a repository, removing it from every issue and pull request.",
+      access: "write",
+      input: Schema.Struct({ repo, name: Schema.String }),
+      resource: (input, repo) => `${repo} ${input.name}`,
+      run: (input, call) => Label.remove({ ...input, repo: call.repo }, { cwd: call.cwd }),
+    }),
+    ghTool({
+      name: "release_delete",
+      description: "Delete a release, and its tag too with cleanupTag.",
+      access: "write",
+      input: Schema.Struct({ repo, tag: Schema.String, cleanupTag: Schema.optionalKey(Schema.Boolean) }),
+      resource: (input, repo) => `${repo} ${input.tag}`,
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.execute(
+            [
+              "release",
+              "delete",
+              `--repo=${call.repo}`,
+              "--yes",
+              ...(input.cleanupTag ? ["--cleanup-tag"] : []),
+              "--",
+              input.tag,
+            ],
+            { cwd: call.cwd },
+          ),
+        ).pipe(Effect.asVoid),
+    }),
+    ghTool({
+      name: "release_download",
+      description:
+        "Download a release's assets matching glob patterns into a directory, relative to the session directory.",
+      access: "write",
+      timeout: "10 minutes",
+      input: Schema.Struct({
+        repo,
+        tag: Schema.String,
+        patterns: Schema.Array(Schema.String).annotate({ description: "Asset name globs, such as *.tar.gz" }),
+        directory: Schema.String,
+      }),
+      run: (input, call) => Release.download({ ...input, repo: call.repo }, { cwd: call.cwd }),
+    }),
+    ghTool({
+      name: "run_cancel",
+      description: "Cancel an Actions run that's queued or in progress.",
+      access: "write",
+      input: Schema.Struct({ repo, runId: Schema.Int }),
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.execute(["run", "cancel", `--repo=${call.repo}`, "--", String(input.runId)], { cwd: call.cwd }),
+        ).pipe(Effect.asVoid),
+    }),
+    ghTool({
+      name: "repo_create",
+      description:
+        "Create a repository on GitHub, optionally from a template or with a README, .gitignore and licence, and return its URL. It isn't cloned; use repo_clone.",
+      access: "write",
+      repo: "none",
+      input: Schema.Struct({
+        name: Schema.String.annotate({ description: "NAME for your account, or OWNER/NAME for an organisation" }),
+        visibility: Schema.Literals(["public", "private", "internal"]),
+        description: Schema.optionalKey(Schema.String),
+        homepage: Schema.optionalKey(Schema.String),
+        readme: Schema.optionalKey(Schema.Boolean).annotate({ description: "Start it with a README" }),
+        gitignore: Schema.optionalKey(Schema.String).annotate({ description: "A .gitignore template, such as Node" }),
+        license: Schema.optionalKey(Schema.String).annotate({ description: "A licence key, such as mit" }),
+        template: Schema.optionalKey(Schema.String).annotate({ description: "An OWNER/REPO template to start from" }),
+        disableIssues: Schema.optionalKey(Schema.Boolean),
+        disableWiki: Schema.optionalKey(Schema.Boolean),
+      }),
+      resource: (input) => `${input.name} ${input.visibility}`,
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.execute(
+            [
+              "repo",
+              "create",
+              input.name,
+              `--${input.visibility}`,
+              ...flag("description", input.description),
+              ...flag("homepage", input.homepage),
+              ...(input.readme ? ["--add-readme"] : []),
+              ...flag("gitignore", input.gitignore),
+              ...flag("license", input.license),
+              ...flag("template", input.template),
+              ...(input.disableIssues ? ["--disable-issues"] : []),
+              ...(input.disableWiki ? ["--disable-wiki"] : []),
+            ],
+            { cwd: call.cwd },
+          ),
+        ).pipe(Effect.map((output) => ({ url: output.stdout.trim() }))),
+    }),
+    ghTool({
+      name: "repo_edit",
+      description:
+        "Change a repository's settings: rename it, its description, homepage, visibility, default branch, features (issues, discussions, wiki, projects), merge options, archived and template state, and topics. Returns the repository.",
+      access: "write",
+      input: Schema.Struct({
+        repo,
+        name: Schema.optionalKey(Schema.String).annotate({ description: "A new name, renaming the repository" }),
+        description: Schema.optionalKey(Schema.String),
+        homepage: Schema.optionalKey(Schema.String),
+        visibility: Schema.optionalKey(Schema.Literals(["public", "private", "internal"])),
+        defaultBranch: Schema.optionalKey(Schema.String),
+        hasIssues: Schema.optionalKey(Schema.Boolean),
+        hasDiscussions: Schema.optionalKey(Schema.Boolean),
+        hasWiki: Schema.optionalKey(Schema.Boolean),
+        hasProjects: Schema.optionalKey(Schema.Boolean),
+        allowSquashMerge: Schema.optionalKey(Schema.Boolean),
+        allowMergeCommit: Schema.optionalKey(Schema.Boolean),
+        allowRebaseMerge: Schema.optionalKey(Schema.Boolean),
+        allowAutoMerge: Schema.optionalKey(Schema.Boolean),
+        allowUpdateBranch: Schema.optionalKey(Schema.Boolean),
+        deleteBranchOnMerge: Schema.optionalKey(Schema.Boolean),
+        archived: Schema.optionalKey(Schema.Boolean).annotate({
+          description: "Archive it, making it read-only, or unarchive it",
+        }),
+        isTemplate: Schema.optionalKey(Schema.Boolean),
+        topics: Schema.optionalKey(Schema.Array(Schema.String)).annotate({
+          description: "Replace every topic with these",
+        }),
+      }),
+      resource: (input, repo) =>
+        [repo, ...(input.visibility === undefined ? [] : [input.visibility]), ...(input.archived ? ["archive"] : [])].join(
+          " ",
+        ),
+      run: ({ topics, ...input }, call) =>
+        Effect.gen(function* () {
+          const patch = Object.fromEntries(
+            Object.entries({
+              name: input.name,
+              description: input.description,
+              homepage: input.homepage,
+              visibility: input.visibility,
+              default_branch: input.defaultBranch,
+              has_issues: input.hasIssues,
+              has_discussions: input.hasDiscussions,
+              has_wiki: input.hasWiki,
+              has_projects: input.hasProjects,
+              allow_squash_merge: input.allowSquashMerge,
+              allow_merge_commit: input.allowMergeCommit,
+              allow_rebase_merge: input.allowRebaseMerge,
+              allow_auto_merge: input.allowAutoMerge,
+              allow_update_branch: input.allowUpdateBranch,
+              delete_branch_on_merge: input.deleteBranchOnMerge,
+              archived: input.archived,
+              is_template: input.isTemplate,
+            }).flatMap(([key, value]) => (value === undefined ? [] : [[key, value] as const])),
+          );
+
+          const changes = Object.keys(patch).length > 0;
+
+          if (!changes && topics === undefined) return yield* new Tool.Error({ message: "Nothing to change" });
+
+          if (topics !== undefined)
+            yield* Api.empty(
+              repoRequest(call.repo, "/topics", { method: "PUT", body: { names: topics }, options: { cwd: call.cwd } }),
+            );
+
+          const response = yield* Api.json(
+            repoRequest(
+              call.repo,
+              "",
+              changes ? { method: "PATCH", body: patch, options: { cwd: call.cwd } } : { method: "GET", options: { cwd: call.cwd } },
+            ),
+            RepositoryResponse,
+          );
+
+          return repositorySummary(response);
+        }),
+    }),
+    ghTool({
+      name: "repo_delete",
+      description:
+        "Delete a repository for good. repo is required here, so it never falls back to the session directory's. Needs the delete_repo scope (gh auth refresh -s delete_repo).",
+      access: "write",
+      input: Schema.Struct({ repo: Schema.String.annotate({ description: "OWNER/REPO, or HOST/OWNER/REPO" }) }),
+      run: (_, call) =>
+        Api.empty(repoRequest(call.repo, "", { method: "DELETE", options: { cwd: call.cwd } })).pipe(
+          Effect.mapError((error) =>
+            error instanceof GhCommandError && error.stdout.includes("Must have admin rights")
+              ? new Tool.Error({
+                  message: `Deleting ${call.repo} needs admin rights and the delete_repo scope. Add the scope with: gh auth refresh -h github.com -s delete_repo`,
+                  error,
+                })
+              : error,
+          ),
+        ),
+    }),
+    ghTool({
+      name: "repo_fork",
+      description:
+        "Fork a repository to your account or an organisation and return the fork. It isn't cloned; use repo_clone.",
+      access: "write",
+      input: Schema.Struct({
+        repo,
+        organization: Schema.optionalKey(Schema.String).annotate({ description: "Fork into this organisation" }),
+        name: Schema.optionalKey(Schema.String).annotate({ description: "A name for the fork" }),
+        defaultBranchOnly: Schema.optionalKey(Schema.Boolean),
+      }),
+      run: (input, call) =>
+        Api.json(
+          repoRequest(call.repo, "/forks", {
+            method: "POST",
+            body: Object.fromEntries(
+              Object.entries({
+                organization: input.organization,
+                name: input.name,
+                default_branch_only: input.defaultBranchOnly,
+              }).flatMap(([key, value]) => (value === undefined ? [] : [[key, value] as const])),
+            ),
+            options: { cwd: call.cwd },
+          }),
+          RepositoryResponse,
+        ).pipe(Effect.map(repositorySummary)),
+    }),
+    ghTool({
+      name: "repo_sync",
+      description: "Bring a fork's branch up to date with its upstream repository on GitHub.",
+      access: "write",
+      input: Schema.Struct({
+        repo: Schema.optionalKey(Schema.String).annotate({
+          description: "The fork's OWNER/REPO. Defaults to the session directory's repository",
+        }),
+        branch: Schema.String,
+      }),
+      resource: (input, repo) => `${repo} ${input.branch}`,
+      run: (input, call) =>
+        Api.json(
+          repoRequest(call.repo, "/merge-upstream", {
+            method: "POST",
+            body: { branch: input.branch },
+            options: { cwd: call.cwd },
+          }),
+          Schema.Struct({ message: Schema.String, merge_type: Schema.optionalKey(Schema.String) }),
+        ),
+    }),
+    ghTool({
+      name: "repo_clone",
+      description: "Clone a repository into a directory, relative to the session directory.",
+      access: "write",
+      repo: "none",
+      timeout: "10 minutes",
+      input: Schema.Struct({
+        repository: Schema.String.annotate({ description: "OWNER/REPO or a clone URL" }),
+        directory: Schema.String,
+        depth: Schema.optionalKey(Schema.Int).annotate({ description: "A shallow clone with this many commits" }),
+      }),
+      resource: (input) => input.repository,
+      run: (input, call) =>
+        Repository.clone(
+          {
+            repository: input.repository,
+            directory: input.directory,
+            gitArgs: input.depth === undefined ? undefined : [`--depth=${input.depth}`],
+          },
+          { cwd: call.cwd, env: { GIT_TERMINAL_PROMPT: "0" } },
+        ).pipe(Effect.map(() => ({ directory: input.directory }))),
     }),
     ghTool({
       name: "upload_attachment",
