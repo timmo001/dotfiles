@@ -13,7 +13,6 @@ import {
   restartStaleServices,
   updateGlobalOpencodePlugins,
   updatePiExtensions,
-  updatePlannotatorPlugins,
 } from "../lib/agentRuntime.js";
 import { agentsSync } from "./AgentsSync.js";
 import { mcpSync } from "../mcp/commands/McpSync.js";
@@ -1623,8 +1622,7 @@ export const update = (updateOpts?: UpdateOptions) =>
                   restartStaleServices,
                   restartStalePitchforkDaemons,
                 ]),
-                // Sequential: both write Pi's package directory
-                Effect.all([updatePiExtensions, updatePlannotatorPlugins]),
+                updatePiExtensions,
               ],
               { concurrency: "unbounded" },
             )).flat(),
