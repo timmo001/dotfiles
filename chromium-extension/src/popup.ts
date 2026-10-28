@@ -1,20 +1,11 @@
 import {
+  type PageOption,
   type PageState,
   isGitHubPage,
-  isPullRequestPage,
+  pageOptions,
   resolvePage,
   sendToDot,
 } from "./dot";
-
-/** One thing the popup offers for the page, and why it's unavailable when it is. */
-interface PageOption {
-  readonly label: string;
-  readonly detail: string;
-  readonly unavailable?: string;
-  /** Shown instead of closing the popup, for options that carry on in the background. */
-  readonly done?: string;
-  readonly run: () => Promise<void>;
-}
 
 const element = <T extends HTMLElement>(id: string, type: new () => T): T => {
   const found = document.getElementById(id);
@@ -32,54 +23,13 @@ function showStatus(message: string, state: "info" | "error" = "info"): void {
   status.dataset.state = state;
 }
 
-const itemName = (url: string) =>
-  /\/issues\/\d+/.test(new URL(url).pathname) ? "issue" : "pull request";
-
-function gitPanelReason(
-  url: string,
-  state: PageState | Error | undefined,
-): string | undefined {
-  if (state === undefined) return "Checking with dot…";
-
-  if (state instanceof Error) return `Couldn't ask dot: ${state.message}`;
-
-  if (!state.link) return "Only issues and pull requests open in the Git panel.";
-
-  if (!state.listed)
-    return `The Git panel doesn't list this ${itemName(url)}. It only shows items from repositories tracked in dot-git.yml.`;
-
-  return undefined;
-}
-
-function agentReason(
-  url: string,
-  state: PageState | Error | undefined,
-): string | undefined {
-  if (state === undefined) return "Checking with dot…";
-
-  if (state instanceof Error) return `Couldn't ask dot: ${state.message}`;
-
-  if (!state.link) return "Agents start from issues and pull requests.";
-
-  if (!state.checkout) {
-    const [, owner, repo] = new URL(url).pathname.split("/");
-
-    return `No tracked checkout of ${owner}/${repo} on this machine. Track it with dot repo induct first.`;
-  }
-
-  return undefined;
-}
-
-const isNotificationsPage = (url: string) =>
-  new URL(url).pathname.startsWith("/notifications");
-
 async function runOption(
   option: PageOption,
   url: string,
   state: PageState | Error | undefined,
 ): Promise<void> {
   try {
-    await option.run();
+    await sendToDot({ type: option.action, url });
   } catch (error: unknown) {
     showStatus(error instanceof Error ? error.message : String(error), "error");
     render(url, state);
@@ -98,52 +48,8 @@ async function runOption(
 }
 
 function render(url: string, state: PageState | Error | undefined): void {
-  const checkout =
-    state instanceof Error || !state?.checkout ? "its checkout" : state.checkout;
-
-  const pageOptions: PageOption[] = [
-    {
-      label: "Open in the Git panel",
-      detail: "Show it in the Git panel in the bar.",
-      unavailable: gitPanelReason(url, state),
-      run: async () => {
-        await sendToDot({ type: "open", url });
-      },
-    },
-    {
-      label: "Review in Plannotator",
-      detail: "Review the diff, then post the review to GitHub.",
-      unavailable: isPullRequestPage(url)
-        ? undefined
-        : "Only pull requests can be reviewed in Plannotator.",
-      run: async () => {
-        await sendToDot({ type: "review", url });
-      },
-    },
-    {
-      label: "Start an agent",
-      detail: `Start OpenCode in ${checkout} on this ${itemName(url)}, using the repository's skills. The prompt depends on whether it's yours.`,
-      unavailable: agentReason(url, state),
-      run: async () => {
-        await sendToDot({ type: "agent", url });
-      },
-    },
-    {
-      label: "Clear dependency notifications",
-      detail:
-        "Run the dependency notification clean-up now instead of waiting for its timer.",
-      unavailable: isNotificationsPage(url)
-        ? undefined
-        : "Only on the notifications page.",
-      done: "Clearing merged dependency updates in the background. Reload the page in a minute.",
-      run: async () => {
-        await sendToDot({ type: "clear-deps", url });
-      },
-    },
-  ];
-
   options.replaceChildren(
-    ...pageOptions.map((option) => {
+    ...pageOptions(url, state).map((option) => {
       const item = document.createElement("li");
       const button = document.createElement("button");
       const label = document.createElement("span");

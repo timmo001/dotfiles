@@ -1,21 +1,23 @@
 import {
+  type PageAction,
   type PageState,
   isGitHubPage,
+  pageOptions,
   resolvePage as askDot,
   sendToDot,
 } from "./dot";
 
-const MENU_ID = "open-in-git-panel";
-
-const REVIEW_MENU_ID = "review-in-plannotator";
-
 const GITHUB_PAGES = "https://github.com/*";
-
-const GITHUB_PULL_PAGES = "https://github.com/*/*/pull/*";
 
 const CACHE_MS = 60_000;
 
 const cache = new Map<string, { state: PageState; at: number }>();
+
+/** The popup's options, whose labels don't depend on the page, used as the right-click menu items. */
+const MENU_OPTIONS = pageOptions("https://github.com/", undefined);
+
+const isPageAction = (id: string | number): id is PageAction =>
+  MENU_OPTIONS.some((option) => option.action === id);
 
 async function resolvePage(url: string): Promise<PageState> {
   const cached = cache.get(url);
@@ -27,12 +29,6 @@ async function resolvePage(url: string): Promise<PageState> {
   cache.set(url, { state, at: Date.now() });
 
   return state;
-}
-
-function pageTitle(state: PageState | undefined): string {
-  if (!state?.link) return "No Git panel link for this page";
-
-  return state.listed ? "Open in the Git panel" : "Not in the Git panel";
 }
 
 async function refreshTab(tab: chrome.tabs.Tab | undefined): Promise<void> {
@@ -51,19 +47,24 @@ async function refreshTab(tab: chrome.tabs.Tab | undefined): Promise<void> {
   await chrome.action.enable(tab.id);
   await chrome.action.setTitle({ tabId: tab.id, title: "dot links" });
 
-  let state: PageState | undefined;
+  let state: PageState | Error;
 
   try {
     state = await resolvePage(tab.url);
   } catch (error: unknown) {
     console.error("Could not ask dot about the page.", error);
+    state = error instanceof Error ? error : new Error(String(error));
   }
 
-  if (tab.active)
-    await chrome.contextMenus.update(MENU_ID, {
-      enabled: state?.listed === true,
-      title: pageTitle(state),
-    });
+  if (!tab.active) return;
+
+  await Promise.all(
+    pageOptions(tab.url, state).map((option) =>
+      chrome.contextMenus.update(option.action, {
+        visible: option.unavailable === undefined,
+      }),
+    ),
+  );
 }
 
 async function refreshActiveTab(): Promise<void> {
@@ -75,48 +76,33 @@ async function refreshActiveTab(): Promise<void> {
   await refreshTab(tab);
 }
 
-async function openInPanel(tab: chrome.tabs.Tab | undefined): Promise<void> {
-  if (!isGitHubPage(tab?.url)) return;
-
-  cache.delete(tab.url);
-
-  try {
-    await sendToDot({ type: "open", url: tab.url });
-  } catch (error: unknown) {
-    console.error("Could not open the page in the Git panel.", error);
-  }
-
-  await refreshTab(tab);
-}
-
-async function reviewInPlannotator(
+async function runAction(
+  action: PageAction,
   tab: chrome.tabs.Tab | undefined,
 ): Promise<void> {
   if (!isGitHubPage(tab?.url)) return;
 
+  if (action === "open") cache.delete(tab.url);
+
   try {
-    await sendToDot({ type: "review", url: tab.url });
+    await sendToDot({ type: action, url: tab.url });
   } catch (error: unknown) {
-    console.error("Could not open the pull request in Plannotator.", error);
+    console.error(`Could not run ${action} for the page.`, error);
   }
+
+  if (action === "open") await refreshTab(tab);
 }
 
 function setUp(): void {
   chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({
-      id: MENU_ID,
-      title: "Open in the Git panel",
-      contexts: ["page", "frame", "selection", "link"],
-      documentUrlPatterns: [GITHUB_PAGES],
-      enabled: false,
-    });
-
-    chrome.contextMenus.create({
-      id: REVIEW_MENU_ID,
-      title: "Review in Plannotator",
-      contexts: ["page", "frame", "selection", "link"],
-      documentUrlPatterns: [GITHUB_PULL_PAGES],
-    });
+    for (const option of MENU_OPTIONS)
+      chrome.contextMenus.create({
+        id: option.action,
+        title: option.label,
+        contexts: ["page", "frame", "selection", "link"],
+        documentUrlPatterns: [GITHUB_PAGES],
+        visible: false,
+      });
 
     void refreshActiveTab();
   });
@@ -129,9 +115,7 @@ chrome.runtime.onInstalled.addListener(setUp);
 chrome.runtime.onStartup.addListener(setUp);
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === MENU_ID) void openInPanel(tab);
-
-  if (info.menuItemId === REVIEW_MENU_ID) void reviewInPlannotator(tab);
+  if (isPageAction(info.menuItemId)) void runAction(info.menuItemId, tab);
 });
 
 chrome.tabs.onActivated.addListener(() => void refreshActiveTab());
