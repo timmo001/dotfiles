@@ -928,27 +928,22 @@ export const ghNamespace: ClientNamespace = {
     ghTool({
       name: "pr_checkout",
       description:
-        "Check out a pull request's branch in the session directory's checkout, fetching it from a fork when needed.",
+        "Check out a pull request's branch in a local checkout of its repository, fetching it from a fork when needed. directory is required, so it never switches the session directory's checkout by accident.",
       access: "write",
-      repo: "local",
+      repo: "none",
       input: Schema.Struct({
-        repo,
+        directory: Schema.String.check(Schema.isStartingWith("/")).annotate({
+          description: "The absolute path of a local checkout of the pull request's repository",
+        }),
         number: selector,
         branch: Schema.optionalKey(Schema.String).annotate({ description: "The local branch name to use" }),
       }),
-      run: (input, call) =>
+      resource: (input) => `${input.directory} ${input.number}`,
+      run: (input) =>
         withGh((gh) =>
-          gh.execute(
-            [
-              "pr",
-              "checkout",
-              ...(call.repo ? [`--repo=${call.repo}`] : []),
-              ...flag("branch", input.branch),
-              "--",
-              String(input.number),
-            ],
-            { cwd: call.cwd },
-          ),
+          gh.execute(["pr", "checkout", ...flag("branch", input.branch), "--", String(input.number)], {
+            cwd: input.directory,
+          }),
         ).pipe(Effect.map((output) => (output.stdout + output.stderr).trim())),
     }),
     ghTool({
