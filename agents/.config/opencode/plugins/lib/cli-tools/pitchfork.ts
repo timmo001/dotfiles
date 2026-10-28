@@ -1,4 +1,5 @@
-import { Layer, Schema } from "effect";
+import { Tool } from "@opencode/schema/tool";
+import { Effect, Layer, Schema } from "effect";
 import { type ClientNamespace, clientTools, commandExists, runCliOutput } from "./tool";
 
 const tool = clientTools(Layer.empty);
@@ -6,6 +7,42 @@ const tool = clientTools(Layer.empty);
 const ids = Schema.NonEmptyArray(Schema.String).annotate({
   description: "Daemon IDs, such as dev or ha-core/dev; short ones resolve from the session's directory",
 });
+
+const Daemons = Schema.Array(Schema.Struct({ id: Schema.String, status: Schema.String }));
+
+const failed = new Set(["errored", "failed"]);
+
+/**
+ * Fail once a daemon that was starting has crashed. `pitchfork start` keeps waiting while a daemon
+ * with `retry` set crashes over and over, so this ends the wait with its last log lines.
+ */
+const watchForCrash = (wanted: readonly string[], cwd: string) =>
+  Effect.gen(function* () {
+    const matches = (id: string) => wanted.some((name) => id === name || id.endsWith(`/${name}`));
+    const started = new Set<string>();
+
+    while (true) {
+      yield* Effect.sleep("1 second");
+
+      const daemons = yield* runCliOutput("pitchfork", ["list", "--json"], { cwd, json: true }).pipe(
+        Effect.flatMap(Schema.decodeUnknownEffect(Daemons)),
+        Effect.orElseSucceed(() => []),
+      );
+
+      for (const daemon of daemons.filter((entry) => matches(entry.id))) {
+        if (!failed.has(daemon.status)) started.add(daemon.id);
+        else if (started.has(daemon.id)) {
+          const logs = yield* runCliOutput("pitchfork", ["logs", "--no-pager", "-n", "20", daemon.id], { cwd }).pipe(
+            Effect.orElseSucceed(() => ""),
+          );
+
+          return yield* Effect.fail(
+            new Tool.Error({ message: `${daemon.id} crashed while starting (${daemon.status}). Its last log lines:\n${String(logs)}` }),
+          );
+        }
+      }
+    }
+  });
 
 const control = (verb: "start" | "stop" | "restart", description: string) =>
   tool({
@@ -16,11 +53,14 @@ const control = (verb: "start" | "stop" | "restart", description: string) =>
     input: Schema.Struct({ ids }),
     resource: (input) => input.ids.join(" "),
     summary: (input) => `pitchfork ${verb} ${input.ids.join(" ")}`,
-    run: (input, context) =>
-      runCliOutput("pitchfork", [verb, ...(verb === "stop" ? [] : ["--quiet"]), ...input.ids], {
+    run: (input, context) => {
+      const run = runCliOutput("pitchfork", [verb, ...(verb === "stop" ? [] : ["--quiet"]), ...input.ids], {
         cwd: context.directory,
         timeout: "5 minutes",
-      }),
+      });
+
+      return verb === "stop" ? run : Effect.raceFirst(run, watchForCrash(input.ids, context.directory));
+    },
   });
 
 /** Dev servers and other daemons run by pitchfork. */
