@@ -45,8 +45,6 @@ import {
 import { fansRun } from "../commands/Fans.js";
 import { tunnelRun } from "../commands/Tunnel.js";
 import { prQueue } from "../commands/PrQueue.js";
-import { briefDismiss, briefFollowUp, briefRun } from "../commands/Brief.js";
-import { reportList, reportRun } from "../commands/Report.js";
 import { prReviews } from "../commands/PrReviews.js";
 import { prWatch } from "../commands/PrWatch.js";
 import { editSkillConsumer, runSkillsMaintenance } from "../commands/Skills.js";
@@ -2468,112 +2466,6 @@ const prCommand = describe(
   "Watch, list, read reviews on and queue pull requests",
 );
 
-const briefCommand = describe(
-  Command.make("brief").pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make(
-          "run",
-          {
-            dryRun: bool(
-              "dry-run",
-              "Print the report instead of posting it or saving state",
-            ),
-          },
-          briefRun,
-        ),
-        "Build the daily brief and post it to the Plannotator Inbox",
-        ["dot brief run", "dot brief run --dry-run"],
-        {
-          description:
-            "Collect open PRs and issues you're involved in, unread notifications and failing CI, score each with the decision model in brief.yml, apply its rules, during work time summarise what people's comments ask of you on the top few with opencode2, then post the report to the \"Daily brief\" Inbox thread. Items ticked in the last report stay hidden until they have new activity. During work time work items come first; outside it they're left out, except crossover items. At work time the report also shows the window since the last work day, today's and the next work day's meetings from the work.calendar in brief.yml, an area tag in emoji form on each item, and context such as merged or stale, followed by Resolved, Your tasks, sections for the areas you work in (from the labels on your recent PRs and reviews) and the work.scopes searches.",
-        },
-      ),
-      describe(
-        Command.make(
-          "dismiss",
-          {
-            id: Argument.String("id").pipe(
-              Argument.withDescription(
-                "Item id from the report, such as pr:owner/repo#12",
-              ),
-            ),
-          },
-          ({ id }) => briefDismiss(id),
-        ),
-        "Hide a brief item until it has new activity",
-        ["dot brief dismiss pr:timmo001/dotfiles#12"],
-      ),
-      describe(
-        Command.make(
-          "follow-up",
-          {
-            dryRun: bool(
-              "dry-run",
-              "Print what would be hidden and each prompt, without changing anything",
-            ),
-            watch: bool(
-              "watch",
-              "Keep running and start agents as soon as a reply lands",
-            ),
-          },
-          briefFollowUp,
-        ),
-        "Hide ticked items and start agents for notes left on the daily brief",
-        [
-          "dot brief follow-up",
-          "dot brief follow-up --dry-run",
-          "dot brief follow-up --watch",
-        ],
-        {
-          description:
-            "Read the brief's Inbox thread for new replies. Items ticked in a reply are hidden straight away, with a reply confirming it. Each note starts an OpenCode agent through dot herdr repo open, in the checkout of the item it names by B number, or the dotfiles checkout otherwise, with the note and the item's context as its prompt. --watch holds one Inbox connection open and waits for replies instead of checking once; the dot-brief-follow-up user service runs it.",
-        },
-      ),
-    ]),
-  ),
-  "Daily brief of GitHub work in the Plannotator Inbox",
-);
-
-const reportCommand = describe(
-  Command.make("report").pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make(
-          "run",
-          {
-            name: Argument.String("name").pipe(
-              Argument.withDescription(
-                "Report file name in ~/.config/dot/reports, without .yml",
-              ),
-            ),
-            dryRun: bool(
-              "dry-run",
-              "Print the Inbox message and write the page without posting or saving state",
-            ),
-          },
-          reportRun,
-        ),
-        "Run a report and post it to the Plannotator Inbox",
-        [
-          "dot report run hass-removal",
-          "dot report run hass-removal --dry-run",
-        ],
-        {
-          description:
-            "Read ~/.config/dot/reports/<name>.yml and run its sections in order. A code section keeps a shallow clone of a GitHub repository under the dot cache, tests each included file against named regexes, puts it in the first bucket whose patterns match, and counts per-file metrics. A github section runs a GitHub issue or pull request search, with {since} set to the last run's date, and can drop results the decision model in models.decision finds irrelevant. A checks section tests whether a file still matches a pattern and shows each finding while it holds. The run is compared with the last one, an optional OpenCode model in models.summary writes a short paragraph about what changed, and the page is saved under ~/.local/state/dot/reports/<name>/ and attached to a message in the report's Inbox thread. The message ends with a question so it waits in the Inbox, and the next run withdraws it if it's still open. With work_time_only, a real run outside work time (days off, out of hours or calendar leave) posts nothing and exits 3.",
-        },
-      ),
-      describe(
-        Command.make("list", {}, () => reportList),
-        "List report files and whether they're valid",
-        ["dot report list"],
-      ),
-    ]),
-  ),
-  "Configurable reports from code scans, GitHub searches and file checks",
-);
-
 const agentOxlintCommand = describe(
   Command.make(
     "oxlint",
@@ -3305,8 +3197,6 @@ export const dotCommand = describe(
       completionsCommand,
       repoCommand,
       prCommand,
-      briefCommand,
-      reportCommand,
       herdr,
       homeAssistantCommand,
       reloadCommand,

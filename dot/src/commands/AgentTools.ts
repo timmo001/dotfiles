@@ -71,7 +71,6 @@ const AGENT_TOOLS = {
   "git issues": { access: "read", omit: ["open"] },
   "git diff": { access: "read" },
   "git log show": { access: "read" },
-  "report list": { access: "read" },
   "skills validate": { access: "read" },
   "skills check": {
     access: "read",
@@ -125,7 +124,6 @@ const AGENT_TOOLS = {
   "homeassistant stop": { access: "write" },
   snapshot: { access: "read" },
   doctor: { access: "read", timeout: "5 minutes" },
-  "report run": { access: "write", timeout: "10 minutes" },
   "services start": { access: "write" },
   "services stop": { access: "write" },
   "session send": { access: "write" },
@@ -155,7 +153,6 @@ const AGENT_TOOLS = {
   "skills consumers add": { access: "write" },
   "skills consumers remove": { access: "write" },
   "notes capture sync": { access: "write", timeout: "5 minutes" },
-  "brief dismiss": { access: "write" },
 } satisfies Readonly<Record<string, AgentToolSpec>>;
 
 /** How one tool input key maps back to a command-line argument or flag. */

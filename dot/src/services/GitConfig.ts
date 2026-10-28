@@ -165,7 +165,7 @@ export const LinkSiteRule = Schema.Struct({
 /** Decoded {@link LinkSiteRule}. */
 export type LinkSiteRule = typeof LinkSiteRule.Type;
 
-/** Default browser routing for links, as the daily brief reports it. */
+/** Default browser routing for links. */
 export const LinkSettings = Schema.Struct({
   /** Browser for links no site rule or repository selects, and for anything that is not a single link. */
   personal: Schema.NonEmptyString,
