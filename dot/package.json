@@ -23,7 +23,7 @@
     "handlebars": "^4.7.9",
     "jsonata": "^2.2.2",
     "jsonc-parser": "^3.3.1",
-    "minimatch": "^10.2.6",
+    "minimatch": "^11.0.0",
     "semver": "^7.8.5",
     "smol-toml": "^1.8.0",
     "yaml": "^2.9.1"
