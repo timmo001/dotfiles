@@ -26,6 +26,10 @@ interface AgentToolSpec {
   readonly timeout?: Duration.Input;
   /** Flags kept out of the tool, such as ones that open a browser or follow output. */
   readonly omit?: readonly string[];
+  /** Exit codes that report an outcome rather than a failure (default: 0 only). */
+  readonly exitCodes?: readonly number[];
+  /** Replaces the command's short description, when the tool behaves differently. */
+  readonly description?: string;
 }
 
 const DEFAULT_TIMEOUT: Duration.Input = "2 minutes";
@@ -43,6 +47,14 @@ const AGENT_TOOLS = {
   "services status": { access: "read", pinned: true },
   "session queue": { access: "read" },
   "pr reviews": { access: "read" },
+  "pr watch": {
+    access: "read",
+    timeout: "2 hours",
+    omit: ["output", "interval"],
+    exitCodes: [0, 1, 3, 124],
+    description:
+      "Wait for pull request runs, checks and reviews to settle, or for a stopOn point, up to timeout (default: 60 minutes). Returns the outcome, exitCode (0 passed, 1 failed, 3 stopped early with work pending, 124 timed out), open threads, review body findings and the report path holding failed logs and the full review dump.",
+  },
   "pr list": { access: "read", omit: ["open"] },
   "agent lint": { access: "read", timeout: "10 minutes" },
   "link git": { access: "read" },
@@ -107,6 +119,7 @@ export const AgentToolEntry = Schema.Struct({
   access: Schema.Literals(["read", "write"]),
   pinned: Schema.Boolean,
   timeoutMillis: Schema.Int,
+  exitCodes: Schema.Array(Schema.Int),
   json: Schema.Boolean,
   input: Schema.Unknown,
   params: Schema.Array(AgentToolParam),
@@ -237,10 +250,12 @@ const describeTool = Effect.fnUntraced(function* (
   return {
     name: argv.join("_").replaceAll("-", "_"),
     argv,
-    description: command.shortDescription ?? command.description ?? "",
+    description:
+      spec.description ?? command.shortDescription ?? command.description ?? "",
     access: spec.access,
     pinned: spec.pinned ?? false,
     timeoutMillis: Duration.toMillis(spec.timeout ?? DEFAULT_TIMEOUT),
+    exitCodes: spec.exitCodes ?? [0],
     json,
     input: schema,
     params,

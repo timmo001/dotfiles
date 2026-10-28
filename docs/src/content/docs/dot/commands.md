@@ -2604,6 +2604,7 @@ Follow every GitHub Actions run on each pull request's head commit, including Co
 | `--interval` `<integer>` | Seconds between polls |
 | `--log-lines` `<integer>` | Trailing failed-log lines kept per job; 0 keeps everything |
 | `--output` `<path>` | Report path (default: ~/.local/state/dot/pr-watch/<repo>-<prs>-<time>.md) |
+| `--json` | Print one JSON summary at the end instead of streaming progress |
 | `--help` `-h` | Show help information |
 
 **Arguments**

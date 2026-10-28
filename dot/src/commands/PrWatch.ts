@@ -50,6 +50,8 @@ export interface PrWatchOptions {
   readonly logLines: number;
   /** Report file path; defaults to a timestamped file under the dot state directory. */
   readonly output: string | undefined;
+  /** Print one JSON summary at the end instead of streaming progress. */
+  readonly json: boolean;
 }
 
 const STABLE_POLLS = 2;
@@ -220,7 +222,8 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
   ) {
     const now = yield* Clock.currentTimeMillis;
     const line = `[${time(now)}]${target ? ` #${target.number}` : ""} ${message}`;
-    process.stdout.write(`${line}\n`);
+
+    if (!options.json) process.stdout.write(`${line}\n`);
     yield* write(`- ${line}`);
   });
 
@@ -574,6 +577,48 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
   );
   yield* say(undefined, outcome);
 
+  const stillPending = targets.some(
+    (target) =>
+      target.pending.length > 0 || target.reviews.botRequests.length > 0,
+  );
+
+  const exitCode = timedOut
+    ? EXIT.timedOut
+    : stopReason && stillPending
+      ? EXIT.stopped
+      : failures > 0
+        ? EXIT.failed
+        : EXIT.passed;
+
+  process.exitCode = exitCode;
+
+  if (options.json) {
+    process.stdout.write(
+      `${JSON.stringify({
+        outcome,
+        exitCode,
+        stoppedOn: stopReason ?? null,
+        report,
+        pullRequests: targets.map((target) => ({
+          number: target.number,
+          url: target.url,
+          summary: summarise(target),
+          failures: target.failures,
+          pending: target.pending,
+          awaitingReviewFrom: target.reviews.botRequests,
+          openThreads: target.reviews.threads
+            .filter(isOpenThread)
+            .map(threadLine),
+          reviewBodyFindings: reviewBodyFindings(target.reviews.reviews).map(
+            findingLine,
+          ),
+        })),
+      })}\n`,
+    );
+
+    return;
+  }
+
   for (const target of targets) {
     process.stdout.write(`  ${summarise(target)}\n`);
 
@@ -586,19 +631,6 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
   }
 
   process.stdout.write(`Full report: ${displayPath(report)}\n`);
-
-  const stillPending = targets.some(
-    (target) =>
-      target.pending.length > 0 || target.reviews.botRequests.length > 0,
-  );
-
-  process.exitCode = timedOut
-    ? EXIT.timedOut
-    : stopReason && stillPending
-      ? EXIT.stopped
-      : failures > 0
-        ? EXIT.failed
-        : EXIT.passed;
 });
 
 /**
@@ -609,7 +641,12 @@ export const prWatch = (options: PrWatchOptions) =>
   watchPullRequests(options).pipe(
     Effect.catchTag("PrWatchError", (error) =>
       Effect.sync(() => {
-        console.error(`pr watch: ${error.message}`);
+        if (options.json)
+          process.stdout.write(
+            `${JSON.stringify({ outcome: "Could not start", exitCode: EXIT.failed, error: error.message })}\n`,
+          );
+        else console.error(`pr watch: ${error.message}`);
+
         process.exitCode = EXIT.failed;
       }),
     ),

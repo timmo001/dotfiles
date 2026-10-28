@@ -2655,6 +2655,10 @@ const prWatchCommand = describe(
         "Report path (default: ~/.local/state/dot/pr-watch/<repo>-<prs>-<time>.md)",
         "file",
       ),
+      json: bool(
+        "json",
+        "Print one JSON summary at the end instead of streaming progress",
+      ),
     },
     (input) =>
       prWatch({

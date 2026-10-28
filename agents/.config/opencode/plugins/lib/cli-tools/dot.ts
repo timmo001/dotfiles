@@ -20,6 +20,7 @@ const Manifest = Schema.fromJsonString(
         access: Schema.Literals(["read", "write"]),
         pinned: Schema.Boolean,
         timeoutMillis: Schema.Int,
+        exitCodes: Schema.optionalKey(Schema.Array(Schema.Int)),
         json: Schema.Boolean,
         input: Schema.Record(Schema.String, Schema.Unknown),
         params: Schema.Array(Param),
@@ -54,7 +55,7 @@ const invocation =
         }
 
         return {
-          args: [...argv, ...flags, ...(json ? ["--json"] : []), ...positional],
+          args: [...argv, ...positional, ...flags, ...(json ? ["--json"] : [])],
         };
       }),
       Effect.mapError((error) => new Tool.Error({ message: `Invalid input: ${error.message}` })),
@@ -78,6 +79,7 @@ export const loadDotTools = runCli("dot", ["agent", "tools", "--json"], {
       pinned: tool.pinned,
       timeout: tool.timeoutMillis,
       json: tool.json,
+      exitCodes: tool.exitCodes,
       input: tool.input,
       invocation: invocation(tool.argv, tool.params, tool.json),
     })),
