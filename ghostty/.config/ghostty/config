@@ -45,7 +45,7 @@ keybind = ctrl+alt+shift+tab=text:\x02p
 # TUI commands
 keybind = ctrl+alt+shift+g=text:lazygit\r
 # Quick terminal (quake style)
-keybind = global:super+backquote=toggle_quick_terminal
+# keybind = global:super+backquote=toggle_quick_terminal
 
 # Shell
 # shell-integration = zsh
