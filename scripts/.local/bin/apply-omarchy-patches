@@ -64,6 +64,10 @@ collect_spec omarchy-agent-crash agent-crash-hook.patch "$crash_marker" "crash d
 collect_spec omarchy-plugin-add plugin-add-hook.patch 'lifecycle_hook="$HOME/.config/omarchy/hooks/plugin-lifecycle"' "plugin add"
 collect_spec omarchy-plugin-update plugin-update-hook.patch 'lifecycle_hook="$HOME/.config/omarchy/hooks/plugin-lifecycle"' "plugin update"
 collect_spec omarchy-plugin-remove plugin-remove-hook.patch 'lifecycle_hook="$HOME/.config/omarchy/hooks/plugin-lifecycle"' "plugin remove"
+hokum_marker='hokum_handoff="$HOME/.local/bin/omarchy-notification-hokum"'
+collect_spec omarchy-notification-send notification-send-hokum.patch "$hokum_marker" "Hokum notification send"
+collect_spec omarchy-notification-wait notification-wait-hokum.patch "$hokum_marker" "Hokum notification wait"
+collect_spec omarchy-notification-dismiss notification-dismiss-hokum.patch "$hokum_marker" "Hokum notification dismiss"
 
 for spec in "${specs[@]}"; do
   IFS=$'\t' read -r state target patch_file label <<<"$spec"

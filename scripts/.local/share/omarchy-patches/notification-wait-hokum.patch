@@ -1,0 +1,14 @@
+--- a/bin/omarchy-notification-wait
++++ b/bin/omarchy-notification-wait
+@@ -8,6 +8,11 @@
+ 
+ timeout=${1:-10}
+ 
++hokum_handoff="$HOME/.local/bin/omarchy-notification-hokum"
++if [[ -x $hokum_handoff ]] && "$hokum_handoff" active; then
++  exec "$hokum_handoff" wait "$timeout"
++fi
++
+ notification_server_ready() {
+   busctl --user call \
+     org.freedesktop.Notifications \
