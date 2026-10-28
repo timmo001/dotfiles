@@ -5,6 +5,7 @@
 import { Plugin } from "@opencode/plugin/effect";
 import { Tool } from "@opencode/schema/tool";
 import { Effect, Result, Schema } from "effect";
+import { argRecord, stringArg } from "../lib/guard-paths";
 import { contextNamespace } from "./lib/cli-tools/context";
 import { ghJobs, ghNamespace } from "./lib/cli-tools/gh";
 import { gitNamespace } from "./lib/cli-tools/git";
@@ -19,6 +20,7 @@ import { omarchyNamespace } from "./lib/cli-tools/omarchy";
 import { opencode2Namespace } from "./lib/cli-tools/opencode2";
 import { pacmanNamespace } from "./lib/cli-tools/pacman";
 import { pitchforkNamespace } from "./lib/cli-tools/pitchfork";
+import { type CodeModeCatalogue, codeModeTools } from "./lib/cli-tools/shell-nudge";
 import { skillMaintenanceNamespace } from "./lib/cli-tools/skill-maintenance";
 import { systemBridgeNamespace } from "./lib/cli-tools/system-bridge";
 import { systemdNamespace } from "./lib/cli-tools/systemd";
@@ -236,5 +238,48 @@ export default Plugin.define({
           }
         });
       });
+
+      // `jobs` is a shell builtin, not the jobs namespace.
+      const catalogue: CodeModeCatalogue = namespaces.reduce((map, namespace, index) => {
+        if (!enabled[index] || namespace.command === "jobs") return map;
+
+        const tools = namespace.kind === "client" ? (clientToolsEnabled[index] ?? []) : namespace.tools;
+
+        return map.set(
+          namespace.command,
+          new Set([...(map.get(namespace.command) ?? []), ...tools.map((tool) => tool.name)]),
+        );
+      }, new Map<string, Set<string>>());
+
+      // Background shells are how long runs stay out of the foreground, so they keep the shell.
+      yield* context.tool.hook("execute.after", (event) =>
+        Effect.sync(() => {
+          if (event.tool !== "shell" && event.tool !== "bash") return;
+          if (event.status !== "completed") return;
+
+          const args = argRecord(event.input);
+
+          if (args.background === true) return;
+
+          const tools = codeModeTools(stringArg(args.command), catalogue);
+
+          if (tools.length === 0) return;
+
+          const nudge =
+            `cli-tools: Code Mode covers this command (${tools.join(", ")}). ` +
+            "Call it through execute instead of the shell next time, even when a skill or prompt quotes the CLI.";
+
+          const existing = event.result.content;
+
+          event.result = {
+            ...event.result,
+            content: Array.isArray(existing)
+              ? [...existing, { type: "text" as const, text: nudge }]
+              : Schema.is(Schema.String)(existing)
+                ? `${existing}\n\n${nudge}`
+                : nudge,
+          };
+        }),
+      );
     }),
 });
