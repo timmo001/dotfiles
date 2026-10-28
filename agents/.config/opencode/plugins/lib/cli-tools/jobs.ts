@@ -57,18 +57,23 @@ herdr notification show "Code Mode job" --body "$label $result" --sound "$sound"
 exit "$code"
 `;
 
-/** A shell command that streams the job's stdout and stderr as they're written, then prints its exit code once it ends. */
-const followCommand = (job: Job) => {
+/**
+ * Streams the job's stdout and stderr as they're written, then prints its exit code once it ends.
+ * It lives in the job's directory so the follow command stays a single plain call the shell rules
+ * and nudges have nothing to say about.
+ */
+const followScript = (job: Job) => {
   const directory = jobDirectory(job.id);
 
-  return [
-    `tail -q -n +1 -F '${directory}/stdout' '${directory}/stderr' 2>/dev/null & t=$!`,
-    `until [ -e '${directory}/exit' ] || ! systemctl --user is-active --quiet '${job.unit}'; do sleep 2; done`,
-    `sleep 1`,
-    `kill $t 2>/dev/null`,
-    `wait $t 2>/dev/null`,
-    `echo "${job.tool} ${job.id} exit $(cat '${directory}/exit' 2>/dev/null || echo stopped)"`,
-  ].join("; ");
+  return `dir='${directory}'
+tail -q -n +1 -F "$dir/stdout" "$dir/stderr" 2>/dev/null &
+t=$!
+until [ -e "$dir/exit" ] || ! systemctl --user is-active --quiet '${job.unit}'; do sleep 2; done
+sleep 1
+kill "$t" 2>/dev/null
+wait "$t" 2>/dev/null
+echo "${job.tool} ${job.id} exit $(cat "$dir/exit" 2>/dev/null || echo stopped)"
+`;
 };
 
 const readJob = Effect.fn("jobs.readJob")(function* (id: string) {
@@ -223,6 +228,7 @@ const startTool = (namespaces: readonly CliNamespace[]): ClientTool => ({
         yield* prune;
         yield* fs.makeDirectory(directory, { recursive: true });
         yield* fs.writeFileString(join(directory, "job.json"), `${JSON.stringify(job, null, 2)}\n`);
+        yield* fs.writeFileString(join(directory, "follow"), followScript(job));
 
         if (invocation.stdin !== undefined) yield* fs.writeFileString(join(directory, "stdin"), invocation.stdin);
 
@@ -262,7 +268,7 @@ const startTool = (namespaces: readonly CliNamespace[]): ClientTool => ({
           id,
           tool: job.tool,
           command: command.join(" "),
-          follow: followCommand(job),
+          follow: `sh '${join(directory, "follow")}'`,
           stdout: join(directory, "stdout"),
           stderr: join(directory, "stderr"),
         };
