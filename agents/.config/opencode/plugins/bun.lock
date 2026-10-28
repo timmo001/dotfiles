@@ -11,7 +11,7 @@
         "@timmo001/effect-herdr": "0.9.0-timmo001.4",
         "@timmo001/effect-notes": "1.0.2",
         "@timmo001/effect-system-bridge": "5.22.1",
-        "@timmo001/effect-triage-client": "0.20.0",
+        "@timmo001/effect-triage-client": "0.20.1",
         "@timmo001/effect-upnext": "2.2.0",
       },
       "devDependencies": {
@@ -316,9 +316,9 @@
 
     "@timmo001/effect-system-bridge": ["@timmo001/effect-system-bridge@5.22.1", "", { "peerDependencies": { "effect": "4.0.6" } }, "sha512-hD95Ltt62cpJAoxFhMPmqDnGqwYeWO17upEtMxu46Qmt3DoFHXVeMuHEx5Foh6nS0FcAsBNatH4NKTeQofsovA=="],
 
-    "@timmo001/effect-triage": ["@timmo001/effect-triage@0.20.0", "", { "peerDependencies": { "effect": "4.0.5" } }, "sha512-RNzuhr7dbffbxQ79gZXGpAzSp/2g4MaLWetGxYVy1mRSGNCOIebUHCI9bWbuvKmIp4C2KrQz7AzZMSyqliefjg=="],
+    "@timmo001/effect-triage": ["@timmo001/effect-triage@0.20.1", "", { "peerDependencies": { "effect": "4.0.5" } }, "sha512-O8JsR9OoZhfT0n15OsG/4kJdy+nBL6/YL+T80onm0SptRZqB/ceHjOWL8WOfg1Ec9BAgjRB6V25eYEo/Age7cA=="],
 
-    "@timmo001/effect-triage-client": ["@timmo001/effect-triage-client@0.20.0", "", { "dependencies": { "@timmo001/effect-triage": "0.20.0" }, "peerDependencies": { "effect": "4.0.5" } }, "sha512-M5ja+z5qBfNuSIyIClk5n6JCyrks8IabmpHifwZQTSod57NczxqQYwc4HxaZ26kr7YF/xP88sn2jCBz/qdOSwA=="],
+    "@timmo001/effect-triage-client": ["@timmo001/effect-triage-client@0.20.1", "", { "dependencies": { "@timmo001/effect-triage": "0.20.1" }, "peerDependencies": { "effect": "4.0.5" } }, "sha512-Mv9G5Wm3Tw+kBkwHbLg8/S302Pfz+JoeaYxTjTWR0joByhQOqdEhuZfEnmvWoDAObELcL9ntW0Rdc07W9VH7yA=="],
 
     "@timmo001/effect-upnext": ["@timmo001/effect-upnext@2.2.0", "", { "dependencies": { "@effect/platform-node-shared": "4.0.6", "@timmo001/effect-upnext-shared": "2.2.0" }, "peerDependencies": { "effect": "4.0.6" } }, "sha512-uXbsasT4WpbbzLA6Kx3mH/Wr0xmevhiKZlFUsx7yl9LKsgaLySDEXLt8j1OpMk/7/aKFkoMMtQ0ygQLvP+zuMQ=="],
 
