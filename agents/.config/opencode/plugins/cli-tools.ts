@@ -10,11 +10,10 @@ import { argRecord, stringArg } from "../lib/guard-paths";
 import { ghJobs } from "./lib/cli-tools/gh";
 import { gitNamespace } from "./lib/cli-tools/git";
 import { herdrNamespace } from "./lib/cli-tools/herdr";
-import { hyprctlNamespace, systemBridgeAvailable } from "./lib/cli-tools/hyprctl";
 import { loadDotTools } from "./lib/cli-tools/dot";
 import { jobsNamespace } from "./lib/cli-tools/jobs";
 import { miseNamespace } from "./lib/cli-tools/mise";
-import { omarchyNamespace } from "./lib/cli-tools/omarchy";
+import { notesNamespace } from "./lib/cli-tools/notes";
 import { opencode2Namespace } from "./lib/cli-tools/opencode2";
 import {
   aubeNamespace,
@@ -23,7 +22,6 @@ import {
   pnpmNamespace,
   yarnNamespace,
 } from "./lib/cli-tools/package-managers";
-import { pacmanNamespace } from "./lib/cli-tools/pacman";
 import { pitchforkNamespace } from "./lib/cli-tools/pitchfork";
 import { type CodeModeCatalogue, shellNudge } from "./lib/cli-tools/shell-nudge";
 import { systemdNamespace } from "./lib/cli-tools/systemd";
@@ -66,7 +64,6 @@ export default Plugin.define({
         },
         herdrNamespace,
         systemdNamespace,
-        hyprctlNamespace,
         pitchforkNamespace,
         miseNamespace,
         pnpmNamespace,
@@ -74,10 +71,9 @@ export default Plugin.define({
         npmNamespace,
         aubeNamespace,
         yarnNamespace,
-        omarchyNamespace,
         gitNamespace,
         opencode2Namespace,
-        pacmanNamespace,
+        skillMaintenanceNamespace,
       ];
 
       const namespaces: readonly Namespace[] = [
