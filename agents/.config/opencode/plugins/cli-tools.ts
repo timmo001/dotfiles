@@ -1,25 +1,31 @@
 /**
- * @file Exposes the dot, Context, Notes and triage CLIs as typed Code Mode tools.
+ * @file Exposes everyday CLIs and Effect clients as typed Code Mode tools.
  */
 
 import { Plugin } from "@opencode/plugin/effect";
 import { Tool } from "@opencode/schema/tool";
 import { Effect, Result, Schema } from "effect";
 import { contextTools } from "./lib/cli-tools/context";
+import { haBridgeNamespace } from "./lib/cli-tools/ha-bridge";
+import { herdrNamespace } from "./lib/cli-tools/herdr";
+import { hyprctlNamespace } from "./lib/cli-tools/hyprctl";
 import { loadDotTools } from "./lib/cli-tools/dot";
 import { notesTools } from "./lib/cli-tools/notes";
-import { CliInput, type CliTool, runCli } from "./lib/cli-tools/tool";
-import { triageTools } from "./lib/cli-tools/triage";
-
-interface CliNamespace {
-  readonly command: string;
-  readonly description: string;
-  readonly tools: readonly CliTool[];
-}
-
-const Json = Schema.fromJsonString(Schema.Unknown);
-
-const tail = (text: string) => text.trim().split("\n").slice(-20).join("\n");
+import { omarchyNamespace } from "./lib/cli-tools/omarchy";
+import { pitchforkNamespace } from "./lib/cli-tools/pitchfork";
+import { systemBridgeNamespace } from "./lib/cli-tools/system-bridge";
+import { systemdNamespace } from "./lib/cli-tools/systemd";
+import {
+  CliInput,
+  type CliNamespace,
+  type CliTool,
+  type ClientNamespace,
+  type ClientTool,
+  type Namespace,
+  runCliOutput,
+} from "./lib/cli-tools/tool";
+import { triageNamespace } from "./lib/cli-tools/triage";
+import { upnextNamespace } from "./lib/cli-tools/upnext";
 
 export default Plugin.define({
   id: "cli-tools",
@@ -30,114 +36,175 @@ export default Plugin.define({
       if (Result.isFailure(dotTools))
         yield* Effect.logWarning(`cli-tools: no dot tools: ${dotTools.failure.message}`);
 
-      const namespaces: readonly CliNamespace[] = [
+      const namespaces: readonly Namespace[] = [
         {
+          kind: "cli",
           command: "dot",
           description:
             "The dot dotfiles CLI: tracked repositories, pull request queues, sessions, services, Herdr, skills and machine health.",
           tools: Result.isSuccess(dotTools) ? dotTools.success : [],
         },
         {
+          kind: "cli",
           command: "context",
           description: "The Context CLI: git branch context and tech-stack detection for the session's directory.",
           tools: contextTools,
         },
         {
+          kind: "cli",
           command: "notes",
           description:
             "The Notes CLI: read, search and change the repository's Markdown notes and handoffs. Changes are committed and pushed.",
           tools: notesTools,
         },
-        {
-          command: "triage",
-          description:
-            "Crashes and errors triage collected from your machines, on the server in $TRIAGE_SERVER. Find issues with list_issues, read one with get_issue (an ID or a link to its page), page through its events with get_issue_events, and see how issues like it were fixed with find_similar_issues. Notes say why an issue was resolved or muted before and which host it regressed on. Once you've fixed an issue, ask the user before resolving it with set_issue_status, with a note on what fixed it and the hosts it's in place on, and before merging with merge_issues. The triage-resolve skill has the full steps.",
-          tools: triageTools,
-        },
+        triageNamespace,
+        herdrNamespace,
+        haBridgeNamespace,
+        systemBridgeNamespace,
+        upnextNamespace,
+        systemdNamespace,
+        hyprctlNamespace,
+        pitchforkNamespace,
+        omarchyNamespace,
       ];
+
+      const assertWrite = (
+        namespace: Namespace,
+        tool: CliTool | ClientTool,
+        call: Tool.Context,
+        resource: string,
+        command: string,
+      ) => {
+        if (tool.access !== "write") return Effect.void;
+
+        return context.permission.assert({
+          sessionID: call.sessionID,
+          agent: call.agent,
+          action: `${namespace.command}.write`,
+          resources: [resource],
+          save: [resource],
+          metadata: { command },
+          source: { type: "tool", messageID: call.messageID, id: call.id },
+        });
+      };
+
+      const sessionDirectory = (call: Tool.Context) =>
+        context.session.get({ sessionID: call.sessionID }).pipe(
+          Effect.map((session) => session.location.directory),
+          Effect.mapError(
+            (error) => new Tool.Error({ message: "Could not read the session's directory", error }),
+          ),
+        );
+
+      const executeClient = (namespace: ClientNamespace, tool: ClientTool) => {
+        const id = `${namespace.command}_${tool.name}`;
+
+        return (input: CliInput, call: Tool.Context) =>
+          Effect.gen(function* () {
+            const directory = yield* sessionDirectory(call);
+            const prepared = yield* tool.prepare(input, { directory });
+            const resource = prepared.resource === undefined ? id : `${id} ${prepared.resource}`;
+
+            yield* assertWrite(namespace, tool, call, resource, prepared.summary);
+
+            return { output: yield* prepared.run };
+          });
+      };
 
       const execute = (namespace: CliNamespace, tool: CliTool) => {
         const id = `${namespace.command}_${tool.name}`;
-        const permission = `${namespace.command}.write`;
 
         return (input: CliInput, call: Tool.Context) =>
           Effect.gen(function* () {
             const invocation = yield* tool.invocation(input);
             const commandLine = [namespace.command, ...invocation.args].join(" ");
 
-            if (tool.access === "write")
-              yield* context.permission.assert({
-                sessionID: call.sessionID,
-                agent: call.agent,
-                action: permission,
-                resources: [id],
-                save: [id],
-                metadata: { command: commandLine },
-                source: { type: "tool", messageID: call.messageID, id: call.id },
-              });
+            yield* assertWrite(namespace, tool, call, id, commandLine);
 
-            const session = yield* context.session
-              .get({ sessionID: call.sessionID })
-              .pipe(
-                Effect.mapError(
-                  (error) => new Tool.Error({ message: "Could not read the session's directory", error }),
-                ),
-              );
-
-            const run = yield* runCli(namespace.command, invocation.args, {
-              cwd: session.location.directory,
+            const output = yield* runCliOutput(namespace.command, invocation.args, {
+              cwd: yield* sessionDirectory(call),
               stdin: invocation.stdin,
               timeout: tool.timeout,
+              json: tool.json,
             });
-
-            if (run.exitCode !== 0)
-              return yield* new Tool.Error({
-                message: `${commandLine} exited ${run.exitCode}\n${tail(run.stderr || run.stdout)}`,
-                metadata: { exitCode: run.exitCode },
-              });
-
-            if (!tool.json) return { output: run.stdout.trimEnd() };
-
-            const output = yield* Schema.decodeUnknownEffect(Json)(run.stdout).pipe(
-              Effect.mapError(
-                (error) =>
-                  new Tool.Error({ message: `${commandLine} did not print JSON: ${error.message}` }),
-              ),
-            );
 
             return { output };
           });
       };
 
+      const enabled = yield* Effect.forEach(
+        namespaces,
+        (namespace) =>
+          namespace.kind === "cli"
+            ? Effect.succeed(namespace.tools.length > 0 && Bun.which(namespace.command) !== null)
+            : namespace.available,
+        { concurrency: "unbounded" },
+      );
+
+      const clientToolsEnabled = yield* Effect.forEach(
+        namespaces,
+        (namespace, index) =>
+          namespace.kind === "client" && enabled[index]
+            ? Effect.filter(namespace.tools, (tool) => tool.available ?? Effect.succeed(true), {
+                concurrency: "unbounded",
+              })
+            : Effect.succeed([]),
+        { concurrency: "unbounded" },
+      );
+
+      const toolOptions = (namespace: Namespace, tool: CliTool | ClientTool) => {
+        const base = { namespace: namespace.command, codemode: true, pinned: tool.pinned } as const;
+
+        return tool.access === "write" ? { ...base, permission: `${namespace.command}.write` } : base;
+      };
+
+      const decodeInput = Schema.decodeUnknownEffect(CliInput);
+
+      const invalidInput = (error: Schema.SchemaError) =>
+        new Tool.Error({ message: `Invalid input: ${error.message}` });
+
       yield* context.tool.transform((draft) => {
-        for (const namespace of namespaces) {
-          if (namespace.tools.length === 0 || Bun.which(namespace.command) === null) continue;
+        namespaces.forEach((namespace, index) => {
+          if (!enabled[index]) return;
 
           draft.namespace({ name: namespace.command, description: namespace.description });
 
+          if (namespace.kind === "client") {
+            for (const tool of clientToolsEnabled[index] ?? []) {
+              const run = executeClient(namespace, tool);
+              draft.add({
+                name: tool.name,
+                description: tool.description,
+                input: tool.input,
+                output: Schema.Unknown,
+                options: toolOptions(namespace, tool),
+                execute: (input, call) =>
+                decodeInput(input).pipe(
+                  Effect.mapError(invalidInput),
+                  Effect.flatMap((decoded) => run(decoded, call)),
+                ),
+              });
+            }
+
+            return;
+          }
+
           for (const tool of namespace.tools) {
             const run = execute(namespace, tool);
-            const base = { namespace: namespace.command, codemode: true, pinned: tool.pinned } as const;
-
             draft.add({
               name: tool.name,
               description: tool.description,
               input: tool.input,
               output: tool.json ? Schema.Unknown : Schema.String,
-              options:
-                tool.access === "write"
-                  ? { ...base, permission: `${namespace.command}.write` }
-                  : base,
+              options: toolOptions(namespace, tool),
               execute: (input, call) =>
-                Schema.decodeUnknownEffect(CliInput)(input).pipe(
-                  Effect.mapError(
-                    (error) => new Tool.Error({ message: `Invalid input: ${error.message}` }),
-                  ),
+                decodeInput(input).pipe(
+                  Effect.mapError(invalidInput),
                   Effect.flatMap((decoded) => run(decoded, call)),
                 ),
             });
           }
-        }
+        });
       });
     }),
 });

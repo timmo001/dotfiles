@@ -25,4 +25,12 @@ test("OpenCode plugins pin the Effect packages OpenCode runs", async () => {
   expect(manifest.devDependencies["@effect/platform-node"]).toBe(
     hostDependency("@opencode/util", "@effect/platform-node"),
   );
+
+  // A dependency with its own Effect gets a nested copy that loads at runtime
+  // against the host's, which typecheck can't catch, so overrides pin them.
+  const nested = Object.keys(lock.packages).filter((key) =>
+    /.\/(effect|@effect\/[^/]+)$/.test(key),
+  );
+
+  expect(nested).toEqual([]);
 });
