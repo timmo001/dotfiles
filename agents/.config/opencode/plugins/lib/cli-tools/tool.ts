@@ -68,6 +68,8 @@ export interface ClientCall {
   readonly summary: string;
   /** A pattern appended to the tool id as the permission resource, so "always allow" covers calls of the same shape. */
   readonly resource?: string;
+  /** This call's access, when the tool's depends on its input, such as an API method. */
+  readonly access?: CliToolAccess;
   readonly run: Effect.Effect<unknown, Tool.Error>;
 }
 

@@ -6,6 +6,7 @@ import { Plugin } from "@opencode/plugin/effect";
 import { Tool } from "@opencode/schema/tool";
 import { Effect, Result, Schema } from "effect";
 import { contextTools } from "./lib/cli-tools/context";
+import { ghNamespace } from "./lib/cli-tools/gh";
 import { haBridgeNamespace } from "./lib/cli-tools/ha-bridge";
 import { herdrNamespace } from "./lib/cli-tools/herdr";
 import { hyprctlNamespace } from "./lib/cli-tools/hyprctl";
@@ -19,6 +20,7 @@ import {
   CliInput,
   type CliNamespace,
   type CliTool,
+  type CliToolAccess,
   type ClientNamespace,
   type ClientTool,
   type Namespace,
@@ -58,6 +60,7 @@ export default Plugin.define({
           tools: notesTools,
         },
         triageNamespace,
+        ghNamespace,
         herdrNamespace,
         haBridgeNamespace,
         systemBridgeNamespace,
@@ -70,12 +73,12 @@ export default Plugin.define({
 
       const assertWrite = (
         namespace: Namespace,
-        tool: CliTool | ClientTool,
+        access: CliToolAccess,
         call: Tool.Context,
         resource: string,
         command: string,
       ) => {
-        if (tool.access !== "write") return Effect.void;
+        if (access !== "write") return Effect.void;
 
         return context.permission.assert({
           sessionID: call.sessionID,
@@ -105,7 +108,7 @@ export default Plugin.define({
             const prepared = yield* tool.prepare(input, { directory });
             const resource = prepared.resource === undefined ? id : `${id} ${prepared.resource}`;
 
-            yield* assertWrite(namespace, tool, call, resource, prepared.summary);
+            yield* assertWrite(namespace, prepared.access ?? tool.access, call, resource, prepared.summary);
 
             return { output: yield* prepared.run };
           });
@@ -119,7 +122,7 @@ export default Plugin.define({
             const invocation = yield* tool.invocation(input);
             const commandLine = [namespace.command, ...invocation.args].join(" ");
 
-            yield* assertWrite(namespace, tool, call, id, commandLine);
+            yield* assertWrite(namespace, tool.access, call, id, commandLine);
 
             const output = yield* runCliOutput(namespace.command, invocation.args, {
               cwd: yield* sessionDirectory(call),
