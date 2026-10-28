@@ -79,6 +79,7 @@ export const applyDotLinksExtension = Effect.gen(function* () {
       [
         "build",
         "src/background.ts",
+        "src/popup.ts",
         "--target=browser",
         "--format=iife",
         "--outdir=dist",

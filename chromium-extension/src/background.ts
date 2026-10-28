@@ -1,4 +1,9 @@
-const HOST_NAME = "dev.timmo.dot_links";
+import {
+  type PageState,
+  isGitHubPage,
+  resolvePage as askDot,
+  sendToDot,
+} from "./dot";
 
 const MENU_ID = "open-in-git-panel";
 
@@ -10,53 +15,14 @@ const GITHUB_PULL_PAGES = "https://github.com/*/*/pull/*";
 
 const CACHE_MS = 60_000;
 
-/** What dot knows about a page: its `dot://` link and whether the Git panel lists it. */
-interface PageState {
-  readonly link: string | null;
-  readonly listed: boolean;
-}
-
 const cache = new Map<string, { state: PageState; at: number }>();
-
-const isGitHubPage = (url: string | undefined): url is string =>
-  url?.startsWith("https://github.com/") === true;
-
-/** The reply `dot link native-host` sends; dot owns both ends of this contract. */
-type DotReply =
-  | {
-      readonly ok: true;
-      readonly link?: string | null;
-      readonly listed?: boolean;
-    }
-  | { readonly ok: false; readonly error: string };
-
-async function sendToDot(message: {
-  readonly type: "resolve" | "open" | "review";
-  readonly url: string;
-}): Promise<Extract<DotReply, { ok: true }>> {
-  const reply: DotReply | undefined = await chrome.runtime.sendNativeMessage(
-    HOST_NAME,
-    message,
-  );
-
-  if (!reply) throw new Error("dot sent no reply");
-
-  if (!reply.ok) throw new Error(reply.error);
-
-  return reply;
-}
 
 async function resolvePage(url: string): Promise<PageState> {
   const cached = cache.get(url);
 
   if (cached && Date.now() - cached.at < CACHE_MS) return cached.state;
 
-  const reply = await sendToDot({ type: "resolve", url });
-
-  const state: PageState = {
-    link: reply.link ?? null,
-    listed: reply.listed === true,
-  };
+  const state = await askDot(url);
 
   cache.set(url, { state, at: Date.now() });
 
@@ -72,25 +38,30 @@ function pageTitle(state: PageState | undefined): string {
 async function refreshTab(tab: chrome.tabs.Tab | undefined): Promise<void> {
   if (tab?.id === undefined) return;
 
+  if (!isGitHubPage(tab.url)) {
+    await chrome.action.disable(tab.id);
+    await chrome.action.setTitle({
+      tabId: tab.id,
+      title: "dot links only works on GitHub pages",
+    });
+
+    return;
+  }
+
+  await chrome.action.enable(tab.id);
+  await chrome.action.setTitle({ tabId: tab.id, title: "dot links" });
+
   let state: PageState | undefined;
 
-  if (isGitHubPage(tab.url))
-    try {
-      state = await resolvePage(tab.url);
-    } catch (error: unknown) {
-      console.error("Could not ask dot about the page.", error);
-    }
-
-  const enabled = state?.listed === true;
-
-  await (enabled
-    ? chrome.action.enable(tab.id)
-    : chrome.action.disable(tab.id));
-  await chrome.action.setTitle({ tabId: tab.id, title: pageTitle(state) });
+  try {
+    state = await resolvePage(tab.url);
+  } catch (error: unknown) {
+    console.error("Could not ask dot about the page.", error);
+  }
 
   if (tab.active)
     await chrome.contextMenus.update(MENU_ID, {
-      enabled,
+      enabled: state?.listed === true,
       title: pageTitle(state),
     });
 }
@@ -156,8 +127,6 @@ function setUp(): void {
 chrome.runtime.onInstalled.addListener(setUp);
 
 chrome.runtime.onStartup.addListener(setUp);
-
-chrome.action.onClicked.addListener((tab) => void openInPanel(tab));
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === MENU_ID) void openInPanel(tab);

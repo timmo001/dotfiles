@@ -14,7 +14,8 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "Open in the Git panel",
+    "default_title": "dot links",
+    "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

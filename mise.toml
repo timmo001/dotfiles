@@ -109,7 +109,7 @@ run = "bun run src/buildSkillsMaintenance.ts"
 [tasks."extension:build"]
 description = "Bundle the dot links Chromium extension"
 dir = "chromium-extension"
-run = "bun build src/background.ts --target=browser --format=iife --outdir=dist"
+run = "bun build src/background.ts src/popup.ts --target=browser --format=iife --outdir=dist"
 
 [tasks."extension:typecheck"]
 description = "Type-check the dot links Chromium extension"
