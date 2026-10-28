@@ -57,6 +57,18 @@ herdr notification show "Code Mode job" --body "$label $result" --sound "$sound"
 exit "$code"
 `;
 
+/** A shell command that blocks until the job ends, then prints its exit code, stdout and the end of stderr. */
+const followCommand = (job: Job) => {
+  const directory = jobDirectory(job.id);
+
+  return [
+    `until [ -e '${directory}/exit' ] || ! systemctl --user is-active --quiet '${job.unit}'; do sleep 5; done`,
+    `echo "${job.tool} ${job.id} exit $(cat '${directory}/exit' 2>/dev/null || echo stopped)"`,
+    `cat '${directory}/stdout'`,
+    `tail -n 20 '${directory}/stderr'`,
+  ].join("; ");
+};
+
 const readJob = Effect.fn("jobs.readJob")(function* (id: string) {
   const fs = yield* FileSystem.FileSystem;
 
@@ -157,7 +169,7 @@ const StartInput = Schema.Struct({
 const startTool = (namespaces: readonly CliNamespace[]): ClientTool => ({
   name: "start",
   description:
-    "Start a CLI-backed Code Mode tool as a detached job and return its id at once. It keeps running through OpenCode restarts and shows a Herdr notification when it ends.",
+    "Start a CLI-backed Code Mode tool as a detached job and return its id at once. It keeps running through OpenCode restarts and shows a Herdr notification when it ends. Run the returned follow command in a background shell so the job's end wakes the session; don't wait on the job in the same turn.",
   access: "write",
   pinned: true,
   timeout: "30 seconds",
@@ -244,7 +256,14 @@ const startTool = (namespaces: readonly CliNamespace[]): ClientTool => ({
           );
         }
 
-        return { id, tool: job.tool, command: command.join(" "), stdout: join(directory, "stdout"), stderr: join(directory, "stderr") };
+        return {
+          id,
+          tool: job.tool,
+          command: command.join(" "),
+          follow: followCommand(job),
+          stdout: join(directory, "stdout"),
+          stderr: join(directory, "stderr"),
+        };
       }).pipe(
         Effect.provide(NodeServices.layer),
         Effect.mapError((error) =>
