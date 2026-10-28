@@ -9,30 +9,43 @@ import { plural } from "./runSummary.js";
 import { notable, skip, warn } from "./updateSummary.js";
 import type { RecapEntry } from "./updateSummary.js";
 
-/** Public timers every machine runs once the systemd package is stowed. */
-const DEFAULT_TIMERS = ["dot-notifications-dismiss.timer"];
+/**
+ * Public user units every machine runs once they're installed: stowed timers,
+ * and units shipped by packages from the public package list.
+ */
+const DEFAULT_UNITS = ["dot-notifications-dismiss.timer", "hokum.service"];
 
-/** Failure to enable a default timer. */
-class UserTimerError extends Schema.TaggedError<UserTimerError>()(
-  "UserTimerError",
+/** Where a default unit can come from: the stowed systemd package or a package. */
+const UNIT_DIRS = [
+  join(CONFIG_DIR, "systemd", "user"),
+  "/usr/lib/systemd/user",
+];
+
+/** Failure to enable a default unit. */
+class UserUnitError extends Schema.TaggedError<UserUnitError>()(
+  "UserUnitError",
   { message: Schema.String },
 ) {}
 
 /**
- * Enable the public timers every machine runs, when their unit is linked and
- * not already enabled.
+ * Enable the public user units every machine runs, when their unit file is
+ * installed and not already enabled.
  *
  * @returns Recap entries for the stow summary. Failures become a warning so a
  *   systemd problem never stops the rest of stow.
  */
-export const enableDefaultTimers = Effect.gen(function* () {
+export const enableDefaultUnits = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
   let enabled = 0;
 
-  for (const unit of DEFAULT_TIMERS) {
-    if (!(yield* pathExists(join(CONFIG_DIR, "systemd", "user", unit))))
-      continue;
+  for (const unit of DEFAULT_UNITS) {
+    let installed = false;
+
+    for (const dir of UNIT_DIRS)
+      installed ||= yield* pathExists(join(dir, unit));
+
+    if (!installed) continue;
 
     if (
       (yield* executor.exitCode("systemctl", [
@@ -44,12 +57,12 @@ export const enableDefaultTimers = Effect.gen(function* () {
     )
       continue;
 
-    if (enabled === 0) yield* log.section("User Timers");
+    if (enabled === 0) yield* log.section("User Units");
 
     yield* executor.run("systemctl", ["--user", "enable", "--now", unit]).pipe(
       Effect.mapError(
         (cause) =>
-          new UserTimerError({
+          new UserUnitError({
             message:
               cause.stderr || `${cause.command} exited ${cause.exitCode}`,
           }),
@@ -61,17 +74,17 @@ export const enableDefaultTimers = Effect.gen(function* () {
   }
 
   return enabled === 0
-    ? [skip("User timers already enabled")]
-    : [notable(`Enabled ${plural(enabled, "user timer")}`)];
+    ? [skip("User units already enabled")]
+    : [notable(`Enabled ${plural(enabled, "user unit")}`)];
 }).pipe(
   Effect.catch((error) =>
     Effect.gen(function* () {
       const log = yield* OutputLog;
 
-      yield* log.warn(`User timers not enabled: ${error.message}`);
+      yield* log.warn(`User units not enabled: ${error.message}`);
 
-      return [warn("User timers not enabled")] satisfies RecapEntry[];
+      return [warn("User units not enabled")] satisfies RecapEntry[];
     }),
   ),
-  Effect.withSpan("UserTimers.enableDefaults"),
+  Effect.withSpan("UserUnits.enableDefaults"),
 );

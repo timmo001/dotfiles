@@ -17,7 +17,7 @@ import { syncSkills } from "../lib/externalSkills.js";
 import { applySyncthingConfig } from "../lib/syncthing.js";
 import { applySecretFiles } from "../lib/secretFiles.js";
 import { applyDotLinksExtension } from "../lib/dotLinksExtension.js";
-import { enableDefaultTimers } from "../lib/userTimers.js";
+import { enableDefaultUnits } from "../lib/userUnits.js";
 import {
   backupUnmanagedTargets,
   emptyStowCounts,
@@ -142,7 +142,7 @@ export const stow = (opts?: {
           : skip("Omarchy shell config unchanged"),
       );
 
-      actions.push(...(yield* enableDefaultTimers));
+      actions.push(...(yield* enableDefaultUnits));
     }
 
     if (runPrivate) {
