@@ -171,7 +171,7 @@ export const clientTools =
           summary: tool.summary?.(decoded) ?? `${tool.name} ${JSON.stringify(input)}`,
           resource: tool.resource?.(decoded),
           run: tool.run(decoded, context).pipe(
-            Effect.map(plain),
+            Effect.map((output) => (output === undefined ? { ok: true } : plain(output))),
             Effect.provide(layer),
             Effect.mapError(toToolError),
             Effect.timeoutOrElse({

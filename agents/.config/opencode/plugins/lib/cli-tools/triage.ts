@@ -147,6 +147,7 @@ export const triageNamespace: ClientNamespace = {
         }),
         note: Schema.optionalKey(note),
       }),
+      resource: (input) => `${input.status} ${issueId(input.issue)}`,
       summary: (input) => `triage ${statusCommand[input.status]} ${issueId(input.issue)}`,
       run: (input) =>
         runCliOutput("triage", [
@@ -188,6 +189,7 @@ export const triageNamespace: ClientNamespace = {
       input: Schema.Struct({
         issues: Schema.Array(issue).annotate({ description: "At least two issues to merge" }),
       }),
+      resource: (input) => input.issues.map(issueId).join(" "),
       summary: (input) => `triage merge ${input.issues.map(issueId).join(" ")}`,
       run: (input) =>
         withClient((client) =>

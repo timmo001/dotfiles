@@ -20,7 +20,7 @@ permission:
   "pitchfork_*": deny
   system-bridge_system_bridge_media_control: deny
   system-bridge_system_bridge_send_notification: deny
-  "*.write": deny
+  "*.write *": deny
   question: deny
   plan_enter: deny
   plan_exit: deny

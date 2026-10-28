@@ -71,10 +71,13 @@ export default Plugin.define({
         omarchyNamespace,
       ];
 
+      // OpenCode's prompt only shows the action for plugin permissions, so the action names the
+      // tool and what it acts on; rules match it with `<namespace>.write *`.
       const assertWrite = (
         namespace: Namespace,
         access: CliToolAccess,
         call: Tool.Context,
+        target: string,
         resource: string,
         command: string,
       ) => {
@@ -83,7 +86,7 @@ export default Plugin.define({
         return context.permission.assert({
           sessionID: call.sessionID,
           agent: call.agent,
-          action: `${namespace.command}.write`,
+          action: `${namespace.command}.write ${target}`,
           resources: [resource],
           save: [resource],
           metadata: { command },
@@ -100,15 +103,20 @@ export default Plugin.define({
         );
 
       const executeClient = (namespace: ClientNamespace, tool: ClientTool) => {
-        const id = `${namespace.command}_${tool.name}`;
-
         return (input: CliInput, call: Tool.Context) =>
           Effect.gen(function* () {
             const directory = yield* sessionDirectory(call);
             const prepared = yield* tool.prepare(input, { directory });
-            const resource = prepared.resource === undefined ? id : `${id} ${prepared.resource}`;
+            const target = prepared.resource === undefined ? tool.name : `${tool.name} ${prepared.resource}`;
 
-            yield* assertWrite(namespace, prepared.access ?? tool.access, call, resource, prepared.summary);
+            yield* assertWrite(
+              namespace,
+              prepared.access ?? tool.access,
+              call,
+              target,
+              `${namespace.command}_${target}`,
+              prepared.summary,
+            );
 
             return { output: yield* prepared.run };
           });
@@ -122,7 +130,7 @@ export default Plugin.define({
             const invocation = yield* tool.invocation(input);
             const commandLine = [namespace.command, ...invocation.args].join(" ");
 
-            yield* assertWrite(namespace, tool.access, call, id, commandLine);
+            yield* assertWrite(namespace, tool.access, call, tool.name, id, commandLine);
 
             const output = yield* runCliOutput(namespace.command, invocation.args, {
               cwd: yield* sessionDirectory(call),
