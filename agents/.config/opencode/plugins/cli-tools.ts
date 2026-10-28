@@ -40,7 +40,6 @@ import {
   runCliOutput,
 } from "./lib/cli-tools/tool";
 import { triageNamespace } from "./lib/cli-tools/triage";
-import { upnextNamespace } from "./lib/cli-tools/upnext";
 
 export default Plugin.define({
   id: "cli-tools",
@@ -66,7 +65,6 @@ export default Plugin.define({
         herdrNamespace,
         haBridgeNamespace,
         systemBridgeNamespace,
-        upnextNamespace,
         systemdNamespace,
         pitchforkNamespace,
         miseNamespace,
