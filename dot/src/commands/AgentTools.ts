@@ -30,6 +30,10 @@ interface AgentToolSpec {
   readonly exitCodes?: readonly number[];
   /** Replaces the command's short description, when the tool behaves differently. */
   readonly description?: string;
+  /** Flags always passed, such as one keeping the command non-interactive. */
+  readonly fixed?: readonly string[];
+  /** Runs only as a detached job, since it takes far longer than a tool call should. */
+  readonly jobOnly?: boolean;
 }
 
 const DEFAULT_TIMEOUT: Duration.Input = "2 minutes";
@@ -71,9 +75,23 @@ const AGENT_TOOLS = {
     omit: ["open-opencode"],
   },
   "services run logs": { access: "read" },
+  "services logs": {
+    access: "read",
+    description:
+      "Open a registered job's logs in a Herdr tab for the repository that owns it.",
+  },
+  "services investigate": {
+    access: "read",
+    fixed: ["--print"],
+    omit: ["agent", "modifiers", "print"],
+    description:
+      "Print the brief for investigating a registered job: its recent runs, logs, file locations and the commands to investigate them.",
+  },
+  "git releases review": { access: "write" },
   "services schedule check": { access: "read" },
   "homeassistant status": { access: "read" },
   "homeassistant logs": { access: "read", omit: ["follow"] },
+  "homeassistant stop": { access: "write" },
   snapshot: { access: "read" },
   doctor: { access: "read", timeout: "5 minutes" },
   "report run": { access: "write", timeout: "10 minutes" },
@@ -86,6 +104,21 @@ const AGENT_TOOLS = {
   "mcp sync": { access: "write" },
   "agent sync": { access: "write" },
   stow: { access: "write", timeout: "5 minutes" },
+  update: {
+    access: "write",
+    jobOnly: true,
+    timeout: "30 minutes",
+    omit: ["no-self-update", "post-hook-repo", "summary-file", "started-at"],
+    exitCodes: [0, 10],
+  },
+  "updates refresh": { access: "write", timeout: "5 minutes" },
+  "repo induct": {
+    access: "write",
+    fixed: ["--noninteractive"],
+    omit: ["noninteractive"],
+    description:
+      "Preview inducting a local repository into private dot git config from flags and preset defaults. Repeat the reviewed options with commit to save it.",
+  },
   reload: { access: "write" },
   "skills consumers add": { access: "write" },
   "skills consumers remove": { access: "write" },
@@ -118,6 +151,7 @@ export const AgentToolEntry = Schema.Struct({
   description: Schema.String,
   access: Schema.Literals(["read", "write"]),
   pinned: Schema.Boolean,
+  jobOnly: Schema.Boolean,
   timeoutMillis: Schema.Int,
   exitCodes: Schema.Array(Schema.Int),
   json: Schema.Boolean,
@@ -249,11 +283,12 @@ const describeTool = Effect.fnUntraced(function* (
 
   return {
     name: argv.join("_").replaceAll("-", "_"),
-    argv,
+    argv: [...argv, ...(spec.fixed ?? [])],
     description:
       spec.description ?? command.shortDescription ?? command.description ?? "",
     access: spec.access,
     pinned: spec.pinned ?? false,
+    jobOnly: spec.jobOnly ?? false,
     timeoutMillis: Duration.toMillis(spec.timeout ?? DEFAULT_TIMEOUT),
     exitCodes: spec.exitCodes ?? [0],
     json,
@@ -286,6 +321,6 @@ export const agentTools = Effect.fn("AgentTools.print")(function* (options: {
 
   for (const tool of manifest.tools)
     yield* Console.log(
-      `${tool.access === "write" ? "write" : "read "} ${tool.pinned ? "*" : " "} ${tool.argv.join(" ")}`,
+      `${tool.access === "write" ? "write" : "read "} ${tool.pinned ? "*" : " "} ${tool.jobOnly ? "job " : ""}${tool.argv.join(" ")}`,
     );
 });

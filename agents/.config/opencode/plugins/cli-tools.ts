@@ -45,8 +45,8 @@ export default Plugin.define({
           kind: "cli",
           command: "dot",
           description:
-            "The dot dotfiles CLI: tracked repositories, pull request queues, sessions, services, Herdr, skills and machine health.",
-          tools: Result.isSuccess(dotTools) ? dotTools.success : [],
+            "The dot dotfiles CLI: tracked repositories, pull request queues, sessions, services, Herdr, skills and machine health. To run `dot update`, start `dot.update` with jobs.start.",
+          tools: Result.isSuccess(dotTools) ? dotTools.success.tools : [],
         },
         notesNamespace,
         contextNamespace,
@@ -66,7 +66,13 @@ export default Plugin.define({
       const namespaces: readonly Namespace[] = [
         ...ownNamespaces,
         jobsNamespace([
-          ...ownNamespaces.filter((namespace): namespace is CliNamespace => namespace.kind === "cli"),
+          ...ownNamespaces.flatMap((namespace): CliNamespace[] => {
+            if (namespace.kind !== "cli") return [];
+
+            return namespace.command === "dot" && Result.isSuccess(dotTools)
+              ? [{ ...namespace, tools: dotTools.success.jobs }]
+              : [namespace];
+          }),
           ghJobs,
         ]),
       ];

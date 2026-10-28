@@ -19,6 +19,7 @@ const Manifest = Schema.fromJsonString(
         description: Schema.String,
         access: Schema.Literals(["read", "write"]),
         pinned: Schema.Boolean,
+        jobOnly: Schema.optionalKey(Schema.Boolean),
         timeoutMillis: Schema.Int,
         exitCodes: Schema.optionalKey(Schema.Array(Schema.Int)),
         json: Schema.Boolean,
@@ -61,7 +62,10 @@ const invocation =
       Effect.mapError((error) => new Tool.Error({ message: `Invalid input: ${error.message}` })),
     );
 
-/** Read the `dot` commands exposed as tools from `dot agent tools --json`. */
+/**
+ * Read the `dot` commands exposed as tools from `dot agent tools --json`. Job-only commands are
+ * not tools of their own; `jobs.start` runs them as `dot.<name>`.
+ */
 export const loadDotTools = runCli("dot", ["agent", "tools", "--json"], {
   timeout: "30 seconds",
 }).pipe(
@@ -71,17 +75,25 @@ export const loadDotTools = runCli("dot", ["agent", "tools", "--json"], {
       new Tool.Error({ message: `dot agent tools exited ${run.exitCode}: ${run.stderr.trim()}` }),
   ),
   Effect.flatMap((run) => Schema.decodeUnknownEffect(Manifest)(run.stdout)),
-  Effect.map(({ tools }): readonly CliTool[] =>
-    tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      access: tool.access,
-      pinned: tool.pinned,
-      timeout: tool.timeoutMillis,
-      json: tool.json,
-      exitCodes: tool.exitCodes,
-      input: tool.input,
-      invocation: invocation(tool.argv, tool.params, tool.json),
-    })),
-  ),
+  Effect.map(({ tools }) => {
+    const all = tools.map((tool) => ({
+      jobOnly: tool.jobOnly ?? false,
+      tool: {
+        name: tool.name,
+        description: tool.description,
+        access: tool.access,
+        pinned: tool.pinned,
+        timeout: tool.timeoutMillis,
+        json: tool.json,
+        exitCodes: tool.exitCodes,
+        input: tool.input,
+        invocation: invocation(tool.argv, tool.params, tool.json),
+      } satisfies CliTool,
+    }));
+
+    return {
+      tools: all.flatMap((entry) => (entry.jobOnly ? [] : [entry.tool])),
+      jobs: all.map((entry) => entry.tool),
+    };
+  }),
 );

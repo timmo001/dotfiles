@@ -611,7 +611,7 @@ dot services investigate [flags] <unit>
 
 | Option | Description |
 | --- | --- |
-| `--agent` `<string>` | Installed launcher from dot herdr agents, such as opencode2 |
+| `--agent` `<string>` | Installed launcher from dot herdr agents, such as opencode2; required unless --print |
 | `--modifiers` `<integer>` | Qt keyboard modifier bitmask, as for dot herdr repo open |
 | `--print` | Print the investigation brief instead of opening the agent |
 | `--help` `-h` | Show help information |
