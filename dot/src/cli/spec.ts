@@ -825,8 +825,9 @@ const servicesCommand = describe(
             unit: serviceUnit,
             agent: Flag.String("agent").pipe(
               Flag.withDescription(
-                "Installed launcher from dot herdr agents, such as opencode2",
+                "Installed launcher from dot herdr agents, such as opencode2; required unless --print",
               ),
+              Flag.optional,
             ),
             modifiers: Flag.Int("modifiers").pipe(
               Flag.withSchema(
@@ -845,7 +846,12 @@ const servicesCommand = describe(
             ),
           },
           ({ unit, agent, modifiers, print }) =>
-            servicesInvestigate(unit, agent, optional(modifiers), print),
+            servicesInvestigate(
+              unit,
+              optional(agent),
+              optional(modifiers),
+              print,
+            ),
         ),
         "Open an agent in a registered job's repository, briefed with its recent runs, logs, file locations and commands to investigate them",
         [

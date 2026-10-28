@@ -1337,7 +1337,7 @@ const shellQuote = (value: string) =>
 /** Open an agent in a registered job's repository with an investigation brief for its recent runs. */
 export const servicesInvestigate = Effect.fn("Services.investigate")(function* (
   unit: string,
-  agent: string,
+  agent: string | undefined,
   modifiers: number | undefined,
   print: boolean,
 ) {
@@ -1464,6 +1464,11 @@ export const servicesInvestigate = Effect.fn("Services.investigate")(function* (
 
     return;
   }
+
+  if (agent === undefined)
+    return yield* new ServiceMonitorError({
+      message: "Pass --agent to open an agent, or --print for the brief",
+    });
 
   yield* herdrRepoOpen({
     label: status.repository.name,
