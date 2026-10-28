@@ -59,28 +59,6 @@ const SYSTEMCTL = new Map([
   ["daemon-reload", "daemon_reload"],
 ]);
 
-// `pacman -Q` flags in the order they decide the tool; plain queries list packages.
-const PACMAN_QUERY = [
-  ["o", "owner"],
-  ["s", "search"],
-  ["l", "files"],
-  ["u", "outdated"],
-  ["i", "info"],
-] as const;
-
-const HYPRLAND_STATE = new Set([
-  "activewindow",
-  "activeworkspace",
-  "binds",
-  "clients",
-  "configerrors",
-  "devices",
-  "getoption",
-  "layers",
-  "monitors",
-  "workspaces",
-]);
-
 const PACKAGE_MANAGERS = new Set(["pnpm", "bun", "npm", "aube", "yarn"]);
 
 /** Shorthand executables for one package manager tool. */
@@ -110,25 +88,6 @@ const aliasTool = ({ executable, args }: Stage): readonly [string, string] | und
     return ["systemd", word === undefined ? "unit_list" : (SYSTEMCTL.get(word) ?? "")];
 
   if (executable === "journalctl" && args.some((arg) => arg.startsWith("--user"))) return ["systemd", "logs"];
-
-  if (executable === "pacman") {
-    const operation = args.find((arg) => /^-[QS][a-zA-Z]*$/.test(arg));
-
-    if (operation?.startsWith("-S"))
-      return /s/.test(operation) ? ["pacman", "search"] : /i/.test(operation) ? ["pacman", "info"] : undefined;
-
-    if (operation?.startsWith("-Q")) {
-      const tool = PACMAN_QUERY.find(([flag]) => operation.slice(2).includes(flag));
-
-      return ["pacman", tool?.[1] ?? "list"];
-    }
-  }
-
-  if (executable === "hyprctl" && word !== undefined) {
-    if (HYPRLAND_STATE.has(word)) return ["system-bridge", "hyprland"];
-
-    if (word === "keyword") return ["system-bridge", "hyprland_set_option"];
-  }
 
   const shorthand = PACKAGE_MANAGER_SHORTHANDS.get(executable);
 
