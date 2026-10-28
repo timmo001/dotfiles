@@ -43,7 +43,6 @@ import { gitRefresh, gitWatch } from "../git/commands/Watch.js";
 import { fansRun } from "../commands/Fans.js";
 import { tunnelRun } from "../commands/Tunnel.js";
 import { prQueue } from "../commands/PrQueue.js";
-import { reportList, reportRun } from "../commands/Report.js";
 import { prReviews } from "../commands/PrReviews.js";
 import { prWatch } from "../commands/PrWatch.js";
 import { editSkillConsumer, runSkillsMaintenance } from "../commands/Skills.js";
@@ -2374,45 +2373,6 @@ const prCommand = describe(
   "Watch, list, read reviews on and queue pull requests",
 );
 
-const reportCommand = describe(
-  Command.make("report").pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make(
-          "run",
-          {
-            name: Argument.String("name").pipe(
-              Argument.withDescription(
-                "Report file name in ~/.config/dot/reports, without .yml",
-              ),
-            ),
-            dryRun: bool(
-              "dry-run",
-              "Print the Inbox message and write the page without posting or saving state",
-            ),
-          },
-          reportRun,
-        ),
-        "Run a report and post it to the Plannotator Inbox",
-        [
-          "dot report run hass-removal",
-          "dot report run hass-removal --dry-run",
-        ],
-        {
-          description:
-            "Read ~/.config/dot/reports/<name>.yml and run its sections in order. A code section keeps a shallow clone of a GitHub repository under the dot cache, tests each included file against named regexes, puts it in the first bucket whose patterns match, and counts per-file metrics. A github section runs a GitHub issue or pull request search, with {since} set to the last run's date, and can drop results the decision model in models.decision finds irrelevant. A checks section tests whether a file still matches a pattern and shows each finding while it holds. The run is compared with the last one, an optional OpenCode model in models.summary writes a short paragraph about what changed, and the page is saved under ~/.local/state/dot/reports/<name>/ and attached to a message in the report's Inbox thread. The message ends with a question so it waits in the Inbox, and the next run withdraws it if it's still open. With work_time_only, a real run outside work time (days off, out of hours or calendar leave) posts nothing and exits 3.",
-        },
-      ),
-      describe(
-        Command.make("list", {}, () => reportList),
-        "List report files and whether they're valid",
-        ["dot report list"],
-      ),
-    ]),
-  ),
-  "Configurable reports from code scans, GitHub searches and file checks",
-);
-
 const agentOxlintCommand = describe(
   Command.make(
     "oxlint",
@@ -3157,7 +3117,6 @@ export const dotCommand = describe(
       completionsCommand,
       repoCommand,
       prCommand,
-      reportCommand,
       herdr,
       homeAssistantCommand,
       reloadCommand,
