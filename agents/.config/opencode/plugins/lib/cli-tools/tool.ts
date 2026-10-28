@@ -72,6 +72,8 @@ export interface ClientCall {
   readonly resource?: string;
   /** This call's access, when the tool's depends on its input, such as an API method. */
   readonly access?: CliToolAccess;
+  /** The tool whose write permission this call asks for, when it runs another namespace's tool. */
+  readonly permission?: { readonly namespace: string; readonly tool: string };
   readonly run: Effect.Effect<unknown, Tool.Error>;
 }
 

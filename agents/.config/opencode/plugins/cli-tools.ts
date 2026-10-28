@@ -11,6 +11,7 @@ import { haBridgeNamespace } from "./lib/cli-tools/ha-bridge";
 import { herdrNamespace } from "./lib/cli-tools/herdr";
 import { hyprctlNamespace } from "./lib/cli-tools/hyprctl";
 import { loadDotTools } from "./lib/cli-tools/dot";
+import { jobsNamespace } from "./lib/cli-tools/jobs";
 import { miseNamespace } from "./lib/cli-tools/mise";
 import { notesTools } from "./lib/cli-tools/notes";
 import { omarchyNamespace } from "./lib/cli-tools/omarchy";
@@ -39,7 +40,7 @@ export default Plugin.define({
       if (Result.isFailure(dotTools))
         yield* Effect.logWarning(`cli-tools: no dot tools: ${dotTools.failure.message}`);
 
-      const namespaces: readonly Namespace[] = [
+      const ownNamespaces: readonly Namespace[] = [
         {
           kind: "cli",
           command: "dot",
@@ -73,10 +74,15 @@ export default Plugin.define({
         omarchyNamespace,
       ];
 
+      const namespaces: readonly Namespace[] = [
+        ...ownNamespaces,
+        jobsNamespace(ownNamespaces.filter((namespace): namespace is CliNamespace => namespace.kind === "cli")),
+      ];
+
       // OpenCode's prompt only shows the action for plugin permissions, so the action names the
       // tool and what it acts on; rules match it with `<namespace>.write *`.
       const assertWrite = (
-        namespace: Namespace,
+        namespace: string,
         access: CliToolAccess,
         call: Tool.Context,
         target: string,
@@ -88,7 +94,7 @@ export default Plugin.define({
         return context.permission.assert({
           sessionID: call.sessionID,
           agent: call.agent,
-          action: `${namespace.command}.write ${target}`,
+          action: `${namespace}.write ${target}`,
           resources: [resource],
           save: [resource],
           metadata: { command },
@@ -109,14 +115,16 @@ export default Plugin.define({
           Effect.gen(function* () {
             const directory = yield* sessionDirectory(call);
             const prepared = yield* tool.prepare(input, { directory });
-            const target = prepared.resource === undefined ? tool.name : `${tool.name} ${prepared.resource}`;
+            const owner = prepared.permission?.namespace ?? namespace.command;
+            const name = prepared.permission?.tool ?? tool.name;
+            const target = prepared.resource === undefined ? name : `${name} ${prepared.resource}`;
 
             yield* assertWrite(
-              namespace,
+              owner,
               prepared.access ?? tool.access,
               call,
               target,
-              `${namespace.command}_${target}`,
+              `${owner}_${target}`,
               prepared.summary,
             );
 
@@ -132,7 +140,7 @@ export default Plugin.define({
             const invocation = yield* tool.invocation(input);
             const commandLine = [namespace.command, ...invocation.args].join(" ");
 
-            yield* assertWrite(namespace, tool.access, call, tool.name, id, commandLine);
+            yield* assertWrite(namespace.command, tool.access, call, tool.name, id, commandLine);
 
             const output = yield* runCliOutput(namespace.command, invocation.args, {
               cwd: yield* sessionDirectory(call),
