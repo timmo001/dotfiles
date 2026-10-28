@@ -21,13 +21,14 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | [`hypr/`](https://github.com/timmo001/dotfiles/tree/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/hypr) | 31 |
 | [`omarchy/`](https://github.com/timmo001/dotfiles/tree/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/omarchy) | 46 |
 | [`pacman-hooks/`](https://github.com/timmo001/dotfiles/tree/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/pacman-hooks) | 1 |
+| [`plannotator/`](https://github.com/timmo001/dotfiles/tree/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/plannotator) | 1 |
 | [`scripts--laptop/`](https://github.com/timmo001/dotfiles/tree/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/scripts--laptop) | 3 |
 | [`systemd--laptop/`](https://github.com/timmo001/dotfiles/tree/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/systemd--laptop) | 2 |
 | [`uwsm/`](https://github.com/timmo001/dotfiles/tree/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/uwsm) | 1 |
 
 ## Removed files
 
-139 files removed from folders that stay.
+164 files removed from folders that stay.
 
 | File | Was |
 | --- | --- |
@@ -38,6 +39,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `agents/.config/opencode/plugins/lib/cli-tools/omarchy.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/agents/.config/opencode/plugins/lib/cli-tools/omarchy.ts) |
 | `agents/.config/opencode/plugins/lib/cli-tools/pacman.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/agents/.config/opencode/plugins/lib/cli-tools/pacman.ts) |
 | `agents/.config/opencode/plugins/lib/cli-tools/upnext.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/agents/.config/opencode/plugins/lib/cli-tools/upnext.ts) |
+| `agents/.config/opencode/plugins/review-handoff-guard.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/agents/.config/opencode/plugins/review-handoff-guard.ts) |
 | `docs/public/illustrations/desktop.svg` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/docs/public/illustrations/desktop.svg) |
 | `docs/src/content/docs/agents/cursor.mdx` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/docs/src/content/docs/agents/cursor.mdx) |
 | `docs/src/content/docs/desktop/ghostty.mdx` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/docs/src/content/docs/desktop/ghostty.mdx) |
@@ -45,6 +47,15 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `docs/src/content/docs/desktop/hyprland.mdx` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/docs/src/content/docs/desktop/hyprland.mdx) |
 | `docs/src/content/docs/desktop/omarchy-shell.mdx` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/docs/src/content/docs/desktop/omarchy-shell.mdx) |
 | `docs/src/content/docs/desktop/uwsm.mdx` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/docs/src/content/docs/desktop/uwsm.mdx) |
+| `dot/src/brief/calendar.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/brief/calendar.ts) |
+| `dot/src/brief/collect.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/brief/collect.ts) |
+| `dot/src/brief/config.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/brief/config.ts) |
+| `dot/src/brief/followUp.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/brief/followUp.ts) |
+| `dot/src/brief/inbox.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/brief/inbox.ts) |
+| `dot/src/brief/repos.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/brief/repos.ts) |
+| `dot/src/brief/score.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/brief/score.ts) |
+| `dot/src/brief/state.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/brief/state.ts) |
+| `dot/src/commands/Brief.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/Brief.ts) |
 | `dot/src/commands/Hdr.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/Hdr.ts) |
 | `dot/src/commands/LaunchFloatingWebapp.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/LaunchFloatingWebapp.ts) |
 | `dot/src/commands/LinkGit.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/LinkGit.ts) |
@@ -54,6 +65,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `dot/src/commands/OmarchyPlugin.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/OmarchyPlugin.ts) |
 | `dot/src/commands/PlannotatorInbox.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/PlannotatorInbox.ts) |
 | `dot/src/commands/PrivatePkgPublish.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/PrivatePkgPublish.ts) |
+| `dot/src/commands/Report.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/Report.ts) |
 | `dot/src/commands/SetupPrivateRepo.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/SetupPrivateRepo.ts) |
 | `dot/src/commands/SetupPublicRepo.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/SetupPublicRepo.ts) |
 | `dot/src/commands/WorkspaceRelayout.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/WorkspaceRelayout.ts) |
@@ -71,7 +83,9 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `dot/src/git/commands/Web.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/git/commands/Web.ts) |
 | `dot/src/git/itemAgent.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/git/itemAgent.ts) |
 | `dot/src/git/itemLinks.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/git/itemLinks.ts) |
+| `dot/src/lib/decisionModel.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/lib/decisionModel.ts) |
 | `dot/src/lib/dotLinksExtension.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/lib/dotLinksExtension.ts) |
+| `dot/src/lib/inboxClient.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/lib/inboxClient.ts) |
 | `dot/src/lib/omarchyCrashCapture.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/lib/omarchyCrashCapture.ts) |
 | `dot/src/lib/omarchyHost.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/lib/omarchyHost.ts) |
 | `dot/src/lib/omarchyNvim.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/lib/omarchyNvim.ts) |
@@ -79,6 +93,18 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `dot/src/lib/omarchyShellConfig.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/lib/omarchyShellConfig.ts) |
 | `dot/src/lib/userUnits.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/lib/userUnits.ts) |
 | `dot/src/lib/workspaceMutationLock.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/lib/workspaceMutationLock.ts) |
+| `dot/src/report/checkout.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/report/checkout.ts) |
+| `dot/src/report/checks.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/report/checks.ts) |
+| `dot/src/report/code.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/report/code.ts) |
+| `dot/src/report/config.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/report/config.ts) |
+| `dot/src/report/dependencies.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/report/dependencies.ts) |
+| `dot/src/report/github.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/report/github.ts) |
+| `dot/src/report/page.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/report/page.ts) |
+| `dot/src/report/render.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/report/render.ts) |
+| `dot/src/report/result.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/report/result.ts) |
+| `dot/src/report/state.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/report/state.ts) |
+| `dot/src/report/summary.ts` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/report/summary.ts) |
+| `dotfiles-skills/.agents/skills/dot-git-links/SKILL.md` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dotfiles-skills/.agents/skills/dot-git-links/SKILL.md) |
 | `dotfiles-skills/.agents/skills/dot-package-activation/SKILL.md` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dotfiles-skills/.agents/skills/dot-package-activation/SKILL.md) |
 | `dotfiles-skills/.agents/skills/omarchy-shell-quickshell/SKILL.md` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dotfiles-skills/.agents/skills/omarchy-shell-quickshell/SKILL.md) |
 | `mise/.local/share/applications/ai.opencode.desktop.desktop` | [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/mise/.local/share/applications/ai.opencode.desktop.desktop) |
@@ -173,7 +199,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Changed files
 
-113 files in both branches with different contents.
+112 files in both branches with different contents.
 
 | File | Compare |
 | --- | --- |
@@ -210,10 +236,8 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `dot/bun.lock` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-782ac4a75bd4ca7640ecda2b96399dcb852b08b3d2425f74ac8701f405b31cf6), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/bun.lock), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/bun.lock) |
 | `dot/package.json` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-3febd3c2ab248ea2b3475d46e7ea1f6014c25d88b23d3cc84402ac63d84539b2), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/package.json), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/package.json) |
 | `dot/schemas/dot-git.schema.yml` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-846860af793a4f5e51264e0109d7a8ba4dd7551aa0c7d87eb520b52e167f5fc5), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/schemas/dot-git.schema.yml), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/schemas/dot-git.schema.yml) |
-| `dot/src/brief/config.ts` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-016458a8189a5b77328b7efffeeef085401ac5e67b974f268fe5ed52871be5fa), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/brief/config.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/brief/config.ts) |
 | `dot/src/cli/spec.ts` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-f3fbf206b61561eae411b880c611fd986a8f36f1c23a92193156e4160bcd7f98), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/cli/spec.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/cli/spec.ts) |
 | `dot/src/commands/AgentTools.ts` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-c4db7d1c13ab476b618d4370b9a736bafa88d7be8471b788ac6594226c4edd8b), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/AgentTools.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/commands/AgentTools.ts) |
-| `dot/src/commands/Brief.ts` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-65d426fd802921abac678affaa6eb7aadec7243b01ada591f201693c869dca4f), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/Brief.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/commands/Brief.ts) |
 | `dot/src/commands/Clean.ts` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-51b21902547c6b30f52318ce3782577aa174a4ff430590089b502899d820bc76), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/Clean.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/commands/Clean.ts) |
 | `dot/src/commands/Fans.ts` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-e6a0e2100e9cdcf44e7fe2f5a4a55fd702c6268946f6f24f193a1eab720c81db), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/Fans.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/commands/Fans.ts) |
 | `dot/src/commands/HerdrRepoOpen.ts` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-d5530c73940046a299fac27a1a0990dc9258ae8d366c11f809bfe0b260ffd675), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/commands/HerdrRepoOpen.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/commands/HerdrRepoOpen.ts) |
@@ -243,6 +267,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `dot/src/git/doctor/gitSigning.ts` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-04e66c30f75ff2c96e5baebc892fea7c260aa6123fc09da61ec0162ad02662e8), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/git/doctor/gitSigning.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/git/doctor/gitSigning.ts) |
 | `dot/src/git/services/DotDiff.ts` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-d142a64314cd2891ef4244666dcf819921f795dc1e8473dbea61c0095b343038), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/git/services/DotDiff.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/git/services/DotDiff.ts) |
 | `dot/src/git/services/GitReleases.ts` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-df7382eb6605cd7f6cb8b7d3053ac2f92508591d81b5aa2362973f58b342d2f3), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/git/services/GitReleases.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/git/services/GitReleases.ts) |
+| `dot/src/lib/agentRuntime.ts` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-a9c248bd526ea5f014e8f2be94469e5761b704dc30f47037a58fe51e942de8da), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/lib/agentRuntime.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/agentRuntime.ts) |
 | `dot/src/lib/aptPackages.ts` (was `dot/src/lib/archPackages.ts`) | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-ce4a8dde23f5abc5916440737fe5c0f8707a1731292660eeeda2ba35c509a107), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/lib/archPackages.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/aptPackages.ts) |
 | `dot/src/lib/env.ts` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-a0574922bb080de9f606b225b2910eab1d1dcfd244ae35afdb36fc02cd1ccd66), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/lib/env.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/env.ts) |
 | `dot/src/lib/externalSkills.ts` | [diff](https://github.com/timmo001/dotfiles/compare/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484...distro/ubuntu-server#diff-e5e2642358129323d42bc8e99d2ec3748865f9236449b87d63d72e286b0cb2f4), [desktop](https://github.com/timmo001/dotfiles/blob/efab99d1d9390e7e17cbfc2ebbdfbcbce6ac5484/dot/src/lib/externalSkills.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/externalSkills.ts) |
