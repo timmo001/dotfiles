@@ -49,9 +49,12 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  * - `.local/share/bash-completion/completions` and
  *   `.local/share/zsh/site-functions`: tool-generated shell completions (e.g.
  *   `_copilot` from the Copilot CLI) are written here.
+ * - `.pi/agent`: Pi writes sessions and auth here, and the public `pi` and
+ *   private `agents` packages both stow into it.
  */
 const NO_FOLDING_TARGET_PREFIXES = [
   ".agents/skills",
+  ".pi/agent",
   ".config/fish/completions",
   ".config/ghostty",
   ".config/herdr",
