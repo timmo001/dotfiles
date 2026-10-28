@@ -99,6 +99,8 @@ interface ManagedPluginHosts {
 export interface ManagedPluginConfig {
   /** Stock widgets removed from the generated layout. */
   readonly remove: readonly string[];
+  /** Stock plugins disabled outright, such as a service another program replaces. */
+  readonly disable: readonly string[];
   /** Custom widgets placed into the generated layout. */
   readonly plugins: readonly ManagedPlugin[];
 }
@@ -112,6 +114,7 @@ export function mergeManagedPluginConfigs(
 
   return {
     remove: [...new Set([...publicConfig.remove, ...privateConfig.remove])],
+    disable: [...new Set([...publicConfig.disable, ...privateConfig.disable])],
     plugins: [
       ...publicConfig.plugins.filter(({ id }) => !privateIds.has(id)),
       ...privateConfig.plugins,
@@ -268,11 +271,17 @@ export function parseManagedPlugins(
   value: JsonValue,
 ): ManagedPluginConfig | null {
   if (!isJsonObject(value)) return null;
-  const { remove, plugins } = value;
+  const { remove, disable = [], plugins } = value;
 
   if (
     !Array.isArray(remove) ||
     !remove.every((id) => isString(id) && isPluginId(id))
+  )
+    return null;
+
+  if (
+    !Array.isArray(disable) ||
+    !disable.every((id) => isString(id) && isPluginId(id))
   )
     return null;
 
@@ -389,7 +398,7 @@ export function parseManagedPlugins(
     parsed.push(parsedPlugin);
   }
 
-  return { remove, plugins: parsed };
+  return { remove, disable, plugins: parsed };
 }
 
 function isPluginId(value: JsonValue): value is string {
@@ -432,7 +441,11 @@ function isSettings(value: JsonValue): value is JsonObject {
 export function mergeOmarchyShellConfig(
   base: ShellConfig,
   host: string,
-  managedPlugins: ManagedPluginConfig = { remove: [], plugins: [] },
+  managedPlugins: ManagedPluginConfig = {
+    remove: [],
+    disable: [],
+    plugins: [],
+  },
 ): ShellConfig {
   base.idle =
     host === "laptop"
@@ -449,6 +462,16 @@ export function mergeOmarchyShellConfig(
         index = entries.findIndex((entry) => entry.id === id);
       }
     }
+  }
+
+  if (managedPlugins.disable.length > 0) {
+    const existing = Array.isArray(base.disabledPlugins)
+      ? base.disabledPlugins.filter(isString)
+      : [];
+
+    base.disabledPlugins = [
+      ...new Set([...existing, ...managedPlugins.disable]),
+    ];
   }
 
   for (const plugin of managedPlugins.plugins) {
