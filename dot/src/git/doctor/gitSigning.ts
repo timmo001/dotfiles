@@ -4,7 +4,6 @@ import { hostname } from "node:os";
 import { Config } from "../../services/Config.js";
 import { GitHub, viewerLogin } from "../services/GitHub.js";
 import { gitOutput } from "../../lib/git.js";
-import { resolvedOmarchyHost } from "../../lib/omarchyHost.js";
 import { HOME_DIR, displayPath, expandHomePath } from "../../lib/paths.js";
 import type { CheckResult } from "../../doctor/types.js";
 
@@ -116,7 +115,7 @@ const signingOffSteps = Effect.gen(function* () {
   }
 
   const status = yield* keyStatus(publicKey);
-  const host = (yield* resolvedOmarchyHost(config)) ?? "<host>";
+  const host = hostname();
 
   const privateRoot = config.privateDotfiles
     ? displayPath(config.privateDotfiles)
