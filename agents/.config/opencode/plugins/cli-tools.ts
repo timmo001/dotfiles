@@ -20,7 +20,7 @@ import { omarchyNamespace } from "./lib/cli-tools/omarchy";
 import { opencode2Namespace } from "./lib/cli-tools/opencode2";
 import { pacmanNamespace } from "./lib/cli-tools/pacman";
 import { pitchforkNamespace } from "./lib/cli-tools/pitchfork";
-import { type CodeModeCatalogue, codeModeTools } from "./lib/cli-tools/shell-nudge";
+import { type CodeModeCatalogue, runsDotUpdate, shellNudge } from "./lib/cli-tools/shell-nudge";
 import { skillMaintenanceNamespace } from "./lib/cli-tools/skill-maintenance";
 import { systemBridgeNamespace } from "./lib/cli-tools/system-bridge";
 import { systemdNamespace } from "./lib/cli-tools/systemd";
@@ -262,13 +262,9 @@ export default Plugin.define({
 
           if (args.background === true) return;
 
-          const tools = codeModeTools(stringArg(args.command), catalogue);
+          const nudge = shellNudge(stringArg(args.command), catalogue);
 
-          if (tools.length === 0) return;
-
-          const nudge =
-            `cli-tools: Code Mode covers this command (${tools.join(", ")}). ` +
-            "Call it through execute instead of the shell next time, even when a skill or prompt quotes the CLI.";
+          if (nudge === undefined) return;
 
           const existing = event.result.content;
 
@@ -282,5 +278,23 @@ export default Plugin.define({
           };
         }),
       );
+
+      const dotUpdateJob = Result.isSuccess(dotTools) && dotTools.success.jobs.some((tool) => tool.name === "update");
+
+      // `dot update` reloads the OpenCode service, which cancels the shell running it, even in the background.
+      yield* context.tool.hook("execute.before", (event) => {
+        if (event.tool !== "shell" && event.tool !== "bash") return Effect.void;
+
+        if (!dotUpdateJob || !runsDotUpdate(stringArg(argRecord(event.input).command))) return Effect.void;
+
+        return Effect.fail(
+          new Tool.Error({
+            message:
+              "cli-tools: dot update reloads the OpenCode service, which cancels the shell running it. " +
+              'Start it through execute with `await tools.jobs.start({ tool: "dot.update" })`, ' +
+              "then run the `follow` command it returns in a background shell.",
+          }),
+        );
+      });
     }),
 });
