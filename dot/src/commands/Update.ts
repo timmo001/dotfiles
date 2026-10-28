@@ -9,7 +9,9 @@ import { stow as runStow } from "./Stow.js";
 import {
   reloadAgents,
   restartStalePitchforkDaemons,
+  restartStaleServices,
   updatePiExtensions,
+  updatePlannotatorPlugins,
 } from "../lib/agentRuntime.js";
 import { agentsSync } from "./AgentsSync.js";
 import { mcpSync } from "../mcp/commands/McpSync.js";
@@ -1701,9 +1703,17 @@ export const update = (updateOpts?: UpdateOptions) =>
 
           completedActions.push(
             ...(yield* Effect.all(
-              [restartStalePitchforkDaemons, updatePiExtensions],
+              [
+                // Services first: a stale service can hold a daemon's port
+                Effect.all([
+                  restartStaleServices,
+                  restartStalePitchforkDaemons,
+                ]),
+                // Sequential: both write Pi's package directory
+                Effect.all([updatePiExtensions, updatePlannotatorPlugins]),
+              ],
               { concurrency: "unbounded" },
-            )),
+            )).flat(),
           );
         }),
       );

@@ -1,5 +1,6 @@
 import { HerdrSdk, herdrSdkLayerFromOptions } from "@timmo001/effect-herdr";
 import { Duration, Effect, FileSystem, Option, Schema } from "effect";
+import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http";
 import { dirname, join, resolve } from "path";
 import { DEFAULT_SOCKET_PATH } from "../commands/HerdrRepoOpen.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -58,38 +59,24 @@ const miseInstalls = Effect.fn("agentRuntime.miseInstalls")(function* (
     : { root: dirname(dirname(first)), paths };
 });
 
+type InstallsByCwd = Map<
+  string,
+  Effect.Success<ReturnType<typeof miseInstalls>> | undefined
+>;
+
 /**
- * Restart running pitchfork daemons whose process is a mise-installed binary
- * other than the version mise now resolves in the daemon's directory, so
- * pitchfork relaunches them on the current install. Daemons launched by a
- * path that already resolves to their binary are left alone.
+ * Whether a process runs a mise-installed binary other than the version mise
+ * now resolves in its working directory. A process launched by a path that
+ * already resolves to its binary doesn't count: relaunching it can't help.
  */
-export const restartStalePitchforkDaemons = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  const fs = yield* FileSystem.FileSystem;
-  const log = yield* OutputLog;
-
-  if (Bun.which("pitchfork") === null)
-    return skip("Pitchfork daemons skipped (pitchfork not installed)");
-
-  const daemons = yield* executor
-    .run("pitchfork", ["list", "--json", "--status", "running"])
-    .pipe(Effect.flatMap(Schema.decodeEffect(PitchforkDaemons)));
-
-  const installsByCwd = new Map<
-    string,
-    Effect.Success<ReturnType<typeof miseInstalls>> | undefined
-  >();
-
-  const stale: string[] = [];
-
-  for (const { id, pid } of daemons) {
-    if (pid === null) continue;
+const runsStaleMiseBinary = Effect.fn("agentRuntime.runsStaleMiseBinary")(
+  function* (pid: number, installsByCwd: InstallsByCwd) {
+    const fs = yield* FileSystem.FileSystem;
 
     const exe = yield* fs.readLink(`/proc/${pid}/exe`).pipe(Effect.option);
     const cwd = yield* fs.readLink(`/proc/${pid}/cwd`).pipe(Effect.option);
 
-    if (Option.isNone(exe) || Option.isNone(cwd)) continue;
+    if (Option.isNone(exe) || Option.isNone(cwd)) return false;
 
     if (!installsByCwd.has(cwd.value)) {
       installsByCwd.set(
@@ -107,27 +94,49 @@ export const restartStalePitchforkDaemons = Effect.gen(function* () {
       ? exe.value.slice(0, -DELETED_SUFFIX.length)
       : exe.value;
 
-    if (!installs || !path.startsWith(`${installs.root}/`)) continue;
+    if (!installs || !path.startsWith(`${installs.root}/`)) return false;
 
     if (!deleted && installs.paths.some((dir) => path.startsWith(`${dir}/`)))
-      continue;
+      return false;
 
-    // A daemon launched by path, such as a virtual environment's python,
-    // relaunches on the same binary, so restarting it can't help
+    // A process launched by path, such as a virtual environment's python,
+    // relaunches on the same binary
     const [launcher = ""] = (yield* fs
       .readFileString(`/proc/${pid}/cmdline`)
       .pipe(Effect.orElseSucceed(() => ""))).split("\0");
 
-    if (
+    return !(
       !deleted &&
       launcher.includes("/") &&
       (yield* fs
         .realPath(resolve(cwd.value, launcher))
         .pipe(Effect.orElseSucceed(() => undefined))) === path
-    )
-      continue;
+    );
+  },
+);
 
-    stale.push(id);
+/**
+ * Restart running pitchfork daemons whose process is a mise-installed binary
+ * other than the version mise now resolves in the daemon's directory, so
+ * pitchfork relaunches them on the current install.
+ */
+export const restartStalePitchforkDaemons = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const log = yield* OutputLog;
+
+  if (Bun.which("pitchfork") === null)
+    return skip("Pitchfork daemons skipped (pitchfork not installed)");
+
+  const daemons = yield* executor
+    .run("pitchfork", ["list", "--json", "--status", "running"])
+    .pipe(Effect.flatMap(Schema.decodeEffect(PitchforkDaemons)));
+
+  const installsByCwd: InstallsByCwd = new Map();
+  const stale: string[] = [];
+
+  for (const { id, pid } of daemons) {
+    if (pid !== null && (yield* runsStaleMiseBinary(pid, installsByCwd)))
+      stale.push(id);
   }
 
   if (!stale.length) {
@@ -159,7 +168,109 @@ export const restartStalePitchforkDaemons = Effect.gen(function* () {
   Effect.withSpan("agentRuntime.restartStalePitchforkDaemons"),
 );
 
-/** Update installed Pi packages; Claude Code and OpenCode update their own plugins. */
+/**
+ * Restart running dot user services with a process on a superseded mise
+ * binary, such as the brief watcher's long-lived `plannotator inbox mcp`.
+ */
+export const restartStaleServices = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const fs = yield* FileSystem.FileSystem;
+  const log = yield* OutputLog;
+
+  const units = (yield* executor.run("systemctl", [
+    "--user",
+    "list-units",
+    "dot-*.service",
+    "--state=running",
+    "--plain",
+    "--no-legend",
+  ]))
+    .split("\n")
+    .flatMap((line) => line.trim().split(/\s+/, 1))
+    .filter((unit) => unit.endsWith(".service"));
+
+  const installsByCwd: InstallsByCwd = new Map();
+  const stale: string[] = [];
+
+  for (const unit of units) {
+    const cgroup = (yield* executor.run("systemctl", [
+      "--user",
+      "show",
+      "--property=ControlGroup",
+      "--value",
+      unit,
+    ])).trim();
+
+    const pids = (yield* fs
+      .readFileString(`/sys/fs/cgroup${cgroup}/cgroup.procs`)
+      .pipe(Effect.orElseSucceed(() => "")))
+      .split("\n")
+      .filter(Boolean)
+      .map(Number);
+
+    for (const pid of pids) {
+      if (yield* runsStaleMiseBinary(pid, installsByCwd)) {
+        stale.push(unit);
+        break;
+      }
+    }
+  }
+
+  if (!stale.length) {
+    yield* log.info("dot services are on current mise tools");
+
+    return skip("dot services already on current mise tools");
+  }
+
+  const failed: string[] = [];
+
+  for (const unit of stale) {
+    const exitCode = yield* executor.exitCode("systemctl", [
+      "--user",
+      "restart",
+      unit,
+    ]);
+
+    if (exitCode === 0) {
+      yield* log.success(`Restarted ${unit} on its current mise tools`);
+    } else {
+      yield* log.warn(`Could not restart ${unit} (exit ${exitCode})`);
+      failed.push(unit);
+    }
+  }
+
+  return failed.length
+    ? warn(`Could not restart dot services: ${failed.join(", ")}`)
+    : notable(`Restarted ${plural(stale.length, "dot service")}`);
+}).pipe(
+  Effect.catch((error) =>
+    Effect.succeed(warn(`dot service check failed: ${error.message}`)),
+  ),
+  Effect.withSpan("agentRuntime.restartStaleServices"),
+);
+
+/**
+ * Plannotator's agent plugins, unpinned, which only move to the version the
+ * Plannotator CLI is on. mise holds the CLI back by its minimum release age,
+ * so all three change in the same update.
+ */
+const PLANNOTATOR_PLUGINS = {
+  opencode: "@plannotator/opencode",
+  pi: "npm:@plannotator/pi-extension",
+} as const;
+
+const NpmLatest = Schema.Struct({ version: Schema.String });
+
+/** Pi packages from `pi list`, by their source. */
+const piPackages = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+
+  return (yield* executor.run("pi", ["list"]))
+    .split("\n")
+    .flatMap((line) => /^ {2}(\S+:\S+)$/.exec(line)?.[1] ?? []);
+});
+
+/** Update installed Pi packages, leaving Plannotator's to its CLI version. */
 export const updatePiExtensions = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
@@ -167,18 +278,122 @@ export const updatePiExtensions = Effect.gen(function* () {
   if (Bun.which("pi") === null)
     return skip("Pi extensions skipped (pi not installed)");
 
-  const exitCode = yield* executor.exitCode("pi", ["update", "--extensions"]);
+  const sources = (yield* piPackages).filter(
+    (source) => source !== PLANNOTATOR_PLUGINS.pi,
+  );
 
-  if (exitCode !== 0) {
-    yield* log.warn(`Pi extension update failed (exit ${exitCode})`);
+  const failed: string[] = [];
 
-    return warn(`Pi extension update failed (exit ${exitCode})`);
+  for (const source of sources) {
+    if ((yield* executor.exitCode("pi", ["update", source])) !== 0)
+      failed.push(source);
+  }
+
+  if (failed.length) {
+    yield* log.warn(`Pi extension update failed: ${failed.join(", ")}`);
+
+    return warn(`Pi extension update failed: ${failed.join(", ")}`);
   }
 
   yield* log.success("Updated Pi extensions");
 
   return done("Updated Pi extensions");
-}).pipe(Effect.withSpan("agentRuntime.updatePiExtensions"));
+}).pipe(
+  Effect.catch((error) =>
+    Effect.succeed(warn(`Pi extension update failed: ${error.message}`)),
+  ),
+  Effect.withSpan("agentRuntime.updatePiExtensions"),
+);
+
+/**
+ * Move Plannotator's OpenCode plugin and Pi extension to the latest release
+ * once the Plannotator CLI mise installed is on it too, so a release newer
+ * than mise's minimum release age waits for the next update.
+ */
+export const updatePlannotatorPlugins = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const http = yield* HttpClient.HttpClient;
+  const log = yield* OutputLog;
+
+  if (Bun.which("plannotator") === null)
+    return skip("Plannotator plugins skipped (plannotator not installed)");
+
+  const cli = /\d+\.\d+\.\d+\S*/.exec(
+    yield* executor.run("plannotator", ["--version"], { cwd: HOME_DIR }),
+  )?.[0];
+
+  if (cli === undefined)
+    return warn("Plannotator plugins skipped (unknown CLI version)");
+
+  const latest = Effect.fn("agentRuntime.npmLatest")(function* (name: string) {
+    const response = yield* http
+      .get(`https://registry.npmjs.org/${name}/latest`)
+      .pipe(Effect.flatMap(HttpClientResponse.filterStatusOk));
+
+    return (yield* Schema.decodeUnknownEffect(NpmLatest)(yield* response.json))
+      .version;
+  });
+
+  const updated: string[] = [];
+  const waiting: string[] = [];
+  const failed: string[] = [];
+
+  const follow = Effect.fn("agentRuntime.followPlannotator")(function* (
+    name: string,
+    update: Effect.Effect<number>,
+  ) {
+    const version = yield* latest(name);
+
+    if (version !== cli) {
+      yield* log.info(
+        `${name} ${version} waits for the Plannotator CLI (on ${cli})`,
+      );
+      waiting.push(name);
+
+      return;
+    }
+
+    if ((yield* update) === 0) updated.push(name);
+    else failed.push(name);
+  });
+
+  if ((yield* executor.exitCode(OPENCODE, ["service", "status"])) === 0) {
+    yield* follow(
+      PLANNOTATOR_PLUGINS.opencode,
+      executor.exitCode(OPENCODE, [
+        "plugin",
+        "update",
+        PLANNOTATOR_PLUGINS.opencode,
+      ]),
+    );
+  }
+
+  if (
+    Bun.which("pi") !== null &&
+    (yield* piPackages).includes(PLANNOTATOR_PLUGINS.pi)
+  ) {
+    yield* follow(
+      PLANNOTATOR_PLUGINS.pi.replace(/^npm:/, ""),
+      executor.exitCode("pi", ["update", PLANNOTATOR_PLUGINS.pi]),
+    );
+  }
+
+  if (failed.length)
+    return warn(`Could not update Plannotator plugins: ${failed.join(", ")}`);
+
+  if (waiting.length)
+    return skip(`Plannotator plugins wait for the CLI to reach their release`);
+
+  return updated.length
+    ? done(`Plannotator plugins follow CLI ${cli}`)
+    : skip("Plannotator plugins skipped (none installed)");
+}).pipe(
+  Effect.catch((error) =>
+    Effect.succeed(warn(`Plannotator plugin update failed: ${error.message}`)),
+  ),
+  Effect.provide(FetchHttpClient.layer),
+  Effect.withSpan("agentRuntime.updatePlannotatorPlugins"),
+);
 
 /** Reload the OpenCode 2 background service's configuration when it is running. */
 const reloadOpenCode = Effect.gen(function* () {
