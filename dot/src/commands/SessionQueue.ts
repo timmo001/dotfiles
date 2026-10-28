@@ -316,6 +316,23 @@ const errorText = (error: { readonly message: string }) =>
     ? error.stderr.trim() || `${error.command} failed (exit ${error.exitCode})`
     : error.message;
 
+/**
+ * Fail unless an exported session file is complete JSON. `opencode session
+ * export` can exit before a piped stdout drains (anomalyco/opencode#57266).
+ */
+const checkExport = Effect.fn("sessionQueue.checkExport")(function* (
+  path: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  yield* fs.readFileString(path).pipe(
+    Effect.flatMap(Schema.decodeEffect(Schema.fromJsonString(Schema.Unknown))),
+    Effect.mapError(() =>
+      fail(`${basename(path)} isn't complete JSON; the export was cut off`),
+    ),
+  );
+});
+
 const handled = <A, R>(
   effect: Effect.Effect<A, { readonly message: string }, R>,
 ) =>
@@ -392,11 +409,20 @@ export const sessionSend = (options: {
 
       yield* fs.makeDirectory(join(entry, "sessions"), { recursive: true });
 
-      for (const child of sessions)
-        yield* fs.writeFileString(
-          join(entry, "sessions", `${child}.json`),
-          yield* executor.run(OPENCODE, ["session", "export", child]),
-        );
+      for (const child of sessions) {
+        const file = join(entry, "sessions", `${child}.json`);
+
+        yield* executor.run("bash", [
+          "-c",
+          'exec "$1" session export "$2" > "$3"',
+          "bash",
+          OPENCODE,
+          child,
+          file,
+        ]);
+
+        yield* checkExport(file);
+      }
 
       const patch =
         state && !state.clean
@@ -754,6 +780,15 @@ export const sessionTake = (options: {
         yield* fs.makeDirectory(TAKEN_DIR, { recursive: true });
         yield* fs.remove(entry, { recursive: true, force: true });
         yield* download(queue, meta.id, host, TAKEN_DIR);
+
+        for (const id of meta.sessions)
+          yield* checkExport(join(entry, "sessions", `${id}.json`)).pipe(
+            Effect.mapError(({ message }) =>
+              fail(
+                `${message}; send it again from ${meta.host} and remove ${meta.id} from the queue`,
+              ),
+            ),
+          );
 
         for (const id of meta.sessions)
           yield* executor.run(OPENCODE, [
