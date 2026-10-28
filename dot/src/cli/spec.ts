@@ -2657,7 +2657,7 @@ const prWatchCommand = describe(
       ),
       json: bool(
         "json",
-        "Print one JSON summary at the end instead of streaming progress",
+        "Print one JSON summary at the end, with progress on stderr",
       ),
     },
     (input) =>

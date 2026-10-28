@@ -223,7 +223,8 @@ const watchPullRequests = Effect.fn("prWatch")(function* (
     const now = yield* Clock.currentTimeMillis;
     const line = `[${time(now)}]${target ? ` #${target.number}` : ""} ${message}`;
 
-    if (!options.json) process.stdout.write(`${line}\n`);
+    // With --json, stdout carries only the final summary, so progress goes to stderr.
+    (options.json ? process.stderr : process.stdout).write(`${line}\n`);
     yield* write(`- ${line}`);
   });
 
