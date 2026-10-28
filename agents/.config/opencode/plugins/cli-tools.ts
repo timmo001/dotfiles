@@ -36,14 +36,7 @@ import {
   runCliOutput,
   strictToolInput,
 } from "./lib/cli-tools/tool";
-
-/** A tool result's content with a note for the agent added at the end. */
-const withNote = (content: Tool.Result["content"], note: string) =>
-  Array.isArray(content)
-    ? [...content, { type: "text" as const, text: note }]
-    : Schema.is(Schema.String)(content)
-      ? `${content}\n\n${note}`
-      : note;
+import { triageNamespace } from "./lib/cli-tools/triage";
 
 /** CLIs, besides dot, whose Code Mode tools come from their own `agent tools --json`. */
 const manifestCommands = [
@@ -90,6 +83,8 @@ export default Plugin.define({
         },
         ...manifestNamespaces.map((entry) => entry.namespace),
         herdrNamespace,
+        haBridgeNamespace,
+        systemBridgeNamespace,
         systemdNamespace,
         pitchforkNamespace,
         miseNamespace,
