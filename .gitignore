@@ -9,8 +9,7 @@ __pycache__/
 /mise.lock
 /.mise/
 /mise/.config/mise/mise.lock
-/plannotator/.plannotator/*
-!/plannotator/.plannotator/config.json
+/plannotator/
 /herdr/.config/herdr/*
 !/herdr/.config/herdr/config.toml
 !/herdr/.config/herdr/plugins/
