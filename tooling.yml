@@ -27,6 +27,6 @@ tools:
     tags: ^v2\.
     review: Check the OpenCode config, agents, commands and plugins under agents/.config/opencode, and the dot commands and doctor checks that drive OpenCode. Plugins run on OpenCode's own Effect, so keep the plugins' effect and @effect/platform-node pins on the versions it uses.
   - repo: Effect-TS/effect
-    reviewed: effect@4.0.6
+    reviewed: effect@4.0.7
     tags: ^effect@
     review: Check dot and the OpenCode plugins for moved modules or changed APIs. The plugins' Effect pin follows OpenCode, so a change there waits for an OpenCode release that adopts it.
