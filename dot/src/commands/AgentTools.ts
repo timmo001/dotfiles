@@ -68,7 +68,6 @@ const AGENT_TOOLS = {
   },
   "pr list": { access: "read", omit: ["open"] },
   "agent lint": { access: "read", timeout: "10 minutes", directory: true },
-  "link git": { access: "read" },
   "herdr context": { access: "read", omit: ["watch"] },
   "herdr agents": { access: "read" },
   "git issues": { access: "read", omit: ["open"] },
@@ -108,23 +107,13 @@ const AGENT_TOOLS = {
     directory: true,
   },
   "herdr repo open": { access: "write", omit: ["modifiers", "prompt-file"] },
-  "omarchy plugin add": { access: "write" },
-  "omarchy plugin update": {
+  deps: {
     access: "write",
-    timeout: "5 minutes",
-    fixed: ["--yes"],
-    omit: ["yes", "confirm"],
+    jobOnly: true,
+    timeout: "2 hours",
+    exitCodes: [0, 2],
   },
-  "omarchy plugin remove": {
-    access: "write",
-    alwaysAsk: true,
-    fixed: ["--yes", "--no-commit-offer"],
-    omit: ["yes", "no-commit-offer", "confirm", "save"],
-  },
-  "services schedule check": { access: "read" },
-  "homeassistant status": { access: "read", directory: true },
-  "homeassistant logs": { access: "read", omit: ["follow"], directory: true },
-  "homeassistant stop": {
+  "deps service": {
     access: "write",
     alwaysAsk: true,
     directory: true,
@@ -182,9 +171,7 @@ const AGENT_TOOLS = {
   "skills consumers add": { access: "write" },
   "skills consumers remove": { access: "write", alwaysAsk: true },
   "notes capture sync": { access: "write", timeout: "5 minutes" },
-  "omarchy shell config": { access: "write" },
-  "git notifications dismiss dependencies": { access: "write" },
-  "git notifications dismiss remaining": { access: "write", alwaysAsk: true },
+  "brief dismiss": { access: "write" },
 } satisfies Readonly<Record<string, AgentToolSpec>>;
 
 /** How one tool input key maps back to a command-line argument or flag. */
