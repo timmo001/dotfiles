@@ -1,5 +1,5 @@
 /**
- * @file Exposes the dot, Context and Notes CLIs as typed Code Mode tools.
+ * @file Exposes the dot, Context, Notes and triage CLIs as typed Code Mode tools.
  */
 
 import { Plugin } from "@opencode/plugin/effect";
@@ -9,6 +9,7 @@ import { contextTools } from "./lib/cli-tools/context";
 import { loadDotTools } from "./lib/cli-tools/dot";
 import { notesTools } from "./lib/cli-tools/notes";
 import { CliInput, type CliTool, runCli } from "./lib/cli-tools/tool";
+import { triageTools } from "./lib/cli-tools/triage";
 
 interface CliNamespace {
   readonly command: string;
@@ -46,6 +47,12 @@ export default Plugin.define({
           description:
             "The Notes CLI: read, search and change the repository's Markdown notes and handoffs. Changes are committed and pushed.",
           tools: notesTools,
+        },
+        {
+          command: "triage",
+          description:
+            "Crashes and errors triage collected from your machines, on the server in $TRIAGE_SERVER. Find issues with list_issues, read one with get_issue (an ID or a link to its page), page through its events with get_issue_events, and see how issues like it were fixed with find_similar_issues. Notes say why an issue was resolved or muted before and which host it regressed on. Once you've fixed an issue, ask the user before resolving it with set_issue_status, with a note on what fixed it and the hosts it's in place on, and before merging with merge_issues. The triage-resolve skill has the full steps.",
+          tools: triageTools,
         },
       ];
 
