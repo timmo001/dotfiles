@@ -24,11 +24,13 @@ import {
 import { type Duration, Effect, Layer, Option, Schema } from "effect";
 import {
   type CliInput,
+  type CliNamespace,
   type ClientCall,
   type ClientNamespace,
   type ClientTool,
   type CliToolAccess,
   commandExists,
+  defineCliTool,
   plain,
   runCliText,
   tailLines,
@@ -358,6 +360,10 @@ const runStatus = Schema.Literals([
   "timed_out",
 ]);
 
+const secretApp = Schema.optionalKey(Schema.Literals(["actions", "dependabot"])).annotate({
+  description: "Which secrets (default: actions)",
+});
+
 const InlineComment = Schema.Struct({
   path: Schema.String.annotate({ description: "The file's path in the repository" }),
   line: Schema.Int.annotate({ description: "The last line of the range the comment applies to" }),
@@ -379,12 +385,47 @@ const ReleaseSettings = {
   prerelease: Schema.optionalKey(Schema.Boolean),
 };
 
+/**
+ * gh commands that only run as detached jobs, since they wait far longer than a tool call should.
+ * They are not tools of their own; `jobs.start` runs them as `gh.<name>`.
+ */
+export const ghJobs: CliNamespace = {
+  kind: "cli",
+  command: "gh",
+  description: "gh commands run as jobs.",
+  tools: [
+    defineCliTool({
+      name: "run_watch",
+      description: "Wait for an Actions run to finish, failing when it does not succeed.",
+      access: "read",
+      timeout: "3 hours",
+      json: false,
+      input: Schema.Struct({
+        repo: Schema.optionalKey(Schema.String).annotate({ description: "OWNER/REPO (default: the session directory's repository)" }),
+        runId: Schema.Int.annotate({ description: "The run's ID, from run_list" }),
+      }),
+      invocation: (input) => ({
+        args: [
+          "run",
+          "watch",
+          "--exit-status",
+          "--compact",
+          "--interval=30",
+          ...(input.repo ? [`--repo=${input.repo}`] : []),
+          "--",
+          String(input.runId),
+        ],
+      }),
+    }),
+  ],
+};
+
 /** GitHub through the effect-gh client, run in the session directory. */
 export const ghNamespace: ClientNamespace = {
   kind: "client",
   command: "gh",
   description:
-    "GitHub through the gh CLI: repositories (create, edit, fork, delete, read files), pull requests and their reviews, review threads and comments, issues, discussions, labels, releases, Actions runs and search. `repo` defaults to the session directory's repository. Text writes take `attachments` ([{ path, alt }]), uploaded and swapped in for their local paths, including in reviews, inline review comments and discussions. Prefer the typed tools; `api` (REST) and `graphql` are the escape hatches, and run without asking for GET and HEAD requests and query-only documents.",
+    "GitHub through the gh CLI: repositories (create, edit, fork, delete, read files), pull requests and their reviews, review threads and comments, issues, discussions, labels, releases, Actions runs and search. `repo` defaults to the session directory's repository. Text writes take `attachments` ([{ path, alt }]), uploaded and swapped in for their local paths, including in reviews, inline review comments and discussions. Prefer the typed tools; `api` (REST) and `graphql` are the escape hatches, and run without asking for GET and HEAD requests and query-only documents. To wait for an Actions run outside a pull request, start `gh.run_watch` ({ repo, runId }) with jobs.start; use dot.pr_watch for pull requests.",
   available: commandExists("gh"),
   tools: [
     ghTool({
@@ -675,6 +716,165 @@ export const ghNamespace: ClientNamespace = {
             { cwd: call.cwd },
           ),
         ),
+    }),
+    ghTool({
+      name: "run_download",
+      description:
+        "Download an Actions run's artifacts, all or those named, into a directory relative to the session directory.",
+      access: "write",
+      timeout: "10 minutes",
+      input: Schema.Struct({
+        repo,
+        runId: Schema.Int,
+        names: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Artifact names (default: all)" }),
+        directory: Schema.String,
+      }),
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.execute(
+            [
+              "run",
+              "download",
+              `--repo=${call.repo}`,
+              `--dir=${input.directory}`,
+              ...(input.names ?? []).map((name) => `--name=${name}`),
+              "--",
+              String(input.runId),
+            ],
+            { cwd: call.cwd, timeout: "10 minutes" },
+          ),
+        ).pipe(Effect.asVoid),
+    }),
+    ghTool({
+      name: "secret_list",
+      description: "List a repository's Actions or Dependabot secret names and when they were updated. Values are never readable.",
+      access: "read",
+      input: Schema.Struct({ repo, app: secretApp }),
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.json(
+            ["secret", "list", `--repo=${call.repo}`, `--app=${input.app ?? "actions"}`, "--json=name,updatedAt"],
+            Schema.Unknown,
+            { cwd: call.cwd },
+          ),
+        ),
+    }),
+    ghTool({
+      name: "secret_set",
+      description: "Create or replace a repository's Actions or Dependabot secret.",
+      access: "write",
+      input: Schema.Struct({ repo, app: secretApp, name: Schema.String, value: Schema.String }),
+      resource: (input, repo) => `${repo} ${input.name}`,
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.execute(["secret", "set", `--repo=${call.repo}`, `--app=${input.app ?? "actions"}`, "--", input.name], {
+            cwd: call.cwd,
+            stdin: input.value,
+          }),
+        ).pipe(Effect.asVoid),
+    }),
+    ghTool({
+      name: "secret_delete",
+      description: "Delete a repository's Actions or Dependabot secret.",
+      access: "write",
+      input: Schema.Struct({ repo, app: secretApp, name: Schema.String }),
+      resource: (input, repo) => `${repo} ${input.name}`,
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.execute(["secret", "delete", `--repo=${call.repo}`, `--app=${input.app ?? "actions"}`, "--", input.name], {
+            cwd: call.cwd,
+          }),
+        ).pipe(Effect.asVoid),
+    }),
+    ghTool({
+      name: "variable_list",
+      description: "List a repository's Actions variables with their values.",
+      access: "read",
+      input: Schema.Struct({ repo }),
+      run: (_input, call) =>
+        withGh((gh) =>
+          gh.json(["variable", "list", `--repo=${call.repo}`, "--json=name,value,updatedAt"], Schema.Unknown, {
+            cwd: call.cwd,
+          }),
+        ),
+    }),
+    ghTool({
+      name: "variable_set",
+      description: "Create or replace a repository's Actions variable.",
+      access: "write",
+      input: Schema.Struct({ repo, name: Schema.String, value: Schema.String }),
+      resource: (input, repo) => `${repo} ${input.name}`,
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.execute(["variable", "set", `--repo=${call.repo}`, "--", input.name], { cwd: call.cwd, stdin: input.value }),
+        ).pipe(Effect.asVoid),
+    }),
+    ghTool({
+      name: "variable_delete",
+      description: "Delete a repository's Actions variable.",
+      access: "write",
+      input: Schema.Struct({ repo, name: Schema.String }),
+      resource: (input, repo) => `${repo} ${input.name}`,
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.execute(["variable", "delete", `--repo=${call.repo}`, "--", input.name], { cwd: call.cwd }),
+        ).pipe(Effect.asVoid),
+    }),
+    ghTool({
+      name: "cache_list",
+      description: "List a repository's Actions caches, newest first, optionally for one key prefix or ref.",
+      access: "read",
+      input: Schema.Struct({
+        repo,
+        key: Schema.optionalKey(Schema.String).annotate({ description: "Only caches whose key starts with this" }),
+        ref: Schema.optionalKey(Schema.String).annotate({ description: "Only caches for this ref, such as refs/heads/main" }),
+        limit: Schema.optionalKey(Schema.Int),
+      }),
+      run: (input, call) =>
+        withGh((gh) =>
+          gh.json(
+            [
+              "cache",
+              "list",
+              `--repo=${call.repo}`,
+              "--json=id,key,ref,sizeInBytes,createdAt,lastAccessedAt",
+              `--limit=${input.limit ?? 30}`,
+              ...flag("key", input.key),
+              ...flag("ref", input.ref),
+            ],
+            Schema.Unknown,
+            { cwd: call.cwd },
+          ),
+        ),
+    }),
+    ghTool({
+      name: "cache_delete",
+      description: "Delete an Actions cache by its ID or key, or every cache with all.",
+      access: "write",
+      input: Schema.Struct({
+        repo,
+        cache: Schema.optionalKey(Schema.String).annotate({ description: "The cache's ID or key, from cache_list" }),
+        all: Schema.optionalKey(Schema.Boolean),
+      }),
+      resource: (input, repo) => `${repo} ${input.all ? "--all" : (input.cache ?? "")}`,
+      run: (input, call) =>
+        input.all === true || input.cache !== undefined
+          ? withGh((gh) =>
+              gh.execute(
+                ["cache", "delete", `--repo=${call.repo}`, ...(input.all ? ["--all"] : ["--", input.cache ?? ""])],
+                { cwd: call.cwd },
+              ),
+            ).pipe(Effect.asVoid)
+          : Effect.fail(new GhInvalidOptionsError({ cause: new Error("Pass cache or all") })),
+    }),
+    ghTool({
+      name: "auth_status",
+      description: "The accounts gh is signed in to, per host: login, token source, scopes and git protocol.",
+      access: "read",
+      repo: "none",
+      input: Schema.Struct({}),
+      run: (_input, call) =>
+        withGh((gh) => gh.json(["auth", "status", "--json=hosts"], Schema.Unknown, { cwd: call.cwd })),
     }),
     ghTool({
       name: "search_issues",

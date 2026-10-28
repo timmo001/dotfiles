@@ -154,7 +154,7 @@ const prune = Effect.gen(function* () {
 
 const StartInput = Schema.Struct({
   tool: Schema.String.annotate({
-    description: "The tool to run, as namespace.tool, such as dot.pr_watch or mise.run. Only CLI-backed namespaces",
+    description: "The tool to run, as namespace.tool, such as dot.pr_watch, gh.run_watch or mise.run. Only CLI-backed namespaces",
   }),
   input: Schema.optionalKey(CliInput).annotate({ description: "That tool's input" }),
   timeoutMinutes: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 1440 }))).annotate({
@@ -285,7 +285,7 @@ export const jobsNamespace = (namespaces: readonly CliNamespace[]): ClientNamesp
   kind: "client",
   command: "jobs",
   description:
-    "Detached jobs for long CLI-backed tools such as dot.pr_watch or mise.run: start one and get its id at once, then list jobs, read a job's output while it runs, wait a bounded time for it to end, or stop it. Jobs keep running through OpenCode restarts.",
+    "Detached jobs for long CLI-backed tools such as dot.pr_watch, gh.run_watch or mise.run: start one and get its id at once, then list jobs, read a job's output while it runs, wait a bounded time for it to end, or stop it. Jobs keep running through OpenCode restarts.",
   available: commandExists("systemd-run"),
   tools: [
     startTool(namespaces),
