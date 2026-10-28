@@ -36,7 +36,7 @@ Repo paths below are relative to the dotfiles checkout at `~/.config/dotfiles`.
 - Confirm the current manifest contract in `PluginRegistry.qml` and inspect the nearest built-in under `$OMARCHY_PATH/shell/plugins/` before creating or changing a plugin.
 - Keep third-party ids namespaced outside the reserved `omarchy.*` namespace.
 - Reach the palette through `import qs.Commons as Commons` and `Commons.Color`, including `Connections.target`. Since Qt 6.12, QtQuick's own `Color` type shadows a bare `Color` reference, which breaks the plugin. Keep the plain `qs.Commons` import for `Style`, `Util` and `Border`.
-- Prefer Omarchy's `omarchy plugin` and `omarchy bar` commands when they cover the operation. They own validation, enabled state, placement, and persisted layout.
+- Prefer Omarchy's `omarchy plugin` and `omarchy bar` commands when they cover the operation, through the `omarchy` Code Mode namespace's plugin tools where it has one for the operation. They own validation, enabled state, placement, and persisted layout.
 - For a new manually installed plugin, run `dot stow`, rescan plugins, then enable the plugin. Rescanning discovers code but does not enable it.
 - Omarchy watches user-plugin files, but dotfiles requires an explicit restart after edits to verify the final stowed state.
 - Plugins run unsandboxed in the shell process. Review all plugin code before enabling it.
@@ -70,6 +70,8 @@ Whenever an authorised push lands a change to a managed plugin, follow through t
 5. Then `dot reload shell` and act on the permission from step 2 through the `dot-git-commit` skill, scoped with `--path omarchy/.config/omarchy/plugins/<id>`.
 
 ## Reload matrix (dotfiles changes)
+
+Run `dot stow` and `dot reload shell` through the `dot` Code Mode namespace's `stow` and `reload` (`part: ["shell"]`) tools when the agent has them; the commands are the fallback.
 
 | Change | Action |
 | --- | --- |

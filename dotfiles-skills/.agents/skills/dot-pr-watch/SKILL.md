@@ -37,7 +37,7 @@ On completion, read the report, including the full `Review body findings` and `O
 - `Open threads`: unresolved threads, with every comment in full and the thread ID.
 - `Dismissed threads`: threads that were resolved or minimized, with only the replies shown.
 
-The full review dump is appended when the watch exits. While it is running, run `dot pr reviews` (same PR numbers and `--repo`) if feedback needs attention now, including threads already present at startup; it prints the same review dump once, with every page and reply. Run it again if later replies or pushes make the report stale; do not turn this into a polling loop.
+The full review dump is appended when the watch exits. While it is running, read the reviews once (same PR numbers and repository) if feedback needs attention now, including threads already present at startup: prefer the `dot` Code Mode namespace's `pr_reviews` tool, and fall back to `dot pr reviews` without it. It returns the same review dump, with every page and reply. Read it again if later replies or pushes make the report stale; do not turn this into a polling loop.
 
 ## Triage
 
@@ -55,4 +55,4 @@ Account for every open thread and review body finding with a link (thread ID, or
 
 For a valid concern, describe the remaining fix and apply it only if the user asked for fixes. Where a reply is still needed, draft it in the user's voice (apply `writing-style`: no "Good catch" or other stock pleasantries, only the fix or the reason), including explanations of completed fixes or invalid/won't-fix feedback. A review body finding has no thread, so draft its reply as a pull request comment that links the review and names the finding. Do not repeat an existing answer unless new information needs a response. Keep pending CI separate from thread follow-up, so passing checks do not imply the discussion is finished.
 
-Never post comments, replies or reviews, and never resolve, minimize or react to threads or re-request reviews. When fixes are in place, ask (see `asking-questions`) whether any threads should be resolved, and act only on an explicit yes for those specific threads.
+Never post comments, replies or reviews, and never resolve, minimize or react to threads or re-request reviews. When fixes are in place, ask (see `asking-questions`) whether any threads should be resolved, and act only on an explicit yes for those specific threads. Resolve them with the `gh` Code Mode namespace's `review_thread_resolve` when the agent has it, otherwise through `gh api graphql`.

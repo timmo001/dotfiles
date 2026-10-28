@@ -15,7 +15,9 @@ compatibility: Requires the dot CLI and the host's configured OpenCode 2 launche
    `dot session status "$OPENCODE_SESSION_ID" --json`. Do not infer identity
    from the current directory, focused pane, latest session or transcript title.
    Ask for the ID only if both sources are missing.
-2. Run `dot session status <session-id> --json`. Use the same command with an
+2. Prefer the `dot` Code Mode namespace's `session_status` tool with the
+   session ID (and `warnAt` for a different threshold). Without it, run
+   `dot session status <session-id> --json`. Use the same call with an
    explicitly supplied ID for another session. Herdr's reported OpenCode session
    ID is also suitable when inspecting an already identified worker.
 3. Use `model` for the selected provider, model ID and optional variant;

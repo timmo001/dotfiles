@@ -19,9 +19,10 @@ icon:
 Leave out everything else, such as other people's pull requests and upstream or
 organisation issues the user isn't assigned to, without calling the command.
 
-When you're about to share links that qualify, run `dot link git <url>...` once
-with every one of them. It prints JSON under an
-agent, one entry per URL, in order:
+When you're about to share links that qualify, call the `dot` Code Mode
+namespace's `link_git` tool once with every one of them in `urls`, or run
+`dot link git <url>...` once without it. It returns JSON, one entry per URL,
+in order:
 
 ```json
 [{"url":"https://github.com/timmo001/dotfiles/issues/1078","link":"dot://git/issue/timmo001/dotfiles/1078","listed":true,"markdown":"[🖥️](dot://git/issue/timmo001/dotfiles/1078)"}]

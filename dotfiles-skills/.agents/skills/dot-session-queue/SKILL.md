@@ -9,14 +9,17 @@ compatibility: Requires the dot CLI, the host's configured OpenCode 2 launcher a
 
 ## Send A Session
 
-1. To send this session, run `dot session send --json` with no ID. It finds the
+1. Prefer the `dot` Code Mode namespace's `session_send` tool, with `sessionId`
+   and `attach` in place of the flags below; without it, run `dot session send
+   --json`. To send this session, leave the ID out. It finds the
    session Herdr reports for your own pane (`HERDR_PANE_ID`). If you are not in
    a Herdr pane, pass the `Current conversation session ID` from the harness's
    injected environment context instead. Never ask the user for the ID and
    never guess it from the directory or the latest session.
-   To send another session, pass the ID the user gives or the one
-   `herdr agent get <pane-id>` reports for that pane (`agent_session.value`).
-2. `dot session send` exports the session and its
+   To send another session, pass the ID the user gives or the one Herdr
+   reports for that pane (`agent_session.value` from the `herdr` Code Mode
+   namespace's agent get, or `herdr agent get <pane-id>`).
+2. Sending exports the session and its
    subagent sessions, adds a patch of uncommitted changes (untracked files
    included) and uploads them to the queue over SSH.
    Attach this task's scratch folders by default: pass
@@ -38,8 +41,9 @@ compatibility: Requires the dot CLI, the host's configured OpenCode 2 launcher a
 
 ## List And Take
 
-- `dot session queue --json` lists what's waiting, newest first.
-- Never run `dot session take`. Picking a session up claims it, imports it,
+- The `dot` Code Mode namespace's `session_queue` tool, or
+  `dot session queue --json`, lists what's waiting, newest first.
+- Never run `dot session take` or its Code Mode tool. Picking a session up claims it, imports it,
   may apply a patch and opens a Herdr pane, so it belongs to the user on the
   machine that should continue the work. Tell them to run `dot session take`
   there.
@@ -47,5 +51,6 @@ compatibility: Requires the dot CLI, the host's configured OpenCode 2 launcher a
 ## When It Fails
 
 - "No session queue": the private config is missing on this machine.
-- SSH errors: run `dot doctor` and report the Session queue row rather than
+- SSH errors: run the doctor check (the `dot` namespace's `doctor` tool, or
+  `dot doctor`) and report the Session queue row rather than
   retrying in a loop.

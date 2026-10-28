@@ -17,7 +17,7 @@ Use this skill for changes to user config managed by GNU Stow through the public
 1. Resolve every live config path to its owning stow source before editing.
 2. Keep shared non-sensitive config public and machine-specific or private data in the private overlay.
 3. Edit the source repository, never an unmanaged live file.
-4. Run `dot stow` after stowed source changes.
+4. Run `dot stow` after stowed source changes, through the `dot` Code Mode namespace's `stow` tool when the agent has it.
 5. Create, import, review, and update reusable skills in `~/repos/skills`; never edit `~/.agents/skills` or the dot-managed `~/.local/share/dot/skills` checkout directly. Review third-party updates through `dot skills updates`; `dot update` links the latest pushed `main`.
 6. Push skills changes to `main` before expecting them locally. `dot update` fetches the managed checkout and relinks; there is no submodule pin to advance.
 7. Follow the repository's documentation policy. Regenerate affected catalogues; ordinary behaviour changes do not require hand-written pages.

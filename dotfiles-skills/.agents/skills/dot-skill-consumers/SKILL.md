@@ -17,6 +17,8 @@ metadata:
 
 ## Share skills
 
+Prefer the `dot` Code Mode namespace's `skills_consumers_add` and `skills_consumers_remove` tools, with `repo`, `skill` and `all` in place of the flags; the commands below are the fallback.
+
 ```bash
 dot skills consumers add [--repo <owner/repo>] <skill>...
 ```
@@ -34,6 +36,6 @@ Removing some skills commits and pushes the shorter list, then deletes those cop
 
 ## Reaching the repository
 
-Both commands push to skills `main` and to the target repository, so run them only when the user asked to share or remove skills. They refuse while `~/repos/skills` has other unpushed commits or uncommitted changes to `consumers.yml`, imports or the shared skills. If the repository sync fails after the push, the timer retries it. To resync every listed repository, run `dot services start skill-consumers.timer`, which also pushes, so only do so when asked.
+Both commands push to skills `main` and to the target repository, so run them only when the user asked to share or remove skills. They refuse while `~/repos/skills` has other unpushed commits or uncommitted changes to `consumers.yml`, imports or the shared skills. If the repository sync fails after the push, the timer retries it. To resync every listed repository, start `skill-consumers.timer` (the namespace's `services_start` tool, or `dot services start skill-consumers.timer`), which also pushes, so only do so when asked.
 
-Check recent runs with `dot services run logs skill-consumers.timer`.
+Check recent runs with the namespace's `services_run_logs` tool, or `dot services run logs skill-consumers.timer`.

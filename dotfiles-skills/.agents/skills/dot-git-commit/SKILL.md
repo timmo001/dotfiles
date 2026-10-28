@@ -38,10 +38,12 @@ staging, and message authoring around it.
 - When the block contains several `<repository-scope>` sections, treat each as
   an independent changeset. Run its `dot git commit` commands from the listed
   repository root, and push that repository only once on its final commit.
-- Refresh with `context git` in each repository when the block is absent,
-  stale, partial, or does not cover an explicitly requested repository. Follow
-  `context-cli` for CLI options; add `--diff` when subject selection needs
-  content. Do not reconstruct this with raw `git status`/`git diff`.
+- Refresh with a Context git snapshot in each repository when the block is
+  absent, stale, partial, or does not cover an explicitly requested repository:
+  prefer the `context` Code Mode namespace's `git` tool, and fall back to
+  `context git` without it. Follow `context-cli` for CLI options; add `--diff`
+  when subject selection needs content. Do not reconstruct this with raw
+  `git status`/`git diff`.
 
 ## 3. Decide the scope (confirm before staging)
 

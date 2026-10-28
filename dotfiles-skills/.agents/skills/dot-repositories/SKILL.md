@@ -11,7 +11,10 @@ metadata:
 ## Find The Repository
 
 Whenever the user says "my ... repo(s)", "my dotfiles", "my skills" or names
-any repository, resolve it with `dot repo` before guessing a path:
+any repository, resolve it with `dot repo` before guessing a path. Prefer the
+`dot` Code Mode namespace's `repo_search` (`query`, `limit`, `all`) and
+`repo_list` (`query`) tools, which return the same JSON; use the commands below
+without them, and for `--open`, which the tools don't take:
 
 | The user says                                       | Run                                                                                              |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
@@ -72,8 +75,9 @@ Discovery alone needs no new session. Keep focused work in the current session.
    an idle shell or create a pane. Inspect live state when reusing an existing
    worker, and only reuse one that belongs to this assignment.
 2. Read `dot herdr repo open --help`. Select the requested launcher with `--agent`
-   (for example `opencode2`); otherwise match the current runtime. Use
-   `dot herdr agents` when the launcher identity is unknown. The opener resolves
+   (for example `opencode2`); otherwise match the current runtime. Use the
+   `dot` namespace's `herdr_agents` tool, or `dot herdr agents`, when the
+   launcher identity is unknown. The opener resolves
    its executable, label and kind; do not repeat that discovery or substitute
    the executable selected by `herdr agent start --kind`.
 3. Use the shared opener directly rather than driving the picker or Git panel.
@@ -118,15 +122,17 @@ Discovery alone needs no new session. Keep focused work in the current session.
    A workspace-only focus may return a null `paneId` because no pane was selected.
 
 To switch the model of an existing Herdr OpenCode 2 agent, identify its unique
-live name or pane ID, then use `dot herdr model <target> <model>`. It checks the
+live name or pane ID, then use the `dot` namespace's `herdr_model` tool
+(`target`, `model`, `variant`), or `dot herdr model <target> <model>` without
+it. It checks the
 running OpenCode 2 executable and Herdr-reported session ID, resolves the model
 in that session's project, and switches it through the OpenCode API without
 starting a new session or sending a prompt. Do not assume a model change is
 authorised for a worker you do not own; ask before changing another agent's
 active work.
 
-Use `dot herdr model <target> "opus 5.5#low"` or
-`dot herdr model <target> "opus 5.5" --variant low` to switch effort as well.
+Pass `"opus 5.5#low"`, or `"opus 5.5"` with the `low` variant (`--variant low`
+on the CLI), to switch effort as well.
 For an effort-only request, retain the session's current provider and model and
 pass them with the requested variant. Apply `dot-session-status` and query the exact
 OpenCode session ID before preserving its settings; the injected identity does
@@ -145,7 +151,8 @@ an already-running request keeps the settings it started with.
 - For another wrapper or a command containing extra arguments, verify its actual
   exec target first. Launch through the opener without a prompt flag, identify the
   pane, and check `herdr pane process-info` against that target. Wait for the
-  detected agent to be ready, then use `herdr agent prompt`. Do not pretend that
+  detected agent to be ready, then prompt it (the `herdr` Code Mode namespace's
+  agent prompt, or `herdr agent prompt`). Do not pretend that
   kind detection alone verifies an alternate runtime, or fall back to a different
   agent when detection fails. Inspect blocked or failed launches before retrying:
   failure can leave a live agent or an already-delivered prompt.

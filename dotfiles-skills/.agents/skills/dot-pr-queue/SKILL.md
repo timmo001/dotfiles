@@ -27,12 +27,14 @@ Remember the answer for the rest of the conversation.
 
 ## Run
 
+Prefer the `dot` Code Mode namespace's `pr_queue` tool, which takes the same options as the command's flags (`since`, `only`, `sort`, `reviewable`, `repo`, `search`, `limit`, `threads`) and returns structured output. Without it, run `dot pr queue` with the flags below.
+
 1. Map the request to flags:
    - The window: `--since today` (default), `yesterday`, a date such as `2026-09-19` (local midnight), an ISO timestamp, or an age such as `12h`, `3d` or `1w`. For "the weekend", work out the date of the most recent Saturday and pass it, or Friday evening as a timestamp if the user means after work.
    - `--only activity` for catch-up questions, `--only queue` for review-only questions; omit it for both.
    - `--sort effort` (default), `updated`, `created` or `size` to match the chosen presentation.
    - For "reviewable PRs" or "what should I review", use `--only queue --reviewable --json` in one call, not the narrower private `review_search`. Use `--repo owner/name` outside the checkout. For a specifically requested filter, pass `--search`; if no saved search exists for other queue requests, ask for one.
-2. Use the Markdown output directly, or `--json` when regrouping or joining with other data. Check `queue.total` against `queue.listed`; if the reviewable pool was cut off by the default 200-PR limit, rerun with `--limit` large enough to include it before saying the search is complete. Avoid separate `gh pr view` calls for comment text already in the reviewable result.
+2. Use the Markdown output directly, or `--json` when regrouping or joining with other data. Check `queue.total` against `queue.listed`; if the reviewable pool was cut off by the default 200-PR limit, rerun with `--limit` large enough to include it before saying the search is complete. Avoid separate pull request view calls for comment text already in the reviewable result.
 
 ## Look further
 
@@ -41,7 +43,7 @@ The command's groups are a starting point. Before calling something a quick win,
 - Reviewable results already contain recent PR comments and unresolved thread bodies. Read both before ranking; a maintainer's "on hold" comment can block a PR with passing checks and no open threads. Judge thread findings against the current diff under `code-review`: a genuine unaddressed concern (a bug, a wrong assumption, a missing guard, a contract mismatch) means it is not a quick win. Outdated does not necessarily mean fixed; verify the changed code. For the narrower saved search, rerun once with `--only queue --threads` if open threads need reading.
 - The reviewable search excludes known backend waits and parent dependencies, not `Needs UX` or `Blocked`. Put UX-labelled PRs in a separate UX-review group only when a decision is actually sought; exclude holds, outstanding change requests, failing checks and already-approved PRs from ordinary code-review picks. Label-only blocking checks do not prevent a PR from being considered for UX review. Do not pad the list with work awaiting a dependency or the author's changes.
 - `recentComments` contains at most the ten latest general comments; `comments` is the full count. If a candidate has older comments omitted and its status is unclear, look up that PR specifically. Comment or thread absence is not proof that a PR is correct.
-- Read the diff (`gh pr diff`) for risk: shared components, login or auth, data handling, public APIs, many small edits across files.
+- Read the diff (the `gh` Code Mode namespace's PR diff, or `gh pr diff`) for risk: shared components, login or auth, data handling, public APIs, many small edits across files.
 - Labels or failing checks that mean it's waiting on the author, such as a missing template or a blocked label, even when the size is small.
 - Check `body` for links between pull requests (series from the same author, drafts it depends on), and whether it probably needs UX or backend input.
 - For merged pull requests in catch-up answers, say what changed for users or maintainers, not only the title. The window catches merges that are easy to miss in the commit list, such as squashed or quickly merged pull requests.
