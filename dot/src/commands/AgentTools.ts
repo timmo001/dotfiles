@@ -34,6 +34,8 @@ interface AgentToolSpec {
   readonly fixed?: readonly string[];
   /** Runs only as a detached job, since it takes far longer than a tool call should. */
   readonly jobOnly?: boolean;
+  /** Asks on every call, never saving an "always" answer. */
+  readonly alwaysAsk?: boolean;
 }
 
 const DEFAULT_TIMEOUT: Duration.Input = "2 minutes";
@@ -88,6 +90,44 @@ const AGENT_TOOLS = {
       "Print the brief for investigating a registered job: its recent runs, logs, file locations and the commands to investigate them.",
   },
   "git releases review": { access: "write" },
+  "git releases publish": {
+    access: "write",
+    timeout: "30 minutes",
+    omit: ["interactive", "panel-json"],
+  },
+  "git commit": { access: "write", alwaysAsk: true, timeout: "10 minutes" },
+  "agent oxlint": {
+    access: "read",
+    timeout: "5 minutes",
+    omit: ["opt-in"],
+    exitCodes: [0, 1],
+  },
+  "herdr repo open": { access: "write", omit: ["modifiers", "prompt-file"] },
+  "omarchy plugin add": { access: "write" },
+  "omarchy plugin update": {
+    access: "write",
+    timeout: "5 minutes",
+    fixed: ["--yes"],
+    omit: ["yes", "confirm"],
+  },
+  "omarchy plugin remove": {
+    access: "write",
+    fixed: ["--yes", "--no-commit-offer"],
+    omit: ["yes", "no-commit-offer", "confirm", "save"],
+  },
+  deps: {
+    access: "write",
+    jobOnly: true,
+    timeout: "2 hours",
+    exitCodes: [0, 2],
+  },
+  "deps service": {
+    access: "write",
+    jobOnly: true,
+    timeout: "2 hours",
+    exitCodes: [0, 2, 3],
+  },
+  "deps import renovate": { access: "write", timeout: "10 minutes" },
   "services schedule check": { access: "read" },
   "homeassistant status": { access: "read" },
   "homeassistant logs": { access: "read", omit: ["follow"] },
@@ -152,6 +192,7 @@ export const AgentToolEntry = Schema.Struct({
   access: Schema.Literals(["read", "write"]),
   pinned: Schema.Boolean,
   jobOnly: Schema.Boolean,
+  alwaysAsk: Schema.Boolean,
   timeoutMillis: Schema.Int,
   exitCodes: Schema.Array(Schema.Int),
   json: Schema.Boolean,
@@ -233,6 +274,8 @@ const describeTool = Effect.fnUntraced(function* (
     const metadata = paramMetadata(argument);
 
     for (const single of extractSingleParams(argument)) {
+      if (omitted.has(single.name)) continue;
+
       const key = inputKey(single.name);
       fields[key] = field(single, argumentType(single), metadata);
       params.push({
@@ -289,6 +332,7 @@ const describeTool = Effect.fnUntraced(function* (
     access: spec.access,
     pinned: spec.pinned ?? false,
     jobOnly: spec.jobOnly ?? false,
+    alwaysAsk: spec.alwaysAsk ?? false,
     timeoutMillis: Duration.toMillis(spec.timeout ?? DEFAULT_TIMEOUT),
     exitCodes: spec.exitCodes ?? [0],
     json,

@@ -29,6 +29,8 @@ export interface CliTool {
   readonly json: boolean;
   /** Exit codes that report an outcome rather than a failure (default: 0 only). */
   readonly exitCodes?: readonly number[];
+  /** Asks on every call, never saving an "always" answer. */
+  readonly alwaysAsk?: boolean;
   readonly input: Tool.ValueSchema;
   readonly invocation: (input: CliInput) => Effect.Effect<CliInvocation, Tool.Error>;
 }
