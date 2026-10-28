@@ -358,6 +358,21 @@
           },
           "b": "w"
         }
+      },
+      {
+        "group": "Top / bottom",
+        "name": "2 top / 1 bottom",
+        "tree": {
+          "dir": "tb",
+          "ratio": 57.65,
+          "a": {
+            "dir": "lr",
+            "ratio": 81.11,
+            "a": "w",
+            "b": "w"
+          },
+          "b": "w"
+        }
       }
     ],
     "4": [
