@@ -309,7 +309,7 @@ export const gitNamespace: ClientNamespace = {
       access: "read",
       input: Schema.Struct({ directory, revs: Schema.Array(Rev) }),
       run: (input, context) =>
-        Effect.map(git(["rev-parse", "--verify", "--end-of-options", ...input.revs], cwd(input, context)), (text) =>
+        Effect.map(git(["rev-parse", ...input.revs], cwd(input, context)), (text) =>
           Object.fromEntries(lines(text).map((sha, index) => [input.revs[index], sha])),
         ),
     }),
