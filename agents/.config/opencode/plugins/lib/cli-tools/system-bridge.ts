@@ -3,16 +3,10 @@ import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import {
   AudioControl,
-  ClipboardTextRequest,
-  DisplayControl,
   GetFilesRequest,
   HistoryRequest,
-  KeepAwakeRequest,
   MediaControl,
   ModuleName,
-  Notification,
-  OpenTarget,
-  PowerProfileRequest,
   ProcessKillRequest,
   SystemBridgeWebSocket,
 } from "@timmo001/effect-system-bridge";
@@ -67,7 +61,7 @@ export const systemBridgeNamespace: ClientNamespace = {
   kind: "client",
   command: "system-bridge",
   description:
-    "This machine through System Bridge: read system modules (cpu, memory, disks, processes, sensors, media, audio and displays), metric history and media files, and control media, audio, displays, notifications and the clipboard.",
+    "This machine through System Bridge: read system modules (cpu, memory, disks, processes, sensors, media, audio and displays), metric history and media files, control media and audio, end processes and run allowlisted commands.",
   available: pathExists(tokenPath),
   tools: [
     tool({
@@ -118,46 +112,6 @@ export const systemBridgeNamespace: ClientNamespace = {
       description: "Set an output's, input's or app's volume or mute, make one the default, or move an app to another output.",
       input: AudioControl,
       run: (bridge, input) => bridge.audioControl(input),
-    }),
-    action({
-      name: "display_control",
-      description: "Set a display's brightness or power state.",
-      input: DisplayControl,
-      run: (bridge, input) => bridge.displayControl(input),
-    }),
-    tool({
-      name: "notify",
-      description: "Send a desktop notification, returning its id.",
-      access: "write",
-      input: Notification,
-      summary: (input) => `notify ${input.title}: ${input.message}`,
-      run: (input) => withBridge((bridge) => bridge.sendNotification(input)),
-    }),
-    action({
-      name: "open",
-      description: "Open a path or URL with its default app.",
-      input: OpenTarget,
-      resource: (input) => ("url" in input ? "url" : "path"),
-      run: (bridge, input) => bridge.open(input),
-    }),
-    action({
-      name: "clipboard_set",
-      description: "Put text on the clipboard.",
-      input: ClipboardTextRequest,
-      run: (bridge, input) => bridge.setClipboard(input),
-    }),
-    action({
-      name: "power_profile",
-      description: "Switch the power profile, such as balanced or performance.",
-      input: PowerProfileRequest,
-      resource: (input) => input.profile,
-      run: (bridge, input) => bridge.setPowerProfile(input),
-    }),
-    action({
-      name: "keep_awake",
-      description: "Keep the system from idling, optionally for some seconds, or let it idle again.",
-      input: KeepAwakeRequest,
-      run: (bridge, input) => bridge.setKeepAwake(input),
     }),
     action({
       name: "kill_process",
