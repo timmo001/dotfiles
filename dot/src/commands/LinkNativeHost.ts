@@ -1,6 +1,9 @@
 import { Effect, Option, Schema, Stdio, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
+import { type TrackedCheckout, trackedCheckouts } from "../brief/repos.js";
+import { itemAgentPrompt, itemOwnership } from "../git/itemAgent.js";
 import {
+  type GitItem,
   gitItemFromGitHubUrl,
   gitItemGitHubUrl,
   gitItemKey,
@@ -10,13 +13,14 @@ import {
   pullRequestFromGitHubUrl,
 } from "../git/itemLinks.js";
 import { HOME_DIR } from "../lib/paths.js";
+import { CommandExecutor } from "../services/CommandExecutor.js";
 
 const MAX_MESSAGE_BYTES = 1024 * 1024;
 
 /** A request from the dot links extension about the page in a tab. */
 const NativeRequest = Schema.fromJsonString(
   Schema.Struct({
-    type: Schema.Literals(["resolve", "open", "review"]),
+    type: Schema.Literals(["resolve", "open", "review", "agent", "clear-deps"]),
     url: Schema.String,
   }),
 );
@@ -90,6 +94,8 @@ type NativeReply =
       readonly ok: true;
       readonly link?: string | null;
       readonly listed?: boolean;
+      /** The tracked checkout an agent on the issue or pull request opens in. */
+      readonly checkout?: string | null;
     }
   | { readonly ok: false; readonly error: string };
 
@@ -108,57 +114,129 @@ const writeReply = Effect.fn("LinkNativeHost.writeReply")(function* (
   );
 });
 
+// uwsm-app puts the command in its own unit, so it outlives this host and
+// Chromium's process group.
+const startApp = Effect.fn("LinkNativeHost.startApp")(function* (
+  args: readonly string[],
+  failure: string,
+) {
+  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+
+  yield* spawner
+    .spawn(
+      ChildProcess.make("uwsm-app", ["--", ...args], {
+        cwd: HOME_DIR,
+        stdin: "ignore",
+        stdout: "ignore",
+        stderr: "ignore",
+        detached: true,
+      }),
+    )
+    .pipe(
+      Effect.flatMap((child) => child.unref),
+      Effect.asVoid,
+      Effect.scoped,
+      Effect.mapError(() => new NativeHostError({ message: failure })),
+    );
+});
+
+const itemCheckout = Effect.fn("LinkNativeHost.itemCheckout")(function* (
+  item: GitItem,
+) {
+  const checkouts = yield* trackedCheckouts([item.repo]).pipe(
+    Effect.orElseSucceed(() => new Map<string, TrackedCheckout>()),
+  );
+
+  return checkouts.get(item.repo.toLowerCase()) ?? null;
+});
+
 const answer = Effect.gen(function* () {
   const request = yield* readRequest;
+  const pull = pullRequestFromGitHubUrl(request.url);
+  const item = gitItemFromGitHubUrl(request.url) ?? pull;
 
   if (request.type === "review") {
-    const pull = pullRequestFromGitHubUrl(request.url);
-
     if (!pull)
       return yield* new NativeHostError({ message: "Not a pull request" });
 
-    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+    yield* startApp(
+      ["plannotator", "review", gitItemGitHubUrl(pull)],
+      "Could not start Plannotator",
+    );
 
-    // uwsm-app puts the review in its own unit, so it outlives this host and
-    // Chromium's process group.
-    yield* spawner
-      .spawn(
-        ChildProcess.make(
-          "uwsm-app",
-          ["--", "plannotator", "review", gitItemGitHubUrl(pull)],
-          {
-            cwd: HOME_DIR,
-            stdin: "ignore",
-            stdout: "ignore",
-            stderr: "ignore",
-            detached: true,
-          },
-        ),
-      )
+    return { ok: true } satisfies NativeReply;
+  }
+
+  if (request.type === "clear-deps") {
+    const executor = yield* CommandExecutor;
+
+    // Starting the timer's unit, rather than running the command, joins a run
+    // that's already going instead of racing it.
+    yield* executor
+      .run("systemctl", [
+        "--user",
+        "start",
+        "--no-block",
+        "dot-notifications-dismiss.service",
+      ])
       .pipe(
-        Effect.flatMap((child) => child.unref),
-        Effect.asVoid,
-        Effect.scoped,
         Effect.mapError(
-          () => new NativeHostError({ message: "Could not start Plannotator" }),
+          () =>
+            new NativeHostError({
+              message: "Could not start dot-notifications-dismiss.service",
+            }),
         ),
       );
 
     return { ok: true } satisfies NativeReply;
   }
 
-  const item = gitItemFromGitHubUrl(request.url);
+  if (request.type === "agent") {
+    if (!item)
+      return yield* new NativeHostError({
+        message: "Not an issue or pull request",
+      });
+
+    const checkout = yield* itemCheckout(item);
+
+    if (!checkout)
+      return yield* new NativeHostError({
+        message: `No tracked checkout of ${item.repo}`,
+      });
+
+    const prompt = itemAgentPrompt(item, yield* itemOwnership(item));
+
+    yield* startApp(
+      [
+        "dot",
+        "herdr",
+        "repo",
+        "open",
+        "--agent",
+        "opencode2",
+        "--prompt",
+        prompt,
+        checkout.name,
+        checkout.path,
+      ],
+      "Could not start an agent",
+    );
+
+    return { ok: true } satisfies NativeReply;
+  }
 
   if (request.type === "resolve") {
     if (!item)
       return { ok: true, link: null, listed: false } satisfies NativeReply;
 
     const listed = yield* listedGitItems([item]);
+    const checkout = yield* itemCheckout(item);
 
     return {
       ok: true,
       link: gitItemLink(item),
       listed: listed.has(gitItemKey(item)),
+      checkout: checkout?.name ?? null,
     } satisfies NativeReply;
   }
 
@@ -178,7 +256,10 @@ const answer = Effect.gen(function* () {
  * host. Answers one request on stdin, in Chromium's length-prefixed JSON:
  * `resolve` reports a page's `dot://` link and whether the Git panel lists it,
  * and `open` opens it in the Git panel, never falling back to the browser.
- * `review` opens a pull request in a Plannotator review, from any of its tabs.
+ * `review` opens a pull request in a Plannotator review, from any of its tabs,
+ * and `agent` starts an OpenCode agent on an issue or pull request in its
+ * tracked checkout. `clear-deps` starts the dot-notifications-dismiss service
+ * now instead of waiting for its timer.
  * Stdout carries only the reply.
  */
 export const linkNativeHost = answer.pipe(
