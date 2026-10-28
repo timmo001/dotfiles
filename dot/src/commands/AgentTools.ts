@@ -95,7 +95,7 @@ const AGENT_TOOLS = {
     timeout: "30 minutes",
     omit: ["interactive", "panel-json"],
   },
-  "git commit": { access: "write", alwaysAsk: true, timeout: "10 minutes" },
+  "git commit": { access: "write", timeout: "10 minutes" },
   "agent oxlint": {
     access: "read",
     timeout: "5 minutes",
