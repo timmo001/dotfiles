@@ -66,7 +66,6 @@ const AGENT_TOOLS = {
   },
   "pr list": { access: "read", omit: ["open"] },
   "agent lint": { access: "read", timeout: "10 minutes", directory: true },
-  "link git": { access: "read" },
   "herdr context": { access: "read", omit: ["watch"] },
   "herdr agents": { access: "read" },
   "git issues": { access: "read", omit: ["open"] },
@@ -107,18 +106,6 @@ const AGENT_TOOLS = {
     directory: true,
   },
   "herdr repo open": { access: "write", omit: ["modifiers", "prompt-file"] },
-  "omarchy plugin add": { access: "write" },
-  "omarchy plugin update": {
-    access: "write",
-    timeout: "5 minutes",
-    fixed: ["--yes"],
-    omit: ["yes", "confirm"],
-  },
-  "omarchy plugin remove": {
-    access: "write",
-    fixed: ["--yes", "--no-commit-offer"],
-    omit: ["yes", "no-commit-offer", "confirm", "save"],
-  },
   deps: {
     access: "write",
     jobOnly: true,
@@ -169,10 +156,7 @@ const AGENT_TOOLS = {
   "skills consumers add": { access: "write" },
   "skills consumers remove": { access: "write" },
   "notes capture sync": { access: "write", timeout: "5 minutes" },
-  "omarchy shell config": { access: "write" },
   "brief dismiss": { access: "write" },
-  "git notifications dismiss dependencies": { access: "write" },
-  "git notifications dismiss remaining": { access: "write" },
 } satisfies Readonly<Record<string, AgentToolSpec>>;
 
 /** How one tool input key maps back to a command-line argument or flag. */
