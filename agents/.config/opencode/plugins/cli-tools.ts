@@ -2,6 +2,7 @@
  * @file Exposes everyday CLIs and Effect clients as typed Code Mode tools.
  */
 
+import { resolve } from "node:path";
 import { Plugin } from "@opencode/plugin/effect";
 import { Tool } from "@opencode/schema/tool";
 import { Effect, Result, Schema } from "effect";
@@ -150,10 +151,18 @@ export default Plugin.define({
             const invocation = yield* tool.invocation(input);
             const commandLine = [namespace.command, ...invocation.args].join(" ");
 
-            yield* assertWrite(namespace.command, tool.access, call, tool.name, id, commandLine, tool.alwaysAsk);
+            yield* assertWrite(
+              namespace.command,
+              tool.access,
+              call,
+              tool.name,
+              id,
+              invocation.cwd === undefined ? commandLine : `${commandLine} (in ${invocation.cwd})`,
+              tool.alwaysAsk,
+            );
 
             const output = yield* runCliOutput(namespace.command, invocation.args, {
-              cwd: yield* sessionDirectory(call),
+              cwd: invocation.cwd ?? (yield* sessionDirectory(call)),
               stdin: invocation.stdin,
               timeout: tool.timeout,
               json: tool.json,
@@ -247,13 +256,16 @@ export default Plugin.define({
 
         return map.set(
           namespace.command,
-          new Set([...(map.get(namespace.command) ?? []), ...tools.map((tool) => tool.name)]),
+          new Map([
+            ...(map.get(namespace.command) ?? []),
+            ...tools.map((tool): [string, boolean] => [tool.name, tool.directory ?? false]),
+          ]),
         );
-      }, new Map<string, Set<string>>());
+      }, new Map<string, ReadonlyMap<string, boolean>>());
 
       // Background shells are how long runs stay out of the foreground, so they keep the shell.
       yield* context.tool.hook("execute.after", (event) =>
-        Effect.sync(() => {
+        Effect.gen(function* () {
           if (event.tool !== "shell" && event.tool !== "bash") return;
 
           if (event.status !== "completed") return;
@@ -262,7 +274,22 @@ export default Plugin.define({
 
           if (args.background === true) return;
 
-          const nudge = shellNudge(stringArg(args.command), catalogue);
+          const workdir = stringArg(args.workdir);
+
+          // A workdir other than the session's needs the tool's directory input to run there.
+          const directory =
+            workdir === ""
+              ? undefined
+              : yield* context.session.get({ sessionID: event.sessionID }).pipe(
+                  Effect.map(({ location }) => {
+                    const resolved = resolve(location.directory, workdir);
+
+                    return resolved === resolve(location.directory) ? undefined : resolved;
+                  }),
+                  Effect.orElseSucceed(() => undefined),
+                );
+
+          const nudge = shellNudge(stringArg(args.command), catalogue, directory);
 
           if (nudge === undefined) return;
 

@@ -21,6 +21,7 @@ const Manifest = Schema.fromJsonString(
         pinned: Schema.Boolean,
         jobOnly: Schema.optionalKey(Schema.Boolean),
         alwaysAsk: Schema.optionalKey(Schema.Boolean),
+        directory: Schema.optionalKey(Schema.Boolean),
         timeoutMillis: Schema.Int,
         exitCodes: Schema.optionalKey(Schema.Array(Schema.Int)),
         json: Schema.Boolean,
@@ -36,20 +37,29 @@ const Scalar = Schema.Union([Schema.String, Schema.Finite, Schema.Boolean]);
 const Input = Schema.Record(Schema.String, Schema.Union([Scalar, Schema.Array(Scalar)]));
 
 const invocation =
-  (argv: readonly string[], params: readonly (typeof Param.Type)[], json: boolean) =>
+  (argv: readonly string[], params: readonly (typeof Param.Type)[], json: boolean, directory: boolean) =>
   (input: CliInput) =>
     Schema.decodeUnknownEffect(Input)(input).pipe(
       Effect.mapError((error) => new Tool.Error({ message: `Invalid input: ${error.message}` })),
+      Effect.flatMap((input): Effect.Effect<{ cwd?: string; record: typeof input }, Tool.Error> => {
+        if (!directory) return Effect.succeed({ record: input });
+
+        const { directory: cwd, ...record } = input;
+
+        return cwd === undefined || Schema.is(Schema.String)(cwd)
+          ? Effect.succeed({ cwd, record })
+          : Effect.fail(new Tool.Error({ message: "Invalid input: directory must be a string" }));
+      }),
       Effect.filterOrFail(
-        (record) => Object.keys(record).every((key) => params.some((param) => param.key === key)),
-        (record) => {
+        ({ record }) => Object.keys(record).every((key) => params.some((param) => param.key === key)),
+        ({ record }) => {
           const unknown = Object.keys(record).filter((key) => !params.some((param) => param.key === key));
-          const known = params.map((param) => param.key).join(", ") || "none";
+          const known = [...params.map((param) => param.key), ...(directory ? ["directory"] : [])].join(", ") || "none";
 
           return new Tool.Error({ message: `Unknown input ${unknown.join(", ")}; this tool takes: ${known}` });
         },
       ),
-      Effect.map((record) => {
+      Effect.map(({ cwd, record }) => {
         const flags: string[] = [];
         const positional: string[] = [];
 
@@ -68,6 +78,7 @@ const invocation =
 
         return {
           args: [...argv, ...positional, ...flags, ...(json ? ["--json"] : [])],
+          cwd,
         };
       }),
     );
@@ -97,8 +108,9 @@ export const loadDotTools = runCli("dot", ["agent", "tools", "--json"], {
         json: tool.json,
         exitCodes: tool.exitCodes,
         alwaysAsk: tool.alwaysAsk,
+        directory: tool.directory,
         input: tool.input,
-        invocation: invocation(tool.argv, tool.params, tool.json),
+        invocation: invocation(tool.argv, tool.params, tool.json, tool.directory ?? false),
       } satisfies CliTool,
     }));
 

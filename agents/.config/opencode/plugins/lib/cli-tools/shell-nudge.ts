@@ -1,5 +1,5 @@
-/** Tool names per CLI command, for the commands that have a Code Mode namespace. */
-export type CodeModeCatalogue = ReadonlyMap<string, ReadonlySet<string>>;
+/** Tool names per CLI command, for the commands that have a Code Mode namespace, and whether each takes a directory input. */
+export type CodeModeCatalogue = ReadonlyMap<string, ReadonlyMap<string, boolean>>;
 
 /** One command in a pipeline: its executable, the words after it, the stage's raw text and whether its statement follows `||`. */
 interface Stage {
@@ -112,16 +112,26 @@ const aliasTool = ({ executable, args }: Stage): readonly [string, string] | und
   return undefined;
 };
 
+/** One Code Mode tool that covers a shell command. */
+interface Covering {
+  readonly path: string;
+  readonly directory: boolean;
+}
+
 /**
  * The Code Mode tools that cover a shell command, such as `tools.gh.release_view` for
  * `gh release view 1.0 --repo x`. Each stage of a chained or piped command is checked: known
  * aliases first, then the longest run of its leading subcommand words that names a tool.
  */
-const codeModeTools = (stages: readonly Stage[], catalogue: CodeModeCatalogue): readonly string[] => {
-  const found = stages.flatMap((stage) => {
+const codeModeTools = (stages: readonly Stage[], catalogue: CodeModeCatalogue): readonly Covering[] => {
+  const found = stages.flatMap((stage): Covering[] => {
     const alias = aliasTool(stage);
 
-    if (alias !== undefined) return catalogue.get(alias[0])?.has(alias[1]) ? [toolPath(...alias)] : [];
+    if (alias !== undefined) {
+      const directory = catalogue.get(alias[0])?.get(alias[1]);
+
+      return directory === undefined ? [] : [{ path: toolPath(...alias), directory }];
+    }
 
     const tools = catalogue.get(stage.executable);
 
@@ -134,14 +144,15 @@ const codeModeTools = (stages: readonly Stage[], catalogue: CodeModeCatalogue): 
 
     for (let length = words.length; length > 0; length--) {
       const name = words.slice(0, length).join("_");
+      const directory = tools.get(name);
 
-      if (tools.has(name)) return [toolPath(stage.executable, name)];
+      if (directory !== undefined) return [{ path: toolPath(stage.executable, name), directory }];
     }
 
     return [];
   });
 
-  return [...new Set(found)];
+  return [...new Map(found.map((tool) => [tool.path, tool])).values()];
 };
 
 // A redirect to a file, not to another descriptor or /dev/null.
@@ -184,16 +195,25 @@ const shellRuleHints = (statements: readonly (readonly Stage[])[]): readonly str
   ].filter((hint) => hint !== false);
 };
 
-/** The note to add to a shell command's output when Code Mode or a dedicated tool covers it. */
-export const shellNudge = (command: string, catalogue: CodeModeCatalogue): string | undefined => {
+/**
+ * The note to add to a shell command's output when Code Mode or a dedicated tool covers it.
+ * `directory` is the shell's workdir when it isn't the session's: only tools that take a directory
+ * can run there, so those are suggested with it and the rest are left out.
+ */
+export const shellNudge = (
+  command: string,
+  catalogue: CodeModeCatalogue,
+  directory?: string,
+): string | undefined => {
   const statements = parse(command);
-  const tools = codeModeTools(statements.flat(), catalogue);
+  const tools = codeModeTools(statements.flat(), catalogue).filter((tool) => directory === undefined || tool.directory);
   const hints = shellRuleHints(statements);
 
   const lines = [
     tools.length > 0 &&
-      `cli-tools: Code Mode covers this command (${tools.join(", ")}). ` +
-        "Call it through execute instead of the shell next time, even when a skill or prompt quotes the CLI.",
+      `cli-tools: Code Mode covers this command (${tools.map((tool) => tool.path).join(", ")}${
+        directory === undefined ? "" : ` with directory: ${JSON.stringify(directory)}`
+      }). Call it through execute instead of the shell next time, even when a skill or prompt quotes the CLI.`,
     hints.length > 0 && `cli-tools: next time, ${hints.join("; ")}.`,
   ].filter((line) => line !== false);
 

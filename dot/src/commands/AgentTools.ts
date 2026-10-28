@@ -36,6 +36,8 @@ interface AgentToolSpec {
   readonly jobOnly?: boolean;
   /** Asks on every call, never saving an "always" answer. */
   readonly alwaysAsk?: boolean;
+  /** Works on the repository it runs in, so the tool takes a directory to run in. */
+  readonly directory?: boolean;
 }
 
 const DEFAULT_TIMEOUT: Duration.Input = "2 minutes";
@@ -62,7 +64,7 @@ const AGENT_TOOLS = {
       "Wait for pull request runs, checks and reviews to settle, or for a stopOn point, up to timeout (default: 60 minutes). Returns the outcome, exitCode (0 passed, 1 failed, 3 stopped early with work pending, 124 timed out), open threads, review body findings and the report path holding failed logs and the full review dump.",
   },
   "pr list": { access: "read", omit: ["open"] },
-  "agent lint": { access: "read", timeout: "10 minutes" },
+  "agent lint": { access: "read", timeout: "10 minutes", directory: true },
   "link git": { access: "read" },
   "herdr context": { access: "read", omit: ["watch"] },
   "herdr agents": { access: "read" },
@@ -95,12 +97,13 @@ const AGENT_TOOLS = {
     timeout: "30 minutes",
     omit: ["interactive", "panel-json"],
   },
-  "git commit": { access: "write", timeout: "10 minutes" },
+  "git commit": { access: "write", timeout: "10 minutes", directory: true },
   "agent oxlint": {
     access: "read",
     timeout: "5 minutes",
     omit: ["opt-in"],
     exitCodes: [0, 1],
+    directory: true,
   },
   "herdr repo open": { access: "write", omit: ["modifiers", "prompt-file"] },
   "omarchy plugin add": { access: "write" },
@@ -193,6 +196,8 @@ export const AgentToolEntry = Schema.Struct({
   pinned: Schema.Boolean,
   jobOnly: Schema.Boolean,
   alwaysAsk: Schema.Boolean,
+  /** Whether the tool takes a directory input, which the caller runs it in rather than passing it on. */
+  directory: Schema.Boolean,
   timeoutMillis: Schema.Int,
   exitCodes: Schema.Array(Schema.Int),
   json: Schema.Boolean,
@@ -320,6 +325,19 @@ const describeTool = Effect.fnUntraced(function* (
     }
   }
 
+  if (spec.directory) {
+    if ("directory" in fields)
+      return yield* new AgentToolError({
+        message: `Agent tool ${path} already has an input named directory`,
+      });
+
+    fields.directory = Schema.optionalKey(
+      Schema.String.check(Schema.isStartingWith("/")).annotate({
+        description: "An absolute directory to run in instead of the session's",
+      }),
+    );
+  }
+
   const { schema } = Schema.toJsonSchemaDocument(Schema.Struct(fields), {
     onExcessProperty: "error",
   });
@@ -333,6 +351,7 @@ const describeTool = Effect.fnUntraced(function* (
     pinned: spec.pinned ?? false,
     jobOnly: spec.jobOnly ?? false,
     alwaysAsk: spec.alwaysAsk ?? false,
+    directory: spec.directory ?? false,
     timeoutMillis: Duration.toMillis(spec.timeout ?? DEFAULT_TIMEOUT),
     exitCodes: spec.exitCodes ?? [0],
     json,

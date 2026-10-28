@@ -200,6 +200,7 @@ const startTool = (namespaces: readonly CliNamespace[]): ClientTool => ({
 
       const invocation = yield* target.invocation(input.input ?? {});
       const command = [namespace.command, ...invocation.args];
+      const cwd = invocation.cwd ?? context.directory;
 
       const timeout =
         input.timeoutMinutes === undefined
@@ -218,7 +219,7 @@ const startTool = (namespaces: readonly CliNamespace[]): ClientTool => ({
           id,
           tool: `${namespace.command}.${target.name}`,
           command,
-          cwd: context.directory,
+          cwd,
           unit: `codemode-job-${id}.service`,
           startedAt: new Date(now).toISOString(),
           json: target.json,
@@ -240,7 +241,7 @@ const startTool = (namespaces: readonly CliNamespace[]): ClientTool => ({
             "--collect",
             `--unit=${job.unit}`,
             `--description=Code Mode job ${job.tool}`,
-            `--working-directory=${context.directory}`,
+            `--working-directory=${cwd}`,
             `--setenv=PATH=${process.env.PATH ?? ""}`,
             "--setenv=NO_COLOR=1",
             `--property=RuntimeMaxSec=${Math.ceil(Duration.toSeconds(timeout))}`,

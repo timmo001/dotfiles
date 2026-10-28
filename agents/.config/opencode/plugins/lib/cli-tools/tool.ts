@@ -1,15 +1,17 @@
 import { NodeServices } from "@effect/platform-node";
 import { Tool } from "@opencode/schema/tool";
-import { DateTime, Duration, Effect, FileSystem, Layer, Option, Predicate, Schema, Stream } from "effect";
+import { DateTime, Duration, Effect, FileSystem, Layer, Option, Predicate, Schema, SchemaAST, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 /** Whether a tool only reads state or changes something. */
 export type CliToolAccess = "read" | "write";
 
-/** The command line and stdin for one tool call. */
+/** The command line, stdin and working directory for one tool call. */
 export interface CliInvocation {
   readonly args: readonly string[];
   readonly stdin?: string;
+  /** Where to run, when the call names a directory instead of using the session's. */
+  readonly cwd?: string;
 }
 
 /** Tool input as JSON, before each tool decodes it with its own schema. */
@@ -34,6 +36,8 @@ export interface CliTool {
   readonly exitCodes?: readonly number[];
   /** Asks on every call, never saving an "always" answer. */
   readonly alwaysAsk?: boolean;
+  /** Takes a directory input to run in. */
+  readonly directory?: boolean;
   readonly input: Tool.ValueSchema;
   readonly invocation: (input: CliInput) => Effect.Effect<CliInvocation, Tool.Error>;
 }
@@ -96,6 +100,8 @@ export interface ClientTool {
   readonly pinned: boolean;
   readonly timeout: Duration.Input;
   readonly input: Tool.ValueSchema;
+  /** Takes a directory input to run in. */
+  readonly directory?: boolean;
   /** Whether to register the tool, when it depends on more than its namespace being available. */
   readonly available?: Effect.Effect<boolean>;
   readonly prepare: (input: CliInput, context: ClientContext) => Effect.Effect<ClientCall, Tool.Error>;
@@ -170,6 +176,9 @@ export const clientTools =
     pinned: tool.pinned ?? false,
     timeout: tool.timeout ?? "2 minutes",
     input: tool.input,
+    directory:
+      SchemaAST.isObjects(tool.input.ast) &&
+      tool.input.ast.propertySignatures.some((property) => property.name === "directory"),
     available: tool.available,
     prepare: (input, context) =>
       Schema.decodeUnknownEffect(tool.input)(input, strictInput).pipe(
