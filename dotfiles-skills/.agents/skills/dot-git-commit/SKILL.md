@@ -83,6 +83,11 @@ staging, and message authoring around it.
 
 ## 5. Commit
 
+With Code Mode, call `tools.dot.git_commit` through `execute`; its inputs mirror
+the flags below (`message`, `path`, `amend`, `push`, `dryRun`). It runs in the
+session's directory, so pass `directory` (absolute) to commit in another
+repository. Use the shell command only when Code Mode isn't available.
+
 ```bash
 dot git commit -m "<subject>"                 # commit the staged set
 dot git commit -m "<subject>" --path src/x.ts # commit only these files
