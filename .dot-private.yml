@@ -10,7 +10,6 @@
 stow:
   - dot-config
   - git
-  - git--nas
   - herdr
   - scripts
   - triage
