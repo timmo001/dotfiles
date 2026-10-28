@@ -395,7 +395,9 @@ const ignoredPackages = Effect.gen(function* () {
 
 /**
  * Return an outdated-package result using pacman repositories before optional
- * AUR fallback. Packages held by IgnorePkg report as held rather than a warning.
+ * AUR fallback. Packages held by IgnorePkg report as held rather than a warning,
+ * and a build newer than its pacman repository's warns, since pacman never
+ * upgrades it.
  */
 export function packageUpdateResult(
   packageName: string,
@@ -432,16 +434,36 @@ export function packageUpdateResult(
       .run("vercmp", [installedVersion, latestVersion])
       .pipe(Effect.orElseSucceed(() => "0"));
 
+    // A build newer than its own pacman repository's never upgrades: pacman
+    // reports "local is newer" and skips it. That happens when a package
+    // changes version scheme without an epoch, such as YYYYMMDD.N to semver.
+    // AUR is left out, since AUR -git metadata often lags local builds.
+    if (repositoryVersion && Number.parseInt(comparison.trim(), 10) > 0)
+      return {
+        install: false,
+        result: {
+          severity: "warn" as const,
+          message: `${packageName} is newer than ${repository} (${installedVersion} installed, ${latestVersion} available), so pacman won't upgrade it`,
+          detail: `If the package changed version scheme, cross over with: pkexec pacman -S ${repository}/${packageName}`,
+        },
+      };
+
     if (!isInstalledVersionOlder(comparison)) return null;
 
     return ignored.has(packageName)
       ? {
-          severity: "ok" as const,
-          message: `${packageName} is held by IgnorePkg (${installedVersion} installed, ${latestVersion} available in ${source})`,
+          install: false,
+          result: {
+            severity: "ok" as const,
+            message: `${packageName} is held by IgnorePkg (${installedVersion} installed, ${latestVersion} available in ${source})`,
+          },
         }
       : {
-          severity: "warn" as const,
-          message: `${packageName} is older than ${source} (${installedVersion} installed, ${latestVersion} available)`,
+          install: true,
+          result: {
+            severity: "warn" as const,
+            message: `${packageName} is older than ${source} (${installedVersion} installed, ${latestVersion} available)`,
+          },
         };
   });
 }
@@ -467,13 +489,20 @@ export function publicPackageKeyTrusted(
   );
 }
 
+/** A package's version against its source, and whether installing would fix it. */
+interface PackageUpdate {
+  readonly result: CheckResult;
+  /** True when the install/update command brings it current. */
+  readonly install: boolean;
+}
+
 /**
  * Report whether each package is installed and current, ending with one
  * install/update command for every missing or outdated package.
  */
 function packageListResults<R>(
   packages: readonly string[],
-  updateFor: (pkg: string) => Effect.Effect<CheckResult | null, never, R>,
+  updateFor: (pkg: string) => Effect.Effect<PackageUpdate | null, never, R>,
 ) {
   return Effect.gen(function* () {
     const results: CheckResult[] = [];
@@ -506,9 +535,9 @@ function packageListResults<R>(
       results.push({ severity: "ok", message: `${pkg} is installed` });
 
       if (update) {
-        results.push(update);
+        results.push(update.result);
 
-        if (update.severity !== "ok") updates.push(pkg);
+        if (update.install) updates.push(pkg);
       }
     }
 
