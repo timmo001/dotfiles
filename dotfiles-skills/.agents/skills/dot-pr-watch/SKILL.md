@@ -2,11 +2,11 @@
 name: dot-pr-watch
 description: >
   Watch a pull request's CI, checks and Copilot or other reviews with
-  `dot pr watch`, then triage failures and validate review findings. Use after
-  pushing to a pull request or when asked to watch CI or follow up on review
-  feedback.
+  `dot pr watch` in the background, then triage failures and validate review
+  findings. Use after pushing to a pull request or when asked to watch CI or
+  follow up on review feedback.
 license: Apache-2.0
-compatibility: Designed for OpenCode 2 Code Mode tools or background shells. Requires the dot CLI from timmo001/dotfiles, an authenticated GitHub CLI and network access to GitHub.
+compatibility: Designed for OpenCode 2 background shells, with the Code Mode `dot` and `jobs` namespaces as alternatives. Requires the dot CLI from timmo001/dotfiles, an authenticated GitHub CLI and network access to GitHub.
 metadata:
   author: timmo001
 ---
@@ -17,16 +17,17 @@ metadata:
 
 ## Run
 
-1. Choose how to run it:
-   - Prefer the `dot` Code Mode namespace's `pr_watch` tool when the agent has it and the wait is short enough to block on, typically with `stopOn` and a `timeout` of a few minutes up to about 20. The call blocks until the watch ends and returns the outcome, `exitCode`, open threads, review body findings and the report path. Run independent watches in one `execute` with `Promise.allSettled`. A `124` here only means the bounded wait ended; call it again to wait for the next stop point.
-   - Otherwise, or for long waits such as a full run with slow end-to-end suites, run `dot pr watch` with the shell tool's `background: true`, so the agent can carry on meanwhile.
+1. Run it in the background, so the agent can carry on meanwhile:
+   - By default, run `dot pr watch` with the shell tool's `background: true`. Its completion notification wakes the agent with the summary.
+   - When the agent has no background shell, or the watch must outlive an OpenCode restart, start the `dot.pr_watch` tool through the `jobs` Code Mode namespace's `start`. It returns a job id at once and shows a Herdr notification when the watch ends, but doesn't wake the agent: read progress with `jobs.log` and the result with `jobs.wait`.
+   - Call the `dot` namespace's `pr_watch` tool directly only for a short wait the next step depends on, such as `stopOn: ["review"]` right after a review was requested, with a `timeout` of a few minutes. It blocks the turn until the watch ends and returns the outcome, `exitCode`, open threads, review body findings and the report path. A `124` here only means the bounded wait ended.
 
    Run from the pull request's checkout or pass the repository (`repo`, `--repo owner/name`). For independent pull requests, start one watch per pull request. A watch over several pull requests shares one stop condition (feedback on any of them stops all) and only completes once every one has settled. Pass several numbers only for a stack, e.g. `dot pr watch 101 102 103`, or when watching without a stop condition for the full picture.
 2. Choose when the watch should end (`stopOn` in the tool, `--stop-on` on the CLI):
    - `failure` when a quick fix is likely, such as lint, format, types or a unit test in changed code. It exits as soon as a job or check fails, even if other runs are still going.
    - Prefer `review` when review feedback is the next thing to act on, before slow suites like end-to-end tests finish. Reviews are fetched alongside CI, so it exits within seconds when an open thread at startup is current and unanswered (not outdated, no replies). Otherwise it stops on a newly observed review with open threads or review body findings; it does not stop for answered or outdated threads already present, so a watch started after pushing fixes still follows CI.
    - Neither when the user wants the full picture: every run finished and requested bot reviews posted.
-3. A background shell does not prompt the agent for each event. The completion notification carries the summary; `--stop-on failure` can leave review feedback waiting until CI finishes. Do not repeatedly poll while it runs. A one-off read of current output is appropriate when the user asks for progress or it enables useful work now. Read and act on available feedback rather than waiting for unrelated CI; keep the existing watch running for its completion notification. Otherwise, carry on with independent work or end the turn.
+3. A background watch does not prompt the agent for each event. The completion notification carries the summary; `--stop-on failure` can leave review feedback waiting until CI finishes. Do not repeatedly poll while it runs, whether with shell reads or `jobs.log`. A one-off read of current output is appropriate when the user asks for progress or it enables useful work now. Read and act on available feedback rather than waiting for unrelated CI; keep the existing watch running for its completion notification. Otherwise, carry on with independent work or end the turn.
 4. Exit codes: `0` everything passed, `1` a failure (or it could not start), `3` stopped early with work still pending, `124` timed out. With `3`, the summary lists what is still pending, which helps decide whether to fix now or wait for the review.
 
 After a push moves the head, a running watch follows the new commit. A fresh watch is only needed after it has exited.
