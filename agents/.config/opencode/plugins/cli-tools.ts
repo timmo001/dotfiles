@@ -7,6 +7,7 @@ import { Tool } from "@opencode/schema/tool";
 import { Effect, Result, Schema } from "effect";
 import { contextNamespace } from "./lib/cli-tools/context";
 import { ghJobs, ghNamespace } from "./lib/cli-tools/gh";
+import { gitNamespace } from "./lib/cli-tools/git";
 import { haBridgeNamespace } from "./lib/cli-tools/ha-bridge";
 import { herdrNamespace } from "./lib/cli-tools/herdr";
 import { hyprctlNamespace } from "./lib/cli-tools/hyprctl";
@@ -15,7 +16,10 @@ import { jobsNamespace } from "./lib/cli-tools/jobs";
 import { miseNamespace } from "./lib/cli-tools/mise";
 import { notesNamespace } from "./lib/cli-tools/notes";
 import { omarchyNamespace } from "./lib/cli-tools/omarchy";
+import { opencode2Namespace } from "./lib/cli-tools/opencode2";
+import { pacmanNamespace } from "./lib/cli-tools/pacman";
 import { pitchforkNamespace } from "./lib/cli-tools/pitchfork";
+import { skillMaintenanceNamespace } from "./lib/cli-tools/skill-maintenance";
 import { systemBridgeNamespace } from "./lib/cli-tools/system-bridge";
 import { systemdNamespace } from "./lib/cli-tools/systemd";
 import {
@@ -61,6 +65,10 @@ export default Plugin.define({
         pitchforkNamespace,
         miseNamespace,
         omarchyNamespace,
+        gitNamespace,
+        opencode2Namespace,
+        pacmanNamespace,
+        skillMaintenanceNamespace,
       ];
 
       const namespaces: readonly Namespace[] = [
@@ -86,6 +94,7 @@ export default Plugin.define({
         target: string,
         resource: string,
         command: string,
+        alwaysAsk = false,
       ) => {
         if (access !== "write") return Effect.void;
 
@@ -94,7 +103,8 @@ export default Plugin.define({
           agent: call.agent,
           action: `${namespace}.write ${target}`,
           resources: [resource],
-          save: [resource],
+          // An empty save list keeps "always" from being stored, so the next call asks again.
+          save: alwaysAsk ? [] : [resource],
           metadata: { command },
           source: { type: "tool", messageID: call.messageID, id: call.id },
         });
@@ -138,7 +148,7 @@ export default Plugin.define({
             const invocation = yield* tool.invocation(input);
             const commandLine = [namespace.command, ...invocation.args].join(" ");
 
-            yield* assertWrite(namespace.command, tool.access, call, tool.name, id, commandLine);
+            yield* assertWrite(namespace.command, tool.access, call, tool.name, id, commandLine, tool.alwaysAsk);
 
             const output = yield* runCliOutput(namespace.command, invocation.args, {
               cwd: yield* sessionDirectory(call),

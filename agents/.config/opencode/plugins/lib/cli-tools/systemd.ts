@@ -76,12 +76,26 @@ const control = (verb: "start" | "stop" | "restart") =>
     run: (input) => systemctl([verb, input.unit]),
   });
 
+const enablement = (verb: "enable" | "disable") =>
+  tool({
+    name: `unit_${verb}`,
+    description: `${verb === "enable" ? "Enable" : "Disable"} a user unit, optionally ${verb === "enable" ? "starting" : "stopping"} it now.`,
+    access: "write",
+    input: Schema.Struct({
+      unit,
+      now: Schema.optionalKey(Schema.Boolean),
+    }),
+    resource: (input) => input.unit,
+    summary: (input) => `systemctl --user ${verb}${input.now ? " --now" : ""} ${input.unit}`,
+    run: (input) => systemctl([verb, ...(input.now ? ["--now"] : []), input.unit]),
+  });
+
 /** User systemd units and their journal through systemctl and journalctl. */
 export const systemdNamespace: ClientNamespace = {
   kind: "client",
   command: "systemd",
   description:
-    "User systemd units through systemctl --user and journalctl --user: unit status, failed units, timers and logs, and starting, stopping or restarting units.",
+    "User systemd units through systemctl --user and journalctl --user: unit status, properties, files, failed units, timers and logs, verifying unit files, and starting, stopping, restarting, enabling or disabling units.",
   available: commandExists("systemctl"),
   tools: [
     tool({
@@ -193,5 +207,59 @@ export const systemdNamespace: ClientNamespace = {
       summary: () => "systemctl --user daemon-reload",
       run: () => systemctl(["daemon-reload"]),
     }),
+    tool({
+      name: "unit_cat",
+      description: "Read a user unit's files as systemd loads them, with drop-ins.",
+      access: "read",
+      input: Schema.Struct({ unit }),
+      run: (input) => systemctl(["cat", input.unit]),
+    }),
+    tool({
+      name: "unit_show",
+      description: "Read a user unit's properties, all of them or the ones named.",
+      access: "read",
+      input: Schema.Struct({
+        unit,
+        properties: Schema.optionalKey(Schema.Array(Schema.String)).annotate({
+          description: "Property names such as ExecStart or Environment",
+        }),
+      }),
+      run: (input) =>
+        Effect.map(
+          systemctl([
+            "show",
+            input.unit,
+            ...(input.properties === undefined ? [] : [`--property=${input.properties.join(",")}`]),
+          ]),
+          properties,
+        ),
+    }),
+    tool({
+      name: "unit_files",
+      description: "List installed user unit files with their enablement, optionally matching glob patterns.",
+      access: "read",
+      input: Schema.Struct({
+        patterns: Schema.optionalKey(Schema.Array(Schema.String)).annotate({
+          description: "Glob patterns such as dot-*",
+        }),
+      }),
+      run: (input) => systemctlJson(["list-unit-files", "--output=json", ...(input.patterns ?? [])]),
+    }),
+    tool({
+      name: "verify",
+      description:
+        "Check user unit files for errors with systemd-analyze verify. Returns its findings, empty when clean.",
+      access: "read",
+      input: Schema.Struct({
+        units: Schema.Array(Schema.String).annotate({ description: "Unit names or unit file paths" }),
+      }),
+      run: (input) =>
+        Effect.map(runCli("systemd-analyze", ["--user", "verify", ...input.units], { timeout: "1 minute" }), (run) => ({
+          ok: run.exitCode === 0,
+          output: (run.stderr + run.stdout).trim(),
+        })),
+    }),
+    enablement("enable"),
+    enablement("disable"),
   ],
 };
