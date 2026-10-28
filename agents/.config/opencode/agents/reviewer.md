@@ -27,6 +27,7 @@ permission:
   "pitchfork_*": deny
   system-bridge_system_bridge_media_control: deny
   system-bridge_system_bridge_send_notification: deny
+  "*.write": deny
   bash:
     "*": deny
     "context git*": allow

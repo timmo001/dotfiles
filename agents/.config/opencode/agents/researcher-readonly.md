@@ -22,6 +22,7 @@ permission:
   "pitchfork_*": deny
   system-bridge_system_bridge_media_control: deny
   system-bridge_system_bridge_send_notification: deny
+  "*.write": deny
   webfetch: allow
   websearch: allow
   plan_enter: deny
