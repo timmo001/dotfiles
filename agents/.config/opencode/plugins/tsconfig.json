@@ -9,7 +9,10 @@
     "skipLibCheck": true,
     "jsx": "preserve",
     "jsxImportSource": "@opentui/solid",
-    "types": ["bun"]
+    "types": ["bun"],
+    "paths": {
+      "@timmo001/effect-ha-bridge": ["./node_modules/@timmo001/effect-ha-bridge/dist/index.d.ts"]
+    }
   },
   "include": ["*.ts", "lib", "*/*.ts", "*/*.tsx"]
 }
