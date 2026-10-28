@@ -27,6 +27,8 @@ export interface CliTool {
   readonly timeout: Duration.Input;
   /** True when stdout is JSON to decode into the tool output. */
   readonly json: boolean;
+  /** Exit codes that report an outcome rather than a failure (default: 0 only). */
+  readonly exitCodes?: readonly number[];
   readonly input: Tool.ValueSchema;
   readonly invocation: (input: CliInput) => Effect.Effect<CliInvocation, Tool.Error>;
 }
@@ -216,15 +218,20 @@ export const pathExists = (path: string) =>
 /** Whether a command is on the PATH, for namespaces that run CLIs through `runCliOutput`. */
 export const commandExists = (command: string) => Effect.sync(() => Bun.which(command) !== null);
 
-/** Run a CLI from a client tool, failing on a non-zero exit, and return stdout without its trailing newline. */
+/** Run a CLI from a client tool, failing on an exit code outside `exitCodes` (default: 0), and return stdout without its trailing newline. */
 export const runCliText = (
   command: string,
   args: readonly string[],
-  options: { readonly cwd?: string; readonly stdin?: string; readonly timeout?: Duration.Input } = {},
+  options: {
+    readonly cwd?: string;
+    readonly stdin?: string;
+    readonly timeout?: Duration.Input;
+    readonly exitCodes?: readonly number[];
+  } = {},
 ) =>
   runCli(command, args, { ...options, timeout: options.timeout ?? "2 minutes" }).pipe(
     Effect.flatMap((run) =>
-      run.exitCode === 0
+      (options.exitCodes ?? [0]).includes(run.exitCode)
         ? Effect.succeed(run.stdout.trimEnd())
         : Effect.fail(
             new Tool.Error({
@@ -235,7 +242,7 @@ export const runCliText = (
     ),
   );
 
-/** Run a CLI from a client tool, failing on a non-zero exit, and decode stdout as JSON when `json` is set. */
+/** Run a CLI from a client tool, failing on an exit code outside `exitCodes` (default: 0), and decode stdout as JSON when `json` is set. */
 export const runCliOutput = (
   command: string,
   args: readonly string[],
@@ -244,6 +251,7 @@ export const runCliOutput = (
     readonly stdin?: string;
     readonly timeout?: Duration.Input;
     readonly json?: boolean;
+    readonly exitCodes?: readonly number[];
   } = {},
 ) =>
   runCliText(command, args, options).pipe(

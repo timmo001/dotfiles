@@ -11,6 +11,7 @@ import { haBridgeNamespace } from "./lib/cli-tools/ha-bridge";
 import { herdrNamespace } from "./lib/cli-tools/herdr";
 import { hyprctlNamespace } from "./lib/cli-tools/hyprctl";
 import { loadDotTools } from "./lib/cli-tools/dot";
+import { miseNamespace } from "./lib/cli-tools/mise";
 import { notesTools } from "./lib/cli-tools/notes";
 import { omarchyNamespace } from "./lib/cli-tools/omarchy";
 import { pitchforkNamespace } from "./lib/cli-tools/pitchfork";
@@ -68,6 +69,7 @@ export default Plugin.define({
         systemdNamespace,
         hyprctlNamespace,
         pitchforkNamespace,
+        miseNamespace,
         omarchyNamespace,
       ];
 
@@ -137,6 +139,7 @@ export default Plugin.define({
               stdin: invocation.stdin,
               timeout: tool.timeout,
               json: tool.json,
+              exitCodes: tool.exitCodes,
             });
 
             return { output };
