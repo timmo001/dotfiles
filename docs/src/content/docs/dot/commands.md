@@ -709,7 +709,7 @@ dot services investigate [flags] <unit>
 
 | Option | Description |
 | --- | --- |
-| `--agent` `<string>` | Installed launcher from dot herdr agents, such as opencode2 |
+| `--agent` `<string>` | Installed launcher from dot herdr agents, such as opencode2; required unless --print |
 | `--modifiers` `<integer>` | Qt keyboard modifier bitmask, as for dot herdr repo open |
 | `--print` | Print the investigation brief instead of opening the agent |
 | `--help` `-h` | Show help information |
@@ -1176,7 +1176,7 @@ dot clean [flags]
 
 ## `dot agent`
 
-Agent harness tooling: instruction sync, linting and detection
+Agent harness tooling: instruction sync, linting, tools and detection
 
 ```text
 dot agent <subcommand> [flags]
@@ -1296,6 +1296,30 @@ dot agent oxlint src/one.ts src/two.ts
 dot agent oxlint --all
 dot agent oxlint --force src/example.ts
 dot agent oxlint --opt-in
+```
+
+### `dot agent tools`
+
+List the dot commands exposed to agents as Code Mode tools
+
+```text
+dot agent tools [flags]
+```
+
+List the dot commands that the OpenCode cli-tools plugin exposes as typed Code Mode tools under tools.dot.*. The list is opt-in and kept in dot/src/commands/AgentTools.ts; each entry's input schema is generated from the command's arguments and flags. --json prints the manifest the plugin reads: tool name, command path, summary, read or write access, pinned state, timeout, whether the command has --json, the input JSON Schema, and how each input maps back to an argument or flag. Write tools ask for permission through dot.write.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the tool manifest as JSON |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot agent tools
+dot agent tools --json
 ```
 
 ### `dot agent detect`
@@ -2206,6 +2230,7 @@ Follow every GitHub Actions run on each pull request's head commit, including Co
 | `--interval` `<integer>` | Seconds between polls |
 | `--log-lines` `<integer>` | Trailing failed-log lines kept per job; 0 keeps everything |
 | `--output` `<path>` | Report path (default: ~/.local/state/dot/pr-watch/<repo>-<prs>-<time>.md) |
+| `--json` | Print one JSON summary at the end, with progress on stderr |
 | `--help` `-h` | Show help information |
 
 **Arguments**
