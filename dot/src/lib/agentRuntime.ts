@@ -1,6 +1,5 @@
 import { HerdrSdk, herdrSdkLayerFromOptions } from "@timmo001/effect-herdr";
 import { Duration, Effect, FileSystem, Option, Schema } from "effect";
-import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http";
 import { dirname, join, resolve } from "path";
 import { DEFAULT_SOCKET_PATH } from "../commands/HerdrRepoOpen.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -170,7 +169,7 @@ export const restartStalePitchforkDaemons = Effect.gen(function* () {
 
 /**
  * Restart running dot user services with a process on a superseded mise
- * binary, such as the brief watcher's long-lived `plannotator inbox mcp`.
+ * binary.
  */
 export const restartStaleServices = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
@@ -249,18 +248,6 @@ export const restartStaleServices = Effect.gen(function* () {
   Effect.withSpan("agentRuntime.restartStaleServices"),
 );
 
-/**
- * Plannotator's agent plugins, unpinned, which only move to the version the
- * Plannotator CLI is on. mise holds the CLI back by its minimum release age,
- * so all three change in the same update.
- */
-const PLANNOTATOR_PLUGINS = {
-  opencode: "@plannotator/opencode",
-  pi: "npm:@plannotator/pi-extension",
-} as const;
-
-const NpmLatest = Schema.Struct({ version: Schema.String });
-
 /** Pi packages from `pi list`, by their source. */
 const piPackages = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
@@ -270,7 +257,7 @@ const piPackages = Effect.gen(function* () {
     .flatMap((line) => /^ {2}(\S+:\S+)$/.exec(line)?.[1] ?? []);
 });
 
-/** Update installed Pi packages, leaving Plannotator's to its CLI version. */
+/** Update installed Pi packages. */
 export const updatePiExtensions = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
@@ -278,9 +265,7 @@ export const updatePiExtensions = Effect.gen(function* () {
   if (Bun.which("pi") === null)
     return skip("Pi extensions skipped (pi not installed)");
 
-  const sources = (yield* piPackages).filter(
-    (source) => source !== PLANNOTATOR_PLUGINS.pi,
-  );
+  const sources = yield* piPackages;
 
   const failed: string[] = [];
 
@@ -303,96 +288,6 @@ export const updatePiExtensions = Effect.gen(function* () {
     Effect.succeed(warn(`Pi extension update failed: ${error.message}`)),
   ),
   Effect.withSpan("agentRuntime.updatePiExtensions"),
-);
-
-/**
- * Move Plannotator's OpenCode plugin and Pi extension to the latest release
- * once the Plannotator CLI mise installed is on it too, so a release newer
- * than mise's minimum release age waits for the next update.
- */
-export const updatePlannotatorPlugins = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  const http = yield* HttpClient.HttpClient;
-  const log = yield* OutputLog;
-
-  if (Bun.which("plannotator") === null)
-    return skip("Plannotator plugins skipped (plannotator not installed)");
-
-  const cli = /\d+\.\d+\.\d+\S*/.exec(
-    yield* executor.run("plannotator", ["--version"], { cwd: HOME_DIR }),
-  )?.[0];
-
-  if (cli === undefined)
-    return warn("Plannotator plugins skipped (unknown CLI version)");
-
-  const latest = Effect.fn("agentRuntime.npmLatest")(function* (name: string) {
-    const response = yield* http
-      .get(`https://registry.npmjs.org/${name}/latest`)
-      .pipe(Effect.flatMap(HttpClientResponse.filterStatusOk));
-
-    return (yield* Schema.decodeUnknownEffect(NpmLatest)(yield* response.json))
-      .version;
-  });
-
-  const updated: string[] = [];
-  const waiting: string[] = [];
-  const failed: string[] = [];
-
-  const follow = Effect.fn("agentRuntime.followPlannotator")(function* (
-    name: string,
-    update: Effect.Effect<number>,
-  ) {
-    const version = yield* latest(name);
-
-    if (version !== cli) {
-      yield* log.info(
-        `${name} ${version} waits for the Plannotator CLI (on ${cli})`,
-      );
-      waiting.push(name);
-
-      return;
-    }
-
-    if ((yield* update) === 0) updated.push(name);
-    else failed.push(name);
-  });
-
-  if ((yield* executor.exitCode(OPENCODE, ["service", "status"])) === 0) {
-    yield* follow(
-      PLANNOTATOR_PLUGINS.opencode,
-      executor.exitCode(OPENCODE, [
-        "plugin",
-        "update",
-        PLANNOTATOR_PLUGINS.opencode,
-      ]),
-    );
-  }
-
-  if (
-    Bun.which("pi") !== null &&
-    (yield* piPackages).includes(PLANNOTATOR_PLUGINS.pi)
-  ) {
-    yield* follow(
-      PLANNOTATOR_PLUGINS.pi.replace(/^npm:/, ""),
-      executor.exitCode("pi", ["update", PLANNOTATOR_PLUGINS.pi]),
-    );
-  }
-
-  if (failed.length)
-    return warn(`Could not update Plannotator plugins: ${failed.join(", ")}`);
-
-  if (waiting.length)
-    return skip(`Plannotator plugins wait for the CLI to reach their release`);
-
-  return updated.length
-    ? done(`Plannotator plugins follow CLI ${cli}`)
-    : skip("Plannotator plugins skipped (none installed)");
-}).pipe(
-  Effect.catch((error) =>
-    Effect.succeed(warn(`Plannotator plugin update failed: ${error.message}`)),
-  ),
-  Effect.provide(FetchHttpClient.layer),
-  Effect.withSpan("agentRuntime.updatePlannotatorPlugins"),
 );
 
 /** Reload the OpenCode 2 background service's configuration when it is running. */
