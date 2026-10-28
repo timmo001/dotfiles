@@ -9,7 +9,6 @@ __pycache__/
 /mise.lock
 /.mise/
 /mise/.config/mise/mise.lock
-/plannotator/
 /herdr/.config/herdr/*
 !/herdr/.config/herdr/config.toml
 !/herdr/.config/herdr/plugins/
