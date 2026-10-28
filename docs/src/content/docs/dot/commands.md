@@ -1274,7 +1274,7 @@ dot clean [flags]
 
 ## `dot agent`
 
-Agent harness tooling: instruction sync, linting and detection
+Agent harness tooling: instruction sync, linting, tools and detection
 
 ```text
 dot agent <subcommand> [flags]
@@ -1394,6 +1394,30 @@ dot agent oxlint src/one.ts src/two.ts
 dot agent oxlint --all
 dot agent oxlint --force src/example.ts
 dot agent oxlint --opt-in
+```
+
+### `dot agent tools`
+
+List the dot commands exposed to agents as Code Mode tools
+
+```text
+dot agent tools [flags]
+```
+
+List the dot commands that the OpenCode cli-tools plugin exposes as typed Code Mode tools under tools.dot.*. The list is opt-in and kept in dot/src/commands/AgentTools.ts; each entry's input schema is generated from the command's arguments and flags. --json prints the manifest the plugin reads: tool name, command path, summary, read or write access, pinned state, timeout, whether the command has --json, the input JSON Schema, and how each input maps back to an argument or flag. Write tools ask for permission through dot.write.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the tool manifest as JSON |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot agent tools
+dot agent tools --json
 ```
 
 ### `dot agent detect`

@@ -28,8 +28,11 @@ type InspectableParam<Kind extends Param.ParamKind> = Param.Param<
       }[ParamWrapper]
   );
 
-interface ParamMetadata {
+/** Whether a parsed parameter may be left out or repeated. */
+export interface ParamMetadata {
+  /** True when the parameter is optional or has a default. */
   readonly isOptional: boolean;
+  /** True when the parameter accepts several values. */
   readonly isVariadic: boolean;
 }
 
@@ -60,7 +63,8 @@ function isPathPrimitive(
   );
 }
 
-function extractSingleParams<Kind extends Param.ParamKind>(
+/** Unwrap a parameter to its single-value leaves. */
+export function extractSingleParams<Kind extends Param.ParamKind>(
   param: Param.Param<Kind, unknown>,
 ): readonly Param.Single<Kind, unknown>[] {
   if (!isInspectableParam(param))
@@ -72,7 +76,8 @@ function extractSingleParams<Kind extends Param.ParamKind>(
   );
 }
 
-function paramMetadata<Kind extends Param.ParamKind>(
+/** Read whether a parameter is optional or variadic from its wrappers. */
+export function paramMetadata<Kind extends Param.ParamKind>(
   param: Param.Param<Kind, unknown>,
 ): ParamMetadata {
   if (!isInspectableParam(param))
@@ -116,14 +121,18 @@ const SKILL_MAINTENANCE_COMPLETION_TARGETS = {
 
 const CompletionType = Data.taggedEnum<Completions.FlagType>();
 
-function flagType(single: Param.Single<"flag", unknown>): Completions.FlagType {
+/** Map a flag leaf to its completion value type. */
+export function flagType(
+  single: Param.Single<"flag", unknown>,
+): Completions.FlagType {
   return Match.value(single.primitiveType).pipe(
     Match.tag("Boolean", () => CompletionType.Boolean()),
     Match.orElse(() => argumentType(single)),
   );
 }
 
-function argumentType(
+/** Map an argument or value flag leaf to its completion value type. */
+export function argumentType(
   single: Param.Single<Param.ParamKind, unknown>,
 ): Completions.ArgumentType {
   return Match.value(single.primitiveType).pipe(

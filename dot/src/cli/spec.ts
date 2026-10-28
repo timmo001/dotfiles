@@ -12,6 +12,7 @@ import {
 import { agentsSync } from "../commands/AgentsSync.js";
 import { agentOxlint } from "../commands/AgentOxlint.js";
 import { agentLint } from "../commands/AgentLint.js";
+import { agentTools } from "../commands/AgentTools.js";
 import { repoInduct } from "../commands/RepoInduct.js";
 import { clean } from "../commands/Clean.js";
 import { completions } from "../commands/Completions.js";
@@ -2982,16 +2983,31 @@ const agentLintCommand = describe(
   },
 );
 
+const agentToolsCommand = describe(
+  Command.make(
+    "tools",
+    { json: bool("json", "Print the tool manifest as JSON") },
+    agentTools,
+  ),
+  "List the dot commands exposed to agents as Code Mode tools",
+  ["dot agent tools", "dot agent tools --json"],
+  {
+    description:
+      "List the dot commands that the OpenCode cli-tools plugin exposes as typed Code Mode tools under tools.dot.*. The list is opt-in and kept in dot/src/commands/AgentTools.ts; each entry's input schema is generated from the command's arguments and flags. --json prints the manifest the plugin reads: tool name, command path, summary, read or write access, pinned state, timeout, whether the command has --json, the input JSON Schema, and how each input maps back to an argument or flag. Write tools ask for permission through dot.write.",
+  },
+);
+
 const agentCommand = describe(
   Command.make("agent").pipe(
     Command.withSubcommands([
       agentSyncCommand,
       agentLintCommand,
       agentOxlintCommand,
+      agentToolsCommand,
       isAgent,
     ]),
   ),
-  "Agent harness tooling: instruction sync, linting and detection",
+  "Agent harness tooling: instruction sync, linting, tools and detection",
 );
 
 const floating = describe(
