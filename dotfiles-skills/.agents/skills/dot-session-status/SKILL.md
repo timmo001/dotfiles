@@ -9,17 +9,18 @@ compatibility: Requires the dot CLI and the host's configured OpenCode 2 launche
 
 ## Query The Right Session
 
-1. For yourself, take the exact `Current conversation session ID` from the
-   harness's injected environment context. When the prompt does not include it,
-   OpenCode 2's shell tool sets `OPENCODE_SESSION_ID` for every command, so run
-   `dot session status "$OPENCODE_SESSION_ID" --json`. Do not infer identity
-   from the current directory, focused pane, latest session or transcript title.
-   Ask for the ID only if both sources are missing.
-2. Prefer the `dot` Code Mode namespace's `session_status` tool with the
-   session ID (and `warnAt` for a different threshold). Without it, run
-   `dot session status <session-id> --json`. Use the same call with an
-   explicitly supplied ID for another session. Herdr's reported OpenCode session
-   ID is also suitable when inspecting an already identified worker.
+1. For yourself, leave the session ID out. The command reads
+   `$OPENCODE_SESSION_ID`, which OpenCode 2 sets for its shell and Code Mode
+   tools, then the session Herdr reports for your own pane. Check the reported
+   `sessionId` matches the `Current conversation session ID` from the injected
+   environment context when there is one, and pass that ID if it doesn't. Do not
+   infer identity from the current directory, focused pane, latest session or
+   transcript title. Ask for the ID only if it fails and the context has none.
+2. Prefer the `dot` Code Mode namespace's `session_status` tool (with `warnAt`
+   for a different threshold). Without it, run `dot session status --json`.
+   For another session, pass its explicitly supplied ID. Herdr's reported
+   OpenCode session ID is also suitable when inspecting an already identified
+   worker.
 3. Use `model` for the selected provider, model ID and optional variant;
    `availableVariants` and `limits` come from its project-specific catalogue.
    An omitted variant means no explicit variant, not necessarily low effort.
