@@ -50,6 +50,7 @@
     "asked": [
       "claude-code",
       "codex",
+      "qwen",
       "pi",
       "opencode",
       "cursor"
