@@ -12,6 +12,7 @@ import {
   GhTimeoutError,
   Graphql,
   Issue,
+  IssueArtifact,
   Label,
   layer as ghClientLayer,
   PullRequest,
@@ -21,7 +22,7 @@ import {
   Search,
   Workflow,
 } from "@timmo001/effect-gh";
-import { type Duration, Effect, Layer, Option, Schema } from "effect";
+import { type Duration, Effect, Layer, Option, Schema, Struct } from "effect";
 import {
   type CliInput,
   type CliNamespace,
@@ -326,7 +327,21 @@ const prViewFields = [
 
 const prListFields = ["number", "title", "url", "state", "isDraft", "author", "headRefName", "labels"] as const;
 
-const issueViewFields = ["number", "title", "url", "state", "updatedAt", "author", "labels", "body"] as const;
+const issueViewFields = [
+  "number",
+  "title",
+  "url",
+  "state",
+  "updatedAt",
+  "author",
+  "labels",
+  "body",
+  "issueType",
+  "parent",
+  "subIssuesSummary",
+  "blockedBy",
+  "blocking",
+] as const;
 
 const issueListFields = ["number", "title", "url", "state", "updatedAt", "author", "labels"] as const;
 
@@ -341,6 +356,41 @@ const releaseFields = [
   "publishedAt",
   "assets",
 ] as const;
+
+const issueReference = Schema.Union([Schema.Int, Schema.String]).annotate({
+  description: "An issue's number or URL, which may be in another repository",
+});
+
+const issueReferences = (description: string) =>
+  Schema.optionalKey(Schema.Array(issueReference)).annotate({ description });
+
+const issueType = Schema.optionalKey(Schema.String).annotate({
+  description: "The issue type by name, such as Bug, where the repository's organisation has issue types",
+});
+
+/** Every `--<name>=<value>` flag for a list of issue references. */
+const issueFlags = (name: string, values: readonly (number | string)[] | undefined) =>
+  flags(name, values?.map(String));
+
+const artifactNumber = Schema.Int.annotate({ description: "The artifact's number on the issue, from issue_artifact_list" });
+
+/** An artifact without its rendered HTML, which repeats the body. */
+const withoutHtml = <A extends { readonly bodyHtml: string }>(artifact: A) => Struct.omit(artifact, ["bodyHtml"]);
+
+/** Attachments as gh's `--attach` takes them, `<file>#<alt text>`. */
+const ghAttachments = (attachments: AttachmentList) => attachments?.map((file) => `${file.path}#${file.alt}`);
+
+const artifactAttachments = Schema.optionalKey(
+  Schema.Array(
+    Schema.Struct({
+      path: Schema.String.annotate({ description: "The local image or video file" }),
+      alt: Schema.String.annotate({ description: "Alt text" }),
+    }),
+  ),
+).annotate({
+  description:
+    "Images or videos for a Markdown document. gh uploads them and swaps a reference to each path in the document for its URL, or adds it at the end",
+});
 
 const runStatus = Schema.Literals([
   "queued",
@@ -517,7 +567,8 @@ export const ghNamespace: ClientNamespace = {
     }),
     ghTool({
       name: "issue_view",
-      description: "View an issue with its body, author and labels.",
+      description:
+        "View an issue with its body, author, labels, issue type, parent, sub-issue progress, and the issues blocking it or blocked by it.",
       access: "read",
       repo: "local",
       input: Schema.Struct({
@@ -539,6 +590,7 @@ export const ghNamespace: ClientNamespace = {
         labels: Schema.optionalKey(Schema.Array(Schema.String)),
         assignee: Schema.optionalKey(Schema.String),
         search: Schema.optionalKey(Schema.String).annotate({ description: "GitHub search qualifiers" }),
+        type: issueType,
       }),
       run: ({ ...input }, call) =>
         Issue.query({ ...input, repo: call.repo || undefined, fields: issueListFields }, { cwd: call.cwd }),
@@ -549,6 +601,32 @@ export const ghNamespace: ClientNamespace = {
       access: "read",
       input: Schema.Struct({ repo, number: number("issue") }),
       run: (input, call) => Comment.list({ repo: call.repo, number: input.number }, { cwd: call.cwd }),
+    }),
+    ghTool({
+      name: "issue_artifact_list",
+      description:
+        "List an issue's artifacts (Markdown and HTML documents and links attached to it, in preview) in number order, with their bodies. Only works on repositories enrolled in the issue artifacts preview.",
+      access: "read",
+      input: Schema.Struct({
+        repo,
+        number: number("issue"),
+        type: Schema.optionalKey(Schema.Literals(["generic", "plan", "link", "embedded_html"])),
+        limit: Schema.optionalKey(Schema.Int),
+      }),
+      run: (input, call) =>
+        IssueArtifact.list(input.number, { repo: call.repo, type: input.type, limit: input.limit }, { cwd: call.cwd }).pipe(
+          Effect.map((artifacts) => artifacts.map(withoutHtml)),
+        ),
+    }),
+    ghTool({
+      name: "issue_artifact_view",
+      description: "View an issue artifact with its edit history, newest version first.",
+      access: "read",
+      input: Schema.Struct({ repo, number: number("issue"), artifact: artifactNumber }),
+      run: (input, call) =>
+        IssueArtifact.view(input.number, input.artifact, { repo: call.repo }, { cwd: call.cwd }).pipe(
+          Effect.map((artifact) => ({ ...withoutHtml(artifact), versions: artifact.versions.map(withoutHtml) })),
+        ),
     }),
     ghTool({
       name: "discussion_view",
@@ -1337,20 +1415,23 @@ export const ghNamespace: ClientNamespace = {
         title: Schema.String,
         body: body("issue"),
         labels: Schema.optionalKey(Schema.Array(Schema.String)),
+        type: issueType,
+        parent: Schema.optionalKey(issueReference).annotate({ description: "Make the new issue a sub-issue of this one" }),
+        blockedBy: issueReferences("Issues blocking the new one"),
+        blocking: issueReferences("Issues the new one blocks"),
         attachments: Attachments,
         uploadRepository,
       }),
-      run: (input, call) =>
-        attachOne(input.body, input.attachments, call, input.uploadRepository).pipe(
-          Effect.flatMap((text) =>
-            Issue.create({ repo: call.repo, title: input.title, body: text, labels: input.labels }, { cwd: call.cwd }),
-          ),
+      run: ({ body: issueBody, attachments, uploadRepository: upload, ...input }, call) =>
+        attachOne(issueBody, attachments, call, upload).pipe(
+          Effect.flatMap((text) => Issue.create({ ...input, repo: call.repo, body: text }, { cwd: call.cwd })),
           Effect.map((created) => ({ number: Number(created.url.split("/").at(-1)), url: created.url })),
         ),
     }),
     ghTool({
       name: "issue_edit",
-      description: "Change an issue's title, body, labels, assignees or milestone.",
+      description:
+        "Change an issue's title, body, labels, assignees, milestone, issue type, parent, sub-issues or blocking relationships.",
       access: "write",
       input: Schema.Struct({
         repo,
@@ -1362,6 +1443,16 @@ export const ghNamespace: ClientNamespace = {
         addAssignees: Schema.optionalKey(Schema.Array(Schema.String)),
         removeAssignees: Schema.optionalKey(Schema.Array(Schema.String)),
         milestone: Schema.optionalKey(Schema.String).annotate({ description: "The milestone's title" }),
+        type: issueType,
+        removeType: Schema.optionalKey(Schema.Boolean),
+        parent: Schema.optionalKey(issueReference).annotate({ description: "Make the issue a sub-issue of this one" }),
+        removeParent: Schema.optionalKey(Schema.Boolean),
+        addSubIssues: issueReferences("Issues to make sub-issues of this one"),
+        removeSubIssues: issueReferences("Sub-issues to detach"),
+        addBlockedBy: issueReferences("Issues to mark as blocking this one"),
+        removeBlockedBy: issueReferences("Issues to no longer mark as blocking this one"),
+        addBlocking: issueReferences("Issues to mark as blocked by this one"),
+        removeBlocking: issueReferences("Issues to no longer mark as blocked by this one"),
         attachments: Attachments,
         uploadRepository,
       }),
@@ -1378,6 +1469,16 @@ export const ghNamespace: ClientNamespace = {
             ...flags("add-assignee", input.addAssignees),
             ...flags("remove-assignee", input.removeAssignees),
             ...flag("milestone", input.milestone),
+            ...flag("type", input.type),
+            ...(input.removeType ? ["--remove-type"] : []),
+            ...flag("parent", input.parent === undefined ? undefined : String(input.parent)),
+            ...(input.removeParent ? ["--remove-parent"] : []),
+            ...issueFlags("add-sub-issue", input.addSubIssues),
+            ...issueFlags("remove-sub-issue", input.removeSubIssues),
+            ...issueFlags("add-blocked-by", input.addBlockedBy),
+            ...issueFlags("remove-blocked-by", input.removeBlockedBy),
+            ...issueFlags("add-blocking", input.addBlocking),
+            ...issueFlags("remove-blocking", input.removeBlocking),
           ];
 
           if (changes.length === 0) return yield* new Tool.Error({ message: "Nothing to change" });
@@ -1402,6 +1503,60 @@ export const ghNamespace: ClientNamespace = {
         attachOne(input.body, input.attachments, call, input.uploadRepository).pipe(
           Effect.flatMap((text) => postComment(call.repo, input.number, text, call.cwd)),
         ),
+    }),
+    ghTool({
+      name: "issue_artifact_create",
+      description:
+        "Attach artifacts to an issue (in preview): one per local file or URL in sources, or a single document from body. A .md or text file becomes a document, .html an HTML document, and a URL a link. Returns each artifact's status and number.",
+      access: "write",
+      input: Schema.Struct({
+        repo,
+        number: number("issue"),
+        sources: Schema.optionalKey(Schema.Array(Schema.String)).annotate({
+          description: "Local files (add #<name> to name one) and URLs, one artifact each. Leave out with body",
+        }),
+        body: Schema.optionalKey(Schema.String).annotate({ description: "Markdown for a single document; needs name" }),
+        name: Schema.optionalKey(Schema.String).annotate({ description: "The name for a single artifact" }),
+        type: Schema.optionalKey(Schema.Literals(["generic", "plan", "embedded_html"])),
+        attachments: artifactAttachments,
+      }),
+      run: ({ number: issue, attachments, ...input }, call) =>
+        IssueArtifact.create(
+          issue,
+          { ...input, repo: call.repo, attachments: ghAttachments(attachments) },
+          { cwd: call.cwd },
+        ),
+    }),
+    ghTool({
+      name: "issue_artifact_edit",
+      description:
+        "Rename an issue artifact, replace its content (a link's URL for a link), or restore an earlier version from issue_artifact_view as a new one.",
+      access: "write",
+      input: Schema.Struct({
+        repo,
+        number: number("issue"),
+        artifact: artifactNumber,
+        name: Schema.optionalKey(Schema.String),
+        body: Schema.optionalKey(Schema.String),
+        restoreVersion: Schema.optionalKey(Schema.Int).annotate({
+          description: "An earlier version's number; can't be combined with the other changes",
+        }),
+        attachments: artifactAttachments,
+      }),
+      run: ({ number: issue, artifact, attachments, ...input }, call) =>
+        IssueArtifact.edit(
+          issue,
+          artifact,
+          { ...input, repo: call.repo, attachments: ghAttachments(attachments) },
+          { cwd: call.cwd },
+        ),
+    }),
+    ghTool({
+      name: "issue_artifact_delete",
+      description: "Delete artifacts from an issue. They can't be restored.",
+      access: "write",
+      input: Schema.Struct({ repo, number: number("issue"), artifacts: Schema.Array(artifactNumber) }),
+      run: (input, call) => IssueArtifact.remove(input.number, input.artifacts, { repo: call.repo }, { cwd: call.cwd }),
     }),
     ghTool({
       name: "issue_close",
