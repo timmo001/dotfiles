@@ -11,21 +11,30 @@ dispatch:
 tools:
   - repo: herdrdev/herdr
     reviewed: v0.9.5
-    review: Check herdr/.config/herdr, the Herdr plugins under scripts/.local/share/herdr-plugins (their min_herdr_version), and the dot commands, services and doctor checks that drive Herdr through @timmo001/effect-herdr.
+    review: Check herdr/.config/herdr, the Herdr plugins under scripts/.local/share/herdr-plugins (their min_herdr_version), the dot commands, services and doctor checks that drive Herdr through @timmo001/effect-herdr, and the herdr Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/herdr.ts.
   - repo: omacom/omarchy
     reviewed: v4.5.0-rc2
     prereleases: true
-    review: Check the custom bar plugins under omarchy/.config/omarchy/plugins that replace or extend Omarchy's (omarchy-plugins.json), the generated shell.json in dot/src/lib/omarchyShellConfig.ts, and the Omarchy hooks, components and extensions. Recheck the omarchy-shell-quickshell skill's file paths, lifecycle and plugin workflow against the release.
+    review: Check the custom bar plugins under omarchy/.config/omarchy/plugins that replace or extend Omarchy's (omarchy-plugins.json), the generated shell.json in dot/src/lib/omarchyShellConfig.ts, the Omarchy hooks, components and extensions, and the omarchy Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/omarchy.ts. Recheck the omarchy-shell-quickshell skill's file paths, lifecycle and plugin workflow against the release.
   - repo: quickshell-mirror/quickshell
     reviewed: v0.3.2
     review: Check the custom bar plugin QML under omarchy/.config/omarchy/plugins, the qmllint setup in .github/workflows/quickshell-lint.yml, and the omarchy-shell-quickshell skill's Quickshell notes (reload semantics, IpcHandler, the qs CLI).
   - repo: cli/cli
     reviewed: v2.103.3
-    review: Check the gh calls in dot through @timmo001/effect-gh and the GitHub credential command in mise/.config/mise/config.toml.
+    review: Check the gh calls in dot through @timmo001/effect-gh, the gh Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/gh.ts (new commands or flags they should expose, once effect-gh wraps them), and the GitHub credential command in mise/.config/mise/config.toml.
+  - repo: hyprwm/Hyprland
+    reviewed: v0.56.2
+    review: Check hypr/.config/hypr and its host overrides for changed or removed options and dispatchers, and the hyprctl Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/hyprctl.ts and their nudges in shell-nudge.ts.
+  - repo: jdx/mise
+    reviewed: v2026.10.21
+    review: Check mise.toml tasks, mise/.config/mise/config.toml, and the mise Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/mise.ts for changed commands, flags or JSON output.
+  - repo: jdx/pitchfork
+    reviewed: v2.32.4
+    review: Check the pitchfork Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/pitchfork.ts for changed commands, flags or JSON output.
   - repo: anomalyco/opencode
     reviewed: v2.2.1
     tags: ^v2\.
-    review: Check the OpenCode config, agents, commands and plugins under agents/.config/opencode, and the dot commands and doctor checks that drive OpenCode. Plugins run on OpenCode's own Effect, so keep the plugins' effect and @effect/platform-node pins on the versions it uses.
+    review: Check the OpenCode config, agents, commands and plugins under agents/.config/opencode (including the opencode2 Code Mode tools in plugins/lib/cli-tools/opencode2.ts), and the dot commands and doctor checks that drive OpenCode. Plugins run on OpenCode's own Effect, so keep the plugins' effect and @effect/platform-node pins on the versions it uses.
   - repo: Effect-TS/effect
     reviewed: effect@4.1.0
     tags: ^effect@
