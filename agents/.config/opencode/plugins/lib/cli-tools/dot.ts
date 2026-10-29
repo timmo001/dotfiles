@@ -1,5 +1,6 @@
 import { Tool } from "@opencode/schema/tool";
 import { Effect, Schema } from "effect";
+import type { DotToolFlags } from "./shell-nudge";
 import { type CliInput, type CliTool, runCli } from "./tool";
 
 const Param = Schema.Struct({
@@ -117,6 +118,15 @@ export const loadDotTools = runCli("dot", ["agent", "tools", "--json"], {
     return {
       tools: all.flatMap((entry) => (entry.jobOnly ? [] : [entry.tool])),
       jobs: all.map((entry) => entry.tool),
+      flags: new Map(
+        tools.map((tool): [string, ReadonlySet<string>] => [
+          tool.name,
+          new Set([
+            ...tool.params.flatMap((param) => (param.kind === "flag" && param.flag !== undefined ? [param.flag] : [])),
+            ...(tool.json ? ["json"] : []),
+          ]),
+        ]),
+      ) satisfies DotToolFlags,
     };
   }),
 );
