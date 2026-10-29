@@ -1,10 +1,4 @@
-import {
-  HerdrSdk,
-  herdrSdkLayerFromOptions,
-  type Agent,
-  type Workspace,
-} from "@timmo001/effect-herdr";
-import { Clock, Duration, Effect, FileSystem, Option, Schema } from "effect";
+import { Clock, Effect, FileSystem, Option, Schema } from "effect";
 import { Prompt } from "effect/cli";
 import { hostname } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
@@ -29,6 +23,7 @@ import {
   localDirectory,
   readSessionQueueConfig,
   release,
+  remove,
   SESSION_QUEUE_CONFIG_PATH,
   SessionQueueError,
   sessionTree,
@@ -40,7 +35,14 @@ import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { normalizeGitHubSlug } from "../services/GitConfig.js";
 import { OutputLog } from "../services/OutputLog.js";
-import { DEFAULT_SOCKET_PATH, openHerdrRepo } from "./HerdrRepoOpen.js";
+import {
+  currentSessionId,
+  herdrLayer,
+  herdrSnapshot,
+  openCodeSession,
+  type HerdrSnapshot,
+} from "./CurrentSession.js";
+import { openHerdrRepo } from "./HerdrRepoOpen.js";
 import { loadTracked } from "./Repos.js";
 import { getOpenCode, SESSION_ID_PATTERN } from "./SessionStatus.js";
 
@@ -66,40 +68,6 @@ const fail = (message: string) => new SessionQueueError({ message });
 
 const interactive = () =>
   !isAgent() && process.stdin.isTTY === true && process.stdout.isTTY === true;
-
-const herdrLayer = () =>
-  herdrSdkLayerFromOptions({
-    socketPath: envString(ENV.HERDR_SOCKET_PATH) ?? DEFAULT_SOCKET_PATH,
-    requestTimeout: Duration.seconds(5),
-  });
-
-interface HerdrSnapshot {
-  readonly workspaces: readonly Workspace[];
-  readonly agents: readonly Agent[];
-}
-
-const emptySnapshot = { workspaces: [], agents: [] } satisfies HerdrSnapshot;
-
-const herdrSnapshot = Effect.gen(function* () {
-  const herdr = yield* HerdrSdk;
-
-  return yield* Effect.all(
-    { workspaces: herdr.workspaces.list(), agents: herdr.agents.list() },
-    { concurrency: 2 },
-  );
-}).pipe(
-  Effect.provide(herdrLayer()),
-  Effect.catchCause(() => Effect.succeed(emptySnapshot)),
-  Effect.withSpan("sessionQueue.herdrSnapshot"),
-);
-
-const openCodeSession = (agent: Agent) =>
-  Option.getOrUndefined(
-    Option.filter(
-      agent.agentSession,
-      (session) => session.agent === "opencode" && session.kind === "id",
-    ),
-  )?.value;
 
 const requireQueue = Effect.gen(function* () {
   const queue = yield* readSessionQueueConfig;
@@ -151,8 +119,8 @@ const childSessions = Effect.fn("sessionQueue.childSessions")(function* (
 });
 
 /**
- * Without an ID, an agent sends the session in its own Herdr pane; a person
- * picks an OpenCode pane, current workspace first.
+ * Without an ID, an agent sends its own session ({@link currentSessionId}); a
+ * person picks an OpenCode pane, current workspace first.
  */
 const pickSession = Effect.fn("sessionQueue.pickSession")(function* (
   snapshot: HerdrSnapshot,
@@ -161,12 +129,11 @@ const pickSession = Effect.fn("sessionQueue.pickSession")(function* (
   const ownWorkspace = envString(ENV.HERDR_WORKSPACE_ID);
 
   if (isAgent()) {
-    const own = snapshot.agents.find((agent) => agent.paneId === ownPane);
-    const sessionId = own ? openCodeSession(own) : undefined;
+    const sessionId = yield* currentSessionId(snapshot);
 
     if (!sessionId)
       return yield* fail(
-        "Herdr doesn't report an OpenCode session for this pane; pass the session ID",
+        "No current OpenCode session: $OPENCODE_SESSION_ID isn't set and Herdr doesn't report one for this pane; pass the session ID",
       );
 
     return sessionId;
@@ -536,6 +503,59 @@ export const sessionQueueList = (options: { readonly json: boolean }) =>
         process.stderr.write(
           `Skipped ${skipped.length} entries with unreadable metadata\n`,
         );
+    }),
+  );
+
+/** Take entries out of the queue without importing them. */
+export const sessionRemove = (options: {
+  readonly entryIds: readonly string[];
+  readonly json: boolean;
+}) =>
+  handled(
+    Effect.gen(function* () {
+      const queue = yield* requireQueue;
+      const { entries } = yield* listPending(queue);
+      const now = yield* Clock.currentTimeMillis;
+
+      const ids =
+        options.entryIds.length > 0
+          ? options.entryIds
+          : entries.length === 0
+            ? yield* fail("Nothing queued")
+            : interactive()
+              ? [
+                  yield* Prompt.run(
+                    Prompt.Select({
+                      message: "Remove which session",
+                      choices: entries.map((entry) => ({
+                        title: `${entry.title ?? entry.sessionId} · ${entry.host} · ${entry.repository?.name ?? basename(entry.directory)} · ${formatRelativeTimeAgo(entry.sentAt, now)}`,
+                        value: entry.id,
+                      })),
+                    }),
+                  ).pipe(
+                    Effect.catchTag("QuitError", () =>
+                      Effect.fail(fail("Cancelled")),
+                    ),
+                  ),
+                ]
+              : yield* fail("Pass an entry ID from dot session queue");
+
+      for (const id of ids)
+        if (!entries.some((entry) => entry.id === id))
+          return yield* fail(`No pending entry ${id}`);
+
+      for (const id of ids) yield* remove(queue, id);
+
+      if (options.json) {
+        process.stdout.write(`${JSON.stringify({ removed: ids })}\n`);
+
+        return;
+      }
+
+      const log = yield* OutputLog;
+
+      for (const id of ids)
+        yield* log.info(`Removed ${id}; it's kept in removed/ on the queue`);
     }),
   );
 

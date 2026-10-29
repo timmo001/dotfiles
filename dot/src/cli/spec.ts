@@ -87,9 +87,13 @@ import { logRunSummary } from "../lib/runSummary.js";
 import { cliStyler } from "../lib/ansi.js";
 import { recapMessage } from "../lib/updateSummary.js";
 import { snapshot } from "../commands/Snapshot.js";
-import { sessionStatus } from "../commands/SessionStatus.js";
+import {
+  sessionCurrent,
+  sessionStatusOrCurrent,
+} from "../commands/CurrentSession.js";
 import {
   sessionQueueList,
+  sessionRemove,
   sessionSend,
   sessionTake,
 } from "../commands/SessionQueue.js";
@@ -1833,8 +1837,9 @@ const sessionCommand = describe(
           {
             sessionId: Argument.String("session-id").pipe(
               Argument.withDescription(
-                "Exact OpenCode 2 session ID from the agent's injected context or $OPENCODE_SESSION_ID",
+                "OpenCode 2 session ID; without it, the current session ($OPENCODE_SESSION_ID, or the one Herdr reports for this pane)",
               ),
+              Argument.optional,
             ),
             warnAt: Flag.Finite("warn-at").pipe(
               Flag.withDefault(70),
@@ -1852,16 +1857,17 @@ const sessionCommand = describe(
               "Print model, limits, context measurement and cumulative usage as JSON",
             ),
           },
-          sessionStatus,
+          sessionStatusOrCurrent,
         ),
         "Query an OpenCode 2 session's model, variant and context pressure",
         [
+          "dot session status",
           "dot session status ses_example --json",
           "dot session status ses_example --warn-at 80",
         ],
         {
           description:
-            "Read-only OpenCode 2 session inspection through the configured launcher. Pass the exact session ID supplied in the agent's environment context; it is not inferred from the focused pane, working directory or a guessed shell variable. Reports the selected model and variant, supported variants, model limits, latest completed assistant token measurement, its age, the latest completed compaction, and separately labelled cumulative usage and cost. Context tokens include non-cached input, cache reads and writes, output and reasoning, matching OpenCode's display. Input usage includes non-cached and cached input. Pressure uses whichever percentage is higher: context-window usage or input-limit usage. Current usage is unknown after compaction without a new measurement, after a model/variant switch, or with a staged revert. Later tool results and messages are not counted. Looks back through at most 20 messages per type and marks incomplete lookups. --warn-at defaults to 70 percent: a workflow heuristic, not a proven cognitive degradation threshold. The command does not change models, compact or open sessions.",
+            "Read-only OpenCode 2 session inspection through the configured launcher. Without a session ID it reads the current session: $OPENCODE_SESSION_ID, which OpenCode sets for its shell and Code Mode tools, else the OpenCode session Herdr reports for this pane. It never guesses from the focused pane or working directory. Reports the selected model and variant, supported variants, model limits, latest completed assistant token measurement, its age, the latest completed compaction, and separately labelled cumulative usage and cost. Context tokens include non-cached input, cache reads and writes, output and reasoning, matching OpenCode's display. Input usage includes non-cached and cached input. Pressure uses whichever percentage is higher: context-window usage or input-limit usage. Current usage is unknown after compaction without a new measurement, after a model/variant switch, or with a staged revert. Later tool results and messages are not counted. Looks back through at most 20 messages per type and marks incomplete lookups. --warn-at defaults to 70 percent: a workflow heuristic, not a proven cognitive degradation threshold. The command does not change models, compact or open sessions.",
         },
       ),
       describe(
@@ -1870,7 +1876,7 @@ const sessionCommand = describe(
           {
             sessionId: Argument.String("session-id").pipe(
               Argument.withDescription(
-                "OpenCode 2 session ID; without it, pick an OpenCode pane from Herdr, or under an agent use the agent's own pane",
+                "OpenCode 2 session ID; without it, an agent sends its current session ($OPENCODE_SESSION_ID, or its own Herdr pane's) and a person picks an OpenCode pane from Herdr",
               ),
               Argument.optional,
             ),
@@ -1930,6 +1936,48 @@ const sessionCommand = describe(
         {
           description:
             "Claims the entry so no other machine can take it, imports the sessions into this machine's checkout of the same repository, offers to apply the patch when HEAD matches and the tree is clean, then opens the session in its Herdr workspace with a draft prompt pasted in but not sent.",
+        },
+      ),
+      describe(
+        Command.make(
+          "remove",
+          {
+            entryIds: Argument.String("entry-id").pipe(
+              Argument.atLeast(0),
+              Argument.withDescription(
+                "Entry IDs from dot session queue; without them, pick one",
+              ),
+            ),
+            json: bool("json", "Print the removed entry IDs as JSON"),
+          },
+          sessionRemove,
+        ),
+        "Take sessions out of the queue without picking them up",
+        [
+          "dot session remove",
+          "dot session remove 20261029T165219-laptop-ses_example",
+        ],
+        {
+          description:
+            "Moves pending entries to removed/ in the queue folder, so no machine can take them but they can still be recovered by hand. The original sessions are left as they are.",
+        },
+      ),
+      describe(
+        Command.make(
+          "current",
+          {
+            json: bool(
+              "json",
+              "Print the session's ID, title and directory as JSON",
+            ),
+          },
+          sessionCurrent,
+        ),
+        "Print the current OpenCode 2 session's ID",
+        ["dot session current", "dot session current --json"],
+        {
+          description:
+            "Reads $OPENCODE_SESSION_ID, which OpenCode sets for its shell and Code Mode tools, else the OpenCode session Herdr reports for this pane. Fails when neither names a session.",
         },
       ),
     ]),

@@ -331,6 +331,27 @@ export const release = Effect.fn("SessionQueue.release")(function* (
   yield* remote(queue, `${vars}; mv -T "$P/claimed/$H/$ID" "$P/pending/$ID"`);
 });
 
+/** Move a pending entry to `removed/`, so nothing can take it but it can still be recovered. */
+export const remove = Effect.fn("SessionQueue.remove")(function* (
+  queue: SessionQueue,
+  id: string,
+) {
+  const vars = yield* remoteVariables({ ID: id });
+
+  yield* remote(
+    queue,
+    `${vars}; mkdir -p "$P/removed" && mv -T "$P/pending/$ID" "$P/removed/$ID"`,
+  ).pipe(
+    Effect.mapError((error) =>
+      /No such file|can't rename/.test(error.message)
+        ? new SessionQueueError({
+            message: `${id} is no longer pending; another machine may have taken it`,
+          })
+        : error,
+    ),
+  );
+});
+
 /**
  * Walk a session and its subagent sessions breadth-first, so every parent
  * comes before its children. OpenCode's import rejects a child whose parent

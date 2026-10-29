@@ -1065,10 +1065,10 @@ dot session <subcommand> [flags]
 Query an OpenCode 2 session's model, variant and context pressure
 
 ```text
-dot session status [flags] <session-id>
+dot session status [flags] [<session-id>]
 ```
 
-Read-only OpenCode 2 session inspection through the configured launcher. Pass the exact session ID supplied in the agent's environment context; it is not inferred from the focused pane, working directory or a guessed shell variable. Reports the selected model and variant, supported variants, model limits, latest completed assistant token measurement, its age, the latest completed compaction, and separately labelled cumulative usage and cost. Context tokens include non-cached input, cache reads and writes, output and reasoning, matching OpenCode's display. Input usage includes non-cached and cached input. Pressure uses whichever percentage is higher: context-window usage or input-limit usage. Current usage is unknown after compaction without a new measurement, after a model/variant switch, or with a staged revert. Later tool results and messages are not counted. Looks back through at most 20 messages per type and marks incomplete lookups. --warn-at defaults to 70 percent: a workflow heuristic, not a proven cognitive degradation threshold. The command does not change models, compact or open sessions.
+Read-only OpenCode 2 session inspection through the configured launcher. Without a session ID it reads the current session: $OPENCODE_SESSION_ID, which OpenCode sets for its shell and Code Mode tools, else the OpenCode session Herdr reports for this pane. It never guesses from the focused pane or working directory. Reports the selected model and variant, supported variants, model limits, latest completed assistant token measurement, its age, the latest completed compaction, and separately labelled cumulative usage and cost. Context tokens include non-cached input, cache reads and writes, output and reasoning, matching OpenCode's display. Input usage includes non-cached and cached input. Pressure uses whichever percentage is higher: context-window usage or input-limit usage. Current usage is unknown after compaction without a new measurement, after a model/variant switch, or with a staged revert. Later tool results and messages are not counted. Looks back through at most 20 messages per type and marks incomplete lookups. --warn-at defaults to 70 percent: a workflow heuristic, not a proven cognitive degradation threshold. The command does not change models, compact or open sessions.
 
 **Options**
 
@@ -1082,11 +1082,12 @@ Read-only OpenCode 2 session inspection through the configured launcher. Pass th
 
 | Argument | Description |
 | --- | --- |
-| `<session-id>` | Exact OpenCode 2 session ID from the agent's injected context or $OPENCODE_SESSION_ID |
+| `<session-id>` | OpenCode 2 session ID; without it, the current session ($OPENCODE_SESSION_ID, or the one Herdr reports for this pane) |
 
 **Examples**
 
 ```bash
+dot session status
 dot session status ses_example --json
 dot session status ses_example --warn-at 80
 ```
@@ -1113,7 +1114,7 @@ Exports the session and its subagent sessions with opencode2 session export, add
 
 | Argument | Description |
 | --- | --- |
-| `<session-id>` | OpenCode 2 session ID; without it, pick an OpenCode pane from Herdr, or under an agent use the agent's own pane |
+| `<session-id>` | OpenCode 2 session ID; without it, an agent sends its current session ($OPENCODE_SESSION_ID, or its own Herdr pane's) and a person picks an OpenCode pane from Herdr |
 
 **Examples**
 
@@ -1172,6 +1173,60 @@ Claims the entry so no other machine can take it, imports the sessions into this
 
 ```bash
 dot session take
+```
+
+### `dot session remove`
+
+Take sessions out of the queue without picking them up
+
+```text
+dot session remove [flags] [<entry-id...>]
+```
+
+Moves pending entries to removed/ in the queue folder, so no machine can take them but they can still be recovered by hand. The original sessions are left as they are.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the removed entry IDs as JSON |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<entry-id>` | Entry IDs from dot session queue; without them, pick one |
+
+**Examples**
+
+```bash
+dot session remove
+dot session remove 20261029T165219-laptop-ses_example
+```
+
+### `dot session current`
+
+Print the current OpenCode 2 session's ID
+
+```text
+dot session current [flags]
+```
+
+Reads $OPENCODE_SESSION_ID, which OpenCode sets for its shell and Code Mode tools, else the OpenCode session Herdr reports for this pane. Fails when neither names a session.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the session's ID, title and directory as JSON |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot session current
+dot session current --json
 ```
 
 ## `dot snapshot`
