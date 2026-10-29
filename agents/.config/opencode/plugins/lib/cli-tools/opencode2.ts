@@ -1,6 +1,8 @@
 import { dirname } from "node:path";
 import { NodeServices } from "@effect/platform-node";
+import { Tool } from "@opencode/schema/tool";
 import { Effect, FileSystem, Layer, Schema } from "effect";
+import { defaultSessionExportPath, sessionExportArgv, sessionExportId } from "./session-export";
 import { type ClientNamespace, clientTools, commandExists, runCliOutput, runCliText } from "./tool";
 
 const tool = clientTools(Layer.empty);
@@ -72,7 +74,7 @@ export const opencode2Namespace: ClientNamespace = {
         "Export a session's data as JSON to a file and return its path, since transcripts are large. Read it with jq or targeted reads.",
       access: "read",
       input: Schema.Struct({
-        sessionID: Schema.String.check(Schema.isStartingWith("ses")),
+        sessionID: Schema.String.check(Schema.isPattern(sessionExportId)),
         path: Schema.optionalKey(Schema.String.check(Schema.isStartingWith("/"))).annotate({
           description: "Where to write it (default: /tmp/opencode/session-exports/<id>.json)",
         }),
@@ -81,20 +83,27 @@ export const opencode2Namespace: ClientNamespace = {
       run: (input) =>
         Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem;
+          const path = input.path ?? defaultSessionExportPath(input.sessionID);
+          const partial = `${path}.${Math.random().toString(36).slice(2)}.partial`;
 
-          const json = yield* runCliText(
-            COMMAND,
-            ["session", "export", input.sessionID, ...(input.sanitize ? ["--sanitize"] : [])],
-            { timeout: "5 minutes" },
-          );
-
-          const path = input.path ?? `/tmp/opencode/session-exports/${input.sessionID}.json`;
-
+          // Drop a truncated partial on failure or interruption. A successful rename leaves nothing to remove.
+          yield* Effect.addFinalizer(() => fs.remove(partial).pipe(Effect.ignore));
           yield* fs.makeDirectory(dirname(path), { recursive: true });
-          yield* fs.writeFileString(path, json);
+          yield* runCliText("bash", sessionExportArgv(COMMAND, input.sessionID, partial, input.sanitize ?? false), {
+            timeout: "5 minutes",
+          });
 
-          return { path, bytes: Buffer.byteLength(json) };
-        }).pipe(Effect.provide(NodeServices.layer)),
+          const text = yield* fs.readFileString(partial);
+
+          yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown))(text).pipe(
+            Effect.mapError(
+              () => new Tool.Error({ message: "Session export isn't complete JSON; the export was cut off" }),
+            ),
+          );
+          yield* fs.rename(partial, path);
+
+          return { path, bytes: Buffer.byteLength(text) };
+        }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
     }),
     tool({
       name: "service_status",
