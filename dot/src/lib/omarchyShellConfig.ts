@@ -95,12 +95,20 @@ interface ManagedPluginHosts {
   readonly [host: string]: PluginSettings;
 }
 
+/** A stock plugin disabled outright, such as a service another program replaces. */
+export interface DisabledPlugin {
+  /** Plugin manifest id. */
+  readonly id: string;
+  /** Hosts that disable the plugin; omit for every host. */
+  readonly onlyHosts?: readonly string[];
+}
+
 /** Declarative customisation applied to Omarchy's stock shell layout. */
 export interface ManagedPluginConfig {
   /** Stock widgets removed from the generated layout. */
   readonly remove: readonly string[];
-  /** Stock plugins disabled outright, such as a service another program replaces. */
-  readonly disable: readonly string[];
+  /** Stock plugins disabled outright, written as an id or `{ id, onlyHosts }`. */
+  readonly disable: readonly DisabledPlugin[];
   /** Custom widgets placed into the generated layout. */
   readonly plugins: readonly ManagedPlugin[];
 }
@@ -114,7 +122,7 @@ export function mergeManagedPluginConfigs(
 
   return {
     remove: [...new Set([...publicConfig.remove, ...privateConfig.remove])],
-    disable: [...new Set([...publicConfig.disable, ...privateConfig.disable])],
+    disable: [...publicConfig.disable, ...privateConfig.disable],
     plugins: [
       ...publicConfig.plugins.filter(({ id }) => !privateIds.has(id)),
       ...privateConfig.plugins,
@@ -279,11 +287,29 @@ export function parseManagedPlugins(
   )
     return null;
 
-  if (
-    !Array.isArray(disable) ||
-    !disable.every((id) => isString(id) && isPluginId(id))
-  )
-    return null;
+  if (!Array.isArray(disable)) return null;
+
+  const disabled: DisabledPlugin[] = [];
+
+  for (const entry of disable) {
+    if (isPluginId(entry)) {
+      disabled.push({ id: entry });
+      continue;
+    }
+
+    if (!isJsonObject(entry)) return null;
+    const { id, onlyHosts } = entry;
+
+    if (!isPluginId(id)) return null;
+
+    if (onlyHosts === undefined) {
+      disabled.push({ id });
+      continue;
+    }
+
+    if (!Array.isArray(onlyHosts) || !onlyHosts.every(isString)) return null;
+    disabled.push({ id, onlyHosts: onlyHosts.filter(isString) });
+  }
 
   if (!Array.isArray(plugins)) return null;
 
@@ -398,7 +424,7 @@ export function parseManagedPlugins(
     parsed.push(parsedPlugin);
   }
 
-  return { remove, disable, plugins: parsed };
+  return { remove, disable: disabled, plugins: parsed };
 }
 
 function isPluginId(value: JsonValue): value is string {
@@ -464,14 +490,16 @@ export function mergeOmarchyShellConfig(
     }
   }
 
-  if (managedPlugins.disable.length > 0) {
+  const disable = managedPlugins.disable
+    .filter(({ onlyHosts }) => !onlyHosts || onlyHosts.includes(host))
+    .map(({ id }) => id);
+
+  if (disable.length > 0) {
     const existing = Array.isArray(base.disabledPlugins)
       ? base.disabledPlugins.filter(isString)
       : [];
 
-    base.disabledPlugins = [
-      ...new Set([...existing, ...managedPlugins.disable]),
-    ];
+    base.disabledPlugins = [...new Set([...existing, ...disable])];
   }
 
   for (const plugin of managedPlugins.plugins) {
