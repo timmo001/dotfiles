@@ -137,7 +137,7 @@ export default Plugin.define({
         return (input: CliInput, call: Tool.Context) =>
           Effect.gen(function* () {
             const directory = yield* sessionDirectory(call);
-            const prepared = yield* tool.prepare(input, { directory });
+            const prepared = yield* tool.prepare(input, { directory, sessionID: call.sessionID });
             const owner = prepared.permission?.namespace ?? namespace.command;
             const name = prepared.permission?.tool ?? tool.name;
             const target = prepared.resource === undefined ? name : `${name} ${prepared.resource}`;
@@ -179,6 +179,8 @@ export default Plugin.define({
               timeout: tool.timeout,
               json: tool.json,
               exitCodes: tool.exitCodes,
+              // Like the shell tool, so commands such as `dot session status` can find the session.
+              env: { OPENCODE_SESSION_ID: call.sessionID },
             });
 
             return { output };

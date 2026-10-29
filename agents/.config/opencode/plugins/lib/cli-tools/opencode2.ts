@@ -74,22 +74,25 @@ export const opencode2Namespace: ClientNamespace = {
         "Export a session's data as JSON to a file and return its path, since transcripts are large. Read it with jq or targeted reads.",
       access: "read",
       input: Schema.Struct({
-        sessionID: Schema.String.check(Schema.isPattern(sessionExportId)),
+        sessionID: Schema.optionalKey(Schema.String.check(Schema.isPattern(sessionExportId))).annotate({
+          description: "The session to export (default: this one)",
+        }),
         path: Schema.optionalKey(Schema.String.check(Schema.isStartingWith("/"))).annotate({
           description: "Where to write it (default: /tmp/opencode/session-exports/<id>.json)",
         }),
         sanitize: Schema.optionalKey(Schema.Boolean).annotate({ description: "Redact sensitive transcript and file data" }),
       }),
-      run: (input) =>
+      run: (input, context) =>
         Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem;
-          const path = input.path ?? defaultSessionExportPath(input.sessionID);
+          const sessionID = input.sessionID ?? context.sessionID;
+          const path = input.path ?? defaultSessionExportPath(sessionID);
           const partial = `${path}.${Math.random().toString(36).slice(2)}.partial`;
 
           // Drop a truncated partial on failure or interruption. A successful rename leaves nothing to remove.
           yield* Effect.addFinalizer(() => fs.remove(partial).pipe(Effect.ignore));
           yield* fs.makeDirectory(dirname(path), { recursive: true });
-          yield* runCliText("bash", sessionExportArgv(COMMAND, input.sessionID, partial, input.sanitize ?? false), {
+          yield* runCliText("bash", sessionExportArgv(COMMAND, sessionID, partial, input.sanitize ?? false), {
             timeout: "5 minutes",
           });
 

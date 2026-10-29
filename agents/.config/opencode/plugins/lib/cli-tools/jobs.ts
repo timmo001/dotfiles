@@ -244,6 +244,7 @@ const startTool = (namespaces: readonly CliNamespace[]): ClientTool => ({
             `--working-directory=${cwd}`,
             `--setenv=PATH=${process.env.PATH ?? ""}`,
             "--setenv=NO_COLOR=1",
+            `--setenv=OPENCODE_SESSION_ID=${context.sessionID}`,
             `--property=RuntimeMaxSec=${Math.ceil(Duration.toSeconds(timeout))}`,
             "bash",
             "-c",

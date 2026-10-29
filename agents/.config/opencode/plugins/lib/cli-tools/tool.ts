@@ -90,6 +90,8 @@ export interface ClientCall {
 export interface ClientContext {
   /** The session's directory. */
   readonly directory: string;
+  /** The calling session's ID. */
+  readonly sessionID: string;
 }
 
 /** One Effect client operation exposed as a Code Mode tool. */
@@ -244,6 +246,7 @@ export const runCliText = (
     readonly timeout?: Duration.Input;
     readonly exitCodes?: readonly number[];
     readonly mergeStderr?: boolean;
+    readonly env?: Readonly<Record<string, string>>;
   } = {},
 ) =>
   runCli(command, args, { ...options, timeout: options.timeout ?? "2 minutes" }).pipe(
@@ -270,6 +273,7 @@ export const runCliOutput = (
     readonly json?: boolean;
     readonly exitCodes?: readonly number[];
     readonly mergeStderr?: boolean;
+    readonly env?: Readonly<Record<string, string>>;
   } = {},
 ) =>
   runCliText(command, args, options).pipe(
@@ -305,6 +309,8 @@ export const runCli = (
     readonly timeout: Duration.Input;
     /** Interleave stderr into stdout, for commands such as test runners that report on stderr. */
     readonly mergeStderr?: boolean;
+    /** Extra environment variables, on top of OpenCode's own. */
+    readonly env?: Readonly<Record<string, string>>;
   },
 ) =>
   Effect.gen(function* () {
@@ -313,7 +319,7 @@ export const runCli = (
     const proc = yield* spawner.spawn(
       ChildProcess.make(command, args, {
         cwd: options.cwd,
-        env: { NO_COLOR: "1" },
+        env: { ...options.env, NO_COLOR: "1" },
         extendEnv: true,
         stdin:
           options.stdin === undefined
