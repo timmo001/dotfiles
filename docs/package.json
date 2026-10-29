@@ -18,7 +18,7 @@
     "predev": "bun run gen"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "14.4.2",
+    "@astrojs/cloudflare": "14.4.3",
     "@timmo001/docs-kit": "0.1.2",
     "blume": "2.2.6",
     "sharp": "^0.35.1"
