@@ -28,7 +28,7 @@ import {
 } from "./lib/cli-tools/package-managers";
 import { pacmanNamespace } from "./lib/cli-tools/pacman";
 import { pitchforkNamespace } from "./lib/cli-tools/pitchfork";
-import { type CodeModeCatalogue, dotCommandTools, runsDotUpdate, shellNudge } from "./lib/cli-tools/shell-nudge";
+import { type CodeModeCatalogue, runsDotUpdate, shellNudge } from "./lib/cli-tools/shell-nudge";
 import { skillMaintenanceNamespace } from "./lib/cli-tools/skill-maintenance";
 import { systemBridgeNamespace } from "./lib/cli-tools/system-bridge";
 import { systemdNamespace } from "./lib/cli-tools/systemd";
@@ -319,37 +319,19 @@ export default Plugin.define({
       );
 
       const dotUpdateJob = Result.isSuccess(dotTools) && dotTools.success.jobs.some((tool) => tool.name === "update");
-      const dotFlags = Result.isSuccess(dotTools) ? dotTools.success.flags : new Map<string, ReadonlySet<string>>();
 
+      // `dot update` reloads the OpenCode service, which cancels the shell running it, even in the background.
       yield* context.tool.hook("execute.before", (event) => {
         if (event.tool !== "shell" && event.tool !== "bash") return Effect.void;
 
-        const args = argRecord(event.input);
-        const command = stringArg(args.command);
-
-        // `dot update` reloads the OpenCode service, which cancels the shell running it, even in the background.
-        if (dotUpdateJob && runsDotUpdate(command))
-          return Effect.fail(
-            new Tool.Error({
-              message:
-                "cli-tools: dot update reloads the OpenCode service, which cancels the shell running it. " +
-                'Start it through execute with `await tools.jobs.start({ tool: "dot.update" })`, ' +
-                "then run the `follow` command it returns in a background shell.",
-            }),
-          );
-
-        // Background shells are how long runs stay out of the foreground, so they keep the shell.
-        if (args.background === true) return Effect.void;
-
-        const tools = dotCommandTools(command, catalogue, dotFlags);
-
-        if (tools.length === 0) return Effect.void;
+        if (!dotUpdateJob || !runsDotUpdate(stringArg(argRecord(event.input).command))) return Effect.void;
 
         return Effect.fail(
           new Tool.Error({
             message:
-              `cli-tools: Code Mode covers this dot command (${tools.join(", ")}). ` +
-              "Call it through execute instead of the shell. The shell stays open for --help and flags the tool doesn't take.",
+              "cli-tools: dot update reloads the OpenCode service, which cancels the shell running it. " +
+              'Start it through execute with `await tools.jobs.start({ tool: "dot.update" })`, ' +
+              "then run the `follow` command it returns in a background shell.",
           }),
         );
       });

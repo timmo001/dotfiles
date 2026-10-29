@@ -156,22 +156,6 @@ interface Covering {
   readonly directory: boolean;
 }
 
-/** The tool named by the longest run of a stage's leading subcommand words, such as `release_view` for `gh release view`. */
-const subcommandTool = (stage: Stage, tools: ReadonlyMap<string, boolean>): string | undefined => {
-  const words = stage.args
-    .filter((arg) => SUBCOMMAND.test(arg))
-    .slice(0, 3)
-    .map((word) => word.replaceAll("-", "_"));
-
-  for (let length = words.length; length > 0; length--) {
-    const name = words.slice(0, length).join("_");
-
-    if (tools.has(name)) return name;
-  }
-
-  return undefined;
-};
-
 /**
  * The Code Mode tools that cover a shell command, such as `tools.gh.release_view` for
  * `gh release view 1.0 --repo x`. Each stage of a chained or piped command is checked: known
@@ -188,9 +172,22 @@ const codeModeTools = (stages: readonly Stage[], catalogue: CodeModeCatalogue): 
     }
 
     const tools = catalogue.get(stage.executable);
-    const name = tools === undefined ? undefined : subcommandTool(stage, tools);
 
-    return name === undefined ? [] : [{ path: toolPath(stage.executable, name), directory: tools?.get(name) ?? false }];
+    if (!tools) return [];
+
+    const words = stage.args
+      .filter((arg) => SUBCOMMAND.test(arg))
+      .slice(0, 3)
+      .map((word) => word.replaceAll("-", "_"));
+
+    for (let length = words.length; length > 0; length--) {
+      const name = words.slice(0, length).join("_");
+      const directory = tools.get(name);
+
+      if (directory !== undefined) return [{ path: toolPath(stage.executable, name), directory }];
+    }
+
+    return [];
   });
 
   return [...new Map(found.map((tool) => [tool.path, tool])).values()];
@@ -269,36 +266,3 @@ export const runsDotUpdate = (command: string) =>
         executable === "dot" && args[0] === "update" && !args.includes("--help") && !args.includes("-h"),
     ),
   );
-
-/** The long flags, without their `--`, that each dot Code Mode tool takes, by tool name. */
-export type DotToolFlags = ReadonlyMap<string, ReadonlySet<string>>;
-
-/**
- * The Code Mode tools for the dot commands in a shell command, such as `tools.dot.repo_list` for
- * `dot repo list`. A help request, or a flag the tool doesn't take, leaves that command to the
- * shell.
- */
-export const dotCommandTools = (command: string, catalogue: CodeModeCatalogue, flags: DotToolFlags): readonly string[] => {
-  const tools = catalogue.get("dot");
-
-  if (tools === undefined) return [];
-
-  const found = parse(command)
-    .flat()
-    .flatMap((stage) => {
-      if (stage.executable !== "dot") return [];
-
-      const name = subcommandTool(stage, tools);
-      const accepted = name === undefined ? undefined : flags.get(name);
-
-      if (name === undefined || accepted === undefined) return [];
-
-      const covered = stage.args
-        .filter((arg) => arg.startsWith("-"))
-        .every((arg) => arg.startsWith("--") && accepted.has(arg.slice(2).split("=")[0] ?? ""));
-
-      return covered ? [toolPath("dot", name)] : [];
-    });
-
-  return [...new Set(found)];
-};
