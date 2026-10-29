@@ -1,5 +1,6 @@
 {
   "remove": ["omarchy.weather", "omarchy.agents"],
+  "disable": [{ "id": "omarchy.notifications", "onlyHosts": ["laptop"] }],
   "plugins": [
     { "id": "timmo.workspace-context" },
     {
