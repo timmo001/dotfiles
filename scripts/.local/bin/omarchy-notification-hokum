@@ -1,18 +1,15 @@
 #!/bin/bash
 
-# Stands in for Omarchy's notification helpers while Hokum serves notifications
-# in place of the shell's notifications plugin. The helpers hand off here
-# through the patches in ~/.local/share/omarchy-patches, which
-# apply-omarchy-patches applies. Hokum ignores Omarchy's own hints, so this
-# turns click commands and buttons into real actions and runs the chosen one.
-# Replace once Hokum or Omarchy covers this (timmo001/dotfiles#1115).
+# Stands in for omarchy-notification-wait while Hokum serves notifications in
+# place of the shell's notifications plugin, which the stock helper pings and
+# so waits out its timeout without. The helper hands off here through the patch
+# in ~/.local/share/omarchy-patches, which apply-omarchy-patches applies. Hokum
+# reads Omarchy's own notification hints itself since 0.1.1.
 
 set -euo pipefail
 
-sent_file="${XDG_RUNTIME_DIR:-/tmp}/omarchy-notification-hokum"
-
 usage() {
-  echo "Usage: omarchy-notification-hokum active | send <fields...> | wait [seconds] | dismiss <summary>" >&2
+  echo "Usage: omarchy-notification-hokum active | wait [seconds]" >&2
 }
 
 # Hokum owns notifications when it's installed and the shell's plugin is off.
@@ -27,80 +24,6 @@ server_ready() {
     org.freedesktop.Notifications GetServerInformation >/dev/null 2>&1
 }
 
-# Run a JSON argv detached, each element one argument, never re-parsed.
-run_argv() {
-  local -a argv
-  mapfile -d '' -t argv < <(jq -j '.[] | ., "\u0000"' <<<"$1")
-  if ((${#argv[@]} > 0)); then
-    setsid -f "${argv[@]}" >/dev/null 2>&1 </dev/null
-  fi
-}
-
-# Hokum only has its own fonts, so a Nerd Font glyph draws as a box. Render it
-# in the theme's accent to a cached PNG instead, which Hokum shows as the icon.
-glyph_icon() {
-  local glyph=$1 font colour file
-
-  font=$(fc-match -f '%{file}' "$(omarchy-font-current 2>/dev/null || echo monospace)")
-  colour=$(omarchy-theme-color accent 2>/dev/null || echo '#ffffff')
-  file="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy-notification-hokum/$(printf '%s\t%s\t%s' "$glyph" "$colour" "$font" | sha1sum | cut -c1-16).png"
-
-  if [[ ! -f $file ]]; then
-    mkdir -p "$(dirname "$file")"
-    magick -background none -fill "$colour" -font "$font" -pointsize 96 label:"$glyph" \
-      -trim -gravity center -extent 112x112 "$file" >/dev/null 2>&1 || return 1
-  fi
-
-  printf '%s\n' "$file"
-}
-
-# The fields omarchy-notification-send has parsed, in the order its patch passes them.
-send() {
-  local app_name=$1 replaces_id=$2 app_icon=$3 headline=$4 description=$5 urgency=$6
-  local expire=$7 print_id=$8 glyph=$9 image=${10} exec_json=${11} actions_json=${12}
-  local id fd key i label icon
-  local -a args=(--app-name="$app_name" --urgency="$urgency" --print-id)
-  local -A commands=()
-
-  # The glyph stands in for an icon, as in the shell's own cards.
-  if [[ -n $glyph ]] && icon=$(glyph_icon "$glyph"); then
-    args+=(--icon="$icon")
-  elif [[ -n $app_icon ]]; then
-    args+=(--icon="$app_icon")
-  fi
-  if ((replaces_id > 0)); then args+=(--replace-id="$replaces_id"); fi
-  if ((expire >= 0)); then args+=(--expire-time="$expire"); fi
-  if [[ -n $image ]]; then args+=(--hint="string:image-path:$image"); fi
-
-  if [[ -n $exec_json ]]; then
-    commands[default]=$exec_json
-  elif [[ -n $actions_json ]]; then
-    commands[default]=$(jq -c '.[0].argv' <<<"$actions_json")
-    for i in $(jq -r 'keys[]' <<<"$actions_json"); do
-      label=$(jq -r --argjson i "$i" '.[$i].label' <<<"$actions_json")
-      commands[a$i]=$(jq -c --argjson i "$i" '.[$i].argv' <<<"$actions_json")
-      args+=(--action="a$i=$label")
-    done
-  fi
-
-  if ((${#commands[@]} == 0)); then
-    id=$(notify-send "${args[@]}" -- "$headline" "$description")
-  else
-    args+=(--action="default=Open" --wait)
-    exec {fd}< <(notify-send "${args[@]}" -- "$headline" "$description" 2>/dev/null)
-    read -r id <&"$fd"
-    (
-      if read -r key <&"$fd" && [[ -n ${commands[$key]-} ]]; then
-        run_argv "${commands[$key]}"
-      fi
-    ) >/dev/null 2>&1 </dev/null &
-    disown
-  fi
-
-  printf '%s\t%s\n' "$id" "$headline" >>"$sent_file"
-  if ((print_id)); then printf '%s\n' "$id"; fi
-}
-
 wait_ready() {
   local attempts=$((${1:-10} * 10))
 
@@ -113,47 +36,9 @@ wait_ready() {
   return 1
 }
 
-# Close the notifications sent through here whose headline contains the text.
-dismiss() {
-  local text=$1 id headline
-  local -a kept=()
-
-  [[ -f $sent_file ]] || return 0
-
-  while IFS=$'\t' read -r id headline; do
-    if [[ $headline == *"$text"* ]]; then
-      busctl --user call org.freedesktop.Notifications /org/freedesktop/Notifications \
-        org.freedesktop.Notifications CloseNotification u "$id" >/dev/null 2>&1 || true
-    else
-      kept+=("$id"$'\t'"$headline")
-    fi
-  done <"$sent_file"
-
-  if ((${#kept[@]} > 0)); then
-    printf '%s\n' "${kept[@]}" >"$sent_file"
-  else
-    rm -f "$sent_file"
-  fi
-}
-
 case ${1-} in
 active) active ;;
-send)
-  shift
-  (($# == 12)) || {
-    usage
-    exit 1
-  }
-  send "$@"
-  ;;
 wait) wait_ready "${2:-10}" ;;
-dismiss)
-  (($# == 2)) || {
-    usage
-    exit 1
-  }
-  dismiss "$2"
-  ;;
 *)
   usage
   exit 1
