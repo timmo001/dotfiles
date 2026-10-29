@@ -81,6 +81,19 @@ const HYPRLAND_STATE = new Set([
   "workspaces",
 ]);
 
+const PACKAGE_MANAGERS = new Set(["pnpm", "bun", "npm"]);
+
+const PACKAGE_MANAGER_COMMANDS = new Map([
+  ["i", "install"],
+  ["ci", "install"],
+  ["rm", "remove"],
+  ["un", "remove"],
+  ["uninstall", "remove"],
+  ["explain", "why"],
+  ["run-script", "run"],
+  ["x", "exec"],
+]);
+
 /** The tool for commands whose tool names don't follow their subcommand words. */
 const aliasTool = ({ executable, args }: Stage): readonly [string, string] | undefined => {
   const word = args.find((arg) => SUBCOMMAND.test(arg));
@@ -107,6 +120,21 @@ const aliasTool = ({ executable, args }: Stage): readonly [string, string] | und
     if (HYPRLAND_STATE.has(word)) return ["system-bridge", "hyprland"];
 
     if (word === "keyword") return ["system-bridge", "hyprland_set_option"];
+  }
+
+  if (executable === "npx" || executable === "bunx") return [executable === "npx" ? "npm" : "bun", "exec"];
+
+  if (PACKAGE_MANAGERS.has(executable)) {
+    const first = args.find((arg) => !arg.startsWith("-"));
+
+    if (first === undefined) return undefined;
+
+    // `bun test` is bun's own test runner; elsewhere `test` and `lint:types` run scripts.
+    if (executable !== "bun" && (first === "test" || first === "t" || first.includes(":"))) return [executable, "run"];
+
+    const tool = PACKAGE_MANAGER_COMMANDS.get(first);
+
+    if (tool !== undefined) return [executable, tool];
   }
 
   return undefined;
