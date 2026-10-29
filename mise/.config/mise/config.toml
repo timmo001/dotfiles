@@ -51,7 +51,7 @@ uv = "latest"
 "aqua:neovim/neovim" = "0.12.6"
 # Keep the OpenCode 2 packages on one version: tests/opencode/plugin-effect-version.test.ts aligns the plugins' Effect packages with them.
 [tools."npm:@opencode/cli"]
-version = "2.2.1"
+version = "2.2.2"
 allow_builds = ["@opencode/cli"]
 
 [tools."aqua:herdrdev/herdr"]
