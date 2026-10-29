@@ -57,5 +57,9 @@
   },
   "theme": {
     "dark": "plannotator"
-  }
+  },
+  "experimental": {
+    "decisionMode": true
+  },
+  "inboxBoard": true
 }
