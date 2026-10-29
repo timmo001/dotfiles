@@ -19,7 +19,7 @@ const cwd = (input: { readonly directory?: string }, context: { readonly directo
 
 /** How one package manager spells each operation. */
 interface PackageManager {
-  readonly command: "pnpm" | "bun" | "npm";
+  readonly command: "pnpm" | "bun" | "npm" | "yarn" | "aube";
   readonly description: string;
   readonly run: (script: string, args: readonly string[]) => readonly string[];
   /** Runs a binary from the project's dependencies, never downloading one. */
@@ -27,9 +27,12 @@ interface PackageManager {
   readonly install: (frozen: boolean) => readonly string[];
   readonly add: (packages: readonly string[], dev: boolean, exact: boolean) => readonly string[];
   readonly remove: (packages: readonly string[]) => readonly string[];
-  readonly outdated: (packages: readonly string[]) => readonly string[];
-  /** Exit codes `outdated` uses to report outdated packages rather than a failure. */
-  readonly outdatedExitCodes: readonly number[];
+  /** Unset when the manager has no built-in outdated report. */
+  readonly outdated?: {
+    readonly args: (packages: readonly string[]) => readonly string[];
+    /** Exit codes that report outdated packages rather than a failure. */
+    readonly exitCodes: readonly number[];
+  };
   readonly why: (name: string) => readonly string[];
 }
 
@@ -44,6 +47,24 @@ const runToEnd = (command: string, argv: readonly string[], dir: string) =>
   }));
 
 const commandLine = (command: string, argv: readonly string[]) => [command, ...argv].join(" ");
+
+/** The outdated report, for managers that have one built in. */
+const outdatedTools = (command: string, outdated: PackageManager["outdated"]): readonly ClientTool[] =>
+  outdated === undefined
+    ? []
+    : [
+        tool({
+          name: "outdated",
+          description: "List dependencies with newer releases, all of them or those named.",
+          access: "read",
+          input: Schema.Struct({ directory, packages: Schema.optionalKey(Schema.Array(Schema.String)) }),
+          run: (input, context) =>
+            runCliOutput(command, outdated.args(input.packages ?? []), {
+              cwd: cwd(input, context),
+              exitCodes: outdated.exitCodes,
+            }),
+        }),
+      ];
 
 const packageManagerTools = (pm: PackageManager): readonly ClientTool[] => [
   tool({
@@ -118,17 +139,7 @@ const packageManagerTools = (pm: PackageManager): readonly ClientTool[] => [
         mergeStderr: true,
       }),
   }),
-  tool({
-    name: "outdated",
-    description: "List dependencies with newer releases, all of them or those named.",
-    access: "read",
-    input: Schema.Struct({ directory, packages: Schema.optionalKey(Schema.Array(Schema.String)) }),
-    run: (input, context) =>
-      runCliOutput(pm.command, pm.outdated(input.packages ?? []), {
-        cwd: cwd(input, context),
-        exitCodes: pm.outdatedExitCodes,
-      }),
-  }),
+  ...outdatedTools(pm.command, pm.outdated),
   tool({
     name: "why",
     description: "Show why a package is installed: the dependency chains that pull it in.",
@@ -158,8 +169,35 @@ export const pnpmNamespace = namespace({
   install: (frozen) => ["install", ...flagWhen(frozen, "--frozen-lockfile")],
   add: (names, dev, exact) => ["add", ...flagWhen(dev, "--save-dev"), ...flagWhen(exact, "--save-exact"), ...names],
   remove: (names) => ["remove", ...names],
-  outdated: (names) => ["outdated", ...names],
-  outdatedExitCodes: [0, 1],
+  outdated: { args: (names) => ["outdated", ...names], exitCodes: [0, 1] },
+  why: (name) => ["why", name],
+});
+
+/** aube, jdx's pnpm-compatible package manager, in the session's directory, or another with directory. */
+export const aubeNamespace = namespace({
+  command: "aube",
+  description:
+    "aube in the session's directory, or another with directory: run package.json scripts and dependency binaries with their full output, install, add or remove dependencies, and list outdated ones or why one is installed.",
+  // `--` stops aube reading flags such as --version or --help as its own.
+  run: (script, rest) => ["run", "--", script, ...rest],
+  exec: (command, rest) => ["exec", "--", command, ...rest],
+  install: (frozen) => ["install", ...flagWhen(frozen, "--frozen-lockfile")],
+  add: (names, dev, exact) => ["add", ...flagWhen(dev, "--save-dev"), ...flagWhen(exact, "--save-exact"), ...names],
+  remove: (names) => ["remove", ...names],
+  outdated: { args: (names) => ["outdated", ...names], exitCodes: [0, 1] },
+  why: (name) => ["why", name],
+});
+
+/** Yarn Berry (2 and later) in the session's directory, or another with directory. */
+export const yarnNamespace = namespace({
+  command: "yarn",
+  description:
+    "Yarn Berry (2 and later) in the session's directory, or another with directory: run package.json scripts and dependency binaries with their full output, install, add or remove dependencies, and show why one is installed.",
+  run: (script, rest) => ["run", script, ...rest],
+  exec: (command, rest) => ["run", "--binaries-only", command, ...rest],
+  install: (frozen) => ["install", ...flagWhen(frozen, "--immutable")],
+  add: (names, dev, exact) => ["add", ...flagWhen(dev, "--dev"), ...flagWhen(exact, "--exact"), ...names],
+  remove: (names) => ["remove", ...names],
   why: (name) => ["why", name],
 });
 
@@ -173,8 +211,7 @@ export const npmNamespace = namespace({
   install: (frozen) => [frozen ? "ci" : "install"],
   add: (names, dev, exact) => ["install", ...flagWhen(dev, "--save-dev"), ...flagWhen(exact, "--save-exact"), ...names],
   remove: (names) => ["uninstall", ...names],
-  outdated: (names) => ["outdated", ...names],
-  outdatedExitCodes: [0, 1],
+  outdated: { args: (names) => ["outdated", ...names], exitCodes: [0, 1] },
   why: (name) => ["explain", name],
 });
 
@@ -189,8 +226,7 @@ export const bunNamespace = namespace(
     install: (frozen) => ["install", ...flagWhen(frozen, "--frozen-lockfile")],
     add: (names, dev, exact) => ["add", ...flagWhen(dev, "--dev"), ...flagWhen(exact, "--exact"), ...names],
     remove: (names) => ["remove", ...names],
-    outdated: (names) => ["outdated", ...names],
-    outdatedExitCodes: [0],
+    outdated: { args: (names) => ["outdated", ...names], exitCodes: [0] },
     why: (name) => ["why", name],
   },
   [

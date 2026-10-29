@@ -19,7 +19,13 @@ import { miseNamespace } from "./lib/cli-tools/mise";
 import { notesNamespace } from "./lib/cli-tools/notes";
 import { omarchyNamespace } from "./lib/cli-tools/omarchy";
 import { opencode2Namespace } from "./lib/cli-tools/opencode2";
-import { bunNamespace, npmNamespace, pnpmNamespace } from "./lib/cli-tools/package-managers";
+import {
+  aubeNamespace,
+  bunNamespace,
+  npmNamespace,
+  pnpmNamespace,
+  yarnNamespace,
+} from "./lib/cli-tools/package-managers";
 import { pacmanNamespace } from "./lib/cli-tools/pacman";
 import { pitchforkNamespace } from "./lib/cli-tools/pitchfork";
 import { type CodeModeCatalogue, runsDotUpdate, shellNudge } from "./lib/cli-tools/shell-nudge";
@@ -71,6 +77,8 @@ export default Plugin.define({
         pnpmNamespace,
         bunNamespace,
         npmNamespace,
+        aubeNamespace,
+        yarnNamespace,
         omarchyNamespace,
         gitNamespace,
         opencode2Namespace,

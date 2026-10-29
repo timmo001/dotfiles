@@ -81,7 +81,15 @@ const HYPRLAND_STATE = new Set([
   "workspaces",
 ]);
 
-const PACKAGE_MANAGERS = new Set(["pnpm", "bun", "npm"]);
+const PACKAGE_MANAGERS = new Set(["pnpm", "bun", "npm", "aube", "yarn"]);
+
+/** Shorthand executables for one package manager tool. */
+const PACKAGE_MANAGER_SHORTHANDS = new Map<string, readonly [string, string]>([
+  ["npx", ["npm", "exec"]],
+  ["bunx", ["bun", "exec"]],
+  ["aubr", ["aube", "run"]],
+  ["aubx", ["aube", "exec"]],
+]);
 
 const PACKAGE_MANAGER_COMMANDS = new Map([
   ["i", "install"],
@@ -122,7 +130,9 @@ const aliasTool = ({ executable, args }: Stage): readonly [string, string] | und
     if (word === "keyword") return ["system-bridge", "hyprland_set_option"];
   }
 
-  if (executable === "npx" || executable === "bunx") return [executable === "npx" ? "npm" : "bun", "exec"];
+  const shorthand = PACKAGE_MANAGER_SHORTHANDS.get(executable);
+
+  if (shorthand !== undefined) return shorthand;
 
   if (PACKAGE_MANAGERS.has(executable)) {
     const first = args.find((arg) => !arg.startsWith("-"));
