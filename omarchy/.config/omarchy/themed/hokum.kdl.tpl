@@ -1,6 +1,7 @@
 // Omarchy Pill: Hokum's Pill in the current Omarchy theme's colours, rendered
 // by omarchy-theme-set-templates on every theme change. One line per
-// notification, icon first; buttons and progress only show when sent.
+// notification, icon first, with a close button at the end; buttons and
+// progress only show when sent.
 name "Omarchy Pill"
 
 tokens {
@@ -33,6 +34,7 @@ template "card" {
             if "body" { text "{body}" color="muted" lines=3 }
         }
         if "value" { col width=90 { progress color="accent" } }
+        close size=20
     }
     if "actions" { actions indent=#true gap=6 }
 }
