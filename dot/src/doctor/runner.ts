@@ -68,7 +68,7 @@ const sections: readonly SectionDef[] = [
   { name: "Git hooks", check: checkGitHooks },
   { name: "Origin HEAD freshness", check: checkOriginHead },
   { name: "Stow integrity", check: checkStow },
-  { name: "OpenCode location checks", check: checkOpencode },
+  { name: "OpenCode config checks", check: checkOpencode },
   { name: "Herdr integration", check: checkHerdr },
   { name: "pitchfork proxy", check: checkPitchforkProxy },
   { name: "GitHub MCP auth", check: checkGithubMcpAuth },
