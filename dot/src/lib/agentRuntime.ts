@@ -1,15 +1,26 @@
-import { Api } from "@timmo001/effect-gh";
-import { Effect, FileSystem, Option, Result, Schema } from "effect";
-import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http";
-import { basename, dirname, join, resolve } from "path";
+import { HerdrSdk, herdrSdkLayerFromOptions } from "@timmo001/effect-herdr";
+import { Duration, Effect, FileSystem, Option, Schema } from "effect";
+import { dirname, resolve } from "path";
+import { DEFAULT_SOCKET_PATH } from "../commands/HerdrRepoOpen.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
-import { GLOBAL_PLUGINS } from "./opencodePlugins.js";
-import { HOME_DIR, STATE_DIR } from "./paths.js";
+import { ENV, envString } from "./env.js";
 import { plural } from "./runSummary.js";
-import { notable, skip, warn } from "./updateSummary.js";
+import { done, notable, skip, warn } from "./updateSummary.js";
 
-const OPENCODE = join(HOME_DIR, ".local", "bin", "opencode2");
+/** The app's own OpenCode, on PATH. The desktop's wrapper isn't stowed here. */
+const OPENCODE = "opencode2";
+
+/** In-session reload command for each agent Herdr can type into. */
+const AGENT_RELOAD_COMMANDS = {
+  claude: "/reload-plugins",
+  pi: "/reload",
+} as const;
+
+type ReloadableAgent = keyof typeof AGENT_RELOAD_COMMANDS;
+
+const isReloadableAgent = (agent: string): agent is ReloadableAgent =>
+  Object.hasOwn(AGENT_RELOAD_COMMANDS, agent);
 
 const PitchforkDaemons = Schema.fromJsonString(
   Schema.Array(
@@ -237,80 +248,13 @@ export const restartStaleServices = Effect.gen(function* () {
   Effect.withSpan("agentRuntime.restartStaleServices"),
 );
 
-const NpmLatest = Schema.Struct({ version: Schema.String });
-
-/** The latest release of an npm package, from the registry. */
-const npmLatest = Effect.fn("agentRuntime.npmLatest")(function* (name: string) {
-  const http = yield* HttpClient.HttpClient;
-
-  const response = yield* http
-    .get(`https://registry.npmjs.org/${name}/latest`)
-    .pipe(Effect.flatMap(HttpClientResponse.filterStatusOk));
-
-  return (yield* Schema.decodeUnknownEffect(NpmLatest)(yield* response.json))
-    .version;
-});
-
-/** A Pi package from `pi list`. */
-interface PiInstall {
-  /** Its source, such as `npm:name` or `git:github.com/owner/repo`. */
-  readonly source: string;
-  /** Where Pi installed it. */
-  readonly path: string;
-}
-
-/** Pi packages from `pi list`, each with its install directory. */
-const piInstalls = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  const lines = (yield* executor.run("pi", ["list"])).split("\n");
-
-  return lines.flatMap((line, index): readonly PiInstall[] => {
-    const source = /^ {2}(\S+:\S+)$/.exec(line)?.[1];
-    const path = lines[index + 1]?.trim();
-
-    return source && path ? [{ source, path }] : [];
-  });
-});
-
 /** Pi packages from `pi list`, by their source. */
-const piPackages = piInstalls.pipe(
-  Effect.map((installs) => installs.map(({ source }) => source)),
-);
-
-const PackageVersion = Schema.fromJsonString(
-  Schema.Struct({ version: Schema.optionalKey(Schema.String) }),
-);
-
-/**
- * A Pi package's installed revision: the commit of a git package and the
- * version of an npm one, or empty when it can't be read.
- */
-const piRevision = Effect.fn("agentRuntime.piRevision")(function* ({
-  source,
-  path,
-}: PiInstall) {
+const piPackages = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
-  const fs = yield* FileSystem.FileSystem;
 
-  return source.startsWith("git:")
-    ? (yield* executor
-        .run("git", ["rev-parse", "HEAD"], { cwd: path })
-        .pipe(Effect.orElseSucceed(() => ""))).trim()
-    : yield* fs.readFileString(join(path, "package.json")).pipe(
-        Effect.flatMap(Schema.decodeEffect(PackageVersion)),
-        Effect.map((pkg) => pkg.version ?? ""),
-        Effect.orElseSucceed(() => ""),
-      );
-});
-
-/** Each Pi package's installed revision, keyed by source. */
-const piPackageRevisions = Effect.gen(function* () {
-  const revisions = new Map<string, string>();
-
-  for (const install of yield* piInstalls)
-    revisions.set(install.source, yield* piRevision(install));
-
-  return revisions;
+  return (yield* executor.run("pi", ["list"]))
+    .split("\n")
+    .flatMap((line) => /^ {2}(\S+:\S+)$/.exec(line)?.[1] ?? []);
 });
 
 /** Update installed Pi packages. */
@@ -323,7 +267,6 @@ export const updatePiExtensions = Effect.gen(function* () {
 
   const sources = yield* piPackages;
 
-  const before = yield* piPackageRevisions;
   const failed: string[] = [];
 
   for (const source of sources) {
@@ -337,21 +280,9 @@ export const updatePiExtensions = Effect.gen(function* () {
     return warn(`Pi extension update failed: ${failed.join(", ")}`);
   }
 
-  const after = yield* piPackageRevisions;
+  yield* log.success("Updated Pi extensions");
 
-  const moved = sources.filter(
-    (source) => before.get(source) !== after.get(source),
-  );
-
-  if (!moved.length) {
-    yield* log.info("Pi extensions are up to date");
-
-    return skip("Pi extensions already up to date");
-  }
-
-  yield* log.success(`Updated Pi extensions: ${moved.join(", ")}`);
-
-  return notable(`Updated ${plural(moved.length, "Pi extension")}`);
+  return done("Updated Pi extensions");
 }).pipe(
   Effect.catch((error) =>
     Effect.succeed(warn(`Pi extension update failed: ${error.message}`)),
@@ -359,222 +290,22 @@ export const updatePiExtensions = Effect.gen(function* () {
   Effect.withSpan("agentRuntime.updatePiExtensions"),
 );
 
-/** A GitHub plugin spec's repository, branch and package folder. */
-const GITHUB_PLUGIN_SPEC = /^github:([^/#]+\/[^/#]+)#([^:]+)::path:(.+)$/;
-
-/** GitHub lists at most this many files in a comparison. */
-const COMPARE_FILE_LIMIT = 300;
-
-const ComparedFiles = Schema.Struct({
-  files: Schema.optionalKey(
-    Schema.Array(Schema.Struct({ filename: Schema.String })),
-  ),
-});
-
-/**
- * Whether a Git plugin's package folder changed between its installed
- * revision and its branch head. OpenCode flags a Git plugin as outdated on
- * any commit to its repository, and every update is a full reinstall, so a
- * commit outside the folder isn't worth one. Unknown counts as changed.
- */
-const pluginFolderChanged = Effect.fn("agentRuntime.pluginFolderChanged")(
-  function* (spec: string, revision: string) {
-    const [, repo, branch, folder] = GITHUB_PLUGIN_SPEC.exec(spec) ?? [];
-
-    if (!repo || !branch || !folder || !revision) return true;
-
-    const { files = [] } = yield* Api.json(
-      {
-        endpoint: `repos/${repo}/compare/${revision}...${encodeURIComponent(branch)}`,
-        method: "GET",
-      },
-      ComparedFiles,
-    );
-
-    return (
-      files.length >= COMPARE_FILE_LIMIT ||
-      files.some(({ filename }) => filename.startsWith(`${folder}/`))
-    );
-  },
-  Effect.orElseSucceed(() => true),
-);
-
-/**
- * Check every global OpenCode plugin at once, keeping those that are
- * outdated and whose package folder changed. Each check's failure is kept
- * with its spec.
- */
-const dueGlobalPlugins = Effect.forEach(
-  GLOBAL_PLUGINS,
-  (spec) =>
-    opencodePluginState(spec).pipe(
-      Effect.flatMap((state) =>
-        state?.outdated
-          ? pluginFolderChanged(spec, state.revision).pipe(
-              Effect.map((changed) => (changed ? state : null)),
-            )
-          : Effect.succeed(null),
-      ),
-      Effect.result,
-      Effect.map((result) => ({ spec, result })),
-    ),
-  { concurrency: "unbounded" },
-).pipe(Effect.withSpan("agentRuntime.dueGlobalPlugins"));
-
-/**
- * Move the global OpenCode plugins to their branch heads when their package
- * folder changed. OpenCode keeps a Git plugin on the commit it first
- * installed until asked to update it.
- */
-export const updateGlobalOpencodePlugins = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  const log = yield* OutputLog;
-
-  if ((yield* executor.exitCode(OPENCODE, ["service", "status"])) !== 0)
-    return skip("OpenCode plugins skipped (service not running)");
-
-  const updated: string[] = [];
-  const failed: string[] = [];
-  const due: string[] = [];
-
-  for (const { spec, result } of yield* dueGlobalPlugins) {
-    if (Result.isFailure(result)) {
-      yield* log.warn(
-        `${spec}: ${result.failure.stderr.trim() || `exit ${result.failure.exitCode}`}`,
-      );
-      failed.push(spec);
-    } else if (result.success) due.push(spec);
-  }
-
-  for (const spec of due) {
-    const output = yield* executor
-      .run(OPENCODE, ["plugin", "update", spec], { cwd: HOME_DIR })
-      .pipe(Effect.result);
-
-    if (Result.isFailure(output)) {
-      yield* log.warn(
-        `${spec}: ${output.failure.stderr.trim() || `exit ${output.failure.exitCode}`}`,
-      );
-      failed.push(spec);
-    } else if (/^Updated /m.test(output.success)) updated.push(spec);
-  }
-
-  if (failed.length)
-    return warn(`Could not update OpenCode plugins: ${failed.join(", ")}`);
-
-  if (updated.length) {
-    yield* log.success(`Updated ${updated.join(", ")}`);
-
-    return notable(
-      `Updated ${plural(updated.length, "OpenCode plugin")} to their branch heads`,
-    );
-  }
-
-  return skip("OpenCode plugins already current");
-}).pipe(Effect.withSpan("agentRuntime.updateGlobalOpencodePlugins"));
-
-/** A configured OpenCode plugin's name, revision and whether it has an update, or null. */
-const opencodePluginState = Effect.fn("agentRuntime.opencodePluginState")(
-  function* (target: string) {
-    const executor = yield* CommandExecutor;
-
-    const match = /^\s+(\S+) (\S+) \((.+)\)$/m.exec(
-      yield* executor.run(OPENCODE, ["plugin", "check", target], {
-        cwd: HOME_DIR,
-      }),
-    );
-
-    if (!match) return null;
-
-    const [, name = "", revision = "", state = ""] = match;
-
-    return { name, revision, outdated: state === "update available" };
-  },
-);
-
-/**
- * A Pi package's pending update: a git package behind its remote's HEAD, or
- * an npm one behind its latest release. Pinned sources never move.
- */
-const pendingPiPackage = Effect.fn("agentRuntime.pendingPiPackage")(function* (
-  install: PiInstall,
-) {
-  const executor = yield* CommandExecutor;
-  const current = yield* piRevision(install);
-
-  if (install.source.startsWith("git:")) {
-    if (/@[^/]+$/.test(install.source)) return [];
-
-    const remote =
-      (yield* executor.run("git", ["ls-remote", "origin", "HEAD"], {
-        cwd: install.path,
-      })).split(/\s/, 1)[0] ?? "";
-
-    return current && remote && remote !== current
-      ? [
-          `${basename(install.source)} ${current.slice(0, 7)} -> ${remote.slice(0, 7)}`,
-        ]
-      : [];
-  }
-
-  const name = install.source.replace(/^npm:/, "");
-
-  if (!install.source.startsWith("npm:") || name.lastIndexOf("@") > 0)
-    return [];
-
-  const latest = yield* npmLatest(name);
-
-  return current && latest !== current
-    ? [`${name} ${current} -> ${latest}`]
-    : [];
-});
-
-/**
- * The agent plugins `dot up plugins` would move, one line each: Pi packages
- * and the global OpenCode plugins. OpenCode's only count while its service
- * runs, as updating them needs it.
- */
-export const pendingAgentPlugins = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  const installs = Bun.which("pi") === null ? [] : yield* piInstalls;
-
-  const opencodeRunning =
-    (yield* executor.exitCode(OPENCODE, ["service", "status"])) === 0;
-
-  const [pi, opencode] = yield* Effect.all(
-    [
-      Effect.forEach(installs, pendingPiPackage, {
-        concurrency: "unbounded",
-      }),
-      opencodeRunning
-        ? dueGlobalPlugins.pipe(
-            Effect.flatMap((checked) =>
-              Effect.forEach(checked, ({ result }) =>
-                Effect.map(Effect.fromResult(result), (state) =>
-                  state
-                    ? [`${state.name} ${state.revision} (update available)`]
-                    : [],
-                ),
-              ),
-            ),
-          )
-        : Effect.succeed([]),
-    ],
-    { concurrency: "unbounded" },
-  );
-
-  return [...pi.flat(), ...opencode.flat()].sort();
-}).pipe(
-  Effect.provide(FetchHttpClient.layer),
-  Effect.withSpan("agentRuntime.pendingAgentPlugins"),
-);
-
 /** Reload the OpenCode 2 background service's configuration when it is running. */
 const reloadOpenCode = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
 
-  if ((yield* executor.exitCode(OPENCODE, ["service", "status"])) !== 0) {
+  const status = yield* executor
+    .exitCode(OPENCODE, ["service", "status"])
+    .pipe(Effect.orElseSucceed(() => undefined));
+
+  if (status === undefined) {
+    yield* log.warn(`OpenCode reload skipped (${OPENCODE} couldn't run)`);
+
+    return "skipped" as const;
+  }
+
+  if (status !== 0) {
     yield* log.info("OpenCode reload skipped (service not running)");
 
     return "skipped" as const;
@@ -593,38 +324,76 @@ const reloadOpenCode = Effect.gen(function* () {
   return "reloaded" as const;
 }).pipe(Effect.withSpan("agentRuntime.reloadOpenCode"));
 
-/** Where `dot up` asks Pi's `dot-reload` extension to reload. */
-const PI_RELOAD_REQUEST = join(STATE_DIR, "dot", "agent-reload");
-
 /**
- * Ask running Pi sessions to reload by writing a new stamp that the
- * `dot-reload` extension watches. Each session reloads once it settles,
- * through the extension API, so a half-typed prompt is never touched.
+ * Type each agent's reload command into its Herdr pane, only for idle
+ * sessions so a working agent is never interrupted.
  */
-const requestPiReload = Effect.gen(function* () {
-  const fs = yield* FileSystem.FileSystem;
+const reloadHerdrAgents = Effect.gen(function* () {
+  const herdr = yield* HerdrSdk;
   const log = yield* OutputLog;
+  const reloaded: Record<ReloadableAgent, number> = { claude: 0, pi: 0 };
+  let busy = 0;
 
-  yield* fs.makeDirectory(dirname(PI_RELOAD_REQUEST), { recursive: true });
-  yield* fs.writeFileString(PI_RELOAD_REQUEST, `${Date.now()}\n`);
-  yield* log.success("Queued a reload for Pi sessions");
-}).pipe(Effect.withSpan("agentRuntime.requestPiReload"));
+  for (const agent of yield* herdr.agents.list()) {
+    const kind = Option.getOrUndefined(agent.agent);
+
+    if (kind === undefined || !isReloadableAgent(kind)) continue;
+
+    if (agent.status !== "idle" && agent.status !== "done") {
+      busy += 1;
+
+      continue;
+    }
+
+    const command = AGENT_RELOAD_COMMANDS[kind];
+
+    const sent = yield* herdr.agents
+      .prompt({ paneId: agent.paneId }, { text: command })
+      .pipe(
+        Effect.as(true),
+        Effect.catch((error) =>
+          log
+            .warn(
+              `Could not send ${command} to ${agent.paneId}: ${error.message}`,
+            )
+            .pipe(Effect.as(false)),
+        ),
+      );
+
+    if (!sent) continue;
+
+    yield* log.success(`Sent ${command} to ${kind} in ${agent.paneId}`);
+    reloaded[kind] += 1;
+  }
+
+  if (busy) yield* log.info(`Left ${plural(busy, "busy agent session")} alone`);
+
+  return { ...reloaded, busy };
+}).pipe(
+  Effect.provide(
+    herdrSdkLayerFromOptions({
+      socketPath: envString(ENV.HERDR_SOCKET_PATH) ?? DEFAULT_SOCKET_PATH,
+      requestTimeout: Duration.seconds(5),
+    }),
+  ),
+  Effect.withSpan("agentRuntime.reloadHerdrAgents"),
+);
 
 /**
  * Reload running agents so they load updated plugins and skills: the OpenCode
- * service through its CLI, and Pi sessions through their `dot-reload`
- * extension once they settle. Claude Code watches its skills itself.
+ * service through its CLI, and idle Claude Code and Pi sessions through Herdr.
  */
 export const reloadAgents = Effect.gen(function* () {
   const log = yield* OutputLog;
 
-  const [openCode, piQueued] = yield* Effect.all(
+  const [openCode, sessions] = yield* Effect.all(
     [
       reloadOpenCode,
-      requestPiReload.pipe(
-        Effect.as(true),
+      reloadHerdrAgents.pipe(
         Effect.catchCause(() =>
-          log.warn("Could not queue the Pi reload").pipe(Effect.as(false)),
+          log
+            .info("Agent session reload skipped (Herdr unavailable)")
+            .pipe(Effect.as(undefined)),
         ),
       ),
     ],
@@ -632,18 +401,23 @@ export const reloadAgents = Effect.gen(function* () {
   );
 
   const parts = [
-    ...(openCode === "reloaded" ? ["reloaded the OpenCode service"] : []),
-    ...(piQueued ? ["queued a reload for Pi sessions"] : []),
+    ...(openCode === "reloaded" ? ["the OpenCode service"] : []),
+    ...(sessions?.claude
+      ? [plural(sessions.claude, "Claude Code session")]
+      : []),
+    ...(sessions?.pi ? [plural(sessions.pi, "Pi session")] : []),
   ];
+
+  const busyNote = sessions?.busy
+    ? ` (${plural(sessions.busy, "busy session")} left alone)`
+    : "";
 
   if (openCode === "failed")
     return warn(
-      `OpenCode reload failed${parts.length ? `; ${parts.join(", ")}` : ""}`,
+      `OpenCode reload failed${parts.length ? `; reloaded ${parts.join(", ")}` : ""}${busyNote}`,
     );
 
-  if (parts.length === 0) return skip("No running agents to reload");
-
-  const summary = parts.join(" and ");
-
-  return notable(`${summary.charAt(0).toUpperCase()}${summary.slice(1)}`);
+  return parts.length
+    ? notable(`Reloaded ${parts.join(", ")}${busyNote}`)
+    : skip(`No idle agent sessions to reload${busyNote}`);
 }).pipe(Effect.withSpan("agentRuntime.reloadAgents"));
