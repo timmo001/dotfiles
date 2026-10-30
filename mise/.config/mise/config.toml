@@ -55,7 +55,7 @@ uv = "latest"
 "aqua:neovim/neovim" = "0.12.6"
 # Keep the OpenCode 2 packages on one version: tests/opencode/plugin-effect-version.test.ts aligns the plugins' Effect packages with them.
 [tools."npm:@opencode/cli"]
-version = "2.2.2"
+version = "2.2.3"
 allow_builds = ["@opencode/cli"]
 
 # The Cloudflare CLI only publishes 1.0 as betas; latest without prereleases is the old 0.x line.
@@ -171,7 +171,7 @@ filter_bins = "scrcpy"
 
 # The v2 desktop app is only published on opencode.ai, not GitHub releases.
 [tools."http:opencode-desktop"]
-version = "2.2.2"
+version = "2.2.3"
 url = "https://opencode.ai/files/bin/{{ version }}/opencode-desktop-linux-x86_64.AppImage"
 version_list_url = "https://opencode.ai/update/api/latest/desktop/opencode"
 version_json_path = ".version"
