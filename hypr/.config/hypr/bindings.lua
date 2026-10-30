@@ -31,6 +31,13 @@
 -- Screen recording
 o.bind("SHIFT + ALT + PRINT", "Screenrecording", "omarchy screenrecord")
 
+-- Hex dictation on its default Alt+Space, and on F9 instead of Omarchy's
+-- push-to-talk. Hyprland gives Hex's portal shortcuts no key, so bind them
+-- here; Hex handles hold and double-tap.
+hl.unbind("F9")
+o.bind("ALT + SPACE", "Hex dictation", hl.dsp.global("hex:dictation"))
+o.bind("F9", "Hex dictation", hl.dsp.global("hex:dictation"))
+
 local terminal = "uwsm app -- ghostty-host-config"
 local file_manager = "uwsm app -- thunar"
 local browser_personal =
