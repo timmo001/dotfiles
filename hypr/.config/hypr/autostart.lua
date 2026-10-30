@@ -4,6 +4,10 @@
 o.exec_on_start("timmo-run-command system-bridge backend")
 o.exec_on_start("uwsm app -- kdeconnectd")
 o.exec_on_start("dot herdr start")
+-- Hex's XDG autostart entry doesn't run under Hyprland; hex start runs hex.service.
+if not o.cmd_missing("hex") then
+  o.exec_on_start("hex start")
+end
 
 -- Xwayland takes its default arrow once, at startup, while Omarchy's blank
 -- startup cursor is active, and Hyprland never refreshes it. Set it again,
