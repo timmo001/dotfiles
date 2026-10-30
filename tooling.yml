@@ -26,7 +26,7 @@ tools:
     reviewed: v0.56.2
     review: Check hypr/.config/hypr and its host overrides for changed or removed options and dispatchers, and the hyprctl Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/hyprctl.ts and their nudges in shell-nudge.ts.
   - repo: jdx/mise
-    reviewed: v2026.10.21
+    reviewed: v2026.10.23
     review: Check mise.toml tasks, mise/.config/mise/config.toml, and the mise Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/mise.ts for changed commands, flags or JSON output.
   - repo: jdx/pitchfork
     reviewed: v2.32.4
