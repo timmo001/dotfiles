@@ -105,17 +105,6 @@ dir = "dot"
 depends = ["dot:install"]
 run = "bun run src/buildSkillsMaintenance.ts"
 
-# Chromium extension (runs in ./chromium-extension; dot stow builds it too)
-[tasks."extension:build"]
-description = "Bundle the dot links Chromium extension"
-dir = "chromium-extension"
-run = "bun build src/background.ts src/popup.ts --target=browser --format=iife --outdir=dist"
-
-[tasks."extension:typecheck"]
-description = "Type-check the dot links Chromium extension"
-depends = ["install"]
-run = "bunx tsc -p chromium-extension"
-
 [tasks."tests:integration"]
 description = "Run deterministic repository integration tests in parallel"
 depends = [
@@ -275,7 +264,7 @@ depends = ["docs:build"]
 
 [tasks.check]
 description = "Run every lint, check, test, and docs build in parallel"
-depends = ["lint", "dot:check", "extension:typecheck", "tests", "docs:check"]
+depends = ["lint", "dot:check", "tests", "docs:check"]
 
 [tasks."tooling:status"]
 description = "Compare the reviewed releases in tooling.yml with the latest"
