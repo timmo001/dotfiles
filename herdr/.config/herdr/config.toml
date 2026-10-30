@@ -21,7 +21,7 @@ next_tab = ["prefix+n", "ctrl+tab", "ctrl+alt+shift+right"]
 copy_mode = "prefix+v"
 split_vertical = "prefix+backslash"
 split_horizontal = "prefix+enter"
-zoom = "prefix+m"
+zoom = "prefix+alt+m"
 resize_mode = "prefix+shift+r"
 goto = ""
 new_worktree = ""
@@ -179,6 +179,17 @@ key = "prefix+t"
 type = "plugin_action"
 command = "timmo.mascot.toggle"
 description = "toggle mascot"
+
+# Herdr can't enable a saved machine from the sidebar, only from the CLI. This turns them all off
+# when any is on, and all back on otherwise.
+[[keys.command]]
+key = "prefix+m"
+type = "shell"
+command = '''
+if herdr machine list --json | jq -e 'any(.enabled)' >/dev/null; then action=disable; else action=enable; fi
+herdr machine list --json | jq -r '.[].id' | while read -r id; do herdr machine "$action" "$id"; done
+'''
+description = "toggle all saved machines"
 
 [theme]
 name = "tokyo-night"
