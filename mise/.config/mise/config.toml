@@ -21,7 +21,7 @@ lazygit = "latest"
 "aqua:1password/cli" = "2.41.0"
 # Pre-1.0: plugins track the minor.
 "aqua:neovim/neovim" = "0.12.6"
-node = "26.12.1"
+node = "26.13.0"
 ollama = "latest"
 pitchfork = "latest"
 pnpm = "latest"
@@ -48,7 +48,7 @@ uv = "latest"
 "github:timmo001/triage" = "latest"
 # Keep the OpenCode 2 packages on one version: tests/opencode/plugin-effect-version.test.ts aligns the plugins' Effect packages with them.
 [tools."npm:@opencode/cli"]
-version = "2.2.0"
+version = "2.2.3"
 allow_builds = ["@opencode/cli"]
 
 [tools."aqua:herdrdev/herdr"]
