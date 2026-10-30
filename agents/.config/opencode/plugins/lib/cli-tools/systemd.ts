@@ -9,6 +9,7 @@ import {
   runCliText,
   tailLines,
   toToolError,
+  userManagerReachable,
 } from "./tool";
 
 const tool = clientTools(Layer.empty);
@@ -96,7 +97,7 @@ export const systemdNamespace: ClientNamespace = {
   command: "systemd",
   description:
     "User systemd units through systemctl --user and journalctl --user: unit status, properties, files, failed units, timers and logs, verifying unit files, and starting, stopping, restarting, enabling or disabling units.",
-  available: commandExists("systemctl"),
+  available: Effect.zipWith(commandExists("systemctl"), userManagerReachable, (exists, reachable) => exists && reachable),
   tools: [
     tool({
       name: "unit_status",
