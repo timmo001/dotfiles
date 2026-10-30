@@ -25,9 +25,6 @@ mcp:
   exclude:
     - chrome-devtools
     - cloudflare-api
-    - cloudflare-bindings
-    - cloudflare-builds
-    - cloudflare-observability
 
 # opencode: settings dot mcp sync layers over the shared OpenCode config in
 # the untracked ~/.config/opencode/opencode.jsonc. Plannotator needs a browser
