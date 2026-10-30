@@ -6,13 +6,14 @@
 # and links already made for a package removed from the list are unstowed.
 # agents is left out: its opencode.json and AGENTS.md would replace the app's
 # own, which it links to /config on every start. dot mcp sync layers the
-# private OpenCode config and AGENTS.md into opencode.jsonc instead.
+# private OpenCode config and AGENTS.md into opencode.jsonc instead. scripts
+# is left out too, as its opencode wrappers would hide the app's own OpenCode,
+# and so is triage, whose secret files need 1Password and are for the desktop's
+# Triage admin. The app reaches Triage through Home Assistant.
 stow:
   - dot-config
   - git
   - herdr
-  - scripts
-  - triage
   - zsh
 
 # mcp.exclude: servers from the private mcp.yml kept off this machine. dot mcp
