@@ -1562,7 +1562,7 @@ dot notes capture sync
 
 ## `dot setup`
 
-Set up pacman package repositories
+Set up package repositories and Herdr machines
 
 ```text
 dot setup <subcommand> [flags]
@@ -1644,6 +1644,42 @@ Download the public signing key, require its pinned full fingerprint, locally si
 
 ```bash
 dot setup public repo
+```
+
+### `dot setup herdr`
+
+Set up Herdr
+
+```text
+dot setup herdr <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot setup herdr machines`
+
+Save the Herdr SSH machines from the private machine list
+
+```text
+dot setup herdr machines [flags]
+```
+
+Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's saved-machine catalog (~/.local/state/herdr/client/endpoints.json), in the list's order and with its profile IDs, labels, SSH targets and sessions, so every device has the same machines. Herdr keeps the catalog in client state rather than config, so dot stow can't link it. A machine this device already has keeps its enabled state, so toggles survive; enabled in the list only applies when it's added. Machines the list doesn't name are kept after it. Open Herdr clients pick up the change. dot update runs the same step and only reports it when it saves machines or fails, so a device without the list, or whose machines already match, sees nothing. Host keys and remote installs stay with Herdr: run herdr machine reconnect <label> once for a new machine.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot setup herdr machines
 ```
 
 ## `dot git`

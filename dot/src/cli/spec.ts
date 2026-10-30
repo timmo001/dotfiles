@@ -61,6 +61,7 @@ import { briefDismiss, briefFollowUp, briefRun } from "../commands/Brief.js";
 import { reportList, reportRun } from "../commands/Report.js";
 import { prReviews } from "../commands/PrReviews.js";
 import { prWatch } from "../commands/PrWatch.js";
+import { setupHerdrMachines } from "../commands/SetupHerdrMachines.js";
 import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
 import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
 import { editSkillConsumer, runSkillsMaintenance } from "../commands/Skills.js";
@@ -2153,9 +2154,25 @@ const setupCommand = describe(
         ),
         "Set up public package sources",
       ),
+      describe(
+        Command.make("herdr").pipe(
+          Command.withSubcommands([
+            describe(
+              Command.make("machines", {}, () => setupHerdrMachines),
+              "Save the Herdr SSH machines from the private machine list",
+              ["dot setup herdr machines"],
+              {
+                description:
+                  "Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's saved-machine catalog (~/.local/state/herdr/client/endpoints.json), in the list's order and with its profile IDs, labels, SSH targets and sessions, so every device has the same machines. Herdr keeps the catalog in client state rather than config, so dot stow can't link it. A machine this device already has keeps its enabled state, so toggles survive; enabled in the list only applies when it's added. Machines the list doesn't name are kept after it. Open Herdr clients pick up the change. dot update runs the same step and only reports it when it saves machines or fails, so a device without the list, or whose machines already match, sees nothing. Host keys and remote installs stay with Herdr: run herdr machine reconnect <label> once for a new machine.",
+              },
+            ),
+          ]),
+        ),
+        "Set up Herdr",
+      ),
     ]),
   ),
-  "Set up pacman package repositories",
+  "Set up package repositories and Herdr machines",
 );
 
 const privatePublishCommand = describe(
