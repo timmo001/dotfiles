@@ -5,6 +5,8 @@ bat = "latest"
 "aqua:cloudflare/cloudflared" = "latest"
 "github:anomalyco/opentunnel" = "latest"
 bun = "1.4.4"
+claude = "latest"
+copilot = "latest"
 "cargo:terminal-control" = "latest"
 "cargo:https://codeberg.org/galen/momentumctl" = "rev:e86f3e22a0278892c073d1a9f956e5976839c661"
 deno = "2.9.8"
@@ -14,6 +16,7 @@ fzf = "latest"
 gh = "latest"
 go = "1.27.3"
 gdu = "latest"
+ghui = "latest"
 gum = "latest"
 hk = "latest"
 "aqua:sharkdp/hyperfine" = "latest"
@@ -25,6 +28,7 @@ pitchfork = "latest"
 pnpm = "latest"
 "npm:skills" = "latest"
 "npm:rift-snapshot" = "latest"
+playwright = "latest"
 # Hold on 3.14 until pyyaml publishes Python 3.15 wheels for yamllint.
 python = "3.14.10"
 ripgrep = "latest"
@@ -53,6 +57,11 @@ uv = "latest"
 [tools."npm:@opencode/cli"]
 version = "2.2.2"
 allow_builds = ["@opencode/cli"]
+
+# The Cloudflare CLI only publishes 1.0 as betas; latest without prereleases is the old 0.x line.
+[tools."npm:cf"]
+version = "latest"
+prerelease = true
 
 [tools."aqua:herdrdev/herdr"]
 version = "latest"
@@ -206,6 +215,34 @@ compile = false
 
 [settings]
 aqua.registries = ["https://github.com/aquaproj/aqua-registry"]
+# Only the tools above are wanted: disable the rest of Omarchy's
+# /etc/mise/conf.d/omarchy-tools.toml. Short names only match those entries,
+# not the npm:@opencode/cli and aqua:earendil-works/pi pins above.
+disable_tools = [
+  "amp",
+  "antigravity-cli",
+  "basecamp",
+  "codex",
+  "crush",
+  "cursor-agent",
+  "grok",
+  "hey-cli",
+  "http:devin",
+  "http:kiro-cli",
+  "hunk",
+  "muse",
+  "npm:@deepseek-ai/dsh",
+  "npm:@kilocode/cli",
+  "npm:@minimax-ai/code",
+  "npm:@moonshot-ai/kimi-code",
+  "npm:command-code",
+  "npm:freebuff",
+  "oh-my-pi",
+  "opencode",
+  "ori",
+  "pi",
+  "qwen",
+]
 idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]
 # Remove with mise 2026.11.0, when minimum-version detection is removed.
 idiomatic_version_file_ignore_minimum_versions = true
