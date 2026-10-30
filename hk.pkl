@@ -1,7 +1,7 @@
 // Pre-push checks for changed file types. Each step runs the repository task
 // CI runs, so the scopes match. There is no pre-commit hook: `dot git commit`
 // owns commit-time checks. Run them by hand with `hk check`.
-amends "package://github.com/jdx/hk/releases/download/v2.9.0/hk@2.9.0#/Config.pkl"
+amends "package://github.com/jdx/hk/releases/download/v2.10.0/hk@2.10.0#/Config.pkl"
 
 local lint = new Mapping<String, Step> {
   ["oxlint"] {
