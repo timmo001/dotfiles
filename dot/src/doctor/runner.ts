@@ -44,7 +44,6 @@ import { checkFileManager } from "./checks/fileManager.js";
 import { checkHex } from "./checks/hex.js";
 import { checkDefaultBrowser } from "./checks/defaultBrowser.js";
 import { checkDotLinks } from "./checks/dotLinks.js";
-import { checkRetiredApps } from "./checks/retiredApps.js";
 import { checkFirewall } from "./checks/firewall.js";
 import { checkSyncthing } from "./checks/syncthing.js";
 import { checkSessionQueue } from "./checks/sessionQueue.js";
@@ -87,7 +86,7 @@ const sections: readonly SectionDef[] = [
   { name: "Git hooks", check: checkGitHooks },
   { name: "Origin HEAD freshness", check: checkOriginHead },
   { name: "Stow integrity", check: checkStow },
-  { name: "OpenCode location checks", check: checkOpencode },
+  { name: "OpenCode config checks", check: checkOpencode },
   { name: "Herdr integration", check: checkHerdr },
   { name: "pitchfork proxy", check: checkPitchforkProxy },
   { name: "GitHub MCP auth", check: checkGithubMcpAuth },
@@ -127,7 +126,6 @@ const sections: readonly SectionDef[] = [
   { name: "Hex dictation", check: checkHex },
   { name: "Default browser", check: checkDefaultBrowser },
   { name: "dot links", check: checkDotLinks },
-  { name: "Retired apps", check: checkRetiredApps },
   { name: "Firewall rules", check: checkFirewall },
   { name: "Syncthing", check: checkSyncthing },
   { name: "Session queue", check: checkSessionQueue },
