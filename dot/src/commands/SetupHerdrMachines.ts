@@ -79,9 +79,10 @@ const Outcome = Data.taggedEnum<Outcome>();
 
 /**
  * Write the private machine list into Herdr's catalog, in its order, and only
- * when that changes it. Saved machines keep their enabled state, and ones the
- * list doesn't name are kept after it, so a device's own additions and toggles
- * survive. Callers decide what to say about the outcome.
+ * when that changes it. Saved machines keep their enabled state, ones saved
+ * under another ID with the same target and session are replaced, and the rest
+ * the list doesn't name are kept after it, so a device's own additions and
+ * toggles survive. Callers decide what to say about the outcome.
  */
 const applyHerdrMachines = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
@@ -107,20 +108,36 @@ const applyHerdrMachines = Effect.gen(function* () {
           failWith(HERDR_MACHINES_CATALOG_PATH),
         )).ssh;
 
-  const listed = new Set(config.machines.map((machine) => machine.id));
+  const listed = config.machines.map((machine) => ({
+    ...machine,
+    session: machine.session ?? "default",
+  }));
+
+  // A machine this device saved itself, under its own ID, before the list
+  // named it: the listed one replaces it rather than sitting beside it.
+  const sameMachine =
+    (machine: { readonly target: string; readonly session: string }) =>
+    (entry: SavedMachine) =>
+      entry.target === machine.target && entry.session === machine.session;
 
   const machines = [
-    ...config.machines.map((machine) => ({
+    ...listed.map((machine) => ({
       id: machine.id,
       label: machine.label,
       target: machine.target,
-      session: machine.session ?? "default",
+      session: machine.session,
       enabled:
         saved.find((entry) => entry.id === machine.id)?.enabled ??
+        saved.find(sameMachine(machine))?.enabled ??
         machine.enabled ??
         true,
     })),
-    ...saved.filter((entry) => !listed.has(entry.id)),
+    ...saved.filter(
+      (entry) =>
+        !listed.some(
+          (machine) => machine.id === entry.id || sameMachine(machine)(entry),
+        ),
+    ),
   ];
 
   // In Herdr's own format, without a final newline, so a toggle doesn't read as a change.
