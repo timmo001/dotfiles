@@ -102,6 +102,7 @@ const LOCAL_HERDR_PLUGINS = [
   "repository-picker",
   "mise-task-runner",
   "dot-links",
+  "default-workspace",
 ] as const;
 
 /**
