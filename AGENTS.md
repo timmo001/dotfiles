@@ -9,7 +9,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - This repo is the public dotfiles source at `~/.config/dotfiles`.
 - Make changes here (not in `~/.config/*` live paths directly).
 - Treat private overlays as optional and separate (`~/.config/dotfiles-private`).
-- Keep personal machine checks, browser extension checks, private package manifests, and other user-specific data in `~/.config/dotfiles-private`; the public repo should only contain the reusable logic that reads those private configs.
+- `~/.config/dotfiles-private` is for private files and non-public info only: personal machine checks, browser extension checks, private package manifests, and other personal data, read by public logic. Host-specific config that reveals nothing private (GPU settings, host overrides, `<package>--<host>` packages) stays public.
 - When following `@` project references, look for the matching checkout under `~/repos` before editing. If it exists there, that is the correct source path to change.
 - The standalone `context` and `notes` repositories are independent products. Dotfiles may install them and consume their public CLI/MCP interfaces, but must not add dotfiles-owned behaviour, analytics, environment variables, or integration contracts to those repositories. Keep observation and orchestration in dotfiles unless a change is independently justified by the standalone product itself.
 

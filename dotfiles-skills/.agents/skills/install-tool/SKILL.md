@@ -30,7 +30,7 @@ that needs system integration.
      unmanaged live config.
    - Arch packages needed on every public machine belong in
      `~/.config/dotfiles/.dot-public-packages`.
-   - Private or machine-specific required packages may belong in the optional
+   - Packages that would reveal something private may belong in the optional
      `~/.config/dotfiles-private/.dot-private-packages` overlay. Do not copy its
      contents into public files or output.
    - `dot init` installs the stowed mise tools, then the public and available
