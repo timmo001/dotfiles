@@ -613,8 +613,8 @@ export const ghNamespace: ClientNamespace = {
         type: Schema.optionalKey(Schema.Literals(["generic", "plan", "link", "embedded_html"])),
         limit: Schema.optionalKey(Schema.Int),
       }),
-      run: (input, call) =>
-        IssueArtifact.list(input.number, { repo: call.repo, type: input.type, limit: input.limit }, { cwd: call.cwd }).pipe(
+      run: ({ number: issue, ...options }, call) =>
+        IssueArtifact.list(issue, { ...options, repo: call.repo }, { cwd: call.cwd }).pipe(
           Effect.map((artifacts) => artifacts.map(withoutHtml)),
         ),
     }),
