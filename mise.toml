@@ -99,25 +99,6 @@ dir = "dot"
 depends = ["dot:install"]
 run = "bun run src/buildSkillsMaintenance.ts"
 
-# OpenCode plugins (runs in ./agents/.config/opencode/plugins)
-[tasks."plugins:install"]
-description = "Install OpenCode plugin dependencies"
-dir = "agents/.config/opencode/plugins"
-run = "bun install"
-sources = ["package.json", "bun.lock"]
-outputs = ["node_modules/.bin"]
-
-# Chromium extension (runs in ./chromium-extension; dot stow builds it too)
-[tasks."extension:build"]
-description = "Bundle the dot links Chromium extension"
-dir = "chromium-extension"
-run = "bun build src/background.ts src/popup.ts --target=browser --format=iife --outdir=dist"
-
-[tasks."extension:typecheck"]
-description = "Type-check the dot links Chromium extension"
-depends = ["install"]
-run = "bunx tsc -p chromium-extension"
-
 [tasks."tests:integration"]
 description = "Run deterministic repository integration tests in parallel"
 depends = [
@@ -277,4 +258,20 @@ depends = ["docs:build"]
 
 [tasks.check]
 description = "Run every lint, check, test, and docs build in parallel"
-depends = ["lint", "dot:check", "extension:typecheck", "tests", "docs:check"]
+depends = ["lint", "dot:check", "tests", "docs:check"]
+
+[tasks."tooling:status"]
+description = "Compare the reviewed releases in tooling.yml with the latest"
+run = "tooling-drift status"
+
+[tasks."tooling:update"]
+description = "Record a tool release as reviewed in tooling.yml after reviewing it"
+usage = '''
+arg "<repo>" help="Tool repository, e.g. cli/cli"
+arg "<tag>" help="Release tag, e.g. v2.102.0"
+'''
+run = "tooling-drift update $usage_repo $usage_tag"
+
+[tasks."tooling:publish"]
+description = "Open or refresh a review pull request for every tool behind its latest release"
+run = "tooling-drift publish"
