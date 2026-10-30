@@ -41,6 +41,7 @@ import {
 } from "./checks/packages.js";
 import { checkPacmanHooks } from "./checks/pacmanHooks.js";
 import { checkFileManager } from "./checks/fileManager.js";
+import { checkHex } from "./checks/hex.js";
 import { checkDefaultBrowser } from "./checks/defaultBrowser.js";
 import { checkDotLinks } from "./checks/dotLinks.js";
 import { checkRetiredApps } from "./checks/retiredApps.js";
@@ -123,6 +124,7 @@ const sections: readonly SectionDef[] = [
   },
   { name: "Pacman hooks", check: checkPacmanHooks },
   { name: "File manager", check: checkFileManager },
+  { name: "Hex dictation", check: checkHex },
   { name: "Default browser", check: checkDefaultBrowser },
   { name: "dot links", check: checkDotLinks },
   { name: "Retired apps", check: checkRetiredApps },
