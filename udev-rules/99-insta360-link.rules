@@ -1,3 +1,0 @@
-# Insta360 Link 2C: UK mains flicker (50 Hz) and less pink skin tones.
-# Install: pkexec install -Dm644 udev-rules/99-insta360-link.rules /etc/udev/rules.d/99-insta360-link.rules
-ACTION=="add", SUBSYSTEM=="video4linux", KERNEL=="video*", ATTR{index}=="0", ATTRS{idVendor}=="2e1a", ATTRS{idProduct}=="4c03", RUN+="/usr/bin/v4l2-ctl -d $devnode --set-ctrl=power_line_frequency=1,hue=-8,saturation=40"
