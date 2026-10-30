@@ -56,6 +56,10 @@ const upstreams = {
   ollama: "ollama/ollama",
   actionlint: "rhysd/actionlint",
   yamllint: "adrienverge/yamllint",
+  claude: "anthropics/claude-code",
+  copilot: "github/copilot-cli",
+  ghui: "kitlangton/ghui",
+  playwright: "microsoft/playwright",
   "http:opencode-desktop": "anomalyco/opencode",
 };
 
