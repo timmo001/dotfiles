@@ -13,8 +13,8 @@ jq
 node
 ripgrep
 
-# Herdr will come with the app's image too, once timmo001/app-opencode#8 lands.
-# Until then the Herdr config is stowed but has nothing to run it.
+# Herdr comes with the app's image too, in the system mise, which
+# ~/.local/bin/herdr hands off to.
 
 # In the app's default tools option.
 bat
