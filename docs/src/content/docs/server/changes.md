@@ -296,7 +296,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-60 files only on this branch.
+62 files only on this branch.
 
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-private.yml)
 - [`.dot-public-tools`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-public-tools)
@@ -333,6 +333,8 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`pitchfork/.config/pitchfork/config.toml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/pitchfork/.config/pitchfork/config.toml)
 - [`scripts/.local/bin/gpu`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/scripts/.local/bin/gpu)
 - [`scripts/.local/bin/herdr`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/scripts/.local/bin/herdr)
+- [`scripts/.local/share/herdr-plugins/default-workspace/default-workspace.sh`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/scripts/.local/share/herdr-plugins/default-workspace/default-workspace.sh)
+- [`scripts/.local/share/herdr-plugins/default-workspace/herdr-plugin.toml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/scripts/.local/share/herdr-plugins/default-workspace/herdr-plugin.toml)
 - [`server/bun.lock`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/bun.lock)
 - [`server/index.html`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/index.html)
 - [`server/package.json`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/package.json)
