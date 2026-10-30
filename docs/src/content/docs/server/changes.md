@@ -295,13 +295,15 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-58 files only on this branch.
+60 files only on this branch.
 
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-private.yml)
 - [`.dot-public-tools`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-public-tools)
 - [`.dot-skills.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-skills.yml)
 - [`.github/workflows/distro-diff.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.github/workflows/distro-diff.yml)
 - [`agents/.config/opencode/instructions/server.md`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/agents/.config/opencode/instructions/server.md)
+- [`bash/.bash_profile`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/bash/.bash_profile)
+- [`bash/.bashrc`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/bash/.bashrc)
 - [`docs/scripts/generate-distro-diff.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/docs/scripts/generate-distro-diff.ts)
 - [`docs/src/content/docs/server/herdr.mdx`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/docs/src/content/docs/server/herdr.mdx)
 - [`docs/src/content/docs/server/overview.mdx`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/docs/src/content/docs/server/overview.mdx)
