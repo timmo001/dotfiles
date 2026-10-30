@@ -12,6 +12,7 @@ import {
   commandExists,
   runCli,
   tailLines,
+  userManagerReachable,
 } from "./tool";
 
 const tool = clientTools(NodeServices.layer);
@@ -290,13 +291,20 @@ const startTool = (namespaces: readonly CliNamespace[]): ClientTool => ({
     }),
 });
 
+/** Whether jobs can start: they run as transient units of a reachable user manager. */
+export const jobsAvailable = Effect.zipWith(
+  commandExists("systemd-run"),
+  userManagerReachable,
+  (exists, reachable) => exists && reachable,
+);
+
 /** Detached jobs running CLI-backed tools from the other namespaces. */
 export const jobsNamespace = (namespaces: readonly CliNamespace[]): ClientNamespace => ({
   kind: "client",
   command: "jobs",
   description:
     "Detached jobs for long CLI-backed tools such as dot.pr_watch, gh.run_watch or mise.run: start one and get its id at once, then list jobs, read a job's output while it runs, wait a bounded time for it to end, or stop it. Jobs keep running through OpenCode restarts.",
-  available: commandExists("systemd-run"),
+  available: jobsAvailable,
   tools: [
     startTool(namespaces),
     tool({

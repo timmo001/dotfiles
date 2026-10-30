@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { Tool } from "@opencode/schema/tool";
 import { DateTime, Duration, Effect, FileSystem, Layer, Option, Predicate, Schema, SchemaAST, Stream } from "effect";
@@ -235,6 +236,15 @@ export const pathExists = (path: string) =>
 
 /** Whether a command is on the PATH, for namespaces that run CLIs through `runCliOutput`. */
 export const commandExists = (command: string) => Effect.sync(() => Bun.which(command) !== null);
+
+/** Whether `systemctl --user` can reach a user manager, which containers such as the Home Assistant app lack. */
+export const userManagerReachable = Effect.suspend(() => {
+  const runtimeDirectory = process.env.XDG_RUNTIME_DIR;
+
+  return runtimeDirectory === undefined || runtimeDirectory === ""
+    ? Effect.succeed(false)
+    : pathExists(join(runtimeDirectory, "systemd", "private"));
+});
 
 /** Run a CLI from a client tool, failing on an exit code outside `exitCodes` (default: 0), and return stdout without its trailing newline. */
 export const runCliText = (

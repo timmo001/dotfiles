@@ -13,7 +13,7 @@ import { gitNamespace } from "./lib/cli-tools/git";
 import { haBridgeNamespace } from "./lib/cli-tools/ha-bridge";
 import { herdrNamespace } from "./lib/cli-tools/herdr";
 import { loadDotTools } from "./lib/cli-tools/dot";
-import { jobsNamespace } from "./lib/cli-tools/jobs";
+import { jobsAvailable, jobsNamespace } from "./lib/cli-tools/jobs";
 import { miseNamespace } from "./lib/cli-tools/mise";
 import { notesNamespace } from "./lib/cli-tools/notes";
 import { opencode2Namespace } from "./lib/cli-tools/opencode2";
@@ -50,12 +50,14 @@ export default Plugin.define({
       if (Result.isFailure(dotTools))
         yield* Effect.logWarning(`cli-tools: no dot tools: ${dotTools.failure.message}`);
 
+      const dotUpdateJob =
+        Result.isSuccess(dotTools) && dotTools.success.jobs.some((tool) => tool.name === "update") && (yield* jobsAvailable);
+
       const ownNamespaces: readonly Namespace[] = [
         {
           kind: "cli",
           command: "dot",
-          description:
-            "The dot dotfiles CLI: tracked repositories, pull request queues, sessions, services, Herdr, skills and machine health. To run `dot update`, start `dot.update` with jobs.start.",
+          description: `The dot dotfiles CLI: tracked repositories, pull request queues, sessions, services, Herdr, skills and machine health.${dotUpdateJob ? " To run `dot update`, start `dot.update` with jobs.start." : ""}`,
           tools: Result.isSuccess(dotTools) ? dotTools.success.tools : [],
         },
         notesNamespace,
@@ -312,9 +314,8 @@ export default Plugin.define({
         }),
       );
 
-      const dotUpdateJob = Result.isSuccess(dotTools) && dotTools.success.jobs.some((tool) => tool.name === "update");
-
       // `dot update` reloads the OpenCode service, which cancels the shell running it, even in the background.
+      // Without a user manager there are no jobs to send it to, so the shell runs it.
       yield* context.tool.hook("execute.before", (event) => {
         if (event.tool !== "shell" && event.tool !== "bash") return Effect.void;
 
