@@ -1,15 +1,15 @@
 import { HerdrSdk, herdrSdkLayerFromOptions } from "@timmo001/effect-herdr";
 import { Duration, Effect, FileSystem, Option, Schema } from "effect";
-import { dirname, join, resolve } from "path";
+import { dirname, resolve } from "path";
 import { DEFAULT_SOCKET_PATH } from "../commands/HerdrRepoOpen.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { ENV, envString } from "./env.js";
-import { HOME_DIR } from "./paths.js";
 import { plural } from "./runSummary.js";
 import { done, notable, skip, warn } from "./updateSummary.js";
 
-const OPENCODE = join(HOME_DIR, ".local", "bin", "opencode2");
+/** The app's own OpenCode, on PATH. The desktop's wrapper isn't stowed here. */
+const OPENCODE = "opencode2";
 
 /** In-session reload command for each agent Herdr can type into. */
 const AGENT_RELOAD_COMMANDS = {
@@ -295,7 +295,17 @@ const reloadOpenCode = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
 
-  if ((yield* executor.exitCode(OPENCODE, ["service", "status"])) !== 0) {
+  const status = yield* executor
+    .exitCode(OPENCODE, ["service", "status"])
+    .pipe(Effect.orElseSucceed(() => undefined));
+
+  if (status === undefined) {
+    yield* log.warn(`OpenCode reload skipped (${OPENCODE} couldn't run)`);
+
+    return "skipped" as const;
+  }
+
+  if (status !== 0) {
     yield* log.info("OpenCode reload skipped (service not running)");
 
     return "skipped" as const;

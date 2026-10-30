@@ -1,9 +1,8 @@
 import { Duration, Effect, Option, Schema } from "effect";
-import { join } from "node:path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
-import { HOME_DIR } from "./paths.js";
 
-const OPENCODE = join(HOME_DIR, ".local", "bin", "opencode2");
+/** The app's own OpenCode, on PATH. The desktop's wrapper isn't stowed here. */
+const OPENCODE = "opencode2";
 
 const Event = Schema.Struct({
   type: Schema.String,
