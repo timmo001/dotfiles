@@ -13,7 +13,7 @@ import { gitNamespace } from "./lib/cli-tools/git";
 import { haBridgeNamespace } from "./lib/cli-tools/ha-bridge";
 import { herdrNamespace } from "./lib/cli-tools/herdr";
 import { loadDotTools } from "./lib/cli-tools/dot";
-import { jobsNamespace } from "./lib/cli-tools/jobs";
+import { jobsAvailable, jobsNamespace } from "./lib/cli-tools/jobs";
 import { miseNamespace } from "./lib/cli-tools/mise";
 import { notesNamespace } from "./lib/cli-tools/notes";
 import { opencode2Namespace } from "./lib/cli-tools/opencode2";
@@ -50,12 +50,14 @@ export default Plugin.define({
       if (Result.isFailure(dotTools))
         yield* Effect.logWarning(`cli-tools: no dot tools: ${dotTools.failure.message}`);
 
+      const dotUpdateJob =
+        Result.isSuccess(dotTools) && dotTools.success.jobs.some((tool) => tool.name === "update") && (yield* jobsAvailable);
+
       const ownNamespaces: readonly Namespace[] = [
         {
           kind: "cli",
           command: "dot",
-          description:
-            "The dot dotfiles CLI: tracked repositories, pull request queues, sessions, services, Herdr, skills and machine health.",
+          description: `The dot dotfiles CLI: tracked repositories, pull request queues, sessions, services, Herdr, skills and machine health.${dotUpdateJob ? " To run `dot update`, start `dot.update` with jobs.start." : ""}`,
           tools: Result.isSuccess(dotTools) ? dotTools.success.tools : [],
         },
         notesNamespace,
@@ -311,5 +313,22 @@ export default Plugin.define({
           };
         }),
       );
+
+      // `dot update` reloads the OpenCode service, which cancels the shell running it, even in the background.
+      // Without a user manager there are no jobs to send it to, so the shell runs it.
+      yield* context.tool.hook("execute.before", (event) => {
+        if (event.tool !== "shell" && event.tool !== "bash") return Effect.void;
+
+        if (!dotUpdateJob || !runsDotUpdate(stringArg(argRecord(event.input).command))) return Effect.void;
+
+        return Effect.fail(
+          new Tool.Error({
+            message:
+              "cli-tools: dot update reloads the OpenCode service, which cancels the shell running it. " +
+              'Start it through execute with `await tools.jobs.start({ tool: "dot.update" })`, ' +
+              "then run the `follow` command it returns in a background shell.",
+          }),
+        );
+      });
     }),
 });
