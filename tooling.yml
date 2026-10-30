@@ -23,7 +23,7 @@ tools:
     reviewed: v2.103.3
     review: Check the gh calls in dot through @timmo001/effect-gh, the gh Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/gh.ts (new commands or flags they should expose, once effect-gh wraps them), and the GitHub credential command in mise/.config/mise/config.toml.
   - repo: hyprwm/Hyprland
-    reviewed: v0.56.2
+    reviewed: v0.57.0
     review: Check hypr/.config/hypr and its host overrides for changed or removed options and dispatchers, and the hyprctl Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/hyprctl.ts and their nudges in shell-nudge.ts.
   - repo: jdx/mise
     reviewed: v2026.10.21
