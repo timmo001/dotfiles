@@ -1,0 +1,15 @@
+id = "dotfiles.default-workspace"
+name = "Default Workspace"
+version = "0.1.0"
+min_herdr_version = "0.7.3"
+description = "Open a Dotfiles workspace when the session doesn't have one"
+platforms = ["linux"]
+
+[[startup]]
+command = ["sh", "default-workspace.sh"]
+
+[[actions]]
+id = "open"
+title = "Open the Dotfiles workspace"
+contexts = ["global", "workspace"]
+command = ["sh", "default-workspace.sh"]
