@@ -34,7 +34,7 @@ tools:
   - repo: anomalyco/opencode
     reviewed: v2.2.5
     tags: ^v2\.
-    review: Check the OpenCode config, agents, commands and plugins under agents/.config/opencode (including the opencode2 Code Mode tools in plugins/lib/cli-tools/opencode2.ts), and the dot commands and doctor checks that drive OpenCode. mise installs the latest OpenCode with no release delay, so this review is what keeps the plugins compliant: bump the @opencode/* plugin packages to the release, and keep the plugins' effect and @effect/platform-node pins on the versions it runs on.
+    review: Check the OpenCode config, agents, commands and plugins under agents/.config/opencode (including the opencode2 Code Mode tools in plugins/lib/cli-tools/opencode2.ts), and the dot commands and doctor checks that drive OpenCode. mise installs the latest OpenCode with no release delay, so this review is what keeps the plugins compliant. Bump the @opencode/* plugin packages to the release, and keep the plugins' effect and @effect/platform-node pins on the versions it runs on.
   - repo: Effect-TS/effect
     reviewed: effect@4.1.1
     tags: ^effect@
