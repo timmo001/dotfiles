@@ -181,15 +181,24 @@ command = "timmo.mascot.toggle"
 description = "toggle mascot"
 
 # Herdr can't enable a saved machine from the sidebar, only from the CLI. This turns them all off
-# when any is on, and all back on otherwise.
+# when any is on, and otherwise turns on the ones that answer SSH, probed in parallel, so offline
+# machines stay off. Herdr's own status check skips disabled machines, hence the SSH probe.
 [[keys.command]]
 key = "prefix+m"
 type = "shell"
 command = '''
-if herdr machine list --json | jq -e 'any(.enabled)' >/dev/null; then action=disable; else action=enable; fi
-herdr machine list --json | jq -r '.[].id' | while read -r id; do herdr machine "$action" "$id"; done
+if herdr machine list --json | jq -e 'any(.enabled)' >/dev/null; then
+  herdr machine list --json | jq -r '.[].id' | while read -r id; do herdr machine disable "$id"; done
+else
+  herdr machine list --json | jq -r '.[] | "\(.id) \(.target)"' | {
+    while read -r id target; do
+      { ssh -n -o BatchMode=yes -o ConnectTimeout=5 "$target" true 2>/dev/null && herdr machine enable "$id"; } &
+    done
+    wait
+  }
+fi
 '''
-description = "toggle all saved machines"
+description = "toggle saved machines that are online"
 
 [theme]
 name = "tokyo-night"
