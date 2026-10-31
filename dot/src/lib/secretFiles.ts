@@ -22,6 +22,11 @@ const SecretFile = Schema.Struct({
   output: Schema.String,
   /** The file's content, with secrets as `{{ op://vault/item/field }}`. */
   template: Schema.String,
+  /**
+   * The 1Password account the references are in, such as a work account's
+   * sign-in address. Omitted uses `op`'s default account.
+   */
+  account: Schema.optionalKey(Schema.String),
   /** User units to enable, and restart when the file changes. */
   units: Schema.optionalKey(Schema.Array(Schema.String)),
 });
@@ -74,10 +79,14 @@ const readWrittenFrom = Effect.gen(function* () {
   Effect.withSpan("SecretFiles.readWrittenFrom"),
 );
 
-/** Replace each secret reference with its value from `op read`. */
-const fillIn = Effect.fn("SecretFiles.fillIn")(function* (template: string) {
+/** Replace each secret reference with its value from `op read`, in `account` when given. */
+const fillIn = Effect.fn("SecretFiles.fillIn")(function* (
+  template: string,
+  account: string | undefined,
+) {
   const executor = yield* CommandExecutor;
   const values = new Map<string, string>();
+  const accountArgs = account === undefined ? [] : ["--account", account];
 
   for (const [, ref] of template.matchAll(reference)) {
     if (ref === undefined || values.has(ref)) continue;
@@ -85,7 +94,9 @@ const fillIn = Effect.fn("SecretFiles.fillIn")(function* (template: string) {
     // Keep op on the terminal's session so 1Password authorises it once per
     // run and names the terminal, rather than prompting for every reference.
     const value = yield* executor
-      .run("op", ["read", "--no-newline", ref], { sameProcessGroup: true })
+      .run("op", ["read", "--no-newline", ...accountArgs, ref], {
+        sameProcessGroup: true,
+      })
       .pipe(
         Effect.mapError(
           (cause) =>
@@ -172,12 +183,21 @@ export const applySecretFiles = Effect.gen(function* () {
 
   for (const file of files) {
     const output = expandHomePath(file.output);
-    const hash = createHash("sha256").update(file.template).digest("hex");
+
+    // The account joins the hash only when set, so files without one keep
+    // their hash and aren't read from 1Password again.
+    const hash = createHash("sha256")
+      .update(
+        file.account === undefined
+          ? file.template
+          : `${file.template}\0${file.account}`,
+      )
+      .digest("hex");
 
     const current = writtenFrom[output] === hash && (yield* fs.exists(output));
 
     if (!current) {
-      const content = yield* fillIn(file.template);
+      const content = yield* fillIn(file.template, file.account);
 
       yield* Effect.sync(() =>
         writeFileAtomic(output, content, {
