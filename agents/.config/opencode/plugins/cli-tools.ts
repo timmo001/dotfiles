@@ -14,7 +14,7 @@ import { haBridgeNamespace } from "./lib/cli-tools/ha-bridge";
 import { herdrNamespace } from "./lib/cli-tools/herdr";
 import { hyprctlNamespace } from "./lib/cli-tools/hyprctl";
 import { loadDotTools } from "./lib/cli-tools/dot";
-import { jobsAvailable, jobsNamespace } from "./lib/cli-tools/jobs";
+import { jobsNamespace } from "./lib/cli-tools/jobs";
 import { miseNamespace } from "./lib/cli-tools/mise";
 import { notesNamespace } from "./lib/cli-tools/notes";
 import { omarchyNamespace } from "./lib/cli-tools/omarchy";
@@ -28,7 +28,7 @@ import {
 } from "./lib/cli-tools/package-managers";
 import { pacmanNamespace } from "./lib/cli-tools/pacman";
 import { pitchforkNamespace } from "./lib/cli-tools/pitchfork";
-import { type CodeModeCatalogue, runsDotUpdate, shellNudge } from "./lib/cli-tools/shell-nudge";
+import { type CodeModeCatalogue, shellNudge } from "./lib/cli-tools/shell-nudge";
 import { skillMaintenanceNamespace } from "./lib/cli-tools/skill-maintenance";
 import { systemBridgeNamespace } from "./lib/cli-tools/system-bridge";
 import { systemdNamespace } from "./lib/cli-tools/systemd";
@@ -54,14 +54,12 @@ export default Plugin.define({
       if (Result.isFailure(dotTools))
         yield* Effect.logWarning(`cli-tools: no dot tools: ${dotTools.failure.message}`);
 
-      const dotUpdateJob =
-        Result.isSuccess(dotTools) && dotTools.success.jobs.some((tool) => tool.name === "up") && (yield* jobsAvailable);
-
       const ownNamespaces: readonly Namespace[] = [
         {
           kind: "cli",
           command: "dot",
-          description: `The dot dotfiles CLI: tracked repositories, pull request queues, sessions, services, Herdr, skills and machine health.${dotUpdateJob ? " To run `dot up`, start `dot.up` with jobs.start." : ""}`,
+          description:
+            "The dot dotfiles CLI: tracked repositories, pull request queues, sessions, services, Herdr, skills and machine health.",
           tools: Result.isSuccess(dotTools) ? dotTools.success.tools : [],
         },
         notesNamespace,
@@ -321,22 +319,5 @@ export default Plugin.define({
           };
         }),
       );
-
-      // `dot up` reloads the OpenCode service, which cancels the shell running it, even in the background.
-      // Without a user manager there are no jobs to send it to, so the shell runs it.
-      yield* context.tool.hook("execute.before", (event) => {
-        if (event.tool !== "shell" && event.tool !== "bash") return Effect.void;
-
-        if (!dotUpdateJob || !runsDotUpdate(stringArg(argRecord(event.input).command))) return Effect.void;
-
-        return Effect.fail(
-          new Tool.Error({
-            message:
-              "cli-tools: dot up reloads the OpenCode service, which cancels the shell running it. " +
-              'Start it through execute with `await tools.jobs.start({ tool: "dot.up", input: { yes: true } })`, ' +
-              "then run the `follow` command it returns in a background shell.",
-          }),
-        );
-      });
     }),
 });

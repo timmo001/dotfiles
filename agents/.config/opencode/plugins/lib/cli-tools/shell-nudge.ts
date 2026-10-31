@@ -258,13 +258,3 @@ export const shellNudge = (
   return lines.length > 0 ? lines.join("\n") : undefined;
 };
 
-/** Whether a shell command runs `dot up` (or its `update` alias), which reloads the OpenCode service running the shell. */
-export const runsDotUpdate = (command: string) =>
-  parse(command).some((pipeline) =>
-    pipeline.some(
-      ({ executable, args }) =>
-        executable === "dot" &&
-        (args[0] === "up" || args[0] === "update") &&
-        !args.some((arg) => ["--help", "-h", "--check", "--check-repos", "--check-all"].includes(arg)),
-    ),
-  );
