@@ -3,32 +3,25 @@ android-sdk = "latest"
 bat = "latest"
 "aqua:coder/boo" = "latest"
 "aqua:cloudflare/cloudflared" = "latest"
-"github:anomalyco/opentunnel" = "latest"
 bun = "1.4.4"
-claude = "latest"
-copilot = "latest"
 "cargo:terminal-control" = "latest"
 "cargo:https://codeberg.org/galen/momentumctl" = "rev:e86f3e22a0278892c073d1a9f956e5976839c661"
 deno = "2.9.8"
 eza = "latest"
 fd = "latest"
 fzf = "latest"
-gh = "latest"
 go = "1.27.3"
 gdu = "latest"
-ghui = "latest"
 gum = "latest"
 hk = "latest"
 "aqua:sharkdp/hyperfine" = "latest"
 jq = "latest"
 lazygit = "latest"
 node = "26.13.0"
-ollama = "latest"
 pitchfork = "latest"
 pnpm = "latest"
 "npm:skills" = "latest"
 "npm:rift-snapshot" = "latest"
-playwright = "latest"
 # Hold on 3.14 until pyyaml publishes Python 3.15 wheels for yamllint.
 python = "3.14.10"
 ripgrep = "latest"
@@ -43,7 +36,6 @@ yq = "latest"
 zig = "0.15.2"
 zoxide = "latest"
 just = "latest"
-uv = "latest"
 "aqua:biomejs/biome" = "latest"
 "aqua:jesseduffield/lazydocker" = "latest"
 "aqua:vi/websocat" = "latest"
@@ -53,6 +45,17 @@ uv = "latest"
 "aqua:tree-sitter/tree-sitter" = "latest"
 # Pre-1.0: plugins track the minor.
 "aqua:neovim/neovim" = "0.12.6"
+# AI tooling and the tools Omarchy keeps current: no release delay, as in
+# /etc/mise/conf.d/omarchy-tools.toml. Agent CLIs also update themselves before
+# they run, at most every four hours; gh stays off that as mise's credential helper.
+claude = { version = "latest", auto_update = "4h", minimum_release_age = "0s" }
+copilot = { version = "latest", auto_update = "4h", minimum_release_age = "0s" }
+gh = { version = "latest", minimum_release_age = "0s" }
+ghui = { version = "latest", minimum_release_age = "0s" }
+ollama = { version = "latest", minimum_release_age = "0s" }
+"github:anomalyco/opentunnel" = { version = "latest", minimum_release_age = "0s" }
+playwright = { version = "latest", minimum_release_age = "0s" }
+uv = { version = "latest", minimum_release_age = "0s" }
 # Keep the OpenCode 2 packages on one version: tests/opencode/plugin-effect-version.test.ts aligns the plugins' Effect packages with them.
 [tools."npm:@opencode/cli"]
 version = "2.2.5"
@@ -62,25 +65,26 @@ allow_builds = ["@opencode/cli"]
 [tools."npm:cf"]
 version = "latest"
 prerelease = true
+minimum_release_age = "0s"
 
 [tools."aqua:herdrdev/herdr"]
 version = "latest"
-minimum_release_age = "1h"
+minimum_release_age = "0s"
 
 [tools."aqua:earendil-works/pi"]
 version = "latest"
-minimum_release_age = "1h"
+minimum_release_age = "0s"
 
 [tools."github:backnotprop/plannotator"]
 version = "latest"
-minimum_release_age = "1h"
+minimum_release_age = "0s"
 # A long-lived Inbox server or MCP keeps the old binary; dot update also
 # restarts these, and moves the unpinned agent plugins to this version
 postinstall = "systemctl --user try-restart dot-brief-follow-up.service; pitchfork restart plannotator/server >/dev/null 2>&1 || true"
 
 [tools."github:plannotator/plannotator-tui"]
 version = "latest"
-minimum_release_age = "1h"
+minimum_release_age = "0s"
 
 [tools."github:home-assistant/installer"]
 version = "0.0.0-alpha.4"
@@ -112,6 +116,7 @@ version = "latest"
 asset_pattern = "GitHub-Copilot-linux-x64.AppImage"
 format = "raw"
 bin = "github-copilot"
+minimum_release_age = "0s"
 
 # Renamed so the topgrade wrapper in ~/.local/bin stays first on PATH.
 [tools."github:topgrade-rs/topgrade"]
@@ -200,6 +205,7 @@ url = "https://github.com/Aloxaf/fzf-tab/archive/refs/tags/v{{ version }}.tar.gz
 version = "latest"
 asset_pattern = "ollaya-linux-amd64.tar.zst"
 postinstall = "ollaya-cuda-postinstall"
+minimum_release_age = "0s"
 
 # Read this machine's current gh token without invoking mise or its shims.
 # Search inside release archives too; gh's binary can sit below a platform directory.
