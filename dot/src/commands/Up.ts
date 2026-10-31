@@ -116,7 +116,7 @@ const interactive = () =>
 
 /**
  * Without a terminal, prompts such as the group picker and omarchy update's
- * confirmation hang, so rerun `dot up` in a Herdr tab in the dotfiles
+ * confirmation hang, so once the check finds work, rerun `dot up` in a Herdr tab in the dotfiles
  * workspace, where the user can answer them and an agent can read the pane.
  * Fails the run when Herdr can't open one.
  */
@@ -367,8 +367,6 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
 
   if (restarted) {
     groups = opts.groups ?? [];
-  } else if (!interactive()) {
-    return yield* handOffToHerdr(opts);
   } else {
     yield* log.section("Checking For Updates");
     status = yield* log.withSpinner(
@@ -392,6 +390,9 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
 
       return;
     }
+
+    // Only work that needs prompts answered opens a Herdr tab.
+    if (!interactive()) return yield* handOffToHerdr(opts);
 
     groups = yield* pickGroups(work, opts);
   }

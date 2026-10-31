@@ -155,7 +155,7 @@ const AGENT_TOOLS = {
     omit: ["no-self-update", "post-hook-repo", "started-at", "group"],
     exitCodes: [0, 10],
     description:
-      "Run dot up in a new Herdr tab in the dotfiles workspace, where the user answers its prompts, and return the pane to follow with herdr.pane_read. check reports what is pending without opening a tab.",
+      "Check for updates and return at once when nothing is pending; otherwise run dot up in a new Herdr tab in the dotfiles workspace, where the user answers its prompts, and return the pane to follow with herdr.pane_read. check reports what is pending without opening a tab.",
   },
   "updates refresh": { access: "write", timeout: "5 minutes" },
   "repo induct": {
