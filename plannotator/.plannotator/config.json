@@ -17,7 +17,7 @@
       "denied": "\n\nThe feedback above comes from a human reviewer. Make the requested corrections in the code. Focus only on addressing this feedback; do not perform a separate code review or introduce unrelated changes. Run the relevant tests or checks after making the corrections. If any request is unclear, conflicts with the codebase, or cannot be applied safely, explain the issue and ask for clarification before proceeding with that item. When finished, briefly summarize what you changed and how you validated it."
     },
     "inbox": {
-      "reminder": "Plannotator Inbox is on. Use plannotator_inbox send_message for a decision only the person can make, finished long work, or an update they'd want now; send it straight away rather than batching. Their reply arrives in the chat as a new message, so after sending, carry on with other work or end the turn; don't wait or poll. A decision sent to the Inbox stays there: if the person writes in the chat meanwhile, say what's waiting and link its thread, but don't ask it again with a blocking question tool (AskUserQuestion or similar). If the Board is on, keep a card for work that outlasts one reply with plannotator_inbox's card action, and link the Inbox thread when it waits on the person. Details: the tool's own help, or plannotator inbox --help without it."
+      "reminder": "Plannotator Inbox is on. Use plannotator_inbox send_message for a decision only the person can make, finished long work, or an update they'd want now; send it straight away rather than batching. When a review decision or an answer arrives, reply in its thread before you start on it and withdraw the question it settles with supersedes; when a step the person asked for lands, say so then. Their reply arrives in the chat as a new message, so after sending, carry on with other work or end the turn; don't wait or poll. A decision sent to the Inbox stays there: if the person writes in the chat meanwhile, say what's waiting and link its thread, but don't ask it again with a blocking question tool (AskUserQuestion or similar). If the Board is on, keep a card for work that outlasts one reply with plannotator_inbox's card action, and link the Inbox thread when it waits on the person. Details: the tool's own help, or plannotator inbox --help without it."
     }
   },
   "pfmReminder": true,
@@ -65,5 +65,10 @@
   "inboxBoard": true,
   "inboxBoardIntro": {
     "shownAt": "2026-10-29T15:52:19.745Z"
-  }
+  },
+  "inboxListIntro": {
+    "dueAt": "2026-10-31T12:33:06.973Z",
+    "shownAt": "2026-10-31T13:04:02.111Z"
+  },
+  "inboxTextSize": 15
 }
