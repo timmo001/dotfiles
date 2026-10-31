@@ -15,7 +15,7 @@ tools:
   - repo: omacom/omarchy
     reviewed: v4.5.0-rc2
     prereleases: true
-    review: Check the custom bar plugins under omarchy/.config/omarchy/plugins that replace or extend Omarchy's (omarchy-plugins.json), the generated shell.json in dot/src/lib/omarchyShellConfig.ts, the Omarchy hooks, components and extensions, and the omarchy Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/omarchy.ts. Recheck the omarchy-shell-quickshell skill's file paths, lifecycle and plugin workflow against the release.
+    review: Check the custom bar plugins under omarchy/.config/omarchy/plugins that replace or extend Omarchy's (omarchy-plugins.json), the generated shell.json in dot/src/lib/omarchyShellConfig.ts, the Omarchy hooks, components and extensions, and the omarchy Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/omarchy.ts. Check the patches under scripts/.local/share/omarchy-patches still apply to the release's bin scripts (dot up holds the system step back when they drift). Recheck the omarchy-shell-quickshell skill's file paths, lifecycle and plugin workflow against the release.
   - repo: quickshell-mirror/quickshell
     reviewed: v0.3.2
     review: Check the custom bar plugin QML under omarchy/.config/omarchy/plugins, the qmllint setup in .github/workflows/quickshell-lint.yml, and the omarchy-shell-quickshell skill's Quickshell notes (reload semantics, IpcHandler, the qs CLI).
@@ -34,7 +34,7 @@ tools:
   - repo: anomalyco/opencode
     reviewed: v2.2.5
     tags: ^v2\.
-    review: Check the OpenCode config, agents, commands and plugins under agents/.config/opencode (including the opencode2 Code Mode tools in plugins/lib/cli-tools/opencode2.ts), and the dot commands and doctor checks that drive OpenCode. Plugins run on OpenCode's own Effect, so keep the plugins' effect and @effect/platform-node pins on the versions it uses.
+    review: Check the OpenCode config, agents, commands and plugins under agents/.config/opencode (including the opencode2 Code Mode tools in plugins/lib/cli-tools/opencode2.ts), and the dot commands and doctor checks that drive OpenCode. mise installs the latest OpenCode with no release delay, so this review is what keeps the plugins compliant: bump the @opencode/* plugin packages to the release, and keep the plugins' effect and @effect/platform-node pins on the versions it runs on.
   - repo: Effect-TS/effect
     reviewed: effect@4.1.1
     tags: ^effect@

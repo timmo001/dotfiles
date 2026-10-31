@@ -89,11 +89,9 @@
       "allowedVersions": "<3.15"
     },
     {
-      "description": "Update OpenCode Desktop with the other OpenCode 2 packages.",
-      "matchDepNames": ["http:opencode-desktop"],
-      "groupName": "OpenCode 2",
-      "groupSlug": "opencode-2",
-      "minimumReleaseAge": "1 hour"
+      "description": "Update the OpenCode plugin packages without a release delay, so they keep up with the latest OpenCode mise installs.",
+      "matchPackageNames": ["@opencode/**"],
+      "minimumReleaseAge": null
     },
     {
       "description": "Read yt-dlp's zero-padded date versions.",

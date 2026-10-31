@@ -56,9 +56,11 @@ ollama = { version = "latest", minimum_release_age = "0s" }
 "github:anomalyco/opentunnel" = { version = "latest", minimum_release_age = "0s" }
 playwright = { version = "latest", minimum_release_age = "0s" }
 uv = { version = "latest", minimum_release_age = "0s" }
-# Keep the OpenCode 2 packages on one version: tests/opencode/plugin-effect-version.test.ts aligns the plugins' Effect packages with them.
+# OpenCode is an AI tool like the rest: always the latest. Renovate bumps the plugin packages
+# straight away and the anomalyco/opencode tooling drift review keeps the plugins compliant.
 [tools."npm:@opencode/cli"]
-version = "2.2.5"
+version = "latest"
+minimum_release_age = "0s"
 allow_builds = ["@opencode/cli"]
 
 # The Cloudflare CLI only publishes 1.0 as betas; latest without prereleases is the old 0.x line.
@@ -118,12 +120,6 @@ format = "raw"
 bin = "github-copilot"
 minimum_release_age = "0s"
 
-# Renamed so the topgrade wrapper in ~/.local/bin stays first on PATH.
-[tools."github:topgrade-rs/topgrade"]
-version = "latest"
-asset_pattern = "topgrade-v*-x86_64-unknown-linux-musl.tar.gz"
-rename_exe = "topgrade-cli"
-
 [tools."github:storytold/photocraft"]
 version = "latest"
 asset_pattern = "photocraft-*-linux-x86_64.tar.gz"
@@ -176,7 +172,8 @@ filter_bins = "scrcpy"
 
 # The v2 desktop app is only published on opencode.ai, not GitHub releases.
 [tools."http:opencode-desktop"]
-version = "2.2.5"
+version = "latest"
+minimum_release_age = "0s"
 url = "https://opencode.ai/files/bin/{{ version }}/opencode-desktop-linux-x86_64.AppImage"
 version_list_url = "https://opencode.ai/update/api/latest/desktop/opencode"
 version_json_path = ".version"
@@ -223,7 +220,7 @@ compile = false
 aqua.registries = ["https://github.com/aquaproj/aqua-registry"]
 # Only the tools above are wanted: disable the rest of Omarchy's
 # /etc/mise/conf.d/omarchy-tools.toml. Short names only match those entries,
-# not the npm:@opencode/cli and aqua:earendil-works/pi pins above.
+# not the npm:@opencode/cli and aqua:earendil-works/pi entries above.
 disable_tools = [
   "amp",
   "antigravity-cli",
