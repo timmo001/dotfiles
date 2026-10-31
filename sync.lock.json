@@ -1,0 +1,29 @@
+{
+  "copies": {
+    "omarchy/.config/omarchy/components/FilterablePanel.qml": {
+      "item": "filterable-panel",
+      "sha": "27599413a0cbda0676bb86c793adf965288c3ff7",
+      "hash": "a241bf696530a1d175fc0eb0d84972a4d88c317156b024e08d43129b4e6114d0"
+    },
+    "omarchy/.config/omarchy/components/OutputView.qml": {
+      "item": "output-view",
+      "sha": "27599413a0cbda0676bb86c793adf965288c3ff7",
+      "hash": "1b297851eec182cbd134e75e2027e5d9744f791439c2b6a1b51971ca4b700ca6"
+    },
+    "omarchy/.config/omarchy/components/PanelFlickable.qml": {
+      "item": "panel-flickable",
+      "sha": "27599413a0cbda0676bb86c793adf965288c3ff7",
+      "hash": "d72e22efd34a83b78b316def462786f405b4f278c16a67e708ce23e81b95a844"
+    },
+    "omarchy/.config/omarchy/components/PanelHeader.qml": {
+      "item": "panel-header",
+      "sha": "27599413a0cbda0676bb86c793adf965288c3ff7",
+      "hash": "09675301a055437ef96054076e4e80ecb3f43aaffca114eb2cde31c5b54ca997"
+    },
+    "omarchy/.config/omarchy/components/SectionHeading.qml": {
+      "item": "section-heading",
+      "sha": "27599413a0cbda0676bb86c793adf965288c3ff7",
+      "hash": "3d14a814a42f0d464f62bc3f248f4662b21de7f2b7d99c64faeee313e5ad6e44"
+    }
+  }
+}

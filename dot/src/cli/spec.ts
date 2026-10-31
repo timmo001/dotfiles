@@ -36,7 +36,6 @@ import { linkNativeHost } from "../commands/LinkNativeHost.js";
 import { linkOpen } from "../commands/LinkOpen.js";
 import { plannotatorInbox } from "../commands/PlannotatorInbox.js";
 import { notesCaptureSync } from "../commands/NotesCaptureSync.js";
-import { syncOmarchyComponents } from "../commands/OmarchyComponents.js";
 import {
   omarchyPlugin,
   OmarchyPluginInput,
@@ -1075,42 +1074,18 @@ const pluginRemove = describe(
   "Remove a managed plugin",
 );
 
-const pluginSyncComponents = describe(
-  Command.make("sync").pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make(
-          "components",
-          {
-            check: bool("check", "Report out-of-date copies without writing"),
-          },
-          ({ check }) => syncOmarchyComponents({ check }),
-        ),
-        "Copy shared panel components into standalone plugin checkouts",
-      ),
-    ]),
-  ),
-  "Sync shared files into plugin checkouts",
-);
-
 const omarchyPluginCommand = describe(
   Command.make("plugin").pipe(
-    Command.withSubcommands([
-      pluginAdd,
-      pluginUpdate,
-      pluginRemove,
-      pluginSyncComponents,
-    ]),
+    Command.withSubcommands([pluginAdd, pluginUpdate, pluginRemove]),
   ),
   "Manage Omarchy plugin submodules. The manage-omarchy-plugin compatibility wrapper may pass trailing 0/1 confirmation and commit-offer values to update and remove.",
   [
     "dot omarchy plugin update timmo.clock --yes",
     "dot omarchy plugin remove timmo.clock",
-    "dot omarchy plugin sync components --check",
   ],
   {
     description:
-      "Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.\n\nFor a repository that keeps its plugin in a subfolder, pass add --path with that folder. The submodule holds the whole repository, and the registry's path entry tells stow and update which folder to validate and deploy.\n\nsync components copies the shared panel components in omarchy/.config/omarchy/components into the plugin directories set by omarchy_components entries in the private dot-git.yml, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.",
+      "Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.\n\nFor a repository that keeps its plugin in a subfolder, pass add --path with that folder. The submodule holds the whole repository, and the registry's path entry tells stow and update which folder to validate and deploy.\n\nThe shared panel components come from Groundwork's sync (mise run sync in the groundwork repository), which copies them into omarchy/.config/omarchy/components and each standalone plugin.",
     sections: [
       {
         title: "Exit codes",

@@ -169,7 +169,6 @@ const AGENT_TOOLS = {
   "skills consumers add": { access: "write" },
   "skills consumers remove": { access: "write" },
   "notes capture sync": { access: "write", timeout: "5 minutes" },
-  "omarchy plugin sync components": { access: "write" },
   "omarchy shell config": { access: "write" },
   "brief dismiss": { access: "write" },
   "git notifications dismiss dependencies": { access: "write" },

@@ -875,7 +875,7 @@ Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Om
 
 For a repository that keeps its plugin in a subfolder, pass add --path with that folder. The submodule holds the whole repository, and the registry's path entry tells stow and update which folder to validate and deploy.
 
-sync components copies the shared panel components in omarchy/.config/omarchy/components into the plugin directories set by omarchy_components entries in the private dot-git.yml, since published plugins cannot import files from dotfiles. Pass --check to report out-of-date copies without writing.
+The shared panel components come from Groundwork's sync (mise run sync in the groundwork repository), which copies them into omarchy/.config/omarchy/components and each standalone plugin.
 
 **Options**
 
@@ -896,7 +896,6 @@ sync components copies the shared panel components in omarchy/.config/omarchy/co
 ```bash
 dot omarchy plugin update timmo.clock --yes
 dot omarchy plugin remove timmo.clock
-dot omarchy plugin sync components --check
 ```
 
 #### `dot omarchy plugin add`
@@ -970,35 +969,6 @@ dot omarchy plugin remove [flags] <id> [<confirm>] [<save>]
 | `<id>` | Managed plugin ID |
 | `<confirm>` | Compatibility confirmation value |
 | `<save>` | Compatibility commit-offer value |
-
-#### `dot omarchy plugin sync`
-
-Sync shared files into plugin checkouts
-
-```text
-dot omarchy plugin sync <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-#### `dot omarchy plugin sync components`
-
-Copy shared panel components into standalone plugin checkouts
-
-```text
-dot omarchy plugin sync components [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--check` | Report out-of-date copies without writing |
-| `--help` `-h` | Show help information |
 
 ### `dot omarchy shell`
 
