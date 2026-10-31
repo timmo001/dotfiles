@@ -14126,14 +14126,12 @@ policy:
         set:
           allowedVersions: "<3.15"
       - description:
-          - "Update OpenCode Desktop with the other OpenCode 2 packages."
+          - "Update the OpenCode plugin packages without a release delay, so they keep up with the latest OpenCode mise installs."
         match:
-          dependencies:
-            - "http:opencode-desktop"
+          packages:
+            - "@opencode/**"
         set:
-          minimumReleaseAge: "1 hour"
-          groupName: "OpenCode 2"
-          groupSlug: "opencode-2"
+          minimumReleaseAge: null
       - description:
           - "Read yt-dlp's zero-padded date versions."
         match:
@@ -14720,7 +14718,7 @@ import:
   leaveToRenovate:
     - "arch/quickshell"
   resolverVersion: "44.126.1"
-  overrideHash: "4eccfeb99d6f143cebc50c789279a696039f20b93ccf51b1a78e0b4f2ee2789b"
+  overrideHash: "33b58cb9c1b55dafa859a6b4b8e1a23e399c4e1e70ed3cd243ebdf2278ec1ad2"
   baseDiagnostics:
     - path: "presets.description"
       disposition: "ignored"
