@@ -95,7 +95,7 @@ permission:
     "gh run view*": allow
     "gh stack *": ask
     "gh stack view --json": allow
-    "dot git commit*": ask
+    "dot git commit*": allow
     "git commit": deny
     "git commit *": deny
   shell:
@@ -168,7 +168,7 @@ permission:
     "gh run view*": allow
     "gh stack *": ask
     "gh stack view --json": allow
-    "dot git commit*": ask
+    "dot git commit*": allow
     "git commit": deny
     "git commit *": deny
 ---
