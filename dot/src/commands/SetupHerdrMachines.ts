@@ -1,3 +1,4 @@
+import { hostname } from "node:os";
 import { join } from "node:path";
 import { Data, Effect, FileSystem, Schema } from "effect";
 import { OutputLog } from "../services/OutputLog.js";
@@ -32,6 +33,8 @@ const ConfiguredMachine = Schema.Struct({
   session: Schema.optionalKey(Schema.String),
   /** Only for a device that doesn't have the machine yet; later toggles are kept. */
   enabled: Schema.optionalKey(Schema.Boolean),
+  /** The machine's own hostname, where it isn't saved so a device never lists itself. */
+  host: Schema.optionalKey(Schema.String),
 });
 
 const HerdrMachinesConfig = Schema.Struct({
@@ -82,7 +85,8 @@ const Outcome = Data.taggedEnum<Outcome>();
  * when that changes it. Saved machines keep their enabled state, ones saved
  * under another ID with the same target and session are replaced, and the rest
  * the list doesn't name are kept after it, so a device's own additions and
- * toggles survive. Callers decide what to say about the outcome.
+ * toggles survive. A machine whose host is this device is left out, and
+ * removed if it was saved. Callers decide what to say about the outcome.
  */
 const applyHerdrMachines = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
@@ -108,10 +112,13 @@ const applyHerdrMachines = Effect.gen(function* () {
           failWith(HERDR_MACHINES_CATALOG_PATH),
         )).ssh;
 
-  const listed = config.machines.map((machine) => ({
+  const named = config.machines.map((machine) => ({
     ...machine,
     session: machine.session ?? "default",
   }));
+
+  const localHost = hostname();
+  const listed = named.filter((machine) => machine.host !== localHost);
 
   // A machine this device saved itself, under its own ID, before the list
   // named it: the listed one replaces it rather than sitting beside it.
@@ -132,9 +139,10 @@ const applyHerdrMachines = Effect.gen(function* () {
         machine.enabled ??
         true,
     })),
+    // This device's own entry is dropped too, should it have been saved before.
     ...saved.filter(
       (entry) =>
-        !listed.some(
+        !named.some(
           (machine) => machine.id === entry.id || sameMachine(machine)(entry),
         ),
     ),
@@ -158,8 +166,8 @@ const applyHerdrMachines = Effect.gen(function* () {
   });
 
   return Outcome.Saved({
-    saved: config.machines.length,
-    kept: machines.length - config.machines.length,
+    saved: listed.length,
+    kept: machines.length - listed.length,
   });
 }).pipe(Effect.withSpan("SetupHerdrMachines.apply"));
 
