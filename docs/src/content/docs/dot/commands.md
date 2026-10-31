@@ -62,7 +62,7 @@ Check everything, pick what to update, then run it: dotfiles, mise tools, gh ext
 dot up [flags]
 ```
 
-dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending pacman and AUR packages, packages from the public and private lists that aren't installed, Omarchy and gh extensions. It saves the result for the bar, lists it, then asks which groups to run, all ticked. --yes, or a run without a terminal, runs every group with work. Groups run in order, each numbered with a one-line description:
+dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending pacman and AUR packages, packages from the public and private lists that aren't installed, Omarchy and gh extensions. It saves the result for the bar, lists it, then asks which groups to run, all ticked. --yes runs every group with work. Without a terminal, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order, each numbered with a one-line description:
 
 1. Dotfiles: pulls the public dotfiles, rebuilds and relaunches dot, scans and pulls tracked repositories, moves the skills checkout to the latest skills main, syncs MCP config, stows, installs mise tools, refreshes agent runtimes, syncs agent instructions, reloads agents and refreshes shell modules. Pulls are fast-forward-only and never stash or rebase.
 2. Mise tools: installs missing tools and runs mise up with no release delay.

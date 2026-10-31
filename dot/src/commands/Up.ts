@@ -5,9 +5,13 @@
  */
 
 import { Extension } from "@timmo001/effect-gh";
-import { Clock, Effect } from "effect";
+import { herdrSdkLayerFromOptions } from "@timmo001/effect-herdr";
+import { Cause, Clock, Duration, Effect } from "effect";
 import { Prompt } from "effect/cli";
 import { isAgent } from "../lib/agent.js";
+import { ENV, envString } from "../lib/env.js";
+import { formatCause } from "../lib/schema.js";
+import { DEFAULT_SOCKET_PATH, openHerdrRepo } from "./HerdrRepoOpen.js";
 import {
   loadPrivatePackageRepoConfig,
   privatePackageRepoIncludeRegistered,
@@ -110,6 +114,61 @@ export interface UpOptions extends UpdateOptions {
 const interactive = () =>
   process.stdin.isTTY === true && process.stdout.isTTY === true;
 
+/**
+ * Without a terminal, prompts such as the group picker and omarchy update's
+ * confirmation hang, so rerun `dot up` in a Herdr tab in the dotfiles
+ * workspace, where the user can answer them and an agent can read the pane.
+ * Fails the run when Herdr can't open one.
+ */
+const handOffToHerdr = Effect.fn("Up.handOffToHerdr")(function* (
+  opts: UpOptions,
+) {
+  const config = yield* Config;
+  const log = yield* OutputLog;
+
+  const command = [
+    "dot",
+    "up",
+    ...(opts.force ? ["--force"] : []),
+    ...(opts.yes ? ["--yes"] : []),
+    ...(opts.selfUpdate === false ? ["--no-self-update"] : []),
+    ...(opts.reload === false ? ["--no-reload"] : []),
+  ].join(" ");
+
+  const opened = yield* openHerdrRepo({
+    layout: "tab",
+    label: "dotfiles",
+    directory: config.publicDotfiles,
+    tabLabel: "dot up",
+    command,
+  }).pipe(
+    Effect.provide(
+      herdrSdkLayerFromOptions({
+        socketPath: envString(ENV.HERDR_SOCKET_PATH) ?? DEFAULT_SOCKET_PATH,
+        requestTimeout: Duration.seconds(5),
+      }),
+    ),
+    Effect.map((result) => result.paneId),
+    Effect.catchCause((cause) =>
+      log
+        .error(
+          `dot up needs a terminal and could not open one in Herdr: ${formatCause(Cause.squash(cause))}`,
+        )
+        .pipe(Effect.as(null)),
+    ),
+  );
+
+  if (opened === null) {
+    yield* log.info("Run dot up in a terminal instead");
+    process.exitCode = 1;
+
+    return;
+  }
+
+  yield* log.success(`Running ${command} in Herdr pane ${opened}`);
+  yield* log.info(`Follow it with herdr pane read ${opened}`);
+});
+
 /** Report everything pending, exiting 10 when there is work and 2 when a check failed. */
 export const upCheck = Effect.gen(function* () {
   const log = yield* OutputLog;
@@ -160,7 +219,7 @@ const pickGroups = Effect.fn("Up.pick")(function* (
     (group) => opts.force || group === "gh" || work[group].length > 0,
   );
 
-  if (opts.yes || !interactive()) return offered;
+  if (opts.yes) return offered;
 
   return yield* Prompt.run(
     Prompt.MultiSelect({
@@ -308,6 +367,8 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
 
   if (restarted) {
     groups = opts.groups ?? [];
+  } else if (!interactive()) {
+    return yield* handOffToHerdr(opts);
   } else {
     yield* log.section("Checking For Updates");
     status = yield* log.withSpinner(
