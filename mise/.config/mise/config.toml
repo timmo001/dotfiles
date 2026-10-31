@@ -65,22 +65,22 @@ prerelease = true
 
 [tools."aqua:herdrdev/herdr"]
 version = "latest"
-minimum_release_age = "2h"
+minimum_release_age = "1h"
 
 [tools."aqua:earendil-works/pi"]
 version = "latest"
-minimum_release_age = "2h"
+minimum_release_age = "1h"
 
 [tools."github:backnotprop/plannotator"]
 version = "latest"
-minimum_release_age = "2h"
+minimum_release_age = "1h"
 # A long-lived Inbox server or MCP keeps the old binary; dot update also
 # restarts these, and moves the unpinned agent plugins to this version
 postinstall = "systemctl --user try-restart dot-brief-follow-up.service; pitchfork restart plannotator/server >/dev/null 2>&1 || true"
 
 [tools."github:plannotator/plannotator-tui"]
 version = "latest"
-minimum_release_age = "2h"
+minimum_release_age = "1h"
 
 [tools."github:home-assistant/installer"]
 version = "0.0.0-alpha.4"

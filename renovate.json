@@ -74,7 +74,7 @@
         "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.list",
         "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.lock"
       ],
-      "minimumReleaseAge": "2 hours"
+      "minimumReleaseAge": "1 hour"
     },
     {
       "description": "Keep the dependency import runtime on a Node version Renovate supports.",
@@ -93,7 +93,7 @@
       "matchDepNames": ["http:opencode-desktop"],
       "groupName": "OpenCode 2",
       "groupSlug": "opencode-2",
-      "minimumReleaseAge": "2 hours"
+      "minimumReleaseAge": "1 hour"
     },
     {
       "description": "Read yt-dlp's zero-padded date versions.",

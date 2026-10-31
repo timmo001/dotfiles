@@ -13939,7 +13939,7 @@ policy:
             - "aqua:herdrdev/herdr"
             - "github:backnotprop/plannotator"
         set:
-          minimumReleaseAge: "2 hours"
+          minimumReleaseAge: "1 hour"
       - description:
           - "Update first-party dependencies, including Home Assistant, Music Assistant and Open Home Foundation projects, without a release delay."
         match:
@@ -14106,7 +14106,7 @@ policy:
             - "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.list"
             - "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.lock"
         set:
-          minimumReleaseAge: "2 hours"
+          minimumReleaseAge: "1 hour"
       - description:
           - "Keep the dependency import runtime on a Node version Renovate supports."
         match:
@@ -14131,7 +14131,7 @@ policy:
           dependencies:
             - "http:opencode-desktop"
         set:
-          minimumReleaseAge: "2 hours"
+          minimumReleaseAge: "1 hour"
           groupName: "OpenCode 2"
           groupSlug: "opencode-2"
       - description:
@@ -14720,7 +14720,7 @@ import:
   leaveToRenovate:
     - "arch/quickshell"
   resolverVersion: "44.126.1"
-  overrideHash: "16858a98ff721048dff0b5f54b70f8aa7de9ff618c0c54d50bba4ea9987b8508"
+  overrideHash: "4eccfeb99d6f143cebc50c789279a696039f20b93ccf51b1a78e0b4f2ee2789b"
   baseDiagnostics:
     - path: "presets.description"
       disposition: "ignored"
