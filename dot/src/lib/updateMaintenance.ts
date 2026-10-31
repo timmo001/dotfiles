@@ -49,6 +49,87 @@ export const hasLocalUpdateWork = Effect.fn("Update.hasLocalWork")(function* (
     .some((line) => line !== "" && !line.startsWith("1 .M SC.. "));
 });
 
+/** Path fields before the path in each `git status --porcelain=v2` entry kind. */
+const STATUS_PATH_FIELD = new Map([
+  ["1", 8],
+  ["2", 9],
+  ["?", 1],
+]);
+
+/**
+ * Whether a fast-forward pull would keep the local work in a repository that
+ * is only behind: `git merge --ff-only --no-autostash` refuses only when an
+ * incoming commit touches a changed or untracked path, or a submodule holds
+ * work of its own. Conflicted checkouts are never pullable.
+ */
+export const pullKeepsLocalWork = Effect.fn("Update.pullKeepsLocalWork")(
+  function* (repo: DiffRepo) {
+    if (repo.ahead > 0 || repo.behind === 0) return false;
+
+    const executor = yield* CommandExecutor;
+
+    const [status, incoming] = yield* Effect.all([
+      executor.run(
+        "git",
+        [
+          "status",
+          "--porcelain=v2",
+          "-z",
+          "--untracked-files=normal",
+          "--ignore-submodules=none",
+        ],
+        { cwd: repo.path },
+      ),
+      executor.run("git", ["diff", "--name-only", "-z", "HEAD", "@{u}"], {
+        cwd: repo.path,
+      }),
+    ]);
+
+    const entries = status.split("\0");
+    const changed: string[] = [];
+
+    for (let index = 0; index < entries.length; index++) {
+      const entry = entries[index] ?? "";
+
+      if (entry === "") continue;
+
+      const fields = entry.split(" ");
+      const kind = fields[0] ?? "";
+      const pathField = STATUS_PATH_FIELD.get(kind);
+
+      // Unmerged entries, or anything this parser doesn't know, block the pull.
+      if (pathField === undefined) return false;
+
+      const submodule = fields[2] ?? "";
+
+      if (
+        kind !== "?" &&
+        submodule.startsWith("S") &&
+        !(fields[1] === ".M" && submodule === "SC..")
+      )
+        return false;
+
+      changed.push(fields.slice(pathField).join(" "));
+
+      // Renames and copies carry their original path as the next entry.
+      if (kind === "2") changed.push(entries[++index] ?? "");
+    }
+
+    return !incoming
+      .split("\0")
+      .filter((path) => path !== "")
+      .some((path) =>
+        changed.some((local) =>
+          local.endsWith("/")
+            ? path.startsWith(local)
+            : path === local ||
+              path.startsWith(`${local}/`) ||
+              local.startsWith(`${path}/`),
+        ),
+      );
+  },
+);
+
 /** Find unapplied submodule pins, stow links and Herdr lockfile commits. */
 export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
   function* (repo: DiffRepo) {

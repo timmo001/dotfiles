@@ -46,6 +46,7 @@ import {
 import {
   hasLocalUpdateWork,
   pendingUpdateMaintenance,
+  pullKeepsLocalWork,
 } from "../lib/updateMaintenance.js";
 import {
   ensureInitCompleteMarker,
@@ -1342,7 +1343,11 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
     for (const repo of scoped) {
       yield* Effect.gen(function* () {
         if (yield* hasLocalUpdateWork(repo)) {
-          yield* log.info(`Skipping ${repo.name} (local work)`);
+          if (yield* pullKeepsLocalWork(repo)) {
+            pending.push(`${repo.name}: ${repo.behind} behind (local work)`);
+          } else {
+            yield* log.info(`Skipping ${repo.name} (local work)`);
+          }
 
           return;
         }
