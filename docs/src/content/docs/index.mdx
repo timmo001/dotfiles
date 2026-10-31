@@ -6,8 +6,8 @@ description: An agent-driven Omarchy setup for development, desktop, and automat
 My [Omarchy](https://omarchy.org) dotfiles (Arch-based). [GNU Stow](https://www.gnu.org/software/stow/) links each package into place, and a compiled `dot` CLI sets up, updates and checks each machine. It covers public config, desktop customisations, git tooling and a shared [OpenCode](https://opencode.ai) setup. Private machine details live in a separate overlay.
 
 ```bash
-# Pull, refresh config, re-stow and rebuild
-dot update
+# Check every update, pick what to apply, then run it
+dot up
 
 # Run the health checks and save a report
 dot doctor

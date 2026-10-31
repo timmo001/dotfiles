@@ -275,8 +275,10 @@ const timedProgram = withNativeCommandTimeout(commandPath, commandProgram);
 
 // Update checks report available work through their exit code.
 const offersFailureAgent =
-  (commandPath === "update" || commandPath === "stow") &&
-  !args.some((arg) => ["--check", "--check-all", "--help", "-h"].includes(arg));
+  (commandPath === "up" || commandPath === "stow") &&
+  !args.some((arg) =>
+    ["--check", "--check-repos", "--check-all", "--help", "-h"].includes(arg),
+  );
 
 const program = (
   offersFailureAgent

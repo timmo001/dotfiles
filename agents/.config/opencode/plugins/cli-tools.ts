@@ -55,13 +55,13 @@ export default Plugin.define({
         yield* Effect.logWarning(`cli-tools: no dot tools: ${dotTools.failure.message}`);
 
       const dotUpdateJob =
-        Result.isSuccess(dotTools) && dotTools.success.jobs.some((tool) => tool.name === "update") && (yield* jobsAvailable);
+        Result.isSuccess(dotTools) && dotTools.success.jobs.some((tool) => tool.name === "up") && (yield* jobsAvailable);
 
       const ownNamespaces: readonly Namespace[] = [
         {
           kind: "cli",
           command: "dot",
-          description: `The dot dotfiles CLI: tracked repositories, pull request queues, sessions, services, Herdr, skills and machine health.${dotUpdateJob ? " To run `dot update`, start `dot.update` with jobs.start." : ""}`,
+          description: `The dot dotfiles CLI: tracked repositories, pull request queues, sessions, services, Herdr, skills and machine health.${dotUpdateJob ? " To run `dot up`, start `dot.up` with jobs.start." : ""}`,
           tools: Result.isSuccess(dotTools) ? dotTools.success.tools : [],
         },
         notesNamespace,
@@ -322,7 +322,7 @@ export default Plugin.define({
         }),
       );
 
-      // `dot update` reloads the OpenCode service, which cancels the shell running it, even in the background.
+      // `dot up` reloads the OpenCode service, which cancels the shell running it, even in the background.
       // Without a user manager there are no jobs to send it to, so the shell runs it.
       yield* context.tool.hook("execute.before", (event) => {
         if (event.tool !== "shell" && event.tool !== "bash") return Effect.void;
@@ -332,8 +332,8 @@ export default Plugin.define({
         return Effect.fail(
           new Tool.Error({
             message:
-              "cli-tools: dot update reloads the OpenCode service, which cancels the shell running it. " +
-              'Start it through execute with `await tools.jobs.start({ tool: "dot.update" })`, ' +
+              "cli-tools: dot up reloads the OpenCode service, which cancels the shell running it. " +
+              'Start it through execute with `await tools.jobs.start({ tool: "dot.up", input: { yes: true } })`, ' +
               "then run the `follow` command it returns in a background shell.",
           }),
         );

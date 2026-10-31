@@ -58,13 +58,14 @@
         "refreshTarget": "timmo.updates",
         "loadingText": "\uF4B5 ..",
         "loadingClass": "updates-unknown",
-        "onClick": "dot herdr repo open dotfiles \"${DOTFILES_PUBLIC_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles}\" Update update",
+        "onClick": "dot herdr repo open dotfiles \"${DOTFILES_PUBLIC_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles}\" Update \"dot up\"",
         "herdrLaunch": true,
         "onClickRight": "dot updates refresh",
         "classColors": {
           "updates-current": "#9b9b9b",
           "updates-unknown": "#9b9b9b",
-          "updates": "#e5c07b"
+          "updates": "#e5c07b",
+          "updates-missing": "#e06c75"
         }
       },
       "hosts": {

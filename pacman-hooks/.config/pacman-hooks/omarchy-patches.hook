@@ -1,0 +1,12 @@
+[Trigger]
+Type = Package
+Operation = Install
+Operation = Upgrade
+Target = omarchy
+Target = omarchy-dev
+
+[Action]
+Description = Applying the dotfiles Omarchy patches
+When = PostTransaction
+Depends = patch
+Exec = /usr/local/bin/apply-omarchy-patches

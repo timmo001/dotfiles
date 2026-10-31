@@ -73,7 +73,7 @@ export const checkGitHooks = Effect.gen(function* () {
       results.push({
         severity: "warn",
         message: `${repo.name} has an hk.pkl, but hk's hooks are not installed`,
-        detail: "Run: dot update (or hk install --global --mise)",
+        detail: "Run: dot up (or hk install --global --mise)",
       });
     }
 

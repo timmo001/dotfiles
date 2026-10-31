@@ -100,7 +100,7 @@ export const checkHerdr = Effect.gen(function* () {
     results.push({
       severity: "warn",
       message: `Herdr local plugins are missing: ${missingPlugins.join(", ")}`,
-      detail: "Run dot update",
+      detail: "Run dot up",
     });
   }
 

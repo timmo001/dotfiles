@@ -2,12 +2,7 @@
   "update.dotfiles": {
     "icon": "",
     "label": "Dotfiles",
-    "action": "omarchy-launch-floating-terminal-with-presentation 'dot update'"
-  },
-  "update.topgrade": {
-    "icon": "",
-    "label": "Topgrade",
-    "action": "omarchy-launch-floating-terminal-with-presentation topgrade"
+    "action": "omarchy-launch-floating-terminal-with-presentation 'dot up'"
   },
   // System menu. New entries always land after Omarchy's own, so its entries
   // are hidden and copied below in the order wanted. Keep the copies in step

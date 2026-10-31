@@ -31,7 +31,7 @@ mise run dot:build
 ~/.config/dotfiles/scripts/.local/bin/dot init
 ```
 
-Ongoing: `dot doctor` (health checks), `dot update` (pull, stow, rebuild).
+Ongoing: `dot doctor` (health checks), `dot up` (check and apply every update).
 
 ## Docs map
 

@@ -1,5 +1,5 @@
-import { Effect, FileSystem } from "effect";
-import { OutputLog, formatCliLine } from "../services/OutputLog.js";
+import { Effect } from "effect";
+import { OutputLog } from "../services/OutputLog.js";
 import { cliStyler } from "./ansi.js";
 import { gitOutput } from "./git.js";
 import { completedIn, plural } from "./runSummary.js";
@@ -455,35 +455,5 @@ export function logUpdateSummary(
       startedAt,
       (level, message) => log[level](message),
     );
-  });
-}
-
-/**
- * Write the {@link logUpdateSummary} output to `path` as terminal-formatted
- * text, so a parent command can print it after its later steps.
- */
-export function writeUpdateSummary(
-  path: string,
-  updated: readonly UpdatedRepo[],
-  miseTools: readonly MiseToolChange[],
-  actions: readonly RecapEntry[],
-  startedAt: number,
-): Effect.Effect<void, never, CommandExecutor | FileSystem.FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem;
-    const output: string[] = [];
-
-    yield* renderUpdateSummary(
-      updated,
-      miseTools,
-      actions,
-      startedAt,
-      (level, message) =>
-        Effect.sync(() => output.push(formatCliLine(level, message))),
-    );
-
-    yield* fs
-      .writeFileString(path, output.join("\n") + "\n")
-      .pipe(Effect.orDie);
   });
 }

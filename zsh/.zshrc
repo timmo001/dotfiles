@@ -810,7 +810,7 @@ alias fev="find-and-edit --visual"
 alias olw="omarchy-launch-webapp"
 alias ou="omarchy-update"
 alias ouf="omarchy-update-firmware"
-alias update="dot update system"
+alias update="dot up"
 
 # Home Assistant dev servers: shortcuts for dot homeassistant (dot ha), which
 # reads its repositories, daemons and URLs from ~/.config/dot/homeassistant.yml.

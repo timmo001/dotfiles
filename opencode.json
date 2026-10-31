@@ -110,11 +110,6 @@
     },
     {
       "action": "read",
-      "resource": "~/.config/topgrade/**",
-      "effect": "allow"
-    },
-    {
-      "action": "read",
       "resource": "~/.config/yazi/**",
       "effect": "allow"
     },
@@ -265,11 +260,6 @@
     },
     {
       "action": "edit",
-      "resource": "~/.config/topgrade/**",
-      "effect": "deny"
-    },
-    {
-      "action": "edit",
       "resource": "~/.config/yazi/**",
       "effect": "deny"
     },
@@ -401,11 +391,6 @@
     {
       "action": "external_directory",
       "resource": "~/.config/tmux/**",
-      "effect": "allow"
-    },
-    {
-      "action": "external_directory",
-      "resource": "~/.config/topgrade/**",
       "effect": "allow"
     },
     {

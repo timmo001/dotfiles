@@ -37,7 +37,6 @@ import {
   notable,
   skip,
   warn,
-  writeUpdateSummary,
 } from "../lib/updateSummary.js";
 import {
   withSpinnerTimeout,
@@ -125,6 +124,7 @@ const STEP_TIMEOUT_SECONDS = {
   pull: 8 * 60,
   stow: 3 * 60,
   miseInstall: 10 * 60,
+  miseUpgrade: 20 * 60,
   gitHooks: 60,
   agentRuntimes: 3 * 60,
   rebuild: 5 * 60,
@@ -171,11 +171,39 @@ export interface UpdateOptions {
   readonly reload?: boolean;
   /** Repository names already pulled before restart, for post-hook handling. */
   readonly postHookRepos?: readonly string[];
-  /** Write the final summary to this file instead of printing it. */
-  readonly summaryFile?: string;
   /** Epoch ms the run started, carried across restart handoffs. */
   readonly startedAt?: number;
+  /** Groups picked in `dot up`, carried across restart handoffs. */
+  readonly groups?: readonly UpGroup[];
+  /** Skip the `dot up` picker, carried across restart handoffs. */
+  readonly yes?: boolean;
+  /** Running as `dot up`'s dotfiles step: return the results instead of refreshing and printing them. */
+  readonly inUp?: boolean;
+  /** Also upgrade every global mise tool with `mise up`. */
+  readonly upgradeTools?: boolean;
 }
+
+/** What a dotfiles update did, for the `dot up` summary. */
+export interface UpdateRun {
+  /** Repositories the update moved. */
+  readonly updatedRepos: readonly UpdatedRepo[];
+  /** Mise tool versions installed, upgraded or pruned. */
+  readonly miseToolChanges: readonly MiseToolChange[];
+  /** Recap of every step. */
+  readonly completedActions: readonly RecapEntry[];
+}
+
+/** What `dot up` can run, in the order it runs them. */
+export const UP_GROUPS = [
+  "dotfiles",
+  "tools",
+  "gh",
+  "packages",
+  "system",
+] as const;
+
+/** One kind of work `dot up` can run. */
+export type UpGroup = (typeof UP_GROUPS)[number];
 
 class UpdateError extends Schema.TaggedError<UpdateError>()("UpdateError", {
   message: Schema.String,
@@ -586,10 +614,11 @@ function restartUpdateArgs(
       name,
     ]),
     ...pulledRepoNames.flatMap((name) => [POST_HOOK_REPO_ARG, name]),
-    ...(opts?.summaryFile ? ["--summary-file", opts.summaryFile] : []),
     ...(opts?.startedAt === undefined
       ? []
       : [STARTED_AT_ARG, String(opts.startedAt)]),
+    ...(opts?.groups ?? []).flatMap((group) => ["--group", group]),
+    ...(opts?.yes ? ["--yes"] : []),
   ];
 }
 
@@ -767,6 +796,73 @@ const MiseConfigTools = Schema.Struct({
   tools: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
 });
 
+/**
+ * Upgrade every global mise tool with no release delay; a per-tool
+ * `minimum_release_age` still applies. Returns the tools that moved.
+ */
+const upgradeMiseTools = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const log = yield* OutputLog;
+
+  yield* log.section("Upgrade Mise Tools");
+
+  if ((yield* executor.exitCode("which", ["mise"])) !== 0) {
+    yield* log.warn("Skipping mise upgrade (mise not installed)");
+
+    return {
+      tools: [],
+      recap: warn("Mise upgrade skipped (mise not installed)"),
+    } satisfies MiseStepResult;
+  }
+
+  const installedVersions = miseToolVersions("--installed").pipe(
+    Effect.orElseSucceed((): typeof MiseToolVersions.Type => ({})),
+  );
+
+  const before = yield* installedVersions;
+
+  const exitCode = yield* executor.inherit("mise", ["up"], {
+    cwd: HOME_DIR,
+    env: { MISE_MINIMUM_RELEASE_AGE: "0" },
+  });
+
+  if (exitCode !== 0) {
+    return yield* new UpdateError({ message: `mise up exited ${exitCode}` });
+  }
+
+  const after = yield* installedVersions;
+
+  const tools = Object.entries(after).flatMap(([tool, versions]) => {
+    const latest = versions.at(-1)?.version;
+    const previous = before[tool]?.at(-1)?.version;
+
+    if (!latest || latest === previous) return [];
+
+    return [
+      previous
+        ? ({
+            change: "updated",
+            tool,
+            version: latest,
+            previous,
+          } satisfies MiseToolChange)
+        : ({
+            change: "installed",
+            tool,
+            version: latest,
+          } satisfies MiseToolChange),
+    ];
+  });
+
+  return {
+    tools,
+    recap:
+      tools.length > 0
+        ? notable(`Upgraded ${plural(tools.length, "mise tool")}`)
+        : skip("Mise tools already up to date"),
+  } satisfies MiseStepResult;
+});
+
 const MiseToolNames = Schema.fromJsonString(Schema.Array(Schema.String));
 
 /** Tool names in the global mise config, or none if it cannot be read. */
@@ -868,6 +964,77 @@ const pruneRemovedMiseTools = Effect.gen(function* () {
         ? notable(`Pruned ${plural(pruned.length, "mise tool version")}`)
         : skip("No mise tool versions pruned (still in use)"),
   } satisfies MiseStepResult;
+});
+
+/**
+ * Install missing mise tools, optionally upgrade them all, prune removed ones,
+ * then refresh the agent runtimes, so plugins and services match the tools.
+ */
+export const refreshTools = Effect.fn("Update.refreshTools")(function* (
+  upgrade: boolean,
+) {
+  const log = yield* OutputLog;
+  const tools: MiseToolChange[] = [];
+  const actions: RecapEntry[] = [];
+
+  const recordMiseStep = (result: MiseStepResult) => {
+    tools.push(...result.tools);
+    actions.push(result.recap);
+  };
+
+  yield* requiredUpdateStep(
+    "Install Mise Tools",
+    STEP_TIMEOUT_SECONDS.miseInstall,
+    installMissingMiseTools.pipe(Effect.map(recordMiseStep)),
+  );
+
+  if (upgrade) {
+    yield* requiredUpdateStep(
+      "Upgrade Mise Tools",
+      STEP_TIMEOUT_SECONDS.miseUpgrade,
+      upgradeMiseTools.pipe(Effect.map(recordMiseStep)),
+    );
+  }
+
+  yield* requiredUpdateStep(
+    "Prune Mise Tools",
+    STEP_TIMEOUT_SECONDS.miseInstall,
+    pruneRemovedMiseTools.pipe(Effect.map(recordMiseStep)),
+  );
+
+  yield* requiredUpdateStep(
+    "Git Hooks",
+    STEP_TIMEOUT_SECONDS.gitHooks,
+    ensureGlobalHkHooks.pipe(
+      Effect.map((recap) => {
+        actions.push(recap);
+      }),
+    ),
+  );
+
+  const refreshed = yield* withStepTimeout(
+    "Agent Runtimes",
+    STEP_TIMEOUT_SECONDS.agentRuntimes,
+    Effect.gen(function* () {
+      yield* log.section("Agent Runtimes");
+
+      actions.push(
+        ...(yield* Effect.all(
+          [
+            // Services first: a stale service can hold a daemon's port
+            Effect.all([restartStaleServices, restartStalePitchforkDaemons]),
+            // Sequential: both write Pi's package directory
+            Effect.all([updatePiExtensions, updatePlannotatorPlugins]),
+          ],
+          { concurrency: "unbounded" },
+        )).flat(),
+      );
+    }),
+  );
+
+  if (!refreshed) actions.push(warn("Agent runtime refresh timed out"));
+
+  return { tools, actions };
 });
 
 /** Read the Herdr Lazy plugin root from `herdr plugin list --json`. */
@@ -1221,7 +1388,7 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
       yield* log.info(`  ${item}`);
     }
 
-    yield* log.info("Run `dot update` to apply.");
+    yield* log.info("Run `dot up` to apply.");
     yield* Effect.sync(() => {
       process.exitCode = UPDATE_CHECK_AVAILABLE_EXIT;
     });
@@ -1251,7 +1418,7 @@ const haltOnLegacyHyprRepo = (config: ConfigService) =>
     yield* log.error(
       "Hypr config is now a stowed dotfiles package — update halted.",
     );
-    yield* log.info("Resolve on this machine, then re-run dot update:");
+    yield* log.info("Resolve on this machine, then re-run dot up:");
     yield* log.info(`  mv ${path} ${path}.bak`);
     yield* log.info("  dot stow --public");
     yield* log.info(`  cp -a ${path}.bak/shaders ${path}/`);
@@ -1333,7 +1500,7 @@ export const update = (updateOpts?: UpdateOptions) =>
     } else {
       const selfUpdate = yield* selfUpdateAndRestart(config, opts, doPull);
 
-      if (selfUpdate.restarted) return;
+      if (selfUpdate.restarted) return "restarted" as const;
       privatePulled = selfUpdate.privatePulled;
       completedActions.push(skip("Self-update found no dotfiles changes"));
     }
@@ -1345,7 +1512,7 @@ export const update = (updateOpts?: UpdateOptions) =>
     if (doPull || doStow) {
       const halted = yield* haltOnLegacyHyprRepo(config);
 
-      if (halted) return;
+      if (halted) return "halted" as const;
     }
 
     if (
@@ -1361,7 +1528,7 @@ export const update = (updateOpts?: UpdateOptions) =>
         yield* log.info("Restarting update to reload private configuration");
         yield* restartDot(restartUpdateArgs(opts, repoName));
 
-        return;
+        return "restarted" as const;
       }
     }
 
@@ -1669,59 +1836,9 @@ export const update = (updateOpts?: UpdateOptions) =>
         skip("Mise tools skipped (pull and stow phases not selected)"),
       );
     } else {
-      const recordMiseStep = ({ tools, recap }: MiseStepResult) => {
-        miseToolChanges.push(...tools);
-        completedActions.push(recap);
-      };
-
-      yield* requiredUpdateStep(
-        "Install Mise Tools",
-        STEP_TIMEOUT_SECONDS.miseInstall,
-        installMissingMiseTools.pipe(Effect.map(recordMiseStep)),
-      );
-
-      yield* requiredUpdateStep(
-        "Prune Mise Tools",
-        STEP_TIMEOUT_SECONDS.miseInstall,
-        pruneRemovedMiseTools.pipe(Effect.map(recordMiseStep)),
-      );
-
-      yield* requiredUpdateStep(
-        "Git Hooks",
-        STEP_TIMEOUT_SECONDS.gitHooks,
-        ensureGlobalHkHooks.pipe(
-          Effect.map((recap) => {
-            completedActions.push(recap);
-          }),
-        ),
-      );
-
-      const refreshed = yield* withStepTimeout(
-        "Agent Runtimes",
-        STEP_TIMEOUT_SECONDS.agentRuntimes,
-        Effect.gen(function* () {
-          yield* log.section("Agent Runtimes");
-
-          completedActions.push(
-            ...(yield* Effect.all(
-              [
-                // Services first: a stale service can hold a daemon's port
-                Effect.all([
-                  restartStaleServices,
-                  restartStalePitchforkDaemons,
-                ]),
-                // Sequential: both write Pi's package directory
-                Effect.all([updatePiExtensions, updatePlannotatorPlugins]),
-              ],
-              { concurrency: "unbounded" },
-            )).flat(),
-          );
-        }),
-      );
-
-      if (!refreshed) {
-        completedActions.push(warn("Agent runtime refresh timed out"));
-      }
+      const refreshed = yield* refreshTools(opts.upgradeTools === true);
+      miseToolChanges.push(...refreshed.tools);
+      completedActions.push(...refreshed.actions);
     }
 
     // The running shell watches shell.json and its plugin directories and
@@ -1846,12 +1963,20 @@ export const update = (updateOpts?: UpdateOptions) =>
       }
     }
 
+    if (opts.inUp) {
+      return {
+        updatedRepos,
+        miseToolChanges,
+        completedActions,
+      } satisfies UpdateRun;
+    }
+
     const executor = yield* CommandExecutor;
 
     const refreshExitCode = yield* executor.exitCode("dot", [
       "updates",
       "refresh",
-      "--dot-only",
+      "--quick",
     ]);
 
     yield* refreshExitCode === 0
@@ -1864,18 +1989,16 @@ export const update = (updateOpts?: UpdateOptions) =>
         : warn(`Update status refresh failed (exit ${refreshExitCode})`),
     );
 
-    yield* opts.summaryFile
-      ? writeUpdateSummary(
-          opts.summaryFile,
-          updatedRepos,
-          miseToolChanges,
-          completedActions,
-          startedAt,
-        )
-      : logUpdateSummary(
-          updatedRepos,
-          miseToolChanges,
-          completedActions,
-          startedAt,
-        );
+    yield* logUpdateSummary(
+      updatedRepos,
+      miseToolChanges,
+      completedActions,
+      startedAt,
+    );
+
+    return {
+      updatedRepos,
+      miseToolChanges,
+      completedActions,
+    } satisfies UpdateRun;
   });

@@ -48,6 +48,7 @@ import {
 import { ENV, envFlag, envString, setEnv } from "../lib/env.js";
 import { cliStyler } from "../lib/ansi.js";
 import { logRunSummary } from "../lib/runSummary.js";
+import { syncRootPatches } from "../lib/omarchyPatches.js";
 import type { ConfigService } from "../services/Config.js";
 
 const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
@@ -203,7 +204,7 @@ function assertFreshInitTarget(
 
     if (yield* pathExists(completeMarker)) {
       return yield* fail(
-        `dot init has already completed on this machine (${displayPath(completeMarker)}). Use dot update for ongoing maintenance.`,
+        `dot init has already completed on this machine (${displayPath(completeMarker)}). Use dot up for ongoing maintenance.`,
       );
     }
 
@@ -219,7 +220,7 @@ function assertFreshInitTarget(
 
     if (signals.length >= 2) {
       return yield* fail(
-        `This machine already looks initialised: ${signals.join(", ")}. Use dot update for ongoing maintenance.`,
+        `This machine already looks initialised: ${signals.join(", ")}. Use dot up for ongoing maintenance.`,
       );
     }
   });
@@ -926,6 +927,19 @@ export function init(
       configureGitInclude(config),
     );
     yield* step(
+      "Install Omarchy Patches",
+      INIT_STEP_TIMEOUT_SECONDS.hooks,
+      syncRootPatches().pipe(
+        Effect.flatMap((synced) =>
+          synced === null
+            ? OutputLog.use((log) =>
+                log.warn("Could not install the Omarchy patches and hook"),
+              )
+            : Effect.void,
+        ),
+      ),
+    );
+    yield* step(
       "Install Pacman Hooks",
       INIT_STEP_TIMEOUT_SECONDS.hooks,
       installPacmanHooks(),
@@ -966,7 +980,7 @@ export function init(
       `  After reboot, run ${style.command("dot doctor")} to verify this setup`,
     );
     yield* log.info(
-      `  For ongoing maintenance, run ${style.command("dot update")}`,
+      `  For ongoing maintenance, run ${style.command("dot up")}`,
     );
   }).pipe(withSudoKeepAlive);
 }

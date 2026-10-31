@@ -72,7 +72,7 @@ end)
 o.bind(
   "SUPER + CTRL + ALT + U",
   "Update",
-  [[dot herdr repo open dotfiles "${DOTFILES_PUBLIC_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles}" Update update]]
+  [[dot herdr repo open dotfiles "${DOTFILES_PUBLIC_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles}" Update "dot up"]]
 )
 hl.unbind("SUPER + SHIFT + F")
 o.bind("SUPER + SHIFT + F", "Add floating application", "/usr/bin/float-app add")

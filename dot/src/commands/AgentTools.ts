@@ -149,11 +149,11 @@ const AGENT_TOOLS = {
   "mcp sync": { access: "write" },
   "agent sync": { access: "write" },
   stow: { access: "write", timeout: "5 minutes" },
-  update: {
+  up: {
     access: "write",
     jobOnly: true,
-    timeout: "30 minutes",
-    omit: ["no-self-update", "post-hook-repo", "summary-file", "started-at"],
+    timeout: "60 minutes",
+    omit: ["no-self-update", "post-hook-repo", "started-at", "group"],
     exitCodes: [0, 10],
   },
   "updates refresh": { access: "write", timeout: "5 minutes" },

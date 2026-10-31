@@ -1,5 +1,5 @@
 /**
- * @file Shows the dotfiles, skills and package update counts in the prompt footer, from `dot updates status --json`.
+ * @file Shows pending update and missing install counts in the prompt footer, from `dot updates status --json`.
  */
 
 import { Plugin, usePlugin } from "@opencode/plugin/tui";
@@ -11,10 +11,12 @@ import { runText } from "../lib/process";
 // The parts of `dot updates status --json` this plugin reads.
 const Status = Schema.fromJsonString(
   Schema.Struct({
-    skills: Schema.NullOr(
+    groups: Schema.Array(
       Schema.Struct({
-        behind: Schema.Number,
-        changed: Schema.Array(Schema.String),
+        id: Schema.String,
+        title: Schema.String,
+        pending: Schema.Array(Schema.String),
+        missing: Schema.Array(Schema.String),
       }),
     ),
     bar: Schema.Struct({
@@ -30,8 +32,6 @@ const Status = Schema.fromJsonString(
 
 type Current = typeof Status.Type;
 
-const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
-
 // Reads the cache, which dot refreshes in the background once it is stale.
 const read = () =>
   Effect.runPromise(
@@ -46,24 +46,41 @@ export default Plugin.define({
   id: "skill-updates",
   setup(context) {
     const [status, setStatus] = createSignal<Current | null>(null);
-    let announced = "";
+    let announced = new Set<string>();
 
     const poll = async () => {
       const next = await read();
 
       setStatus(next);
 
-      const skills = next?.skills;
-      const print = skills && skills.behind > 0 ? `${skills.behind}:${skills.changed.join(",")}` : "";
+      if (!next) return;
 
-      if (print && print !== announced) {
+      const items = new Set(
+        next.groups.flatMap((group) => [
+          ...group.pending.map((line) => `${group.id}:${line}`),
+          ...group.missing.map((name) => `${group.id}:missing:${name}`),
+        ]),
+      );
+
+      const fresh = next.groups.flatMap((group) => {
+        const pending = group.pending.filter((line) => !announced.has(`${group.id}:${line}`)).length;
+        const missing = group.missing.filter((name) => !announced.has(`${group.id}:missing:${name}`)).length;
+
+        if (pending === 0 && missing === 0) return [];
+
+        return [
+          `${group.title}: ${[pending > 0 && `${pending} new`, missing > 0 && `${missing} missing`].filter(Boolean).join(", ")}`,
+        ];
+      });
+
+      if (fresh.length > 0) {
         context.ui.toast.show({
-          message: `Skills are ${plural(skills?.behind ?? 0, "commit")} behind. Run dot update to get them.`,
-          variant: "info",
+          message: `${fresh.join(". ")}. Run dot up to get them.`,
+          variant: next.groups.some((group) => group.missing.length > 0) ? "warning" : "info",
         });
       }
 
-      announced = print;
+      announced = items;
     };
 
     void poll();
@@ -84,10 +101,12 @@ export default Plugin.define({
             </text>
           </box>
           <box>
-            <For each={status()?.bar.tooltip.split("\n")}>{(line) => <text fg={theme.text.base}>{line}</text>}</For>
+            <For each={status()?.bar.tooltip.replace(/\n\nClick to run dot up$/, "").split("\n")}>
+              {(line) => <text fg={theme.text.base}>{line}</text>}
+            </For>
           </box>
-          <Show when={status()?.bar.class === "updates"}>
-            <text fg={theme.text.muted}>Run dot update to get them.</text>
+          <Show when={status()?.bar.class === "updates" || status()?.bar.class === "updates-missing"}>
+            <text fg={theme.text.muted}>Run dot up to get them.</text>
           </Show>
         </box>
       );
@@ -106,7 +125,13 @@ export default Plugin.define({
           {(current) => (
             <box flexShrink={0}>
               <text
-                fg={current().bar.class === "updates" ? plugin.theme.text.feedback.warning.base : plugin.theme.text.muted}
+                fg={
+                  current().groups.some((group) => group.missing.length > 0)
+                    ? plugin.theme.text.feedback.error.base
+                    : current().bar.class === "updates"
+                      ? plugin.theme.text.feedback.warning.base
+                      : plugin.theme.text.muted
+                }
                 onMouseUp={view}
               >
                 {current().footer.text}

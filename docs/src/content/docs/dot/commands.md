@@ -17,7 +17,7 @@ Run one-time first-use machine setup
 dot init [flags]
 ```
 
-Run the one-time first-use setup workflow for a fresh machine. Init prepares repos, stow links, mise tools, packages, and machine hooks, and trusts mise configs in tracked repos. After init completes, reboot so the Omarchy session picks up host env, then run dot doctor. Before the bounded workflow starts, init updates or clones the optional private overlay according to DOT_ALLOW_PRIVATE. Use dot update for ongoing maintenance.
+Run the one-time first-use setup workflow for a fresh machine. Init prepares repos, stow links, mise tools, packages, and machine hooks, and trusts mise configs in tracked repos. After init completes, reboot so the Omarchy session picks up host env, then run dot doctor. Before the bounded workflow starts, init updates or clones the optional private overlay according to DOT_ALLOW_PRIVATE. Use dot up for ongoing maintenance.
 
 **Options**
 
@@ -52,21 +52,29 @@ dot install [flags]
 | --- | --- |
 | `--help` `-h` | Show help information |
 
-## `dot update`
+## `dot up`
 
-Aliases: `dot up`
+Aliases: `dot update`
 
-Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update, --post-hook-repo and --started-at flags support the active self-update handoff; internal --summary-file lets update system print the summary last.
+Check everything, pick what to update, then run it: dotfiles, mise tools, gh extensions, missing packages and omarchy update. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at and --group flags carry a run across the self-update restart.
 
 ```text
-dot update <subcommand> [flags]
+dot up [flags]
 ```
 
-A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, installs missing public Arch/AUR packages, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and refreshes shell modules. It never restarts the shell: the running shell applies a changed generated config or deployed Omarchy plugin itself. It finishes with a summary of updated repositories and every completed or skipped step, in order.
+dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending pacman and AUR packages, packages from the public and private lists that aren't installed, Omarchy and gh extensions. It saves the result for the bar, lists it, then asks which groups to run, all ticked. --yes, or a run without a terminal, runs every group with work. Groups run in order, each numbered with a one-line description:
 
-Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip full-update package reconciliation, agents sync, and init-marker backfill.
+1. Dotfiles: pulls the public dotfiles, rebuilds and relaunches dot, scans and pulls tracked repositories, moves the skills checkout to the latest skills main, syncs MCP config, stows, installs mise tools, refreshes agent runtimes, syncs agent instructions, reloads agents and refreshes shell modules. Pulls are fast-forward-only and never stash or rebase.
+2. Mise tools: installs missing tools and runs mise up with no release delay.
+3. gh extensions: installs missing ones and upgrades the rest.
+4. Missing packages: installs packages from the public and private lists.
+5. System: installs the Omarchy patch hook root-owned, then hands over to omarchy update for pacman, AUR and Omarchy updates. When a dotfiles patch no longer applies to the pending Omarchy, it holds the system update back and offers a Herdr agent to fix the patch.
 
-Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands, skipping the dotfiles rebuild and stow. Herdr plugins are refreshed only inside Herdr. The Git panel uses --no-reload to skip agent reload and module refresh.
+It finishes with a summary of updated repositories, mise tools and every step.
+
+--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.
+
+Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands. The Git panel uses --no-reload to skip agent reload and module refresh.
 
 **Options**
 
@@ -76,52 +84,35 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--pull` | Run the repository pull phase only |
 | `--stow` | Generate completions, sync MCP configs, and stow only |
 | `--app` | Install Bun dependencies and rebuild the dot binary only |
-| `--check` | Report dotfiles pulls, pending pins and stow changes, skipping local work |
+| `--check` | Report everything dot up would update or install, without changing anything |
+| `--check-repos` | Report only dotfiles pulls, pending pins and stow changes, skipping local work |
 | `--check-all` | Also check development repos for pulls, skipping local work |
+| `--yes` | Run every group with work without asking, and pass -y to omarchy update |
+| `--force` | Offer every group, even with nothing pending |
+| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, tools, gh, packages, system) |
 | `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
-| `--summary-file` `<string>` | Internal: write the final summary to this file instead of printing it |
 | `--started-at` `<integer>` | Internal: epoch ms the run started, for the summary timing |
 | `--help` `-h` | Show help information |
 
 **Exit codes**
 
 ```text
-0   Update completed, or no actionable updates were found
-1   Fatal workflow failure
+0   Update completed, or nothing to update
+1   Fatal workflow failure, or the system update was held back
 2   Update check could not finish
-10  Update check found pulls, pending pins or stow changes
+10  Update check found work
 11  Legacy Hypr migration is required
 ```
-
-### `dot update system`
-
-Run omarchy update, which then runs the Dotfiles and Topgrade updates
-
-```text
-dot update system [flags]
-```
-
-Hand over to omarchy update. Its post-update hook runs dot update system --omarchy-hook, which selects and runs the other steps in order: Dotfiles, GitHub CLI extensions, and Topgrade, while Omarchy still holds its sudo authorisation, so the whole update asks for the password once. Interactive runs pre-select Dotfiles and GitHub CLI extensions; Topgrade steps start unselected. Non-interactive runs and --yes select every step. Cancelling the prompt skips them.
-
---step runs only the steps given, here and without omarchy update.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--yes` | Run omarchy update with -y, and select every other update without prompting |
-| `--step` `<choice>` | Run only this step here, without omarchy update or prompting; repeat for several (choices: dotfiles, github-cli, yazi, protonplus, firmware, rustup, tldr, vim, containers, claude_code, claude_code_plugins, uv) |
-| `--omarchy-hook` | Internal: run from Omarchy's post-update hook to select and run the other updates |
-| `--help` `-h` | Show help information |
 
 **Examples**
 
 ```bash
-dot update system
-dot update system --yes
-dot update system --step dotfiles --step github-cli
+dot up
+dot up --check
+dot up --yes
+dot up --stow
 ```
 
 ## `dot deps`
@@ -365,13 +356,13 @@ dot status run --title 'Core' --url https://dev.example.localhost --setup 'scrip
 
 ## `dot updates`
 
-Check watched package, Dotfiles and skills updates for the status bar
+Check everything dot up updates, for the status bar and OpenCode
 
 ```text
 dot updates <subcommand> [flags]
 ```
 
-Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched repository/AUR packages, all dot-managed repositories and whether the managed skills checkout is behind timmo001/skills main, writes the cache atomically under a shared lock, and notifies the Omarchy shell. status --json prints the cached sections and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --package-file, --cache-dir and --timeout to override defaults.
+Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks the dotfiles and dot-managed repositories, the managed skills checkout against timmo001/skills main, outdated and missing mise tools, every pending pacman and AUR update, packages from the public and private lists that aren't installed, Omarchy and missing gh extensions. It writes the cache atomically under a shared lock and notifies the Omarchy shell. status --json prints the cached status, its groups and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --cache-dir and --timeout to override defaults.
 
 **Options**
 
@@ -410,7 +401,7 @@ dot updates status --json
 
 ### `dot updates refresh`
 
-Refresh package, Dotfiles and skills status and notify the shell
+Refresh the update status and notify the shell
 
 ```text
 dot updates refresh [flags]
@@ -420,18 +411,17 @@ dot updates refresh [flags]
 
 | Option | Description |
 | --- | --- |
-| `--package-file` `<path>` | Watched package list (default: public dotfiles manifest) |
 | `--cache-dir` `<path>` | Status cache directory (default: XDG status-bar cache) |
 | `--timeout` `<integer>` | Maximum seconds for each external check |
 | `--scheduled` | Respect the AUR request backoff |
-| `--dot-only` | Refresh only Dotfiles status, keeping cached package status |
+| `--quick` | Skip the package and Omarchy checks, keeping their cached status |
 | `--help` `-h` | Show help information |
 
 **Examples**
 
 ```bash
 dot updates refresh
-dot updates refresh --dot-only
+dot updates refresh --quick
 ```
 
 ## `dot services`

@@ -143,6 +143,22 @@ function missingPackages(
   });
 }
 
+/**
+ * Packages in a scope's list that aren't installed. Empty when the private
+ * overlay is unavailable; null when the list can't be read.
+ */
+export const missingArchPackages = Effect.fn("PackageSetup.missing")(function* (
+  scope: ArchPackageScope,
+) {
+  const config = yield* Config;
+
+  if (scope === "private" && !config.canUsePrivate) return [];
+
+  return yield* missingPackages(config, scope).pipe(
+    Effect.orElseSucceed(() => null),
+  );
+});
+
 function installWithOmarchyPkgAdd(
   packageName: string,
   reason: string,

@@ -52,7 +52,7 @@ export const checkNvimThemeLink = Effect.gen(function* () {
         severity: "warn",
         message: `Neovim theme link broken (${path})`,
         detail:
-          "No omarchy current theme spec found; set an omarchy theme, then run dot update.",
+          "No omarchy current theme spec found; set an omarchy theme, then run dot up.",
       },
     ] satisfies CheckResult[];
   }
@@ -61,7 +61,7 @@ export const checkNvimThemeLink = Effect.gen(function* () {
     {
       severity: "warn",
       message: `Neovim theme link broken (${path})`,
-      detail: `Points nowhere (omarchy-nvim mislocated link); run dot update to repair -> ${link.desiredLinkContent}`,
+      detail: `Points nowhere (omarchy-nvim mislocated link); run dot up to repair -> ${link.desiredLinkContent}`,
     },
   ] satisfies CheckResult[];
 });
