@@ -17,7 +17,7 @@ Run one-time first-use machine setup
 dot init [flags]
 ```
 
-Run the one-time first-use setup workflow for a fresh machine. Init prepares repos, stow links, mise tools, apt packages, the firewall and the login shell, and trusts mise configs in tracked repos. After init completes, enable lingering so user services run without a login, log in again, then run dot doctor. Before the bounded workflow starts, init updates or clones the optional private overlay according to DOT_ALLOW_PRIVATE. Use dot update for ongoing maintenance.
+Run the one-time first-use setup workflow for a fresh machine. Init prepares repos, stow links, mise tools, apt packages, the firewall and the login shell, and trusts mise configs in tracked repos. After init completes, enable lingering so user services run without a login, log in again, then run dot doctor. Before the bounded workflow starts, init updates or clones the optional private overlay according to DOT_ALLOW_PRIVATE. Use dot up for ongoing maintenance.
 
 **Options**
 
@@ -48,21 +48,30 @@ dot install [flags]
 | --- | --- |
 | `--help` `-h` | Show help information |
 
-## `dot update`
+## `dot up`
 
-Aliases: `dot up`
+Aliases: `dot update`
 
-Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update, --post-hook-repo and --started-at flags support the active self-update handoff; internal --summary-file lets update system print the summary last.
+Check everything, pick what to update, then run it: dotfiles, mise tools, gh extensions, missing packages, apt and release packages, and compose up. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at and --group flags carry a run across the self-update restart.
 
 ```text
-dot update <subcommand> [flags]
+dot up <subcommand> [flags]
 ```
 
-A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and starts the doctor check. On the server branch it then runs dot update branch unless --no-branch is given. It finishes with a summary of updated repositories and every completed or skipped step, in order.
+dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and gh extensions. It saves the result for the status cache, lists it, then asks which groups to run, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order, each numbered with a one-line description:
 
-Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip agents sync and init-marker backfill.
+1. Dotfiles: pulls the public dotfiles, rebuilds and relaunches dot, scans and pulls tracked repositories, moves the skills checkout to the latest skills main, syncs MCP config, stows, installs mise tools, refreshes agent runtimes, syncs agent instructions, reloads agents and starts the doctor check. Pulls are fast-forward-only and never stash or rebase.
+2. Mise tools: installs missing tools and runs mise up with no release delay.
+3. gh extensions: installs missing ones and upgrades the rest.
+4. Missing packages: installs apt packages from the public and private lists.
+5. System: runs apt-get update and upgrade (with -y under --yes), then installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs.
+6. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.
 
-Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands, skipping the dotfiles rebuild and stow. Herdr plugins are refreshed only inside Herdr. --no-reload skips the agent reload and doctor check.
+On the server branch it then runs dot up branch unless --no-branch is given. It finishes with a summary of updated repositories, mise tools and every step.
+
+--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.
+
+Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands. --no-reload skips the agent reload and doctor check.
 
 **Options**
 
@@ -72,61 +81,46 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--pull` | Run the repository pull phase only |
 | `--stow` | Generate completions, sync MCP configs, and stow only |
 | `--app` | Install Bun dependencies and rebuild the dot binary only |
-| `--check` | Report dotfiles pulls, pending pins and stow changes, skipping local work |
+| `--check` | Report everything dot up would update or install, without changing anything |
+| `--check-repos` | Report only dotfiles pulls, pending pins and stow changes, skipping local work |
 | `--check-all` | Also check development repos for pulls, skipping local work |
+| `--yes` | Run every group with work without asking, and pass -y to apt-get upgrade |
+| `--force` | Offer every group, even with nothing pending |
+| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, tools, gh, packages, system, compose) |
 | `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
 | `--no-branch` | Skip the final branch update, which opens an agent to rebase behind server and cloud branches |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
-| `--summary-file` `<string>` | Internal: write the final summary to this file instead of printing it |
 | `--started-at` `<integer>` | Internal: epoch ms the run started, for the summary timing |
 | `--help` `-h` | Show help information |
 
 **Exit codes**
 
 ```text
-0   Update completed, or no actionable updates were found
-1   Fatal workflow failure
+0   Update completed, or nothing to update
+1   Fatal workflow failure, or a group failed
 2   Update check could not finish
-10  Update check found pulls, pending pins or stow changes
+10  Update check found work
 ```
-
-### `dot update system`
-
-Select and run Dotfiles, apt, release package, compose-up and Topgrade updates
-
-```text
-dot update system [flags]
-```
-
-Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, compose-up, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select Dotfiles, apt packages, release packages, GitHub CLI extensions, and compose-up; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates. When Dotfiles runs, dot update branch runs last.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--yes` | Select every update without prompting |
-| `--step` `<choice>` | Run only this step without prompting; repeat for several (choices: dotfiles, apt, releases, github-cli, compose, yazi, rustup, tldr, vim, claude_code, claude_code_plugins, uv) |
-| `--no-self-update` | Skip dot update's self-update pull when the dotfiles are already pulled |
-| `--help` `-h` | Show help information |
 
 **Examples**
 
 ```bash
-dot update system
-dot update system --yes
-dot update system --step dotfiles --step github-cli
+dot up
+dot up --check
+dot up --yes
+dot up --stow
 ```
 
-### `dot update branch`
+### `dot up branch`
 
 Open an agent to rebase the distro branches when they are behind
 
 ```text
-dot update branch [flags]
+dot up branch [flags]
 ```
 
-Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fast-forwards the permanent distro/cloud and distro/opencode-app worktrees at ~/.local/share/dot/dotfiles-cloud and ~/.local/share/dot/dotfiles-opencode-app, then checks whether distro/ubuntu-server is behind distro/arch-omarchy-quattro or either of those is behind distro/ubuntu-server, ignoring commits that only regenerate the distro diff page. When one is, it opens an OpenCode agent named branch-update in Herdr to follow the rebase steps in AGENTS.md, check and push. Nothing opens when all are up to date, a rebase is already in progress, the agent is already open, or dot runs under an agent. A full dot update and dot update system run it last; --no-branch skips it.
+Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fast-forwards the permanent distro/cloud and distro/opencode-app worktrees at ~/.local/share/dot/dotfiles-cloud and ~/.local/share/dot/dotfiles-opencode-app, then checks whether distro/ubuntu-server is behind distro/arch-omarchy-quattro or either of those is behind distro/ubuntu-server, ignoring commits that only regenerate the distro diff page. When one is, it opens an OpenCode agent named branch-update in Herdr to follow the rebase steps in AGENTS.md, check and push. Nothing opens when all are up to date, a rebase is already in progress, the agent is already open, or dot runs under an agent. dot up runs it last; --no-branch skips it.
 
 **Options**
 
@@ -137,7 +131,7 @@ Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fa
 **Examples**
 
 ```bash
-dot update branch
+dot up branch
 ```
 
 ## `dot deps`
@@ -309,7 +303,7 @@ Pull and start compose files, then prune unused Docker data
 dot compose up [flags] [<file...>]
 ```
 
-Reads ~/.config/dot/compose.yml: directory (compose files), optional envFile (sourced with bash; its exported variables reach docker compose) and optional pruneAfterHours (default 720). For each file, runs docker compose pull then up -d --remove-orphans, carrying on past a failed file, then runs docker system prune -af for data older than pruneAfterHours. Its messages and Docker's output are also written to the run's log in ~/.local/state/dot/logs. dot update system offers it as a step when the config exists.
+Reads ~/.config/dot/compose.yml: directory (compose files), optional envFile (sourced with bash; its exported variables reach docker compose) and optional pruneAfterHours (default 720). For each file, runs docker compose pull then up -d --remove-orphans, carrying on past a failed file, then runs docker system prune -af for data older than pruneAfterHours. Its messages and Docker's output are also written to the run's log in ~/.local/state/dot/logs. dot up offers it as a group when the config exists.
 
 **Options**
 
@@ -464,13 +458,13 @@ dot status run --title 'Core' --url https://dev.example.localhost --setup 'scrip
 
 ## `dot updates`
 
-Check watched package, Dotfiles and skills updates
+Check everything dot up updates, for status readers and OpenCode
 
 ```text
 dot updates <subcommand> [flags]
 ```
 
-Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched apt packages, all dot-managed repositories and whether the managed skills checkout is behind timmo001/skills main, and writes the cache atomically under a shared lock. status --json prints the cached sections and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Use --package-file, --cache-dir and --timeout to override defaults.
+Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks the dotfiles and dot-managed repositories, the managed skills checkout against timmo001/skills main, outdated and missing mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and missing gh extensions. It writes the cache atomically under a shared lock. status --json prints the cached status, its groups and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Use --cache-dir and --timeout to override defaults.
 
 **Options**
 
@@ -509,7 +503,7 @@ dot updates status --json
 
 ### `dot updates refresh`
 
-Refresh package, Dotfiles and skills status
+Refresh the update status
 
 ```text
 dot updates refresh [flags]
@@ -519,17 +513,16 @@ dot updates refresh [flags]
 
 | Option | Description |
 | --- | --- |
-| `--package-file` `<path>` | Watched package list (default: public dotfiles manifest) |
 | `--cache-dir` `<path>` | Status cache directory (default: XDG status-bar cache) |
 | `--timeout` `<integer>` | Maximum seconds for each external check |
-| `--dot-only` | Refresh only Dotfiles status, keeping cached package status |
+| `--quick` | Skip the apt and release package checks, keeping their cached status |
 | `--help` `-h` | Show help information |
 
 **Examples**
 
 ```bash
 dot updates refresh
-dot updates refresh --dot-only
+dot updates refresh --quick
 ```
 
 ## `dot services`
@@ -1405,6 +1398,56 @@ Regenerate the notes capture repository picker from repositories with GitHub not
 
 ```bash
 dot notes capture sync
+```
+
+## `dot setup`
+
+Set up Herdr machines
+
+```text
+dot setup <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot setup herdr`
+
+Set up Herdr
+
+```text
+dot setup herdr <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot setup herdr machines`
+
+Save the Herdr SSH machines from the private machine list
+
+```text
+dot setup herdr machines [flags]
+```
+
+Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's saved-machine catalog (~/.local/state/herdr/client/endpoints.json), in the list's order and with its profile IDs, labels, SSH targets and sessions, so every device has the same machines. A machine whose host is this device's hostname is left out, so a device never lists itself. Herdr keeps the catalog in client state rather than config, so dot stow can't link it. A machine this device already has keeps its enabled state, so toggles survive; enabled in the list only applies when it's added. Machines the list doesn't name are kept after it. Open Herdr clients pick up the change. dot up runs the same step and only reports it when it saves machines or fails, so a device without the list, or whose machines already match, sees nothing. Host keys and remote installs stay with Herdr: run herdr machine reconnect <label> once for a new machine.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot setup herdr machines
 ```
 
 ## `dot git`

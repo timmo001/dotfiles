@@ -1,13 +1,14 @@
 /**
  * @file Checks for everything `dot up` updates or installs: dotfiles, skills,
- * mise tools, system packages, Omarchy and gh extensions. The status bar cache
- * and `dot up` share these checks.
+ * mise tools, apt packages, GitHub release packages and gh extensions. The
+ * status cache and `dot up` share these checks.
  */
 
-import { Clock, Effect, FileSystem, Match, Option, Schema } from "effect";
+import { Effect, Match, Option, Schema } from "effect";
 import { lines, query, type QueryResult } from "./boundedQuery.js";
 import { HOME_DIR } from "./paths.js";
-import { missingArchPackages } from "./packageSetup.js";
+import { missingListedPackages } from "./packageSetup.js";
+import { pendingDebReleases } from "./debReleases.js";
 import { Config } from "../services/Config.js";
 import {
   ghExtensionsListPath,
@@ -15,7 +16,6 @@ import {
   loadGhExtensions,
 } from "./ghExtensions.js";
 import { SKILLS_CHECKOUT } from "./skillsMaintenance.js";
-import { patchDrift } from "./omarchyPatches.js";
 
 export { query, type QueryResult };
 
@@ -59,19 +59,17 @@ export const ToolsStatus = Schema.Struct({
 /** Global mise tools with a newer version, and those not installed. */
 export interface ToolsStatus extends Schema.Schema.Type<typeof ToolsStatus> {}
 
-/** Pending pacman and AUR updates, and listed packages not installed. */
+/** Pending apt upgrades, and listed packages not installed. */
 export const PackagesStatus = Schema.Struct({
-  /** `name old -> new` lines from checkupdates and yay. */
+  /** `name old -> new` lines from `apt list --upgradable`. */
   pending: Schema.Array(Schema.String),
   /** Packages from the public and private lists that aren't installed. */
   missing: Schema.Array(Schema.String),
-  /** Whether the AUR check ran; pending is repository updates only when false. */
-  aurChecked: Schema.Boolean,
-  /** Whether the repository check ran. */
+  /** Whether the upgrade check ran. */
   repoChecked: Schema.Boolean,
 });
 
-/** Pending pacman and AUR updates, and listed packages not installed. */
+/** Pending apt upgrades, and listed packages not installed. */
 export interface PackagesStatus extends Schema.Schema.Type<
   typeof PackagesStatus
 > {}
@@ -82,9 +80,8 @@ export const PendingStatus = Schema.Struct({
   skills: Schema.NullOr(SkillsStatus),
   tools: Schema.NullOr(ToolsStatus),
   packages: PackagesStatus,
-  omarchy: Schema.NullOr(Schema.Array(Schema.String)),
-  /** Dotfiles Omarchy patches that no longer apply to the pending Omarchy. */
-  omarchyPatches: Schema.optionalKey(Schema.Array(Schema.String)),
+  /** GitHub release packages with a newer release, as `name old -> new`. */
+  releases: Schema.NullOr(Schema.Array(Schema.String)),
   gh: Schema.NullOr(Schema.Array(Schema.String)),
 });
 
@@ -228,114 +225,55 @@ export const tools = Effect.fn("PendingUpdates.tools")(function* (
   } satisfies ToolsStatus;
 });
 
-const OMARCHY_PACKAGES = new Set(["omarchy", "omarchy-dev"]);
-
-const AUR_HTTP_FAILURE_PATTERNS = [
-  /\bstatus\b[^0-9]*\b[45][0-9]{2}\b/i,
-  /\bhttp(?:\/\d+(?:\.\d+)?)?\b[^0-9]*\b[45][0-9]{2}\b/i,
-] as const;
-
-const BackoffState = Schema.Tuple([Schema.Int, Schema.Int]);
-
-/** Where AUR request failures back off, and whether to honour it. */
-export interface AurBackoff {
-  /** File holding `<failures> <until epoch seconds>`. */
-  readonly file: string;
-  /** Skip the AUR check while backed off; manual checks retry at once. */
-  readonly respect: boolean;
-}
+/** One `apt list --upgradable` line, such as `git/noble-updates 1:2.43.1 amd64 [upgradable from: 1:2.43.0]`. */
+const APT_UPGRADABLE =
+  /^([^/\s]+)\/\S+\s+(\S+)\s+\S+\s+\[upgradable from: ([^\]]+)\]/;
 
 /**
- * Check every pending pacman and AUR update, and the public and private
- * package lists for packages that aren't installed. Omarchy's own package is
- * left to {@link omarchy}.
+ * Check every pending apt upgrade from the cached package lists, and the
+ * public and private package lists for packages that aren't installed.
  */
 export const packages = Effect.fn("PendingUpdates.packages")(function* (
   timeout: number,
-  backoff?: AurBackoff,
 ) {
-  const fs = yield* FileSystem.FileSystem;
-  const now = Math.floor((yield* Clock.currentTimeMillis) / 1000);
-
-  const saved = backoff
-    ? yield* fs.readFileString(backoff.file).pipe(
-        Effect.map((text) => text.trim().split(/\s+/).map(Number)),
-        Effect.flatMap(Schema.decodeUnknownEffect(BackoffState)),
-        Effect.orElseSucceed(() => [0, 0] as const),
-      )
-    : ([0, 0] as const);
-
-  const [failures, until] = saved;
-  const aurSkipped = backoff?.respect === true && now < until;
-
-  const [repo, aur, publicMissing, privateMissing] = yield* Effect.all(
+  const [repo, publicMissing, privateMissing] = yield* Effect.all(
     [
-      query("checkupdates", ["--nocolor"], timeout),
-      aurSkipped
-        ? Effect.succeed<QueryResult>({
-            code: 75,
-            stdout: "",
-            stderr: "backed off",
-          })
-        : query("yay", ["-Qua"], timeout),
-      missingArchPackages("public"),
-      missingArchPackages("private"),
+      query("apt", ["list", "--upgradable"], timeout),
+      missingListedPackages("public"),
+      missingListedPackages("private"),
     ],
     { concurrency: "unbounded" },
   );
 
-  // checkupdates exits 2 when nothing is pending; yay -Qua exits 1.
-  const repoChecked = repo.code === 0 || repo.code === 2;
+  const repoChecked = repo.code === 0;
 
-  const aurChecked =
-    (aur.code === 0 || aur.code === 1) && aur.stderr.trim() === "";
+  const pending = repoChecked
+    ? lines(repo.stdout)
+        .flatMap((line) => {
+          const match = APT_UPGRADABLE.exec(line);
 
-  if (backoff && !aurSkipped) {
-    if (aurChecked) {
-      yield* fs.remove(backoff.file, { force: true }).pipe(Effect.ignore);
-    } else if (
-      AUR_HTTP_FAILURE_PATTERNS.some((pattern) => pattern.test(aur.stderr))
-    ) {
-      const nextFailures = Math.min(5, Math.max(0, failures) + 1);
-      const seconds = Math.min(21600, 1800 * 2 ** (nextFailures - 1));
-
-      yield* fs
-        .writeFileString(backoff.file, `${nextFailures} ${now + seconds}\n`, {
-          mode: 0o600,
+          return match ? [`${match[1]} ${match[3]} -> ${match[2]}`] : [];
         })
-        .pipe(Effect.ignore);
-    }
-  }
-
-  const pending = [
-    ...new Set([
-      ...(repoChecked ? lines(repo.stdout) : []),
-      ...(aurChecked ? lines(aur.stdout) : []),
-    ]),
-  ]
-    .filter((line) => !OMARCHY_PACKAGES.has(line.split(/\s+/, 1)[0] ?? ""))
-    .sort();
+        .sort()
+    : [];
 
   return {
     pending,
     missing: [
       ...new Set([...(publicMissing ?? []), ...(privateMissing ?? [])]),
     ].sort(),
-    aurChecked,
     repoChecked,
   } satisfies PackagesStatus;
 });
 
-/** Pending Omarchy updates (package or dev checkout), from `omarchy-update-available`. */
-export const omarchy = Effect.fn("PendingUpdates.omarchy")(function* (
+/** GitHub release packages with a newer release than the one installed. */
+export const releases = Effect.fn("PendingUpdates.releases")(function* (
   timeout: number,
 ) {
-  const result = yield* query("omarchy-update-available", [], timeout);
-
-  // Exits 1 with "Omarchy is up to date" when nothing is pending.
-  if (result.code === 1) return [];
-
-  return result.code === 0 ? lines(result.stdout) : null;
+  return yield* pendingDebReleases.pipe(
+    Effect.timeoutOption(`${timeout} seconds`),
+    Effect.map(Option.getOrNull),
+  );
 });
 
 /**
@@ -360,7 +298,7 @@ export const ghExtensions = Effect.fn("PendingUpdates.ghExtensions")(
 /** One kind of pending work, as the bar, the OpenCode footer and `dot up` show it. */
 export interface PendingGroup {
   /** Stable identifier. */
-  readonly id: "dotfiles" | "skills" | "tools" | "packages" | "omarchy" | "gh";
+  readonly id: "dotfiles" | "skills" | "tools" | "packages" | "releases" | "gh";
   /** Display title. */
   readonly title: string;
   /** Nerd Font glyph for the bar. */
@@ -426,18 +364,16 @@ export const pendingGroups = (
     pending: status.packages.pending,
     missing: status.packages.missing,
     blocked: [],
-    unknown: !status.packages.repoChecked || !status.packages.aurChecked,
+    unknown: !status.packages.repoChecked,
   },
   {
-    id: "omarchy",
-    title: "Omarchy",
-    icon: "\uF303",
-    pending: status.omarchy ?? [],
+    id: "releases",
+    title: "Release packages",
+    icon: "\uF0ED",
+    pending: status.releases ?? [],
     missing: [],
-    blocked: (status.omarchyPatches ?? []).map(
-      (name) => `${name} no longer applies`,
-    ),
-    unknown: status.omarchy === null,
+    blocked: [],
+    unknown: status.releases === null,
   },
   {
     id: "gh",
@@ -461,42 +397,21 @@ export const groupLines = (group: PendingGroup) => [
   ...group.pending,
 ];
 
-/**
- * Check the dotfiles Omarchy patches against the pending Omarchy package.
- * Returns the patches that no longer apply, or none when nothing is pending
- * or the check couldn't run.
- */
-export const omarchyPatchDrift = Effect.fn("PendingUpdates.omarchyPatches")(
-  function* (pendingOmarchy: readonly string[] | null, timeout: number) {
-    if (!pendingOmarchy || pendingOmarchy.length === 0) return [];
-
-    const drift = yield* patchDrift(timeout);
-
-    return drift?.failing ?? [];
-  },
-);
-
 /** Run every check at once. */
 export const checkAll = Effect.fn("PendingUpdates.checkAll")(function* (
   timeout: number,
-  backoff?: AurBackoff,
 ) {
-  const checked = yield* Effect.all(
+  const status: PendingStatus = yield* Effect.all(
     {
       dot: dotfiles(timeout),
       skills: skills(timeout),
       tools: tools(timeout),
-      packages: packages(timeout, backoff),
-      omarchy: omarchy(timeout),
+      packages: packages(timeout),
+      releases: releases(timeout),
       gh: ghExtensions(),
     },
     { concurrency: "unbounded" },
   );
-
-  const status: PendingStatus = {
-    ...checked,
-    omarchyPatches: yield* omarchyPatchDrift(checked.omarchy, timeout),
-  };
 
   return status;
 });

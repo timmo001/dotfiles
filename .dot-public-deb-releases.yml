@@ -1,6 +1,6 @@
 ---
 # Packages installed from the .deb attached to each repository's latest GitHub
-# release. dot update system installs the release when the installed version
+# release. dot up installs the release when the installed version
 # differs.
 - repository: timmo001/system-bridge
   package: system-bridge

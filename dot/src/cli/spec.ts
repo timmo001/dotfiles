@@ -47,6 +47,7 @@ import { tunnelRun } from "../commands/Tunnel.js";
 import { prQueue } from "../commands/PrQueue.js";
 import { prReviews } from "../commands/PrReviews.js";
 import { prWatch } from "../commands/PrWatch.js";
+import { setupHerdrMachines } from "../commands/SetupHerdrMachines.js";
 import { editSkillConsumer, runSkillsMaintenance } from "../commands/Skills.js";
 import { runCommand } from "../commands/Run.js";
 import { composeUpCommand } from "../commands/Compose.js";
@@ -84,9 +85,14 @@ import {
   sessionTake,
 } from "../commands/SessionQueue.js";
 import { repos, searchRepos } from "../commands/Repos.js";
-import { systemUpdate, UPDATE_STEPS } from "../commands/SystemUpdate.js";
+import { up, upCheck } from "../commands/Up.js";
 import { branchUpdate } from "../commands/BranchUpdate.js";
-import { update, updateCheck, updateRepositories } from "../commands/Update.js";
+import {
+  update,
+  updateCheck,
+  updateRepositories,
+  UP_GROUPS,
+} from "../commands/Update.js";
 import { RELOAD_PARTS, reload } from "../commands/Reload.js";
 import { configureFirewallRules } from "../lib/firewallSetup.js";
 import { diffBarJson, diffPanelJson, diffRaw } from "../git/commands/Diff.js";
@@ -194,7 +200,7 @@ const initCommand = describe(
   ["dot init", "dot init --force"],
   {
     description:
-      "Run the one-time first-use setup workflow for a fresh machine. Init prepares repos, stow links, mise tools, apt packages, the firewall and the login shell, and trusts mise configs in tracked repos. After init completes, enable lingering so user services run without a login, log in again, then run dot doctor. Before the bounded workflow starts, init updates or clones the optional private overlay according to DOT_ALLOW_PRIVATE. Use dot update for ongoing maintenance.",
+      "Run the one-time first-use setup workflow for a fresh machine. Init prepares repos, stow links, mise tools, apt packages, the firewall and the login shell, and trusts mise configs in tracked repos. After init completes, enable lingering so user services run without a login, log in again, then run dot doctor. Before the bounded workflow starts, init updates or clones the optional private overlay according to DOT_ALLOW_PRIVATE. Use dot up for ongoing maintenance.",
   },
 );
 
@@ -207,50 +213,19 @@ const installCommand = describe(
   "Ensure prerequisites, backup/adopt dotfiles and install the pinned OpenCode release",
 );
 
-const systemUpdateCommand = describe(
-  Command.make(
-    "system",
-    {
-      yes: bool("yes", "Select every update without prompting"),
-      step: Flag.Literals("step", UPDATE_STEPS).pipe(
-        Flag.atLeast(0),
-        Flag.withDescription(
-          "Run only this step without prompting; repeat for several",
-        ),
-      ),
-      noSelfUpdate: bool(
-        "no-self-update",
-        "Skip dot update's self-update pull when the dotfiles are already pulled",
-      ),
-    },
-    ({ yes, step, noSelfUpdate }) =>
-      systemUpdate({ yes, steps: step, selfUpdate: !noSelfUpdate }),
-  ),
-  "Select and run Dotfiles, apt, release package, compose-up and Topgrade updates",
-  [
-    "dot update system",
-    "dot update system --yes",
-    "dot update system --step dotfiles --step github-cli",
-  ],
-  {
-    description:
-      "Select maintenance steps interactively, then run them in order: Dotfiles, apt packages, GitHub release packages, GitHub CLI extensions, compose-up, and Topgrade. The release packages step installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs. The compose-up step is offered only when ~/.config/dot/compose.yml exists and runs dot compose up. Interactive runs pre-select Dotfiles, apt packages, release packages, GitHub CLI extensions, and compose-up; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step, and --step runs only the steps given. Cancelling the prompt exits without running updates. When Dotfiles runs, dot update branch runs last.",
-  },
-);
-
 const branchUpdateCommand = describe(
   Command.make("branch", {}, () => Effect.asVoid(branchUpdate)),
   "Open an agent to rebase the distro branches when they are behind",
-  ["dot update branch"],
+  ["dot up branch"],
   {
     description:
-      "Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fast-forwards the permanent distro/cloud and distro/opencode-app worktrees at ~/.local/share/dot/dotfiles-cloud and ~/.local/share/dot/dotfiles-opencode-app, then checks whether distro/ubuntu-server is behind distro/arch-omarchy-quattro or either of those is behind distro/ubuntu-server, ignoring commits that only regenerate the distro diff page. When one is, it opens an OpenCode agent named branch-update in Herdr to follow the rebase steps in AGENTS.md, check and push. Nothing opens when all are up to date, a rebase is already in progress, the agent is already open, or dot runs under an agent. A full dot update and dot update system run it last; --no-branch skips it.",
+      "Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fast-forwards the permanent distro/cloud and distro/opencode-app worktrees at ~/.local/share/dot/dotfiles-cloud and ~/.local/share/dot/dotfiles-opencode-app, then checks whether distro/ubuntu-server is behind distro/arch-omarchy-quattro or either of those is behind distro/ubuntu-server, ignoring commits that only regenerate the distro diff page. When one is, it opens an OpenCode agent named branch-update in Herdr to follow the rebase steps in AGENTS.md, check and push. Nothing opens when all are up to date, a rebase is already in progress, the agent is already open, or dot runs under an agent. dot up runs it last; --no-branch skips it.",
   },
 );
 
 const updateCommand = describe(
   Command.make(
-    "update",
+    "up",
     {
       repo: Flag.String("repo").pipe(
         Flag.atLeast(0),
@@ -269,11 +244,26 @@ const updateCommand = describe(
       ),
       check: bool(
         "check",
-        "Report dotfiles pulls, pending pins and stow changes, skipping local work",
+        "Report everything dot up would update or install, without changing anything",
+      ),
+      checkRepos: bool(
+        "check-repos",
+        "Report only dotfiles pulls, pending pins and stow changes, skipping local work",
       ),
       checkAll: bool(
         "check-all",
         "Also check development repos for pulls, skipping local work",
+      ),
+      yes: bool(
+        "yes",
+        "Run every group with work without asking, and pass -y to apt-get upgrade",
+      ),
+      force: bool("force", "Offer every group, even with nothing pending"),
+      group: Flag.Literals("group", UP_GROUPS).pipe(
+        Flag.atLeast(0),
+        Flag.withDescription(
+          "Internal: the groups picked before a restart handoff",
+        ),
       ),
       noSelfUpdate: bool(
         "no-self-update",
@@ -288,10 +278,6 @@ const updateCommand = describe(
         Flag.atLeast(0),
         Flag.withDescription("Internal post-hook repository"),
       ),
-      summaryFile: text(
-        "summary-file",
-        "Internal: write the final summary to this file instead of printing it",
-      ),
       startedAt: Flag.Int("started-at").pipe(
         Flag.optional,
         Flag.withDescription(
@@ -303,6 +289,9 @@ const updateCommand = describe(
       app,
       check,
       checkAll,
+      checkRepos,
+      force,
+      group,
       noSelfUpdate,
       noReload,
       noBranch,
@@ -311,18 +300,19 @@ const updateCommand = describe(
       repo,
       startedAt,
       stow: onlyStow,
-      summaryFile,
+      yes,
     }) =>
       Effect.gen(function* () {
         if (repo.length > 0) {
           if (
             check ||
             checkAll ||
+            checkRepos ||
             onlyStow ||
             app ||
             noSelfUpdate ||
             postHookRepo.length > 0 ||
-            Option.isSome(summaryFile) ||
+            group.length > 0 ||
             Option.isSome(startedAt)
           )
             return yield* new CliError.InvalidValue({
@@ -336,39 +326,43 @@ const updateCommand = describe(
           return yield* updateRepositories(repo, !noReload, pull);
         }
 
-        if (check || checkAll) return yield* updateCheck({ all: checkAll });
+        if (checkRepos || checkAll)
+          return yield* updateCheck({ all: checkAll });
 
-        return yield* update({
-          pull,
-          stow: onlyStow,
-          app,
+        if (check) return yield* upCheck;
+
+        const options = {
           selfUpdate: !noSelfUpdate,
           reload: !noReload,
           branch: !noBranch,
           postHookRepos: postHookRepo,
-          summaryFile: optional(summaryFile),
           startedAt: optional(startedAt),
-        });
+        };
+
+        if (pull || onlyStow || app)
+          return yield* update({ ...options, pull, stow: onlyStow, app });
+
+        return yield* up({ ...options, groups: group, yes, force });
       }),
-  ).pipe(Command.withSubcommands([systemUpdateCommand, branchUpdateCommand])),
-  "Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update, --post-hook-repo and --started-at flags support the active self-update handoff; internal --summary-file lets update system print the summary last.",
-  [],
+  ).pipe(Command.withSubcommands([branchUpdateCommand])),
+  "Check everything, pick what to update, then run it: dotfiles, mise tools, gh extensions, missing packages, apt and release packages, and compose up. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at and --group flags carry a run across the self-update restart.",
+  ["dot up", "dot up --check", "dot up --yes", "dot up --stow"],
   {
     description:
-      "A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, reloads agents (as dot reload agents), and starts the doctor check. On the server branch it then runs dot update branch unless --no-branch is given. It finishes with a summary of updated repositories and every completed or skipped step, in order.\n\nPhase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip agents sync and init-marker backfill.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands, skipping the dotfiles rebuild and stow. Herdr plugins are refreshed only inside Herdr. --no-reload skips the agent reload and doctor check.",
+      "dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and gh extensions. It saves the result for the status cache, lists it, then asks which groups to run, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order, each numbered with a one-line description:\n\n1. Dotfiles: pulls the public dotfiles, rebuilds and relaunches dot, scans and pulls tracked repositories, moves the skills checkout to the latest skills main, syncs MCP config, stows, installs mise tools, refreshes agent runtimes, syncs agent instructions, reloads agents and starts the doctor check. Pulls are fast-forward-only and never stash or rebase.\n2. Mise tools: installs missing tools and runs mise up with no release delay.\n3. gh extensions: installs missing ones and upgrades the rest.\n4. Missing packages: installs apt packages from the public and private lists.\n5. System: runs apt-get update and upgrade (with -y under --yes), then installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs.\n6. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.\n\nOn the server branch it then runs dot up branch unless --no-branch is given. It finishes with a summary of updated repositories, mise tools and every step.\n\n--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands. --no-reload skips the agent reload and doctor check.",
     sections: [
       {
         title: "Exit codes",
         lines: [
-          "0   Update completed, or no actionable updates were found",
-          "1   Fatal workflow failure",
+          "0   Update completed, or nothing to update",
+          "1   Fatal workflow failure, or a group failed",
           "2   Update check could not finish",
-          "10  Update check found pulls, pending pins or stow changes",
+          "10  Update check found work",
         ],
       },
     ],
   },
-).pipe(Command.withAlias("up"));
+).pipe(Command.withAlias("update"));
 
 const runDuration = (name: string, description: string) =>
   Flag.String(name).pipe(
@@ -665,7 +659,7 @@ const composeCommand = describe(
         ["dot compose up", "dot compose up ~/containers/compose/media.yml"],
         {
           description:
-            "Reads ~/.config/dot/compose.yml: directory (compose files), optional envFile (sourced with bash; its exported variables reach docker compose) and optional pruneAfterHours (default 720). For each file, runs docker compose pull then up -d --remove-orphans, carrying on past a failed file, then runs docker system prune -af for data older than pruneAfterHours. Its messages and Docker's output are also written to the run's log in ~/.local/state/dot/logs. dot update system offers it as a step when the config exists.",
+            "Reads ~/.config/dot/compose.yml: directory (compose files), optional envFile (sourced with bash; its exported variables reach docker compose) and optional pruneAfterHours (default 720). For each file, runs docker compose pull then up -d --remove-orphans, carrying on past a failed file, then runs docker system prune -af for data older than pruneAfterHours. Its messages and Docker's output are also written to the run's log in ~/.local/state/dot/logs. dot up offers it as a group when the config exists.",
         },
       ),
     ]),
@@ -717,11 +711,6 @@ const runCommandSpec = describe(
 );
 
 const updateRefreshFlags = {
-  packageFile: pathFlag(
-    "package-file",
-    "Watched package list (default: public dotfiles manifest)",
-    "file",
-  ),
   cacheDir: pathFlag(
     "cache-dir",
     "Status cache directory (default: XDG status-bar cache)",
@@ -761,31 +750,30 @@ const updatesCommand = describe(
           "refresh",
           {
             ...updateRefreshFlags,
-            dotOnly: bool(
-              "dot-only",
-              "Refresh only Dotfiles status, keeping cached package status",
+            quick: bool(
+              "quick",
+              "Skip the apt and release package checks, keeping their cached status",
             ),
           },
           (input) =>
             updatesRefresh(
               {
                 ...input,
-                packageFile: optional(input.packageFile),
                 cacheDir: optional(input.cacheDir),
               },
-              input.dotOnly,
+              input.quick,
             ),
         ),
-        "Refresh package, Dotfiles and skills status",
-        ["dot updates refresh", "dot updates refresh --dot-only"],
+        "Refresh the update status",
+        ["dot updates refresh", "dot updates refresh --quick"],
       ),
     ]),
   ),
-  "Check watched package, Dotfiles and skills updates",
+  "Check everything dot up updates, for status readers and OpenCode",
   ["dot updates status", "dot updates refresh"],
   {
     description:
-      "Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched apt packages, all dot-managed repositories and whether the managed skills checkout is behind timmo001/skills main, and writes the cache atomically under a shared lock. status --json prints the cached sections and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Use --package-file, --cache-dir and --timeout to override defaults.",
+      "Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks the dotfiles and dot-managed repositories, the managed skills checkout against timmo001/skills main, outdated and missing mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and missing gh extensions. It writes the cache atomically under a shared lock. status --json prints the cached status, its groups and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Use --cache-dir and --timeout to override defaults.",
   },
 );
 
@@ -1814,6 +1802,30 @@ const notesCommand = describe(
     ]),
   ),
   "Integrate with the notes tool",
+);
+
+const setupCommand = describe(
+  Command.make("setup").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make("herdr").pipe(
+          Command.withSubcommands([
+            describe(
+              Command.make("machines", {}, () => setupHerdrMachines),
+              "Save the Herdr SSH machines from the private machine list",
+              ["dot setup herdr machines"],
+              {
+                description:
+                  "Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's saved-machine catalog (~/.local/state/herdr/client/endpoints.json), in the list's order and with its profile IDs, labels, SSH targets and sessions, so every device has the same machines. A machine whose host is this device's hostname is left out, so a device never lists itself. Herdr keeps the catalog in client state rather than config, so dot stow can't link it. A machine this device already has keeps its enabled state, so toggles survive; enabled in the list only applies when it's added. Machines the list doesn't name are kept after it. Open Herdr clients pick up the change. dot up runs the same step and only reports it when it saves machines or fails, so a device without the list, or whose machines already match, sees nothing. Host keys and remote installs stay with Herdr: run herdr machine reconnect <label> once for a new machine.",
+              },
+            ),
+          ]),
+        ),
+        "Set up Herdr",
+      ),
+    ]),
+  ),
+  "Set up Herdr machines",
 );
 
 const skillsValidate = describe(
@@ -3172,6 +3184,7 @@ export const dotCommand = describe(
       ...simpleCommands,
       agentCommand,
       notesCommand,
+      setupCommand,
       gitCommand,
       describe(
         Command.make("mcp").pipe(
