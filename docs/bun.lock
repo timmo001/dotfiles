@@ -8,7 +8,7 @@
         "@astrojs/cloudflare": "14.4.3",
         "@fontsource-variable/geist-mono": "5.3.0",
         "@fontsource-variable/mona-sans": "5.3.0",
-        "@timmo001/docs-kit": "0.9.30",
+        "@timmo001/docs-kit": "0.9.31",
         "blume": "2.2.6",
         "sharp": "^0.35.1",
       },
@@ -504,11 +504,11 @@
 
     "@takumi-rs/wasm": ["@takumi-rs/wasm@2.17.1", "", { "dependencies": { "@takumi-rs/helpers": "2.17.1" }, "peerDependencies": { "csstype": "*" }, "optionalPeers": ["csstype"] }, "sha512-f9gWUUO4afRBhvSRJVpRaqu4WthGYODtareygjgJJjzp6SCJnHLhFXx7AjuHh+kMjNfQyzCjCqpMeGXzIMJLjg=="],
 
-    "@timmo001/docs-kit": ["@timmo001/docs-kit@0.9.30", "", { "dependencies": { "@timmo001/groundwork-tokens": "0.9.30", "@timmo001/groundwork-ui": "0.9.30", "sharp": "0.35.5" }, "peerDependencies": { "blume": "2.2.6" } }, "sha512-QvuvqU0/yoLGsYUJvpiOgo2Htvn6zoseBOWhzMpH4rbGNb3kisfHpusjFRA0no6BgVxQNWw402C47mSAl+9H/A=="],
+    "@timmo001/docs-kit": ["@timmo001/docs-kit@0.9.31", "", { "dependencies": { "@timmo001/groundwork-tokens": "0.9.31", "@timmo001/groundwork-ui": "0.9.31", "sharp": "0.35.5" }, "peerDependencies": { "blume": "2.2.6" } }, "sha512-YS5L6g6tIzEGXofE6ERJGwb6lVJ/PsUJvQVGCyWjtIthGzy4oTpYRclYP/t5KhfwKWPmTuumzfVQ78JMJWFO2Q=="],
 
-    "@timmo001/groundwork-tokens": ["@timmo001/groundwork-tokens@0.9.30", "", { "dependencies": { "@types/culori": "4.0.1", "culori": "4.0.2", "effect": "4.1.1" } }, "sha512-bUcGUIY60ziRA24LWT7D5oHLbHCcU6iv0rVn5d2eu9YXrgPBGYz3g+5Rlvz8FagAKSRb472PsMFwqTC22rXszg=="],
+    "@timmo001/groundwork-tokens": ["@timmo001/groundwork-tokens@0.9.31", "", { "dependencies": { "@types/culori": "4.0.1", "culori": "4.0.2", "effect": "4.1.1" } }, "sha512-9aZiGRY6lNuFOhpi9y5f2aM+uPxbjD6tg2xwkr4aLwId6uwTRPkJgbSH8NyRC6kmDjwH6CJhfw7AYm0bkgib1Q=="],
 
-    "@timmo001/groundwork-ui": ["@timmo001/groundwork-ui@0.9.30", "", {}, "sha512-BlhzlYveellByj+hgw8Wd19toXa+B6ZD/QMysA0QMQ4gRQ1+DdM/TpBHzUaQ19yjQp0yu8fhvwSmXykFAMzWbw=="],
+    "@timmo001/groundwork-ui": ["@timmo001/groundwork-ui@0.9.31", "", {}, "sha512-edX5b2Ik2W35SxXxf688hMDiyo4k44WkKMy7PpKbwVRvmxQGwj1a6zRFIIQ3LgEnCMO7nxIiiVHqLZbRuMDTXA=="],
 
     "@tybys/wasm-util": ["@tybys/wasm-util@0.10.4", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-W3c4gRigFS0T/Ma4qIYF3GDAc5AQdHb1yL5znJT1Zv1YaD9Kitx656wBjvr19qbiosmZT8lWDM5BEMynUqX65A=="],
 
