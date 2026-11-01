@@ -1,1 +1,5 @@
 @import "@timmo001/docs-kit/blume/theme.css";
+/* Groundwork's Base theme, until the dotfiles docs pick their own */
+@import "@timmo001/docs-kit/blume/themes/base.css";
+@import "@fontsource-variable/mona-sans";
+@import "@fontsource-variable/geist-mono";

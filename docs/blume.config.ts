@@ -93,12 +93,6 @@ export default defineConfig(
       { from: '/uwsm', to: '/desktop/uwsm', status: 301 },
       { from: '/omarchy-shell', to: '/desktop/omarchy-shell', status: 301 },
     ],
-    theme: {
-      accent: {
-        light: '#b45309',
-        dark: '#d97706',
-      },
-    },
     seo: {
       og: {
         palette: {
