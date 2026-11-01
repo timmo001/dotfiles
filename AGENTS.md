@@ -12,7 +12,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - The server hosts Herdr for remote clients through `systemd/.config/systemd/user/herdr.service`.
 - Sessions here run headless over SSH or Herdr, with no browser to open. Plannotator is off: the server has no Plannotator binaries, code, Herdr plugins or keys, and `.dot-private.yml` removes the private config's OpenCode plugin and loads `agents/.config/opencode/instructions/server.md`, which says to report in chat. Don't add Plannotator back here, and treat incoming Plannotator changes from the desktop as not wanted.
 - The desktop code (Omarchy, Hyprland, UWSM, Ghostty, pacman, AUR, browser) is removed from `dot/`, not gated. Don't add it back.
-- Packages come from apt (`.dot-public-packages`) and the global mise config. Release `.deb` packages such as System Bridge are listed in `.dot-public-deb-releases.yml` and installed by `dot update system`.
+- Packages come from apt (`.dot-public-packages`) and the global mise config. Release `.deb` packages such as System Bridge are listed in `.dot-public-deb-releases.yml` and installed by `dot up`.
 - `.dot-skills.yml` lists the authored skills `dot` does not link on the server. Add desktop-only skills there as they appear.
 - `.dot-private.yml` lists the private stow packages `dot` links on the server; the private repository stays on its main branch. A missing file stows all of them, an invalid one stows none, and packages dropped from the list are unstowed. Its `mcp.exclude` servers are disabled in the untracked `~/.config/opencode/opencode.jsonc` and left out of Claude Code by `dot mcp sync`, which also writes its `opencode` plugin operations and instruction files into that layer, and the server clones (shallow), pulls and checks only the `dot-git.yml` repositories whose `machines` list includes its `repos.machine`; the private `dot-git.yml` and `mcp.yml` are otherwise shared as they are.
 - `dot server serve` (`dot/src/server/`) serves the dashboard in `server/` (Vite, Lit, Tailwind). Pitchfork runs it as the `server` daemon in `pitchfork.toml`; manage it with the `serve:server*` mise tasks, and check the dashboard with `mise run server:typecheck ::: server:format:check ::: server:build`.
@@ -40,7 +40,7 @@ The branch rebases onto `origin/distro/arch-omarchy-quattro`. Look ahead before 
 
 `distro/cloud` and `distro/opencode-app` build on this branch, in permanent worktrees at `~/.local/share/dot/dotfiles-cloud` and `~/.local/share/dot/dotfiles-opencode-app`. Each branch's `AGENTS.md` owns what it takes. Rebase them with `git rebase --fork-point origin/distro/ubuntu-server`, so only their own commits replay after this branch is force-pushed; a plain `git rebase origin/distro/ubuntu-server` replays the old server commits too.
 
-`dot update branch` runs last in a full `dot update` and in `dot update system`. When any of these branches is behind, it opens an OpenCode agent named `branch-update` in Herdr to follow these steps and push. Commits that only regenerate the distro diff page don't count as behind. It never opens one under an agent, during a rebase, or while `branch-update` is open; `--no-branch` skips it.
+`dot up branch` runs last in `dot up`. When any of these branches is behind, it opens an OpenCode agent named `branch-update` in Herdr to follow these steps and push. Commits that only regenerate the distro diff page don't count as behind. It never opens one under an agent, during a rebase, or while `branch-update` is open; `--no-branch` skips it.
 
 ## Scope
 

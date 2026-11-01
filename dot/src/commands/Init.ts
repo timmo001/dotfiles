@@ -175,7 +175,7 @@ function assertFreshInitTarget(
 
     if (yield* pathExists(completeMarker)) {
       return yield* fail(
-        `dot init has already completed on this machine (${displayPath(completeMarker)}). Use dot update for ongoing maintenance.`,
+        `dot init has already completed on this machine (${displayPath(completeMarker)}). Use dot up for ongoing maintenance.`,
       );
     }
 
@@ -191,7 +191,7 @@ function assertFreshInitTarget(
 
     if (signals.length >= 2) {
       return yield* fail(
-        `This machine already looks initialised: ${signals.join(", ")}. Use dot update for ongoing maintenance.`,
+        `This machine already looks initialised: ${signals.join(", ")}. Use dot up for ongoing maintenance.`,
       );
     }
   });
@@ -626,7 +626,7 @@ export function init(
       `  Log in again to pick up the new login shell, then run ${style.command("dot doctor")}`,
     );
     yield* log.info(
-      `  For ongoing maintenance, run ${style.command("dot update")}`,
+      `  For ongoing maintenance, run ${style.command("dot up")}`,
     );
   }).pipe(withSudoKeepAlive);
 }

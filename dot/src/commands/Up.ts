@@ -1,31 +1,25 @@
 /**
- * @file `dot up`: check everything, pick from the groups with work, then run
- * them in order. A stage the check found no work for only runs when an
- * earlier stage changed something it applies, such as stow after a dotfiles
- * pull that brings new links.
+ * @file `dot up`: check everything, pick what to run, then run it in order:
+ * dotfiles, mise tools, gh extensions, missing packages, the apt and release
+ * package system update and compose up, then the distro branch update.
  */
 
 import { Extension } from "@timmo001/effect-gh";
 import { herdrSdkLayerFromOptions } from "@timmo001/effect-herdr";
-import { Cause, Clock, Duration, Effect } from "effect";
+import { Cause, Clock, Duration, Effect, FileSystem } from "effect";
 import { Prompt } from "effect/cli";
 import { DotDiff } from "../git/services/DotDiff.js";
-import { isAgent } from "../lib/agent.js";
 import { cliStyler, type Styler } from "../lib/ansi.js";
+import { updateDebReleases } from "../lib/debReleases.js";
 import { gitOutput } from "../lib/git.js";
 import { SKILLS_CHECKOUT } from "../lib/skillsMaintenance.js";
 import { ENV, envString } from "../lib/env.js";
 import { formatCause } from "../lib/schema.js";
 import { installGhExtensions } from "../lib/ghExtensions.js";
 import { DEFAULT_SOCKET_PATH, openHerdrRepo } from "./HerdrRepoOpen.js";
-import {
-  loadPrivatePackageRepoConfig,
-  privatePackageRepoIncludeRegistered,
-} from "../doctor/checks/packages.js";
-import { setupPrivatePackageRepo } from "./SetupPrivateRepo.js";
-import { syncRootFirstParty } from "../lib/firstPartyPackages.js";
-import { patchDrift, syncRootPatches } from "../lib/omarchyPatches.js";
-import { installMissingArchPackages } from "../lib/packageSetup.js";
+import { branchUpdate } from "./BranchUpdate.js";
+import { COMPOSE_CONFIG, composeUp } from "./Compose.js";
+import { installMissingPackages } from "../lib/packageSetup.js";
 import {
   agentPlugins,
   checkAll,
@@ -129,12 +123,16 @@ const GROUP_INFO: Record<
   },
   packages: {
     title: "Missing packages",
-    description: "Install packages from the public and private lists",
+    description: "Install apt packages from the public and private lists",
   },
   system: {
     title: "System",
     description:
-      "Hand over to omarchy update for pacman, AUR and Omarchy updates",
+      "Update and upgrade apt packages, then install newer GitHub release packages",
+  },
+  compose: {
+    title: "Compose",
+    description: "Pull and start the compose files with dot compose up",
   },
 };
 
@@ -183,10 +181,8 @@ const groupWork = (
     shell: [],
     gh: lines("gh"),
     packages: (packages?.missing ?? []).map((name) => `${name} (missing)`),
-    system: [
-      ...(packages?.pending ?? []).filter((line) => !firstParty.includes(line)),
-      ...lines("omarchy"),
-    ],
+    system: [...(packages?.pending ?? []), ...lines("releases")],
+    compose: [],
   } satisfies Record<UpGroup, readonly string[]>;
 };
 
@@ -422,8 +418,8 @@ const interactive = () =>
   process.stdin.isTTY === true && process.stdout.isTTY === true;
 
 /**
- * Without a terminal, prompts such as the group picker and omarchy update's
- * sudo password hang, so once the check finds work, rerun `dot up` in a Herdr tab in the dotfiles
+ * Without a terminal, prompts such as the group picker and sudo hang, so once
+ * the check finds work, rerun `dot up` in a Herdr tab in the dotfiles
  * workspace, where the user can answer them and an agent can read the pane.
  * Fails the run when Herdr can't open one.
  */
@@ -440,6 +436,7 @@ const handOffToHerdr = Effect.fn("Up.handOffToHerdr")(function* (
     ...(opts.yes ? ["--yes"] : []),
     ...(opts.selfUpdate === false ? ["--no-self-update"] : []),
     ...(opts.reload === false ? ["--no-reload"] : []),
+    ...(opts.branch === false ? ["--no-branch"] : []),
   ].join(" ");
 
   const opened = yield* openHerdrRepo({
@@ -519,13 +516,24 @@ export const upCheck = Effect.gen(function* () {
   });
 }).pipe(Effect.withSpan("Up.check"));
 
-/** Pick the groups to run from those with work, all ticked. */
+/**
+ * Pick the groups to run, all with work ticked. gh extensions and compose
+ * have no dry run, so they are always offered.
+ */
 const pickGroups = Effect.fn("Up.pick")(function* (
   work: Record<UpGroup, readonly string[]>,
   opts: UpOptions,
 ) {
-  const offered: UpGroup[] = UP_GROUPS.filter(
-    (group) => opts.force || work[group].length > 0,
+  const fs = yield* FileSystem.FileSystem;
+
+  const compose = yield* fs
+    .exists(COMPOSE_CONFIG)
+    .pipe(Effect.orElseSucceed(() => false));
+
+  const offered: UpGroup[] = UP_GROUPS.filter((group) =>
+    group === "compose"
+      ? compose
+      : opts.force || group === "gh" || work[group].length > 0,
   );
 
   if (opts.yes) return { offered, picked: offered };
@@ -553,108 +561,39 @@ const pickGroups = Effect.fn("Up.pick")(function* (
   return { offered, picked };
 });
 
-/** Offer a Herdr agent to fix patches that no longer apply. */
-const offerPatchAgent = Effect.fn("Up.offerPatchAgent")(function* (
-  failing: readonly string[],
-) {
-  const config = yield* Config;
+/** Update and upgrade apt packages, then install newer GitHub release packages. */
+const systemUpdate = Effect.fn("Up.system")(function* (yes: boolean) {
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
 
-  if (!interactive() || isAgent()) {
-    yield* log.info(
-      "Fix the patches in scripts/.local/share/omarchy-patches, then run dot up again",
-    );
+  for (const args of [
+    ["apt-get", "update"],
+    ["apt-get", "upgrade", ...(yes ? ["-y"] : [])],
+  ]) {
+    const exitCode = yield* executor.inherit("sudo", args);
 
-    return;
+    if (exitCode !== 0) {
+      process.exitCode = exitCode;
+
+      return [warn(`sudo ${args.join(" ")} exited ${exitCode}`)];
+    }
   }
 
-  const open = yield* Prompt.run(
-    Prompt.Confirm({
-      message: "Open an agent in Herdr to fix them?",
-      initial: true,
-    }),
-  ).pipe(
-    Effect.catchTag("QuitError", () => Effect.succeed(false)),
-    Effect.tap(() => Effect.sleep("20 millis")),
+  yield* log.section("GitHub Release Packages");
+
+  const released = yield* updateDebReleases.pipe(
+    Effect.catch((error) => log.error(error.message).pipe(Effect.as(1))),
   );
 
-  if (!open) return;
+  if (released !== 0) process.exitCode = released;
 
-  yield* executor.inherit("dot", [
-    "herdr",
-    "repo",
-    "open",
-    "--agent",
-    "opencode2",
-    "--prompt",
-    `The pending Omarchy update no longer takes these dotfiles patches: ${failing.join(", ")}. Update them in scripts/.local/share/omarchy-patches against the new Omarchy, check each with \`dot up --check\`, then run \`dot up\`.`,
-    "dotfiles",
-    config.publicDotfiles,
-  ]);
+  return [
+    notable("Upgraded apt packages"),
+    released === 0
+      ? done("Release packages up to date")
+      : warn(`Release package install exited ${released}`),
+  ];
 });
-
-/** Install the first-party upgrade unit and polkit rule root-owned when they changed. */
-const firstPartyRootSync = Effect.gen(function* () {
-  const synced = yield* syncRootFirstParty();
-
-  return synced === null
-    ? warn("Could not install the first-party upgrade unit")
-    : synced
-      ? done("Installed the first-party upgrade unit")
-      : skip("First-party upgrade unit already current");
-}).pipe(Effect.withSpan("Up.firstPartyRootSync"));
-
-/** Register the private pacman repo before pacman needs it, if it went missing. */
-const ensurePrivateRepo = Effect.gen(function* () {
-  const config = yield* Config;
-  const log = yield* OutputLog;
-
-  if (!config.canUsePrivate) return;
-
-  const repo = yield* loadPrivatePackageRepoConfig(config);
-
-  if (!repo || (yield* privatePackageRepoIncludeRegistered())) return;
-
-  yield* log.info("Registering the private pacman repo");
-  yield* setupPrivatePackageRepo(repo).pipe(
-    Effect.catch((error) =>
-      log.warn(`Could not register the private pacman repo: ${error.message}`),
-    ),
-  );
-}).pipe(Effect.withSpan("Up.ensurePrivateRepo"));
-
-/** The Omarchy system step, held back when the patches no longer apply. */
-const systemUpdate = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  const log = yield* OutputLog;
-
-  const drift = yield* patchDrift(CHECK_TIMEOUT);
-
-  if (drift && drift.failing.length > 0) {
-    yield* log.error(
-      `Held back omarchy update: ${drift.failing.join(", ")} no longer ${drift.failing.length === 1 ? "applies" : "apply"} to the pending Omarchy`,
-    );
-    yield* offerPatchAgent(drift.failing);
-    process.exitCode = 1;
-
-    return warn(`System update held back (${drift.failing.join(", ")})`);
-  }
-
-  yield* ensurePrivateRepo;
-
-  // Ticking System in the picker already confirmed it, so skip Omarchy's own
-  // ready prompt. -y also makes Omarchy's later prompts unattended.
-  const exitCode = yield* executor.inherit("omarchy", ["update", "-y"]);
-
-  if (exitCode !== 0) {
-    process.exitCode = exitCode;
-
-    return warn(`omarchy update exited ${exitCode}`);
-  }
-
-  return notable("Ran omarchy update");
-}).pipe(Effect.withSpan("Up.system"));
 
 const ghUpgrade = Effect.gen(function* () {
   yield* installGhExtensions;
@@ -674,6 +613,34 @@ const ghUpgrade = Effect.gen(function* () {
     ? done("Installed and upgraded gh extensions")
     : warn(`gh extension upgrade exited ${exitCode}`);
 }).pipe(Effect.withSpan("Up.gh"));
+
+/** Install the missing apt packages from the public and private lists. */
+const installPackages = Effect.gen(function* () {
+  const log = yield* OutputLog;
+
+  return yield* Effect.all([
+    installMissingPackages({ scope: "public" }),
+    installMissingPackages({ scope: "private" }),
+  ]).pipe(
+    Effect.as(done("Installed missing packages")),
+    Effect.catch((error) =>
+      log.error(error.message).pipe(
+        Effect.tap(() =>
+          Effect.sync(() => {
+            process.exitCode = 1;
+          }),
+        ),
+        Effect.as(warn("Could not install missing packages")),
+      ),
+    ),
+  );
+}).pipe(Effect.withSpan("Up.packages"));
+
+/** Hand behind distro branches to a rebase agent, unless --no-branch. */
+const updateBranches = (opts: UpOptions) =>
+  opts.branch === false
+    ? Effect.succeed(skip("Branch update skipped (--no-branch)"))
+    : branchUpdate;
 
 /**
  * Run `dot up`. A fresh run checks everything and asks which groups to run;
@@ -736,6 +703,7 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
 
     if (!opts.force && UP_GROUPS.every((group) => work[group].length === 0)) {
       yield* log.success("Everything is up to date");
+      yield* updateBranches(opts);
 
       return;
     }
@@ -787,28 +755,8 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
         continue;
     }
 
-    yield* log.section(GROUP_INFO[group].title);
-    yield* log.info(
-      picked.has(group)
-        ? GROUP_INFO[group].description
-        : `${GROUP_INFO[group].description}, to apply what changed`,
-    );
-    ran.add(group);
-
-    if (isUpStage(group)) {
-      // The stage itself never asks for a password, so set up the unit it
-      // starts first, while there's a terminal to ask in.
-      if (group === "first-party") actions.push(yield* firstPartyRootSync);
-
-      // Stages never prompt, so a spinner can hold the bottom line throughout.
-      const result: UpStageResult = yield* log.withSpinner(
-        GROUP_INFO[group].title,
-        runUpStage(group, {
-          repos: group === "repos" ? pulls.map((repo) => repo.path) : [],
-          reload: opts.reload !== false && agentsNeedReload,
-          refreshStatus: false,
-        }),
-      );
+      // The restarted binary carries on with the picked groups.
+      if (result === "restarted") return;
 
       updatedRepos.push(...result.updatedRepos);
       miseToolChanges.push(...result.miseTools);
@@ -848,33 +796,34 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
     } else if (group === "gh") {
       actions.push(yield* ghUpgrade);
     } else if (group === "packages") {
-      yield* installMissingArchPackages({ scope: "public" });
-      yield* installMissingArchPackages({ scope: "private" });
-      actions.push(done("Installed missing packages"));
+      actions.push(yield* installPackages);
+    } else if (group === "system") {
+      actions.push(...(yield* systemUpdate(opts.yes === true)));
     } else {
-      const synced = yield* syncRootPatches();
+      const exitCode = yield* composeUp([]);
+
+      if (exitCode !== 0) process.exitCode = exitCode;
 
       actions.push(
-        synced === null
-          ? warn("Could not install the Omarchy patch hook")
-          : synced
-            ? done("Installed the Omarchy patch hook")
-            : skip("Omarchy patch hook already current"),
+        exitCode === 0
+          ? done("Ran compose up")
+          : warn(`Compose up exited ${exitCode}`),
       );
-
-      if (!ran.has("first-party")) actions.push(yield* firstPartyRootSync);
-
-      actions.push(yield* systemUpdate);
     }
   }
 
-  if (!ran.has("system") && ran.has("stow")) {
-    const synced = yield* syncRootPatches();
+  const refreshExitCode = yield* executor.exitCode("dot", [
+    "updates",
+    "refresh",
+  ]);
 
-    if (synced) actions.push(done("Installed the Omarchy patch hook"));
-    else if (synced === null)
-      actions.push(warn("Could not install the Omarchy patch hook"));
-  }
+  actions.push(
+    refreshExitCode === 0
+      ? done("Refreshed the update status")
+      : warn(`Update status refresh failed (exit ${refreshExitCode})`),
+  );
+
+  actions.push(yield* updateBranches(opts));
 
   yield* logUpdateSummary(updatedRepos, miseToolChanges, actions, startedAt);
   yield* reportPendingUpdates;
