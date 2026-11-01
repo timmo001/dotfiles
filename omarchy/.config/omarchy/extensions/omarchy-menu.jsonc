@@ -52,9 +52,8 @@
     "label": "Reboot",
     "action": "omarchy-system reboot"
   },
-  // reboot-to arms the next boot through polkit, and runs in a terminal so
-  // what it armed stays on screen. Each entry only shows on machines with that
-  // boot entry.
+  // reboot-to sets the next boot with sudo, so it runs in a terminal for the
+  // password. Each entry only shows on machines with that boot entry.
   "system.reboot-to": {
     "icon": "󰜉",
     "label": "Reboot To"

@@ -1,309 +1,95 @@
 #!/usr/bin/env bash
 
-# Reboot into another OS or boot entry.
+# Reboot into another OS via EFI boot-next.
 #
-# Usage:
-#   reboot-to <target> [--check] [--yes]   arm the next boot and reboot
-#   reboot-to list [--json]                 entries this machine can boot
-#   reboot-to pin [--check]                 put the running boot loader first
+# Usage: reboot-to <target>
 #
-# When the boot loader supports the Boot Loader Interface's one-shot entry
-# (Limine, systemd-boot), the next boot goes through the loader: it sets
-# LoaderEntryOneShot, a short one-shot menu timeout, BootNext to the loader
-# and keeps the loader first in BootOrder. The loader then remembers the
-# entry, so a Windows update's own reboots stay in Windows. Without one, it
-# falls back to firmware BootNext, which skips the loader.
-#
-# --check prints what would change and writes nothing. --yes skips the
-# confirmation for targets that aren't an exact or known match.
+# Known targets are matched by short name (case-insensitive).
+# Unknown targets are searched in efibootmgr output with confirmation.
 
 set -euo pipefail
 
-readonly LOADER_GUID="4a67b082-0a4c-41cf-b6c7-440b29bb8c4f"
-readonly EFIVARS="/sys/firmware/efi/efivars"
-# The menu waits this long on the armed boot. Never 0: Limine reads 0 as
-# "show the menu and wait".
-readonly ONESHOT_TIMEOUT=3
-
-# Short names for firmware entries (fallback) and loader entries.
+# Known targets: short name -> EFI description grep pattern
 declare -A KNOWN_TARGETS=(
-  [windows]="Windows"
+  [windows]="Windows Boot Manager"
+  [bazzite]="Bazzite"
+  [limine]="Limine"
 )
 
+# Special targets handled outside efibootmgr
 declare -A SPECIAL_TARGETS=(
-  [uefi]=1
-  [firmware]=1
-  [bios]=1
+  [uefi]="UEFI Firmware Setup"
+  [firmware]="UEFI Firmware Setup"
+  [bios]="UEFI Firmware Setup"
 )
 
-usage() {
-  echo "Usage: reboot-to <target> [--check] [--yes]"
-  echo "       reboot-to list [--json]"
-  echo "       reboot-to pin [--check]"
+target="${1:-}"
+
+if [[ -z "$target" ]]; then
+  echo "Usage: reboot-to <target>"
   echo ""
-  echo "Known targets: ${!KNOWN_TARGETS[*]}, uefi"
-}
-
-die() {
-  echo "$*" >&2
-  exit 1
-}
-
-# Reads a 64-bit Loader* variable; empty when it isn't set.
-loader_u64() {
-  local file="$EFIVARS/$1-$LOADER_GUID"
-  [[ -r "$file" ]] || return 0
-  od -An -tu8 -j4 -N8 "$file" | tr -d ' '
-}
-
-# Whether the running loader takes LoaderEntryOneShot (feature bit 3).
-loader_has_oneshot() {
-  local features
-  features="$(loader_u64 LoaderFeatures)"
-  [[ -n "$features" ]] && (((features >> 3) & 1))
-}
-
-# Whether it also takes LoaderConfigTimeoutOneShot (feature bit 1).
-loader_has_oneshot_timeout() {
-  local features
-  features="$(loader_u64 LoaderFeatures)"
-  [[ -n "$features" ]] && (((features >> 1) & 1))
-}
-
-boot_current() {
-  efibootmgr | awk '/^BootCurrent:/ {print $2}'
-}
-
-boot_order() {
-  efibootmgr | awk '/^BootOrder:/ {print $2}'
-}
-
-# The loader's entries as it reports them, one id per line.
-loader_entries_json() {
-  bootctl list --json=short --no-pager | jq '[.[] | select(.isReported)]'
-}
-
-# The BootOrder with the running loader first, or nothing if it already is.
-pinned_order() {
-  local current order first rest
-  current="$(boot_current)"
-  order="$(boot_order)"
-  [[ -n "$current" && -n "$order" ]] || die "Can't read BootCurrent or BootOrder"
-
-  first="${order%%,*}"
-  [[ "$first" == "$current" ]] && return 0
-
-  rest="$(tr ',' '\n' <<< "$order" | grep -vx "$current" | paste -sd, -)"
-  echo "$current${rest:+,$rest}"
-}
-
-cmd_list() {
-  local json="${1:-}"
-  if ! loader_has_oneshot; then
-    [[ "$json" == "--json" ]] && die "No boot loader with one-shot entries; see efibootmgr"
-    efibootmgr | grep -E '^Boot[0-9]' | cut -f1
-    return
-  fi
-
-  if [[ "$json" == "--json" ]]; then
-    loader_entries_json | jq '[.[] | {id, selected: .isSelected}]'
-  else
-    loader_entries_json | jq -r '.[] | (if .isSelected then "* " else "  " end) + .id'
-  fi
-}
-
-cmd_pin() {
-  local check="${1:-}" new
-  loader_has_oneshot || { echo "No boot loader with one-shot entries running; nothing to pin"; return 0; }
-
-  new="$(pinned_order)"
-  if [[ -z "$new" ]]; then
-    echo "Boot loader (Boot$(boot_current)) is already first"
-    return 0
-  fi
-
-  if [[ "$check" == "--check" ]]; then
-    echo "Would set BootOrder $(boot_order) -> $new"
-    return 0
-  fi
-
-  pkexec efibootmgr --bootorder "$new" > /dev/null
-  echo "Boot loader (Boot$(boot_current)) is first again: $new"
-}
-
-# Picks one loader entry id for a target, or explains why it can't.
-resolve_loader_entry() {
-  local target="$1" entries ids matches count pattern
-
-  entries="$(loader_entries_json)"
-  ids="$(jq -r '.[].id' <<< "$entries")"
-
-  # An exact id wins.
-  matches="$(grep -ixF -- "$target" <<< "$ids" || true)"
-  if [[ -n "$matches" ]]; then
-    echo "$matches" | head -n1
-    return 0
-  fi
-
-  pattern="${KNOWN_TARGETS[${target,,}]:-$target}"
-  matches="$(grep -iF -- "$pattern" <<< "$ids" || true)"
-  [[ -n "$matches" ]] || return 1
-
-  # Snapshots match most names; leave them out unless nothing else matches.
-  if grep -qvF ".Snapshots." <<< "$matches"; then
-    matches="$(grep -vF ".Snapshots." <<< "$matches")"
-  fi
-
-  count="$(wc -l <<< "$matches")"
-  if [[ "$count" -gt 1 ]]; then
-    # Prefer the entry running now, so "omarchy" means this kernel.
-    local selected
-    selected="$(jq -r '.[] | select(.isSelected) | .id' <<< "$entries")"
-    if [[ -n "$selected" ]] && grep -qxF -- "$selected" <<< "$matches"; then
-      echo "$selected"
-      return 0
-    fi
-    echo "Several entries match '$target':" >&2
-    local match
-    while IFS= read -r match; do echo "  $match" >&2; done <<< "$matches"
-    return 2
-  fi
-
-  echo "$matches"
-}
-
-reboot_through_loader() {
-  local target="$1" check="$2" yes="$3" id status=0 current order
-
-  id="$(resolve_loader_entry "$target")" || status=$?
-  if [[ "$status" -eq 1 ]]; then
-    echo "No boot entry matches '$target'. Entries:" >&2
-    cmd_list >&2
-    exit 1
-  elif [[ "$status" -ne 0 ]]; then
-    die "Be more specific."
-  fi
-
-  if [[ "$check" == "--check" ]]; then
-    current="$(boot_current)"
-    order="$(pinned_order)"
-    echo "Would set LoaderEntryOneShot to $id"
-    loader_has_oneshot_timeout && echo "Would set LoaderConfigTimeoutOneShot to $ONESHOT_TIMEOUT"
-    [[ -n "$order" ]] && echo "Would set BootOrder $(boot_order) -> $order"
-    echo "Would set BootNext to Boot$current (the boot loader)"
-    echo "Would reboot"
-    return 0
-  fi
-
-  local known="${KNOWN_TARGETS[${target,,}]:-}"
-  if [[ -z "$known" && "${id,,}" != "${target,,}" && "$yes" != "--yes" ]]; then
-    printf 'Reboot into "%s"? [y/N] ' "$id"
-    read -r answer
-    [[ "${answer,,}" == "y" ]] || { echo "Cancelled."; exit 0; }
-  fi
-
-  current="$(boot_current)"
-  order="$(pinned_order)"
-  local timeout=""
-  loader_has_oneshot_timeout && timeout="$ONESHOT_TIMEOUT"
-
-  # One elevation for every write. Arguments are passed through, never
-  # spliced into the script.
-  # shellcheck disable=SC2016
-  pkexec bash -c '
-    set -euo pipefail
-    bootctl set-oneshot "$1"
-    [[ -n "$2" ]] && bootctl set-timeout-oneshot "$2"
-    [[ -n "$3" ]] && efibootmgr --bootorder "$3" > /dev/null
-    efibootmgr --bootnext "$4" > /dev/null
-  ' reboot-to "$id" "$timeout" "$order" "$current"
-
-  echo "Rebooting into $id..."
-  systemctl reboot
-}
-
-# Firmware BootNext, for machines whose loader has no one-shot entry.
-reboot_through_firmware() {
-  local target="$1" check="$2" yes="$3" search efi_output match boot_num boot_label
-
-  search="${KNOWN_TARGETS[${target,,}]:-$target}"
-  efi_output="$(efibootmgr)"
-  match="$(grep -E '^Boot[0-9]' <<< "$efi_output" | grep -iF -- "$search" || true)"
-
-  if [[ -z "$match" ]]; then
-    echo "No EFI boot entry found matching '$search'" >&2
-    echo "" >&2
-    echo "Available entries:" >&2
-    grep -E '^Boot[0-9]' <<< "$efi_output" | cut -f1 >&2
-    exit 1
-  fi
-
-  if [[ "$(wc -l <<< "$match")" -gt 1 ]]; then
-    echo "Multiple EFI entries match '$search':" >&2
-    cut -f1 <<< "$match" >&2
-    die "Be more specific."
-  fi
-
-  # "Boot0000* Windows Boot Manager<TAB>device path"
-  boot_label="$(cut -f1 <<< "$match")"
-  boot_num="${boot_label:4:4}"
-  boot_label="${boot_label:8}"
-  boot_label="${boot_label#\*}"
-  boot_label="${boot_label# }"
-
-  if [[ "$check" == "--check" ]]; then
-    echo "Would set BootNext to Boot$boot_num ($boot_label)"
-    echo "Would reboot"
-    return 0
-  fi
-
-  if [[ ! -v "KNOWN_TARGETS[${target,,}]" && "$yes" != "--yes" ]]; then
-    printf 'Reboot into "%s" (entry %s)? [y/N] ' "$boot_label" "$boot_num"
-    read -r answer
-    [[ "${answer,,}" == "y" ]] || { echo "Cancelled."; exit 0; }
-  fi
-
-  pkexec efibootmgr --bootnext "$boot_num" > /dev/null
-  echo "Rebooting into $boot_label..."
-  systemctl reboot
-}
-
-main() {
-  local target="" check="" yes="" json="" arg
-
-  for arg in "$@"; do
-    case "$arg" in
-      --check) check="--check" ;;
-      --yes | -y) yes="--yes" ;;
-      --json) json="--json" ;;
-      -h | --help) usage; exit 0 ;;
-      -*) usage >&2; exit 1 ;;
-      *) [[ -z "$target" ]] || { usage >&2; exit 1; }; target="$arg" ;;
-    esac
+  echo "Known targets:"
+  for name in "${!KNOWN_TARGETS[@]}"; do
+    printf "  %-12s  %s\n" "$name" "${KNOWN_TARGETS[$name]}"
   done
+  echo ""
+  echo "Special targets:"
+  printf "  %-12s  %s\n" "uefi" "UEFI Firmware Setup"
+  exit 1
+fi
 
-  [[ -n "$target" ]] || { usage >&2; exit 1; }
+# Handle special targets (firmware setup)
+target_lower="${target,,}"
+if [[ -v "SPECIAL_TARGETS[$target_lower]" ]]; then
+  echo "Rebooting into UEFI Firmware Setup..."
+  sudo systemctl reboot --firmware-setup
+  exit 0
+fi
 
-  case "${target,,}" in
-    list) cmd_list "$json"; return ;;
-    pin) cmd_pin "$check"; return ;;
-  esac
+# Resolve target to an EFI grep pattern
+if [[ -v "KNOWN_TARGETS[$target_lower]" ]]; then
+  search="${KNOWN_TARGETS[$target_lower]}"
+  confirmed=true
+else
+  search="$target"
+  confirmed=false
+fi
 
-  if [[ -v "SPECIAL_TARGETS[${target,,}]" ]]; then
-    if [[ "$check" == "--check" ]]; then
-      echo "Would reboot into UEFI Firmware Setup"
-      return 0
-    fi
-    echo "Rebooting into UEFI Firmware Setup..."
-    systemctl reboot --firmware-setup
-    return
+# Find matching EFI boot entry
+efi_output="$(sudo efibootmgr)"
+match="$(grep -i "$search" <<< "$efi_output" || true)"
+
+if [[ -z "$match" ]]; then
+  echo "No EFI boot entry found matching '$search'"
+  echo ""
+  echo "Available entries:"
+  grep -E '^Boot[0-9]' <<< "$efi_output" | sed 's/\t/ /g'
+  exit 1
+fi
+
+# Handle multiple matches
+match_count="$(wc -l <<< "$match")"
+if [[ "$match_count" -gt 1 ]]; then
+  echo "Multiple EFI entries match '$search':"
+  echo "$match"
+  echo ""
+  echo "Be more specific."
+  exit 1
+fi
+
+boot_num="$(awk '{print $1}' <<< "$match" | sed 's/Boot//;s/\*//')"
+boot_label="$(sed 's/^Boot[0-9]*\*\? *//' <<< "$match" | sed 's/\t.*//')"
+
+# Confirm for unknown targets
+if [[ "$confirmed" != true ]]; then
+  printf 'Reboot into "%s" (entry %s)? [y/N] ' "$boot_label" "$boot_num"
+  read -r answer
+  if [[ "${answer,,}" != "y" ]]; then
+    echo "Cancelled."
+    exit 0
   fi
+fi
 
-  if loader_has_oneshot; then
-    reboot_through_loader "$target" "$check" "$yes"
-  else
-    reboot_through_firmware "$target" "$check" "$yes"
-  fi
-}
-
-main "$@"
+sudo efibootmgr --bootnext "$boot_num" > /dev/null
+echo "Rebooting into $boot_label..."
+sudo reboot
