@@ -17,7 +17,7 @@ Run one-time first-use machine setup
 dot init [flags]
 ```
 
-Run the one-time first-use setup workflow for a fresh machine. Init prepares repos and stow links, checks the app's packages and tools, installs gh extensions, adds the managed Git config include, and trusts mise configs in tracked repos. The app owns the locale, login shell, firewall and services, so init leaves them alone. After init completes, run dot doctor. Before the bounded workflow starts, init updates or clones the optional private overlay according to DOT_ALLOW_PRIVATE. Use dot update for ongoing maintenance.
+Run the one-time first-use setup workflow for a fresh machine. Init prepares repos and stow links, checks the app's packages and tools, installs gh extensions, adds the managed Git config include, and trusts mise configs in tracked repos. The app owns the locale, login shell, firewall and services, so init leaves them alone. After init completes, run dot doctor. Before the bounded workflow starts, init updates or clones the optional private overlay according to DOT_ALLOW_PRIVATE. Use dot up for ongoing maintenance.
 
 **Options**
 
@@ -58,13 +58,17 @@ Check everything, pick what to update, then run it: dotfiles, gh extensions and 
 dot up <subcommand> [flags]
 ```
 
-A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories, trusting mise configs only in repositories it freshly clones. It moves the dot-managed skills checkout to the latest skills main before rebuilding skill-maintenance. Pulls are fast-forward-only and never stash or rebase: Git refuses an update if local edits would be overwritten or histories have diverged. It regenerates completions, runs the required MCP sync, stows, installs mise tools, restarts pitchfork daemons still running an old mise binary, updates Pi extensions, rebuilds again, runs agents sync, backfills the init marker, and reloads agents (as dot reload agents). On the server branch it then runs dot update branch unless --no-branch is given. It finishes with a summary of updated repositories and every completed or skipped step, in order.
+dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout and gh extensions. System packages and tools come from the OpenCode app, which updates them itself. It saves the result for the status cache, lists it, then asks which groups to run, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order, each numbered with a one-line description:
 
-1. Dotfiles: pulls the public dotfiles, rebuilds and relaunches dot, scans and pulls tracked repositories, moves the skills checkout to the latest skills main, syncs MCP config, stows, installs mise tools, refreshes agent runtimes, syncs agent instructions, reloads agents and starts the doctor check. Pulls are fast-forward-only and never stash or rebase.
+1. Dotfiles: pulls the public dotfiles, rebuilds and relaunches dot, scans and pulls tracked repositories, moves the skills checkout to the latest skills main, syncs MCP config, stows, installs mise tools, refreshes agent runtimes, syncs agent instructions and reloads agents. Pulls are fast-forward-only and never stash or rebase.
 2. gh extensions: installs missing ones and upgrades the rest.
 3. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.
 
-Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands, skipping the dotfiles rebuild and stow. Herdr plugins are refreshed only inside Herdr. --no-reload skips the agent reload.
+It then runs dot up branch unless --no-branch is given. It finishes with a summary of updated repositories, mise tools and every step.
+
+--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.
+
+Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands. --no-reload skips the agent reload.
 
 **Options**
 

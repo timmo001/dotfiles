@@ -29,7 +29,6 @@ import {
   done,
   logRepoChanges,
   logUpdateSummary,
-  notable,
   skip,
   warn,
   type MiseToolChange,
