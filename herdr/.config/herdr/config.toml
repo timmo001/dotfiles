@@ -181,8 +181,10 @@ command = "timmo.mascot.toggle"
 description = "toggle mascot"
 
 # Herdr can't enable a saved machine from the sidebar, only from the CLI. This turns them all off
-# when any is on, and otherwise turns on the ones that answer SSH, probed in parallel, so offline
-# machines stay off. Herdr's own status check skips disabled machines, hence the SSH probe.
+# when any is on, and otherwise turns on the ones that answer SSH. Probes run in parallel so
+# offline machines stay off, then enables run one at a time: `herdr machine enable` rewrites the
+# whole catalog with no lock, so overlapping enables keep only the last write. Herdr's own status
+# check skips disabled machines, hence the SSH probe.
 [[keys.command]]
 key = "prefix+m"
 type = "shell"
@@ -191,10 +193,15 @@ if herdr machine list --json | jq -e 'any(.enabled)' >/dev/null; then
   herdr machine list --json | jq -r '.[].id' | while read -r id; do herdr machine disable "$id"; done
 else
   herdr machine list --json | jq -r '.[] | "\(.id) \(.target)"' | {
+    online=$(mktemp)
+    trap 'rm -f "$online"' EXIT
     while read -r id target; do
-      { ssh -n -o BatchMode=yes -o ConnectTimeout=5 "$target" true 2>/dev/null && herdr machine enable "$id"; } &
+      { ssh -n -o BatchMode=yes -o ConnectTimeout=5 "$target" true 2>/dev/null && printf '%s\n' "$id" >> "$online"; } &
     done
     wait
+    while read -r id; do
+      herdr machine enable "$id"
+    done < "$online"
   }
 fi
 '''
