@@ -734,7 +734,7 @@ _repo_open() {
 alias fe="find-and-edit"
 alias fev="find-and-edit --visual"
 
-alias update="dot update system"
+alias update="dot up"
 
 # Docker compose helpers. The compose-* scripts come from the nas-containers repository.
 alias cu="compose-up"
