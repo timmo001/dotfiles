@@ -1263,7 +1263,7 @@ export const UPDATE_CHECK_AVAILABLE_EXIT = 10;
 export const UPDATE_CHECK_ERROR_EXIT = 2;
 
 /** Repo categories treated as "core/system" by `dot update --check`. */
-const CORE_CHECK_CATEGORIES: ReadonlySet<RepoCategory> = new Set([
+export const CORE_CHECK_CATEGORIES: ReadonlySet<RepoCategory> = new Set([
   "dotfiles",
   "omarchy",
 ]);

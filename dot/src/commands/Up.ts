@@ -8,7 +8,11 @@ import { Extension } from "@timmo001/effect-gh";
 import { herdrSdkLayerFromOptions } from "@timmo001/effect-herdr";
 import { Cause, Clock, Duration, Effect } from "effect";
 import { Prompt } from "effect/cli";
+import { DotDiff } from "../git/services/DotDiff.js";
 import { isAgent } from "../lib/agent.js";
+import { cliStyler, type Styler } from "../lib/ansi.js";
+import { gitOutput } from "../lib/git.js";
+import { SKILLS_CHECKOUT } from "../lib/skillsMaintenance.js";
 import { ENV, envString } from "../lib/env.js";
 import { formatCause } from "../lib/schema.js";
 import { DEFAULT_SOCKET_PATH, openHerdrRepo } from "./HerdrRepoOpen.js";
@@ -29,6 +33,7 @@ import {
 } from "../lib/pendingUpdates.js";
 import {
   done,
+  logRepoChanges,
   logUpdateSummary,
   notable,
   skip,
@@ -41,6 +46,7 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import {
+  CORE_CHECK_CATEGORIES,
   refreshTools,
   update,
   UP_GROUPS,
@@ -104,6 +110,72 @@ const groupWork = (groups: readonly PendingGroup[]) => {
     system: [...(packages?.pending ?? []), ...lines("omarchy")],
   } satisfies Record<UpGroup, readonly string[]>;
 };
+
+/** Colour a pending work line by its shape, leaving unknown shapes plain. */
+const styleWorkLine = (style: Styler, line: string) => {
+  const blocked = /^Blocked: (.*)$/.exec(line);
+
+  if (blocked) return `${style.error("Blocked:")} ${blocked[1] ?? ""}`;
+
+  const missing = /^(.*) \(missing\)$/.exec(line);
+
+  if (missing)
+    return `${style.accent(missing[1] ?? "")} ${style.warn("(missing)")}`;
+
+  const version = /^(\S+) (\S+) -> (\S+)$/.exec(line);
+
+  if (version) {
+    const [, name = "", from = "", to = ""] = version;
+
+    return `${style.accent(name)} ${style.warn(from)} ${style.dim("->")} ${style.success(to)}`;
+  }
+
+  const behind = /^(?:(.+): )?(\d+ (?:commits? )?behind)(.*)$/.exec(line);
+
+  if (behind) {
+    const [, name, count = "", rest = ""] = behind;
+
+    return `${name ? `${style.accent(name)}: ` : ""}${style.success(count)}${style.dim(rest)}`;
+  }
+
+  return line;
+};
+
+/**
+ * Log the commits and changed files each pending pull brings in, from where
+ * the checkout and its upstream split, as the Git panel shows incoming changes.
+ */
+const logIncoming = Effect.fn("Up.incoming")(function* (status: PendingStatus) {
+  const dotDiff = yield* DotDiff;
+  const log = yield* OutputLog;
+
+  const repos = yield* dotDiff
+    .getAll({ categories: CORE_CHECK_CATEGORIES })
+    .pipe(Effect.orElseSucceed(() => []));
+
+  const behind = [
+    ...repos
+      .filter((repo) => repo.behind > 0)
+      .map((repo) => ({ name: repo.name, path: repo.path, to: "@{u}" })),
+    ...(status.skills && status.skills.behind > 0
+      ? [{ name: "skills", path: SKILLS_CHECKOUT, to: "origin/main" }]
+      : []),
+  ];
+
+  const ranges = yield* Effect.forEach(
+    behind,
+    (repo) =>
+      gitOutput(["merge-base", "HEAD", repo.to], { cwd: repo.path }).pipe(
+        Effect.map((base) => [{ ...repo, from: base.trim() }]),
+        Effect.orElseSucceed(() => []),
+      ),
+    { concurrency: "unbounded" },
+  );
+
+  yield* logRepoChanges(ranges.flat());
+
+  if (ranges.some((range) => range.length > 0)) yield* log.info("");
+});
 
 /** Options for `dot up`. */
 export interface UpOptions extends UpdateOptions {
@@ -179,6 +251,7 @@ export const upCheck = Effect.gen(function* () {
   yield* saveStatus(status).pipe(Effect.ignore);
 
   const groups = pendingGroups(status);
+  const style = cliStyler();
 
   const working = groups.filter(
     (group) => hasWork(group) || group.blocked.length > 0,
@@ -186,12 +259,13 @@ export const upCheck = Effect.gen(function* () {
 
   for (const group of groups) {
     if (hasWork(group) || group.blocked.length > 0) {
-      yield* log.info(`${group.title}:`);
+      yield* log.info(style.label(`${group.title}:`));
 
-      for (const line of groupLines(group)) yield* log.info(`  ${line}`);
+      for (const line of groupLines(group))
+        yield* log.info(`  ${styleWorkLine(style, line)}`);
     } else {
       yield* log.info(
-        `${group.title}: ${group.unknown ? "unavailable" : "up to date"}`,
+        `${style.label(`${group.title}:`)} ${group.unknown ? style.warn("unavailable") : style.dim("up to date")}`,
       );
     }
   }
@@ -376,13 +450,17 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
     yield* saveStatus(status).pipe(Effect.ignore);
 
     const work = groupWork(pendingGroups(status));
+    const style = cliStyler();
 
     for (const group of UP_GROUPS) {
       if (work[group].length === 0) continue;
 
-      yield* log.info(`${GROUP_INFO[group].title}:`);
+      yield* log.info(style.label(`${GROUP_INFO[group].title}:`));
 
-      for (const line of work[group]) yield* log.info(`  ${line}`);
+      for (const line of work[group])
+        yield* log.info(`  ${styleWorkLine(style, line)}`);
+
+      if (group === "dotfiles") yield* logIncoming(status);
     }
 
     if (!opts.force && UP_GROUPS.every((group) => work[group].length === 0)) {
