@@ -8,7 +8,7 @@
         "@astrojs/cloudflare": "14.4.3",
         "@fontsource-variable/geist-mono": "5.3.0",
         "@fontsource-variable/mona-sans": "5.3.0",
-        "@timmo001/docs-kit": "0.9.13",
+        "@timmo001/docs-kit": "0.9.17",
         "blume": "2.2.6",
         "sharp": "^0.35.1",
       },
@@ -504,13 +504,15 @@
 
     "@takumi-rs/wasm": ["@takumi-rs/wasm@2.17.1", "", { "dependencies": { "@takumi-rs/helpers": "2.17.1" }, "peerDependencies": { "csstype": "*" }, "optionalPeers": ["csstype"] }, "sha512-f9gWUUO4afRBhvSRJVpRaqu4WthGYODtareygjgJJjzp6SCJnHLhFXx7AjuHh+kMjNfQyzCjCqpMeGXzIMJLjg=="],
 
-    "@timmo001/docs-kit": ["@timmo001/docs-kit@0.9.13", "", { "dependencies": { "@timmo001/groundwork-tokens": "0.9.13", "@timmo001/groundwork-ui": "0.9.13", "sharp": "0.35.5" }, "peerDependencies": { "blume": "2.2.6" } }, "sha512-Kg/TRTKUwpxyx8DN4EbR/Q0txc/qM8RbkbbEHzCGJJkFUsFXqQ1b8VWUTp7c52fDgq/iqPTDyz+9gQwItSArSw=="],
+    "@timmo001/docs-kit": ["@timmo001/docs-kit@0.9.17", "", { "dependencies": { "@timmo001/groundwork-tokens": "0.9.17", "@timmo001/groundwork-ui": "0.9.17", "sharp": "0.35.5" }, "peerDependencies": { "blume": "2.2.6" } }, "sha512-Tkq76ogr1TI34NIT38oOe1DBq6jO4b6vrqOzgJw3pS5O1ddHx45l1VIbOlxVlmYPNRAOf3SPaKcg7ceTT2FF8A=="],
 
-    "@timmo001/groundwork-tokens": ["@timmo001/groundwork-tokens@0.9.13", "", { "dependencies": { "culori": "4.0.2", "effect": "4.1.1" } }, "sha512-wiE30OfraMaXMV7rDTJwQzgHBajeKiEHjGV5gMvzVIgmUIHmExN42KPNBFCnwHsMzdga85TNDsef+5Xy6zs+Og=="],
+    "@timmo001/groundwork-tokens": ["@timmo001/groundwork-tokens@0.9.17", "", { "dependencies": { "@types/culori": "4.0.1", "culori": "4.0.2", "effect": "4.1.1" } }, "sha512-8eUM7BiwGTkQrqcw/3T26xSbLUdiFoq7Euw0Ua/cAKADiuPFs28iAAg+ZRhyEavNNtaJC2bF5hptKx504xpPaw=="],
 
-    "@timmo001/groundwork-ui": ["@timmo001/groundwork-ui@0.9.13", "", {}, "sha512-w2n/EGr4TT/iARjoVqnSsRit7QbJPoImJymJAIK+GkjRLByzeA66JZzd+9+8hCKUTaNRLHOYiFMcT2+31cNamQ=="],
+    "@timmo001/groundwork-ui": ["@timmo001/groundwork-ui@0.9.17", "", {}, "sha512-/Z7tV4VpcI7wN0wLrgUAyNjNudO++U6wsYrcTrc54l7OqiPICmsCMD/SsIpyUwlDB+jhUkFzOh4LpEDaqjTy8w=="],
 
     "@tybys/wasm-util": ["@tybys/wasm-util@0.10.4", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-W3c4gRigFS0T/Ma4qIYF3GDAc5AQdHb1yL5znJT1Zv1YaD9Kitx656wBjvr19qbiosmZT8lWDM5BEMynUqX65A=="],
+
+    "@types/culori": ["@types/culori@4.0.1", "", {}, "sha512-43M51r/22CjhbOXyGT361GZ9vncSVQ39u62x5eJdBQFviI8zWp2X5jzqg7k4M6PVgDQAClpy2bUe2dtwEgEDVQ=="],
 
     "@types/d3": ["@types/d3@7.4.3", "", { "dependencies": { "@types/d3-array": "*", "@types/d3-axis": "*", "@types/d3-brush": "*", "@types/d3-chord": "*", "@types/d3-color": "*", "@types/d3-contour": "*", "@types/d3-delaunay": "*", "@types/d3-dispatch": "*", "@types/d3-drag": "*", "@types/d3-dsv": "*", "@types/d3-ease": "*", "@types/d3-fetch": "*", "@types/d3-force": "*", "@types/d3-format": "*", "@types/d3-geo": "*", "@types/d3-hierarchy": "*", "@types/d3-interpolate": "*", "@types/d3-path": "*", "@types/d3-polygon": "*", "@types/d3-quadtree": "*", "@types/d3-random": "*", "@types/d3-scale": "*", "@types/d3-scale-chromatic": "*", "@types/d3-selection": "*", "@types/d3-shape": "*", "@types/d3-time": "*", "@types/d3-time-format": "*", "@types/d3-timer": "*", "@types/d3-transition": "*", "@types/d3-zoom": "*" } }, "sha512-lZXZ9ckh5R8uiFVt8ogUNf+pIrK4EsWrx2Np75WvF/eTpJ0FMHNhjXk8CKEx/+gpHbNQyJWehbFaTvqmHWB3ww=="],
 
