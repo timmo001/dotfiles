@@ -481,16 +481,16 @@
         "name": "18% left",
         "tree": {
           "dir": "lr",
-          "ratio": 17.83,
+          "ratio": 17.85,
           "a": {
             "dir": "tb",
-            "ratio": 50,
+            "ratio": 58.9,
             "a": "w",
             "b": "w"
           },
           "b": {
             "dir": "tb",
-            "ratio": 58.69,
+            "ratio": 58.68,
             "a": "w",
             "b": "w"
           }
