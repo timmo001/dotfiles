@@ -21,7 +21,7 @@
     "@astrojs/cloudflare": "14.4.3",
     "@fontsource-variable/geist-mono": "5.3.0",
     "@fontsource-variable/mona-sans": "5.3.0",
-    "@timmo001/docs-kit": "0.5.0",
+    "@timmo001/docs-kit": "0.8.0",
     "blume": "2.2.6",
     "sharp": "^0.35.1"
   },
