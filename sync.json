@@ -1,9 +1,0 @@
-{
-  "items": {
-    "filterable-panel": "omarchy/.config/omarchy/components",
-    "output-view": "omarchy/.config/omarchy/components",
-    "panel-flickable": "omarchy/.config/omarchy/components",
-    "panel-header": "omarchy/.config/omarchy/components",
-    "section-heading": "omarchy/.config/omarchy/components"
-  }
-}
