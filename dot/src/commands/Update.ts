@@ -1826,6 +1826,14 @@ export const update = (updateOpts?: UpdateOptions) =>
       }
     }
 
+    if (opts.inUp) {
+      return {
+        updatedRepos,
+        miseToolChanges,
+        completedActions,
+      } satisfies UpdateRun;
+    }
+
     const executor = yield* CommandExecutor;
 
     const refreshExitCode = yield* executor.exitCode("dot", [
