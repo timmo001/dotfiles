@@ -70,5 +70,8 @@
     "dueAt": "2026-10-31T12:33:06.973Z",
     "shownAt": "2026-10-31T13:04:02.111Z"
   },
-  "inboxTextSize": 15
+  "inboxTextSize": 15,
+  "inboxVoiceIntro": {
+    "dueAt": "2026-11-01T16:27:29.165Z"
+  }
 }
