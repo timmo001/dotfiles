@@ -97,6 +97,22 @@ function missingPackages(
   });
 }
 
+/**
+ * Packages in a scope's list that aren't installed. Empty when the private
+ * overlay is unavailable; null when the list can't be read.
+ */
+export const missingListedPackages = Effect.fn("PackageSetup.missing")(
+  function* (scope: PackageScope) {
+    const config = yield* Config;
+
+    if (scope === "private" && !config.canUsePrivate) return [];
+
+    return yield* missingPackages(config, scope).pipe(
+      Effect.orElseSucceed(() => null),
+    );
+  },
+);
+
 function installWithApt(
   packages: readonly string[],
 ): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
