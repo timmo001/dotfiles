@@ -1,8 +1,8 @@
 # Public Ubuntu packages for the server, installed by dot with apt.
 # One package per line, comments and blank lines are ignored.
 #
-# CLI tools such as fzf, ripgrep, jq, gh, lazygit, neovim, yazi, topgrade and
-# herdr come from the global mise config, not this list.
+# CLI tools such as fzf, ripgrep, jq, gh, lazygit, neovim, yazi and herdr come
+# from the global mise config, not this list.
 
 bmon
 btop
@@ -28,8 +28,8 @@ zsh-syntax-highlighting
 # Unpacks the Ollaya CUDA libraries in ollaya-cuda-postinstall
 zstd
 
-# From the AUR on the desktop. context, ha-bridge, repo-notes, triage and
-# topgrade come from the global mise config here. Left out as desktop only:
+# From the AUR on the desktop. context, ha-bridge, repo-notes and triage come
+# from the global mise config here. Left out as desktop only:
 # home-assistant-tui, momentum, music-assistant-tui, system-bridge and upnext.
 #
 # Desktop only, left out: catppuccin-cursors-mocha, float-app-git,
