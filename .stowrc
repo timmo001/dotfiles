@@ -33,3 +33,4 @@
 --ignore=^/oxlint\.config\.ts
 --ignore=^/tools
 --ignore=^/udev-rules
+--ignore=^/avahi
