@@ -3124,7 +3124,7 @@ const plannotatorCommand = describe(
         ],
         {
           description:
-            "Runs plannotator inbox --background, which starts a stopped Inbox detached and prints the running one's loopback URL, then opens that address in a Qt WebEngine window (~/.local/share/plannotator-inbox/Inbox.qml, run by the qml runtime). A running window is raised instead of duplicated. --url opens another base address, such as an HTTPS front in front of the Inbox; without it, the window opens the Inbox's own loopback URL, which needs no login. The Inbox is still started first. --thread shows one thread (the Inbox's #thread= fragment), in the running window when there is one. The timmo.plannotator-inbox bar plugin, dot workspace setup and the Plannotator Inbox desktop entry run this. Failures are also sent as a desktop notification.",
+            "Runs plannotator inbox --background, which starts a stopped Inbox detached and prints the running one's loopback URL, then opens that address as an Omarchy web app (omarchy-launch-webapp, a Chromium app window). A running window is raised instead of duplicated. --url opens another base address, such as an HTTPS front in front of the Inbox; without it, the window opens the Inbox's own loopback URL, which needs no login. The Inbox is still started first. --thread shows one thread (the Inbox's #thread= fragment); nothing outside Chromium can navigate an app window, so a running window is closed and a new one opens at the thread. The timmo.plannotator-inbox bar plugin, dot workspace setup and the Plannotator Inbox desktop entry run this. Failures are also sent as a desktop notification.",
         },
       ),
     ]),

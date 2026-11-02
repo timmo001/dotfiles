@@ -121,8 +121,9 @@ const PATTERN_DISCORD = "^chrome-discord\\.com__app";
 
 const PATTERN_CHROMIUM = "^chromium$";
 
-// The Qt WebEngine window from dot plannotator inbox, by its title.
-const PATTERN_PLANNOTATOR = "^Plannotator Inbox$";
+// The Inbox's web app window from dot plannotator inbox, by its title, which
+// the Inbox prefixes with an unread count such as "(1) ".
+const PATTERN_PLANNOTATOR = "Plannotator Inbox$";
 
 const PATTERN_GITHUB_NOTIFICATIONS = "^chrome-github\\.com__notifications";
 

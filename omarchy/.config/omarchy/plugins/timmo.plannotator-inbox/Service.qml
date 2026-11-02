@@ -6,8 +6,7 @@
 // stream (GET /api/inbox/events) so the bar count moves as soon as an agent
 // writes. The Inbox itself stays Plannotator's: opening the Inbox or a
 // thread runs dot plannotator inbox, which starts a stopped Inbox and opens
-// it in its own Qt WebEngine window. That window can't show the Inbox's
-// notifications itself, so it writes them to a file this service shows.
+// it as a web app, where Chromium shows the Inbox's own notifications.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -27,15 +26,6 @@ Item {
     return custom ? String(custom) : Quickshell.env("HOME") + "/.plannotator"
   }
   readonly property string registryPath: dataDir + "/inbox/inbox.json"
-  // Written by the Inbox window (dot plannotator inbox) for each of the
-  // Inbox's notifications: { title, message, at }.
-  readonly property string notificationPath: {
-    var cache = Quickshell.env("XDG_CACHE_HOME")
-    return (cache ? String(cache) : Quickshell.env("HOME") + "/.cache")
-      + "/dot/plannotator-inbox-notification.json"
-  }
-  // Notifications written before the bar started are old news.
-  property real notifiedAt: Date.now()
 
   // The registry entry: { port, url, pid, version, ... }, or null before the
   // Inbox has run once on this machine.
@@ -207,24 +197,6 @@ Item {
 
   readonly property bool acting: actionProcess.running
 
-  // Shows a notification from the Inbox window. Clicking it raises the window.
-  function showNotification(text) {
-    var notice
-    try {
-      notice = JSON.parse(text)
-    } catch (error) {
-      return
-    }
-    if (!notice || !(notice.at > notifiedAt)) return
-    notifiedAt = notice.at
-
-    var script = 'action=$(notify-send --app-name="Plannotator Inbox" --action=default=Open -- "$1" "$2")'
-      + ' && [ "$action" = default ] && shift 2 && exec "$@"'
-    Quickshell.execDetached(["sh", "-c", script, "sh",
-      String(notice.title || "Plannotator Inbox"), String(notice.message || "")]
-      .concat(launchCommand([])))
-  }
-
   onLiveChanged: {
     if (!live) eventsProcess.running = false
     else if (running && !eventsProcess.running) eventsProcess.running = true
@@ -238,14 +210,6 @@ Item {
     onFileChanged: reload()
     onLoaded: root.applyRegistry(text())
     onLoadFailed: root.applyRegistry("")
-  }
-
-  FileView {
-    path: root.notificationPath
-    watchChanges: true
-    printErrors: false
-    onFileChanged: reload()
-    onLoaded: root.showNotification(text())
   }
 
   Process {

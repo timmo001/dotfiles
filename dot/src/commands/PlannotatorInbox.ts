@@ -1,41 +1,29 @@
-import { dirname, join } from "node:path";
-import { Clock, Effect, FileSystem, Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import {
   formatCommandError,
   handleCommandError,
 } from "../git/commands/rows.js";
-import { CACHE_DIR, CONFIG_DIR, DATA_DIR } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
-/** The Qt WebEngine window, stowed from scripts/.local/share. */
-const WINDOW_QML = join(DATA_DIR, "plannotator-inbox", "Inbox.qml");
+/**
+ * The Inbox's web app window: a Chromium app window, whose class starts with
+ * `chrome-` and comes from the host, and whose title the Inbox sets, with an
+ * unread count such as "(1) " in front.
+ */
+const isInboxWindow = (client: HyprlandClient) =>
+  client.class.startsWith("chrome-") &&
+  client.title.endsWith("Plannotator Inbox");
 
-/** File the window polls for the thread to show. */
-const COMMAND_FILE = join(CACHE_DIR, "dot", "plannotator-inbox.json");
+const HyprlandClient = Schema.Struct({
+  address: Schema.String,
+  class: Schema.String,
+  title: Schema.String,
+});
 
-/** File the window writes the Inbox's notifications to, for the bar to show. */
-const NOTIFICATION_FILE = join(
-  CACHE_DIR,
-  "dot",
-  "plannotator-inbox-notification.json",
-);
+interface HyprlandClient extends Schema.Schema.Type<typeof HyprlandClient> {}
 
-/** Wayland app id the Qt 6 qml runtime gives its windows. */
-const WINDOW_CLASS = "org.qt-project.qml";
-
-/** Title set in Inbox.qml, which tells the Inbox apart from other qml windows. */
-const WINDOW_TITLE = "Plannotator Inbox";
-
-const HyprlandClients = Schema.fromJsonString(
-  Schema.Array(
-    Schema.Struct({
-      address: Schema.String,
-      class: Schema.String,
-      title: Schema.String,
-    }),
-  ),
-);
+const HyprlandClients = Schema.fromJsonString(Schema.Array(HyprlandClient));
 
 /** Options accepted by `dot plannotator inbox`. */
 export interface PlannotatorInboxOptions {
@@ -50,25 +38,6 @@ export class PlannotatorInboxError extends Schema.TaggedError<PlannotatorInboxEr
   "PlannotatorInboxError",
   { message: Schema.String },
 ) {}
-
-/** Chromium's flags file, where a forced device scale factor may be set. */
-const CHROMIUM_FLAGS = join(CONFIG_DIR, "chromium-flags.conf");
-
-/**
- * The `--force-device-scale-factor` from chromium-flags.conf, so the Inbox
- * matches the size of browser windows, or "1" when none is set.
- */
-const chromiumScale = Effect.gen(function* () {
-  const fs = yield* FileSystem.FileSystem;
-
-  const flags = yield* fs
-    .readFileString(CHROMIUM_FLAGS)
-    .pipe(Effect.orElseSucceed(() => ""));
-
-  return (
-    /^--force-device-scale-factor=(\d+(?:\.\d+)?)\s*$/m.exec(flags)?.[1] ?? "1"
-  );
-}).pipe(Effect.withSpan("PlannotatorInbox.chromiumScale"));
 
 /**
  * The address the web app opens: the override when given, otherwise the URL
@@ -99,17 +68,17 @@ export function inboxBaseUrl(
 }
 
 /**
- * Open the Plannotator Inbox in its own Qt WebEngine window (Inbox.qml).
+ * Open the Plannotator Inbox as an Omarchy web app (a Chromium app window).
  * `plannotator inbox --background` starts a stopped Inbox and prints the
  * running one's URL, so the window never waits on a server. A running window
- * is raised rather than duplicated, and picks up the requested thread from the
- * command file, which a browser app window could not do.
+ * is raised rather than duplicated. Nothing outside Chromium can navigate an
+ * app window, so `--thread` closes a running one and opens a new one at the
+ * thread; the Inbox keeps its state on the server.
  */
 export const plannotatorInbox = Effect.fn("plannotatorInbox")(
   function* (options: PlannotatorInboxOptions) {
     const executor = yield* CommandExecutor;
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-    const fs = yield* FileSystem.FileSystem;
 
     if (options.thread && !/^[A-Za-z0-9_-]+$/.test(options.thread)) {
       return yield* new PlannotatorInboxError({
@@ -133,29 +102,13 @@ export const plannotatorInbox = Effect.fn("plannotatorInbox")(
 
     const base = yield* inboxBaseUrl(printed, options.url);
 
-    // Written every time, with a timestamp, so a thread opens again even when
-    // it was the last one asked for, and a new window doesn't replay an old one.
-    yield* fs.makeDirectory(dirname(COMMAND_FILE), { recursive: true });
-    yield* fs.writeFileString(
-      COMMAND_FILE,
-      JSON.stringify({
-        thread: options.thread ?? null,
-        at: yield* Clock.currentTimeMillis,
-      }),
-    );
-
     const open = yield* executor.run("hyprctl", ["clients", "-j"]).pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(HyprlandClients)),
-      Effect.map((clients) =>
-        clients.find(
-          (client) =>
-            client.class === WINDOW_CLASS && client.title === WINDOW_TITLE,
-        ),
-      ),
+      Effect.map((clients) => clients.find(isInboxWindow)),
       Effect.orElseSucceed(() => undefined),
     );
 
-    if (open) {
+    if (open && !options.thread) {
       yield* executor
         .run("hyprctl", [
           "dispatch",
@@ -166,29 +119,25 @@ export const plannotatorInbox = Effect.fn("plannotatorInbox")(
       return;
     }
 
+    if (open) {
+      yield* executor
+        .run("hyprctl", [
+          "dispatch",
+          `hl.dsp.window.close({ window = "address:${open.address}" })`,
+        ])
+        .pipe(Effect.ignore);
+    }
+
     yield* spawner
       .spawn(
         ChildProcess.make(
-          "uwsm-app",
+          "omarchy-launch-webapp",
           [
-            "--",
-            "qml6",
-            WINDOW_QML,
-            "--",
-            base.href,
-            COMMAND_FILE,
-            NOTIFICATION_FILE,
+            options.thread
+              ? `${base.href}#thread=${options.thread}`
+              : base.href,
           ],
           {
-            env: {
-              QML_XHR_ALLOW_FILE_READ: "1",
-              QML_XHR_ALLOW_FILE_WRITE: "1",
-              // Hyprland already scales the window, so a session-wide Qt
-              // factor would double it; match Chromium's own scale instead.
-              // TODO: make the scale a setting of its own.
-              QT_SCALE_FACTOR: yield* chromiumScale,
-            },
-            extendEnv: true,
             stdin: "ignore",
             stdout: "ignore",
             stderr: "ignore",
