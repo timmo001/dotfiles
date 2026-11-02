@@ -28,7 +28,7 @@
   "agentTool": true,
   "favicon": "totman",
   "inboxNotifications": {
-    "enabled": false,
+    "enabled": true,
     "dismissed": false,
     "allowedOrigin": "http://localhost:38079"
   },
@@ -43,7 +43,7 @@
   },
   "inboxSound": {
     "dialogShownFor": "0.28.16",
-    "volume": 50
+    "volume": 40
   },
   "inboxAgentNotes": {
     "offered": true,
