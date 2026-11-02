@@ -1,9 +1,12 @@
-import { Effect, Schema } from "effect";
-import { ChildProcess, ChildProcessSpawner } from "effect/process";
+import { Effect, Schedule, Schema } from "effect";
 import {
   formatCommandError,
   handleCommandError,
 } from "../git/commands/rows.js";
+import {
+  acquireWorkspaceMutationLock,
+  releaseWorkspaceMutationLock,
+} from "../lib/workspaceMutationLock.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
 /**
@@ -19,6 +22,7 @@ const HyprlandClient = Schema.Struct({
   address: Schema.String,
   class: Schema.String,
   title: Schema.String,
+  tags: Schema.Array(Schema.String),
 });
 
 interface HyprlandClient extends Schema.Schema.Type<typeof HyprlandClient> {}
@@ -67,18 +71,39 @@ export function inboxBaseUrl(
   return Effect.succeed(parsed);
 }
 
+const luaString = (value: string) => JSON.stringify(value);
+
+const windowSelector = (address: string) => luaString(`address:${address}`);
+
+const shellWord = (value: string) => `'${value.replaceAll("'", `'\\''`)}'`;
+
+/** How long a new Inbox window gets to appear: 50 polls, 100 ms apart. */
+const NEW_WINDOW_POLLS = 50;
+
 /**
  * Open the Plannotator Inbox as an Omarchy web app (a Chromium app window).
  * `plannotator inbox --background` starts a stopped Inbox and prints the
  * running one's URL, so the window never waits on a server. A running window
  * is raised rather than duplicated. Nothing outside Chromium can navigate an
- * app window, so `--thread` closes a running one and opens a new one at the
- * thread; the Inbox keeps its state on the server.
+ * app window, so `--thread` opens a new window at the thread and swaps it into
+ * the running one's place, keeping its workspace, slot and tags, then closes
+ * the old one; the Inbox keeps its state on the server.
  */
 export const plannotatorInbox = Effect.fn("plannotatorInbox")(
   function* (options: PlannotatorInboxOptions) {
     const executor = yield* CommandExecutor;
-    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+
+    const readClients = executor
+      .run("hyprctl", ["clients", "-j"])
+      .pipe(Effect.flatMap(Schema.decodeUnknownEffect(HyprlandClients)));
+
+    // Through Hyprland, as dot workspace setup launches, so the browser is
+    // never a child of this command.
+    const launch = (url: string) =>
+      executor.run("hyprctl", [
+        "dispatch",
+        `hl.dsp.exec_cmd(${luaString(`omarchy-launch-webapp ${shellWord(url)}`)})`,
+      ]);
 
     if (options.thread && !/^[A-Za-z0-9_-]+$/.test(options.thread)) {
       return yield* new PlannotatorInboxError({
@@ -102,54 +127,95 @@ export const plannotatorInbox = Effect.fn("plannotatorInbox")(
 
     const base = yield* inboxBaseUrl(printed, options.url);
 
-    const open = yield* executor.run("hyprctl", ["clients", "-j"]).pipe(
-      Effect.flatMap(Schema.decodeUnknownEffect(HyprlandClients)),
+    const open = yield* readClients.pipe(
       Effect.map((clients) => clients.find(isInboxWindow)),
       Effect.orElseSucceed(() => undefined),
     );
 
-    if (open && !options.thread) {
+    if (!open) {
+      yield* launch(
+        options.thread ? `${base.href}#thread=${options.thread}` : base.href,
+      );
+
+      return;
+    }
+
+    if (!options.thread) {
       yield* executor
         .run("hyprctl", [
           "dispatch",
-          `hl.dsp.focus({ window = "address:${open.address}" })`,
+          `hl.dsp.focus({ window = ${windowSelector(open.address)} })`,
         ])
         .pipe(Effect.ignore);
 
       return;
     }
 
-    if (open) {
-      yield* executor
-        .run("hyprctl", [
-          "dispatch",
-          `hl.dsp.window.close({ window = "address:${open.address}" })`,
-        ])
-        .pipe(Effect.ignore);
-    }
-
-    yield* spawner
-      .spawn(
-        ChildProcess.make(
-          "omarchy-launch-webapp",
-          [
-            options.thread
-              ? `${base.href}#thread=${options.thread}`
-              : base.href,
-          ],
-          {
-            stdin: "ignore",
-            stdout: "ignore",
-            stderr: "ignore",
-            detached: true,
-          },
-        ),
-      )
-      .pipe(
-        Effect.flatMap((child) => child.unref),
-        Effect.asVoid,
-        Effect.scoped,
+    const replace = Effect.gen(function* () {
+      const before = new Set(
+        (yield* readClients).map(({ address }) => address),
       );
+
+      yield* launch(`${base.href}#thread=${options.thread}`);
+
+      const fresh = yield* readClients.pipe(
+        Effect.flatMap((clients) => {
+          const found = clients.find(
+            (client) =>
+              client.class === open.class && !before.has(client.address),
+          );
+
+          return found
+            ? Effect.succeed(found)
+            : Effect.fail(
+                new PlannotatorInboxError({
+                  message:
+                    "The Inbox window for the thread did not open; the open one is left as it was",
+                }),
+              );
+        }),
+        Effect.retry({
+          times: NEW_WINDOW_POLLS,
+          schedule: Schedule.spaced("100 millis"),
+        }),
+      );
+
+      // One batch: the new window takes the old one's slot on its workspace
+      // (the old one lands where the new one opened, and closing it gives that
+      // slot back), keeps its tags, such as dot workspace setup's, and gets
+      // focus. Tags ending in * are dynamic ones from window rules.
+      const tags = open.tags.filter((tag) => !tag.endsWith("*"));
+
+      yield* executor.run("hyprctl", [
+        "--batch",
+        [
+          `dispatch hl.dsp.focus({ window = ${windowSelector(fresh.address)} })`,
+          `dispatch hl.dsp.window.swap({ target = ${windowSelector(open.address)} })`,
+          ...tags.map(
+            (tag) =>
+              `dispatch hl.dsp.window.tag({ tag = ${luaString(`+${tag}`)}, window = ${windowSelector(fresh.address)} })`,
+          ),
+          `dispatch hl.dsp.window.close({ window = ${windowSelector(open.address)} })`,
+          `dispatch hl.dsp.focus({ window = ${windowSelector(fresh.address)} })`,
+        ].join(" ; "),
+      ]);
+    });
+
+    // dot workspace setup and relayout move windows too; one at a time.
+    const lock = yield* Effect.try({
+      try: () =>
+        acquireWorkspaceMutationLock(
+          (message) => new PlannotatorInboxError({ message }),
+        ),
+      catch: (error) =>
+        error instanceof PlannotatorInboxError
+          ? error
+          : new PlannotatorInboxError({ message: String(error) }),
+    });
+
+    yield* replace.pipe(
+      Effect.ensuring(Effect.sync(() => releaseWorkspaceMutationLock(lock))),
+    );
   },
   // The bar and the app launcher run this, where nobody sees stderr.
   Effect.tapError((error) =>
