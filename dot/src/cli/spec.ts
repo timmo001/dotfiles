@@ -3625,11 +3625,24 @@ const homeAssistantCommand = describe(
         ["dot ha status", "dot ha status core serve"],
       ),
       describe(
-        Command.make("stop", { targets: homeAssistantTargets }, ({ targets }) =>
-          homeAssistantStop(targets),
+        Command.make(
+          "stop",
+          {
+            targets: Argument.String("target").pipe(
+              Argument.variadic(),
+              Argument.withDescription(
+                "core, build, serve, a serve target with a daemon, gallery, demo, e2e, or all",
+              ),
+            ),
+          },
+          ({ targets }) => homeAssistantStop(targets),
         ),
         "Stop Home Assistant dev servers",
-        ["dot ha stop", "dot ha stop gallery"],
+        ["dot ha stop", "dot ha stop gallery", "dot ha stop all"],
+        {
+          description:
+            "With no targets, or all, stops every server the checkout owns. Under an agent, the targets must be named, or all given, so a bare stop can't take down every server.",
+        },
       ),
       describe(
         Command.make(

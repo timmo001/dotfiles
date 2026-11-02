@@ -3623,6 +3623,8 @@ Stop Home Assistant dev servers
 dot homeassistant stop [flags] [<target...>]
 ```
 
+With no targets, or all, stops every server the checkout owns. Under an agent, the targets must be named, or all given, so a bare stop can't take down every server.
+
 **Options**
 
 | Option | Description |
@@ -3633,13 +3635,14 @@ dot homeassistant stop [flags] [<target...>]
 
 | Argument | Description |
 | --- | --- |
-| `<target>` | core, build, serve, a serve target with a daemon, gallery, demo or e2e (default: all) |
+| `<target>` | core, build, serve, a serve target with a daemon, gallery, demo, e2e, or all |
 
 **Examples**
 
 ```bash
 dot ha stop
 dot ha stop gallery
+dot ha stop all
 ```
 
 ### `dot homeassistant logs`

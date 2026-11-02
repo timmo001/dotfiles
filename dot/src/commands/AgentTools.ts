@@ -38,6 +38,8 @@ interface AgentToolSpec {
   readonly alwaysAsk?: boolean;
   /** Works on the repository it runs in, so the tool takes a directory to run in. */
   readonly directory?: boolean;
+  /** Optional or variadic arguments the tool must be given; a variadic one needs at least one value. */
+  readonly required?: readonly string[];
 }
 
 const DEFAULT_TIMEOUT: Duration.Input = "2 minutes";
@@ -133,9 +135,15 @@ const AGENT_TOOLS = {
   },
   "deps import renovate": { access: "write", timeout: "10 minutes" },
   "services schedule check": { access: "read" },
-  "homeassistant status": { access: "read" },
-  "homeassistant logs": { access: "read", omit: ["follow"] },
-  "homeassistant stop": { access: "write" },
+  "homeassistant status": { access: "read", directory: true },
+  "homeassistant logs": { access: "read", omit: ["follow"], directory: true },
+  "homeassistant stop": {
+    access: "write",
+    directory: true,
+    required: ["target"],
+    description:
+      "Stop the named Home Assistant dev servers of the frontend checkout in directory (default: the session's). Name each target, or all for every server that checkout owns; a linked worktree only owns its own core, build and serve.",
+  },
   snapshot: { access: "read" },
   doctor: { access: "read", timeout: "5 minutes" },
   "report run": { access: "write", timeout: "10 minutes" },
@@ -242,10 +250,16 @@ const valueSchema = (type: ReturnType<typeof flagType>): Schema.Top =>
 const field = (
   single: Param.Single<Param.ParamKind, unknown>,
   type: ReturnType<typeof flagType>,
-  metadata: { readonly isOptional: boolean; readonly isVariadic: boolean },
+  metadata: {
+    readonly isOptional: boolean;
+    readonly isVariadic: boolean;
+    readonly isRequired?: boolean;
+  },
 ) => {
   const base = metadata.isVariadic
-    ? Schema.Array(valueSchema(type))
+    ? metadata.isRequired
+      ? Schema.Array(valueSchema(type)).check(Schema.isMinLength(1))
+      : Schema.Array(valueSchema(type))
     : valueSchema(type);
 
   const value = Option.match(single.description, {
@@ -253,7 +267,7 @@ const field = (
     onSome: (description) => base.annotate({ description }),
   });
 
-  return metadata.isOptional || metadata.isVariadic
+  return !metadata.isRequired && (metadata.isOptional || metadata.isVariadic)
     ? Schema.optionalKey(value)
     : value;
 };
@@ -284,7 +298,10 @@ const describeTool = Effect.fnUntraced(function* (
       if (omitted.has(single.name)) continue;
 
       const key = inputKey(single.name);
-      fields[key] = field(single, argumentType(single), metadata);
+      fields[key] = field(single, argumentType(single), {
+        ...metadata,
+        isRequired: spec.required?.includes(single.name) ?? false,
+      });
       params.push({
         key,
         kind: "argument",
@@ -293,6 +310,15 @@ const describeTool = Effect.fnUntraced(function* (
       });
     }
   }
+
+  const missing = (spec.required ?? []).filter(
+    (name) => !(inputKey(name) in fields),
+  );
+
+  if (missing.length > 0)
+    return yield* new AgentToolError({
+      message: `Agent tool ${path} requires ${missing.join(", ")}, which it has no argument for`,
+    });
 
   for (const flag of config.flags) {
     const metadata = paramMetadata(flag);

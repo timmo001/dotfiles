@@ -1402,12 +1402,24 @@ export const homeAssistantStatus = Effect.fn("HomeAssistant.status")(function* (
 });
 
 /**
- * Stop Home Assistant daemons and frontend suites; by default, all of the
- * current checkout's. A worktree leaves the shared serve target daemons alone.
+ * Stop Home Assistant daemons and frontend suites; with no names or `all`,
+ * all of the current checkout's. A worktree leaves the shared serve target
+ * daemons alone. Agents must name the targets or pass `all`.
  */
 export const homeAssistantStop = Effect.fn("HomeAssistant.stop")(function* (
-  names: readonly string[],
+  requested: readonly string[],
 ) {
+  if (requested.length === 0 && isAgent())
+    return yield* fail(
+      "Name the dev servers to stop, or all to stop every one this checkout owns.",
+    );
+
+  if (requested.includes("all") && requested.length > 1)
+    return yield* fail(
+      "all stops every dev server; don't name others with it.",
+    );
+
+  const names = requested.includes("all") ? [] : requested;
   const executor = yield* CommandExecutor;
   const { base, worktree, config, selected } = yield* selectTargets(names);
   const all = worktree === undefined || names.length > 0;
