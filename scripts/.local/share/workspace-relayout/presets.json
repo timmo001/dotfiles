@@ -101,6 +101,16 @@
           "a": "w",
           "b": "w"
         }
+      },
+      {
+        "group": "Left / right",
+        "name": "2 columns",
+        "tree": {
+          "dir": "lr",
+          "ratio": 23.75,
+          "a": "w",
+          "b": "w"
+        }
       }
     ],
     "3": [
