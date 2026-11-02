@@ -71,7 +71,17 @@ const claudeTarget: HarnessTarget = {
     ].join("\n"),
 };
 
-const targets: readonly HarnessTarget[] = [cursorTarget, claudeTarget];
+const piTarget: HarnessTarget = {
+  name: "pi",
+  outputPath: () => join(HOME_DIR, ".pi", "agent", "AGENTS.md"),
+  transform: claudeTarget.transform,
+};
+
+const targets: readonly HarnessTarget[] = [
+  cursorTarget,
+  claudeTarget,
+  piTarget,
+];
 
 // ---------------------------------------------------------------------------
 // Claude Code workspace trust
