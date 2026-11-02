@@ -41,6 +41,7 @@ import {
   type ClientTool,
   type Namespace,
   runCliOutput,
+  strictToolInput,
 } from "./lib/cli-tools/tool";
 import { triageNamespace } from "./lib/cli-tools/triage";
 import { upnextNamespace } from "./lib/cli-tools/upnext";
@@ -230,7 +231,7 @@ export default Plugin.define({
               draft.add({
                 name: tool.name,
                 description: tool.description,
-                input: tool.input,
+                input: strictToolInput(tool.input),
                 output: Schema.Unknown,
                 options: toolOptions(namespace, tool),
                 execute: (input, call) =>
@@ -249,7 +250,7 @@ export default Plugin.define({
             draft.add({
               name: tool.name,
               description: tool.description,
-              input: tool.input,
+              input: strictToolInput(tool.input),
               output: tool.json ? Schema.Unknown : Schema.String,
               options: toolOptions(namespace, tool),
               execute: (input, call) =>

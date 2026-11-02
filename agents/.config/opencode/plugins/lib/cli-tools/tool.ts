@@ -1,7 +1,24 @@
 import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { Tool } from "@opencode/schema/tool";
-import { DateTime, Duration, Effect, FileSystem, Layer, Option, Predicate, Schema, SchemaAST, Stream } from "effect";
+import {
+  DateTime,
+  Duration,
+  Effect,
+  FileSystem,
+  JsonSchema,
+  Layer,
+  Option,
+  Predicate,
+  Result,
+  Schema,
+  SchemaAST,
+  SchemaIssue,
+  SchemaParser,
+  SchemaRepresentation,
+  StandardSchema,
+  Stream,
+} from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 /** Whether a tool only reads state or changes something. */
@@ -23,6 +40,101 @@ export type CliInput = typeof CliInput.Type;
 
 /** Reject keys a tool doesn't take, so a misspelt option fails instead of being dropped. */
 const strictInput = { onExcessProperty: "error" } as const;
+
+const formatIssue = SchemaIssue.makeFormatterStandardSchemaV1();
+
+const safeIntegerBounds = new Map([
+  ["minimum", Number.MIN_SAFE_INTEGER],
+  ["maximum", Number.MAX_SAFE_INTEGER],
+]);
+
+const isJsonSchema = Schema.is(Schema.Record(Schema.String, Schema.Unknown));
+
+/** A tool that takes no input: Effect's `Struct({})` accepts any keys, so this rejects them all. */
+const NoInput = Schema.Record(Schema.String, Schema.Never);
+
+// Effect adds the safe-integer range to every Schema.Int; drop it as OpenCode does, so the
+// catalogue's signatures stay the same.
+const dropSafeIntegerBounds = (schema: JsonSchema.JsonSchema): JsonSchema.JsonSchema => {
+  const integer = schema.type === "integer";
+
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters, anti-slop/no-unknown-returns
+  const nested = (value: unknown): unknown =>
+    Array.isArray(value) ? value.map(nested) : isJsonSchema(value) ? dropSafeIntegerBounds(value) : value;
+
+  return Object.fromEntries(
+    Object.entries(schema)
+      .filter(([key, value]) => !integer || safeIntegerBounds.get(key) !== value)
+      .map(([key, value]) => [key, nested(value)]),
+  );
+};
+
+const jsonSchemaOf = (schema: Schema.Top): JsonSchema.JsonSchema => {
+  const document = Schema.toJsonSchemaDocument(schema, { onExcessProperty: "error" });
+
+  return dropSafeIntegerBounds(
+    Object.keys(document.definitions).length === 0
+      ? document.schema
+      : { ...document.schema, $defs: document.definitions },
+  );
+};
+
+/**
+ * The codec to check input against, if there is one, and the JSON Schema to show, as OpenCode
+ * would build them. Without a codec, input passes as it does in OpenCode.
+ */
+const describeInput = (
+  input: Schema.Codec<unknown> | JsonSchema.JsonSchema,
+): readonly [Schema.Codec<unknown> | undefined, JsonSchema.JsonSchema] => {
+  const json = Schema.isSchema(input) ? jsonSchemaOf(input) : input;
+  const { not, ...rest } = json;
+
+  // Effect describes an empty struct as anything but null; OpenCode shows it as an empty object.
+  if (isJsonSchema(not) && not.type === "null" && Object.keys(not).length === 1)
+    return [NoInput, { ...rest, type: "object", properties: {}, additionalProperties: false }];
+
+  if (Schema.isSchema(input)) return [input, json];
+
+  // dot's tools arrive as JSON Schema from its own manifest, so its patterns are trusted.
+  try {
+    const document = JsonSchema.fromSchemaDraft2020_12(input);
+
+    return [Schema.make(SchemaRepresentation.fromJsonSchemaDocument(document, { patterns: "apply" }).ast), json];
+  } catch {
+    return [undefined, json];
+  }
+};
+
+/**
+ * Wrap a tool's input schema so OpenCode rejects keys the tool doesn't take. OpenCode decodes
+ * plugin tool input with Effect's default, which strips unknown keys even though the JSON Schema
+ * it shows has `additionalProperties: false`, so a misspelt option was dropped without a word and
+ * the call ran without it. A Standard Schema gets the raw input instead: this decodes it strictly
+ * against the same schema and, when it passes, hands it on unchanged for the tool to decode.
+ */
+export const strictToolInput = (input: Tool.ValueSchema): Tool.ValueSchema => {
+  if (Predicate.hasProperty(input, "~standard")) return input;
+
+  const [codec, json] = describeInput(input);
+  const decode = codec && SchemaParser.decodeUnknownResult(codec, { ...strictInput, errors: "all" });
+
+  const schema: StandardSchema.StandardSchemaV1 & StandardSchema.StandardJSONSchemaV1 = {
+    "~standard": {
+      version: 1,
+      vendor: "dotfiles-cli-tools",
+      validate: (value) =>
+        decode === undefined
+          ? { value }
+          : Result.match(decode(value), {
+              onFailure: formatIssue,
+              onSuccess: () => ({ value }),
+            }),
+      jsonSchema: { input: () => json, output: () => json },
+    },
+  };
+
+  return schema;
+};
 
 /** One CLI command exposed as a Code Mode tool. */
 export interface CliTool {
