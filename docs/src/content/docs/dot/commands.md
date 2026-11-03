@@ -72,7 +72,7 @@ dot up checks everything it can update or install: the dotfiles and tracked repo
 
 It finishes with a summary of updated repositories, mise tools and every step.
 
---check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.
+--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, and --check-all every tracked repository, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.
 
 Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands. The Git panel uses --no-reload to skip agent reload and module refresh.
 

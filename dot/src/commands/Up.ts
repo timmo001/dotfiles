@@ -46,7 +46,6 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import {
-  CORE_CHECK_CATEGORIES,
   refreshTools,
   update,
   UP_GROUPS,
@@ -149,9 +148,7 @@ const logIncoming = Effect.fn("Up.incoming")(function* (status: PendingStatus) {
   const dotDiff = yield* DotDiff;
   const log = yield* OutputLog;
 
-  const repos = yield* dotDiff
-    .getAll({ categories: CORE_CHECK_CATEGORIES })
-    .pipe(Effect.orElseSucceed(() => []));
+  const repos = yield* dotDiff.getAll().pipe(Effect.orElseSucceed(() => []));
 
   const behind = [
     ...repos

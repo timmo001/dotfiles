@@ -109,11 +109,14 @@ const pendingItems = (output: string) => {
   return end === -1 ? items : items.slice(0, end);
 };
 
-/** Check the dotfiles and core repositories with `dot up --check-repos`. */
+/**
+ * Check the dotfiles and every tracked repository with `dot up --check-all`,
+ * as the dotfiles group pulls them all.
+ */
 export const dotfiles = Effect.fn("PendingUpdates.dotfiles")(function* (
   timeout: number,
 ) {
-  const result = yield* query("dot", ["up", "--check-repos"], timeout);
+  const result = yield* query("dot", ["up", "--check-all"], timeout);
 
   const state = Match.value(result.code).pipe(
     Match.when(0, () => "current" as const),
