@@ -1,5 +1,6 @@
 import {
   BridgeClient,
+  CheckUpdatesRequest,
   CreateEntityConfigRequest,
   EntityConfigRequest,
   HistoryRequest,
@@ -11,6 +12,8 @@ import {
   SystemLogRequest,
   TargetRequest,
   UpdateEntityConfigRequest,
+  UpdateRequest,
+  UpdatesRequest,
   ValidateEntityConfigRequest,
 } from "@timmo001/effect-ha-bridge";
 import { Duration, Effect, Layer, Option, Path, Schema, Stream } from "effect";
@@ -46,7 +49,7 @@ export const haBridgeNamespace: ClientNamespace = {
   kind: "client",
   command: "ha-bridge",
   description:
-    "Home Assistant through the ha-bridge socket: read entities, history, logbook, logs and automation or script configs, render templates, test conditions, search, and call actions or fire events. Targets take entity_id, device_id, area_id, floor_id or label_id.",
+    "Home Assistant through the ha-bridge socket: read entities, history, logbook, logs, updates and automation or script configs, render templates, test conditions, search, check for updates, and call actions or fire events. Targets take entity_id, device_id, area_id, floor_id or label_id.",
   available: socketPath.pipe(
     Effect.flatMap(pathExists),
     Effect.orElseSucceed(() => false),
@@ -142,6 +145,29 @@ export const haBridgeNamespace: ClientNamespace = {
       access: "read",
       input: Schema.Struct({}),
       run: () => withBridge((bridge) => bridge.GetLogApps()),
+    }),
+    tool({
+      name: "get_updates",
+      description:
+        "List Home Assistant's updates: Core, the OS, the Supervisor, apps and device firmware, with installed and latest versions. available keeps those waiting.",
+      access: "read",
+      input: UpdatesRequest,
+      run: (input) => withBridge((bridge) => bridge.GetUpdates(input)),
+    }),
+    tool({
+      name: "get_update",
+      description: "Read one update entity in full, with its integration and release notes.",
+      access: "read",
+      input: UpdateRequest,
+      run: (input) => withBridge((bridge) => bridge.GetUpdate(input)),
+    }),
+    tool({
+      name: "check_updates",
+      description:
+        "Check for new versions, as Settings > Updates does: the Supervisor first, then each update entity or those a target matches. Install with call_action update.install.",
+      access: "read",
+      input: CheckUpdatesRequest,
+      run: (input) => withBridge((bridge) => bridge.CheckUpdates(input)),
     }),
     tool({
       name: "get_entity_config",
