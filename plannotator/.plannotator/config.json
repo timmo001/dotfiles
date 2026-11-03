@@ -73,5 +73,11 @@
   },
   "inboxSnoozeIntro": {
     "firstUseAt": "2026-10-10T21:35:20.772Z"
-  }
+  },
+  "inboxRows": [
+    "highlight",
+    "roomy",
+    "previewTwo"
+  ],
+  "inboxRowsRev": 14
 }
