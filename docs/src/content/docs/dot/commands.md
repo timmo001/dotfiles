@@ -65,10 +65,11 @@ dot up [flags]
 dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending pacman and AUR packages, packages from the public and private lists that aren't installed, Omarchy and gh extensions. It saves the result for the bar, lists it, then asks which groups to run, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order, each numbered with a one-line description:
 
 1. Dotfiles: pulls the public dotfiles, rebuilds and relaunches dot, scans and pulls tracked repositories, moves the skills checkout to the latest skills main, syncs MCP config, stows, installs mise tools, refreshes agent runtimes, syncs agent instructions, reloads agents and refreshes shell modules. Pulls are fast-forward-only and never stash or rebase.
-2. Mise tools: installs missing tools and runs mise up with no release delay.
-3. gh extensions: installs missing ones and upgrades the rest.
-4. Missing packages: installs packages from the public and private lists.
-5. System: installs the Omarchy patch hook root-owned, then hands over to omarchy update for pacman, AUR and Omarchy updates. When a dotfiles patch no longer applies to the pending Omarchy, it holds the system update back and offers a Herdr agent to fix the patch.
+2. Repositories: when the only dotfiles work is pulling tracked repositories, pulls just those and runs their post-update commands, without the other dotfiles steps.
+3. Mise tools: installs missing tools and runs mise up with no release delay.
+4. gh extensions: installs missing ones and upgrades the rest.
+5. Missing packages: installs packages from the public and private lists.
+6. System: installs the Omarchy patch hook root-owned, then hands over to omarchy update for pacman, AUR and Omarchy updates. When a dotfiles patch no longer applies to the pending Omarchy, it holds the system update back and offers a Herdr agent to fix the patch.
 
 It finishes with a summary of updated repositories, mise tools and every step.
 
@@ -89,7 +90,7 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--check-all` | Also check development repos for pulls, skipping local work |
 | `--yes` | Run every group with work without asking, and pass -y to omarchy update |
 | `--force` | Offer every group, even with nothing pending |
-| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, tools, gh, packages, system) |
+| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, repos, tools, gh, packages, system) |
 | `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |

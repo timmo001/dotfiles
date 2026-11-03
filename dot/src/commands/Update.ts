@@ -197,6 +197,7 @@ export interface UpdateRun {
 /** What `dot up` can run, in the order it runs them. */
 export const UP_GROUPS = [
   "dotfiles",
+  "repos",
   "tools",
   "gh",
   "packages",

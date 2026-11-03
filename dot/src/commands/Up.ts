@@ -1,7 +1,7 @@
 /**
  * @file `dot up`: check everything, pick what to run, then run it in order:
- * dotfiles, mise tools, gh extensions, missing packages and the Omarchy
- * system update.
+ * dotfiles (or only the tracked repository pulls), mise tools, gh extensions,
+ * missing packages and the Omarchy system update.
  */
 
 import { Extension } from "@timmo001/effect-gh";
@@ -45,9 +45,12 @@ import {
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
+import type { DiffRepo } from "../types.js";
 import {
+  CORE_CHECK_CATEGORIES,
   refreshTools,
   update,
+  updateRepositories,
   UP_GROUPS,
   UPDATE_CHECK_AVAILABLE_EXIT,
   UPDATE_CHECK_ERROR_EXIT,
@@ -67,6 +70,11 @@ const GROUP_INFO: Record<
     title: "Dotfiles",
     description:
       "Pull the dotfiles and tracked repositories, stow, rebuild dot and move the skills checkout",
+  },
+  repos: {
+    title: "Repositories",
+    description:
+      "Pull tracked repositories and run their post-update commands, without the dotfiles steps",
   },
   tools: {
     title: "Mise tools",
@@ -88,8 +96,15 @@ const GROUP_INFO: Record<
   },
 };
 
-/** Which `dot up` group handles each checked group's work. */
-const groupWork = (groups: readonly PendingGroup[]) => {
+/**
+ * Which `dot up` group handles each checked group's work. When the only
+ * dotfiles work is pulling tracked repositories, the lighter repos group
+ * takes it instead of the full dotfiles flow.
+ */
+const groupWork = (
+  groups: readonly PendingGroup[],
+  repoPulls: readonly RepoPull[],
+) => {
   const byId = new Map(groups.map((group) => [group.id, group]));
 
   const lines = (...ids: PendingGroup["id"][]) =>
@@ -100,9 +115,15 @@ const groupWork = (groups: readonly PendingGroup[]) => {
     });
 
   const packages = byId.get("packages");
+  const dotfiles = lines("dotfiles", "skills");
+
+  const onlyPulls = dotfiles.every((line) =>
+    repoPulls.some((repo) => repo.line === line),
+  );
 
   return {
-    dotfiles: lines("dotfiles", "skills"),
+    dotfiles: onlyPulls ? [] : dotfiles,
+    repos: onlyPulls ? dotfiles : [],
     tools: lines("tools"),
     gh: lines("gh"),
     packages: (packages?.missing ?? []).map((name) => `${name} (missing)`),
@@ -140,20 +161,45 @@ const styleWorkLine = (style: Styler, line: string) => {
   return line;
 };
 
+/** A tracked repository outside the dotfiles that only needs pulling. */
+interface RepoPull {
+  /** Checkout path. */
+  readonly path: string;
+  /** Its line in the update check. */
+  readonly line: string;
+}
+
+/**
+ * Match the check's pending lines to tracked repositories outside the
+ * dotfiles, so the check's skips for local work still apply.
+ */
+const repoPulls = (
+  repos: readonly DiffRepo[],
+  pending: readonly string[],
+): readonly RepoPull[] =>
+  repos.flatMap((repo) => {
+    if (CORE_CHECK_CATEGORIES.has(repo.category) || repo.behind === 0)
+      return [];
+
+    const line = pending.find((item) => item.startsWith(`${repo.name}: `));
+
+    return line ? [{ path: repo.path, line }] : [];
+  });
+
 /**
  * Log the commits and changed files each pending pull brings in, from where
  * the checkout and its upstream split, as the Git panel shows incoming changes.
  */
-const logIncoming = Effect.fn("Up.incoming")(function* (status: PendingStatus) {
-  const dotDiff = yield* DotDiff;
+const logIncoming = Effect.fn("Up.incoming")(function* (
+  status: PendingStatus,
+  repos: readonly DiffRepo[],
+) {
   const log = yield* OutputLog;
 
-  const repos = yield* dotDiff.getAll().pipe(Effect.orElseSucceed(() => []));
-
   const behind = [
-    ...repos
-      .filter((repo) => repo.behind > 0)
-      .map((repo) => ({ name: repo.name, path: repo.path, to: "@{u}" })),
+    ...repos.flatMap((repo) =>
+      repo.behind > 0 ? [{ name: repo.name, path: repo.path, to: "@{u}" }] : [],
+    ),
     ...(status.skills && status.skills.behind > 0
       ? [{ name: "skills", path: SKILLS_CHECKOUT, to: "origin/main" }]
       : []),
@@ -423,6 +469,30 @@ const ghUpgrade = Effect.gen(function* () {
     : warn(`gh extension upgrade exited ${exitCode}`);
 }).pipe(Effect.withSpan("Up.gh"));
 
+/** Pull only the tracked repositories that need it, running their post-update commands. */
+const pullRepos = Effect.fn("Up.repos")(function* (pulls: readonly RepoPull[]) {
+  if (pulls.length === 0) return skip("No repositories to pull");
+
+  return yield* updateRepositories(
+    pulls.map((repo) => repo.path),
+    true,
+    true,
+  ).pipe(
+    Effect.as(
+      done(
+        `Pulled ${pulls.length} ${pulls.length === 1 ? "repository" : "repositories"}`,
+      ),
+    ),
+    Effect.catch((error) =>
+      Effect.sync(() => {
+        process.exitCode = 1;
+
+        return warn(`Repository pull failed: ${error.message}`);
+      }),
+    ),
+  );
+});
+
 /**
  * Run `dot up`. A fresh run checks everything and asks which groups to run;
  * a run restarted by the dotfiles self-update carries its groups instead.
@@ -435,18 +505,29 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
 
   let status: PendingStatus | null = null;
   let groups: readonly UpGroup[];
+  let pulls: readonly RepoPull[] = [];
 
   if (restarted) {
     groups = opts.groups ?? [];
   } else {
     yield* log.section("Checking For Updates");
+
     status = yield* log.withSpinner(
       "Checking everything",
       checkAll(CHECK_TIMEOUT),
     );
     yield* saveStatus(status).pipe(Effect.ignore);
 
-    const work = groupWork(pendingGroups(status));
+    // The check has just fetched, so this scan reads the cached upstreams.
+    const dotDiff = yield* DotDiff;
+
+    const repos = yield* dotDiff
+      .getAll()
+      .pipe(Effect.orElseSucceed((): readonly DiffRepo[] => []));
+
+    pulls = repoPulls(repos, status.dot.pending);
+
+    const work = groupWork(pendingGroups(status), pulls);
     const style = cliStyler();
 
     for (const group of UP_GROUPS) {
@@ -457,7 +538,8 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
       for (const line of work[group])
         yield* log.info(`  ${styleWorkLine(style, line)}`);
 
-      if (group === "dotfiles") yield* logIncoming(status);
+      if (group === "dotfiles" || group === "repos")
+        yield* logIncoming(status, repos);
     }
 
     if (!opts.force && UP_GROUPS.every((group) => work[group].length === 0)) {
@@ -506,6 +588,13 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
       updatedRepos.push(...result.updatedRepos);
       miseToolChanges.push(...result.miseToolChanges);
       actions.push(...result.completedActions);
+    } else if (group === "repos") {
+      if (picked.has("dotfiles")) {
+        yield* log.info("Pulled with the dotfiles");
+        continue;
+      }
+
+      actions.push(yield* pullRepos(pulls));
     } else if (group === "tools") {
       if (picked.has("dotfiles")) {
         yield* log.info("Upgraded with the dotfiles");
