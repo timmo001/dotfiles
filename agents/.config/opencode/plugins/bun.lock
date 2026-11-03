@@ -6,7 +6,7 @@
       "name": "opencode-plugins",
       "dependencies": {
         "@timmo001/effect-context": "1.0.1",
-        "@timmo001/effect-gh": "0.9.2",
+        "@timmo001/effect-gh": "0.10.0",
         "@timmo001/effect-ha-bridge": "1.5.0",
         "@timmo001/effect-herdr": "0.9.0-timmo001.5",
         "@timmo001/effect-notes": "1.0.3",
@@ -304,7 +304,7 @@
 
     "@timmo001/effect-context": ["@timmo001/effect-context@1.0.1", "", { "dependencies": { "@timmo001/effect-gh": "0.9.1" }, "peerDependencies": { "@effect/platform-node": "^4.0.1", "effect": "^4.0.1" } }, "sha512-SRMZLvm2rj5mjaYo4CulHXfyHi8MWAzRl5QhJ9JGOz67iM25akdh269rFRRev1NzYcj2Sj6gUpxU7g1ap0Wcqw=="],
 
-    "@timmo001/effect-gh": ["@timmo001/effect-gh@0.9.2", "", { "dependencies": { "graphql": "17.0.2" }, "peerDependencies": { "effect": "4.1.1" } }, "sha512-sLCtELlf6Ap0NJ/l9fPCJzX6zgmXr9P4blaxw9Ta+/NkMy9bNPA2HYhX2jY0A634fGgwQKBtyjvXu2DJVU748w=="],
+    "@timmo001/effect-gh": ["@timmo001/effect-gh@0.10.0", "", { "dependencies": { "graphql": "17.0.2" }, "peerDependencies": { "effect": "4.1.2" } }, "sha512-5qiA+g9BT7YPxB7co/rrL4O70t+p0i1DLqldCJv6fJ/4guBbeEGr8EGYn/nuYvGYoG18yTvimZp7qVJEHajtZA=="],
 
     "@timmo001/effect-ha": ["@timmo001/effect-ha@1.5.0", "", { "peerDependencies": { "effect": "4.1.1" } }, "sha512-+MRtxFd6uZRqF9Mf6eUoN5Rx/yaHYAt99W6qicJnM+K3Sa/VPhBK41bo3GvillU5mVO6LdUs1VvKWfxVBMiaJg=="],
 
