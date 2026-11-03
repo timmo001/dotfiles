@@ -25,7 +25,6 @@ interface DefaultUnit {
  * some hosts is masked on the others, so D-Bus activation can't start it.
  */
 const DEFAULT_UNITS: readonly DefaultUnit[] = [
-  { unit: "dot-notifications-dismiss.timer" },
   // Hokum draws black cards on the desktop's NVIDIA GPU.
   { unit: "hokum.service", onlyHosts: ["laptop"] },
 ];

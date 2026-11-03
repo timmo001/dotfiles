@@ -112,7 +112,7 @@ export function pageOptions(
       action: "clear-deps",
       label: "Clear dependency notifications",
       detail:
-        "Run the dependency notification clean-up now instead of waiting for its timer.",
+        "Run the dependency notification clean-up now instead of waiting for its schedule.",
       unavailable: isNotificationsPage(url)
         ? undefined
         : "Only on the notifications page.",

@@ -1893,7 +1893,7 @@ dot git notifications dismiss remaining
 
 #### `dot git notifications dismiss dependencies`
 
-Review unread merged Renovate/Dependabot updates regardless of CI results. All-mode excludes unverifiable CI and exits 2 when some notifications could not be inspected but nothing failed. Opening GitHub returns to the review without dismissing anything. The dot-notifications-dismiss.timer user timer runs all-mode every 15 minutes; dot services start dot-notifications-dismiss.timer runs it now.
+Review unread merged Renovate/Dependabot updates regardless of CI results. All-mode excludes unverifiable CI and exits 2 when some notifications could not be inspected but nothing failed. Opening GitHub returns to the review without dismissing anything. Upkeep's notifications job runs all-mode every 15 minutes; upkeep run notifications queues it now.
 
 ```text
 dot git notifications dismiss dependencies [flags]
@@ -2131,7 +2131,7 @@ Native messaging host for the dot links Chromium extension
 dot link native-host [flags] [<origin...>]
 ```
 
-Chromium runs this through the link-native-host wrapper; it isn't for running by hand. Reads one length-prefixed JSON request on stdin: resolve {url} replies with the page's dot:// link, whether the Git panel lists it, counting a pull request's tabs such as /changes, and the name of its tracked checkout, open {url} opens it in the Git panel and fails rather than opening the browser when the panel doesn't list it, review {url} opens a pull request, from any of its tabs, in a Plannotator review through uwsm-app, agent {url} starts an OpenCode agent on an issue or pull request in its tracked checkout through dot herdr repo open, with a prompt that loads the repository's matching skills and differs for items you opened, are assigned or (for issues) own the repository of, and clear-deps starts dot-notifications-dismiss.service now instead of waiting for its timer. dot stow builds the extension in chromium-extension/ and writes the host manifest into each browser in links.extension.user_data_dirs in dot-git.yml.
+Chromium runs this through the link-native-host wrapper; it isn't for running by hand. Reads one length-prefixed JSON request on stdin: resolve {url} replies with the page's dot:// link, whether the Git panel lists it, counting a pull request's tabs such as /changes, and the name of its tracked checkout, open {url} opens it in the Git panel and fails rather than opening the browser when the panel doesn't list it, review {url} opens a pull request, from any of its tabs, in a Plannotator review through uwsm-app, agent {url} starts an OpenCode agent on an issue or pull request in its tracked checkout through dot herdr repo open, with a prompt that loads the repository's matching skills and differs for items you opened, are assigned or (for issues) own the repository of, and clear-deps queues a run of upkeep's notifications job now instead of waiting for its schedule. dot stow builds the extension in chromium-extension/ and writes the host manifest into each browser in links.extension.user_data_dirs in dot-git.yml.
 
 **Options**
 

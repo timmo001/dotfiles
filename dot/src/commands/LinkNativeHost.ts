@@ -170,23 +170,14 @@ const answer = Effect.gen(function* () {
   if (request.type === "clear-deps") {
     const executor = yield* CommandExecutor;
 
-    // Starting the timer's unit, rather than running the command, joins a run
-    // that's already going instead of racing it.
-    yield* executor
-      .run("systemctl", [
-        "--user",
-        "start",
-        "--no-block",
-        "dot-notifications-dismiss.service",
-      ])
-      .pipe(
-        Effect.mapError(
-          () =>
-            new NativeHostError({
-              message: "Could not start dot-notifications-dismiss.service",
-            }),
-        ),
-      );
+    yield* executor.run("upkeep", ["run", "notifications"]).pipe(
+      Effect.mapError(
+        () =>
+          new NativeHostError({
+            message: "Could not queue the upkeep notifications job",
+          }),
+      ),
+    );
 
     return { ok: true } satisfies NativeReply;
   }
@@ -258,8 +249,8 @@ const answer = Effect.gen(function* () {
  * and `open` opens it in the Git panel, never falling back to the browser.
  * `review` opens a pull request in a Plannotator review, from any of its tabs,
  * and `agent` starts an OpenCode agent on an issue or pull request in its
- * tracked checkout. `clear-deps` starts the dot-notifications-dismiss service
- * now instead of waiting for its timer.
+ * tracked checkout. `clear-deps` queues a run of upkeep's `notifications` job
+ * now instead of waiting for its schedule.
  * Stdout carries only the reply.
  */
 export const linkNativeHost = answer.pipe(
