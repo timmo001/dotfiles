@@ -13,7 +13,7 @@ tools:
     reviewed: v0.9.5
     review: Check herdr/.config/herdr, the Herdr plugins under scripts/.local/share/herdr-plugins (their min_herdr_version), the dot commands, services and doctor checks that drive Herdr through @timmo001/effect-herdr, and the herdr Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/herdr.ts.
   - repo: omacom/omarchy
-    reviewed: v4.5.0-rc2
+    reviewed: v4.5.0-rc3
     prereleases: true
     review: Check the custom bar plugins under omarchy/.config/omarchy/plugins that replace or extend Omarchy's (omarchy-plugins.json), the generated shell.json in dot/src/lib/omarchyShellConfig.ts, the Omarchy hooks, components and extensions, and the omarchy Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/omarchy.ts. Check the patches under scripts/.local/share/omarchy-patches still apply to the release's bin scripts (dot up holds the system step back when they drift). Recheck the omarchy-shell-quickshell skill's file paths, lifecycle and plugin workflow against the release.
   - repo: quickshell-mirror/quickshell
