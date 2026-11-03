@@ -383,6 +383,21 @@
           },
           "b": "w"
         }
+      },
+      {
+        "group": "Left / right",
+        "name": "Inbox left, Streams/Terminal Right",
+        "tree": {
+          "dir": "lr",
+          "ratio": 19.44,
+          "a": "w",
+          "b": {
+            "dir": "tb",
+            "ratio": 56.96,
+            "a": "w",
+            "b": "w"
+          }
+        }
       }
     ],
     "4": [
