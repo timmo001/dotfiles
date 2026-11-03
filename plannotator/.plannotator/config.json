@@ -70,5 +70,8 @@
   "inboxTextSize": 15,
   "inboxVoiceIntro": {
     "dueAt": "2026-11-01T16:27:29.165Z"
+  },
+  "inboxSnoozeIntro": {
+    "firstUseAt": "2026-10-10T21:35:20.772Z"
   }
 }
