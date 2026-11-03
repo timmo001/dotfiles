@@ -12,7 +12,10 @@ import {
 } from "../lib/repoShortcuts.js";
 import { captureRepositoryOptions } from "./NotesCaptureSync.js";
 import { writeAllCompletions } from "./Completions.js";
-import { installOpencodePluginDependencies } from "../lib/opencodePlugins.js";
+import {
+  ensureGlobalOpencodePlugins,
+  installOpencodePluginDependencies,
+} from "../lib/opencodePlugins.js";
 import { syncSkills } from "../lib/externalSkills.js";
 import { applySyncthingConfig } from "../lib/syncthing.js";
 import { applySecretFiles } from "../lib/secretFiles.js";
@@ -120,6 +123,14 @@ export const stow = (opts?: {
         `Installed dependencies ${style.dim(displayPath(yield* installOpencodePluginDependencies))}`,
       );
       actions.push(done("Installed OpenCode plugin dependencies"));
+
+      const globalPlugins = yield* ensureGlobalOpencodePlugins;
+
+      for (const spec of globalPlugins.added) {
+        yield* log.success(
+          `Added ${style.accent(spec)} ${style.dim(displayPath(globalPlugins.path))}`,
+        );
+      }
 
       yield* log.section("Stow Public Dotfiles");
       yield* removeRetiredStowState(counts);

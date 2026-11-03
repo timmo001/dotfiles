@@ -1,7 +1,16 @@
-import { Effect, Schema } from "effect";
+import { Effect, FileSystem, Schema } from "effect";
 import { join } from "path";
+import { formatJson } from "../mcp/sync/formatJson.js";
 import { Config } from "../services/Config.js";
+import { writeFileAtomic } from "./atomicWrite.js";
+import { HOME_DIR } from "./paths.js";
 import { runQuiet } from "./quietCommand.js";
+import {
+  decodeJsonObject,
+  isJsonObject,
+  isString,
+  type JsonValue,
+} from "./schema.js";
 
 /** Failure while installing the shared OpenCode plugin dependencies. */
 export class OpencodePluginInstallError extends Schema.TaggedError<OpencodePluginInstallError>()(
@@ -39,4 +48,58 @@ export const installOpencodePluginDependencies = Effect.gen(function* () {
   }
 
   return source;
+});
+
+/** Plugins every machine loads from the global OpenCode config. */
+const GLOBAL_PLUGINS = ["github:timmo001/upkeep#main::path:packages/opencode"];
+
+const CONFIG_PATH = join("agents", ".config", "opencode", "opencode.json");
+
+/** A `plugins` entry's package spec, whether a string or `{ package }`. */
+const pluginSpec = (entry: JsonValue) =>
+  isString(entry)
+    ? entry
+    : isJsonObject(entry) && isString(entry.package)
+      ? entry.package
+      : null;
+
+/**
+ * Add the missing {@link GLOBAL_PLUGINS} to the global OpenCode config,
+ * leaving every other entry alone.
+ *
+ * The global config is stowed from the private overlay, so the entries are
+ * written into its source there, as `dot mcp sync` does; without the overlay
+ * they go into the live file.
+ */
+export const ensureGlobalOpencodePlugins = Effect.gen(function* () {
+  const config = yield* Config;
+  const fs = yield* FileSystem.FileSystem;
+
+  const path =
+    config.canUsePrivate && config.privateDotfiles !== null
+      ? join(config.privateDotfiles, CONFIG_PATH)
+      : join(HOME_DIR, ".config", "opencode", "opencode.json");
+
+  const existing = (yield* fs.exists(path))
+    ? decodeJsonObject(JSON.parse(yield* fs.readFileString(path)))
+    : {};
+
+  const plugins = Schema.decodeUnknownSync(Schema.Array(Schema.Json))(
+    existing.plugins ?? [],
+  );
+
+  const present = new Set(plugins.map(pluginSpec));
+  const added = GLOBAL_PLUGINS.filter((spec) => !present.has(spec));
+
+  if (added.length > 0) {
+    yield* Effect.sync(() =>
+      writeFileAtomic(
+        path,
+        formatJson({ ...existing, plugins: [...plugins, ...added] }),
+        { createDirectory: true },
+      ),
+    );
+  }
+
+  return { path, added };
 });

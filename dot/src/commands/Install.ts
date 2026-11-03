@@ -20,7 +20,10 @@ import {
   stowRepo,
 } from "../lib/stowPackages.js";
 import { writeAllCompletions } from "./Completions.js";
-import { installOpencodePluginDependencies } from "../lib/opencodePlugins.js";
+import {
+  ensureGlobalOpencodePlugins,
+  installOpencodePluginDependencies,
+} from "../lib/opencodePlugins.js";
 import { cliStyler } from "../lib/ansi.js";
 import { plural } from "../lib/runSummary.js";
 import { syncSkills } from "../lib/externalSkills.js";
@@ -56,6 +59,14 @@ export const install = Effect.gen(function* () {
     `Installed dependencies ${style.dim(displayPath(yield* installOpencodePluginDependencies))}`,
   );
   actions.push("Installed OpenCode plugin dependencies");
+
+  const globalPlugins = yield* ensureGlobalOpencodePlugins;
+
+  for (const spec of globalPlugins.added) {
+    yield* log.success(
+      `Added ${style.accent(spec)} ${style.dim(displayPath(globalPlugins.path))}`,
+    );
+  }
 
   yield* log.section("Backup");
   yield* removeRetiredStowState(counts);
