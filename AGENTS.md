@@ -37,7 +37,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - The package manager and runtime is **bun** for every JS/TS package (`dot/` and `docs/`). Do not use npm, pnpm, or yarn for install, lockfile, or script commands. Use `bun install`, `bun add`, `bun update`, `bun run`, and `bunx` (or the `mise run` task wrappers).
 - The tracked lockfile is `bun.lock` in each package (`dot/bun.lock`, `docs/bun.lock`); commit it after any dependency change. CI runs `bun install --frozen-lockfile` against it.
 - Keep Renovate update grouping limited to standard presets except for the coordinated Effect runtime and OpenCode 2 packages in `renovate.json`. Keep Effect compiler tooling outside the runtime group.
-- `tooling.yml` records the releases of the third-party tools the configuration, custom plugins, Code Mode `cli-tools` and `dot` code were last reviewed against; a newly wrapped third-party CLI gets an entry there; the Tooling drift workflow opens a review pull request when one moves. After the review, move the pin with `mise run tooling:update <repo> <tag>`, never by hand; the `tooling-drift` skill has the steps.
+- `tooling.yml` records the releases of the third-party tools the configuration, custom plugins, Code Mode `cli-tools` and `dot` code were last reviewed against; a newly wrapped third-party CLI gets an entry there; Upkeep's [`drift` job](https://upkeep.timmo.dev/running#drift) checks it for new releases. Record a review by setting `reviewed` in `tooling.yml` and pushing.
 
 ## OpenCode Assets
 
