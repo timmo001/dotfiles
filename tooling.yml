@@ -29,7 +29,7 @@ tools:
     reviewed: v2026.10.25
     review: Check mise.toml tasks, mise/.config/mise/config.toml, and the mise Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/mise.ts for changed commands, flags or JSON output.
   - repo: jdx/pitchfork
-    reviewed: v2.32.4
+    reviewed: v2.33.0
     review: Check the pitchfork Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/pitchfork.ts for changed commands, flags or JSON output.
   - repo: anomalyco/opencode
     reviewed: v2.2.5
