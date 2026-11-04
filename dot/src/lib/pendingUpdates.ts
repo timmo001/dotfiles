@@ -191,7 +191,12 @@ const MiseOutdated = Schema.fromJsonString(
 const MiseMissing = Schema.fromJsonString(
   Schema.Record(
     Schema.String,
-    Schema.Array(Schema.Struct({ version: Schema.String })),
+    Schema.Array(
+      Schema.Struct({
+        version: Schema.String,
+        broken: Schema.optionalKey(Schema.Boolean),
+      }),
+    ),
   ),
 );
 
@@ -227,7 +232,12 @@ export const tools = Effect.fn("PendingUpdates.tools")(function* (
         current && current !== latest ? [{ name, current, latest }] : [],
       )
       .sort((a, b) => a.name.localeCompare(b.name)),
-    missing: Object.keys(missingTools).sort(),
+    // A broken install symlink is listed as missing, but `mise install` leaves it alone.
+    missing: Object.entries(missingTools)
+      .flatMap(([name, versions]) =>
+        versions.some(({ broken }) => !broken) ? [name] : [],
+      )
+      .sort(),
   } satisfies ToolsStatus;
 });
 
