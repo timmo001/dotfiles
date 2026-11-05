@@ -89,7 +89,7 @@ version = "latest"
 minimum_release_age = "0s"
 
 [tools."github:home-assistant/installer"]
-version = "0.0.0-alpha.4"
+version = "0.0.0-alpha.6"
 prerelease = true
 asset_pattern = "Home.Assistant.Installer_*_amd64.AppImage"
 format = "raw"
