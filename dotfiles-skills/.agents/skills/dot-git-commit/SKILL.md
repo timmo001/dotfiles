@@ -107,13 +107,10 @@ dot git commit -m "<subject>" --dry-run       # preview, change nothing
 - If the gateway rejects the subject, fix it and rerun; do not work around it.
 - In repositories opted into agent Oxlint, the gateway lints the files being
   committed and reports only findings on changed lines. Warnings print and the
-  commit continues; mention them in the report. Errors refuse the commit and
-  make the changeset differ from what the user reviewed, so do not fix them
-  silently or retry with `--skip-agent-oxlint` on your own. Stop, explain each
-  error in chat (file and line, what the rule objects to, the likely fix, and
-  your recommendation), then ask (see `asking-questions`) whether to fix them
-  first, commit anyway with `--skip-agent-oxlint`, or stop. If they choose a
-  fix, show it and retry the commit only once they confirm it.
+  commit continues; mention them in the report. Errors refuse the commit. They
+  are on lines this commit changes, so fix them without asking, rerun the
+  commit, and list each fix (file, line, rule) in the report. Use
+  `--skip-agent-oxlint` only when the user asks for it.
 - Git hooks always run; the gateway never passes `--no-verify`. A pre-commit
   hook that rewrites and re-stages files (lint-staged fixers, scripts that run
   `git add`) can widen a `--path` commit beyond the listed files, and leave
@@ -148,6 +145,15 @@ dot git commit -m "<subject>" --push
   force-pushes. On a rebase conflict it aborts and keeps your commit for manual
   integration. Only push when the user asked for this specific push (a
   `/commit-push` invocation, or explicit "push").
+- When a pre-push hook fails, don't ask what to do. Sort each failure by file:
+  - In a file the push contains: fix it, commit the fix, and push again.
+  - Only in files the push doesn't contain (such as the user's uncommitted
+    work, which some hooks lint from the working tree): don't touch those
+    files. Push with `git push --no-verify`, and report which checks were
+    skipped and why.
+
+  Any other failure (a broken install, a flaky tool) still gets reported, not
+  skipped.
 - For a split changeset, omit `--push` from every preceding commit and pass it
   only to the final commit so the complete series is pushed once.
 - Combining `--amend --push` force-pushes with `--force-with-lease` (never a
