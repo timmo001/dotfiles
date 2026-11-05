@@ -215,51 +215,87 @@ export const Review = Schema.Struct({
 /** Decoded {@link Review}. */
 export type Review = typeof Review.Type;
 
+const ReviewFields = {
+  reviewRequests: Schema.Struct({
+    nodes: Schema.Array(
+      Schema.Struct({
+        requestedReviewer: Schema.NullOr(
+          Schema.Struct({
+            __typename: Schema.String,
+            login: Schema.optionalKey(Schema.String),
+          }),
+        ),
+      }),
+    ),
+  }),
+  reviews: Schema.Struct({ nodes: Schema.Array(Review) }),
+  reviewThreads: Schema.Struct({
+    pageInfo: Schema.Struct({
+      hasNextPage: Schema.Boolean,
+      endCursor: Schema.NullOr(Schema.String),
+    }),
+    nodes: Schema.Array(ReviewThread),
+  }),
+};
+
+const ReviewPage = Schema.Struct(ReviewFields);
+
 const ReviewResponse = Schema.Struct({
   data: Schema.Struct({
+    repository: Schema.Struct({ pullRequest: ReviewPage }),
+  }),
+});
+
+const REVIEW_FIELDS = `reviewRequests(first: 50) {
+  nodes { requestedReviewer { __typename ... on Bot { login } ... on User { login } } }
+}
+reviews(last: 100) {
+  nodes {
+    id state submittedAt body url isMinimized minimizedReason
+    author { login }
+    commit { oid }
+  }
+}
+reviewThreads(first: 100, after: $cursor) {
+  pageInfo { hasNextPage endCursor }
+  nodes { ${reviewThreadFields({ comments: 100 })} }
+}`;
+
+const REVIEW_QUERY = `query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) { ${REVIEW_FIELDS} }
+  }
+}`;
+
+const BranchResponse = Schema.Struct({
+  data: Schema.Struct({
     repository: Schema.Struct({
-      pullRequest: Schema.Struct({
-        reviewRequests: Schema.Struct({
-          nodes: Schema.Array(
-            Schema.Struct({
-              requestedReviewer: Schema.NullOr(
-                Schema.Struct({
-                  __typename: Schema.String,
-                  login: Schema.optionalKey(Schema.String),
-                }),
-              ),
-            }),
-          ),
-        }),
-        reviews: Schema.Struct({ nodes: Schema.Array(Review) }),
-        reviewThreads: Schema.Struct({
-          pageInfo: Schema.Struct({
-            hasNextPage: Schema.Boolean,
-            endCursor: Schema.NullOr(Schema.String),
+      ref: Schema.NullOr(
+        Schema.Struct({
+          associatedPullRequests: Schema.Struct({
+            nodes: Schema.Array(
+              Schema.Struct({
+                number: Schema.Int,
+                title: Schema.String,
+                url: Schema.String,
+                headRefOid: Schema.String,
+                ...ReviewFields,
+              }),
+            ),
           }),
-          nodes: Schema.Array(ReviewThread),
         }),
-      }),
+      ),
     }),
   }),
 });
 
-const REVIEW_QUERY = `query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
+// A ref's associated pull requests are those with it as their head, so a
+// fork's branch of the same name never matches.
+const BRANCH_QUERY = `query($owner: String!, $name: String!, $ref: String!, $cursor: String) {
   repository(owner: $owner, name: $name) {
-    pullRequest(number: $number) {
-      reviewRequests(first: 50) {
-        nodes { requestedReviewer { __typename ... on Bot { login } ... on User { login } } }
-      }
-      reviews(last: 100) {
-        nodes {
-          id state submittedAt body url isMinimized minimizedReason
-          author { login }
-          commit { oid }
-        }
-      }
-      reviewThreads(first: 100, after: $cursor) {
-        pageInfo { hasNextPage endCursor }
-        nodes { ${reviewThreadFields({ comments: 100 })} }
+    ref(qualifiedName: $ref) {
+      associatedPullRequests(states: OPEN, first: 1, orderBy: { field: UPDATED_AT, direction: DESC }) {
+        nodes { number title url headRefOid ${REVIEW_FIELDS} }
       }
     }
   }
@@ -275,41 +311,90 @@ export interface ReviewState {
   readonly botRequests: readonly string[];
 }
 
+/** Complete a review state from its first page, following every later page of threads. */
+const completeReviews = Effect.fn("completeReviews")(function* (
+  pr: Pick<PullRequestRef, "owner" | "name" | "number">,
+  page: typeof ReviewPage.Type,
+) {
+  const threads: ReviewThread[] = [...page.reviewThreads.nodes];
+  let { pageInfo } = page.reviewThreads;
+
+  while (pageInfo.hasNextPage && pageInfo.endCursor !== null) {
+    const response: typeof ReviewResponse.Type = yield* graphql(
+      REVIEW_QUERY,
+      {
+        owner: pr.owner,
+        name: pr.name,
+        number: pr.number,
+        cursor: pageInfo.endCursor,
+      },
+      ReviewResponse,
+    );
+    const next = response.data.repository.pullRequest.reviewThreads;
+
+    threads.push(...next.nodes);
+    pageInfo = next.pageInfo;
+  }
+
+  return {
+    reviews: page.reviews.nodes,
+    threads,
+    botRequests: page.reviewRequests.nodes.flatMap((node) =>
+      node.requestedReviewer?.__typename === "Bot" &&
+      node.requestedReviewer.login
+        ? [node.requestedReviewer.login]
+        : [],
+    ),
+  } satisfies ReviewState;
+});
+
 /** Fetch the review state of a pull request, following every page of threads. */
 export const fetchReviews = Effect.fn("fetchReviews")(function* (
   pr: Pick<PullRequestRef, "owner" | "name" | "number">,
 ) {
-  const threads: ReviewThread[] = [];
-  let cursor: string | null = null;
-  let reviews: readonly Review[] = [];
-  let botRequests: string[] = [];
+  const response = yield* graphql(
+    REVIEW_QUERY,
+    { owner: pr.owner, name: pr.name, number: pr.number, cursor: null },
+    ReviewResponse,
+  );
 
-  do {
-    const response: typeof ReviewResponse.Type = yield* graphql(
-      REVIEW_QUERY,
-      { owner: pr.owner, name: pr.name, number: pr.number, cursor },
-      ReviewResponse,
-    );
+  return yield* completeReviews(pr, response.data.repository.pullRequest);
+});
 
-    const pullRequest = response.data.repository.pullRequest;
-    threads.push(...pullRequest.reviewThreads.nodes);
+/**
+ * Find a branch's open pull request and fetch its review state in the same
+ * query. `null` when the branch has no open pull request.
+ */
+export const fetchBranchReviews = Effect.fn("fetchBranchReviews")(function* (
+  repository: Pick<PullRequestRef, "owner" | "name">,
+  branch: string,
+) {
+  const response = yield* graphql(
+    BRANCH_QUERY,
+    {
+      owner: repository.owner,
+      name: repository.name,
+      ref: `refs/heads/${branch}`,
+      cursor: null,
+    },
+    BranchResponse,
+  );
+  const [node] =
+    response.data.repository.ref?.associatedPullRequests.nodes ?? [];
 
-    if (cursor === null) {
-      reviews = pullRequest.reviews.nodes;
-      botRequests = pullRequest.reviewRequests.nodes.flatMap((node) =>
-        node.requestedReviewer?.__typename === "Bot" &&
-        node.requestedReviewer.login
-          ? [node.requestedReviewer.login]
-          : [],
-      );
-    }
+  if (!node) return null;
 
-    cursor = pullRequest.reviewThreads.pageInfo.hasNextPage
-      ? pullRequest.reviewThreads.pageInfo.endCursor
-      : null;
-  } while (cursor !== null);
+  const pr = {
+    number: node.number,
+    title: node.title,
+    url: node.url,
+    owner: repository.owner,
+    name: repository.name,
+    repo: `${repository.owner}/${repository.name}`,
+    head: node.headRefOid,
+  } satisfies PullRequestRef;
 
-  return { reviews, threads, botRequests } satisfies ReviewState;
+  return { pr, state: yield* completeReviews(pr, node) };
 });
 
 const BADGE =

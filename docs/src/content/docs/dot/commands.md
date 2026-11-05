@@ -2690,13 +2690,14 @@ Print a pull request's reviews and review threads once
 dot pr reviews [flags] [<pr...>]
 ```
 
-Fetch each pull request's latest reviews, every review thread with its comments, and bot reviews still requested, then exit. Markdown matches the review dump in dot pr watch reports: reviews newest first, unresolved threads with every comment in full, and resolved or minimized threads with only their replies. --json prints { pullRequests } with number, title, url, owner, name, repo, head, openThreads, botRequests, reviews and threads for each pull request. Read-only; exits 1 when a pull request cannot be resolved or fetched.
+Fetch each pull request's latest reviews, every review thread with its comments, and bot reviews still requested, then exit. Markdown matches the review dump in dot pr watch reports: reviews newest first, unresolved threads with every comment in full, and resolved or minimized threads with only their replies. --branch finds the open pull request whose head is that branch of the repository (not a fork's) in the same GraphQL query as its reviews, for pollers that would otherwise look the pull request up first; with no open pull request it prints none and exits 0. --json prints { pullRequests } with number, title, url, owner, name, repo, head, openThreads, botRequests, reviews and threads for each pull request (empty when --branch has no open pull request). Read-only; exits 1 when a pull request cannot be resolved or fetched.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
 | `--repo` `<string>` | Repository slug when the PRs are elsewhere |
+| `--branch` `<string>` | Read the open pull request with this head branch instead |
 | `--json` | Print the review state as JSON instead of Markdown |
 | `--help` `-h` | Show help information |
 
@@ -2712,6 +2713,7 @@ Fetch each pull request's latest reviews, every review thread with its comments,
 dot pr reviews
 dot pr reviews --json
 dot pr reviews 54322 54325 --repo home-assistant/frontend
+dot pr reviews --branch fix-logs --repo home-assistant/frontend --json
 ```
 
 ### `dot pr queue`
