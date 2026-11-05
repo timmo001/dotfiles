@@ -580,6 +580,26 @@
             "b": "w"
           }
         }
+      },
+      {
+        "group": "Other",
+        "name": "20% L/R, 50/50 Center",
+        "tree": {
+          "dir": "lr",
+          "ratio": 19.51,
+          "a": "w",
+          "b": {
+            "dir": "lr",
+            "ratio": 75.75,
+            "a": {
+              "dir": "tb",
+              "ratio": 50,
+              "a": "w",
+              "b": "w"
+            },
+            "b": "w"
+          }
+        }
       }
     ],
     "5": [
