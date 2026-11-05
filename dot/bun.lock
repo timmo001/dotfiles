@@ -6,7 +6,7 @@
       "name": "dot-cli",
       "dependencies": {
         "@effect/platform-node": "4.1.2",
-        "@timmo001/effect-gh": "0.10.1",
+        "@timmo001/effect-gh": "0.11.0",
         "@timmo001/effect-ha-bridge": "1.6.1",
         "@timmo001/effect-herdr": "0.9.0-timmo001.6",
         "@timmo001/effect-upnext": "2.2.1",
@@ -69,7 +69,7 @@
 
     "@redis/time-series": ["@redis/time-series@6.3.1", "", { "peerDependencies": { "@redis/client": "^6.3.1" } }, "sha512-MNDgrm+i63M/1a+XA+HcDsScwt4uBh/fGGJ84swTQZTFK5K5wMmxdlTRa4ZgmNJzjxMaszW/ipPScMUGV3aAMg=="],
 
-    "@timmo001/effect-gh": ["@timmo001/effect-gh@0.10.1", "", { "dependencies": { "graphql": "17.0.2" }, "peerDependencies": { "effect": "^4.1.2" } }, "sha512-SI81hYfVZSsWNUwvKTh8POESH4Y2oOhoPkmSJeRKZoLZKSLRZraYy8VDki/66VSJ2fBrnmiiZd7yjGRbMWn3jA=="],
+    "@timmo001/effect-gh": ["@timmo001/effect-gh@0.11.0", "", { "dependencies": { "graphql": "17.0.2" }, "peerDependencies": { "effect": "^4.1.2" } }, "sha512-ZH8/XQfTofligREhSUdohXegTclxXF7mADXHB2xKLIsHK0DR2VqjOEhQlx0cRY7I4MafWWYCME5uhZKZyuT2nQ=="],
 
     "@timmo001/effect-ha": ["@timmo001/effect-ha@1.6.1", "", { "peerDependencies": { "effect": "^4.1.2" } }, "sha512-oYr6vctYqrYTKGJtzmpo/7ujWUr+Pvrzjw/r6wdKItiJFetoxzZpBEqWaMHpc55jRkn1eKBsZrYjngEfxfG72w=="],
 
