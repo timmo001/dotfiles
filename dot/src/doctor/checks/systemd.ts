@@ -8,9 +8,15 @@ import {
 } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { GitHub } from "../../git/services/GitHub.js";
-import { pathExists } from "../../lib/fsProbe.js";
+import { isSymbolicLink, pathExists } from "../../lib/fsProbe.js";
 import { spawnCaptured } from "../../lib/spawnText.js";
-import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
+import {
+  CACHE_DIR,
+  CONFIG_DIR,
+  HOME_DIR,
+  STATE_DIR,
+  displayPath,
+} from "../../lib/paths.js";
 import { resolvedOmarchyHost } from "../../lib/omarchyHost.js";
 import {
   collectServiceStatus,
@@ -234,64 +240,43 @@ export const checkDoctorNotify = checkRequiredUserUnitSetup({
   unitLabel: "Doctor timer",
 });
 
-/** Check the optional dependency timer's installation and enablement. */
-export const checkDependencyService = Effect.gen(function* () {
-  if (!(yield* pathExists(join(CONFIG_DIR, "dot", "dependency-service.yml"))))
-    return [];
+/** Leftovers of the retired dot deps service, which Upkeep's deps job replaced. */
+const LEGACY_DEPENDENCY_PATHS = [
+  join(CONFIG_DIR, "dot", "dependency-service.yml"),
+  join(CONFIG_DIR, "dot", "dependencies.yml"),
+  userSystemdUnitPath("dot-deps.service"),
+  userSystemdUnitPath("dot-deps.timer"),
+  join(CONFIG_DIR, "systemd", "user", "timers.target.wants", "dot-deps.timer"),
+  join(CONFIG_DIR, "dot", "services.d", "dot-deps.yml"),
+  join(STATE_DIR, "dot", "dependency-service"),
+  join(STATE_DIR, "dot", "dependency-leases"),
+  join(STATE_DIR, "dot", "dependencies"),
+  join(CACHE_DIR, "dot", "dependencies"),
+  join(CACHE_DIR, "dot", "deps-import"),
+];
 
-  const executor = yield* CommandExecutor;
-  const results: CheckResult[] = [];
+/** Warn about anything the retired dot deps service left on this machine. */
+export const checkLegacyDependencyService = Effect.gen(function* () {
+  const leftovers: string[] = [];
 
-  for (const unit of ["dot-deps.service", "dot-deps.timer"])
-    yield* addFilePresenceCheck(
-      results,
-      userSystemdUnitPath(unit),
-      `Dependency unit found: ${unit}`,
-      `Dependency unit missing: ${unit}`,
-      "Run dot stow to link systemd user units",
-    );
+  for (const path of LEGACY_DEPENDENCY_PATHS)
+    if ((yield* isSymbolicLink(path)) !== null) leftovers.push(path);
 
-  if ((yield* executor.exitCode("which", ["systemctl"])) !== 0) {
-    results.push({
+  if (leftovers.length === 0)
+    return [
+      {
+        severity: "ok",
+        message: "No legacy dot deps service leftovers",
+      },
+    ] satisfies CheckResult[];
+
+  return [
+    {
       severity: "warn",
-      message: "Skipping dependency timer checks (systemctl not found)",
-    });
-
-    return results;
-  }
-
-  const state = (yield* executor.run("systemctl", [
-    "--user",
-    "show",
-    "dot-deps.timer",
-    "--property=UnitFileState",
-    "--value",
-  ])).trim();
-
-  const enabled = state === "enabled";
-
-  const active =
-    (yield* executor.exitCode("systemctl", [
-      "--user",
-      "is-active",
-      "dot-deps.timer",
-    ])) === 0;
-
-  results.push(
-    enabled && active
-      ? {
-          severity: "ok",
-          message: "Dependency timer enabled and active: dot-deps.timer",
-        }
-      : {
-          severity: "warn",
-          message: `Dependency timer needs enabling or starting: dot-deps.timer (${state || "unknown"}, ${active ? "active" : "inactive"})`,
-          detail:
-            "After publishing dependency policies, run: systemctl --user enable --now dot-deps.timer",
-        },
-  );
-
-  return results;
+      message: `Legacy dot deps service leftovers: ${leftovers.map(displayPath).join(", ")}`,
+      detail: `Upkeep's deps job replaced it. Run: systemctl --user disable --now dot-deps.timer; rm -rf ${leftovers.join(" ")}; systemctl --user daemon-reload`,
+    },
+  ] satisfies CheckResult[];
 });
 
 /** Check the notes capture daemon is enabled and running. */
