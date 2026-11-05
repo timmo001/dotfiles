@@ -1,5 +1,5 @@
 {
-  "remove": ["omarchy.weather", "omarchy.agents"],
+  "remove": ["omarchy.weather"],
   "disable": [{ "id": "omarchy.notifications", "onlyHosts": ["laptop"] }],
   "plugins": [
     { "id": "timmo.workspace-context" },
@@ -143,6 +143,10 @@
       "managed": true,
       "placement": { "section": "right", "before": "omarchy.bluetooth" },
       "settings": { "showPhotos": false, "screenFeature": false }
+    },
+    {
+      "id": "omarchy.agents",
+      "placement": { "section": "right", "before": "omarchy.bluetooth" }
     },
     {
       "id": "nosignal.deckshift",
