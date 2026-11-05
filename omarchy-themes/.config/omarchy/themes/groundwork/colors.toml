@@ -1,0 +1,37 @@
+# Groundwork: the Glazing theme from Groundwork (timmo001/groundwork), cool
+# periwinkle on a blue night in the spirit of Tokyo Night, with Groundwork's
+# status hues brightened for terminal text.
+mode = "dark"
+
+# Glazing accent
+accent = "#7da2f5"
+selection = "#2c3756"
+muted = "#5c6285"
+
+background = "#141622"
+dark_background = "#11131e"
+darker_background = "#0e0f1b"
+lighter_background = "#232636"
+
+foreground = "#cfd5f0"
+dark_foreground = "#9399b8"
+light_foreground = "#b4bad6"
+bright_foreground = "#e8ebf8"
+
+red = "#f2817a"
+yellow = "#e6b45c"
+orange = "#ff9f6b"
+green = "#8fcf7a"
+cyan = "#73cfe8"
+blue = "#7da2f5"
+magenta = "#b79cf2"
+brown = "#9a7d68"
+
+bright_red = "#f7a49e"
+bright_yellow = "#f0cb88"
+bright_green = "#addfa0"
+bright_cyan = "#9cdcef"
+bright_blue = "#a3bdf8"
+bright_magenta = "#cdbbf6"
+
+hyprland_active_border = "rgba(7da2f5ee) rgba(b79cf2ee) 45deg"
