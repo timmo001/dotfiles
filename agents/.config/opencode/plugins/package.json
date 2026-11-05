@@ -11,7 +11,7 @@
     "@timmo001/effect-ha-bridge": "1.6.1",
     "@timmo001/effect-herdr": "0.9.0-timmo001.6",
     "@timmo001/effect-notes": "1.0.3",
-    "@timmo001/effect-system-bridge": "5.25.0",
+    "@timmo001/effect-system-bridge": "5.26.0",
     "@timmo001/effect-triage-client": "0.21.0",
     "@timmo001/effect-upnext": "2.2.1"
   },
