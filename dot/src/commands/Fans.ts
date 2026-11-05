@@ -40,8 +40,8 @@ const HWMON_DIR = "/sys/class/hwmon";
 
 const CPU_POLL = "5 seconds";
 
-/** CPU readings kept, so the fans ramp up at once but only slow down after 30 seconds. */
-const CPU_WINDOW = 6;
+/** CPU readings averaged over a minute, so Tctl's boost spikes don't swing the fans. */
+const CPU_WINDOW = 12;
 
 const Percent = Schema.Int.check(
   Schema.isBetween({ minimum: 0, maximum: 100 }),
@@ -295,7 +295,9 @@ export const fansRun = Effect.gen(function* () {
     const readings = yield* Ref.get(cpuReadings);
 
     const cpuTemperature =
-      readings.length > 0 ? Math.max(...readings) : undefined;
+      readings.length > 0
+        ? readings.reduce((sum, reading) => sum + reading, 0) / readings.length
+        : undefined;
 
     // A configured but unreadable CPU sensor runs the fans at max.
     const cpuTarget =
