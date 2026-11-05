@@ -36,6 +36,7 @@ import {
   OmarchyPluginInput,
 } from "../commands/OmarchyPlugin.js";
 import { updatesRefresh, updatesStatus } from "../commands/Updates.js";
+import { workTime } from "../commands/WorkTime.js";
 import {
   servicesInvestigate,
   servicesLogs,
@@ -1866,6 +1867,15 @@ const simpleCommands = [
     {
       description:
         "Print a Markdown CPU and memory summary with a usage-filtered process tree. --sort mem defaults to an 80 MiB measured subtree PSS cutoff; --sort cpu defaults to 1% of one core. Adjust these with --min-memory-mib and --min-cpu. Each tree row shows aligned memory and CPU totals beside the process name. Totals include hidden children, so small workers can qualify together; parent and child totals overlap. Expand the largest remaining qualifying branch until --limit visible processes are reached (default: 40, including ancestors). Zero-usage branches are omitted. The saved report adds CPU, memory and process-name rankings with the same cutoffs and per-table limit, plus pressure measurements. Interactive human runs open it in $EDITOR (vi if unset). The internal dot agent detect check automatically selects JSON. JSON retains all sampled processes and the complete processTree, and reportSelection identifies visible PIDs, cutoffs, the limit and omitted count. Missing measurements are null; unavailable parents are marked. CPU is sampled over approximately one second; 100% per process means one logical CPU. PSS divides shared pages between processes. Reports are saved in the system temporary directory ($TMPDIR, normally /tmp), named dot-snapshot-<timestamp>.md or .json. Existing output files are never overwritten.",
+    },
+  ),
+  describe(
+    Command.make("work-time", {}, () => workTime),
+    "Print whether it's work time now, as JSON",
+    ["dot work-time"],
+    {
+      description:
+        'Print {"work": true} during work hours from the private work schedule, unless calendar leave is active, otherwise {"work": false}. A missing schedule counts as outside work time. Notes go to stderr, so stdout is always the JSON line.',
     },
   ),
   describe(

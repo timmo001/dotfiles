@@ -1112,6 +1112,28 @@ dot snapshot --limit 40
 dot snapshot --min-memory-mib 50
 ```
 
+## `dot work-time`
+
+Print whether it's work time now, as JSON
+
+```text
+dot work-time [flags]
+```
+
+Print {"work": true} during work hours from the private work schedule, unless calendar leave is active, otherwise {"work": false}. A missing schedule counts as outside work time. Notes go to stderr, so stdout is always the JSON line.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot work-time
+```
+
 ## `dot firewall`
 
 Reconcile managed ufw firewall rules
