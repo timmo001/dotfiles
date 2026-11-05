@@ -8,15 +8,9 @@ import {
 } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { GitHub } from "../../git/services/GitHub.js";
-import { isSymbolicLink, pathExists } from "../../lib/fsProbe.js";
+import { pathExists } from "../../lib/fsProbe.js";
 import { spawnCaptured } from "../../lib/spawnText.js";
-import {
-  CACHE_DIR,
-  CONFIG_DIR,
-  HOME_DIR,
-  STATE_DIR,
-  displayPath,
-} from "../../lib/paths.js";
+import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
 import { resolvedOmarchyHost } from "../../lib/omarchyHost.js";
 import {
   collectServiceStatus,
@@ -238,45 +232,6 @@ export const checkDoctorNotify = checkRequiredUserUnitSetup({
   unitDetail: "Run dot stow (or dot install) to link systemd user units",
   unit: DOCTOR_TIMER_UNIT,
   unitLabel: "Doctor timer",
-});
-
-/** Leftovers of the retired dot deps service, which Upkeep's deps job replaced. */
-const LEGACY_DEPENDENCY_PATHS = [
-  join(CONFIG_DIR, "dot", "dependency-service.yml"),
-  join(CONFIG_DIR, "dot", "dependencies.yml"),
-  userSystemdUnitPath("dot-deps.service"),
-  userSystemdUnitPath("dot-deps.timer"),
-  join(CONFIG_DIR, "systemd", "user", "timers.target.wants", "dot-deps.timer"),
-  join(CONFIG_DIR, "dot", "services.d", "dot-deps.yml"),
-  join(STATE_DIR, "dot", "dependency-service"),
-  join(STATE_DIR, "dot", "dependency-leases"),
-  join(STATE_DIR, "dot", "dependencies"),
-  join(CACHE_DIR, "dot", "dependencies"),
-  join(CACHE_DIR, "dot", "deps-import"),
-];
-
-/** Warn about anything the retired dot deps service left on this machine. */
-export const checkLegacyDependencyService = Effect.gen(function* () {
-  const leftovers: string[] = [];
-
-  for (const path of LEGACY_DEPENDENCY_PATHS)
-    if ((yield* isSymbolicLink(path)) !== null) leftovers.push(path);
-
-  if (leftovers.length === 0)
-    return [
-      {
-        severity: "ok",
-        message: "No legacy dot deps service leftovers",
-      },
-    ] satisfies CheckResult[];
-
-  return [
-    {
-      severity: "warn",
-      message: `Legacy dot deps service leftovers: ${leftovers.map(displayPath).join(", ")}`,
-      detail: `Upkeep's deps job replaced it. Run: systemctl --user disable --now dot-deps.timer; rm -rf ${leftovers.join(" ")}; systemctl --user daemon-reload`,
-    },
-  ] satisfies CheckResult[];
 });
 
 /** Check the notes capture daemon is enabled and running. */

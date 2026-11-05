@@ -22,7 +22,6 @@ import { checkGitSigning } from "../git/doctor/gitSigning.js";
 import {
   checkGitNotifications,
   checkDoctorNotify,
-  checkLegacyDependencyService,
   checkDailyVolumeReset,
   checkLocalBinPath,
   checkNotesCaptureDaemon,
@@ -94,7 +93,6 @@ const sections: readonly SectionDef[] = [
   { name: "Git commit signing", check: checkGitSigning },
   { name: "Git notification checks", check: checkGitNotifications },
   { name: "Doctor notification", check: checkDoctorNotify },
-  { name: "Legacy dot deps service", check: checkLegacyDependencyService },
   { name: "Notes capture daemon", check: checkNotesCaptureDaemon },
   { name: "Registered services", check: checkRegisteredServices },
   { name: "uwsm session PATH", check: checkLocalBinPath },
