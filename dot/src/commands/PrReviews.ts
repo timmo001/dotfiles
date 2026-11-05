@@ -44,6 +44,7 @@ const branchReviews = Effect.fn("branchReviews")(function* (
           }),
       ),
     )).nameWithOwner;
+
   const [owner, name] = slug.split("/").slice(-2);
 
   if (!owner || !name)

@@ -330,6 +330,7 @@ const completeReviews = Effect.fn("completeReviews")(function* (
       },
       ReviewResponse,
     );
+
     const next = response.data.repository.pullRequest.reviewThreads;
 
     threads.push(...next.nodes);
@@ -379,6 +380,7 @@ export const fetchBranchReviews = Effect.fn("fetchBranchReviews")(function* (
     },
     BranchResponse,
   );
+
   const [node] =
     response.data.repository.ref?.associatedPullRequests.nodes ?? [];
 
