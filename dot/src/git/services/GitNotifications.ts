@@ -1,7 +1,15 @@
 import { NodeServices } from "@effect/platform-node";
 import { Api } from "@timmo001/effect-gh";
 import { join } from "node:path";
-import { Clock, Context, Effect, FileSystem, Layer, Schema } from "effect";
+import {
+  Clock,
+  Context,
+  Effect,
+  FileSystem,
+  Layer,
+  Predicate,
+  Schema,
+} from "effect";
 import type {
   GitNotificationAction,
   GitNotificationActionResult,
@@ -86,6 +94,54 @@ const writeBotCache = (
         }),
       ).pipe(Effect.ignore);
 
+const listCacheFile = (cacheDir: string) =>
+  join(cacheDir, "notifications.json");
+
+const ListCacheEntry = Schema.Struct({
+  validators: Schema.Struct({
+    etag: Schema.optionalKey(Schema.String),
+    lastModified: Schema.optionalKey(Schema.String),
+  }),
+  records: Schema.Array(NotificationRecord),
+  checkedAt: Schema.Finite,
+  pollIntervalMs: Schema.Finite,
+});
+
+const ListCache = Schema.Record(Schema.String, ListCacheEntry);
+
+type ListCache = typeof ListCache.Type;
+
+// GitHub answers an unchanged list with a 304, which costs no rate limit, and asks
+// clients to wait X-Poll-Interval seconds between polls, so lists are kept per endpoint.
+const readListCache = (cacheDir: string) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const text = yield* fs.readFileString(listCacheFile(cacheDir));
+
+    return yield* Schema.decodeEffect(Schema.fromJsonString(ListCache))(text);
+  }).pipe(
+    Effect.orElseSucceed((): ListCache => ({})),
+    Effect.provide(NodeServices.layer),
+  );
+
+const writeListCache = (cacheDir: string, cache: ListCache) =>
+  Effect.try(() =>
+    writeFileAtomic(listCacheFile(cacheDir), JSON.stringify(cache), {
+      mode: 0o600,
+      createDirectory: true,
+    }),
+  ).pipe(Effect.ignore);
+
+const DEFAULT_POLL_INTERVAL_MS = 60_000;
+
+const pollIntervalMs = (headers: Readonly<Record<string, string>>) => {
+  const seconds = Number(headers["x-poll-interval"]);
+
+  return Number.isFinite(seconds) && seconds > 0
+    ? seconds * 1000
+    : DEFAULT_POLL_INTERVAL_MS;
+};
+
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:GitNotifications] ${msg}`);
 };
@@ -136,21 +192,69 @@ export class GitNotifications extends Context.Service<
       const config = yield* Config;
       const executor = yield* CommandExecutor;
 
-      const fetchNotificationPage = Effect.fn(
-        "GitNotifications.fetchNotificationPage",
+      const fetchNotificationRecords = Effect.fn(
+        "GitNotifications.fetchNotificationRecords",
       )(function* (opts?: GitNotificationQueryOptions) {
-        const pages = yield* github.read(
+        const endpoint = notificationEndpoint(opts);
+        const cache = yield* readListCache(config.cacheDir);
+        const cached = cache[endpoint];
+        const now = yield* Clock.currentTimeMillis;
+
+        if (cached && now - cached.checkedAt < cached.pollIntervalMs) {
+          log(`Within poll interval, reusing ${endpoint}`);
+
+          return cached.records;
+        }
+
+        const response = yield* github.read(
           "notifications",
-          Api.pages(
-            { endpoint: notificationEndpoint(opts), method: "GET" },
+          Api.conditional(
+            { endpoint },
             Schema.Array(NotificationRecord),
+            cached?.validators,
           ),
         );
 
+        const modified = Predicate.isTagged(response, "Modified")
+          ? response
+          : undefined;
+
+        // The conditional request reads one page; the rest only when GitHub links a next one.
+        const records = !modified
+          ? (cached?.records ?? [])
+          : !/rel="next"/.test(modified.headers["link"] ?? "")
+            ? modified.value
+            : (yield* github.read(
+                "notifications",
+                Api.pages(
+                  { endpoint, method: "GET" },
+                  Schema.Array(NotificationRecord),
+                ),
+              )).flat();
+
+        log(`${response._tag} ${endpoint}`);
+
+        yield* writeListCache(config.cacheDir, {
+          ...cache,
+          [endpoint]: {
+            validators: modified?.validators ?? cached?.validators ?? {},
+            records,
+            checkedAt: now,
+            pollIntervalMs: pollIntervalMs(response.headers),
+          },
+        });
+
+        return records;
+      });
+
+      const fetchNotificationPage = Effect.fn(
+        "GitNotifications.fetchNotificationPage",
+      )(function* (opts?: GitNotificationQueryOptions) {
+        const records = yield* fetchNotificationRecords(opts);
+
         const seen = new Set<string>();
 
-        return pages
-          .flat()
+        return records
           .filter((thread) => {
             if (seen.has(thread.id)) return false;
             seen.add(thread.id);
@@ -344,6 +448,8 @@ export class GitNotifications extends Context.Service<
               }),
           ),
         );
+
+        yield* writeListCache(config.cacheDir, {});
 
         return {
           action,

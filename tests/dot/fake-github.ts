@@ -10,7 +10,12 @@ export interface FakeGh {
   readonly read?: (args: readonly string[]) => unknown;
   /** Commands whose stdout is used as text, such as mutations and `gh release create`. */
   readonly write?: (args: readonly string[]) => string;
+  /** `gh api --include` reads, such as conditional requests; return the response. Defaults to a 200 with `read`'s JSON. */
+  readonly include?: (args: readonly string[]) => { readonly status?: number; readonly headers?: Readonly<Record<string, string>>; readonly body?: unknown };
 }
+
+const included = (response: ReturnType<NonNullable<FakeGh["include"]>>) =>
+  [`HTTP/2.0 ${response.status ?? 200}`, ...Object.entries(response.headers ?? {}).map(([name, value]) => `${name}: ${value}`), "", response.body === undefined ? "" : JSON.stringify(response.body)].join("\r\n");
 
 const unexpected = (kind: string) => (args: readonly string[]) => {
   throw new Error(`Unexpected ${kind}: ${args.join(" ")}`);
@@ -20,9 +25,10 @@ const unexpected = (kind: string) => (args: readonly string[]) => {
 export function fakeGitHub(handlers: FakeGh) {
   const read = handlers.read ?? unexpected("read");
   const write = handlers.write ?? unexpected("write");
+  const include = handlers.include ?? ((args: readonly string[]) => ({ body: read(args) }));
 
   const gh = Gh.of({
-    execute: (args) => Effect.sync(() => ({ stdout: write(args), stderr: "", exitCode: 0 })),
+    execute: (args) => Effect.sync(() => ({ stdout: args.includes("--include") ? included(include(args)) : write(args), stderr: "", exitCode: 0 })),
     json: (args, schema) =>
       Effect.try({
         try: () => read(args),

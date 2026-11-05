@@ -29,6 +29,7 @@ function check(name: string, conclusion: string | null = "success", status = "co
 
 function fixture(pages: ReturnType<typeof thread>[][]) {
   const reads: string[][] = [];
+  const includes: string[][] = [];
   const writes: string[][] = [];
   const responses = new Map<string, unknown>();
 
@@ -42,6 +43,14 @@ function fixture(pages: ReturnType<typeof thread>[][]) {
   }
 
   const github = fakeGitHub({
+    include: (args) => {
+      includes.push([...args]);
+      const endpoint = args.at(-1)?.replace(/^\//, "");
+
+      if (endpoint !== "notifications?per_page=100" && endpoint !== "repos/example/project/notifications?per_page=100") throw new Error(`Unexpected include: ${args.join(" ")}`);
+
+      return { body: pages[0] ?? [], headers: pages.length > 1 ? { Link: `<https://api.github.com/${endpoint}&page=2>; rel="next"` } : {} };
+    },
     read: (args) => {
       reads.push([...args]);
       const endpoint = args.find((arg) => /^(\/?repos\/|notifications)/.test(arg))?.replace(/^\//, "");
@@ -71,7 +80,7 @@ function fixture(pages: ReturnType<typeof thread>[][]) {
     Effect.provideService(Config, config), Effect.provideService(CommandExecutor, executor),
   ));
 
-  return { run, responses, reads, writes };
+  return { run, responses, reads, includes, writes };
 }
 
 const review = Effect.flatMap(GitNotifications, (service) => service.review());
@@ -143,7 +152,7 @@ test("revalidation leaves changed/read notifications and reports partial failure
 test("repo-scoped unread review uses the repository endpoint and prints evidence before any writes", async () => {
   const f = fixture([[thread("1")]]);
   const entries = await f.run(Effect.flatMap(GitNotifications, (service) => service.review(["example/project"])));
-  expect(f.reads[0]).toContain("repos/example/project/notifications?per_page=100");
+  expect(f.includes[0]).toContain("repos/example/project/notifications?per_page=100");
   const preview = formatNotificationReview(entries);
   expect(preview).toContain("example/project · 1 unread");
   expect(preview).toContain("Update dependency 1");
