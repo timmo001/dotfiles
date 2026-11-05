@@ -119,7 +119,9 @@ const fixture = Effect.fn("test.fixture")(function* (
     spawned,
     releases: () => releases,
     sdk,
-    github: GitHub.layer.pipe(Layer.provide([sdk, executor])),
+    github: Layer.effect(GitHub, GitHub.make(null)).pipe(
+      Layer.provide([sdk, executor]),
+    ),
     doctor: Layer.merge(sdk, executor),
   };
 });

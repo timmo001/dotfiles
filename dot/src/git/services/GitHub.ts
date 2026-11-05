@@ -8,16 +8,22 @@ import {
 } from "@timmo001/effect-gh";
 import {
   Cache,
+  Clock,
   Context,
   Duration,
   Effect,
+  FileSystem,
   Layer,
   Match,
   Schedule,
   Schema,
 } from "effect";
+import { NodeServices } from "@effect/platform-node";
+import { join } from "node:path";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { writeFileAtomic } from "../../lib/atomicWrite.js";
 import { ENV, envNonNegativeInt, envString } from "../../lib/env.js";
+import { CACHE_DIR } from "../../lib/paths.js";
 import { formatCause } from "../../lib/schema.js";
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
@@ -40,6 +46,42 @@ const RATE_LIMIT_MAX_WAIT_SECONDS = envNonNegativeInt(
   ENV.DOT_GITHUB_RATE_LIMIT_MAX_WAIT_SECONDS,
   60,
 );
+
+const RATE_LIMIT_FILE = join(CACHE_DIR, "dot", "github-rate-limit.json");
+
+const SharedRateLimit = Schema.fromJsonString(
+  Schema.Struct({ reset: Schema.Finite }),
+);
+
+// Exhaustion is shared through a file, so other dot processes stop calling
+// GitHub until the reset instead of each one finding out on its own.
+const readExhaustedUntil = (file: string) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const text = yield* fs.readFileString(file);
+
+    return (yield* Schema.decodeEffect(SharedRateLimit)(text)).reset;
+  }).pipe(
+    Effect.orElseSucceed(() => 0),
+    Effect.provide(NodeServices.layer),
+  );
+
+const writeExhaustedUntil = (file: string, reset: number) =>
+  Effect.try(() =>
+    writeFileAtomic(file, JSON.stringify({ reset }), {
+      mode: 0o600,
+      createDirectory: true,
+    }),
+  ).pipe(Effect.ignore);
+
+const exhaustedError = (label: string, reset: number) =>
+  new GitHubError({
+    command: label,
+    exitCode: 1,
+    stderr: `GitHub REST API rate limit exhausted; resets at ${new Date(reset * 1000).toISOString()}`,
+    retryable: false,
+    rateLimited: true,
+  });
 
 /** Domain error for GitHub CLI/API operations. */
 export class GitHubError extends Schema.TaggedError<GitHubError>()(
@@ -84,8 +126,11 @@ export interface GitHubService {
 
 /** Effect service for {@link GitHubService}. */
 export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
-  static readonly layer = Layer.effect(
-    GitHub,
+  /**
+   * Build the service. `rateLimitFile` shares rate-limit exhaustion with other
+   * dot processes; `null` keeps it in this process only.
+   */
+  static readonly make = (rateLimitFile: string | null) =>
     Effect.gen(function* () {
       const executor = yield* CommandExecutor;
       const gh = yield* Gh;
@@ -98,36 +143,43 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
         .exitCode("which", ["gh"])
         .pipe(Effect.map((code) => code === 0));
 
+      const guard = (label: string) =>
+        Effect.gen(function* () {
+          const reset = rateLimitFile
+            ? yield* readExhaustedUntil(rateLimitFile)
+            : 0;
+
+          const now = yield* Clock.currentTimeMillis;
+
+          if (reset * 1000 - now > RATE_LIMIT_MAX_WAIT_SECONDS * 1000)
+            return yield* exhaustedError(label, reset);
+
+          yield* RateLimit.guard(rateLimits, {
+            minRemaining: RATE_LIMIT_MIN_REMAINING,
+            maxWait: Duration.seconds(RATE_LIMIT_MAX_WAIT_SECONDS),
+          }).pipe(
+            Effect.tapError((exhausted) =>
+              rateLimitFile
+                ? writeExhaustedUntil(rateLimitFile, exhausted.reset)
+                : Effect.void,
+            ),
+            Effect.mapError((exhausted) =>
+              exhaustedError(label, exhausted.reset),
+            ),
+          );
+        });
+
       const attempt = <A, R>(
         label: string,
         operation: Effect.Effect<A, GhError, R>,
         checkRateLimit: boolean,
       ) =>
-        (checkRateLimit
-          ? RateLimit.guard(rateLimits, {
-              minRemaining: RATE_LIMIT_MIN_REMAINING,
-              maxWait: Duration.seconds(RATE_LIMIT_MAX_WAIT_SECONDS),
-            }).pipe(
-              Effect.mapError(
-                (exhausted) =>
-                  new GitHubError({
-                    command: label,
-                    exitCode: 1,
-                    stderr: `GitHub REST API rate limit exhausted; resets at ${new Date(exhausted.reset * 1000).toISOString()}`,
-                    retryable: false,
-                    rateLimited: true,
-                  }),
-              ),
-              Effect.andThen(
-                operation.pipe(
-                  Effect.mapError((error) => toGitHubError(label, error)),
-                ),
-              ),
-            )
-          : operation.pipe(
+        (checkRateLimit ? guard(label) : Effect.void).pipe(
+          Effect.andThen(
+            operation.pipe(
               Effect.mapError((error) => toGitHubError(label, error)),
-            )
-        ).pipe(
+            ),
+          ),
           Effect.tapError((error) =>
             error.rateLimited
               ? Cache.invalidate(rateLimits, "core")
@@ -160,8 +212,9 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
         );
 
       return GitHub.of({ isAvailable, read, write });
-    }),
-  );
+    });
+
+  static readonly layer = Layer.effect(GitHub, GitHub.make(RATE_LIMIT_FILE));
 }
 
 /** The authenticated user's login. Run it through {@link GitHubService.read}. */
