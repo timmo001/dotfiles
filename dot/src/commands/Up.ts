@@ -11,7 +11,6 @@ import { Prompt } from "effect/cli";
 import { DotDiff } from "../git/services/DotDiff.js";
 import { isAgent } from "../lib/agent.js";
 import { cliStyler, type Styler } from "../lib/ansi.js";
-import { keepSudoAlive } from "../lib/elevatedCommand.js";
 import { gitOutput } from "../lib/git.js";
 import { SKILLS_CHECKOUT } from "../lib/skillsMaintenance.js";
 import { ENV, envString } from "../lib/env.js";
@@ -563,17 +562,6 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
 
   const picked = new Set(groups);
   const ordered = UP_GROUPS.filter((group) => picked.has(group));
-
-  // omarchy update asks for sudo after every other group, often long after
-  // the user has walked away, so ask now and keep it fresh until then.
-  let sudoAuthorised = true;
-
-  if (picked.has("system")) {
-    yield* log.info("omarchy update needs sudo, so authorise it now");
-
-    sudoAuthorised = yield* keepSudoAlive;
-  }
-
   const updatedRepos: UpdatedRepo[] = [];
   const miseToolChanges: MiseToolChange[] = [];
   const actions: RecapEntry[] = [];
@@ -632,13 +620,7 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
             ? done("Installed the Omarchy patch hook")
             : skip("Omarchy patch hook already current"),
       );
-
-      if (sudoAuthorised) {
-        actions.push(yield* systemUpdate(opts.yes === true));
-      } else {
-        process.exitCode = 1;
-        actions.push(warn("Skipped omarchy update: sudo was not authorised"));
-      }
+      actions.push(yield* systemUpdate(opts.yes === true));
     }
   }
 
@@ -662,4 +644,4 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
   );
 
   yield* logUpdateSummary(updatedRepos, miseToolChanges, actions, startedAt);
-}, Effect.scoped);
+});
