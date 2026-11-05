@@ -17,11 +17,6 @@ import { repoInduct } from "../commands/RepoInduct.js";
 import { clean } from "../commands/Clean.js";
 import { completions } from "../commands/Completions.js";
 import { doctor } from "../commands/Doctor.js";
-import {
-  importRenovate,
-  previewDependencies,
-  serviceDependencies,
-} from "../commands/Dependencies.js";
 import { herdrModel, herdrRepoOpen } from "../commands/HerdrRepoOpen.js";
 import { installedHerdrAgents } from "../commands/HerdrAgents.js";
 import { herdrContext } from "../commands/HerdrContext.js";
@@ -395,134 +390,6 @@ const runDuration = (name: string, description: string) =>
     Flag.withDescription(description),
   );
 
-const dependenciesCommand = describe(
-  Command.make(
-    "deps",
-    {
-      repository: Argument.String("repository").pipe(Argument.withDefault("")),
-      dryRun: bool(
-        "dry-run",
-        "Discover updates without running scripts, installing packages or publishing",
-      ),
-      all: bool(
-        "all",
-        "Bypass open-PR inventory and exclusion only; leave PRs untouched",
-      ),
-      target: Flag.String("target").pipe(
-        Flag.withDefault(""),
-        Flag.withDescription(
-          "Remote target branch (default: repository default branch)",
-        ),
-      ),
-      timeout: runDuration(
-        "timeout",
-        "Deadline per command/provider lookup (default: 30 seconds)",
-      ).pipe(Flag.withDefault(30000)),
-      concurrency: Flag.Int("concurrency").pipe(
-        Flag.withDefault(4),
-        Flag.filter(
-          (value) => value >= 1 && value <= 16,
-          () => "Concurrency must be between 1 and 16",
-        ),
-        Flag.withDescription(
-          "Maximum concurrent groups, lookups, PR inspections or check commands, 1-16 (default: 4)",
-        ),
-      ),
-    },
-    (input) =>
-      previewDependencies({
-        ...input,
-        directory: process.cwd(),
-        ...(input.repository
-          ? { repository: input.repository }
-          : { repository: undefined }),
-        ...(input.target ? { target: input.target } : { target: undefined }),
-      }),
-  ).pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make(
-          "service",
-          {
-            config: Flag.String("config").pipe(
-              Flag.withDefault(""),
-              Flag.withDescription(
-                "Service YAML config (default: $XDG_CONFIG_HOME/dot/dependency-service.yml)",
-              ),
-            ),
-            dryRun: bool(
-              "dry-run",
-              "Validate local service configuration and trust without running updates or writing to Git",
-            ),
-            noCooldown: bool(
-              "no-cooldown",
-              "Run even if the shared interval is not due; an active claim still blocks the run",
-            ),
-          },
-          serviceDependencies,
-        ),
-        "Run one cross-machine dependency service interval",
-        [
-          "dot deps service --dry-run",
-          "dot deps service",
-          "dot deps service --no-cooldown",
-        ],
-        {
-          description:
-            "Run configured repositories sequentially under one Git-backed service claim. Configuration supplies coordinationRepository, repositories, intervalMinutes and concurrency. Every repository requires host trust. Shared state prevents overlapping machine runs and records the next eligible interval. Repository/target claims also cover manual dot deps runs. Claims renew every 30 seconds and expire after two minutes; a lost claim interrupts work, and dependency publication atomically checks its target claim. State is stored on dedicated dot-deps-state branches. The user timer runs hourly at ten past, except between 01:00 and 07:00. Exit status 2 means completed with unsuccessful update groups (warning); 3 means the shared interval was skipped. --no-cooldown ignores the shared interval and each repository's interval but never an active claim; `dot services start dot-deps.timer` applies it to that one start automatically. Startup, policy and service failures exit 1. Local configuration validation with --dry-run performs no remote writes. Policy is read from published target commits, so repository policies must be pushed before enabling the service.",
-        },
-      ),
-      describe(
-        Command.make("import").pipe(
-          Command.withSubcommands([
-            describe(
-              Command.make(
-                "renovate",
-                {
-                  directory: Argument.String("directory").pipe(
-                    Argument.withDefault("."),
-                  ),
-                  source: Flag.String("source").pipe(
-                    Flag.withDefault("renovate.json"),
-                    Flag.withDescription(
-                      "Repository-relative Renovate JSON file (default: renovate.json)",
-                    ),
-                  ),
-                  timeout: runDuration(
-                    "timeout",
-                    "Deadline per import pass (default: 5 minutes)",
-                  ).pipe(Flag.withDefault(5 * 60 * 1000)),
-                },
-                importRenovate,
-              ),
-              "Import Renovate policy into dot-deps.yml with an editor schema",
-              [
-                "dot deps import renovate",
-                "dot deps import renovate /path/to/repository",
-              ],
-              {
-                description:
-                  "Create dot-deps.yml and its editor schema from a repository's JSON Renovate config, migrating an existing dot-deps.json policy. The first import resolves presets with an isolated, pinned Renovate runtime. Later imports replace explicit override sections, including edits within them, while preserving the native base policy and local check mappings. Unsupported settings are recorded as publication blockers. Importing creates no commits or PRs. Ordinary previews use the saved native policy without running Renovate or refreshing presets.",
-              },
-            ),
-          ]),
-        ),
-        "Import dependency policy from other tools",
-      ),
-    ]),
-  ),
-  "Validate and publish grouped native dependency updates",
-  [
-    "dot deps --dry-run",
-    "dot deps owner/repository --dry-run",
-    "dot deps --dry-run --all --target main",
-  ],
-  {
-    description:
-      "Read native policy and manifests from a pinned remote target, preserving the caller's checkout. Exclude whole groups covered by any open dependency PR, including failed, pending and draft PRs. --all bypasses only PR inventory and exclusion. --dry-run discovers updates without repository scripts, installs, checks or writes to Git. Bare dot deps starts groups by priority and prepares and validates them concurrently in isolated worktrees, bounded by --concurrency. Check commands share the same concurrency cap across groups; setup and shared Git operations are serialised. A command's optional skipFor exclusions apply only when every updated dependency matches; mixed or unknown groups retain checks. The first ready group takes the publication slot and publishes one checked commit without creating PRs or waiting for hosted CI. Host permissions are read from $XDG_CONFIG_HOME/dot/dependencies.yml (default ~/.config/dot/dependencies.yml), keyed by owner/repository with trusted and allowBypass booleans. Required hosted checks must have equivalent validation.checks mappings; protected direct pushes require explicit allowBypass permission and existing account rights. Workflow edits require a credential with workflow write access. Unsupported policy remains blocking. Git-backed claims serialise each repository/target across machines and service or manual runs. Publication atomically advances the ownership record and target; target movement rebuilds and revalidates, up to three attempts per group. Failed work and per-group logs remain under $XDG_STATE_HOME/dot/dependencies. Clean published worktrees are removed, including submodules. Setup/check mutations and commit-hook mutations prevent publication. Independent groups continue after failures, including groups sharing files; a partial run exits non-zero. A normal invocation authorises passing updates, regardless of Renovate automerge policy.",
-  },
-);
-
 const httpForwardCommand = describe(
   Command.make(
     "forward",
@@ -760,7 +627,7 @@ const servicesCommand = describe(
           servicesStart(unit),
         ),
         "Run a registered job now, or restart a long-running service",
-        ["dot services start dot-deps.timer"],
+        ["dot services start dot-doctor.timer"],
       ),
       describe(
         Command.make("stop", { unit: serviceUnit }, ({ unit }) =>
@@ -798,7 +665,7 @@ const servicesCommand = describe(
               ),
               "Print the journal output of a registered job's most recent runs, newest first, with its latest run log",
               [
-                "dot services run logs dot-deps.timer",
+                "dot services run logs dot-doctor.timer",
                 "dot services run logs skill-updates-agent.timer --count 5 | wl-copy",
               ],
             ),
@@ -851,7 +718,7 @@ const servicesCommand = describe(
           servicesNotify(unit),
         ),
         "Notify when a registered job has failed (used by OnFailure=)",
-        ["dot services notify dot-deps.service"],
+        ["dot services notify dot-doctor.service"],
       ),
       describe(
         Command.make("schedule").pipe(
@@ -880,7 +747,7 @@ const servicesCommand = describe(
     ]),
   ),
   "Monitor registered systemd user services and timers",
-  ["dot services status", "dot services logs dot-deps.timer"],
+  ["dot services status", "dot services logs dot-doctor.timer"],
   {
     description:
       'Each job registers itself with a YAML descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour", counted from the latest of the last completed run, the last boot or resume, and one interval before the first calendar run due after those, so sleep, power off and gaps in the schedule are not missed runs), restartLimit ({ count, within }) for long-running services, notify, logs ({ dir, file }) for jobs that keep their own run logs, and repository (a GitHub owner/repo slug from dot-git.yml) naming the repository that logs and agents open in. A long-running service can add status ({ file }) pointing at a JSON file it writes with health ("ok", "warning", "degraded" or "failed"), summary and updated (epoch milliseconds); while systemd sees the service as healthy, a report from its current run replaces the health and summary. Without repository, the repository containing the unit\'s executable is used, falling back to the public dotfiles. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations retain the last completed outcome. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. A job can summarise each run by printing a line containing "[RESULT] " followed by a short outcome; the last such line per invocation becomes that run\'s summary in status, run logs, notifications and the timmo.services panel. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel. Timer services with ExecCondition=dot services schedule check run only at their calendar times, or within --grace of one, not as later catch-up runs after boot or resume; those runs show as skipped. dot services start always runs them.',
@@ -2664,7 +2531,7 @@ const prWatchCommand = describe(
         "timeout",
         "Overall watch deadline (default: 60 minutes)",
       ).pipe(Flag.withDefault(60 * 60 * 1000)),
-      interval: integer("interval", "Seconds between polls", 20).pipe(
+      interval: integer("interval", "Seconds between polls", 30).pipe(
         Flag.filter(
           (value) => value >= 5,
           () => "Interval must be at least 5 seconds",
@@ -3791,7 +3658,6 @@ export const dotCommand = describe(
       initCommand,
       installCommand,
       updateCommand,
-      dependenciesCommand,
       runCommandSpec,
       httpCommand,
       statusCommand,

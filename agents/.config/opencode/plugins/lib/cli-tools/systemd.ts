@@ -14,7 +14,7 @@ import {
 
 const tool = clientTools(Layer.empty);
 
-const unit = Schema.String.annotate({ description: "A user unit, such as dot-deps.service or dot-deps.timer" });
+const unit = Schema.String.annotate({ description: "A user unit, such as dot-doctor.service or dot-doctor.timer" });
 
 const systemctl = (args: readonly string[]) => runCliText("systemctl", ["--user", "--no-pager", ...args]);
 

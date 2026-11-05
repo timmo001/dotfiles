@@ -116,113 +116,6 @@ dot up --yes
 dot up --stow
 ```
 
-## `dot deps`
-
-Validate and publish grouped native dependency updates
-
-```text
-dot deps <subcommand> [flags] [<repository>]
-```
-
-Read native policy and manifests from a pinned remote target, preserving the caller's checkout. Exclude whole groups covered by any open dependency PR, including failed, pending and draft PRs. --all bypasses only PR inventory and exclusion. --dry-run discovers updates without repository scripts, installs, checks or writes to Git. Bare dot deps starts groups by priority and prepares and validates them concurrently in isolated worktrees, bounded by --concurrency. Check commands share the same concurrency cap across groups; setup and shared Git operations are serialised. A command's optional skipFor exclusions apply only when every updated dependency matches; mixed or unknown groups retain checks. The first ready group takes the publication slot and publishes one checked commit without creating PRs or waiting for hosted CI. Host permissions are read from $XDG_CONFIG_HOME/dot/dependencies.yml (default ~/.config/dot/dependencies.yml), keyed by owner/repository with trusted and allowBypass booleans. Required hosted checks must have equivalent validation.checks mappings; protected direct pushes require explicit allowBypass permission and existing account rights. Workflow edits require a credential with workflow write access. Unsupported policy remains blocking. Git-backed claims serialise each repository/target across machines and service or manual runs. Publication atomically advances the ownership record and target; target movement rebuilds and revalidates, up to three attempts per group. Failed work and per-group logs remain under $XDG_STATE_HOME/dot/dependencies. Clean published worktrees are removed, including submodules. Setup/check mutations and commit-hook mutations prevent publication. Independent groups continue after failures, including groups sharing files; a partial run exits non-zero. A normal invocation authorises passing updates, regardless of Renovate automerge policy.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--dry-run` | Discover updates without running scripts, installing packages or publishing |
-| `--all` | Bypass open-PR inventory and exclusion only; leave PRs untouched |
-| `--target` `<string>` | Remote target branch (default: repository default branch) |
-| `--timeout` `<string>` | Deadline per command/provider lookup (default: 30 seconds) |
-| `--concurrency` `<integer>` | Maximum concurrent groups, lookups, PR inspections or check commands, 1-16 (default: 4) |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<repository>` | repository |
-
-**Examples**
-
-```bash
-dot deps --dry-run
-dot deps owner/repository --dry-run
-dot deps --dry-run --all --target main
-```
-
-### `dot deps service`
-
-Run one cross-machine dependency service interval
-
-```text
-dot deps service [flags]
-```
-
-Run configured repositories sequentially under one Git-backed service claim. Configuration supplies coordinationRepository, repositories, intervalMinutes and concurrency. Every repository requires host trust. Shared state prevents overlapping machine runs and records the next eligible interval. Repository/target claims also cover manual dot deps runs. Claims renew every 30 seconds and expire after two minutes; a lost claim interrupts work, and dependency publication atomically checks its target claim. State is stored on dedicated dot-deps-state branches. The user timer runs hourly at ten past, except between 01:00 and 07:00. Exit status 2 means completed with unsuccessful update groups (warning); 3 means the shared interval was skipped. --no-cooldown ignores the shared interval and each repository's interval but never an active claim; `dot services start dot-deps.timer` applies it to that one start automatically. Startup, policy and service failures exit 1. Local configuration validation with --dry-run performs no remote writes. Policy is read from published target commits, so repository policies must be pushed before enabling the service.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--config` `<string>` | Service YAML config (default: $XDG_CONFIG_HOME/dot/dependency-service.yml) |
-| `--dry-run` | Validate local service configuration and trust without running updates or writing to Git |
-| `--no-cooldown` | Run even if the shared interval is not due; an active claim still blocks the run |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot deps service --dry-run
-dot deps service
-dot deps service --no-cooldown
-```
-
-### `dot deps import`
-
-Import dependency policy from other tools
-
-```text
-dot deps import <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-#### `dot deps import renovate`
-
-Import Renovate policy into dot-deps.yml with an editor schema
-
-```text
-dot deps import renovate [flags] [<directory>]
-```
-
-Create dot-deps.yml and its editor schema from a repository's JSON Renovate config, migrating an existing dot-deps.json policy. The first import resolves presets with an isolated, pinned Renovate runtime. Later imports replace explicit override sections, including edits within them, while preserving the native base policy and local check mappings. Unsupported settings are recorded as publication blockers. Importing creates no commits or PRs. Ordinary previews use the saved native policy without running Renovate or refreshing presets.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--source` `<string>` | Repository-relative Renovate JSON file (default: renovate.json) |
-| `--timeout` `<string>` | Deadline per import pass (default: 5 minutes) |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<directory>` | directory |
-
-**Examples**
-
-```bash
-dot deps import renovate
-dot deps import renovate /path/to/repository
-```
-
 ## `dot run`
 
 Run a command with a deadline and process-group cleanup
@@ -445,7 +338,7 @@ Each job registers itself with a YAML descriptor in ~/.config/dot/services.d/, s
 
 ```bash
 dot services status
-dot services logs dot-deps.timer
+dot services logs dot-doctor.timer
 ```
 
 ### `dot services status`
@@ -493,7 +386,7 @@ dot services start [flags] <unit>
 **Examples**
 
 ```bash
-dot services start dot-deps.timer
+dot services start dot-doctor.timer
 ```
 
 ### `dot services stop`
@@ -586,7 +479,7 @@ dot services run logs [flags] <unit>
 **Examples**
 
 ```bash
-dot services run logs dot-deps.timer
+dot services run logs dot-doctor.timer
 dot services run logs skill-updates-agent.timer --count 5 | wl-copy
 ```
 
@@ -642,7 +535,7 @@ dot services notify [flags] <unit>
 **Examples**
 
 ```bash
-dot services notify dot-deps.service
+dot services notify dot-doctor.service
 ```
 
 ### `dot services schedule`

@@ -36,16 +36,3 @@ export const hasManualStart = Effect.fn("ManualStart.has")(function* (
     (yield* Clock.currentTimeMillis) - written < MANUAL_START_TTL_MILLIS
   );
 });
-
-/** Remove a unit's manual start marker, returning whether a fresh one existed. */
-export const consumeManualStart = Effect.fn("ManualStart.consume")(function* (
-  unit: string,
-) {
-  const fresh = yield* hasManualStart(unit);
-
-  yield* (yield* FileSystem.FileSystem).remove(manualStartMarker(unit), {
-    force: true,
-  });
-
-  return fresh;
-});
