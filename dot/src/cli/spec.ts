@@ -52,7 +52,6 @@ import { hdr } from "../commands/Hdr.js";
 import { tunnelRun } from "../commands/Tunnel.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { prQueue } from "../commands/PrQueue.js";
-import { briefDismiss, briefFollowUp, briefRun } from "../commands/Brief.js";
 import { reportList, reportRun } from "../commands/Report.js";
 import { prReviews } from "../commands/PrReviews.js";
 import { prWatch } from "../commands/PrWatch.js";
@@ -2715,73 +2714,6 @@ const prCommand = describe(
   "Watch, list, read reviews on and queue pull requests",
 );
 
-const briefCommand = describe(
-  Command.make("brief").pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make(
-          "run",
-          {
-            dryRun: bool(
-              "dry-run",
-              "Print the report instead of posting it or saving state",
-            ),
-          },
-          briefRun,
-        ),
-        "Build the daily brief and post it to the Plannotator Inbox",
-        ["dot brief run", "dot brief run --dry-run"],
-        {
-          description:
-            "Collect open PRs and issues you're involved in, unread notifications and failing CI, score each with the decision model in brief.yml, apply its rules, during work time summarise what people's comments ask of you on the top few with opencode2, then post the report to the \"Daily brief\" Inbox thread. Items ticked in the last report stay hidden until they have new activity. During work time work items come first; outside it they're left out, except crossover items. At work time the report also shows the window since the last work day, today's and the next work day's meetings from the work.calendar in brief.yml, an area tag in emoji form on each item, and context such as merged or stale, followed by Resolved, Your tasks, sections for the areas you work in (from the labels on your recent PRs and reviews) and the work.scopes searches.",
-        },
-      ),
-      describe(
-        Command.make(
-          "dismiss",
-          {
-            id: Argument.String("id").pipe(
-              Argument.withDescription(
-                "Item id from the report, such as pr:owner/repo#12",
-              ),
-            ),
-          },
-          ({ id }) => briefDismiss(id),
-        ),
-        "Hide a brief item until it has new activity",
-        ["dot brief dismiss pr:timmo001/dotfiles#12"],
-      ),
-      describe(
-        Command.make(
-          "follow-up",
-          {
-            dryRun: bool(
-              "dry-run",
-              "Print what would be hidden and each prompt, without changing anything",
-            ),
-            watch: bool(
-              "watch",
-              "Keep running and start agents as soon as a reply lands",
-            ),
-          },
-          briefFollowUp,
-        ),
-        "Hide ticked items and start agents for notes left on the daily brief",
-        [
-          "dot brief follow-up",
-          "dot brief follow-up --dry-run",
-          "dot brief follow-up --watch",
-        ],
-        {
-          description:
-            "Read the brief's Inbox thread for new replies. Items ticked in a reply are hidden straight away, with a reply confirming it. Each note starts an OpenCode agent through dot herdr repo open, in the checkout of the item it names by B number, or the dotfiles checkout otherwise, with the note and the item's context as its prompt. --watch holds one Inbox connection open and waits for replies instead of checking once; the dot-brief-follow-up user service runs it.",
-        },
-      ),
-    ]),
-  ),
-  "Daily brief of GitHub work in the Plannotator Inbox",
-);
-
 const reportCommand = describe(
   Command.make("report").pipe(
     Command.withSubcommands([
@@ -3710,7 +3642,6 @@ export const dotCommand = describe(
       completionsCommand,
       repoCommand,
       prCommand,
-      briefCommand,
       reportCommand,
       launchCommand,
       plannotatorCommand,

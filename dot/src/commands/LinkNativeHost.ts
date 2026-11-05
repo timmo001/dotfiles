@@ -1,6 +1,9 @@
 import { Effect, Option, Schema, Stdio, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
-import { type TrackedCheckout, trackedCheckouts } from "../brief/repos.js";
+import {
+  type TrackedCheckout,
+  trackedCheckouts,
+} from "../lib/trackedCheckouts.js";
 import { itemAgentPrompt, itemOwnership } from "../git/itemAgent.js";
 import {
   type GitItem,

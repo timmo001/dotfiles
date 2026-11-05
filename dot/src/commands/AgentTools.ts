@@ -165,7 +165,6 @@ const AGENT_TOOLS = {
   "skills consumers remove": { access: "write" },
   "notes capture sync": { access: "write", timeout: "5 minutes" },
   "omarchy shell config": { access: "write" },
-  "brief dismiss": { access: "write" },
   "git notifications dismiss dependencies": { access: "write" },
   "git notifications dismiss remaining": { access: "write" },
 } satisfies Readonly<Record<string, AgentToolSpec>>;

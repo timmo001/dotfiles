@@ -82,7 +82,7 @@ version = "latest"
 minimum_release_age = "0s"
 # A long-lived Inbox server or MCP keeps the old binary; dot update also
 # restarts these, and moves the unpinned agent plugins to this version
-postinstall = "systemctl --user try-restart dot-brief-follow-up.service; pitchfork restart plannotator/server >/dev/null 2>&1 || true"
+postinstall = "pitchfork restart plannotator/server >/dev/null 2>&1 || true"
 
 [tools."github:plannotator/plannotator-tui"]
 version = "latest"

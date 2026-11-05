@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { managedGitRepos } from "../services/GitConfig.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
-import { pathExists } from "../lib/fsProbe.js";
+import { pathExists } from "./fsProbe.js";
 
 /** A tracked checkout's display name and path. */
 export interface TrackedCheckout {
@@ -23,7 +23,7 @@ const slugFromUrl = (url: string) =>
  * `home-assistant/core` resolves to the `timmo001/ha-core` checkout. Remotes
  * are only read for `slugs` the config doesn't name directly.
  */
-export const trackedCheckouts = Effect.fn("brief.trackedCheckouts")(function* (
+export const trackedCheckouts = Effect.fn("trackedCheckouts")(function* (
   slugs: readonly string[],
 ) {
   const config = yield* Config;
