@@ -13,7 +13,7 @@
     "@timmo001/effect-notes": "1.0.3",
     "@timmo001/effect-system-bridge": "5.25.0",
     "@timmo001/effect-triage-client": "0.20.1",
-    "@timmo001/effect-upnext": "2.2.0"
+    "@timmo001/effect-upnext": "2.2.1"
   },
   "overrides": {
     "@effect/platform-node-shared": "4.0.6",
