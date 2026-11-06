@@ -1,27 +1,13 @@
-import { HerdrSdk, herdrSdkLayerFromOptions } from "@timmo001/effect-herdr";
-import { Duration, Effect, FileSystem, Option, Schema } from "effect";
+import { Effect, FileSystem, Option, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http";
 import { dirname, join, resolve } from "path";
-import { DEFAULT_SOCKET_PATH } from "../commands/HerdrRepoOpen.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
-import { ENV, envString } from "./env.js";
-import { HOME_DIR } from "./paths.js";
+import { HOME_DIR, STATE_DIR } from "./paths.js";
 import { plural } from "./runSummary.js";
 import { notable, skip, warn } from "./updateSummary.js";
 
 const OPENCODE = join(HOME_DIR, ".local", "bin", "opencode2");
-
-/** In-session reload command for each agent Herdr can type into. */
-const AGENT_RELOAD_COMMANDS = {
-  claude: "/reload-plugins",
-  pi: "/reload",
-} as const;
-
-type ReloadableAgent = keyof typeof AGENT_RELOAD_COMMANDS;
-
-const isReloadableAgent = (agent: string): agent is ReloadableAgent =>
-  Object.hasOwn(AGENT_RELOAD_COMMANDS, agent);
 
 const PitchforkDaemons = Schema.fromJsonString(
   Schema.Array(
@@ -507,76 +493,38 @@ const reloadOpenCode = Effect.gen(function* () {
   return "reloaded" as const;
 }).pipe(Effect.withSpan("agentRuntime.reloadOpenCode"));
 
+/** Where `dot up` asks Pi's `dot-reload` extension to reload. */
+const PI_RELOAD_REQUEST = join(STATE_DIR, "dot", "agent-reload");
+
 /**
- * Type each agent's reload command into its Herdr pane, only for idle
- * sessions so a working agent is never interrupted.
+ * Ask running Pi sessions to reload by writing a new stamp that the
+ * `dot-reload` extension watches. Each session reloads once it settles,
+ * through the extension API, so a half-typed prompt is never touched.
  */
-const reloadHerdrAgents = Effect.gen(function* () {
-  const herdr = yield* HerdrSdk;
+const requestPiReload = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
   const log = yield* OutputLog;
-  const reloaded: Record<ReloadableAgent, number> = { claude: 0, pi: 0 };
-  let busy = 0;
 
-  for (const agent of yield* herdr.agents.list()) {
-    const kind = Option.getOrUndefined(agent.agent);
-
-    if (kind === undefined || !isReloadableAgent(kind)) continue;
-
-    if (agent.status !== "idle" && agent.status !== "done") {
-      busy += 1;
-
-      continue;
-    }
-
-    const command = AGENT_RELOAD_COMMANDS[kind];
-
-    const sent = yield* herdr.agents
-      .prompt({ paneId: agent.paneId }, { text: command })
-      .pipe(
-        Effect.as(true),
-        Effect.catch((error) =>
-          log
-            .warn(
-              `Could not send ${command} to ${agent.paneId}: ${error.message}`,
-            )
-            .pipe(Effect.as(false)),
-        ),
-      );
-
-    if (!sent) continue;
-
-    yield* log.success(`Sent ${command} to ${kind} in ${agent.paneId}`);
-    reloaded[kind] += 1;
-  }
-
-  if (busy) yield* log.info(`Left ${plural(busy, "busy agent session")} alone`);
-
-  return { ...reloaded, busy };
-}).pipe(
-  Effect.provide(
-    herdrSdkLayerFromOptions({
-      socketPath: envString(ENV.HERDR_SOCKET_PATH) ?? DEFAULT_SOCKET_PATH,
-      requestTimeout: Duration.seconds(5),
-    }),
-  ),
-  Effect.withSpan("agentRuntime.reloadHerdrAgents"),
-);
+  yield* fs.makeDirectory(dirname(PI_RELOAD_REQUEST), { recursive: true });
+  yield* fs.writeFileString(PI_RELOAD_REQUEST, `${Date.now()}\n`);
+  yield* log.success("Queued a reload for Pi sessions");
+}).pipe(Effect.withSpan("agentRuntime.requestPiReload"));
 
 /**
  * Reload running agents so they load updated plugins and skills: the OpenCode
- * service through its CLI, and idle Claude Code and Pi sessions through Herdr.
+ * service through its CLI, and Pi sessions through their `dot-reload`
+ * extension once they settle. Claude Code watches its skills itself.
  */
 export const reloadAgents = Effect.gen(function* () {
   const log = yield* OutputLog;
 
-  const [openCode, sessions] = yield* Effect.all(
+  const [openCode, piQueued] = yield* Effect.all(
     [
       reloadOpenCode,
-      reloadHerdrAgents.pipe(
+      requestPiReload.pipe(
+        Effect.as(true),
         Effect.catchCause(() =>
-          log
-            .info("Agent session reload skipped (Herdr unavailable)")
-            .pipe(Effect.as(undefined)),
+          log.warn("Could not queue the Pi reload").pipe(Effect.as(false)),
         ),
       ),
     ],
@@ -584,23 +532,18 @@ export const reloadAgents = Effect.gen(function* () {
   );
 
   const parts = [
-    ...(openCode === "reloaded" ? ["the OpenCode service"] : []),
-    ...(sessions?.claude
-      ? [plural(sessions.claude, "Claude Code session")]
-      : []),
-    ...(sessions?.pi ? [plural(sessions.pi, "Pi session")] : []),
+    ...(openCode === "reloaded" ? ["reloaded the OpenCode service"] : []),
+    ...(piQueued ? ["queued a reload for Pi sessions"] : []),
   ];
-
-  const busyNote = sessions?.busy
-    ? ` (${plural(sessions.busy, "busy session")} left alone)`
-    : "";
 
   if (openCode === "failed")
     return warn(
-      `OpenCode reload failed${parts.length ? `; reloaded ${parts.join(", ")}` : ""}${busyNote}`,
+      `OpenCode reload failed${parts.length ? `; ${parts.join(", ")}` : ""}`,
     );
 
-  return parts.length
-    ? notable(`Reloaded ${parts.join(", ")}${busyNote}`)
-    : skip(`No idle agent sessions to reload${busyNote}`);
+  if (parts.length === 0) return skip("No running agents to reload");
+
+  const summary = parts.join(" and ");
+
+  return notable(`${summary.charAt(0).toUpperCase()}${summary.slice(1)}`);
 }).pipe(Effect.withSpan("agentRuntime.reloadAgents"));
