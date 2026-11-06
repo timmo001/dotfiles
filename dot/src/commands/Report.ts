@@ -1,3 +1,4 @@
+import { readReportThemes } from "@timmo001/groundwork-report/desktop";
 import { Clock, Console, Effect } from "effect";
 import { join } from "node:path";
 import { workersAiFor } from "../lib/decisionModel.js";
@@ -226,7 +227,17 @@ const run = Effect.fn("report.run")(function* (options: {
 
   const summary = yield* summarise(config, base, stateDir);
   const report = { ...base, summary };
-  const html = renderHtml(report);
+
+  // The desktop's themes are a nicety: the page still works on the built-in ones
+  const themes = yield* Effect.tryPromise(() => readReportThemes()).pipe(
+    Effect.catch((error) =>
+      output
+        .warn(`Could not read the desktop themes: ${error.message}`)
+        .pipe(Effect.as({ omarchy: null, desktop: [] })),
+    ),
+  );
+
+  const html = renderHtml(report, themes);
 
   if (options.dryRun) {
     const page = yield* writeRunPage(config.name, "dry-run.html", html);

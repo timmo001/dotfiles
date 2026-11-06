@@ -1,3 +1,7 @@
+import * as report from "@timmo001/groundwork-report";
+import { plural, signed } from "@timmo001/groundwork-report";
+import { reportAssets } from "@timmo001/groundwork-report/assets" with { type: "macro" };
+import type { ReportThemes } from "@timmo001/groundwork-report/desktop";
 import { listFiles } from "./code.js";
 import type {
   Bucket,
@@ -8,7 +12,6 @@ import type {
 } from "./config.js";
 import { DEPENDENCY_CATEGORIES } from "./config.js";
 import { dependencyListFiles } from "./dependencies.js";
-import { PAGE_CSS, PAGE_SCRIPT } from "./page.js";
 import type {
   ChecksResult,
   CodeResult,
@@ -32,23 +35,10 @@ export interface ReportRun {
     { readonly text: string; readonly model: string } | undefined;
 }
 
-const esc = (text: string) =>
-  text.replace(
-    /[&<>"']/g,
-    (char) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        char
-      ] ?? char,
-  );
+// Bundled when dot is built, so the compiled binary carries the page's CSS and script
+const assets = await reportAssets();
 
 const escapeMarkdown = (text: string) => text.replace(/([[\]\\*_`])/g, "\\$1");
-
-const signed = (value: number) => (value > 0 ? `+${value}` : `${value}`);
-
-const plural = (count: number, word: string) =>
-  `${count} ${word}${count === 1 ? "" : "s"}`;
-
-const toneOf = (bucket: Bucket) => bucket.tone ?? "neutral";
 
 const fileUrl = (
   result: CodeResult | ChecksResult | DependenciesResult,
@@ -57,6 +47,16 @@ const fileUrl = (
   `https://github.com/${result.checkout.repository}/blob/${result.checkout.branch}/${path}`;
 
 type Tone = NonNullable<Bucket["tone"]>;
+
+const reportTones: Readonly<Record<Tone, report.Tone>> = {
+  good: "success",
+  warn: "warning",
+  bad: "danger",
+  neutral: "neutral",
+};
+
+/** A config tone as the report's status tone. */
+const toneOf = (tone: Tone | undefined) => reportTones[tone ?? "neutral"];
 
 /** Label, explanation and tone of each dependency category. */
 function categoryInfo(
@@ -103,10 +103,6 @@ function categoryInfo(
     },
   };
 }
-
-/** Escape text, then show its backtick spans as code. */
-const inlineHtml = (text: string) =>
-  esc(text).replace(/`([^`]+)`/g, "<code>$1</code>");
 
 const isRemaining = (file: DependencyFile) =>
   file.category !== "container" && file.category !== "pr";
@@ -590,51 +586,56 @@ export function renderMarkdown(run: ReportRun, pageFile: string | undefined) {
   return lines.join("\n").trimEnd();
 }
 
-function changesHtml(result: SectionResult, changes: RunChanges) {
+/** A section's changes since the last run, under a heading. */
+function changesBlock(
+  result: SectionResult,
+  changes: RunChanges,
+): report.Content {
   const lines = changeLines(result, changes);
 
-  if (lines.length === 0) return "";
+  if (lines.length === 0) return null;
 
-  return `<h3>Since last run</h3><ul class="changes">${lines
-    .map(
-      (line) =>
-        `<li>${esc(line.text)}${
-          line.items.length > 0
-            ? `<ul>${line.items
-                .map(
-                  (item) =>
-                    `<li>${item.url ? `<a href="${esc(item.url)}">${esc(item.text)}</a>` : esc(item.text)}</li>`,
-                )
-                .join("")}</ul>`
-            : ""
-        }</li>`,
-    )
-    .join("")}</ul>`;
+  return [
+    report.heading("Since last run"),
+    report.list(
+      lines.map((line) => ({
+        content: line.text,
+        items: line.items.map((item) =>
+          item.url ? report.link(item.text, item.url) : item.text,
+        ),
+      })),
+    ),
+  ];
 }
 
-function meter(result: CodeResult, counts: Readonly<Record<string, number>>) {
-  const total =
-    Object.values(counts).reduce((sum, count) => sum + count, 0) || 1;
+/** Each section's anchor and title row. */
+const sectionOptions = (section: {
+  readonly id: string;
+  readonly title: string;
+  readonly description?: string | undefined;
+}) => ({
+  id: section.id,
+  title: section.title,
+  description:
+    section.description === undefined
+      ? undefined
+      : report.prose(section.description),
+});
 
-  return result.section.buckets
-    .map(
-      (bucket) =>
-        `<span class="tone-${toneOf(bucket)}" style="width:${(((counts[bucket.id] ?? 0) / total) * 100).toFixed(2)}%"></span>`,
-    )
-    .join("");
-}
+const yesNo = (value: boolean) => [value ? "yes" : "no"];
 
-function codeHtml(result: CodeResult, run: ReportRun, index: number) {
+function codeBlock(result: CodeResult, run: ReportRun): report.Content {
   const { section } = result;
   const change = run.changes?.[section.id];
 
-  const stats = section.buckets
-    .map((bucket) => {
-      const moved = change?.counts[bucket.id];
-
-      return `<div class="stat"><b>${result.counts[bucket.id] ?? 0}</b><span><i class="dot tone-${toneOf(bucket)}"></i>${esc(bucket.label)}${moved ? ` <span class="delta">${signed(moved.after - moved.before)}</span>` : ""}</span></div>`;
-    })
-    .join("");
+  const segments = (
+    counts: Readonly<Record<string, number>>,
+  ): report.Segment[] =>
+    section.buckets.map((bucket) => ({
+      label: bucket.label,
+      value: counts[bucket.id] ?? 0,
+      tone: toneOf(bucket.tone),
+    }));
 
   const groups = new Map<string, Record<string, number>>();
 
@@ -650,17 +651,9 @@ function codeHtml(result: CodeResult, run: ReportRun, index: number) {
       .filter((bucket) => bucket.tone !== "good")
       .reduce((sum, bucket) => sum + (counts[bucket.id] ?? 0), 0);
 
-  const rows = [...groups.entries()]
-    .sort((a, b) => pending(b[1]) - pending(a[1]))
-    .map(
-      ([name, counts]) =>
-        `<tr><td>${esc(name)}</td>${section.buckets
-          .map((bucket) => `<td class="num">${counts[bucket.id] ?? 0}</td>`)
-          .join(
-            "",
-          )}<td><div class="mini">${meter(result, counts)}</div></td></tr>`,
-    )
-    .join("");
+  const byGroup = [...groups.entries()].sort(
+    (a, b) => pending(b[1]) - pending(a[1]),
+  );
 
   const total = result.files.length;
 
@@ -668,278 +661,422 @@ function codeHtml(result: CodeResult, run: ReportRun, index: number) {
     .filter((bucket) => bucket.tone === "good")
     .reduce((sum, bucket) => sum + (result.counts[bucket.id] ?? 0), 0);
 
-  const totals = `<tfoot><tr><th>Total${total > 0 ? ` <span class="delta">${Math.round((done / total) * 100)}% done</span>` : ""}</th>${section.buckets
-    .map((bucket) => `<th class="num">${result.counts[bucket.id] ?? 0}</th>`)
-    .join(
-      "",
-    )}<th><div class="mini">${meter(result, result.counts)}</div></th></tr></tfoot>`;
-
-  const lists = (section.lists ?? [])
-    .map((list) => {
-      const files = listFiles(result, list);
-
-      return `<details class="group"><summary><span class="name">${esc(list.title)}</span><span class="count">${plural(files.length, "file")}</span></summary><ul class="files">${files
-        .map(
-          (file) =>
-            `<li><a href="${esc(fileUrl(result, file.path))}">${esc(file.path)}</a>${Object.entries(
-              file.metrics,
-            )
-              .map(
-                ([name, value]) =>
-                  `<span class="delta">${esc(name)} ${value}</span>`,
-              )
-              .join("")}${file.pullRequests
-              .map((number) => `<span class="pill accent">#${number}</span>`)
-              .join("")}</li>`,
-        )
-        .join("")}</ul></details>`;
-    })
-    .join("");
-
-  const dataId = `ledger-${index}`;
-
-  const data = JSON.stringify({
-    base: `https://github.com/${result.checkout.repository}/blob/${result.checkout.branch}/`,
-    labels: Object.fromEntries(
-      section.buckets.map((bucket) => [bucket.id, bucket.label]),
-    ),
-    tones: Object.fromEntries(
-      section.buckets.map((bucket) => [bucket.id, toneOf(bucket)]),
-    ),
-    files: result.files.map((file) => ({
-      p: file.path,
-      b: file.bucket,
-      g: file.group,
-      a: file.allowed,
-      m: file.metrics,
-      pr: file.pullRequests,
-    })),
-  }).replaceAll("</", "<\\/");
-
+  const buckets = new Map(section.buckets.map((bucket) => [bucket.id, bucket]));
   const hasPrs = result.files.some((file) => file.pullRequests.length > 0);
   const hasAllowed = result.files.some((file) => file.allowed);
 
-  return `<section id="${esc(section.id)}">
-<h2>${esc(section.title)}</h2>
-${section.description ? `<p class="lede">${esc(section.description)}</p>` : ""}
-<div class="meter" role="img" aria-label="${esc(section.buckets.map((bucket) => `${result.counts[bucket.id] ?? 0} ${bucket.label}`).join(", "))}">${meter(result, result.counts)}</div>
-<div class="stats">${stats}</div>
-${changesHtml(result, run.changes)}
-<div class="scroll"><table><thead><tr><th>Group</th>${section.buckets
-    .map((bucket) => `<th class="num">${esc(bucket.label)}</th>`)
-    .join(
-      "",
-    )}<th>Progress</th></tr></thead><tbody>${rows}</tbody>${totals}</table></div>
-${lists}
-<div data-ledger="${dataId}">
-<h3>All files</h3>
-<div class="controls">
-<input type="search" placeholder="Filter by path" aria-label="Filter files by path">
-${section.buckets
-  .map(
-    (bucket) =>
-      `<button type="button" class="toggle" data-bucket="${esc(bucket.id)}" aria-pressed="false">${esc(bucket.label)}</button>`,
-  )
-  .join("")}
-${hasPrs ? `<button type="button" class="toggle" data-flag="pr" aria-pressed="false">In a PR</button>` : ""}
-${hasAllowed ? `<button type="button" class="toggle" data-flag="hideAllowed" aria-pressed="false">Hide allowed</button>` : ""}
-<span class="delta result-count"></span>
-</div>
-<div class="ledger"></div>
-<script type="application/json" id="${dataId}">${data}</script>
-</div>
-</section>`;
+  const pullRequestChips = (numbers: readonly number[]) =>
+    numbers.map((number) => ({ text: `#${number}`, tone: "accent" as const }));
+
+  return report.section(
+    sectionOptions(section),
+    report.breakdown(segments(result.counts)),
+    report.stats(
+      section.buckets.map((bucket) => {
+        const moved = change?.counts[bucket.id];
+
+        return {
+          label: bucket.label,
+          value: result.counts[bucket.id] ?? 0,
+          tone: toneOf(bucket.tone),
+          delta: moved ? signed(moved.after - moved.before) : undefined,
+        };
+      }),
+    ),
+    changesBlock(result, run.changes),
+    report.heading(
+      "By group",
+      total > 0 ? `${Math.round((done / total) * 100)}% done` : undefined,
+    ),
+    report.table({
+      label: `${section.title} by group`,
+      columns: [
+        { id: "group", header: "Group", wide: true },
+        ...section.buckets.map((bucket) => ({
+          id: bucket.id,
+          header: bucket.label,
+          numeric: true,
+        })),
+        { id: "progress", header: "Progress", sortable: false },
+      ],
+      rows: byGroup.map(([name, counts]) => ({
+        group: name,
+        ...Object.fromEntries(
+          section.buckets.map((bucket) => [bucket.id, counts[bucket.id] ?? 0]),
+        ),
+        progress: { segments: segments(counts) },
+      })),
+    }),
+    (section.lists ?? []).map((entry) => {
+      const files = listFiles(result, entry);
+
+      return report.expansion(
+        {
+          heading: entry.title,
+          aside: report.chip(plural(files.length, "file")),
+        },
+        report.list(
+          files.map((file) =>
+            report.chips(
+              report.link(file.path, fileUrl(result, file.path), {
+                mono: true,
+              }),
+              Object.entries(file.metrics).map(([name, value]) =>
+                report.delta(`${name} ${value}`),
+              ),
+              file.pullRequests.map((number) =>
+                report.chip(`#${number}`, { tone: "accent" }),
+              ),
+            ),
+          ),
+        ),
+      );
+    }),
+    report.heading("All files"),
+    report.table({
+      label: `${section.title}: all files`,
+      group: "group",
+      groupsCollapsed: true,
+      sort: "path",
+      search: "always",
+      searchLabel: "Filter by path",
+      columns: [
+        { id: "path", header: "File", wide: true },
+        { id: "group", header: "Group" },
+        { id: "state", header: "State" },
+        { id: "notes", header: "", sortable: false, searchable: false },
+      ],
+      filters: [
+        {
+          id: "bucket",
+          label: "State",
+          options: section.buckets.map((bucket) => ({
+            value: bucket.id,
+            label: bucket.label,
+          })),
+        },
+        ...(hasPrs
+          ? [
+              {
+                id: "pr",
+                label: "Pull request",
+                options: [
+                  { value: "yes", label: "In a PR" },
+                  { value: "no", label: "Not in a PR" },
+                ],
+              },
+            ]
+          : []),
+        ...(hasAllowed
+          ? [
+              {
+                id: "allowed",
+                label: "Allowed",
+                options: [
+                  { value: "yes", label: "Allowed" },
+                  { value: "no", label: "Not allowed" },
+                ],
+              },
+            ]
+          : []),
+      ],
+      rows: result.files.map((file) => {
+        const bucket = buckets.get(file.bucket);
+        const label = bucket?.label ?? file.bucket;
+
+        return {
+          path: {
+            text: file.path,
+            href: fileUrl(result, file.path),
+            mono: true,
+          },
+          group: file.group,
+          state: {
+            value: label,
+            badges: [{ text: label, tone: toneOf(bucket?.tone) }],
+          },
+          notes: {
+            value: "",
+            chips: [
+              ...Object.entries(file.metrics)
+                .filter(([, value]) => value > 0)
+                .map(([name, value]) => ({ text: `${name} ${value}` })),
+              ...pullRequestChips(file.pullRequests),
+              ...(file.allowed ? [{ text: "Allowed" }] : []),
+            ],
+          },
+          bucket: [file.bucket],
+          pr: yesNo(file.pullRequests.length > 0),
+          allowed: yesNo(file.allowed),
+        };
+      }),
+    }),
+  );
 }
 
-function githubHtml(result: GithubResult, run: ReportRun) {
+function githubBlock(result: GithubResult, run: ReportRun): report.Content {
   const added = new Set(
     run.changes?.[result.section.id]?.added.map(({ key }) => key) ?? [],
   );
 
-  const cards = result.items
-    .map((item) => {
-      const pills = [
-        item.draft ? `<span class="pill warn">Draft</span>` : "",
-        item.state === "MERGED" ? `<span class="pill good">Merged</span>` : "",
-        added.has(`#${item.number}`)
-          ? `<span class="pill accent">New</span>`
-          : "",
-        `<span class="pill">${esc(item.author)}</span>`,
-        item.additions !== undefined
-          ? `<span class="pill">+${item.additions} / −${item.deletions ?? 0}</span>`
-          : "",
-        `<span class="pill">${esc((item.mergedAt ?? item.updatedAt).slice(0, 10))}</span>`,
-        item.files.length > 0
-          ? `<span class="pill">${plural(item.files.length, "file")}</span>`
-          : "",
-      ].join("");
-
-      return `<div class="card"><a class="title" href="${esc(item.url)}">#${item.number} ${esc(item.title)}</a>${pills}</div>`;
-    })
-    .join("");
-
-  return `<section id="${esc(result.section.id)}">
-<h2>${esc(result.section.title)}</h2>
-${result.section.description ? `<p class="lede">${esc(result.section.description)}</p>` : ""}
-<div class="cards">${cards || `<p class="muted">None.</p>`}</div>
-${result.dropped > 0 ? `<p class="note">${plural(result.dropped, "result")} left out as not relevant by the decision model.</p>` : ""}
-${changesHtml(result, run.changes)}
-</section>`;
+  return report.section(
+    {
+      ...sectionOptions(result.section),
+      actions: report.chip(plural(result.items.length, "result")),
+    },
+    report.cards(
+      result.items.map((item) => ({
+        heading: `#${item.number} ${item.title}`,
+        href: item.url,
+        content: report.chips(
+          added.has(`#${item.number}`)
+            ? report.chip("New", { tone: "accent" })
+            : null,
+          item.draft ? report.badge("Draft", { tone: "warning" }) : null,
+          item.state === "MERGED"
+            ? report.badge("Merged", { tone: "success" })
+            : null,
+          report.chip(item.author),
+          item.additions === undefined
+            ? null
+            : report.chip(`+${item.additions} / −${item.deletions ?? 0}`),
+          report.chip((item.mergedAt ?? item.updatedAt).slice(0, 10)),
+          item.files.length > 0
+            ? report.chip(plural(item.files.length, "file"))
+            : null,
+        ),
+      })),
+    ),
+    result.dropped > 0
+      ? report.note(
+          `${plural(result.dropped, "result")} left out as not relevant by the decision model.`,
+        )
+      : null,
+    changesBlock(result, run.changes),
+  );
 }
 
-const STATE_PILLS = {
-  active: `<span class="pill bad">Active</span>`,
-  resolved: `<span class="pill good">Resolved</span>`,
-  missing: `<span class="pill warn">File missing</span>`,
-} as const;
+const checkStates = {
+  active: { label: "Active", tone: "danger" },
+  resolved: { label: "Resolved", tone: "success" },
+  missing: { label: "File missing", tone: "warning" },
+} as const satisfies Record<string, { label: string; tone: report.Tone }>;
 
-function checksHtml(result: ChecksResult, run: ReportRun) {
+function checksBlock(result: ChecksResult, run: ReportRun): report.Content {
   const verdicts = result.checks.some((check) => check.verdict !== undefined);
 
-  const rows = result.checks
-    .map(
-      (check) =>
-        `<tr><td>${esc(check.title)}<br><a class="mono" href="${esc(fileUrl(result, check.file))}">${esc(check.file)}</a></td><td>${STATE_PILLS[check.state]}</td><td class="muted">${esc(check.finding)}</td>${
-          verdicts
-            ? `<td>${check.verdict && check.state === "active" ? `<span class="pill ${check.tone ?? "neutral"}">${esc(check.verdict)}</span>` : ""}</td>`
-            : ""
-        }</tr>`,
-    )
-    .join("");
+  return report.section(
+    sectionOptions(result.section),
+    report.table({
+      label: result.section.title,
+      columns: [
+        { id: "check", header: "Check" },
+        { id: "state", header: "State" },
+        { id: "finding", header: "Finding", wide: true },
+        ...(verdicts ? [{ id: "verdict", header: "Verdict" }] : []),
+      ],
+      rows: result.checks.map((check) => {
+        const state = checkStates[check.state];
 
-  return `<section id="${esc(result.section.id)}">
-<h2>${esc(result.section.title)}</h2>
-${result.section.description ? `<p class="lede">${esc(result.section.description)}</p>` : ""}
-<div class="scroll"><table><thead><tr><th>Check</th><th>State</th><th>Finding</th>${verdicts ? "<th>Verdict</th>" : ""}</tr></thead><tbody>${rows}</tbody></table></div>
-${changesHtml(result, run.changes)}
-</section>`;
+        return {
+          check: {
+            text: check.title,
+            detail: {
+              text: check.file,
+              href: fileUrl(result, check.file),
+              mono: true,
+            },
+          },
+          state: {
+            value: state.label,
+            badges: [{ text: state.label, tone: state.tone }],
+          },
+          finding: { text: check.finding, muted: true },
+          verdict:
+            check.verdict !== undefined && check.state === "active"
+              ? {
+                  value: check.verdict,
+                  badges: [{ text: check.verdict, tone: toneOf(check.tone) }],
+                }
+              : null,
+        };
+      }),
+    }),
+    changesBlock(result, run.changes),
+  );
 }
 
-const fileRow = (result: DependenciesResult, file: DependencyFile) => {
-  const chips = [
-    ...file.contexts.map(
-      (context) => `<span class="pill">${esc(context)}</span>`,
-    ),
-    ...file.uncovered.map(
-      (member) => `<span class="pill bad">.${esc(member)}</span>`,
-    ),
-    ...[...file.children, ...file.narrowable, ...file.broad].map(
-      (name) => `<span class="pill warn">${esc(name)}</span>`,
-    ),
-    ...file.notes.map((id) => {
-      const note = result.section.notes?.find((entry) => entry.id === id);
-
-      return `<span class="pill ${note?.tone ?? "warn"}">${esc(note?.label ?? id)}</span>`;
-    }),
-    ...file.pullRequests.map(
-      (number) => `<span class="pill accent">#${number}</span>`,
-    ),
-  ].join("");
-
-  return `<tr><td><a class="mono" href="${esc(fileUrl(result, file.path))}">${esc(file.path)}</a></td><td class="num">${file.reads}</td><td>${chips}</td></tr>`;
-};
-
-const fileTable = (
+/** A table of files still holding the property, grouped when `grouped`. */
+function dependencyTable(
   result: DependenciesResult,
+  label: string,
   files: readonly DependencyFile[],
-) =>
-  `<div class="scroll"><table><thead><tr><th>File</th><th class="num">Reads</th><th>Uses and blockers</th></tr></thead><tbody>${files
-    .map((file) => fileRow(result, file))
-    .join("")}</tbody></table></div>`;
+  grouped: boolean,
+) {
+  return report.table({
+    label,
+    group: grouped ? "group" : undefined,
+    groupsCollapsed: grouped,
+    columns: [
+      { id: "path", header: "File", wide: true },
+      ...(grouped ? [{ id: "group", header: "Group" }] : []),
+      { id: "reads", header: "Reads", numeric: true },
+      {
+        id: "uses",
+        header: "Uses and blockers",
+        sortable: false,
+        searchable: false,
+      },
+    ],
+    rows: files.map((file) => ({
+      path: { text: file.path, href: fileUrl(result, file.path), mono: true },
+      group: file.group,
+      reads: file.reads,
+      uses: {
+        value: "",
+        chips: [
+          ...file.contexts.map((context) => ({ text: context })),
+          ...file.uncovered.map((member) => ({
+            text: `.${member}`,
+            tone: "danger" as const,
+          })),
+          ...blockersOf(file).map((name) => ({
+            text: name,
+            tone: "warning" as const,
+          })),
+          ...file.notes.map((id) => {
+            const note = result.section.notes?.find((entry) => entry.id === id);
 
-function dependenciesHtml(result: DependenciesResult, run: ReportRun) {
+            return {
+              text: note?.label ?? id,
+              tone: toneOf(note?.tone ?? "warn"),
+            };
+          }),
+          ...file.pullRequests.map((number) => ({
+            text: `#${number}`,
+            tone: "accent" as const,
+          })),
+        ],
+      },
+    })),
+  });
+}
+
+function dependenciesBlock(
+  result: DependenciesResult,
+  run: ReportRun,
+): report.Content {
   const { section } = result;
   const info = categoryInfo(section);
   const change = run.changes?.[section.id];
+  const steps = section.prerequisites ?? [];
+  const blockers = result.blockers.slice(0, 15);
 
-  const stats = DEPENDENCY_CATEGORIES.map((category) => {
-    const moved = change?.counts[category];
+  return report.section(
+    sectionOptions(section),
+    report.stats(
+      DEPENDENCY_CATEGORIES.map((category) => {
+        const moved = change?.counts[category];
 
-    return `<div class="stat" title="${esc(info[category].detail.replaceAll("`", ""))}"><b>${result.counts[category] ?? 0}</b><span><i class="dot tone-${info[category].tone}"></i>${esc(info[category].label)}${moved ? ` <span class="delta">${signed(moved.after - moved.before)}</span>` : ""}</span></div>`;
-  }).join("");
+        return {
+          label: info[category].label,
+          value: result.counts[category] ?? 0,
+          tone: toneOf(info[category].tone),
+          delta: moved ? signed(moved.after - moved.before) : undefined,
+          hint: info[category].detail.replaceAll("`", ""),
+        };
+      }),
+    ),
+    report.expansion(
+      { heading: "What the categories mean" },
+      report.list(
+        DEPENDENCY_CATEGORIES.map((category) => [
+          report.html`<strong>${info[category].label}</strong>: `,
+          report.prose(info[category].detail),
+        ]),
+      ),
+    ),
+    changesBlock(result, run.changes),
+    steps.length > 0
+      ? [
+          report.heading("Next steps"),
+          report.list(
+            steps.map((step) => ({
+              content: [
+                report.html`<strong>${step.title}</strong>`,
+                report.paragraph(report.prose(step.text)),
+                report.chips(
+                  prerequisiteImpact(result, step).map((impact) =>
+                    report.chip(impact.text, { tone: toneOf(impact.tone) }),
+                  ),
+                  step.category === "helper"
+                    ? topHelpers(result, 8).map((blocker) =>
+                        report.chip(`${blocker.name} ${blocker.files}`),
+                      )
+                    : null,
+                ),
+              ],
+            })),
+            { ordered: true },
+          ),
+        ]
+      : null,
+    blockers.length > 0
+      ? [
+          report.heading("Biggest blockers"),
+          report.table({
+            label: `${section.title}: biggest blockers`,
+            columns: [
+              { id: "blocker", header: "Blocker" },
+              { id: "kind", header: "Kind" },
+              { id: "sole", header: "Only blocker of", numeric: true },
+              { id: "files", header: "Blocks", numeric: true },
+              { id: "where", header: "Where it's the only one", wide: true },
+            ],
+            rows: blockers.map((blocker) => ({
+              blocker: {
+                text: blocker.name,
+                href: blocker.path ? fileUrl(result, blocker.path) : undefined,
+                mono: true,
+              },
+              kind: blocker.kind,
+              sole: blocker.sole,
+              files: blocker.files,
+              where: {
+                text: blocker.soleGroups
+                  .slice(0, 3)
+                  .map(
+                    (group) =>
+                      `${group.count} of ${group.of} ${group.group.toLowerCase()}`,
+                  )
+                  .join(", "),
+                muted: true,
+              },
+            })),
+          }),
+        ]
+      : null,
+    (section.lists ?? []).map((entry) => {
+      const files = dependencyListFiles(result, entry);
 
-  const legend = DEPENDENCY_CATEGORIES.map(
-    (category) =>
-      `<li><b>${esc(info[category].label)}</b>: ${inlineHtml(info[category].detail)}</li>`,
-  ).join("");
-
-  const steps = (section.prerequisites ?? [])
-    .map((step) => {
-      const helpers =
-        step.category === "helper"
-          ? topHelpers(result, 8)
-              .map(
-                (blocker) =>
-                  `<span class="pill">${esc(blocker.name)} ${blocker.files}</span>`,
-              )
-              .join("")
-          : "";
-
-      return `<li><b>${esc(step.title)}</b><p>${inlineHtml(step.text)}</p><div>${prerequisiteImpact(
-        result,
-        step,
-      )
-        .map(
-          (impact) =>
-            `<span class="pill ${impact.tone}">${esc(impact.text)}</span>`,
-        )
-        .join("")}${helpers}</div></li>`;
-    })
-    .join("");
-
-  const blockerRows = result.blockers
-    .slice(0, 15)
-    .map(
-      (blocker) =>
-        `<tr><td>${blocker.path ? `<a class="mono" href="${esc(fileUrl(result, blocker.path))}">${esc(blocker.name)}</a>` : `<span class="mono">${esc(blocker.name)}</span>`}</td><td>${blocker.kind}</td><td class="num">${blocker.sole}</td><td class="num">${blocker.files}</td><td class="muted">${blocker.soleGroups
-          .slice(0, 3)
-          .map(
-            (group) =>
-              `${group.count} of ${group.of} ${esc(group.group.toLowerCase())}`,
-          )
-          .join(", ")}</td></tr>`,
-    )
-    .join("");
-
-  const lists = (section.lists ?? [])
-    .map((list) => {
-      const files = dependencyListFiles(result, list);
-      const header = `<h3>${esc(list.title)} <span class="delta">${plural(files.length, "file")}</span></h3>${list.description ? `<p class="lede">${inlineHtml(list.description)}</p>` : ""}`;
-
-      if (!list.grouped) return header + fileTable(result, files);
-
-      const groups = new Map<string, DependencyFile[]>();
-
-      for (const file of files)
-        groups.set(file.group, [...(groups.get(file.group) ?? []), file]);
-
-      return (
-        header +
-        [...groups.entries()]
-          .sort((a, b) => b[1].length - a[1].length)
-          .map(
-            ([group, entries]) =>
-              `<details class="group"><summary><span class="name">${esc(group)}</span><span class="count">${plural(entries.length, "file")}</span></summary>${fileTable(result, entries)}</details>`,
-          )
-          .join("")
-      );
-    })
-    .join("");
-
-  return `<section id="${esc(section.id)}">
-<h2>${esc(section.title)}</h2>
-${section.description ? `<p class="lede">${esc(section.description)}</p>` : ""}
-<div class="stats">${stats}</div>
-<details class="group"><summary><span class="name">What the categories mean</span></summary><ul class="files">${legend}</ul></details>
-${changesHtml(result, run.changes)}
-${steps ? `<h3>Next steps</h3><ol class="steps">${steps}</ol>` : ""}
-${blockerRows ? `<h3>Biggest blockers</h3><div class="scroll"><table><thead><tr><th>Blocker</th><th>Kind</th><th class="num">Only blocker of</th><th class="num">Blocks</th><th>Where it's the only one</th></tr></thead><tbody>${blockerRows}</tbody></table></div>` : ""}
-${lists}
-</section>`;
+      return [
+        report.heading(entry.title, plural(files.length, "file")),
+        entry.description
+          ? report.paragraph(report.prose(entry.description))
+          : null,
+        dependencyTable(
+          result,
+          `${section.title}: ${entry.title}`,
+          files,
+          entry.grouped === true,
+        ),
+      ];
+    }),
+  );
 }
 
-/** The full report page. */
-export function renderHtml(run: ReportRun) {
+/** The full report page, on Groundwork's report template. */
+export function renderHtml(run: ReportRun, themes: ReportThemes) {
   const checkouts = [
     ...new Map(
       run.results.flatMap((result) =>
@@ -955,47 +1092,50 @@ export function renderHtml(run: ReportRun) {
     ).values(),
   ];
 
-  const sections = run.results
-    .map((result, index) => {
-      switch (result.type) {
-        case "code":
-          return codeHtml(result, run, index);
-        case "github":
-          return githubHtml(result, run);
-        case "checks":
-          return checksHtml(result, run);
-        case "dependencies":
-          return dependenciesHtml(result, run);
-      }
-    })
-    .join("\n");
+  const sections = run.results.map((result) => {
+    switch (result.type) {
+      case "code":
+        return codeBlock(result, run);
+      case "github":
+        return githubBlock(result, run);
+      case "checks":
+        return checksBlock(result, run);
+      case "dependencies":
+        return dependenciesBlock(result, run);
+    }
+  });
 
-  return `<!doctype html>
-<html lang="en-GB">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>${esc(run.config.title)}</title>
-<style>${PAGE_CSS}</style>
-</head>
-<body>
-<div class="wrap">
-<header>
-<h1>${esc(run.config.title)}</h1>
-${run.config.description ? `<p class="lede">${esc(run.config.description)}</p>` : ""}
-<div class="meta"><span>${esc(run.date)}</span>${checkouts
-    .map(
-      (checkout) =>
-        `<span><a href="https://github.com/${esc(checkout.repository)}/commit/${esc(checkout.commit)}">${esc(checkout.repository)}@${esc(checkout.branch)} ${esc(checkout.commit)}</a></span>`,
-    )
-    .join("")}</div>
-${run.summary ? `<p class="summary">${esc(run.summary.text)} <span class="delta">${esc(run.summary.model)}</span></p>` : ""}
-${run.changes ? "" : `<p class="note">First run, so changes show from the next one.</p>`}
-</header>
-${sections}
-</div>
-<script>${PAGE_SCRIPT}</script>
-</body>
-</html>
-`;
+  return report.reportPage({
+    ...themes,
+    title: run.config.title,
+    description: run.config.description,
+    lang: "en-GB",
+    brand: "dot report",
+    storageKey: "dot-report:theme",
+    meta: [
+      report.chip(run.date),
+      ...checkouts.map((checkout) =>
+        report.chip(
+          `${checkout.repository}@${checkout.branch} ${checkout.commit}`,
+          {
+            href: `https://github.com/${checkout.repository}/commit/${checkout.commit}`,
+          },
+        ),
+      ),
+    ],
+    assets,
+    body: [
+      run.summary
+        ? report.alert({ tone: "info", heading: "What changed" }, [
+            run.summary.text,
+            " ",
+            report.delta(run.summary.model),
+          ])
+        : null,
+      run.changes
+        ? null
+        : report.note("First run, so changes show from the next one."),
+      sections,
+    ],
+  });
 }
