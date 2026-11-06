@@ -23,7 +23,7 @@
             "mod": "dot-fit",
             "props": {
               "wide": "main-fit",
-              "offset": 8
+              "offset": 0
             }
           }
         },
@@ -47,7 +47,7 @@
             "content": {
               "mod": "dot-terminals-pane"
             },
-            "height": 38
+            "height": 28
           },
           "background": "background",
           "border": {
@@ -56,26 +56,26 @@
           },
           "focus": {
             "width": 1,
-            "color": "accent"
+            "color": "#7aa2f780"
           },
-          "radius": 12,
-          "gap": 6,
-          "lone": false
+          "radius": 4,
+          "gap": 2,
+          "lone": true
         }
       }
     }
   ],
   "background": "canvas",
   "padding": [
-    4,
-    4
+    0,
+    0
   ],
   "terminal_padding": [
-    6,
-    4
+    2,
+    2
   ],
   "font_size": 12,
-  "gap": 6,
+  "gap": 2,
   "titlebar": "none",
   "traffic_lights": [
     16,

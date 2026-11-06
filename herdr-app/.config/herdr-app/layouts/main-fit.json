@@ -12,8 +12,8 @@
   ],
   "background": "canvas",
   "terminal_padding": [
-    14,
-    12
+    10,
+    8
   ],
   "divider": {
     "width": 1,
@@ -117,8 +117,8 @@
         {
           "id": "work-body",
           "type": "row",
-          "padding": 8,
-          "gap": 8,
+          "padding": 6,
+          "gap": 6,
           "children": [
             {
               "id": "main",
@@ -126,17 +126,17 @@
               "content": {
                 "tab": "active",
                 "pane": {
-                  "gap": 8,
-                  "radius": 10,
+                  "gap": 6,
+                  "radius": 8,
                   "background": "background",
-                  "lone": false,
+                  "lone": true,
                   "border": {
                     "width": 1,
                     "color": "border"
                   },
                   "focus": {
                     "width": 1,
-                    "color": "accent"
+                    "color": "#7aa2f780"
                   },
                   "header": {
                     "content": {
