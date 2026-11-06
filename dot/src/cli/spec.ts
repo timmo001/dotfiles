@@ -95,11 +95,15 @@ import {
 } from "../commands/SessionQueue.js";
 import { repos, searchRepos } from "../commands/Repos.js";
 import { up, upCheck } from "../commands/Up.js";
+import { upStage } from "../commands/UpStage.js";
+import { reserveStdout } from "../lib/jsonStdout.js";
 import {
   update,
   updateCheck,
   updateRepositories,
   UP_GROUPS,
+  UP_STAGES,
+  type UpStage,
 } from "../commands/Update.js";
 import { workspaceRelayout } from "../commands/WorkspaceRelayout.js";
 import { RELOAD_PARTS, reload } from "../commands/Reload.js";
@@ -243,6 +247,63 @@ const installCommand = describe(
   "Ensure prerequisites, then backup/adopt dotfiles",
 );
 
+const STAGE_DESCRIPTIONS: Record<UpStage, string> = {
+  dotfiles:
+    "Pull the public and private dotfiles and their pinned submodules, and rebuild dot when its source moved",
+  stow: "Generate completions, sync MCP config and skills, and stow",
+  skills:
+    "Move the skills checkout to the latest main, rebuild skill-maintenance and relink skills",
+  repos:
+    "Pull tracked repositories that are behind, leaving any with work in progress alone; name repositories to pull just those",
+  tools: "Install missing mise tools, upgrade the rest and prune removed ones",
+  plugins: "Update the Pi and Plannotator plugins and restore Herdr plugins",
+  agents: "Sync agent instructions and reload running agents",
+  shell: "Refresh shell modules, start the doctor check and refresh the bar",
+};
+
+const stageJson = bool(
+  "json",
+  "Print the result as JSON on stdout, with the log on stderr",
+);
+
+const upStageCommand = (stage: UpStage) =>
+  describe(
+    Command.make(
+      stage,
+      {
+        json: stageJson,
+        repos: Argument.String("repo").pipe(
+          Argument.variadic(),
+          Argument.withDescription(
+            stage === "repos"
+              ? "Repository paths to pull, instead of every safe one"
+              : "Not used by this stage",
+          ),
+        ),
+      },
+      ({ json, repos }) =>
+        Effect.suspend(() => {
+          if (stage !== "repos" && repos.length > 0)
+            return Effect.fail(
+              new CliError.InvalidValue({
+                option: "repo",
+                value: repos.join(", "),
+                kind: "argument",
+                expected: "no arguments; only dot up repos takes repositories",
+              }),
+            );
+
+          if (json) reserveStdout();
+
+          return upStage(stage, { repos, json });
+        }),
+    ),
+    `${STAGE_DESCRIPTIONS[stage]}. Never prompts, so it can run in the background.`,
+    stage === "repos"
+      ? ["dot up repos", "dot up repos ~/repos/upkeep", "dot up repos --json"]
+      : [`dot up ${stage}`, `dot up ${stage} --json`],
+  );
+
 const updateCommand = describe(
   Command.make(
     "up",
@@ -358,8 +419,8 @@ const updateCommand = describe(
 
         return yield* up({ ...options, groups: group, yes, force });
       }),
-  ),
-  "Check everything, pick what to update, then run it: dotfiles, mise tools, gh extensions, missing packages and omarchy update. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at and --group flags carry a run across the self-update restart.",
+  ).pipe(Command.withSubcommands(UP_STAGES.map(upStageCommand))),
+  "Check everything, pick what to update, then run it. The picker lists each stage (dotfiles, skills, repos, stow, tools, plugins, agents, shell), then gh extensions, missing packages and omarchy update; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at and --group flags carry a run across the self-update restart.",
   ["dot up", "dot up --check", "dot up --yes", "dot up --stow"],
   {
     description:

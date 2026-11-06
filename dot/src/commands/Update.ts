@@ -194,15 +194,27 @@ export interface UpdateRun {
   readonly completedActions: readonly RecapEntry[];
 }
 
-/** What `dot up` can run, in the order it runs them. */
-export const UP_GROUPS = [
+/** Stages `dot up` runs, each also on its own as `dot up <stage>`, in order. */
+export const UP_STAGES = [
   "dotfiles",
+  "skills",
   "repos",
+  "stow",
   "tools",
-  "gh",
-  "packages",
-  "system",
+  "plugins",
+  "agents",
+  "shell",
 ] as const;
+
+/** What `dot up` can run, in the order it runs them. */
+export const UP_GROUPS = [...UP_STAGES, "gh", "packages", "system"] as const;
+
+/** One `dot up` stage. */
+export type UpStage = (typeof UP_STAGES)[number];
+
+/** Whether a `dot up` group is one of its stages. */
+export const isUpStage = (group: UpGroup): group is UpStage =>
+  UP_STAGES.some((stage) => stage === group);
 
 /** One kind of work `dot up` can run. */
 export type UpGroup = (typeof UP_GROUPS)[number];
@@ -284,7 +296,7 @@ function logInitMarkerStatus(
  * and lets Git fast-forward only when local work can be preserved.
  * Returns the revisions before and after only if the pull moved HEAD.
  */
-const safePull = (
+export const safePull = (
   name: string,
   path: string,
   required = false,
@@ -385,7 +397,7 @@ const safePull = (
   });
 
 /** Send a best-effort desktop notification for repos that pulled new changes */
-const notifyUpdated = (names: readonly string[]) =>
+export const notifyUpdated = (names: readonly string[]) =>
   Effect.gen(function* () {
     if (names.length === 0) return;
     const executor = yield* CommandExecutor;
@@ -575,6 +587,12 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
 
   if (failures.length > 0)
     return yield* new UpdateError({ message: failures.join("\n") });
+
+  return results.flatMap((result): UpdatedRepo[] =>
+    result
+      ? [{ name: result.name, path: result.repoPath, ...result.range }]
+      : [],
+  );
 });
 
 function selectedUpdateFlags(opts?: UpdateOptions): readonly string[] {
@@ -971,9 +989,11 @@ const pruneRemovedMiseTools = Effect.gen(function* () {
 /**
  * Install missing mise tools, optionally upgrade them all, prune removed ones,
  * then refresh the agent runtimes, so plugins and services match the tools.
+ * `plugins: false` leaves Pi and Plannotator to `dot up plugins`.
  */
 export const refreshTools = Effect.fn("Update.refreshTools")(function* (
   upgrade: boolean,
+  opts: { readonly plugins?: boolean } = {},
 ) {
   const log = yield* OutputLog;
   const tools: MiseToolChange[] = [];
@@ -1026,7 +1046,9 @@ export const refreshTools = Effect.fn("Update.refreshTools")(function* (
             // Services first: a stale service can hold a daemon's port
             Effect.all([restartStaleServices, restartStalePitchforkDaemons]),
             // Sequential: both write Pi's package directory
-            Effect.all([updatePiExtensions, updatePlannotatorPlugins]),
+            opts.plugins === false
+              ? Effect.succeed([])
+              : Effect.all([updatePiExtensions, updatePlannotatorPlugins]),
           ],
           { concurrency: "unbounded" },
         )).flat(),
@@ -1070,7 +1092,7 @@ export function canRunHerdrSessionActions(): boolean {
 }
 
 /** Restore Herdr plugins to the commits in the stowed Herdr Lazy lockfile. */
-const restoreHerdrPlugins = Effect.gen(function* () {
+export const restoreHerdrPlugins = Effect.gen(function* () {
   const log = yield* OutputLog;
   const executor = yield* CommandExecutor;
   const config = yield* Config;
@@ -1218,7 +1240,7 @@ const REFRESHED_SHELL_MODULES = [
  * Refresh shell modules and start the doctor check after an update, without
  * restarting the shell or its daemons.
  */
-const refreshShellModules = Effect.gen(function* () {
+export const refreshShellModules = Effect.gen(function* () {
   const config = yield* Config;
   const log = yield* OutputLog;
   const executor = yield* CommandExecutor;
@@ -1411,7 +1433,7 @@ export const MIGRATION_REQUIRED_EXIT = 11;
  * the pull/stow phases, prints manual remediation, and sets a non-zero exit.
  * Returns true when the update should halt.
  */
-const haltOnLegacyHyprRepo = (config: ConfigService) =>
+export const haltOnLegacyHyprRepo = (config: ConfigService) =>
   Effect.gen(function* () {
     const legacy = yield* detectLegacyHyprRepo(config);
 

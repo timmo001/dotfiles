@@ -9,6 +9,7 @@ import {
 } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { constants } from "node:os";
+import { stdoutReserved } from "../lib/jsonStdout.js";
 import { writeMirroredLog } from "../lib/logMirror.js";
 import { expandHomePath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
@@ -82,12 +83,13 @@ function inheritedCommandLogFile(): string | null {
 const pipeProcessOutput = (
   stream: Stream.Stream<Uint8Array, PlatformError.PlatformError>,
   output: Pick<typeof process.stdout, "write">,
-  logFile: string,
+  logFile: string | null,
 ) =>
   Stream.runForEach(stream, (chunk) =>
     Effect.sync(() => {
       output.write(chunk);
-      writeMirroredLog(logFile, chunk);
+
+      if (logFile) writeMirroredLog(logFile, chunk);
     }),
   );
 
@@ -286,6 +288,8 @@ export class CommandExecutor extends Context.Service<
           const fullCmd = [cmd, ...args];
           log(`inherit: ${describe(fullCmd, opts?.cwd)}`);
           const commandLogFile = inheritedCommandLogFile();
+          // A reserved stdout carries only JSON, so the child's goes to stderr.
+          const piped = commandLogFile !== null || stdoutReserved();
 
           const run = Effect.gen(function* () {
             if (commandLogFile)
@@ -298,13 +302,13 @@ export class CommandExecutor extends Context.Service<
                 cwd: opts?.cwd,
                 detached: false,
                 stdin: "inherit",
-                stdout: commandLogFile ? "pipe" : "inherit",
-                stderr: commandLogFile ? "pipe" : "inherit",
+                stdout: piped ? "pipe" : "inherit",
+                stderr: piped ? "pipe" : "inherit",
                 ...envOptions(opts?.env),
               }),
             );
 
-            if (!commandLogFile) return yield* exitStatus(handle);
+            if (!piped) return yield* exitStatus(handle);
 
             const [, , exitCode] = yield* Effect.all(
               [

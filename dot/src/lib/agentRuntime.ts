@@ -8,7 +8,7 @@ import { OutputLog } from "../services/OutputLog.js";
 import { ENV, envString } from "./env.js";
 import { HOME_DIR } from "./paths.js";
 import { plural } from "./runSummary.js";
-import { done, notable, skip, warn } from "./updateSummary.js";
+import { notable, skip, warn } from "./updateSummary.js";
 
 const OPENCODE = join(HOME_DIR, ".local", "bin", "opencode2");
 
@@ -270,6 +270,43 @@ const piPackages = Effect.gen(function* () {
     .flatMap((line) => /^ {2}(\S+:\S+)$/.exec(line)?.[1] ?? []);
 });
 
+const PackageVersion = Schema.fromJsonString(
+  Schema.Struct({ version: Schema.optionalKey(Schema.String) }),
+);
+
+/**
+ * Each Pi package's installed revision: the commit of a git package and the
+ * version of an npm one, keyed by source.
+ */
+const piPackageRevisions = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const fs = yield* FileSystem.FileSystem;
+  const lines = (yield* executor.run("pi", ["list"])).split("\n");
+  const revisions = new Map<string, string>();
+
+  for (const [index, line] of lines.entries()) {
+    const source = /^ {2}(\S+:\S+)$/.exec(line)?.[1];
+    const path = lines[index + 1]?.trim();
+
+    if (!source || !path) continue;
+
+    revisions.set(
+      source,
+      source.startsWith("git:")
+        ? yield* executor
+            .run("git", ["rev-parse", "HEAD"], { cwd: path })
+            .pipe(Effect.orElseSucceed(() => ""))
+        : yield* fs.readFileString(join(path, "package.json")).pipe(
+            Effect.flatMap(Schema.decodeEffect(PackageVersion)),
+            Effect.map((pkg) => pkg.version ?? ""),
+            Effect.orElseSucceed(() => ""),
+          ),
+    );
+  }
+
+  return revisions;
+});
+
 /** Update installed Pi packages, leaving Plannotator's to its CLI version. */
 export const updatePiExtensions = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
@@ -282,6 +319,7 @@ export const updatePiExtensions = Effect.gen(function* () {
     (source) => source !== PLANNOTATOR_PLUGINS.pi,
   );
 
+  const before = yield* piPackageRevisions;
   const failed: string[] = [];
 
   for (const source of sources) {
@@ -295,9 +333,21 @@ export const updatePiExtensions = Effect.gen(function* () {
     return warn(`Pi extension update failed: ${failed.join(", ")}`);
   }
 
-  yield* log.success("Updated Pi extensions");
+  const after = yield* piPackageRevisions;
 
-  return done("Updated Pi extensions");
+  const moved = sources.filter(
+    (source) => before.get(source) !== after.get(source),
+  );
+
+  if (!moved.length) {
+    yield* log.info("Pi extensions are up to date");
+
+    return skip("Pi extensions already up to date");
+  }
+
+  yield* log.success(`Updated Pi extensions: ${moved.join(", ")}`);
+
+  return notable(`Updated ${plural(moved.length, "Pi extension")}`);
 }).pipe(
   Effect.catch((error) =>
     Effect.succeed(warn(`Pi extension update failed: ${error.message}`)),
@@ -335,12 +385,13 @@ export const updatePlannotatorPlugins = Effect.gen(function* () {
   });
 
   const updated: string[] = [];
+  const current: string[] = [];
   const waiting: string[] = [];
   const failed: string[] = [];
 
-  const follow = Effect.fn("agentRuntime.followPlannotator")(function* (
+  const follow = Effect.fn("agentRuntime.followPlannotator")(function* <E, R>(
     name: string,
-    update: Effect.Effect<number>,
+    update: Effect.Effect<"updated" | "current" | "failed", E, R>,
   ) {
     const version = yield* latest(name);
 
@@ -353,18 +404,34 @@ export const updatePlannotatorPlugins = Effect.gen(function* () {
       return;
     }
 
-    if ((yield* update) === 0) updated.push(name);
+    const outcome = yield* update;
+
+    if (outcome === "updated") updated.push(name);
+    else if (outcome === "current") current.push(name);
     else failed.push(name);
   });
 
   if ((yield* executor.exitCode(OPENCODE, ["service", "status"])) === 0) {
     yield* follow(
       PLANNOTATOR_PLUGINS.opencode,
-      executor.exitCode(OPENCODE, [
-        "plugin",
-        "update",
-        PLANNOTATOR_PLUGINS.opencode,
-      ]),
+      Effect.gen(function* () {
+        // `plugin check` names the package without its scope.
+        const outdated = (yield* executor
+          .run(OPENCODE, ["plugin", "check"])
+          .pipe(Effect.orElseSucceed(() => "")))
+          .split("\n")
+          .some((line) => /^\s*plannotator\s.*update available/.test(line));
+
+        if (!outdated) return "current" as const;
+
+        return (yield* executor.exitCode(OPENCODE, [
+          "plugin",
+          "update",
+          PLANNOTATOR_PLUGINS.opencode,
+        ])) === 0
+          ? ("updated" as const)
+          : ("failed" as const);
+      }),
     );
   }
 
@@ -374,18 +441,39 @@ export const updatePlannotatorPlugins = Effect.gen(function* () {
   ) {
     yield* follow(
       PLANNOTATOR_PLUGINS.pi.replace(/^npm:/, ""),
-      executor.exitCode("pi", ["update", PLANNOTATOR_PLUGINS.pi]),
+      Effect.gen(function* () {
+        const before = (yield* piPackageRevisions).get(PLANNOTATOR_PLUGINS.pi);
+
+        if (
+          (yield* executor.exitCode("pi", [
+            "update",
+            PLANNOTATOR_PLUGINS.pi,
+          ])) !== 0
+        )
+          return "failed" as const;
+
+        return (yield* piPackageRevisions).get(PLANNOTATOR_PLUGINS.pi) ===
+          before
+          ? ("current" as const)
+          : ("updated" as const);
+      }),
     );
   }
 
   if (failed.length)
     return warn(`Could not update Plannotator plugins: ${failed.join(", ")}`);
 
+  if (updated.length) {
+    yield* log.success(`Updated ${updated.join(", ")} to ${cli}`);
+
+    return notable(`Plannotator plugins follow CLI ${cli}`);
+  }
+
   if (waiting.length)
     return skip(`Plannotator plugins wait for the CLI to reach their release`);
 
-  return updated.length
-    ? done(`Plannotator plugins follow CLI ${cli}`)
+  return current.length
+    ? skip(`Plannotator plugins already on CLI ${cli}`)
     : skip("Plannotator plugins skipped (none installed)");
 }).pipe(
   Effect.catch((error) =>

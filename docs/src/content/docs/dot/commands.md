@@ -56,10 +56,10 @@ dot install [flags]
 
 Aliases: `dot update`
 
-Check everything, pick what to update, then run it: dotfiles, mise tools, gh extensions, missing packages and omarchy update. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at and --group flags carry a run across the self-update restart.
+Check everything, pick what to update, then run it. The picker lists each stage (dotfiles, skills, repos, stow, tools, plugins, agents, shell), then gh extensions, missing packages and omarchy update; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at and --group flags carry a run across the self-update restart.
 
 ```text
-dot up [flags]
+dot up <subcommand> [flags]
 ```
 
 dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending pacman and AUR packages, packages from the public and private lists that aren't installed, Omarchy and gh extensions. It saves the result for the bar, lists it, then asks which groups to run, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order, each numbered with a one-line description:
@@ -90,7 +90,7 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--check-all` | Also check development repos for pulls, skipping local work |
 | `--yes` | Run every group with work without asking, and pass -y to omarchy update |
 | `--force` | Offer every group, even with nothing pending |
-| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, repos, tools, gh, packages, system) |
+| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, agents, shell, gh, packages, system) |
 | `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
@@ -114,6 +114,231 @@ dot up
 dot up --check
 dot up --yes
 dot up --stow
+```
+
+### `dot up dotfiles`
+
+Pull the public and private dotfiles and their pinned submodules, and rebuild dot when its source moved. Never prompts, so it can run in the background.
+
+```text
+dot up dotfiles [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up dotfiles
+dot up dotfiles --json
+```
+
+### `dot up skills`
+
+Move the skills checkout to the latest main, rebuild skill-maintenance and relink skills. Never prompts, so it can run in the background.
+
+```text
+dot up skills [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up skills
+dot up skills --json
+```
+
+### `dot up repos`
+
+Pull tracked repositories that are behind, leaving any with work in progress alone; name repositories to pull just those. Never prompts, so it can run in the background.
+
+```text
+dot up repos [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Repository paths to pull, instead of every safe one |
+
+**Examples**
+
+```bash
+dot up repos
+dot up repos ~/repos/upkeep
+dot up repos --json
+```
+
+### `dot up stow`
+
+Generate completions, sync MCP config and skills, and stow. Never prompts, so it can run in the background.
+
+```text
+dot up stow [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up stow
+dot up stow --json
+```
+
+### `dot up tools`
+
+Install missing mise tools, upgrade the rest and prune removed ones. Never prompts, so it can run in the background.
+
+```text
+dot up tools [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up tools
+dot up tools --json
+```
+
+### `dot up plugins`
+
+Update the Pi and Plannotator plugins and restore Herdr plugins. Never prompts, so it can run in the background.
+
+```text
+dot up plugins [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up plugins
+dot up plugins --json
+```
+
+### `dot up agents`
+
+Sync agent instructions and reload running agents. Never prompts, so it can run in the background.
+
+```text
+dot up agents [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up agents
+dot up agents --json
+```
+
+### `dot up shell`
+
+Refresh shell modules, start the doctor check and refresh the bar. Never prompts, so it can run in the background.
+
+```text
+dot up shell [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up shell
+dot up shell --json
 ```
 
 ## `dot run`

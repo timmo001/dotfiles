@@ -48,15 +48,16 @@ import { OutputLog } from "../services/OutputLog.js";
 import type { DiffRepo } from "../types.js";
 import {
   CORE_CHECK_CATEGORIES,
-  refreshTools,
-  update,
-  updateRepositories,
+  isUpStage,
   UP_GROUPS,
+  UP_STAGES,
   UPDATE_CHECK_AVAILABLE_EXIT,
   UPDATE_CHECK_ERROR_EXIT,
   type UpdateOptions,
   type UpGroup,
 } from "./Update.js";
+import { runUpStage, type UpStageResult } from "./UpStage.js";
+import { restartDot } from "../lib/selfUpdate.js";
 import { saveStatus } from "./Updates.js";
 
 /** Seconds each check may take. */
@@ -69,17 +70,41 @@ const GROUP_INFO: Record<
   dotfiles: {
     title: "Dotfiles",
     description:
-      "Pull the dotfiles and tracked repositories, stow, rebuild dot and move the skills checkout",
+      "Pull the public and private dotfiles and their pinned submodules, and rebuild dot",
+  },
+  skills: {
+    title: "Skills",
+    description:
+      "Move the skills checkout to the latest main, rebuild skill-maintenance and relink skills",
   },
   repos: {
     title: "Repositories",
     description:
-      "Pull tracked repositories and run their post-update commands, without the dotfiles steps",
+      "Pull tracked repositories that are behind, leaving any with work in progress alone",
+  },
+  stow: {
+    title: "Stow",
+    description: "Generate completions, sync MCP config and skills, and stow",
   },
   tools: {
     title: "Mise tools",
     description:
       "Install missing mise tools and upgrade the rest, with no release delay",
+  },
+  plugins: {
+    title: "Agent plugins",
+    description:
+      "Update the Pi and Plannotator plugins and restore Herdr plugins",
+  },
+  agents: {
+    title: "Agents",
+    description:
+      "Sync agent instructions, and reload running agents when skills or plugins changed",
+  },
+  shell: {
+    title: "Shell",
+    description:
+      "Refresh shell modules, start the doctor check and refresh the bar",
   },
   gh: {
     title: "gh extensions",
@@ -97,9 +122,9 @@ const GROUP_INFO: Record<
 };
 
 /**
- * Which `dot up` group handles each checked group's work. When the only
- * dotfiles work is pulling tracked repositories, the lighter repos group
- * takes it instead of the full dotfiles flow.
+ * Which `dot up` stage or group handles each line of the check's work:
+ * tracked repository pulls go to repos, stow and Herdr pin maintenance to
+ * stow and plugins, and the rest of the dotfiles work to the dotfiles stage.
  */
 const groupWork = (
   groups: readonly PendingGroup[],
@@ -115,21 +140,37 @@ const groupWork = (
     });
 
   const packages = byId.get("packages");
-  const dotfiles = lines("dotfiles", "skills");
+  const dotfiles = lines("dotfiles");
+  const isPull = (line: string) => repoPulls.some((repo) => repo.line === line);
+  const isStow = (line: string) => line.endsWith(" needs stow");
 
-  const onlyPulls = dotfiles.every((line) =>
-    repoPulls.some((repo) => repo.line === line),
-  );
+  const isHerdrPin = (line: string) =>
+    / Herdr pin .* needs restoring$/.test(line);
 
   return {
-    dotfiles: onlyPulls ? [] : dotfiles,
-    repos: onlyPulls ? dotfiles : [],
+    dotfiles: dotfiles.filter(
+      (line) => !isPull(line) && !isStow(line) && !isHerdrPin(line),
+    ),
+    skills: lines("skills"),
+    repos: dotfiles.filter(isPull),
+    stow: dotfiles.filter(isStow),
     tools: lines("tools"),
+    plugins: dotfiles.filter(isHerdrPin),
+    agents: [],
+    shell: [],
     gh: lines("gh"),
     packages: (packages?.missing ?? []).map((name) => `${name} (missing)`),
     system: [...(packages?.pending ?? []), ...lines("omarchy")],
   } satisfies Record<UpGroup, readonly string[]>;
 };
+
+/** Stages that apply what the others brought in, offered whenever any stage has work. */
+const FOLLOW_ON_STAGES: ReadonlySet<UpGroup> = new Set([
+  "stow",
+  "plugins",
+  "agents",
+  "shell",
+]);
 
 /** Colour a pending work line by its shape, leaving unknown shapes plain. */
 const styleWorkLine = (style: Styler, line: string) => {
@@ -332,8 +373,14 @@ const pickGroups = Effect.fn("Up.pick")(function* (
   work: Record<UpGroup, readonly string[]>,
   opts: UpOptions,
 ) {
+  const stageWork = UP_STAGES.some((stage) => work[stage].length > 0);
+
   const offered: UpGroup[] = UP_GROUPS.filter(
-    (group) => opts.force || group === "gh" || work[group].length > 0,
+    (group) =>
+      opts.force ||
+      group === "gh" ||
+      work[group].length > 0 ||
+      (stageWork && FOLLOW_ON_STAGES.has(group)),
   );
 
   if (opts.yes) return offered;
@@ -469,30 +516,6 @@ const ghUpgrade = Effect.gen(function* () {
     : warn(`gh extension upgrade exited ${exitCode}`);
 }).pipe(Effect.withSpan("Up.gh"));
 
-/** Pull only the tracked repositories that need it, running their post-update commands. */
-const pullRepos = Effect.fn("Up.repos")(function* (pulls: readonly RepoPull[]) {
-  if (pulls.length === 0) return skip("No repositories to pull");
-
-  return yield* updateRepositories(
-    pulls.map((repo) => repo.path),
-    true,
-    true,
-  ).pipe(
-    Effect.as(
-      done(
-        `Pulled ${pulls.length} ${pulls.length === 1 ? "repository" : "repositories"}`,
-      ),
-    ),
-    Effect.catch((error) =>
-      Effect.sync(() => {
-        process.exitCode = 1;
-
-        return warn(`Repository pull failed: ${error.message}`);
-      }),
-    ),
-  );
-});
-
 /**
  * Run `dot up`. A fresh run checks everything and asks which groups to run;
  * a run restarted by the dotfiles self-update carries its groups instead.
@@ -565,6 +588,7 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
   const updatedRepos: UpdatedRepo[] = [];
   const miseToolChanges: MiseToolChange[] = [];
   const actions: RecapEntry[] = [];
+  let agentsNeedReload = false;
 
   for (const [index, group] of ordered.entries()) {
     yield* log.section(
@@ -572,38 +596,41 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
     );
     yield* log.info(GROUP_INFO[group].description);
 
-    if (group === "dotfiles") {
-      const result = yield* update({
-        ...opts,
-        startedAt,
-        groups: ordered,
-        yes: true,
-        inUp: true,
-        upgradeTools: picked.has("tools"),
+    if (isUpStage(group)) {
+      const result: UpStageResult = yield* runUpStage(group, {
+        repos: group === "repos" ? pulls.map((repo) => repo.path) : [],
+        reload: opts.reload !== false && agentsNeedReload,
       });
 
-      // The restarted binary carries on with the picked groups.
-      if (result === "restarted" || result === "halted") return;
-
       updatedRepos.push(...result.updatedRepos);
-      miseToolChanges.push(...result.miseToolChanges);
-      actions.push(...result.completedActions);
-    } else if (group === "repos") {
-      if (picked.has("dotfiles")) {
-        yield* log.info("Pulled with the dotfiles");
-        continue;
-      }
+      miseToolChanges.push(...result.miseTools);
+      actions.push(...result.actions);
+      agentsNeedReload ||= result.skillsChanged || result.pluginsChanged;
 
-      actions.push(yield* pullRepos(pulls));
-    } else if (group === "tools") {
-      if (picked.has("dotfiles")) {
-        yield* log.info("Upgraded with the dotfiles");
-        continue;
-      }
+      if (result.failed) process.exitCode = 1;
 
-      const refreshed = yield* refreshTools(true);
-      miseToolChanges.push(...refreshed.tools);
-      actions.push(...refreshed.actions);
+      const rest = ordered.slice(index + 1);
+
+      // The later stages run with the code the pull just brought in.
+      if (group === "dotfiles" && result.restartNeeded && rest.length > 0) {
+        yield* logUpdateSummary(
+          updatedRepos,
+          miseToolChanges,
+          actions,
+          startedAt,
+        );
+        yield* log.info("Restarting dot up with the rebuilt binary");
+        yield* restartDot([
+          "up",
+          ...rest.flatMap((next) => ["--group", next]),
+          ...(opts.yes ? ["--yes"] : []),
+          ...(opts.reload === false ? ["--no-reload"] : []),
+          "--started-at",
+          String(startedAt),
+        ]);
+
+        return;
+      }
     } else if (group === "gh") {
       actions.push(yield* ghUpgrade);
     } else if (group === "packages") {
@@ -624,7 +651,7 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
     }
   }
 
-  if (!picked.has("system") && picked.has("dotfiles")) {
+  if (!picked.has("system") && picked.has("stow")) {
     const synced = yield* syncRootPatches();
 
     if (synced) actions.push(done("Installed the Omarchy patch hook"));
