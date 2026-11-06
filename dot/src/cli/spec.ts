@@ -710,9 +710,7 @@ const servicesCommand = describe(
             ),
         ),
         "Open an agent in a registered job's repository, briefed with its recent runs, logs, file locations and commands to investigate them",
-        [
-          "dot services investigate dot-doctor.timer --agent opencode2",
-        ],
+        ["dot services investigate dot-doctor.timer --agent opencode2"],
       ),
       describe(
         Command.make("notify", { unit: serviceUnit }, ({ unit }) =>
