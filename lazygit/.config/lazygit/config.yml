@@ -1,15 +1,14 @@
 ---
 customCommands:
-  # The Git panel shows the pull's progress and result without suspending
-  # lazygit, which refreshes when it regains focus. Without the Omarchy shell,
-  # the pull runs in the background and lazygit shows any failure.
+  # A plain git pull, then dot offers the repository's post-update command
+  # when the pull moved HEAD.
   - key: p
     context: global
     command: >-
-      repo="$(git rev-parse --show-toplevel)";
-      omarchy-shell timmo.git pull "$repo" || dot update --pull --repo "$repo"
-    description: Pull in the Git panel with submodules and post-update hooks
-    loadingText: Pulling
+      before="$(git rev-parse HEAD)";
+      git pull && dot repo hook --from "$before"
+    description: Pull, then offer the post-update command
+    output: terminal
   - key: <c-b>
     context: localBranches
     command: gh poi

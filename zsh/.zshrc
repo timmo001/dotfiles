@@ -590,13 +590,13 @@ alias gc="git commit -m"
 alias gca="git commit -a -m"
 alias gp="git push origin HEAD"
 alias gpf="git push --force-with-lease --force-if-includes origin HEAD"
-# Pull like the Git panel; dot offers git pull origin if the pull fails.
+# Pull, then offer the repository's dot post-update command if the pull moved HEAD.
 function gpu {
-  local repo
-  if (( $# == 0 )) && (( $+commands[dot] )) && repo=$(git rev-parse --show-toplevel 2>/dev/null); then
-    dot update --repo "$repo"
-  else
-    git pull origin "$@"
+  local before
+  before=$(git rev-parse HEAD 2>/dev/null)
+  git pull origin "$@" || return
+  if [[ -n $before ]] && (( $+commands[dot] )); then
+    dot repo hook --from "$before"
   fi
 }
 alias gst="git status"
