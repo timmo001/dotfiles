@@ -80,6 +80,13 @@ o.bind(
 hl.unbind("SUPER + SHIFT + F")
 o.bind("SUPER + SHIFT + F", "Add floating application", "/usr/bin/float-app add")
 
+-- Swap full screen and full width: full width keeps the wallpaper behind
+-- translucent windows, true full screen doesn't draw it.
+hl.unbind("SUPER + F")
+hl.unbind("SUPER + ALT + F")
+o.bind("SUPER + F", "Full width", hl.dsp.window.fullscreen({ mode = "maximized" }))
+o.bind("SUPER + ALT + F", "Full screen", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
+
 -- Workspaces numbered across all monitors, as before Omarchy gave each monitor
 -- its own 1-10 (omacom/omarchy#15655). The no-op reconcile stops Omarchy
 -- renumbering workspaces into per-monitor blocks on reloads and hotplugs.
