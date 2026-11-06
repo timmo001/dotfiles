@@ -200,15 +200,70 @@ async function deliver(paneId: string, message: string): Promise<void> {
   await run(herdr, ["agent", "prompt", paneId, message]);
 }
 
+async function deliverToTerminal(terminal: string, message: string): Promise<void> {
+  if (!message) return;
+  await run("hc", ["send", terminal, message]);
+}
+
+function flag(name: string): string | undefined {
+  const index = process.argv.indexOf(`--${name}`);
+
+  return index === -1 ? undefined : process.argv[index + 1];
+}
+
+async function lastResponse(cwd: string, session: Session): Promise<string> {
+  const messages = parseMessages(
+    await run(opencode, [
+      "api",
+      "get",
+      `/api/session/${session.id}/message`,
+    ]),
+  ).data;
+
+  return run(
+    "plannotator",
+    ["annotate-last", "--stdin", "--gate", "--json"],
+    { cwd, stdin: lastAssistantText(messages) },
+  );
+}
+
+// Herdr app mode: started by the dot-plannotator mod through `hc run --cwd`,
+// so the working directory is the agent's and replies go back through hc.
+async function mainForTerminal(mode: string, terminal: string): Promise<void> {
+  const cwd = process.cwd();
+
+  if (mode === "review") {
+    const feedback = await run("plannotator", ["review"], { cwd });
+
+    if (feedback !== "Review session closed without feedback.") {
+      await deliverToTerminal(terminal, feedback);
+    }
+
+    return;
+  }
+
+  const id = flag("session");
+  const session = id ? { id } : resolveSession(await sessions(), cwd);
+  const response = await lastResponse(cwd, session);
+
+  if (parseDecision(response).decision !== "dismissed") {
+    await deliverToTerminal(terminal, response);
+  }
+}
+
 async function main(): Promise<void> {
   const mode = process.argv[2];
+  const terminal = flag("terminal");
+
+  if (mode !== "review" && mode !== "last") {
+    throw new Error("Usage: runner.ts review|last [--terminal <t> [--session <id>]]");
+  }
+
+  if (terminal) return mainForTerminal(mode, terminal);
+
   const paneId = process.env.HERDR_PANE_ID;
 
   if (!paneId) throw new Error("Plannotator requires a focused Herdr pane");
-
-  if (mode !== "review" && mode !== "last") {
-    throw new Error("Usage: runner.ts review|last");
-  }
 
   const pane = parsePaneResponse(await run(herdr, ["pane", "get", paneId])).result
     .pane;
@@ -235,19 +290,7 @@ async function main(): Promise<void> {
     pane.terminal_title_stripped,
   );
 
-  const messages = parseMessages(
-    await run(opencode, [
-      "api",
-      "get",
-      `/api/session/${session.id}/message`,
-    ]),
-  ).data;
-
-  const response = await run(
-    "plannotator",
-    ["annotate-last", "--stdin", "--gate", "--json"],
-    { cwd, stdin: lastAssistantText(messages) },
-  );
+  const response = await lastResponse(cwd, session);
 
   const decision = parseDecision(response);
 
@@ -256,7 +299,11 @@ async function main(): Promise<void> {
 
 if (import.meta.main) {
   main().catch((error) => {
-    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`${message}\n`);
+
+    // A background hc terminal has nobody reading stderr.
+    if (flag("terminal")) Bun.spawnSync(["notify-send", "Plannotator", message]);
     process.exit(1);
   });
 }
