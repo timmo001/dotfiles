@@ -18,8 +18,8 @@ Use this skill for changes to user config managed by GNU Stow through the public
 2. Keep non-sensitive config public, including host-specific config, and only private files and non-public info in the private overlay.
 3. Edit the source repository, never an unmanaged live file.
 4. Run `dot stow` after stowed source changes, through the `dot` Code Mode namespace's `stow` tool when the agent has it.
-5. Create, import, review, and update reusable skills in `~/repos/skills`; never edit `~/.agents/skills` or the dot-managed `~/.local/share/dot/skills` checkout directly. Review third-party updates through `dot skills updates`; `dot update` links the latest pushed `main`.
-6. Push skills changes to `main` before expecting them locally. `dot update` fetches the managed checkout and relinks; there is no submodule pin to advance.
+5. Create, import, review, and update reusable skills in `~/repos/skills`; never edit `~/.agents/skills` or the dot-managed `~/.local/share/dot/skills` checkout directly. Review third-party updates through `dot skills updates`; `dot up skills` links the latest pushed `main`.
+6. Push skills changes to `main` before expecting them locally, then run `dot up skills` yourself: it fetches the managed checkout and relinks, headless; there is no submodule pin to advance.
 7. Follow the repository's documentation policy. Regenerate affected catalogues; ordinary behaviour changes do not require hand-written pages.
 8. When adding or renaming commands or skills, update wrapper commands and AGENTS guidance in the same change.
 9. After OpenCode config changes, run the relevant `opencode2 debug` checks (`config`, `paths`, `agents`).

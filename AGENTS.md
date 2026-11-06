@@ -43,7 +43,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 - Prefer UK spelling in human-written command names and prose; keep upstream names unchanged.
 - `agents/.config/opencode/` is the shared OpenCode config source. Relative plugin imports from `lib/` must resolve before publication.
-- Shared skills come from `timmo001/skills` `main` (see Key Paths); `dot update` refreshes and relinks them. `.agents/skills/` holds this repo's own skills (also linked from `.claude/skills`), and `dotfiles-skills/.agents/skills/` holds global skills tied to dotfiles paths or commands. Public `SKILL.md` files must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules.
+- Shared skills come from `timmo001/skills` `main` (see Key Paths); `dot up skills` refreshes and relinks them. `.agents/skills/` holds this repo's own skills (also linked from `.claude/skills`), and `dotfiles-skills/.agents/skills/` holds global skills tied to dotfiles paths or commands. Public `SKILL.md` files must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules.
 - `herdr/.config/herdr/` stows the main Herdr config and selected plugin config; runtime state stays untracked.
 - `dot agent sync` mirrors the private global AGENTS source into harness instruction files; `dot update` and `dot init` run it.
 - Pin private OpenCode packages through the npm regex custom manager in `dotfiles-private/renovate.json`.
@@ -138,6 +138,8 @@ Personal dotfiles: don't aim for coverage. Default to no new tests; validate by 
 - Basic health check: `dot doctor`. `mise tasks` lists every task; aggregates (`check`, `tests`, `lint`) are for broad changes only.
 - MCP config sync: `dot mcp sync` renders every harness's MCP config from private `dotfiles-private/mcp.yml`; `dot update` runs it, and a manual sync needs `dot stow` after.
 
-## After Committing
+## Applying Changes
 
-- When a change only takes effect on this machine through `dot update` (a rebuilt `dot`, a submodule or plugin bump, agent or MCP sync, or anything else `dot update` regenerates), offer "Run `dot update`" in the next-steps question alongside commit and push. `dot update` pulls from the remote, so it needs the push first; say so when the user picks it without pushing.
+- When a change only takes effect on this machine through `dot up`, run the narrowest stage yourself once checks pass, without offering it: `dot up stow` (stow, completions, MCP sync), `dot up tools` (mise), `dot up plugins` (Pi, Plannotator, Herdr plugins) or `dot agent sync` (agent instructions). These stages are headless and apply the local checkout, so they need no commit or push. `mise run dot:build` already installs a rebuilt `dot`.
+- `dot up dotfiles` and `dot up skills` read the remote, so only run them after a push; on other machines they arrive through their own `dot up`.
+- Leave `dot up agents`, which reloads running agents, and the full interactive `dot up` to the user.
