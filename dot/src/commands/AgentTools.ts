@@ -152,6 +152,14 @@ const AGENT_TOOLS = {
     description:
       "Check for updates and return at once when nothing is pending; otherwise run dot up in a new Herdr tab in the dotfiles workspace, where the user answers its prompts, and return the pane to follow with herdr.pane_read. check reports what is pending without opening a tab.",
   },
+  "up dotfiles": { access: "write", timeout: "10 minutes" },
+  "up skills": { access: "write", timeout: "10 minutes" },
+  "up repos": { access: "write", timeout: "10 minutes" },
+  "up stow": { access: "write", timeout: "5 minutes" },
+  "up tools": { access: "write", timeout: "30 minutes" },
+  "up plugins": { access: "write", timeout: "10 minutes" },
+  "up agents": { access: "write", timeout: "5 minutes" },
+  "up shell": { access: "write", timeout: "5 minutes" },
   "updates refresh": { access: "write", timeout: "5 minutes" },
   "repo induct": {
     access: "write",
