@@ -53,6 +53,7 @@
       "settings": {
         "primaryOnly": true,
         "hideWhenQuiet": true,
+        "hideWhenDetached": true,
         "run": "dot updates status",
         "interval": 60000,
         "refreshTarget": "timmo.updates",

@@ -26,6 +26,7 @@
 //   primaryOnly    Only run and render on the preferred output
 //   primaryOutput  Preferred output name, falling back to the first screen
 //   hideWhenQuiet  Hide while timmo.workspace-context reports quiet hours
+//   hideWhenDetached  Hide while no Herdr terminal is attached
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -56,7 +57,9 @@ BarWidget {
   readonly property real iconScale: setting("iconScale", 1)
   readonly property bool primaryOnly: setting("primaryOnly", false)
   readonly property bool hideWhenQuiet: setting("hideWhenQuiet", false)
+  readonly property bool hideWhenDetached: setting("hideWhenDetached", false)
   property bool quiet: false
+  property bool attached: false
   readonly property string preferredOutput: setting("primaryOutput", "")
   readonly property string currentOutput: {
     var window = root.QsWindow ? root.QsWindow.window : null
@@ -111,6 +114,7 @@ BarWidget {
     && ((root.loading && root.loadingText !== "") || root.displayText !== ""))
     || root.hoverRevealed)
     && !(root.hideWhenQuiet && root.quiet)
+    && !(root.hideWhenDetached && !root.attached)
 
   function withoutZeroValue(text) {
     return text.replace(/(?:^|\s+)[+-]?0+(?:\.0+)?$/, "").trim()
@@ -193,14 +197,24 @@ BarWidget {
   implicitHeight: button.implicitHeight
 
   FileView {
-    path: root.hideWhenQuiet ? Quickshell.env("XDG_RUNTIME_DIR") + "/dot-herdr-context.json" : ""
+    path: root.hideWhenQuiet || root.hideWhenDetached ? Quickshell.env("XDG_RUNTIME_DIR") + "/dot-herdr-context.json" : ""
     watchChanges: true
     printErrors: false
     onFileChanged: reload()
     onLoaded: {
-      try { root.quiet = JSON.parse(text()).quiet === true } catch (error) { root.quiet = false }
+      try {
+        var context = JSON.parse(text())
+        root.quiet = context.quiet === true
+        root.attached = context.attached === true
+      } catch (error) {
+        root.quiet = false
+        root.attached = false
+      }
     }
-    onLoadFailed: root.quiet = false
+    onLoadFailed: {
+      root.quiet = false
+      root.attached = false
+    }
   }
 
   Process {
