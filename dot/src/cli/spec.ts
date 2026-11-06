@@ -128,7 +128,6 @@ import {
 } from "../git/commands/Notifications.js";
 import { notificationsDismiss } from "../git/commands/NotificationDismiss.js";
 import type { GitNotificationQueryOptions } from "../types.js";
-import { resolve } from "path";
 
 /** Additional documentation sections attached to executable commands. */
 export interface CliDocs {
@@ -2083,56 +2082,6 @@ const skillsImport = describe(
   "Import or refresh a reviewed skill snapshot",
 );
 
-const skillsAgentGitHub = describe(
-  Command.make(
-    "github",
-    {
-      skillsDir: pathFlag(
-        "skills-dir",
-        "Use this Skills checkout",
-        "directory",
-      ),
-    },
-    ({ skillsDir }) =>
-      runSkillsMaintenance([
-        "updates-agent",
-        "github",
-        ...(Option.isSome(skillsDir)
-          ? ["--skills-dir", resolve(skillsDir.value)]
-          : []),
-      ]),
-  ),
-  "Run GitHub skill update automation",
-);
-
-const skillsAgentDevice = describe(
-  Command.make(
-    "device",
-    {
-      configPath: Flag.Path("config", { pathType: "file" }).pipe(
-        Flag.withDescription("Use this YAML config"),
-      ),
-      runId: text("run-id", "Wait for this workflow run"),
-    },
-    ({ configPath, runId }) =>
-      runSkillsMaintenance([
-        "updates-agent",
-        "device",
-        "--config",
-        resolve(configPath),
-        ...(Option.isSome(runId) ? ["--run-id", runId.value] : []),
-      ]),
-  ),
-  "Run local device skill update automation",
-);
-
-const skillsUpdatesAgent = describe(
-  Command.make("agent").pipe(
-    Command.withSubcommands([skillsAgentGitHub, skillsAgentDevice]),
-  ),
-  "Run skill update automation",
-);
-
 const skillsUpdates = describe(
   Command.make(
     "updates",
@@ -2154,7 +2103,7 @@ const skillsUpdates = describe(
         ...(noCommit ? ["--no-commit"] : []),
         ...(skipReview ? ["--skip-review"] : []),
       ]),
-  ).pipe(Command.withSubcommands([skillsUpdatesAgent])),
+  ),
   "Check/apply imported skill updates",
   [
     "dot skills updates --json",

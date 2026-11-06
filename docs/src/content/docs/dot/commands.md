@@ -2212,7 +2212,7 @@ dot skills import [flags] <name>
 Check/apply imported skill updates
 
 ```text
-dot skills updates <subcommand> [flags]
+dot skills updates [flags]
 ```
 
 **Options**
@@ -2233,51 +2233,6 @@ dot skills updates <subcommand> [flags]
 dot skills updates --json
 dot skills updates --update --skill agentic-workflows --no-commit
 ```
-
-#### `dot skills updates agent`
-
-Run skill update automation
-
-```text
-dot skills updates agent <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-#### `dot skills updates agent github`
-
-Run GitHub skill update automation
-
-```text
-dot skills updates agent github [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--skills-dir` `<path>` | Use this Skills checkout |
-| `--help` `-h` | Show help information |
-
-#### `dot skills updates agent device`
-
-Run local device skill update automation
-
-```text
-dot skills updates agent device [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--config` `<path>` | Use this YAML config |
-| `--run-id` `<string>` | Wait for this workflow run |
-| `--help` `-h` | Show help information |
 
 ### `dot skills check`
 
