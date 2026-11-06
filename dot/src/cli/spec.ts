@@ -2053,11 +2053,11 @@ const setupCommand = describe(
           Command.withSubcommands([
             describe(
               Command.make("machines", {}, () => setupHerdrMachines),
-              "Save the Herdr SSH machines from the private machine list",
+              "Save the Herdr SSH machines from the private machine list in Herdr and hc",
               ["dot setup herdr machines"],
               {
                 description:
-                  "Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's saved-machine catalog (~/.local/state/herdr/client/endpoints.json), in the list's order and with its profile IDs, labels, SSH targets and sessions, so every device has the same machines. A machine whose host is this device's hostname is left out, so a device never lists itself. Herdr keeps the catalog in client state rather than config, so dot stow can't link it. A machine this device already has keeps its enabled state, so toggles survive; enabled in the list only applies when it's added. Machines the list doesn't name are kept after it. Open Herdr clients pick up the change. dot update runs the same step and only reports it when it saves machines or fails, so a device without the list, or whose machines already match, sees nothing. Host keys and remote installs stay with Herdr: run herdr machine reconnect <label> once for a new machine.",
+                  "Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's saved-machine catalog (~/.local/state/herdr/client/endpoints.json), in the list's order and with its profile IDs, labels, SSH targets and sessions, so every device has the same machines. A machine whose host is this device's hostname is left out, so a device never lists itself. Herdr keeps the catalog in client state rather than config, so dot stow can't link it. A machine this device already has keeps its enabled state, so toggles survive; enabled in the list only applies when it's added. Machines the list doesn't name are kept after it. Open Herdr clients pick up the change. When the Herdr app's core (hc) is installed, it also adds each listed machine hc doesn't have yet with hc machine add --install, named from its label in lowercase (\"[HA] SSH\" is ha-ssh), and an ssh:// target with a port goes through --via. A machine that can't be reached is tried again next time. dot update runs the same steps and only reports them when they save or add machines or fail, so a device without the list, or whose machines already match, sees nothing. Host keys and remote installs for Herdr stay with Herdr: run herdr machine reconnect <label> once for a new machine.",
               },
             ),
           ]),

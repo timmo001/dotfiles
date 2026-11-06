@@ -50,7 +50,7 @@ import type {
 } from "../lib/updateSummary.js";
 import type { DiffRepo } from "../types.js";
 import { agentsSync } from "./AgentsSync.js";
-import { syncHerdrMachines } from "./SetupHerdrMachines.js";
+import { syncHcMachines, syncHerdrMachines } from "./SetupHerdrMachines.js";
 import { stow as runStow } from "./Stow.js";
 import {
   haltOnLegacyHyprRepo,
@@ -373,6 +373,7 @@ const pluginsStage = Effect.gen(function* () {
       ...agentPlugins,
       yield* restoreHerdrPlugins,
       yield* syncHerdrMachines,
+      yield* syncHcMachines,
     ],
     pluginsChanged: changedBy(agentPlugins),
   } satisfies StageOutcome;

@@ -63,7 +63,7 @@ import { HOME_DIR, displayPath } from "../lib/paths.js";
 import { detectLegacyHyprRepo } from "../lib/omarchyHost.js";
 import { ENV, envFlag } from "../lib/env.js";
 import { loadDotGitConfig, managedGitRepos } from "../services/GitConfig.js";
-import { syncHerdrMachines } from "./SetupHerdrMachines.js";
+import { syncHcMachines, syncHerdrMachines } from "./SetupHerdrMachines.js";
 import { setupPrivateRepo } from "./SetupPrivateRepo.js";
 import type { ConfigService } from "../services/Config.js";
 import type { GitManagedRepo } from "../services/GitConfig.js";
@@ -1919,6 +1919,7 @@ export const update = (updateOpts?: UpdateOptions) =>
         ),
       );
       completedActions.push(yield* syncHerdrMachines);
+      completedActions.push(yield* syncHcMachines);
     } else {
       completedActions.push(skip("Herdr plugins skipped (scoped update)"));
     }
