@@ -56,6 +56,15 @@ allow_builds = ["@opencode/cli"]
 version = "latest"
 minimum_release_age = "2h"
 
+# The Herdr app's core (hc), for desktop clients that add this machine. Released
+# only on releases.herdr.dev, whose manifest has no dates; the desktop installs it with herdr-app.
+[tools."http:herdr-core"]
+version = "latest"
+url = "https://releases.herdr.dev/core/{{ version }}/herdr-core-linux-{{ arch(x64='x86_64', arm64='aarch64') }}.tar.gz"
+version_list_url = "https://releases.herdr.dev/core/latest.json"
+version_json_path = ".version"
+postinstall = 'ln -sf herdr-core "$MISE_TOOL_INSTALL_PATH/hc"'
+
 [tools."aqua:earendil-works/pi"]
 version = "latest"
 minimum_release_age = "2h"
@@ -90,6 +99,7 @@ idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]
 idiomatic_version_file_ignore_minimum_versions = true
 lockfile = true
 minimum_release_age = "1d"
+minimum_release_age_excludes = ["http:herdr-core"]
 npm.package_manager = "aube"
 # Don't treat build/cache dirs as mise projects, so tools cloned or built under
 # ~/.cache don't auto-install and reshim on every update.
