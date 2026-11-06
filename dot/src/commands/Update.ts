@@ -409,7 +409,7 @@ const notifyUpdated = (names: readonly string[]) =>
   });
 
 /** Run a repository's configured command after its pull moves HEAD. */
-const runRepoPostUpdate = (repo: GitManagedRepo) =>
+export const runRepoPostUpdate = (repo: GitManagedRepo) =>
   Effect.gen(function* () {
     if (!repo.postUpdate) return;
     const command = repo.postUpdate;

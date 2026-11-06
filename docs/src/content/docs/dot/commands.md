@@ -2405,7 +2405,7 @@ dot completions fish
 
 ## `dot repo`
 
-List and induct tracked repositories in private dot-git.yml
+List, induct and run hooks for tracked repositories in private dot-git.yml
 
 ```text
 dot repo <subcommand> [flags]
@@ -2535,6 +2535,36 @@ The terminal wizard asks for Normal (first and default) or Home Assistant, then 
 dot repo induct
 dot repo induct ~/repos/example --noninteractive --preset normal --name Example --aliases example
 dot repo induct ~/repos/example --noninteractive --preset normal --name Example --aliases example --commit
+```
+
+### `dot repo hook`
+
+Offer to run a tracked repository's post-update command
+
+```text
+dot repo hook [flags] [<path>]
+```
+
+Looks up the repository containing path (default: the working directory) in private dot-git.yml and, when it has a post_update command, asks whether to run it from the repository root, as dot up does after pulling. With --from, does nothing when HEAD still matches that revision. Untracked repositories and ones without a post_update command exit quietly. Outside a terminal or under an AI agent it only prints the command. The gpu shell function and lazygit's p binding run it after a plain git pull.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--from` `<string>` | HEAD before the pull; skip when the pull did not move it |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<path>` | path |
+
+**Examples**
+
+```bash
+dot repo hook
+before=$(git rev-parse HEAD); git pull && dot repo hook --from "$before"
 ```
 
 ## `dot pr`

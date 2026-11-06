@@ -13,6 +13,7 @@ import { agentsSync } from "../commands/AgentsSync.js";
 import { agentOxlint } from "../commands/AgentOxlint.js";
 import { agentLint } from "../commands/AgentLint.js";
 import { agentTools } from "../commands/AgentTools.js";
+import { repoHook } from "../commands/RepoHook.js";
 import { repoInduct } from "../commands/RepoInduct.js";
 import { clean } from "../commands/Clean.js";
 import { completions } from "../commands/Completions.js";
@@ -2508,15 +2509,42 @@ const repoSearchCommand = describe(
   },
 );
 
+const repoHookCommand = describe(
+  Command.make(
+    "hook",
+    {
+      path: Argument.Path("path", { pathType: "directory" }).pipe(
+        Argument.optional,
+      ),
+      from: text(
+        "from",
+        "HEAD before the pull; skip when the pull did not move it",
+      ),
+    },
+    ({ path, from }) =>
+      repoHook({ path: optional(path), from: optional(from) }),
+  ),
+  "Offer to run a tracked repository's post-update command",
+  [
+    "dot repo hook",
+    'before=$(git rev-parse HEAD); git pull && dot repo hook --from "$before"',
+  ],
+  {
+    description:
+      "Looks up the repository containing path (default: the working directory) in private dot-git.yml and, when it has a post_update command, asks whether to run it from the repository root, as dot up does after pulling. With --from, does nothing when HEAD still matches that revision. Untracked repositories and ones without a post_update command exit quietly. Outside a terminal or under an AI agent it only prints the command. The gpu shell function and lazygit's p binding run it after a plain git pull.",
+  },
+);
+
 const repoCommand = describe(
   Command.make("repo").pipe(
     Command.withSubcommands([
       repoListCommand,
       repoSearchCommand,
       repoInductCommand,
+      repoHookCommand,
     ]),
   ),
-  "List and induct tracked repositories in private dot-git.yml",
+  "List, induct and run hooks for tracked repositories in private dot-git.yml",
 );
 
 const prWatchCommand = describe(
