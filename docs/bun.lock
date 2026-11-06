@@ -5,7 +5,7 @@
     "": {
       "name": "dotfiles-docs",
       "dependencies": {
-        "@astrojs/cloudflare": "14.4.4",
+        "@astrojs/cloudflare": "14.4.5",
         "@fontsource-variable/geist-mono": "5.3.0",
         "@fontsource-variable/mona-sans": "5.3.0",
         "@timmo001/docs-kit": "0.10.1",
@@ -34,7 +34,7 @@
 
     "@astrojs/check": ["@astrojs/check@0.9.12", "", { "dependencies": { "@astrojs/language-server": "^2.17.3", "chokidar": "^5.0.0", "kleur": "^4.1.5", "yargs": "^18.2.0" }, "peerDependencies": { "typescript": "^5.0.0 || ^6.0.0" }, "bin": { "astro-check": "./bin/astro-check.js" } }, "sha512-hazpqxIfZWj2VhyPyR0pOEQ/IhFDM/2nIApL96zMXABdD8NrUKYDmhxTy7h+drTDl9MQG/Sd1ET/4amadVJUUA=="],
 
-    "@astrojs/cloudflare": ["@astrojs/cloudflare@14.4.4", "", { "dependencies": { "@astrojs/internal-helpers": "0.13.0", "@astrojs/underscore-redirects": "1.0.4", "@cloudflare/vite-plugin": "^1.63.1", "piccolore": "^0.1.3", "prismjs": "^1.30.0", "vite": "^8.3.4" }, "peerDependencies": { "astro": "^7.4.0", "wrangler": "^4.125.0" } }, "sha512-VC7BVACFSNNKevbuDftzmhwW+9yYy5cqplrBwPBeGa9Nojj6pXyIxMGIyIwhAyZWuRchqwCh7KDhb015oXaoKg=="],
+    "@astrojs/cloudflare": ["@astrojs/cloudflare@14.4.5", "", { "dependencies": { "@astrojs/internal-helpers": "0.13.0", "@astrojs/underscore-redirects": "1.0.4", "@cloudflare/vite-plugin": "^1.66.0", "piccolore": "^0.1.3", "prismjs": "^1.30.0", "vite": "^8.3.5" }, "peerDependencies": { "astro": "^7.4.0", "wrangler": "^4.125.0" } }, "sha512-trW1yvlFJvUMqK/Eq7iPOa4wbMMjXSNq+1NRpcLCPRFlSS5kKBrkwiTrmXCqV250PtaaxMLFtg39fkksqF3Uww=="],
 
     "@astrojs/compiler-binding": ["@astrojs/compiler-binding@0.5.2", "", { "optionalDependencies": { "@astrojs/compiler-binding-android-arm64": "0.5.2", "@astrojs/compiler-binding-darwin-arm64": "0.5.2", "@astrojs/compiler-binding-darwin-x64": "0.5.2", "@astrojs/compiler-binding-linux-arm64-gnu": "0.5.2", "@astrojs/compiler-binding-linux-arm64-musl": "0.5.2", "@astrojs/compiler-binding-linux-x64-gnu": "0.5.2", "@astrojs/compiler-binding-linux-x64-musl": "0.5.2", "@astrojs/compiler-binding-wasm32-wasi": "0.5.2", "@astrojs/compiler-binding-win32-arm64-msvc": "0.5.2", "@astrojs/compiler-binding-win32-x64-msvc": "0.5.2" } }, "sha512-lEn76+0JcMQ5RDXU0wSMWJg2ZppiZvSULpghC29cfv4o9bhvWFDbQjsCtvjjXN9iVLFQ7fL3wTR2L2UU13mP8g=="],
 
