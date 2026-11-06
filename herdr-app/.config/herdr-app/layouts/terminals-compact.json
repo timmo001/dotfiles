@@ -1,0 +1,84 @@
+{
+  "id": "root",
+  "cloned_from": {
+    "name": "terminals",
+    "version": "0.1.13"
+  },
+  "type": "column",
+  "children": [
+    {
+      "id": "top",
+      "type": "column",
+      "size": {
+        "px": 38
+      },
+      "children": [
+        {
+          "id": "fit",
+          "type": "block",
+          "size": {
+            "px": 0
+          },
+          "content": {
+            "mod": "dot-fit",
+            "props": {
+              "wide": "main-fit",
+              "offset": 8
+            }
+          }
+        },
+        {
+          "id": "tabs",
+          "type": "block",
+          "content": {
+            "mod": "dot-terminals-bar"
+          },
+          "window_drag": true
+        }
+      ]
+    },
+    {
+      "id": "main",
+      "type": "block",
+      "content": {
+        "tab": "active",
+        "pane": {
+          "header": {
+            "content": {
+              "mod": "dot-terminals-pane"
+            },
+            "height": 38
+          },
+          "background": "background",
+          "border": {
+            "width": 1,
+            "color": "border"
+          },
+          "focus": {
+            "width": 1,
+            "color": "accent"
+          },
+          "radius": 12,
+          "gap": 6,
+          "lone": false
+        }
+      }
+    }
+  ],
+  "background": "canvas",
+  "padding": [
+    4,
+    4
+  ],
+  "terminal_padding": [
+    6,
+    4
+  ],
+  "font_size": 12,
+  "gap": 6,
+  "titlebar": "none",
+  "traffic_lights": [
+    16,
+    18
+  ]
+}
