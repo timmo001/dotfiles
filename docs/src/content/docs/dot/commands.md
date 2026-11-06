@@ -480,7 +480,7 @@ dot services run logs [flags] <unit>
 
 ```bash
 dot services run logs dot-doctor.timer
-dot services run logs skill-updates-agent.timer --count 5 | wl-copy
+dot services run logs dot-doctor.timer --count 5 | wl-copy
 ```
 
 ### `dot services investigate`
@@ -509,7 +509,7 @@ dot services investigate [flags] <unit>
 **Examples**
 
 ```bash
-dot services investigate skill-updates-agent.timer --agent opencode2
+dot services investigate dot-doctor.timer --agent opencode2
 ```
 
 ### `dot services notify`

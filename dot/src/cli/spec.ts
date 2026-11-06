@@ -667,7 +667,7 @@ const servicesCommand = describe(
               "Print the journal output of a registered job's most recent runs, newest first, with its latest run log",
               [
                 "dot services run logs dot-doctor.timer",
-                "dot services run logs skill-updates-agent.timer --count 5 | wl-copy",
+                "dot services run logs dot-doctor.timer --count 5 | wl-copy",
               ],
             ),
           ]),
@@ -711,7 +711,7 @@ const servicesCommand = describe(
         ),
         "Open an agent in a registered job's repository, briefed with its recent runs, logs, file locations and commands to investigate them",
         [
-          "dot services investigate skill-updates-agent.timer --agent opencode2",
+          "dot services investigate dot-doctor.timer --agent opencode2",
         ],
       ),
       describe(

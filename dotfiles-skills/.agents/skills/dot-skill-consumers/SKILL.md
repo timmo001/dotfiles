@@ -6,14 +6,14 @@ description: >
   when asked to share, add or remove shared skills in a repository, add or
   drop a repository in the skills sync, or check why the sync has not reached one.
 license: Apache-2.0
-compatibility: Requires the dot CLI with skill-maintenance installed by dot update, the private skill-consumers timer, a writable ~/repos/skills checkout, authenticated GitHub CLI and dot git commit.
+compatibility: Requires the dot CLI with skill-maintenance installed by dot update, a writable ~/repos/skills checkout, authenticated GitHub CLI and dot git commit. The hourly resync runs as Upkeep's skill-consumers job.
 metadata:
   author: timmo001
 ---
 
 # Skill consumers
 
-`consumers.yml` in `~/repos/skills` lists the repositories that keep project copies of shared skills, and which skills each gets. The `skill-consumers` timer syncs that list hourly (except 01:00-07:00) from its own checkout of skills `main`, refreshed each run. It adds, updates and removes those copies and pushes them to each repository's default branch.
+`consumers.yml` in `~/repos/skills` lists the repositories that keep project copies of shared skills, and which skills each gets. Upkeep's `skill-consumers` job syncs that list hourly from a fresh checkout of skills `main`. It adds, updates and removes those copies and pushes them to each repository's default branch.
 
 ## Share skills
 
@@ -36,6 +36,6 @@ Removing some skills commits and pushes the shorter list, then deletes those cop
 
 ## Reaching the repository
 
-Both commands push to skills `main` and to the target repository, so run them only when the user asked to share or remove skills. They refuse while `~/repos/skills` has other unpushed commits or uncommitted changes to `consumers.yml`, imports or the shared skills. If the repository sync fails after the push, the timer retries it. To resync every listed repository, start `skill-consumers.timer` (the namespace's `services_start` tool, or `dot services start skill-consumers.timer`), which also pushes, so only do so when asked.
+Both commands push to skills `main` and to the target repository, so run them only when the user asked to share or remove skills. They refuse while `~/repos/skills` has other unpushed commits or uncommitted changes to `consumers.yml`, imports or the shared skills. If the repository sync fails after the push, the next sync retries it. To resync every listed repository, queue the job with `upkeep run skill-consumers`, which also pushes, so only do so when asked.
 
-Check recent runs with the namespace's `services_run_logs` tool, or `dot services run logs skill-consumers.timer`.
+Check recent runs with `upkeep runs` and `upkeep log <run>`, or on the Upkeep dashboard.
