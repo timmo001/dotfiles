@@ -1,0 +1,11 @@
+{
+  "zoom": 1.0,
+  "sounds": {
+    "enabled": true
+  },
+  "font_size": 12.0,
+  "font_ligatures": false,
+  "pane_scrollbars": false,
+  "minimum_contrast": 1.0,
+  "theme": "groundwork"
+}
