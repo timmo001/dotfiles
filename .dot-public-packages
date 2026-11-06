@@ -1,18 +1,21 @@
 # Public Arch packages managed by dot.
 # One package per line, comments and blank lines are ignored.
 
+blender
 bmon
 catppuccin-cursors-mocha
 cmake
 cpio
 context-git
 float-app-git
+freecad
 gcc
 git
 ha-bridge-git
 hokum-bin
 momentum-git
 music-assistant-tui-git
+openscad
 gtk4-layer-shell
 iperf3
 kdeconnect
