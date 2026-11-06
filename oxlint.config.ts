@@ -30,4 +30,11 @@ export default defineConfig({
     "node_modules/**",
     "omarchy/.config/omarchy/plugins/**",
   ],
+  overrides: [
+    {
+      // Herdr app mods keep strictNullChecks off in their generated jsconfig.json.
+      files: ["herdr-app/.config/herdr-app/mods/**/*.js"],
+      rules: { "typescript/no-useless-default-assignment": "off" },
+    },
+  ],
 });
