@@ -112,3 +112,4 @@ require("float-app")
 -- Find its class with: hyprctl clients
 -- o.transparent_window("my-app")
 -- o.transparent_window("my-app", "0.9 0.85") -- Custom active/inactive opacity.
+o.transparent_window("^herdr-app$", "0.9 0.85")
