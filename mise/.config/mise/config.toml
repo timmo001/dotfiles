@@ -49,6 +49,7 @@ just = "latest"
 # /etc/mise/conf.d/omarchy-tools.toml. Agent CLIs also update themselves before
 # they run, at most every four hours; gh stays off that as mise's credential helper.
 claude = { version = "latest", auto_update = "4h", minimum_release_age = "0s" }
+"pipx:claude-swap" = { version = "latest", minimum_release_age = "0s" }
 copilot = { version = "latest", auto_update = "4h", minimum_release_age = "0s" }
 gh = { version = "latest", minimum_release_age = "0s" }
 ghui = { version = "latest", minimum_release_age = "0s" }
