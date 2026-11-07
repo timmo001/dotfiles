@@ -1,7 +1,7 @@
 /**
  * @file Checks for everything `dot up` updates or installs: dotfiles, skills,
- * mise tools, system packages, Omarchy and gh extensions. The status bar cache
- * and `dot up` share these checks.
+ * mise tools, agent plugins, system packages, Omarchy and gh extensions. The
+ * status bar cache and `dot up` share these checks.
  */
 
 import { Clock, Effect, FileSystem, Match, Option, Schema } from "effect";
@@ -16,6 +16,7 @@ import {
 } from "./ghExtensions.js";
 import { SKILLS_CHECKOUT } from "./skillsMaintenance.js";
 import { patchDrift } from "./omarchyPatches.js";
+import { pendingAgentPlugins } from "./agentRuntime.js";
 
 export { query, type QueryResult };
 
@@ -85,6 +86,8 @@ export const PendingStatus = Schema.Struct({
   omarchy: Schema.NullOr(Schema.Array(Schema.String)),
   /** Dotfiles Omarchy patches that no longer apply to the pending Omarchy. */
   omarchyPatches: Schema.optionalKey(Schema.Array(Schema.String)),
+  /** Pi, Plannotator and OpenCode plugins with an update. */
+  plugins: Schema.optionalKey(Schema.NullOr(Schema.Array(Schema.String))),
   gh: Schema.NullOr(Schema.Array(Schema.String)),
 });
 
@@ -352,8 +355,8 @@ export const omarchy = Effect.fn("PendingUpdates.omarchy")(function* (
 });
 
 /**
- * Configured gh extensions that aren't installed. Upgrades have no typed
- * dry run, so `dot up` upgrades every extension instead of checking first.
+ * Configured gh extensions that aren't installed. Upgrades to installed ones
+ * have no typed dry run in effect-gh yet, so they run with the installs.
  */
 export const ghExtensions = Effect.fn("PendingUpdates.ghExtensions")(
   function* () {
@@ -370,10 +373,21 @@ export const ghExtensions = Effect.fn("PendingUpdates.ghExtensions")(
   },
 );
 
+/** Pi, Plannotator and OpenCode plugins with an update, or null when the check fails. */
+export const agentPlugins = (timeout: number) =>
+  pendingAgentPlugins.pipe(
+    Effect.timeoutOrElse({
+      duration: `${timeout} seconds`,
+      orElse: () => Effect.succeed(null),
+    }),
+    Effect.orElseSucceed(() => null),
+  );
+
 /** One kind of pending work, as the bar, the OpenCode footer and `dot up` show it. */
 export interface PendingGroup {
   /** Stable identifier. */
-  readonly id: "dotfiles" | "skills" | "tools" | "packages" | "omarchy" | "gh";
+  readonly id:
+    "dotfiles" | "skills" | "tools" | "plugins" | "packages" | "omarchy" | "gh";
   /** Display title. */
   readonly title: string;
   /** Nerd Font glyph for the bar. */
@@ -431,6 +445,15 @@ export const pendingGroups = (
     missing: status.tools?.missing ?? [],
     blocked: [],
     unknown: status.tools === null,
+  },
+  {
+    id: "plugins",
+    title: "Agent plugins",
+    icon: "\uF1E6",
+    pending: status.plugins ?? [],
+    missing: [],
+    blocked: [],
+    unknown: status.plugins === null,
   },
   {
     id: "packages",
@@ -501,6 +524,7 @@ export const checkAll = Effect.fn("PendingUpdates.checkAll")(function* (
       tools: tools(timeout),
       packages: packages(timeout, backoff),
       omarchy: omarchy(timeout),
+      plugins: agentPlugins(timeout),
       gh: ghExtensions(),
     },
     { concurrency: "unbounded" },

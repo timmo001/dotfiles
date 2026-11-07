@@ -3,6 +3,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { join } from "path";
 import { CACHE_DIR } from "../lib/paths.js";
 import {
+  agentPlugins,
   checkAll,
   dotfiles,
   ghExtensions,
@@ -157,6 +158,7 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
                   dot: dotfiles(options.timeout),
                   skills: skills(options.timeout),
                   tools: tools(options.timeout),
+                  plugins: agentPlugins(options.timeout),
                   gh: ghExtensions(),
                 },
                 { concurrency: "unbounded" },

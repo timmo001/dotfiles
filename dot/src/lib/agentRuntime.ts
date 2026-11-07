@@ -1,6 +1,6 @@
 import { Effect, FileSystem, Option, Result, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http";
-import { dirname, join, resolve } from "path";
+import { basename, dirname, join, resolve } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { GLOBAL_PLUGINS } from "./opencodePlugins.js";
@@ -248,48 +248,76 @@ const PLANNOTATOR_PLUGINS = {
 
 const NpmLatest = Schema.Struct({ version: Schema.String });
 
-/** Pi packages from `pi list`, by their source. */
-const piPackages = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
+/** The latest release of an npm package, from the registry. */
+const npmLatest = Effect.fn("agentRuntime.npmLatest")(function* (name: string) {
+  const http = yield* HttpClient.HttpClient;
 
-  return (yield* executor.run("pi", ["list"]))
-    .split("\n")
-    .flatMap((line) => /^ {2}(\S+:\S+)$/.exec(line)?.[1] ?? []);
+  const response = yield* http
+    .get(`https://registry.npmjs.org/${name}/latest`)
+    .pipe(Effect.flatMap(HttpClientResponse.filterStatusOk));
+
+  return (yield* Schema.decodeUnknownEffect(NpmLatest)(yield* response.json))
+    .version;
 });
+
+/** A Pi package from `pi list`. */
+interface PiInstall {
+  /** Its source, such as `npm:name` or `git:github.com/owner/repo`. */
+  readonly source: string;
+  /** Where Pi installed it. */
+  readonly path: string;
+}
+
+/** Pi packages from `pi list`, each with its install directory. */
+const piInstalls = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const lines = (yield* executor.run("pi", ["list"])).split("\n");
+
+  return lines.flatMap((line, index): readonly PiInstall[] => {
+    const source = /^ {2}(\S+:\S+)$/.exec(line)?.[1];
+    const path = lines[index + 1]?.trim();
+
+    return source && path ? [{ source, path }] : [];
+  });
+});
+
+/** Pi packages from `pi list`, by their source. */
+const piPackages = piInstalls.pipe(
+  Effect.map((installs) => installs.map(({ source }) => source)),
+);
 
 const PackageVersion = Schema.fromJsonString(
   Schema.Struct({ version: Schema.optionalKey(Schema.String) }),
 );
 
 /**
- * Each Pi package's installed revision: the commit of a git package and the
- * version of an npm one, keyed by source.
+ * A Pi package's installed revision: the commit of a git package and the
+ * version of an npm one, or empty when it can't be read.
  */
-const piPackageRevisions = Effect.gen(function* () {
+const piRevision = Effect.fn("agentRuntime.piRevision")(function* ({
+  source,
+  path,
+}: PiInstall) {
   const executor = yield* CommandExecutor;
   const fs = yield* FileSystem.FileSystem;
-  const lines = (yield* executor.run("pi", ["list"])).split("\n");
+
+  return source.startsWith("git:")
+    ? (yield* executor
+        .run("git", ["rev-parse", "HEAD"], { cwd: path })
+        .pipe(Effect.orElseSucceed(() => ""))).trim()
+    : yield* fs.readFileString(join(path, "package.json")).pipe(
+        Effect.flatMap(Schema.decodeEffect(PackageVersion)),
+        Effect.map((pkg) => pkg.version ?? ""),
+        Effect.orElseSucceed(() => ""),
+      );
+});
+
+/** Each Pi package's installed revision, keyed by source. */
+const piPackageRevisions = Effect.gen(function* () {
   const revisions = new Map<string, string>();
 
-  for (const [index, line] of lines.entries()) {
-    const source = /^ {2}(\S+:\S+)$/.exec(line)?.[1];
-    const path = lines[index + 1]?.trim();
-
-    if (!source || !path) continue;
-
-    revisions.set(
-      source,
-      source.startsWith("git:")
-        ? yield* executor
-            .run("git", ["rev-parse", "HEAD"], { cwd: path })
-            .pipe(Effect.orElseSucceed(() => ""))
-        : yield* fs.readFileString(join(path, "package.json")).pipe(
-            Effect.flatMap(Schema.decodeEffect(PackageVersion)),
-            Effect.map((pkg) => pkg.version ?? ""),
-            Effect.orElseSucceed(() => ""),
-          ),
-    );
-  }
+  for (const install of yield* piInstalls)
+    revisions.set(install.source, yield* piRevision(install));
 
   return revisions;
 });
@@ -342,6 +370,15 @@ export const updatePiExtensions = Effect.gen(function* () {
   Effect.withSpan("agentRuntime.updatePiExtensions"),
 );
 
+/** The Plannotator CLI's version, or undefined when it doesn't print one. */
+const plannotatorCliVersion = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+
+  return /\d+\.\d+\.\d+\S*/.exec(
+    yield* executor.run("plannotator", ["--version"], { cwd: HOME_DIR }),
+  )?.[0];
+});
+
 /**
  * Move Plannotator's OpenCode plugin and Pi extension to the latest release
  * once the Plannotator CLI mise installed is on it too, so a release newer
@@ -349,27 +386,15 @@ export const updatePiExtensions = Effect.gen(function* () {
  */
 export const updatePlannotatorPlugins = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
-  const http = yield* HttpClient.HttpClient;
   const log = yield* OutputLog;
 
   if (Bun.which("plannotator") === null)
     return skip("Plannotator plugins skipped (plannotator not installed)");
 
-  const cli = /\d+\.\d+\.\d+\S*/.exec(
-    yield* executor.run("plannotator", ["--version"], { cwd: HOME_DIR }),
-  )?.[0];
+  const cli = yield* plannotatorCliVersion;
 
   if (cli === undefined)
     return warn("Plannotator plugins skipped (unknown CLI version)");
-
-  const latest = Effect.fn("agentRuntime.npmLatest")(function* (name: string) {
-    const response = yield* http
-      .get(`https://registry.npmjs.org/${name}/latest`)
-      .pipe(Effect.flatMap(HttpClientResponse.filterStatusOk));
-
-    return (yield* Schema.decodeUnknownEffect(NpmLatest)(yield* response.json))
-      .version;
-  });
 
   const updated: string[] = [];
   const current: string[] = [];
@@ -380,7 +405,7 @@ export const updatePlannotatorPlugins = Effect.gen(function* () {
     name: string,
     update: Effect.Effect<"updated" | "current" | "failed", E, R>,
   ) {
-    const version = yield* latest(name);
+    const version = yield* npmLatest(name);
 
     if (version !== cli) {
       yield* log.info(
@@ -510,6 +535,154 @@ export const updateGlobalOpencodePlugins = Effect.gen(function* () {
 
   return skip("OpenCode plugins already current");
 }).pipe(Effect.withSpan("agentRuntime.updateGlobalOpencodePlugins"));
+
+/** A configured OpenCode plugin's name, revision and whether it has an update, or null. */
+const opencodePluginState = Effect.fn("agentRuntime.opencodePluginState")(
+  function* (target: string) {
+    const executor = yield* CommandExecutor;
+
+    const match = /^\s+(\S+) (\S+) \((.+)\)$/m.exec(
+      yield* executor.run(OPENCODE, ["plugin", "check", target], {
+        cwd: HOME_DIR,
+      }),
+    );
+
+    if (!match) return null;
+
+    const [, name = "", revision = "", state = ""] = match;
+
+    return { name, revision, outdated: state === "update available" };
+  },
+);
+
+/**
+ * A Pi package's pending update: a git package behind its remote's HEAD, or
+ * an npm one behind its latest release. Pinned sources never move.
+ */
+const pendingPiPackage = Effect.fn("agentRuntime.pendingPiPackage")(function* (
+  install: PiInstall,
+) {
+  const executor = yield* CommandExecutor;
+  const current = yield* piRevision(install);
+
+  if (install.source.startsWith("git:")) {
+    if (/@[^/]+$/.test(install.source)) return [];
+
+    const remote =
+      (yield* executor.run("git", ["ls-remote", "origin", "HEAD"], {
+        cwd: install.path,
+      })).split(/\s/, 1)[0] ?? "";
+
+    return current && remote && remote !== current
+      ? [
+          `${basename(install.source)} ${current.slice(0, 7)} -> ${remote.slice(0, 7)}`,
+        ]
+      : [];
+  }
+
+  const name = install.source.replace(/^npm:/, "");
+
+  if (!install.source.startsWith("npm:") || name.lastIndexOf("@") > 0)
+    return [];
+
+  const latest = yield* npmLatest(name);
+
+  return current && latest !== current
+    ? [`${name} ${current} -> ${latest}`]
+    : [];
+});
+
+/**
+ * Plannotator's plugins that aren't on the CLI's version yet, when the latest
+ * release is that version; a newer release waits for the CLI, as
+ * {@link updatePlannotatorPlugins} does.
+ */
+const pendingPlannotatorPlugins = Effect.fn(
+  "agentRuntime.pendingPlannotatorPlugins",
+)(function* (opencodeRunning: boolean, installs: readonly PiInstall[]) {
+  if (Bun.which("plannotator") === null) return [];
+
+  const cli = yield* plannotatorCliVersion;
+
+  if (cli === undefined) return [];
+
+  const pi = installs.find(({ source }) => source === PLANNOTATOR_PLUGINS.pi);
+
+  const installed = [
+    ...(opencodeRunning
+      ? [
+          {
+            name: PLANNOTATOR_PLUGINS.opencode,
+            version: (yield* opencodePluginState(PLANNOTATOR_PLUGINS.opencode))
+              ?.revision,
+          },
+        ]
+      : []),
+    ...(pi
+      ? [
+          {
+            name: PLANNOTATOR_PLUGINS.pi.replace(/^npm:/, ""),
+            version: yield* piRevision(pi),
+          },
+        ]
+      : []),
+  ];
+
+  const behind = yield* Effect.forEach(
+    installed.filter(({ version }) => version && version !== cli),
+    ({ name, version }) =>
+      npmLatest(name).pipe(
+        Effect.map((latest) =>
+          latest === cli ? [`${name} ${version} -> ${cli}`] : [],
+        ),
+      ),
+    { concurrency: "unbounded" },
+  );
+
+  return behind.flat();
+});
+
+/**
+ * The agent plugins `dot up plugins` would move, one line each: Pi packages,
+ * Plannotator's plugins and the global OpenCode plugins. OpenCode's only
+ * count while its service runs, as updating them needs it.
+ */
+export const pendingAgentPlugins = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const installs = Bun.which("pi") === null ? [] : yield* piInstalls;
+
+  const opencodeRunning =
+    (yield* executor.exitCode(OPENCODE, ["service", "status"])) === 0;
+
+  const [pi, opencode, plannotator] = yield* Effect.all(
+    [
+      Effect.forEach(
+        installs.filter(({ source }) => source !== PLANNOTATOR_PLUGINS.pi),
+        pendingPiPackage,
+        { concurrency: "unbounded" },
+      ),
+      Effect.forEach(
+        opencodeRunning ? GLOBAL_PLUGINS : [],
+        (spec) =>
+          opencodePluginState(spec).pipe(
+            Effect.map((state) =>
+              state?.outdated
+                ? [`${state.name} ${state.revision} (update available)`]
+                : [],
+            ),
+          ),
+        { concurrency: "unbounded" },
+      ),
+      pendingPlannotatorPlugins(opencodeRunning, installs),
+    ],
+    { concurrency: "unbounded" },
+  );
+
+  return [...pi.flat(), ...opencode.flat(), ...plannotator].sort();
+}).pipe(
+  Effect.provide(FetchHttpClient.layer),
+  Effect.withSpan("agentRuntime.pendingAgentPlugins"),
+);
 
 /** Reload the OpenCode 2 background service's configuration when it is running. */
 const reloadOpenCode = Effect.gen(function* () {
