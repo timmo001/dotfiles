@@ -4,6 +4,7 @@
  * status bar cache and `dot up` share these checks.
  */
 
+import { Extension } from "@timmo001/effect-gh";
 import { Clock, Effect, FileSystem, Match, Option, Schema } from "effect";
 import { lines, query, type QueryResult } from "./boundedQuery.js";
 import { HOME_DIR } from "./paths.js";
@@ -89,6 +90,8 @@ export const PendingStatus = Schema.Struct({
   /** Pi, Plannotator and OpenCode plugins with an update. */
   plugins: Schema.optionalKey(Schema.NullOr(Schema.Array(Schema.String))),
   gh: Schema.NullOr(Schema.Array(Schema.String)),
+  /** Installed gh extensions with an upgrade, as `name old -> new`. */
+  ghUpgrades: Schema.optionalKey(Schema.NullOr(Schema.Array(Schema.String))),
 });
 
 /** Every pending update and missing install, with null for a check that couldn't run. */
@@ -356,7 +359,7 @@ export const omarchy = Effect.fn("PendingUpdates.omarchy")(function* (
 
 /**
  * Configured gh extensions that aren't installed. Upgrades to installed ones
- * have no typed dry run in effect-gh yet, so they run with the installs.
+ * come from {@link ghUpgrades}.
  */
 export const ghExtensions = Effect.fn("PendingUpdates.ghExtensions")(
   function* () {
@@ -372,6 +375,17 @@ export const ghExtensions = Effect.fn("PendingUpdates.ghExtensions")(
     return desired.filter((repo) => !installed.has(repo.toLowerCase())).sort();
   },
 );
+
+/** Installed gh extensions with an upgrade, from gh's dry run, or null when it fails. */
+export const ghUpgrades = (timeout: number) =>
+  Extension.checkUpgrades({ timeout: `${timeout} seconds` }).pipe(
+    Effect.map((upgrades) =>
+      upgrades
+        .filter((upgrade) => upgrade.status === "upgraded")
+        .map((upgrade) => `${upgrade.name} ${upgrade.from} -> ${upgrade.to}`),
+    ),
+    Effect.orElseSucceed(() => null),
+  );
 
 /** Pi, Plannotator and OpenCode plugins with an update, or null when the check fails. */
 export const agentPlugins = (timeout: number) =>
@@ -479,10 +493,10 @@ export const pendingGroups = (
     id: "gh",
     title: "gh extensions",
     icon: "\uF408",
-    pending: [],
+    pending: status.ghUpgrades ?? [],
     missing: status.gh ?? [],
     blocked: [],
-    unknown: status.gh === null,
+    unknown: status.gh === null || status.ghUpgrades === null,
   },
 ];
 
@@ -526,6 +540,7 @@ export const checkAll = Effect.fn("PendingUpdates.checkAll")(function* (
       omarchy: omarchy(timeout),
       plugins: agentPlugins(timeout),
       gh: ghExtensions(),
+      ghUpgrades: ghUpgrades(timeout),
     },
     { concurrency: "unbounded" },
   );

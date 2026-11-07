@@ -117,7 +117,7 @@ const GROUP_INFO: Record<
   },
   gh: {
     title: "gh extensions",
-    description: "Install missing gh extensions and upgrade the others",
+    description: "Install missing gh extensions and upgrade the installed ones",
   },
   packages: {
     title: "Missing packages",

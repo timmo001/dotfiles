@@ -509,7 +509,7 @@ Check everything dot up updates, for the status bar and OpenCode
 dot updates <subcommand> [flags]
 ```
 
-Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks the dotfiles and dot-managed repositories, the managed skills checkout against timmo001/skills main, outdated and missing mise tools, every pending pacman and AUR update, packages from the public and private lists that aren't installed, Omarchy and missing gh extensions. It writes the cache atomically under a shared lock and notifies the Omarchy shell. status --json prints the cached status, its groups and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --cache-dir and --timeout to override defaults.
+Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks the dotfiles and dot-managed repositories, the managed skills checkout against timmo001/skills main, outdated and missing mise tools, every pending pacman and AUR update, packages from the public and private lists that aren't installed, Omarchy, and missing gh extensions and their upgrades. It writes the cache atomically under a shared lock and notifies the Omarchy shell. status --json prints the cached status, its groups and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --cache-dir and --timeout to override defaults.
 
 **Options**
 
