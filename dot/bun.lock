@@ -6,7 +6,7 @@
       "name": "dot-cli",
       "dependencies": {
         "@effect/platform-node": "4.1.2",
-        "@timmo001/effect-gh": "0.11.0",
+        "@timmo001/effect-gh": "0.12.0",
         "@timmo001/effect-ha-bridge": "1.7.0",
         "@timmo001/effect-herdr": "0.9.0-timmo001.6",
         "@timmo001/effect-upnext": "2.2.1",
@@ -66,7 +66,7 @@
 
     "@tanstack/virtual-core": ["@tanstack/virtual-core@3.19.11", "", {}, "sha512-/5iHb0RHBvj8Di59FDs4ESNm45jls33aZAi4zccVXZjc/6ZvwQP6nzEYeT6weXjTf9E6/vrp2JhYWRyO+ZP13A=="],
 
-    "@timmo001/effect-gh": ["@timmo001/effect-gh@0.11.0", "", { "dependencies": { "graphql": "17.0.2" }, "peerDependencies": { "effect": "^4.1.2" } }, "sha512-ZH8/XQfTofligREhSUdohXegTclxXF7mADXHB2xKLIsHK0DR2VqjOEhQlx0cRY7I4MafWWYCME5uhZKZyuT2nQ=="],
+    "@timmo001/effect-gh": ["@timmo001/effect-gh@0.12.0", "", { "dependencies": { "graphql": "17.1.0" }, "peerDependencies": { "effect": "^4.1.2" } }, "sha512-8fqvLyeNnhsdhZisds0qn4ReUseHSTBcQmz98zJ1SUV/hbovyfN5pcJX/h/SjmpTGPoont6RJdXFWq2W0oit9A=="],
 
     "@timmo001/effect-ha": ["@timmo001/effect-ha@1.7.0", "", { "peerDependencies": { "effect": "^4.1.2" } }, "sha512-EwEIayfgP9z6A7etFqkvKd/IclCmAGmYZ/1L98s54oNH846yk8vux9YKEx7DdxUiw1oSBVihT/dlBWq7BMgTLA=="],
 
@@ -148,7 +148,7 @@
 
     "fuse.js": ["fuse.js@7.5.0", "", {}, "sha512-sQtrEfA+ez/3G0cCZecF70oqpCRttCexYUG4mUrtWL49ULUzUyxokt5kyqwtKzj1270RaKih+hcP3qLcumccow=="],
 
-    "graphql": ["graphql@17.0.2", "", {}, "sha512-FRWbddMxfkjiB7z+aQDWIR+E34xo9I8c9mtK2RPv8PmMzKRvrdsreHL/Ui/TmwHJfhHChEtsFPyMHKI+xuarQQ=="],
+    "graphql": ["graphql@17.1.0", "", {}, "sha512-JKCOa7rSQNrket/JFhuua86hljUO+IIpyUHfKxlKD6FEfbrLX8jc1FDrA0KPKI+s8OspBCF/5npYccAICHXPpQ=="],
 
     "json-schema-traverse": ["json-schema-traverse@1.0.0", "", {}, "sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug=="],
 
