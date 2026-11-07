@@ -84,5 +84,6 @@
     "waitingSince": {
       "snooze": "2026-11-04T20:03:24.162Z"
     }
-  }
+  },
+  "inboxSteps": true
 }
