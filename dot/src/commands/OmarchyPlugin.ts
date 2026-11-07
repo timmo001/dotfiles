@@ -2,7 +2,12 @@ import { Data, Duration, Effect, FileSystem, Schema, Stream } from "effect";
 import { join } from "path";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { Config } from "../services/Config.js";
-import { deployOmarchyPlugin } from "../lib/omarchyPluginDeployment.js";
+import {
+  deployOmarchyPlugin,
+  exportTrackedPlugin,
+  trackedPluginBranch,
+  trackedPluginCheckout,
+} from "../lib/omarchyPluginDeployment.js";
 import {
   isPluginPath,
   isRelativePluginPath,
@@ -603,13 +608,55 @@ const PLUGIN_FETCH_CONCURRENCY = 4;
 /** Per-attempt bound on a plugin's network fetch. */
 const PLUGIN_FETCH_TIMEOUT = Duration.seconds(30);
 
-/** A managed plugin's checked-out and freshly fetched commits. */
-interface FetchedPlugin {
-  readonly id: string;
-  readonly pluginPath: string;
-  readonly source: string;
-  readonly oldSha: string;
-  readonly newSha: string;
+/** A managed plugin fetched by an update, ready to review and apply. */
+type FetchedPlugin = Data.TaggedEnum<{
+  /** A submodule with its checked-out and freshly fetched commits. */
+  Submodule: {
+    readonly id: string;
+    readonly pluginPath: string;
+    readonly source: string;
+    readonly oldSha: string;
+    readonly newSha: string;
+  };
+  /** A tracked repository whose remote default branch was just fetched. */
+  Tracked: {
+    readonly id: string;
+    readonly checkout: string;
+    readonly path: string | undefined;
+  };
+}>;
+
+const FetchedPlugin = Data.taggedEnum<FetchedPlugin>();
+
+/** Fetch a tracked repository's remote default branch without touching its working tree. */
+function fetchTrackedPlugin(
+  id: string,
+  repository: string,
+  path: string | undefined,
+) {
+  return Effect.gen(function* () {
+    const checkout = yield* trackedPluginCheckout(repository);
+
+    if (!checkout) {
+      return yield* fail(
+        `${repository} isn't tracked and cloned on this machine`,
+      );
+    }
+
+    const branch = yield* trackedPluginBranch(checkout);
+
+    yield* gitRemoteOutput(
+      ["fetch", "-q", "origin", branch.slice("origin/".length)],
+      { cwd: checkout },
+      PLUGIN_FETCH_TIMEOUT,
+    ).pipe(
+      Effect.mapError(
+        (error) => new OmarchyPluginError({ message: error.message }),
+      ),
+    );
+
+    return FetchedPlugin.Tracked({ id, checkout, path });
+  });
 }
 
 /** Fetch a managed plugin's tracked branch. Returns `null` for unmanaged plugins. */
@@ -621,6 +668,20 @@ function fetchPlugin(paths: OmarchyPluginPaths, id: string) {
       process.exitCode = UNMANAGED_PLUGIN_EXIT_CODE;
 
       return null;
+    }
+
+    const entry = pluginEntries(yield* readRegistry(paths)).find(
+      (plugin) => plugin.id === id,
+    );
+
+    if (isString(entry?.repository)) {
+      return yield* fetchTrackedPlugin(
+        id,
+        entry.repository,
+        entry.path !== undefined && isPluginPath(entry.path)
+          ? entry.path
+          : undefined,
+      );
     }
 
     const executor = yield* CommandExecutor;
@@ -657,19 +718,65 @@ function fetchPlugin(paths: OmarchyPluginPaths, id: string) {
       cwd: pluginPath,
     })).trim();
 
-    return {
+    return FetchedPlugin.Submodule({
       id,
       pluginPath,
       source: yield* pluginSource(paths, id),
       oldSha,
       newSha,
-    } satisfies FetchedPlugin;
+    });
   });
+}
+
+/**
+ * Deploy a tracked plugin from its freshly fetched remote branch. Its commits
+ * are already reviewed and pushed in its own repository, so there's no diff to
+ * confirm, and validation runs before the swap, so there's nothing to roll back.
+ */
+function applyTrackedUpdate(
+  paths: OmarchyPluginPaths,
+  { id, checkout, path }: Data.TaggedEnum.Value<FetchedPlugin, "Tracked">,
+) {
+  return Effect.gen(function* () {
+    const { files, sha } = yield* exportTrackedPlugin(checkout, path);
+
+    const deployed = yield* deployOmarchyPlugin(
+      files,
+      join(paths.pluginsLive, id),
+      paths.repo,
+    );
+
+    if (!deployed) {
+      process.stdout.write(`${id} is up to date.\n`);
+
+      return;
+    }
+
+    yield* rescanPlugins();
+    process.stdout.write(`Updated managed plugin ${id} to ${sha}.\n`);
+  }).pipe(Effect.scoped);
 }
 
 function applyPluginUpdate(
   paths: OmarchyPluginPaths,
-  { id, pluginPath, source, oldSha, newSha }: FetchedPlugin,
+  plugin: FetchedPlugin,
+  assumeYes: boolean,
+) {
+  return FetchedPlugin.$match(plugin, {
+    Submodule: (submodule) => applySubmoduleUpdate(paths, submodule, assumeYes),
+    Tracked: (tracked) => applyTrackedUpdate(paths, tracked),
+  });
+}
+
+function applySubmoduleUpdate(
+  paths: OmarchyPluginPaths,
+  {
+    id,
+    pluginPath,
+    source,
+    oldSha,
+    newSha,
+  }: Data.TaggedEnum.Value<FetchedPlugin, "Submodule">,
   assumeYes: boolean,
 ) {
   return Effect.gen(function* () {

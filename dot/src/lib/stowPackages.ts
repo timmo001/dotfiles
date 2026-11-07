@@ -13,10 +13,12 @@ import { displayPath, HOME_DIR } from "./paths.js";
 import { foldOpencodePluginFolders } from "./opencodePluginFolders.js";
 import { ensureHyprConfigLink, ensureHyprHostLink } from "./omarchyHost.js";
 import {
-  omarchyPluginSourcePaths,
+  exportTrackedPlugin,
+  managedOmarchyPlugins,
   omarchyPluginSubmodules,
   stageOmarchyPlugin,
   swapOmarchyPlugin,
+  trackedPluginCheckout,
   type StagedOmarchyPlugin,
 } from "./omarchyPluginDeployment.js";
 import {
@@ -226,11 +228,17 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
       const plugins =
         folder === "omarchy" ? yield* omarchyPluginSubmodules(repoDir) : [];
 
-      const pluginPaths =
-        plugins.length > 0
-          ? yield* omarchyPluginSourcePaths(repoDir)
-          : new Map<string, string>();
+      const registry =
+        folder === "omarchy" ? yield* managedOmarchyPlugins(repoDir) : [];
 
+      const tracked = registry.flatMap(({ id, repository, path }) =>
+        repository ? [{ id, repository, path }] : [],
+      );
+
+      const pluginTarget = (id: string) =>
+        join(HOME_DIR, ".config/omarchy/plugins", id);
+
+      // Leftover submodule folders stay ignored, so stow never links them.
       const pluginIgnores = plugins.map(
         (source) =>
           `--ignore='^\\.config/omarchy/plugins/${basename(source).replaceAll(".", "\\.")}($|/)'`,
@@ -244,10 +252,35 @@ export const stowRepo = Effect.fn("stow.repo")(function* (
       for (const checkout of plugins) {
         const id = basename(checkout);
 
+        // Pulling the commit that removed a submodule leaves its folder
+        // behind, and deploying it would replace the tracked copy.
+        if (tracked.some((plugin) => plugin.id === id)) {
+          yield* log.warn(
+            `Leftover submodule ${displayPath(checkout)}: ${id} now deploys from its tracked repository, so delete the folder`,
+          );
+          continue;
+        }
+
         const plugin = yield* stageOmarchyPlugin(
-          join(checkout, pluginPaths.get(id) ?? ""),
-          join(HOME_DIR, ".config/omarchy/plugins", id),
+          join(checkout, registry.find((entry) => entry.id === id)?.path ?? ""),
+          pluginTarget(id),
         );
+
+        if (plugin) staged.push(plugin);
+      }
+
+      for (const { id, repository, path } of tracked) {
+        const checkout = yield* trackedPluginCheckout(repository);
+
+        if (!checkout) {
+          yield* log.warn(
+            `Skipping Omarchy plugin ${id}: ${repository} isn't tracked and cloned on this machine`,
+          );
+          continue;
+        }
+
+        const { files } = yield* exportTrackedPlugin(checkout, path);
+        const plugin = yield* stageOmarchyPlugin(files, pluginTarget(id));
 
         if (plugin) staged.push(plugin);
       }

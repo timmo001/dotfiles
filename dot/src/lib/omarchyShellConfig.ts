@@ -80,9 +80,14 @@ export interface ManagedPlugin {
   readonly instance?: string;
   /** Whether the plugin is included in generated shell configuration. */
   readonly enabled?: boolean;
-  /** Whether source lifecycle is managed as a Git submodule. */
+  /** Whether dotfiles manages the plugin's source and deployment. */
   readonly managed?: boolean;
-  /** Plugin directory inside a managed checkout, when not at its root. */
+  /**
+   * GitHub `owner/repo` of a tracked repository whose remote default branch
+   * supplies the plugin, in place of a Git submodule.
+   */
+  readonly repository?: string;
+  /** Plugin directory inside a submodule or tracked repository, when not at its root. */
   readonly path?: string;
   /** Hosts that include the plugin; omit for every host. */
   readonly onlyHosts?: readonly string[];
@@ -180,6 +185,7 @@ interface MutableManagedPlugin {
   instance?: string;
   enabled?: boolean;
   managed?: boolean;
+  repository?: string;
   path?: string;
   onlyHosts?: readonly string[];
   replace?: string;
@@ -342,6 +348,7 @@ export function parseManagedPlugins(
       instance,
       enabled,
       managed,
+      repository,
       path,
       onlyHosts,
       replace,
@@ -362,6 +369,8 @@ export function parseManagedPlugins(
     if (enabled !== undefined && !isBoolean(enabled)) return null;
 
     if (managed !== undefined && !isBoolean(managed)) return null;
+
+    if (repository !== undefined && !isRepositorySlug(repository)) return null;
 
     if (path !== undefined && !isPluginPath(path)) return null;
 
@@ -426,6 +435,8 @@ export function parseManagedPlugins(
     if (managed !== undefined && isBoolean(managed))
       parsedPlugin.managed = managed;
 
+    if (isRepositorySlug(repository)) parsedPlugin.repository = repository;
+
     if (path !== undefined && isPluginPath(path)) parsedPlugin.path = path;
 
     if (Array.isArray(onlyHosts))
@@ -458,6 +469,15 @@ function isPluginId(value: JsonValue): value is string {
   return (
     isString(value) &&
     /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value) &&
+    !value.includes("..")
+  );
+}
+
+/** A GitHub `owner/repo` slug. */
+function isRepositorySlug(value: JsonValue | undefined): value is string {
+  return (
+    isString(value) &&
+    /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(value) &&
     !value.includes("..")
   );
 }

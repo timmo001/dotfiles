@@ -1,9 +1,14 @@
 import { Effect, FileSystem, type PlatformError } from "effect";
 import { basename, dirname, join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
+import { Config } from "../services/Config.js";
+import { managedGitRepoForGitHub } from "../services/GitConfig.js";
 import { LauncherError } from "../services/Launcher.js";
 import { lstatOrNull, pathExists, readTextOrNull } from "./fsProbe.js";
-import { parseManagedPlugins } from "./omarchyShellConfig.js";
+import {
+  parseManagedPlugins,
+  type ManagedPlugin,
+} from "./omarchyShellConfig.js";
 import { decodeJson } from "./schema.js";
 
 /** Discover real plugin submodule directories in the Omarchy stow package. */
@@ -36,15 +41,16 @@ export const omarchyPluginSubmodules = Effect.fn("OmarchyPlugin.submodules")(
 );
 
 /**
- * Resolve the plugin directory inside each managed checkout from the repo's
- * own registry. Checkouts without a `path` entry hold the plugin at their root.
+ * Read the plugin entries of a repository's own registry, which say where each
+ * managed plugin's files come from. A repository without a registry has none.
  */
-export const omarchyPluginSourcePaths = Effect.fn("OmarchyPlugin.sourcePaths")(
+export const managedOmarchyPlugins = Effect.fn("OmarchyPlugin.registry")(
   function* (repo: string) {
     const registryPath = join(repo, "omarchy-plugins.json");
     const text = yield* readTextOrNull(registryPath);
+    const none: readonly ManagedPlugin[] = [];
 
-    if (text === null) return new Map<string, string>();
+    if (text === null) return none;
 
     const registry = (() => {
       try {
@@ -61,11 +67,89 @@ export const omarchyPluginSourcePaths = Effect.fn("OmarchyPlugin.sourcePaths")(
       });
     }
 
-    return new Map(
-      registry.plugins.flatMap(({ id, path }): [string, string][] =>
-        path ? [[id, path]] : [],
-      ),
+    return registry.plugins;
+  },
+);
+
+/**
+ * Find the local checkout of a tracked repository by its GitHub slug.
+ *
+ * @returns The checkout path, or `null` when the repository isn't tracked in
+ * the private git config or isn't cloned on this machine.
+ */
+export const trackedPluginCheckout = Effect.fn("OmarchyPlugin.trackedCheckout")(
+  function* (github: string) {
+    const config = yield* Config;
+    const repo = managedGitRepoForGitHub(config.gitConfig, github);
+
+    return repo && (yield* pathExists(join(repo.path, ".git")))
+      ? repo.path
+      : null;
+  },
+);
+
+/** A tracked checkout's remote default branch, such as `origin/main`. */
+export const trackedPluginBranch = Effect.fn("OmarchyPlugin.trackedBranch")(
+  function* (checkout: string) {
+    const executor = yield* CommandExecutor;
+
+    return (yield* executor.run(
+      "git",
+      ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+      { cwd: checkout },
+    )).trim();
+  },
+);
+
+/** Plugin files exported from a tracked repository's remote default branch. */
+export interface ExportedOmarchyPlugin {
+  /** Directory holding the exported plugin files. */
+  readonly files: string;
+  /** Remote branch the files came from, such as `origin/main`. */
+  readonly ref: string;
+  /** Commit the files came from. */
+  readonly sha: string;
+}
+
+/**
+ * Export a plugin from a tracked checkout's remote default branch, as last
+ * fetched, into a temporary directory removed when the caller's scope closes.
+ * Only the branch's committed files are exported, never the working tree, so
+ * ignored build output, local edits and feature branches stay off the bar.
+ */
+export const exportTrackedPlugin = Effect.fn("OmarchyPlugin.exportTracked")(
+  function* (checkout: string, path: string | undefined) {
+    const executor = yield* CommandExecutor;
+    const fs = yield* FileSystem.FileSystem;
+    const ref = yield* trackedPluginBranch(checkout);
+
+    const sha = (yield* executor.run(
+      "git",
+      ["rev-parse", "--verify", `${ref}^{commit}`],
+      { cwd: checkout },
+    )).trim();
+
+    const directory = yield* fs
+      .makeTempDirectoryScoped({ prefix: "dot-plugin-" })
+      .pipe(deploymentError(checkout));
+
+    const archive = join(directory, "plugin.tar");
+    const files = join(directory, "plugin");
+
+    yield* fs.makeDirectory(files).pipe(deploymentError(checkout));
+    yield* executor.run(
+      "git",
+      [
+        "archive",
+        "--format=tar",
+        `--output=${archive}`,
+        path ? `${sha}:${path}` : sha,
+      ],
+      { cwd: checkout },
     );
+    yield* executor.run("tar", ["-xf", archive, "-C", files]);
+
+    return { files, ref, sha } satisfies ExportedOmarchyPlugin;
   },
 );
 
