@@ -32,6 +32,10 @@ import {
   type PendingStatus,
 } from "../lib/pendingUpdates.js";
 import {
+  hasLocalUpdateWork,
+  pullKeepsLocalWork,
+} from "../lib/updateMaintenance.js";
+import {
   done,
   logRepoChanges,
   logUpdateSummary,
@@ -226,6 +230,43 @@ const repoPulls = (
 
     return line ? [{ path: repo.path, line }] : [];
   });
+
+/**
+ * Repositories the update check would pull: behind upstream, and not blocked
+ * by local work a fast-forward would touch.
+ *
+ * A dotfiles restart only carries the picked group names. The repos stage
+ * treats an empty path list as "every safe default-branch repository", which
+ * drops feature-branch pulls the check already showed, so a restarted run
+ * rebuilds this list instead of passing nothing.
+ */
+const pendingRepoPulls = Effect.fn("Up.pendingRepoPulls")(function* () {
+  const repos = yield* (yield* DotDiff)
+    .getAll()
+    .pipe(Effect.orElseSucceed((): readonly DiffRepo[] => []));
+
+  const chosen = yield* Effect.forEach(
+    repos.filter(
+      (repo) => !CORE_CHECK_CATEGORIES.has(repo.category) && repo.behind > 0,
+    ),
+    (repo) =>
+      Effect.gen(function* () {
+        if (
+          (yield* hasLocalUpdateWork(repo)) &&
+          !(yield* pullKeepsLocalWork(repo))
+        )
+          return null;
+
+        return {
+          path: repo.path,
+          line: `${repo.name}: ${repo.behind} behind`,
+        } satisfies RepoPull;
+      }).pipe(Effect.orElseSucceed(() => null)),
+    { concurrency: 6 },
+  );
+
+  return chosen.flatMap((repo) => (repo === null ? [] : [repo]));
+});
 
 /**
  * Log the commits and changed files each pending pull brings in, from where
@@ -532,6 +573,10 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
 
   if (restarted) {
     groups = opts.groups ?? [];
+
+    // The handoff keeps group names only. Rebuild the check's pull list so
+    // the repos stage does not fall through to its unnamed default-branch scan.
+    if (groups.includes("repos")) pulls = yield* pendingRepoPulls();
   } else {
     yield* log.section("Checking For Updates");
 
