@@ -21,6 +21,8 @@ import {
 /** A single bar layout entry: a plugin id plus inline per-instance settings. */
 interface BarEntry {
   id: string;
+  /** Which of several entries of the same widget this is, when it's one of them. */
+  instance?: string;
   readonly format?: string;
   readonly run?: string;
   readonly revealOnHover?: boolean;
@@ -71,6 +73,11 @@ interface PluginSettings {
 export interface ManagedPlugin {
   /** Plugin manifest id. */
   readonly id: string;
+  /**
+   * Names one of several bar entries of a widget that allows more than one,
+   * such as `timmo.command`. Each id and instance pair is placed on its own.
+   */
+  readonly instance?: string;
   /** Whether the plugin is included in generated shell configuration. */
   readonly enabled?: boolean;
   /** Whether source lifecycle is managed as a Git submodule. */
@@ -113,18 +120,25 @@ export interface ManagedPluginConfig {
   readonly plugins: readonly ManagedPlugin[];
 }
 
+/** A managed plugin's identity: its id, and its instance when it has one. */
+function pluginKey({ id, instance }: ManagedPlugin): string {
+  return instance === undefined ? id : `${id}#${instance}`;
+}
+
 /** Merge an optional private plugin registry over the public registry. */
 export function mergeManagedPluginConfigs(
   publicConfig: ManagedPluginConfig,
   privateConfig: ManagedPluginConfig,
 ): ManagedPluginConfig {
-  const privateIds = new Set(privateConfig.plugins.map(({ id }) => id));
+  const privateKeys = new Set(privateConfig.plugins.map(pluginKey));
 
   return {
     remove: [...new Set([...publicConfig.remove, ...privateConfig.remove])],
     disable: [...publicConfig.disable, ...privateConfig.disable],
     plugins: [
-      ...publicConfig.plugins.filter(({ id }) => !privateIds.has(id)),
+      ...publicConfig.plugins.filter(
+        (plugin) => !privateKeys.has(pluginKey(plugin)),
+      ),
       ...privateConfig.plugins,
     ],
   };
@@ -163,6 +177,7 @@ interface MutablePluginPlacement {
 
 interface MutableManagedPlugin {
   id: string;
+  instance?: string;
   enabled?: boolean;
   managed?: boolean;
   path?: string;
@@ -229,17 +244,18 @@ function placeManagedPlugin(
   if (!placement) return;
   let existing: BarEntry | undefined;
 
+  // Only this instance is replaced, so other entries of the same widget stay
+  const matches = (entry: BarEntry) =>
+    (entry.id === plugin.id && entry.instance === plugin.instance) ||
+    entry.id === plugin.replace;
+
   for (const entries of layoutSections(layout)) {
-    let index = entries.findIndex(
-      (entry) => entry.id === plugin.id || entry.id === plugin.replace,
-    );
+    let index = entries.findIndex(matches);
 
     while (index !== -1) {
       existing ??= entries[index];
       entries.splice(index, 1);
-      index = entries.findIndex(
-        (entry) => entry.id === plugin.id || entry.id === plugin.replace,
-      );
+      index = entries.findIndex(matches);
     }
   }
 
@@ -271,6 +287,8 @@ function placeManagedPlugin(
   if (plugin.settings) Object.assign(entry, plugin.settings);
 
   if (plugin.hosts?.[host]) Object.assign(entry, plugin.hosts[host]);
+
+  if (plugin.instance !== undefined) entry.instance = plugin.instance;
   entries.splice(index, 0, entry);
 }
 
@@ -321,6 +339,7 @@ export function parseManagedPlugins(
 
     const {
       id,
+      instance,
       enabled,
       managed,
       path,
@@ -332,8 +351,13 @@ export function parseManagedPlugins(
       hosts,
     } = plugin;
 
-    if (!isString(id) || !isPluginId(id) || ids.has(id)) return null;
-    ids.add(id);
+    if (!isString(id) || !isPluginId(id)) return null;
+
+    if (instance !== undefined && !isPluginId(instance)) return null;
+    const key = instance === undefined ? id : `${id}#${instance}`;
+
+    if (ids.has(key)) return null;
+    ids.add(key);
 
     if (enabled !== undefined && !isBoolean(enabled)) return null;
 
@@ -360,6 +384,9 @@ export function parseManagedPlugins(
     )
       return null;
     const parsedPlugin: MutableManagedPlugin = { id };
+
+    if (instance !== undefined && isString(instance))
+      parsedPlugin.instance = instance;
 
     if (enabled !== undefined && isBoolean(enabled))
       parsedPlugin.enabled = enabled;
