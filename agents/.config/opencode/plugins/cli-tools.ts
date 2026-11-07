@@ -41,7 +41,6 @@ import {
   runCliOutput,
   strictToolInput,
 } from "./lib/cli-tools/tool";
-import { triageNamespace } from "./lib/cli-tools/triage";
 import { upnextNamespace } from "./lib/cli-tools/upnext";
 
 export default Plugin.define({
@@ -63,7 +62,6 @@ export default Plugin.define({
         },
         notesNamespace,
         contextNamespace,
-        triageNamespace,
         ghNamespace,
         herdrNamespace,
         upnextNamespace,

@@ -55,6 +55,7 @@ export const GLOBAL_PLUGINS = [
   "github:timmo001/upkeep#main::path:packages/opencode",
   "github:timmo001/ha-bridge#main::path:packages/opencode",
   "github:timmo001/system-bridge#dev::path:opencode-plugin",
+  "github:timmo001/triage#main::path:opencode-plugin",
 ];
 
 const CONFIG_PATH = join("agents", ".config", "opencode", "opencode.json");
