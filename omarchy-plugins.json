@@ -80,6 +80,7 @@
       "settings": {
         "primaryOnly": true,
         "hideWhenQuiet": true,
+        "hideWhenDetached": true,
         "url": "http://homeassistant.local:7272"
       },
       "hosts": {

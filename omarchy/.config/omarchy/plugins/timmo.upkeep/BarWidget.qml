@@ -37,10 +37,13 @@ BarWidget {
   readonly property string icon: "\uf0ad"
   readonly property bool ready: !!monitor && monitor.loaded
   readonly property bool hideWhenQuiet: setting("hideWhenQuiet", false)
+  readonly property bool hideWhenDetached: setting("hideWhenDetached", false)
   property bool quiet: false
+  property bool attached: false
   readonly property bool shown: (!ready || monitor.errorText !== "" || showWhenEmpty
     || monitor.count > 0 || monitor.health === "degraded" || opened)
     && !(hideWhenQuiet && quiet && !opened)
+    && !(hideWhenDetached && !attached && !opened)
   readonly property color displayColor: {
     if (!ready || monitor.errorText !== "") return mutedColor
     if (monitor.health === "degraded") return bar ? bar.urgent : Commons.Color.urgent
@@ -127,14 +130,24 @@ BarWidget {
   onActiveInstanceChanged: injectSettings()
 
   FileView {
-    path: root.hideWhenQuiet ? Quickshell.env("XDG_RUNTIME_DIR") + "/dot-herdr-context.json" : ""
+    path: root.hideWhenQuiet || root.hideWhenDetached ? Quickshell.env("XDG_RUNTIME_DIR") + "/dot-herdr-context.json" : ""
     watchChanges: true
     printErrors: false
     onFileChanged: reload()
     onLoaded: {
-      try { root.quiet = JSON.parse(text()).quiet === true } catch (error) { root.quiet = false }
+      try {
+        var context = JSON.parse(text())
+        root.quiet = context.quiet === true
+        root.attached = context.attached === true
+      } catch (error) {
+        root.quiet = false
+        root.attached = false
+      }
     }
-    onLoadFailed: root.quiet = false
+    onLoadFailed: {
+      root.quiet = false
+      root.attached = false
+    }
   }
 
   Loader {

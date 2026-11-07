@@ -23,7 +23,8 @@
       "url": "",
       "interval": 60000,
       "showWhenEmpty": false,
-      "hideWhenQuiet": false
+      "hideWhenQuiet": false,
+      "hideWhenDetached": false
     },
     "schema": [
       {
@@ -66,6 +67,13 @@
         "label": "Hide overnight",
         "defaultValue": false,
         "description": "Hide during the workspace context's quiet hours while no Herdr terminal is attached."
+      },
+      {
+        "key": "hideWhenDetached",
+        "type": "boolean",
+        "label": "Hide while Herdr is detached",
+        "defaultValue": false,
+        "description": "Hide while no Herdr terminal is attached. The panel shortcut still opens it."
       }
     ]
   }
