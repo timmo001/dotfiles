@@ -125,7 +125,9 @@ const aliasTool = ({ executable, args }: Stage): readonly [string, string] | und
   }
 
   if (executable === "hyprctl" && word !== undefined) {
-    if (HYPRLAND_STATE.has(word)) return ["system-bridge", "hyprland"];
+    if (word === "getoption") return ["system-bridge", "hyprland_get_option"];
+
+    if (HYPRLAND_STATE.has(word)) return ["system-bridge", "get_data"];
 
     if (word === "keyword") return ["system-bridge", "hyprland_set_option"];
   }

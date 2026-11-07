@@ -1,14 +1,27 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { Effect, Layer, Schema } from "effect";
-import { systemBridgeNamespace } from "./system-bridge";
-import { type ClientNamespace, clientTools, commandExists, runCliOutput } from "./tool";
+import { type ClientNamespace, clientTools, commandExists, pathExists, runCliOutput } from "./tool";
 
 const tool = clientTools(Layer.empty);
 
 const hyprctl = (args: readonly string[], json = false) =>
   runCliOutput("hyprctl", json ? ["-j", ...args] : args, { json });
 
-/** Only registered when System Bridge, whose hyprland tool covers these, isn't running. */
-const withoutSystemBridge = Effect.map(systemBridgeNamespace.available, (available) => !available);
+const systemBridgeToken = join(
+  process.env.XDG_DATA_HOME || join(homedir(), ".local", "share"),
+  "system-bridge",
+  "v5",
+  "token",
+);
+
+/**
+ * Whether System Bridge is set up here, so its own OpenCode plugin adds the `system-bridge`
+ * namespace, whose get_data and Hyprland tools cover the listings below.
+ */
+export const systemBridgeAvailable = pathExists(systemBridgeToken);
+
+const withoutSystemBridge = Effect.map(systemBridgeAvailable, (available) => !available);
 
 const listing = (name: string, command: string, description: string) =>
   tool({
@@ -25,7 +38,7 @@ export const hyprctlNamespace: ClientNamespace = {
   kind: "client",
   command: "hyprctl",
   description:
-    "Hyprland through hyprctl, for what the system-bridge namespace doesn't cover: the version, reloading the config and running any dispatcher. Read windows, workspaces, binds and config errors with system-bridge's hyprland tool.",
+    "Hyprland through hyprctl, for what the system-bridge namespace doesn't cover: the version, reloading the config and running any dispatcher. Read windows, workspaces, binds and config errors with system-bridge's get_data tool and its desktop module.",
   available: commandExists("hyprctl"),
   tools: [
     tool({

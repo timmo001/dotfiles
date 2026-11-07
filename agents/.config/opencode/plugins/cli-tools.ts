@@ -11,7 +11,7 @@ import { contextNamespace } from "./lib/cli-tools/context";
 import { ghJobs, ghNamespace } from "./lib/cli-tools/gh";
 import { gitNamespace } from "./lib/cli-tools/git";
 import { herdrNamespace } from "./lib/cli-tools/herdr";
-import { hyprctlNamespace } from "./lib/cli-tools/hyprctl";
+import { hyprctlNamespace, systemBridgeAvailable } from "./lib/cli-tools/hyprctl";
 import { loadDotTools } from "./lib/cli-tools/dot";
 import { jobsNamespace } from "./lib/cli-tools/jobs";
 import { miseNamespace } from "./lib/cli-tools/mise";
@@ -29,7 +29,6 @@ import { pacmanNamespace } from "./lib/cli-tools/pacman";
 import { pitchforkNamespace } from "./lib/cli-tools/pitchfork";
 import { type CodeModeCatalogue, shellNudge } from "./lib/cli-tools/shell-nudge";
 import { skillMaintenanceNamespace } from "./lib/cli-tools/skill-maintenance";
-import { systemBridgeNamespace } from "./lib/cli-tools/system-bridge";
 import { systemdNamespace } from "./lib/cli-tools/systemd";
 import {
   CliInput,
@@ -67,7 +66,6 @@ export default Plugin.define({
         triageNamespace,
         ghNamespace,
         herdrNamespace,
-        systemBridgeNamespace,
         upnextNamespace,
         systemdNamespace,
         hyprctlNamespace,
@@ -261,6 +259,20 @@ export default Plugin.define({
         });
       });
 
+      // System Bridge's own plugin adds its namespace; these are the tools the hyprctl nudges name.
+      const externalTools: ReadonlyMap<string, ReadonlyMap<string, boolean>> = (yield* systemBridgeAvailable)
+        ? new Map([
+            [
+              "system-bridge",
+              new Map([
+                ["get_data", false],
+                ["hyprland_get_option", false],
+                ["hyprland_set_option", false],
+              ]),
+            ],
+          ])
+        : new Map();
+
       // `jobs` is a shell builtin, not the jobs namespace.
       const catalogue: CodeModeCatalogue = namespaces.reduce((map, namespace, index) => {
         if (!enabled[index] || namespace.command === "jobs") return map;
@@ -274,7 +286,7 @@ export default Plugin.define({
             ...tools.map((tool): [string, boolean] => [tool.name, tool.directory ?? false]),
           ]),
         );
-      }, new Map<string, ReadonlyMap<string, boolean>>());
+      }, new Map<string, ReadonlyMap<string, boolean>>(externalTools));
 
       // Background shells are how long runs stay out of the foreground, so they keep the shell.
       yield* context.tool.hook("execute.after", (event) =>
