@@ -54,7 +54,7 @@
     ]
   },
   "theme": {
-    "dark": "plannotator"
+    "dark": "plannotator-modern"
   },
   "experimental": {
     "decisionMode": true
