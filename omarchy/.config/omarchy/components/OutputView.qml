@@ -14,12 +14,15 @@ Rectangle {
   property string fontFamily: "monospace"
   // Keeps the newest output in view as text arrives, such as while following a running command.
   property bool followTail: false
+  // The fill and border's opacity over `foreground`.
+  property real fillAlpha: 0.05
+  property real borderAlpha: 0.12
 
   width: parent ? parent.width : implicitWidth
   implicitHeight: Math.min(maxHeight, output.implicitHeight + Style.space(12))
-  color: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.05)
+  color: Qt.rgba(foreground.r, foreground.g, foreground.b, fillAlpha)
   border.width: 1
-  border.color: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.12)
+  border.color: Qt.rgba(foreground.r, foreground.g, foreground.b, borderAlpha)
   clip: true
 
   Flickable {
