@@ -30,6 +30,9 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  *   alongside the stowed config.
  * - `.config/herdr`: Herdr writes logs, sockets, and session state alongside
  *   its stowed config.
+ * - `.config/herdr-app`: the Herdr app writes its shipped layouts, mods,
+ *   type files, socket and window state alongside the stowed keys, settings,
+ *   themes and `dot-*` mods.
  * - `.config/hypr`: the runtime `~/.config/hypr/host` symlink, omarchy shaders,
  *   and `~/.local/state` toggles live alongside the stowed config.
  * - `.config/nvim`: `omarchy-nvim-setup` owns `~/.config/nvim` and writes into
@@ -58,6 +61,7 @@ const NO_FOLDING_TARGET_PREFIXES = [
   ".config/fish/completions",
   ".config/ghostty",
   ".config/herdr",
+  ".config/herdr-app",
   ".config/hypr",
   ".config/nvim",
   ".config/omarchy/plugins",
