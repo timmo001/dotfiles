@@ -10,7 +10,7 @@ permission:
   list: allow
   skill: allow
   question: deny
-  todowrite: allow
+  plannotator_inbox: allow
   task: allow
   subagent: allow
   edit: deny
