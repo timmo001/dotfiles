@@ -27,6 +27,8 @@
     {
       "id": "timmo.upnext",
       "managed": true,
+      "repository": "timmo001/upnext",
+      "path": "omarchy-plugin",
       "placement": { "section": "center", "index": 0 },
       "settings": { "revealOnHover": true, "primaryOnly": true },
       "hosts": {
@@ -100,6 +102,8 @@
     {
       "id": "timmo.system-bridge",
       "managed": true,
+      "repository": "timmo001/system-bridge",
+      "path": "omarchy-plugin",
       "placement": { "section": "right", "after": "timmo.home-assistant" },
       "settings": { "primaryOnly": true },
       "hosts": {
@@ -110,6 +114,8 @@
     {
       "id": "timmo.notes",
       "managed": true,
+      "repository": "timmo001/notes",
+      "path": "omarchy-plugin",
       "placement": { "section": "center", "after": "timmo.git" },
       "settings": {
         "primaryOnly": true,
@@ -130,12 +136,17 @@
         "laptop": { "primaryOutput": "eDP-1" }
       }
     },
-    { "id": "timmo.momentumctl", "managed": true },
+    {
+      "id": "timmo.momentumctl",
+      "managed": true,
+      "repository": "timmo001/omarchy-momentumctl"
+    },
     { "id": "timmo.workspace-relayout" },
     { "id": "timmo.popup-loading" },
     {
       "id": "timmo.clock",
       "managed": true,
+      "repository": "timmo001/omarchy-clock",
       "replace": "omarchy.clock",
       "placement": { "section": "right" },
       "settings": { "format": "HH:mm d MMM" }
@@ -164,16 +175,9 @@
       "placement": { "section": "right", "before": "omarchy.bluetooth" }
     },
     {
-      "id": "nosignal.deckshift",
-      "enabled": false,
-      "managed": true,
-      "path": "plugins/nosignal.deckshift",
-      "onlyHosts": ["desktop"],
-      "placement": { "section": "right", "index": 0 }
-    },
-    {
       "id": "timmo.agent-checks",
       "managed": true,
+      "repository": "timmo001/agent-checks",
       "placement": { "section": "center", "before": "timmo.git" },
       "settings": { "primaryOnly": true },
       "hosts": {
