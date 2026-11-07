@@ -10,7 +10,7 @@
         "@timmo001/effect-ha-bridge": "1.7.0",
         "@timmo001/effect-herdr": "0.9.0-timmo001.6",
         "@timmo001/effect-upnext": "2.2.1",
-        "@timmo001/groundwork-report": "0.10.13",
+        "@timmo001/groundwork-report": "0.10.14",
         "effect": "4.1.2",
         "fuse.js": "7.5.0",
         "semver": "^7.8.5",
@@ -78,11 +78,11 @@
 
     "@timmo001/effect-upnext-shared": ["@timmo001/effect-upnext-shared@2.2.1", "", { "peerDependencies": { "effect": "^4.1.2" } }, "sha512-5HwhkFABLtW0n0kwnQ5hzwqdaftvo0IGJS5NHG+3G3kchvy5tfZulLFuVe2uRTfmc6tRxe4JsrLouPX/Fpob4A=="],
 
-    "@timmo001/groundwork-report": ["@timmo001/groundwork-report@0.10.13", "", { "dependencies": { "@timmo001/groundwork-tokens": "0.10.13", "@timmo001/groundwork-ui": "0.10.13", "effect": "4.1.2" } }, "sha512-7Z7T7cD+t4sSOc9VPTqEe/YE+cUx6Ndj/fh8ChuzNvl2Vak453d276vMAUd4YbzW8SyF6TxNyFdEjmpCEBDLGw=="],
+    "@timmo001/groundwork-report": ["@timmo001/groundwork-report@0.10.14", "", { "dependencies": { "@timmo001/groundwork-tokens": "0.10.14", "@timmo001/groundwork-ui": "0.10.14", "effect": "4.1.2" } }, "sha512-cFCVM6SDA5Cw5PHY/fc7b1fB9CwixBZH8F2aWgCHvge44nvq2L5bYYsufIJJ7tAL3UTg1GQRkY8oyWT85h2lxQ=="],
 
-    "@timmo001/groundwork-tokens": ["@timmo001/groundwork-tokens@0.10.13", "", { "dependencies": { "@effect/platform-node": "4.1.2", "@types/culori": "4.0.1", "culori": "4.0.2", "effect": "4.1.2" }, "bin": { "groundwork-tokens": "src/bin.ts" } }, "sha512-+BZ6G03R5KxGsl7hL2qHEKHU31MgUCljB4vDQLXuM80F4aiymDsluP+rVfdKHsOYepoKVHa8/upY2FV5VjpV5w=="],
+    "@timmo001/groundwork-tokens": ["@timmo001/groundwork-tokens@0.10.14", "", { "dependencies": { "@effect/platform-node": "4.1.2", "@types/culori": "4.0.1", "culori": "4.0.2", "effect": "4.1.2" }, "bin": { "groundwork-tokens": "src/bin.ts" } }, "sha512-Hlpc43+7ppKnEFOTwaGAtl4/KE+hrcijuGuW5M7OpLh/htTnCxGjhMGtKZPxQlon1/Qmrn3pGarDyqztAFbj4g=="],
 
-    "@timmo001/groundwork-ui": ["@timmo001/groundwork-ui@0.10.13", "", { "dependencies": { "@tanstack/table-core": "9.3.1", "@tanstack/virtual-core": "3.19.11", "micromark": "4.0.3", "micromark-extension-gfm": "3.0.0" } }, "sha512-aFUGU43TQ2C5zUg0bsWI2c/MVk5/661LScrOK1JZGgjWA3KxJFBkttKc702wdPNGU9a3AYs9kxsi+2WI+A4GFQ=="],
+    "@timmo001/groundwork-ui": ["@timmo001/groundwork-ui@0.10.14", "", { "dependencies": { "@tanstack/table-core": "9.3.1", "@tanstack/virtual-core": "3.19.11", "micromark": "4.0.3", "micromark-extension-gfm": "3.0.0" } }, "sha512-3UGoVr9RUohdDg8te8kooNdljJ3wCeiyMdkBD4s5rFtPWFNbf3OfaarmUpz+4qj9YEOcnup6wbP4liLFn2aevQ=="],
 
     "@types/bun": ["@types/bun@1.4.4", "", { "dependencies": { "bun-types": "1.4.4" } }, "sha512-9wkRDXUXK124pEnAutE6n/l18j+i9GC5IAHK8TmX/2nlySETmky0OU6yL5U8pW1AoKh++AN9auDCr647BfurjQ=="],
 
