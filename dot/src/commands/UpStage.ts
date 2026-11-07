@@ -11,6 +11,7 @@ import { syncNotesRemotes } from "../git/notesRemote.js";
 import { mcpSync } from "../mcp/commands/McpSync.js";
 import {
   reloadAgents,
+  updateGlobalOpencodePlugins,
   updatePiExtensions,
   updatePlannotatorPlugins,
 } from "../lib/agentRuntime.js";
@@ -361,11 +362,15 @@ const toolsStage = Effect.gen(function* () {
   return { actions, miseTools: tools } satisfies StageOutcome;
 });
 
-/** Update the Pi and Plannotator plugins and restore Herdr's pinned plugins. */
+/**
+ * Update the Pi, Plannotator and global OpenCode plugins and restore Herdr's
+ * pinned plugins.
+ */
 const pluginsStage = Effect.gen(function* () {
   const agentPlugins = [
     yield* updatePiExtensions,
     yield* updatePlannotatorPlugins,
+    yield* updateGlobalOpencodePlugins,
   ];
 
   return {

@@ -98,7 +98,7 @@ const GROUP_INFO: Record<
   plugins: {
     title: "Agent plugins",
     description:
-      "Update the Pi and Plannotator plugins and restore Herdr plugins",
+      "Update the Pi, Plannotator and OpenCode plugins and restore Herdr plugins",
   },
   agents: {
     title: "Agents",

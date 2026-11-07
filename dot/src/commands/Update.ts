@@ -10,6 +10,7 @@ import {
   reloadAgents,
   restartStalePitchforkDaemons,
   restartStaleServices,
+  updateGlobalOpencodePlugins,
   updatePiExtensions,
   updatePlannotatorPlugins,
 } from "../lib/agentRuntime.js";
@@ -989,7 +990,8 @@ const pruneRemovedMiseTools = Effect.gen(function* () {
 /**
  * Install missing mise tools, optionally upgrade them all, prune removed ones,
  * then refresh the agent runtimes, so plugins and services match the tools.
- * `plugins: false` leaves Pi and Plannotator to `dot up plugins`.
+ * `plugins: false` leaves Pi, Plannotator and OpenCode plugins to
+ * `dot up plugins`.
  */
 export const refreshTools = Effect.fn("Update.refreshTools")(function* (
   upgrade: boolean,
@@ -1045,10 +1047,14 @@ export const refreshTools = Effect.fn("Update.refreshTools")(function* (
           [
             // Services first: a stale service can hold a daemon's port
             Effect.all([restartStaleServices, restartStalePitchforkDaemons]),
-            // Sequential: both write Pi's package directory
+            // Sequential: the first two both write Pi's package directory
             opts.plugins === false
               ? Effect.succeed([])
-              : Effect.all([updatePiExtensions, updatePlannotatorPlugins]),
+              : Effect.all([
+                  updatePiExtensions,
+                  updatePlannotatorPlugins,
+                  updateGlobalOpencodePlugins,
+                ]),
           ],
           { concurrency: "unbounded" },
         )).flat(),

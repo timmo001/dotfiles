@@ -259,7 +259,7 @@ dot up tools --json
 
 ### `dot up plugins`
 
-Update the Pi and Plannotator plugins and restore Herdr plugins. Never prompts, so it can run in the background.
+Update the Pi, Plannotator and OpenCode plugins and restore Herdr plugins. Never prompts, so it can run in the background.
 
 ```text
 dot up plugins [flags] [<repo...>]

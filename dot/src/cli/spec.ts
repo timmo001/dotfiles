@@ -256,7 +256,8 @@ const STAGE_DESCRIPTIONS: Record<UpStage, string> = {
   repos:
     "Pull tracked repositories that are behind, leaving any with work in progress alone; name repositories to pull just those",
   tools: "Install missing mise tools, upgrade the rest and prune removed ones",
-  plugins: "Update the Pi and Plannotator plugins and restore Herdr plugins",
+  plugins:
+    "Update the Pi, Plannotator and OpenCode plugins and restore Herdr plugins",
   agents: "Sync agent instructions and reload running agents",
   shell: "Refresh shell modules, start the doctor check and refresh the bar",
 };

@@ -1,8 +1,9 @@
-import { Effect, FileSystem, Option, Schema } from "effect";
+import { Effect, FileSystem, Option, Result, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http";
 import { dirname, join, resolve } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
+import { GLOBAL_PLUGINS } from "./opencodePlugins.js";
 import { HOME_DIR, STATE_DIR } from "./paths.js";
 import { plural } from "./runSummary.js";
 import { notable, skip, warn } from "./updateSummary.js";
@@ -468,6 +469,47 @@ export const updatePlannotatorPlugins = Effect.gen(function* () {
   Effect.provide(FetchHttpClient.layer),
   Effect.withSpan("agentRuntime.updatePlannotatorPlugins"),
 );
+
+/**
+ * Move the global OpenCode plugins to their branch heads. OpenCode keeps a
+ * Git plugin on the commit it first installed until asked to update it.
+ */
+export const updateGlobalOpencodePlugins = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const log = yield* OutputLog;
+
+  if ((yield* executor.exitCode(OPENCODE, ["service", "status"])) !== 0)
+    return skip("OpenCode plugins skipped (service not running)");
+
+  const updated: string[] = [];
+  const failed: string[] = [];
+
+  for (const spec of GLOBAL_PLUGINS) {
+    const output = yield* executor
+      .run(OPENCODE, ["plugin", "update", spec], { cwd: HOME_DIR })
+      .pipe(Effect.result);
+
+    if (Result.isFailure(output)) {
+      yield* log.warn(
+        `${spec}: ${output.failure.stderr.trim() || `exit ${output.failure.exitCode}`}`,
+      );
+      failed.push(spec);
+    } else if (/^Updated /m.test(output.success)) updated.push(spec);
+  }
+
+  if (failed.length)
+    return warn(`Could not update OpenCode plugins: ${failed.join(", ")}`);
+
+  if (updated.length) {
+    yield* log.success(`Updated ${updated.join(", ")}`);
+
+    return notable(
+      `Updated ${plural(updated.length, "OpenCode plugin")} to their branch heads`,
+    );
+  }
+
+  return skip("OpenCode plugins already current");
+}).pipe(Effect.withSpan("agentRuntime.updateGlobalOpencodePlugins"));
 
 /** Reload the OpenCode 2 background service's configuration when it is running. */
 const reloadOpenCode = Effect.gen(function* () {
