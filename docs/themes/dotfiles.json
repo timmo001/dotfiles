@@ -1,0 +1,20 @@
+{
+  "kind": "solved",
+  "id": "dotfiles",
+  "name": "Dotfiles",
+  "description": "The dotfiles docs' amber on zinc, with Base's style.",
+  "background": "#18181b",
+  "accent": "#d97706",
+  "style": {
+    "font": "Mona Sans",
+    "mono": "Geist Mono",
+    "radius": { "panel": 10, "control": 8, "chip": 6 },
+    "border": { "width": 1, "strength": "hairline" },
+    "weights": { "regular": 400, "strong": 600 },
+    "density": "normal",
+    "capitals": false,
+    "link": { "color": "accent", "underline": "thin" },
+    "surfaceAccent": "none",
+    "rows": "cards"
+  }
+}
