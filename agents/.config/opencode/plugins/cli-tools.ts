@@ -41,7 +41,6 @@ import {
   runCliOutput,
   strictToolInput,
 } from "./lib/cli-tools/tool";
-import { upnextNamespace } from "./lib/cli-tools/upnext";
 
 export default Plugin.define({
   id: "cli-tools",
@@ -64,7 +63,6 @@ export default Plugin.define({
         contextNamespace,
         ghNamespace,
         herdrNamespace,
-        upnextNamespace,
         systemdNamespace,
         hyprctlNamespace,
         pitchforkNamespace,

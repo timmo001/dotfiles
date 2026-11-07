@@ -9,10 +9,7 @@
     "skipLibCheck": true,
     "jsx": "preserve",
     "jsxImportSource": "@opentui/solid",
-    "types": ["bun"],
-    "paths": {
-      "@timmo001/effect-upnext": ["./node_modules/@timmo001/effect-upnext/dist/index.d.ts"]
-    }
+    "types": ["bun"]
   },
   "include": ["*.ts", "lib", "*/*.ts", "*/*.tsx"]
 }
