@@ -241,9 +241,19 @@ const repoPulls = (
  * rebuilds this list instead of passing nothing.
  */
 const pendingRepoPulls = Effect.fn("Up.pendingRepoPulls")(function* () {
+  const log = yield* OutputLog;
+
   const repos = yield* (yield* DotDiff)
     .getAll()
-    .pipe(Effect.orElseSucceed((): readonly DiffRepo[] => []));
+    .pipe(
+      Effect.catch((error) =>
+        log
+          .warn(
+            `Could not rescan tracked repositories, so only safe default-branch checkouts will be pulled: ${error.message}`,
+          )
+          .pipe(Effect.as<readonly DiffRepo[]>([])),
+      ),
+    );
 
   const chosen = yield* Effect.forEach(
     repos.filter(
@@ -261,7 +271,15 @@ const pendingRepoPulls = Effect.fn("Up.pendingRepoPulls")(function* () {
           path: repo.path,
           line: `${repo.name}: ${repo.behind} behind`,
         } satisfies RepoPull;
-      }).pipe(Effect.orElseSucceed(() => null)),
+      }).pipe(
+        Effect.catch((error) =>
+          log
+            .warn(
+              `Could not check ${repo.name}, so it won't be pulled: ${error.message}`,
+            )
+            .pipe(Effect.as(null)),
+        ),
+      ),
     { concurrency: 6 },
   );
 
