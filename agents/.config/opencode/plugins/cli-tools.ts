@@ -7,7 +7,6 @@ import { Plugin } from "@opencode/plugin/effect";
 import { Tool } from "@opencode/schema/tool";
 import { Effect, Result, Schema } from "effect";
 import { argRecord, stringArg } from "../lib/guard-paths";
-import { contextNamespace } from "./lib/cli-tools/context";
 import { ghJobs, ghNamespace } from "./lib/cli-tools/gh";
 import { gitNamespace } from "./lib/cli-tools/git";
 import { herdrNamespace } from "./lib/cli-tools/herdr";
@@ -15,7 +14,6 @@ import { hyprctlNamespace, systemBridgeAvailable } from "./lib/cli-tools/hyprctl
 import { loadDotTools } from "./lib/cli-tools/dot";
 import { jobsNamespace } from "./lib/cli-tools/jobs";
 import { miseNamespace } from "./lib/cli-tools/mise";
-import { notesNamespace } from "./lib/cli-tools/notes";
 import { omarchyNamespace } from "./lib/cli-tools/omarchy";
 import { opencode2Namespace } from "./lib/cli-tools/opencode2";
 import {
@@ -28,7 +26,6 @@ import {
 import { pacmanNamespace } from "./lib/cli-tools/pacman";
 import { pitchforkNamespace } from "./lib/cli-tools/pitchfork";
 import { type CodeModeCatalogue, shellNudge } from "./lib/cli-tools/shell-nudge";
-import { skillMaintenanceNamespace } from "./lib/cli-tools/skill-maintenance";
 import { systemdNamespace } from "./lib/cli-tools/systemd";
 import {
   CliInput,
@@ -59,8 +56,6 @@ export default Plugin.define({
             "The dot dotfiles CLI: tracked repositories, pull request queues, sessions, services, Herdr, skills and machine health.",
           tools: Result.isSuccess(dotTools) ? dotTools.success.tools : [],
         },
-        notesNamespace,
-        contextNamespace,
         ghNamespace,
         herdrNamespace,
         systemdNamespace,
@@ -76,7 +71,6 @@ export default Plugin.define({
         gitNamespace,
         opencode2Namespace,
         pacmanNamespace,
-        skillMaintenanceNamespace,
       ];
 
       const namespaces: readonly Namespace[] = [
