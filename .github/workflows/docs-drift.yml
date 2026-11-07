@@ -36,6 +36,8 @@ on:
       - 'docs/src/content/docs/agents/opencode/commands.md'
       - 'docs/src/content/docs/agents/opencode/plugins.md'
       - '.github/workflows/docs-drift.yml'
+  # To re-run on the latest commit when a fix landed outside these paths
+  workflow_dispatch:
 
 permissions:
   contents: read
