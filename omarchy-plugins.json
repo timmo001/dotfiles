@@ -75,20 +75,12 @@
       }
     },
     {
-      "id": "timmo.command",
-      "instance": "upkeep",
+      "id": "timmo.upkeep",
       "placement": { "section": "center", "after": "timmo.command" },
       "settings": {
         "primaryOnly": true,
         "hideWhenQuiet": true,
-        "run": "upkeep status --bar-json",
-        "interval": 60000,
-        "onClick": "xdg-open http://homeassistant.local:8123/hassio/ingress/0530478f_upkeep",
-        "classColors": {
-          "upkeep-ok": "#9b9b9b",
-          "upkeep-warning": "#e5c07b",
-          "upkeep-degraded": "#e06c75"
-        }
+        "url": "http://homeassistant.local:7272"
       },
       "hosts": {
         "desktop": { "primaryOutput": "HDMI-A-2" },
