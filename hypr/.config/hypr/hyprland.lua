@@ -29,6 +29,29 @@ require("default.hypr.toggles")
 
 -- Add any other personal Hyprland configuration below.
 -- o.window("qemu", { workspace = "5" })
+
+-- The emulator sizes its phone window itself once the device is up, after the
+-- open rules, so size it to the monitor's height once that settles.
+hl.on("window.title", function(window)
+  if window.class ~= "Emulator" or not (window.title or ""):match("^Android Emulator %- ") then
+    return
+  end
+
+  hl.timer(function()
+    local monitor = window.monitor
+    if not monitor or not monitor.width then
+      return
+    end
+
+    local reserved = monitor.reserved or {}
+    local usable = math.floor(monitor.height / monitor.scale) - (reserved.top or 0) - (reserved.bottom or 0)
+    local height = math.floor(usable * 0.9)
+
+    hl.dispatch(hl.dsp.window.resize({ x = math.floor(height * 1080 / 2400), y = height, relative = false, window = window }))
+    hl.dispatch(hl.dsp.window.center({ window = window }))
+  end, { timeout = 3000, type = "oneshot" })
+end)
+
 hl.layer_rule({
   match = { namespace = "timmo-workspace-relayout" },
   no_anim = true,
