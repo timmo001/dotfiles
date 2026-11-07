@@ -10,7 +10,6 @@ import { argRecord, stringArg } from "../lib/guard-paths";
 import { contextNamespace } from "./lib/cli-tools/context";
 import { ghJobs, ghNamespace } from "./lib/cli-tools/gh";
 import { gitNamespace } from "./lib/cli-tools/git";
-import { haBridgeNamespace } from "./lib/cli-tools/ha-bridge";
 import { herdrNamespace } from "./lib/cli-tools/herdr";
 import { hyprctlNamespace } from "./lib/cli-tools/hyprctl";
 import { loadDotTools } from "./lib/cli-tools/dot";
@@ -68,7 +67,6 @@ export default Plugin.define({
         triageNamespace,
         ghNamespace,
         herdrNamespace,
-        haBridgeNamespace,
         systemBridgeNamespace,
         upnextNamespace,
         systemdNamespace,

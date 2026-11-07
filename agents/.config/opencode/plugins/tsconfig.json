@@ -11,7 +11,6 @@
     "jsxImportSource": "@opentui/solid",
     "types": ["bun"],
     "paths": {
-      "@timmo001/effect-ha-bridge": ["./node_modules/@timmo001/effect-ha-bridge/dist/index.d.ts"],
       "@timmo001/effect-upnext": ["./node_modules/@timmo001/effect-upnext/dist/index.d.ts"]
     }
   },

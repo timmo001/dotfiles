@@ -51,7 +51,10 @@ export const installOpencodePluginDependencies = Effect.gen(function* () {
 });
 
 /** Plugins every machine loads from the global OpenCode config. */
-const GLOBAL_PLUGINS = ["github:timmo001/upkeep#main::path:packages/opencode"];
+const GLOBAL_PLUGINS = [
+  "github:timmo001/upkeep#main::path:packages/opencode",
+  "github:timmo001/ha-bridge#main::path:packages/opencode",
+];
 
 const CONFIG_PATH = join("agents", ".config", "opencode", "opencode.json");
 
