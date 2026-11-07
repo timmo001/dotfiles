@@ -256,8 +256,9 @@ const STAGE_DESCRIPTIONS: Record<UpStage, string> = {
   repos:
     "Pull tracked repositories that are behind, leaving any with work in progress alone; name repositories to pull just those",
   tools: "Install missing mise tools, upgrade the rest and prune removed ones",
-  plugins:
-    "Update the Pi, Plannotator and OpenCode plugins and restore Herdr plugins",
+  plugins: "Update the Pi, Plannotator and OpenCode plugins",
+  herdr:
+    "Restore pinned Herdr plugins and sync the saved Herdr and hc machines",
   agents: "Sync agent instructions and reload running agents",
   shell: "Refresh shell modules, start the doctor check and refresh the bar",
 };
@@ -347,6 +348,18 @@ const updateCommand = describe(
           "Internal: the groups picked before a restart handoff",
         ),
       ),
+      declined: Flag.Literals("declined", UP_GROUPS).pipe(
+        Flag.atLeast(0),
+        Flag.withDescription(
+          "Internal: the groups offered but not picked before a restart handoff",
+        ),
+      ),
+      changed: Flag.Literals("changed", UP_GROUPS).pipe(
+        Flag.atLeast(0),
+        Flag.withDescription(
+          "Internal: the stages that changed something before a restart handoff",
+        ),
+      ),
       noSelfUpdate: bool(
         "no-self-update",
         "Skip the internal self-update phase, which pulls the public and private dotfiles",
@@ -365,9 +378,11 @@ const updateCommand = describe(
     },
     ({
       app,
+      changed,
       check,
       checkAll,
       checkRepos,
+      declined,
       force,
       group,
       noSelfUpdate,
@@ -390,6 +405,8 @@ const updateCommand = describe(
             noSelfUpdate ||
             postHookRepo.length > 0 ||
             group.length > 0 ||
+            declined.length > 0 ||
+            changed.length > 0 ||
             Option.isSome(startedAt)
           )
             return yield* new CliError.InvalidValue({
@@ -418,14 +435,21 @@ const updateCommand = describe(
         if (pull || onlyStow || app)
           return yield* update({ ...options, pull, stow: onlyStow, app });
 
-        return yield* up({ ...options, groups: group, yes, force });
+        return yield* up({
+          ...options,
+          groups: group,
+          declined,
+          changed,
+          yes,
+          force,
+        });
       }),
   ).pipe(Command.withSubcommands(UP_STAGES.map(upStageCommand))),
-  "Check everything, pick what to update, then run it. The picker lists each stage (dotfiles, skills, repos, stow, tools, plugins, agents, shell), then gh extensions, missing packages and omarchy update; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at and --group flags carry a run across the self-update restart.",
+  "Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell), then gh extensions, missing packages and omarchy update; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.",
   ["dot up", "dot up --check", "dot up --yes", "dot up --stow"],
   {
     description:
-      "dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending pacman and AUR packages, packages from the public and private lists that aren't installed, Omarchy and gh extensions. It saves the result for the bar, lists it, then asks which groups to run, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order, each numbered with a one-line description:\n\n1. Dotfiles: pulls the public dotfiles, rebuilds and relaunches dot, scans and pulls tracked repositories, moves the skills checkout to the latest skills main, syncs MCP config, stows, installs mise tools, refreshes agent runtimes, syncs agent instructions, reloads agents and refreshes shell modules. Pulls are fast-forward-only and never stash or rebase.\n2. Repositories: when the only dotfiles work is pulling tracked repositories, pulls just those and runs their post-update commands, without the other dotfiles steps.\n3. Mise tools: installs missing tools and runs mise up with no release delay.\n4. gh extensions: installs missing ones and upgrades the rest.\n5. Missing packages: installs packages from the public and private lists.\n6. System: installs the Omarchy patch hook root-owned, then hands over to omarchy update for pacman, AUR and Omarchy updates. When a dotfiles patch no longer applies to the pending Omarchy, it holds the system update back and offers a Herdr agent to fix the patch.\n\nIt finishes with a summary of updated repositories, mise tools and every step.\n\n--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, and --check-all every tracked repository, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands. The Git panel uses --no-reload to skip agent reload and module refresh.",
+      "dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, Pi, Plannotator and OpenCode plugins, pending pacman and AUR packages, packages from the public and private lists that aren't installed, Omarchy and gh extensions. It saves the result for the bar, lists it, then asks which groups to run, offering only those with work, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order:\n\n1. Stages: dotfiles, skills, repos, stow, tools, plugins, herdr, agents and shell, as `dot up <stage>` runs them. A stage that wasn't offered still runs when an earlier one changed something it applies, such as stow, tools and Herdr after a dotfiles pull, plugins after a tools upgrade, agents after changed skills or plugins and the shell after any change; tools and plugins are checked again first. A stage offered and left unticked never runs.\n2. gh extensions: installs missing ones and upgrades the rest.\n3. Missing packages: installs packages from the public and private lists.\n4. System: installs the Omarchy patch hook root-owned, then hands over to omarchy update for pacman, AUR and Omarchy updates. When a dotfiles patch no longer applies to the pending Omarchy, it holds the system update back and offers a Herdr agent to fix the patch.\n\nIt finishes with a summary of updated repositories, mise tools and every step.\n\n--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, and --check-all every tracked repository, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands. The Git panel uses --no-reload to skip agent reload and module refresh.",
     sections: [
       {
         title: "Exit codes",

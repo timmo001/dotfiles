@@ -1,8 +1,8 @@
 /**
  * @file The stages of `dot up`, each runnable on its own as `dot up <stage>`:
- * dotfiles, skills, repos, stow, tools, plugins, agents and shell. A stage
- * never prompts or opens Herdr, so a background runner such as Upkeep can call
- * it, and with `--json` it prints one result saying what changed.
+ * dotfiles, skills, repos, stow, tools, plugins, herdr, agents and shell. A
+ * stage never prompts or opens Herdr, so a background runner such as Upkeep can
+ * call it, and with `--json` it prints one result saying what changed.
  */
 import { Clock, Effect, Schema } from "effect";
 import { basename } from "path";
@@ -105,6 +105,8 @@ export interface UpStageOptions {
   readonly repos?: readonly string[];
   /** Whether the agents stage reloads running agents. */
   readonly reload?: boolean;
+  /** Whether the shell stage refreshes the update status; `dot up` does a full one after. */
+  readonly refreshStatus?: boolean;
 }
 
 const changedBy = (actions: readonly RecapEntry[]) =>
@@ -363,24 +365,29 @@ const toolsStage = Effect.gen(function* () {
 });
 
 /**
- * Update the Pi, Plannotator and global OpenCode plugins and restore Herdr's
- * pinned plugins.
+ * Update the Pi, Plannotator and global OpenCode plugins.
  */
 const pluginsStage = Effect.gen(function* () {
-  const agentPlugins = [
+  const actions = [
     yield* updatePiExtensions,
     yield* updatePlannotatorPlugins,
     yield* updateGlobalOpencodePlugins,
   ];
 
   return {
+    actions,
+    pluginsChanged: changedBy(actions),
+  } satisfies StageOutcome;
+});
+
+/** Restore Herdr's pinned plugins and sync the saved Herdr and hc machines. */
+const herdrStage = Effect.gen(function* () {
+  return {
     actions: [
-      ...agentPlugins,
       yield* restoreHerdrPlugins,
       yield* syncHerdrMachines,
       yield* syncHcMachines,
     ],
-    pluginsChanged: changedBy(agentPlugins),
   } satisfies StageOutcome;
 });
 
@@ -399,25 +406,28 @@ const agentsStage = (reload: boolean) =>
     } satisfies StageOutcome;
   });
 
-const shellStage = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  const refreshed = yield* refreshShellModules;
+const shellStage = (refreshStatus: boolean) =>
+  Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const refreshed = yield* refreshShellModules;
 
-  const exitCode = yield* executor.exitCode("dot", [
-    "updates",
-    "refresh",
-    "--quick",
-  ]);
+    if (!refreshStatus) return { actions: [refreshed] } satisfies StageOutcome;
 
-  return {
-    actions: [
-      refreshed,
-      exitCode === 0
-        ? done("Refreshed the update status")
-        : warn(`Update status refresh failed (exit ${exitCode})`),
-    ],
-  } satisfies StageOutcome;
-});
+    const exitCode = yield* executor.exitCode("dot", [
+      "updates",
+      "refresh",
+      "--quick",
+    ]);
+
+    return {
+      actions: [
+        refreshed,
+        exitCode === 0
+          ? done("Refreshed the update status")
+          : warn(`Update status refresh failed (exit ${exitCode})`),
+      ],
+    } satisfies StageOutcome;
+  });
 
 const stageEffect = (stage: UpStage, opts: UpStageOptions) =>
   Effect.gen(function* () {
@@ -434,10 +444,12 @@ const stageEffect = (stage: UpStage, opts: UpStageOptions) =>
         return yield* toolsStage;
       case "plugins":
         return yield* pluginsStage;
+      case "herdr":
+        return yield* herdrStage;
       case "agents":
         return yield* agentsStage(opts.reload ?? true);
       case "shell":
-        return yield* shellStage;
+        return yield* shellStage(opts.refreshStatus ?? true);
     }
   });
 

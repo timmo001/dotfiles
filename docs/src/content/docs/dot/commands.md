@@ -56,20 +56,18 @@ dot install [flags]
 
 Aliases: `dot update`
 
-Check everything, pick what to update, then run it. The picker lists each stage (dotfiles, skills, repos, stow, tools, plugins, agents, shell), then gh extensions, missing packages and omarchy update; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at and --group flags carry a run across the self-update restart.
+Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell), then gh extensions, missing packages and omarchy update; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.
 
 ```text
 dot up <subcommand> [flags]
 ```
 
-dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending pacman and AUR packages, packages from the public and private lists that aren't installed, Omarchy and gh extensions. It saves the result for the bar, lists it, then asks which groups to run, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order, each numbered with a one-line description:
+dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, Pi, Plannotator and OpenCode plugins, pending pacman and AUR packages, packages from the public and private lists that aren't installed, Omarchy and gh extensions. It saves the result for the bar, lists it, then asks which groups to run, offering only those with work, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order:
 
-1. Dotfiles: pulls the public dotfiles, rebuilds and relaunches dot, scans and pulls tracked repositories, moves the skills checkout to the latest skills main, syncs MCP config, stows, installs mise tools, refreshes agent runtimes, syncs agent instructions, reloads agents and refreshes shell modules. Pulls are fast-forward-only and never stash or rebase.
-2. Repositories: when the only dotfiles work is pulling tracked repositories, pulls just those and runs their post-update commands, without the other dotfiles steps.
-3. Mise tools: installs missing tools and runs mise up with no release delay.
-4. gh extensions: installs missing ones and upgrades the rest.
-5. Missing packages: installs packages from the public and private lists.
-6. System: installs the Omarchy patch hook root-owned, then hands over to omarchy update for pacman, AUR and Omarchy updates. When a dotfiles patch no longer applies to the pending Omarchy, it holds the system update back and offers a Herdr agent to fix the patch.
+1. Stages: dotfiles, skills, repos, stow, tools, plugins, herdr, agents and shell, as `dot up <stage>` runs them. A stage that wasn't offered still runs when an earlier one changed something it applies, such as stow, tools and Herdr after a dotfiles pull, plugins after a tools upgrade, agents after changed skills or plugins and the shell after any change; tools and plugins are checked again first. A stage offered and left unticked never runs.
+2. gh extensions: installs missing ones and upgrades the rest.
+3. Missing packages: installs packages from the public and private lists.
+4. System: installs the Omarchy patch hook root-owned, then hands over to omarchy update for pacman, AUR and Omarchy updates. When a dotfiles patch no longer applies to the pending Omarchy, it holds the system update back and offers a Herdr agent to fix the patch.
 
 It finishes with a summary of updated repositories, mise tools and every step.
 
@@ -90,7 +88,9 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--check-all` | Also check development repos for pulls, skipping local work |
 | `--yes` | Run every group with work without asking, and pass -y to omarchy update |
 | `--force` | Offer every group, even with nothing pending |
-| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, agents, shell, gh, packages, system) |
+| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell, gh, packages, system) |
+| `--declined` `<choice>` | Internal: the groups offered but not picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell, gh, packages, system) |
+| `--changed` `<choice>` | Internal: the stages that changed something before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell, gh, packages, system) |
 | `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
@@ -259,7 +259,7 @@ dot up tools --json
 
 ### `dot up plugins`
 
-Update the Pi, Plannotator and OpenCode plugins and restore Herdr plugins. Never prompts, so it can run in the background.
+Update the Pi, Plannotator and OpenCode plugins. Never prompts, so it can run in the background.
 
 ```text
 dot up plugins [flags] [<repo...>]
@@ -283,6 +283,34 @@ dot up plugins [flags] [<repo...>]
 ```bash
 dot up plugins
 dot up plugins --json
+```
+
+### `dot up herdr`
+
+Restore pinned Herdr plugins and sync the saved Herdr and hc machines. Never prompts, so it can run in the background.
+
+```text
+dot up herdr [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up herdr
+dot up herdr --json
 ```
 
 ### `dot up agents`

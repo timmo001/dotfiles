@@ -140,6 +140,6 @@ Personal dotfiles: don't aim for coverage. Default to no new tests; validate by 
 
 ## Applying Changes
 
-- When a change only takes effect on this machine through `dot up`, run the narrowest stage yourself once checks pass, without offering it: `dot up stow` (stow, completions, MCP sync), `dot up tools` (mise), `dot up plugins` (Pi, Plannotator, Herdr plugins) or `dot agent sync` (agent instructions). These stages are headless and apply the local checkout, so they need no commit or push. `mise run dot:build` already installs a rebuilt `dot`.
+- When a change only takes effect on this machine through `dot up`, run the narrowest stage yourself once checks pass, without offering it: `dot up stow` (stow, completions, MCP sync), `dot up tools` (mise), `dot up plugins` (Pi, Plannotator and OpenCode plugins), `dot up herdr` (Herdr plugins and machines) or `dot agent sync` (agent instructions). These stages are headless and apply the local checkout, so they need no commit or push. `mise run dot:build` already installs a rebuilt `dot`.
 - `dot up dotfiles` and `dot up skills` read the remote, so only run them after a push; on other machines they arrive through their own `dot up`.
 - Leave `dot up agents`, which reloads running agents, and the full interactive `dot up` to the user.

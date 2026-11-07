@@ -147,7 +147,14 @@ const AGENT_TOOLS = {
   up: {
     access: "write",
     timeout: "2 minutes",
-    omit: ["no-self-update", "post-hook-repo", "started-at", "group"],
+    omit: [
+      "no-self-update",
+      "post-hook-repo",
+      "started-at",
+      "group",
+      "declined",
+      "changed",
+    ],
     exitCodes: [0, 10],
     description:
       "Check for updates and return at once when nothing is pending; otherwise run dot up in a new Herdr tab in the dotfiles workspace, where the user answers its prompts, and return the pane to follow with herdr.pane_read. check reports what is pending without opening a tab.",
@@ -158,6 +165,7 @@ const AGENT_TOOLS = {
   "up stow": { access: "write", timeout: "5 minutes" },
   "up tools": { access: "write", timeout: "30 minutes" },
   "up plugins": { access: "write", timeout: "10 minutes" },
+  "up herdr": { access: "write", timeout: "5 minutes" },
   "up agents": { access: "write", timeout: "5 minutes" },
   "up shell": { access: "write", timeout: "5 minutes" },
   "updates refresh": { access: "write", timeout: "5 minutes" },

@@ -1,7 +1,8 @@
 /**
- * @file `dot up`: check everything, pick what to run, then run it in order:
- * dotfiles (or only the tracked repository pulls), mise tools, gh extensions,
- * missing packages and the Omarchy system update.
+ * @file `dot up`: check everything, pick from the groups with work, then run
+ * them in order. A stage the check found no work for only runs when an
+ * earlier stage changed something it applies, such as stow after a dotfiles
+ * pull.
  */
 
 import { Extension } from "@timmo001/effect-gh";
@@ -15,6 +16,7 @@ import { gitOutput } from "../lib/git.js";
 import { SKILLS_CHECKOUT } from "../lib/skillsMaintenance.js";
 import { ENV, envString } from "../lib/env.js";
 import { formatCause } from "../lib/schema.js";
+import { installGhExtensions } from "../lib/ghExtensions.js";
 import { DEFAULT_SOCKET_PATH, openHerdrRepo } from "./HerdrRepoOpen.js";
 import {
   loadPrivatePackageRepoConfig,
@@ -24,10 +26,12 @@ import { setupPrivatePackageRepo } from "./SetupPrivateRepo.js";
 import { patchDrift, syncRootPatches } from "../lib/omarchyPatches.js";
 import { installMissingArchPackages } from "../lib/packageSetup.js";
 import {
+  agentPlugins,
   checkAll,
   groupLines,
   hasWork,
   pendingGroups,
+  tools as checkTools,
   type PendingGroup,
   type PendingStatus,
 } from "../lib/pendingUpdates.js";
@@ -54,7 +58,6 @@ import {
   CORE_CHECK_CATEGORIES,
   isUpStage,
   UP_GROUPS,
-  UP_STAGES,
   UPDATE_CHECK_AVAILABLE_EXIT,
   UPDATE_CHECK_ERROR_EXIT,
   type UpdateOptions,
@@ -97,8 +100,11 @@ const GROUP_INFO: Record<
   },
   plugins: {
     title: "Agent plugins",
-    description:
-      "Update the Pi, Plannotator and OpenCode plugins and restore Herdr plugins",
+    description: "Update the Pi, Plannotator and OpenCode plugins",
+  },
+  herdr: {
+    title: "Herdr",
+    description: "Restore pinned Herdr plugins and sync the saved machines",
   },
   agents: {
     title: "Agents",
@@ -107,8 +113,7 @@ const GROUP_INFO: Record<
   },
   shell: {
     title: "Shell",
-    description:
-      "Refresh shell modules, start the doctor check and refresh the bar",
+    description: "Refresh shell modules and start the doctor check",
   },
   gh: {
     title: "gh extensions",
@@ -128,7 +133,7 @@ const GROUP_INFO: Record<
 /**
  * Which `dot up` stage or group handles each line of the check's work:
  * tracked repository pulls go to repos, stow and Herdr pin maintenance to
- * stow and plugins, and the rest of the dotfiles work to the dotfiles stage.
+ * stow and herdr, and the rest of the dotfiles work to the dotfiles stage.
  */
 const groupWork = (
   groups: readonly PendingGroup[],
@@ -159,7 +164,8 @@ const groupWork = (
     repos: dotfiles.filter(isPull),
     stow: dotfiles.filter(isStow),
     tools: lines("tools"),
-    plugins: dotfiles.filter(isHerdrPin),
+    plugins: lines("plugins"),
+    herdr: dotfiles.filter(isHerdrPin),
     agents: [],
     shell: [],
     gh: lines("gh"),
@@ -168,13 +174,53 @@ const groupWork = (
   } satisfies Record<UpGroup, readonly string[]>;
 };
 
-/** Stages that apply what the others brought in, offered whenever any stage has work. */
-const FOLLOW_ON_STAGES: ReadonlySet<UpGroup> = new Set([
-  "stow",
-  "plugins",
-  "agents",
-  "shell",
-]);
+/**
+ * Whether a stage the check found no work for still needs to run, because a
+ * stage before it changed something it applies: a dotfiles pull brings stow
+ * links, mise config, Herdr pins and agent instructions; a mise upgrade can
+ * move the Plannotator CLI its plugins follow; changed skills or plugins need
+ * running agents reloaded; and the shell refreshes after any change. Tools and
+ * plugins are checked again before they run.
+ */
+const followsOn = (
+  group: UpGroup,
+  changed: ReadonlySet<UpGroup>,
+  reload: boolean,
+) => {
+  switch (group) {
+    case "stow":
+    case "tools":
+    case "herdr":
+      return changed.has("dotfiles");
+    case "plugins":
+      return changed.has("tools");
+    case "agents":
+      return changed.has("dotfiles") || reload;
+    case "shell":
+      return changed.size > 0;
+    default:
+      return false;
+  }
+};
+
+/** Check a follow-on stage again, now earlier stages have run, for whether it has work. */
+const stillNeeded = Effect.fn("Up.stillNeeded")(function* (group: UpGroup) {
+  if (group === "tools") {
+    const status = yield* checkTools(CHECK_TIMEOUT);
+
+    return (
+      status === null || status.outdated.length > 0 || status.missing.length > 0
+    );
+  }
+
+  if (group === "plugins") {
+    const pending = yield* agentPlugins(CHECK_TIMEOUT);
+
+    return pending === null || pending.length > 0;
+  }
+
+  return true;
+});
 
 /** Colour a pending work line by its shape, leaving unknown shapes plain. */
 const styleWorkLine = (style: Styler, line: string) => {
@@ -324,6 +370,10 @@ const logIncoming = Effect.fn("Up.incoming")(function* (
 export interface UpOptions extends UpdateOptions {
   /** Offer every group, even those with nothing pending. */
   readonly force?: boolean;
+  /** Groups offered but not picked, carried across restart handoffs so they don't run as follow-ons. */
+  readonly declined?: readonly UpGroup[];
+  /** Stages that changed something before a restart handoff, so the stages that apply it follow. */
+  readonly changed?: readonly UpGroup[];
 }
 
 const interactive = () =>
@@ -427,24 +477,18 @@ export const upCheck = Effect.gen(function* () {
   });
 }).pipe(Effect.withSpan("Up.check"));
 
-/** Pick the groups to run, all with work ticked. */
+/** Pick the groups to run from those with work, all ticked. */
 const pickGroups = Effect.fn("Up.pick")(function* (
   work: Record<UpGroup, readonly string[]>,
   opts: UpOptions,
 ) {
-  const stageWork = UP_STAGES.some((stage) => work[stage].length > 0);
-
   const offered: UpGroup[] = UP_GROUPS.filter(
-    (group) =>
-      opts.force ||
-      group === "gh" ||
-      work[group].length > 0 ||
-      (stageWork && FOLLOW_ON_STAGES.has(group)),
+    (group) => opts.force || work[group].length > 0,
   );
 
-  if (opts.yes) return offered;
+  if (opts.yes) return { offered, picked: offered };
 
-  return yield* Prompt.run(
+  const picked = yield* Prompt.run(
     Prompt.MultiSelect({
       message: "Choose updates:",
       choices: offered.map((group) => ({
@@ -463,6 +507,8 @@ const pickGroups = Effect.fn("Up.pick")(function* (
     // NodeTerminal retains its raw readline resource for a 10 ms idle window.
     Effect.tap(() => Effect.sleep("20 millis")),
   );
+
+  return { offered, picked };
 });
 
 /** Offer a Herdr agent to fix patches that no longer apply. */
@@ -559,6 +605,8 @@ const systemUpdate = Effect.fn("Up.system")(function* (yes: boolean) {
 });
 
 const ghUpgrade = Effect.gen(function* () {
+  yield* installGhExtensions;
+
   const exitCode = yield* Extension.upgradeAll({
     interactive: true,
     timeout: null,
@@ -571,7 +619,7 @@ const ghUpgrade = Effect.gen(function* () {
   );
 
   return exitCode === 0
-    ? done("Upgraded gh extensions")
+    ? done("Installed and upgraded gh extensions")
     : warn(`gh extension upgrade exited ${exitCode}`);
 }).pipe(Effect.withSpan("Up.gh"));
 
@@ -583,10 +631,12 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
   const log = yield* OutputLog;
   const executor = yield* CommandExecutor;
   const startedAt = opts.startedAt ?? (yield* Clock.currentTimeMillis);
-  const restarted = (opts.groups?.length ?? 0) > 0;
+  const changed = new Set<UpGroup>(opts.changed ?? []);
+  const restarted = (opts.groups?.length ?? 0) > 0 || changed.size > 0;
 
   let status: PendingStatus | null = null;
   let groups: readonly UpGroup[];
+  let declined: ReadonlySet<UpGroup> = new Set(opts.declined ?? []);
   let pulls: readonly RepoPull[] = [];
 
   if (restarted) {
@@ -637,32 +687,50 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
     // Only work that needs prompts answered opens a Herdr tab.
     if (!interactive()) return yield* handOffToHerdr(opts);
 
-    groups = yield* pickGroups(work, opts);
+    const choice = yield* pickGroups(work, opts);
+
+    groups = choice.picked;
+    declined = new Set(
+      choice.offered.filter((group) => !choice.picked.includes(group)),
+    );
   }
 
-  if (groups.length === 0) {
+  if (groups.length === 0 && changed.size === 0) {
     yield* log.info("Nothing picked");
 
     return;
   }
 
   const picked = new Set(groups);
-  const ordered = UP_GROUPS.filter((group) => picked.has(group));
+  const ran = new Set<UpGroup>();
   const updatedRepos: UpdatedRepo[] = [];
   const miseToolChanges: MiseToolChange[] = [];
   const actions: RecapEntry[] = [];
   let agentsNeedReload = false;
 
-  for (const [index, group] of ordered.entries()) {
-    yield* log.section(
-      `[${index + 1}/${ordered.length}] ${GROUP_INFO[group].title}`,
+  for (const [index, group] of UP_GROUPS.entries()) {
+    if (!picked.has(group)) {
+      if (
+        declined.has(group) ||
+        !followsOn(group, changed, agentsNeedReload) ||
+        !(yield* stillNeeded(group))
+      )
+        continue;
+    }
+
+    yield* log.section(GROUP_INFO[group].title);
+    yield* log.info(
+      picked.has(group)
+        ? GROUP_INFO[group].description
+        : `${GROUP_INFO[group].description}, to apply what changed`,
     );
-    yield* log.info(GROUP_INFO[group].description);
+    ran.add(group);
 
     if (isUpStage(group)) {
       const result: UpStageResult = yield* runUpStage(group, {
         repos: group === "repos" ? pulls.map((repo) => repo.path) : [],
         reload: opts.reload !== false && agentsNeedReload,
+        refreshStatus: false,
       });
 
       updatedRepos.push(...result.updatedRepos);
@@ -670,12 +738,16 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
       actions.push(...result.actions);
       agentsNeedReload ||= result.skillsChanged || result.pluginsChanged;
 
+      if (result.changed) changed.add(group);
+
       if (result.failed) process.exitCode = 1;
 
-      const rest = ordered.slice(index + 1);
-
       // The later stages run with the code the pull just brought in.
-      if (group === "dotfiles" && result.restartNeeded && rest.length > 0) {
+      if (group === "dotfiles" && result.restartNeeded) {
+        const rest = UP_GROUPS.slice(index + 1).filter((next) =>
+          picked.has(next),
+        );
+
         yield* logUpdateSummary(
           updatedRepos,
           miseToolChanges,
@@ -686,6 +758,8 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
         yield* restartDot([
           "up",
           ...rest.flatMap((next) => ["--group", next]),
+          ...[...declined].flatMap((next) => ["--declined", next]),
+          ...[...changed].flatMap((next) => ["--changed", next]),
           ...(opts.yes ? ["--yes"] : []),
           ...(opts.reload === false ? ["--no-reload"] : []),
           "--started-at",
@@ -714,7 +788,7 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
     }
   }
 
-  if (!picked.has("system") && picked.has("stow")) {
+  if (!ran.has("system") && ran.has("stow")) {
     const synced = yield* syncRootPatches();
 
     if (synced) actions.push(done("Installed the Omarchy patch hook"));

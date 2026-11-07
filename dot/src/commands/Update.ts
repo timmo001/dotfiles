@@ -203,6 +203,7 @@ export const UP_STAGES = [
   "stow",
   "tools",
   "plugins",
+  "herdr",
   "agents",
   "shell",
 ] as const;
