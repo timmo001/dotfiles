@@ -139,42 +139,6 @@ command = "dotfiles.yazi.open-tab"
 description = "open Yazi in a new tab"
 
 [[keys.command]]
-key = "prefix+f"
-type = "plugin_action"
-command = "timmo.agent-checks.open"
-description = "open CI checks"
-
-[[keys.command]]
-key = "prefix+alt+f"
-type = "plugin_action"
-command = "timmo.agent-checks.paste-ci"
-description = "paste CI failures into this agent"
-
-[[keys.command]]
-key = "prefix+l"
-type = "plugin_action"
-command = "timmo.agent-checks.lint"
-description = "open lint checks"
-
-[[keys.command]]
-key = "prefix+alt+l"
-type = "plugin_action"
-command = "timmo.agent-checks.paste-lint"
-description = "paste lint failures into this agent"
-
-[[keys.command]]
-key = "prefix+g"
-type = "plugin_action"
-command = "timmo.agent-checks.reviews"
-description = "open PR reviews"
-
-[[keys.command]]
-key = "prefix+alt+g"
-type = "plugin_action"
-command = "timmo.agent-checks.paste-reviews"
-description = "paste open review threads into this agent"
-
-[[keys.command]]
 key = "prefix+t"
 type = "plugin_action"
 command = "timmo.mascot.toggle"
@@ -235,26 +199,6 @@ rows = [
   [
     "branch",
     "git_status",
-    { token = "$timmo_agent_checks_lint", fg = "#f38ba8", dim = false, rules = [
-      { equals = "\uF4B1 ⚠", fg = "#f9e2af" },
-      { equals = "\uF4B1 ↻", fg = "#f9e2af" },
-      { equals = "\uF4B1 ✓", fg = "#a6e3a1" },
-    ] },
-    { token = "$timmo_agent_checks_ci", fg = "#f38ba8", dim = false, rules = [
-      { equals = "\uF52E ⚠", fg = "#f9e2af" },
-      { equals = "\uF52E …", fg = "#89b4fa" },
-      { equals = "\uF52E ↻", fg = "#f9e2af" },
-      { equals = "\uF52E ✓", fg = "#a6e3a1" },
-      { equals = "\uF52E ○", fg = "#73758a" },
-      { contains = "✓ ↶", fg = "#7f9f7a" },
-      { contains = "↻ ↶", fg = "#b3a078" },
-      { contains = "↶", fg = "#b07883" },
-    ] },
-    { token = "$timmo_agent_checks_reviews", fg = "#f38ba8", dim = false, rules = [
-      { equals = "\uF407 ⚠", fg = "#f9e2af" },
-      { equals = "\uF407 ↻", fg = "#f9e2af" },
-      { equals = "\uF407 ✓", fg = "#a6e3a1" },
-    ] },
   ],
 ]
 
