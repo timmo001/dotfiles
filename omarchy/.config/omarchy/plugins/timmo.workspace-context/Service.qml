@@ -10,7 +10,7 @@ Item {
   property var context: null
   property bool quiet: false
   readonly property string contextPath: Quickshell.env("XDG_RUNTIME_DIR") + "/dot-herdr-context.json"
-  // Matches the laptop's night-suspend and night-wake timers.
+  // The overnight hours the laptop's Upkeep worker rests.
   readonly property string quietStart: "00:00"
   readonly property string quietEnd: "07:00"
 
