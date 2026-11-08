@@ -10,8 +10,8 @@ Item {
   property var context: null
   property bool quiet: false
   readonly property string contextPath: Quickshell.env("XDG_RUNTIME_DIR") + "/dot-herdr-context.json"
-  // Matches the hours the dot service timers skip overnight.
-  readonly property string quietStart: "01:00"
+  // Matches the laptop's night-suspend and night-wake timers.
+  readonly property string quietStart: "00:00"
   readonly property string quietEnd: "07:00"
 
   function minutes(time) {
