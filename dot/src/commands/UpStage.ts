@@ -58,6 +58,7 @@ import {
   notifyUpdated,
   refreshShellModules,
   refreshTools,
+  reportPendingUpdates,
   restoreHerdrPlugins,
   runRepoPostUpdate,
   safePull,
@@ -490,7 +491,7 @@ export const runUpStage = Effect.fn("UpStage.run")(function* (
 
 /**
  * `dot up <stage>`: run one stage headless, then print its result as JSON or
- * as the usual summary. A failed stage exits 1.
+ * as the usual summary followed by `dot up --check`. A failed stage exits 1.
  */
 export const upStage = Effect.fn("UpStage.command")(function* (
   stage: UpStage,
@@ -501,7 +502,11 @@ export const upStage = Effect.fn("UpStage.command")(function* (
 
   yield* log.section(`Up ${stage.charAt(0).toUpperCase()}${stage.slice(1)}`);
 
-  const result = yield* runUpStage(stage, opts);
+  // The closing check saves the status, so the shell stage needn't refresh it.
+  const result = yield* runUpStage(stage, {
+    ...opts,
+    refreshStatus: opts.json,
+  });
 
   if (result.failed) process.exitCode = 1;
 
@@ -517,4 +522,5 @@ export const upStage = Effect.fn("UpStage.command")(function* (
     result.actions,
     startedAt,
   );
+  yield* reportPendingUpdates;
 });

@@ -57,6 +57,7 @@ import type { DiffRepo } from "../types.js";
 import {
   CORE_CHECK_CATEGORIES,
   isUpStage,
+  reportPendingUpdates,
   UP_GROUPS,
   UPDATE_CHECK_AVAILABLE_EXIT,
   UPDATE_CHECK_ERROR_EXIT,
@@ -629,7 +630,6 @@ const ghUpgrade = Effect.gen(function* () {
  */
 export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
   const log = yield* OutputLog;
-  const executor = yield* CommandExecutor;
   const startedAt = opts.startedAt ?? (yield* Clock.currentTimeMillis);
   const changed = new Set<UpGroup>(opts.changed ?? []);
   const restarted = (opts.groups?.length ?? 0) > 0 || changed.size > 0;
@@ -796,16 +796,6 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
       actions.push(warn("Could not install the Omarchy patch hook"));
   }
 
-  const refreshExitCode = yield* executor.exitCode("dot", [
-    "updates",
-    "refresh",
-  ]);
-
-  actions.push(
-    refreshExitCode === 0
-      ? done("Refreshed the update status")
-      : warn(`Update status refresh failed (exit ${refreshExitCode})`),
-  );
-
   yield* logUpdateSummary(updatedRepos, miseToolChanges, actions, startedAt);
+  yield* reportPendingUpdates;
 });

@@ -459,12 +459,14 @@ export const runRepoPostUpdate = (repo: GitManagedRepo) =>
 
 /**
  * Pull selected repositories and run their hooks. Unless `pullOnly` is set,
- * also apply changed dotfiles once.
+ * also apply changed dotfiles once. With `report`, finish with
+ * `dot up --check` unless a restarted update reports instead.
  */
 export const updateRepositories = Effect.fn("Update.repositories")(function* (
   paths: readonly string[],
   reload = true,
   pullOnly = false,
+  report = false,
 ) {
   const config = yield* Config;
   const fs = yield* FileSystem.FileSystem;
@@ -579,6 +581,8 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
     ]);
   } else {
     yield* notifyUpdated(updatedNames);
+
+    if (report) yield* reportPendingUpdates;
   }
 
   if (failedPulls.length > 0)
@@ -1285,6 +1289,16 @@ export const refreshShellModules = Effect.gen(function* () {
       : "Started the doctor check",
   );
 });
+
+/**
+ * Run `dot up --check` once a run has finished, to report what is still
+ * pending and save it for the bar. Its exit code leaves the run's alone.
+ */
+export const reportPendingUpdates = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+
+  yield* executor.inherit("dot", ["up", "--check"]);
+}).pipe(Effect.withSpan("Update.reportPending"));
 
 /** Exit code from `dot update --check` when in-scope updates are available. */
 export const UPDATE_CHECK_AVAILABLE_EXIT = 10;
@@ -2007,30 +2021,13 @@ export const update = (updateOpts?: UpdateOptions) =>
       } satisfies UpdateRun;
     }
 
-    const executor = yield* CommandExecutor;
-
-    const refreshExitCode = yield* executor.exitCode("dot", [
-      "updates",
-      "refresh",
-      "--quick",
-    ]);
-
-    yield* refreshExitCode === 0
-      ? log.success("Refreshed the update status")
-      : log.warn(`Update status refresh failed (exit ${refreshExitCode})`);
-
-    completedActions.push(
-      refreshExitCode === 0
-        ? done("Refreshed the update status")
-        : warn(`Update status refresh failed (exit ${refreshExitCode})`),
-    );
-
     yield* logUpdateSummary(
       updatedRepos,
       miseToolChanges,
       completedActions,
       startedAt,
     );
+    yield* reportPendingUpdates;
 
     return {
       updatedRepos,

@@ -69,7 +69,7 @@ dot up checks everything it can update or install: the dotfiles and tracked repo
 3. Missing packages: installs packages from the public and private lists.
 4. System: installs the Omarchy patch hook root-owned, then hands over to omarchy update for pacman, AUR and Omarchy updates. When a dotfiles patch no longer applies to the pending Omarchy, it holds the system update back and offers a Herdr agent to fix the patch.
 
-It finishes with a summary of updated repositories, mise tools and every step.
+It finishes with a summary of updated repositories, mise tools and every step, then runs dot up --check to report what is still pending. dot up <stage>, the phase flags and --repo end the same way, except with --json.
 
 --check reports everything without changing anything. --check-repos reports only the dotfiles repositories, and --check-all every tracked repository, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.
 
