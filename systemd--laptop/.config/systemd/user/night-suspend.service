@@ -1,7 +1,0 @@
-[Unit]
-Description=Suspend the laptop for the night, waking at 07:00
-After=graphical-session.target
-
-[Service]
-Type=oneshot
-ExecStart=%h/.local/bin/night-suspend

@@ -27,8 +27,6 @@ interface DefaultUnit {
 const DEFAULT_UNITS: readonly DefaultUnit[] = [
   // Hokum draws black cards on the desktop's NVIDIA GPU.
   { unit: "hokum.service", onlyHosts: ["laptop"] },
-  // Suspends the laptop at midnight; the system night-wake.timer wakes it.
-  { unit: "night-suspend.timer", onlyHosts: ["laptop"] },
 ];
 
 /** Where a default unit can come from: the stowed systemd package or a package. */

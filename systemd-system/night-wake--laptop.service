@@ -1,9 +1,0 @@
-# Does nothing: night-wake.timer only needs a unit to start once it has woken
-# the laptop. Installed alongside it, see night-wake--laptop.timer.
-
-[Unit]
-Description=Wake the laptop at 07:00
-
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/true
