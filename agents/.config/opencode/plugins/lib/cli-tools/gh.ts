@@ -771,15 +771,15 @@ export const ghNamespace: ClientNamespace = {
       name: "label_list",
       description: "List a repository's labels with their colour and description.",
       access: "read",
-      input: Schema.Struct({ repo, limit: Schema.optionalKey(Schema.Int) }),
+      input: Schema.Struct({
+        repo,
+        limit: Schema.optionalKey(Schema.Int),
+        search: Schema.optionalKey(Schema.String).annotate({
+          description: "Only labels whose name or description matches, best match first",
+        }),
+      }),
       run: (input, call) =>
-        withGh((gh) =>
-          gh.json(
-            ["label", "list", `--repo=${call.repo}`, "--json=name,color,description", `--limit=${input.limit ?? 100}`],
-            Schema.Unknown,
-            { cwd: call.cwd },
-          ),
-        ),
+        Label.list({ ...input, repo: call.repo, limit: input.limit ?? 100 }, { cwd: call.cwd }),
     }),
     ghTool({
       name: "workflow_list",
@@ -1706,6 +1706,33 @@ export const ghNamespace: ClientNamespace = {
       input: Schema.Struct({ repo, name: Schema.String }),
       resource: (input, repo) => `${repo} ${input.name}`,
       run: (input, call) => Label.remove({ ...input, repo: call.repo }, { cwd: call.cwd }),
+    }),
+    ghTool({
+      name: "label_edit",
+      description: "Rename a label or change its colour or description, keeping it on its issues and pull requests.",
+      access: "write",
+      input: Schema.Struct({
+        repo,
+        name: Schema.String.annotate({ description: "The label's current name" }),
+        newName: Schema.optionalKey(Schema.String),
+        color: Schema.optionalKey(Schema.String).annotate({ description: "A hex colour without #" }),
+        description: Schema.optionalKey(Schema.String),
+      }),
+      resource: (input, repo) => `${repo} ${input.name}`,
+      run: (input, call) => Label.edit({ ...input, repo: call.repo }, { cwd: call.cwd }),
+    }),
+    ghTool({
+      name: "label_clone",
+      description:
+        "Copy every label from a source repository. Existing labels are skipped, or overwritten with force; labels only in the target are left alone.",
+      access: "write",
+      input: Schema.Struct({
+        repo,
+        source: Schema.String.annotate({ description: "The repository to copy labels from, as OWNER/REPO" }),
+        force: Schema.optionalKey(Schema.Boolean),
+      }),
+      resource: (input, repo) => `${repo} from ${input.source}`,
+      run: (input, call) => Label.clone({ ...input, repo: call.repo }, { cwd: call.cwd }),
     }),
     ghTool({
       name: "release_delete",
