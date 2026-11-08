@@ -6,7 +6,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@timmo001/effect-gh": "0.12.0",
+    "@timmo001/effect-gh": "0.13.0",
     "@timmo001/effect-herdr": "0.9.0-timmo001.6"
   },
   "overrides": {
