@@ -59,6 +59,7 @@ export const GLOBAL_PLUGINS = [
   "github:timmo001/skills#main::path:opencode-plugin",
   "github:timmo001/notes#main::path:opencode-plugin",
   "github:timmo001/context#main::path:opencode-plugin",
+  "github:timmo001/effect-gh#main::path:opencode-plugin",
 ];
 
 const CONFIG_PATH = join("agents", ".config", "opencode", "opencode.json");

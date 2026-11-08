@@ -7,7 +7,7 @@ import { Plugin } from "@opencode/plugin/effect";
 import { Tool } from "@opencode/schema/tool";
 import { Effect, Result, Schema } from "effect";
 import { argRecord, stringArg } from "../lib/guard-paths";
-import { ghJobs, ghNamespace } from "./lib/cli-tools/gh";
+import { ghJobs } from "./lib/cli-tools/gh";
 import { gitNamespace } from "./lib/cli-tools/git";
 import { herdrNamespace } from "./lib/cli-tools/herdr";
 import { hyprctlNamespace, systemBridgeAvailable } from "./lib/cli-tools/hyprctl";
@@ -56,7 +56,6 @@ export default Plugin.define({
             "The dot dotfiles CLI: tracked repositories, pull request queues, sessions, services, Herdr, skills and machine health.",
           tools: Result.isSuccess(dotTools) ? dotTools.success.tools : [],
         },
-        ghNamespace,
         herdrNamespace,
         systemdNamespace,
         hyprctlNamespace,
