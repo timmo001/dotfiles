@@ -18,7 +18,8 @@ export const withoutDashes = (text: string) =>
 
 /**
  * Run one OpenCode prompt with `model` and return the last text it wrote,
- * trimmed, or `undefined` when it fails, times out or writes nothing.
+ * trimmed, or `undefined` when it fails, times out or writes nothing. The
+ * session is created archived, so it stays out of OpenCode's session lists.
  */
 export const opencodeText = Effect.fn("opencodeText")(function* (options: {
   readonly model: string;
@@ -39,6 +40,7 @@ export const opencodeText = Effect.fn("opencodeText")(function* (options: {
         "json",
         "--title",
         options.title,
+        "--archived",
         "-m",
         options.model,
         options.prompt,
