@@ -67,7 +67,7 @@ dot up checks everything it can update or install: the dotfiles and tracked repo
 1. Stages: dotfiles, skills, repos, stow, tools, plugins, herdr, agents and shell, as `dot up <stage>` runs them. A stage that wasn't offered still runs when an earlier one changed something it applies, such as stow, tools and Herdr after a dotfiles pull, plugins after a tools upgrade, agents after changed skills or plugins and the shell after any change; tools and plugins are checked again first. A stage offered and left unticked never runs.
 2. gh extensions: installs missing ones and upgrades the rest.
 3. Missing packages: installs packages from the public and private lists.
-4. System: installs the Omarchy patch hook root-owned, then hands over to omarchy update for pacman, AUR and Omarchy updates. When a dotfiles patch no longer applies to the pending Omarchy, it holds the system update back and offers a Herdr agent to fix the patch.
+4. System: installs the Omarchy patch hook root-owned, then hands over to omarchy update -y for pacman, AUR and Omarchy updates, skipping its ready prompt and running its later prompts unattended. When a dotfiles patch no longer applies to the pending Omarchy, it holds the system update back and offers a Herdr agent to fix the patch.
 
 It finishes with a summary of updated repositories, mise tools and every step, then runs dot up --check to report what is still pending. dot up <stage>, the phase flags and --repo end the same way, except with --json.
 
@@ -86,7 +86,7 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--check` | Report everything dot up would update or install, without changing anything |
 | `--check-repos` | Report only dotfiles pulls, pending pins and stow changes, skipping local work |
 | `--check-all` | Also check development repos for pulls, skipping local work |
-| `--yes` | Run every group with work without asking, and pass -y to omarchy update |
+| `--yes` | Run every group with work without asking |
 | `--force` | Offer every group, even with nothing pending |
 | `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell, gh, packages, system) |
 | `--declined` `<choice>` | Internal: the groups offered but not picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell, gh, packages, system) |

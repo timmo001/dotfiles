@@ -382,7 +382,7 @@ const interactive = () =>
 
 /**
  * Without a terminal, prompts such as the group picker and omarchy update's
- * confirmation hang, so once the check finds work, rerun `dot up` in a Herdr tab in the dotfiles
+ * sudo password hang, so once the check finds work, rerun `dot up` in a Herdr tab in the dotfiles
  * workspace, where the user can answer them and an agent can read the pane.
  * Fails the run when Herdr can't open one.
  */
@@ -573,7 +573,7 @@ const ensurePrivateRepo = Effect.gen(function* () {
 }).pipe(Effect.withSpan("Up.ensurePrivateRepo"));
 
 /** The Omarchy system step, held back when the patches no longer apply. */
-const systemUpdate = Effect.fn("Up.system")(function* (yes: boolean) {
+const systemUpdate = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
 
@@ -591,10 +591,9 @@ const systemUpdate = Effect.fn("Up.system")(function* (yes: boolean) {
 
   yield* ensurePrivateRepo;
 
-  const exitCode = yield* executor.inherit("omarchy", [
-    "update",
-    ...(yes ? ["-y"] : []),
-  ]);
+  // Ticking System in the picker already confirmed it, so skip Omarchy's own
+  // ready prompt. -y also makes Omarchy's later prompts unattended.
+  const exitCode = yield* executor.inherit("omarchy", ["update", "-y"]);
 
   if (exitCode !== 0) {
     process.exitCode = exitCode;
@@ -603,7 +602,7 @@ const systemUpdate = Effect.fn("Up.system")(function* (yes: boolean) {
   }
 
   return notable("Ran omarchy update");
-});
+}).pipe(Effect.withSpan("Up.system"));
 
 const ghUpgrade = Effect.gen(function* () {
   yield* installGhExtensions;
@@ -784,7 +783,7 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
             ? done("Installed the Omarchy patch hook")
             : skip("Omarchy patch hook already current"),
       );
-      actions.push(yield* systemUpdate(opts.yes === true));
+      actions.push(yield* systemUpdate);
     }
   }
 
