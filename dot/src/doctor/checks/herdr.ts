@@ -44,7 +44,7 @@ export function enabledHerdrPluginIds(source: string): ReadonlySet<string> {
   }
 }
 
-/** Verify Herdr and its OpenCode integration are installed. */
+/** Verify Herdr, its config and its OpenCode integration. */
 export const checkHerdr = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
 
@@ -58,6 +58,33 @@ export const checkHerdr = Effect.gen(function* () {
     ] satisfies CheckResult[];
   }
 
+  const results: CheckResult[] = [];
+
+  const configIssues = yield* executor
+    .run("herdr", ["config", "check"], { mergeStderr: true })
+    .pipe(
+      Effect.as(null),
+      Effect.catchTag("CommandError", (error) =>
+        Effect.succeed(
+          (error.stdout ?? error.stderr)
+            .split("\n")
+            .map((line) => line.trim())
+            .filter((line) => line && !line.startsWith("config:"))
+            .join("; ") || "herdr config check failed",
+        ),
+      ),
+    );
+
+  results.push(
+    configIssues === null
+      ? { severity: "ok", message: "Herdr config is valid" }
+      : {
+          severity: "warn",
+          message: "Herdr config has issues",
+          detail: `${configIssues}. Fix herdr/.config/herdr/config.toml`,
+        },
+  );
+
   const status = yield* executor
     .run("herdr", ["integration", "status"])
     .pipe(Effect.orElseSucceed(() => ""));
@@ -65,8 +92,6 @@ export const checkHerdr = Effect.gen(function* () {
   const opencodeStatus = status
     .split("\n")
     .find((line) => line.startsWith("opencode:"));
-
-  const results: CheckResult[] = [];
 
   if (opencodeStatus?.includes("current")) {
     results.push({
