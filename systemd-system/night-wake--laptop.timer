@@ -1,0 +1,20 @@
+# Wakes the laptop at 07:00 after night-suspend put it to sleep at midnight.
+# WakeSystem needs the system manager, as the user manager can't set the RTC
+# alarm, so this lives outside the stowed user units.
+#
+# Install on the laptop:
+#   pkexec install -Dm644 systemd-system/night-wake--laptop.timer /etc/systemd/system/night-wake.timer
+#   pkexec install -Dm644 systemd-system/night-wake--laptop.service /etc/systemd/system/night-wake.service
+#   pkexec systemctl daemon-reload
+#   pkexec systemctl enable --now night-wake.timer
+
+[Unit]
+Description=Wake the laptop at 07:00
+
+[Timer]
+OnCalendar=*-*-* 07:00:00
+WakeSystem=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

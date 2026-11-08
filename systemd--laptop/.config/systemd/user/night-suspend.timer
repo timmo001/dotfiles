@@ -1,0 +1,9 @@
+[Unit]
+Description=Suspend the laptop at midnight
+
+[Timer]
+OnCalendar=*-*-* 00:00:00
+Unit=night-suspend.service
+
+[Install]
+WantedBy=timers.target
