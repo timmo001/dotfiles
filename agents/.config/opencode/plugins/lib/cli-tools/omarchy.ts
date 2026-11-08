@@ -1,4 +1,4 @@
-import { Layer, Schema } from "effect";
+import { Effect, Layer, Schema } from "effect";
 import { type ClientNamespace, clientTools, commandExists, runCliOutput } from "./tool";
 
 const tool = clientTools(Layer.empty);
@@ -30,7 +30,7 @@ export const omarchyNamespace: ClientNamespace = {
   kind: "client",
   command: "omarchy",
   description:
-    "Omarchy through its command: restart desktop components and apps, and list, add, remove, enable or disable shell plugins and bar widgets.",
+    "Omarchy through its command: restart desktop components and apps, and list, validate, add, remove, enable or disable shell plugins and bar widgets.",
   available: commandExists("omarchy"),
   tools: [
     tool({
@@ -39,6 +39,21 @@ export const omarchyNamespace: ClientNamespace = {
       access: "read",
       input: Schema.Struct({}),
       run: () => omarchy(["plugin", "list", "--json"], true),
+    }),
+    tool({
+      name: "plugin_validate",
+      description:
+        "Check a plugin folder's manifest.json against the schema the shell enforces: required fields, entry points that exist for each kind, a bar widget's default section, no symlinks and no reserved id.",
+      access: "read",
+      input: Schema.Struct({
+        folder: Schema.String.annotate({
+          description: "The plugin folder, relative to the session's directory or absolute",
+        }),
+      }),
+      run: (input, context) =>
+        runCliOutput("omarchy", ["plugin", "validate", input.folder], { cwd: context.directory }).pipe(
+          Effect.map((output) => output || `${input.folder} is a valid plugin`),
+        ),
     }),
     tool({
       name: "restart",
