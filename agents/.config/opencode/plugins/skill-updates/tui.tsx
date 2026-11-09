@@ -1,10 +1,13 @@
 /**
- * @file Shows pending update and missing install counts in the prompt footer, from `dot updates status --json`.
+ * @file Shows pending update and missing install counts in the prompt footer, from `dot updates watch --json`,
+ * or `dot updates status --json` while the dot daemon isn't running.
  */
 
+import { NodeServices } from "@effect/platform-node";
 import { Plugin, usePlugin } from "@opencode/plugin/tui";
 import { TextAttributes } from "@opentui/core";
-import { Effect, Schema } from "effect";
+import { Effect, Fiber, Schema, Stream } from "effect";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { createSignal, For, Show } from "solid-js";
 import { runText } from "../lib/process";
 
@@ -32,15 +35,47 @@ const Status = Schema.fromJsonString(
 
 type Current = typeof Status.Type;
 
-// Reads the cache, which dot refreshes in the background once it is stale.
-const read = () =>
-  Effect.runPromise(
-    runText("dot", ["updates", "status", "--json"]).pipe(
-      Effect.flatMap(Schema.decodeUnknownEffect(Status)),
-      Effect.timeout("10 seconds"),
-      Effect.orElseSucceed((): Current | null => null),
-    ),
-  );
+const decode = Schema.decodeUnknownEffect(Status);
+
+// Reads the status once: from the daemon, or the cache dot refreshes in the
+// background once it is stale.
+const read = runText("dot", ["updates", "status", "--json"]).pipe(
+  Effect.flatMap(decode),
+  Effect.timeout("10 seconds"),
+  Effect.orElseSucceed((): Current | null => null),
+);
+
+// Follows the daemon's status until the watch exits, which it does at once
+// when the daemon isn't running. Returns whether it printed anything.
+const watch = (apply: (status: Current) => void) =>
+  Effect.gen(function* () {
+    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+    let seen = false;
+
+    const proc = yield* spawner.spawn(
+      ChildProcess.make("dot", ["updates", "watch", "--json"], {
+        stdin: "ignore",
+        stdout: "pipe",
+        stderr: "ignore",
+      }),
+    );
+
+    yield* proc.stdout.pipe(
+      Stream.decodeText(),
+      Stream.splitLines,
+      Stream.runForEach((line) =>
+        decode(line).pipe(
+          Effect.map((status) => {
+            seen = true;
+            apply(status);
+          }),
+          Effect.ignore,
+        ),
+      ),
+    );
+
+    return seen;
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.orElseSucceed(() => false));
 
 export default Plugin.define({
   id: "skill-updates",
@@ -48,9 +83,7 @@ export default Plugin.define({
     const [status, setStatus] = createSignal<Current | null>(null);
     let announced = new Set<string>();
 
-    const poll = async () => {
-      const next = await read();
-
+    const apply = (next: Current | null) => {
       setStatus(next);
 
       if (!next) return;
@@ -83,9 +116,17 @@ export default Plugin.define({
       announced = items;
     };
 
-    void poll();
+    // Watch the daemon; when the watch ends, read the status once and try
+    // again, soon after a dropped connection and after a minute when the
+    // daemon isn't running.
+    const follow = Effect.runFork(
+      Effect.gen(function* () {
+        const watched = yield* watch(apply);
 
-    const timer = setInterval(() => void poll(), 60_000);
+        apply(yield* read);
+        yield* Effect.sleep(watched ? "5 seconds" : "60 seconds");
+      }).pipe(Effect.forever),
+    );
 
     function View() {
       const theme = context.theme.surface("dialog");
@@ -148,7 +189,7 @@ export default Plugin.define({
     });
 
     return () => {
-      clearInterval(timer);
+      Effect.runFork(Fiber.interrupt(follow));
       slot();
     };
   },
