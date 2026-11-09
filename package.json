@@ -5,7 +5,7 @@
   "description": "Root tooling and managed dependency versions for repository linting, OpenCode's TypeScript LSP, the dot CLI, and the dot links Chromium extension.",
   "devDependencies": {
     "@oxlint/plugins": "1.92.0",
-    "@timmo001/oxlint-rules": "0.6.4",
+    "@timmo001/oxlint-rules": "0.6.5",
     "@types/chrome": "0.3.7",
     "oxlint": "1.92.0",
     "oxlint-tsgolint": "7.0.2006",
