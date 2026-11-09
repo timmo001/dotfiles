@@ -1,6 +1,5 @@
 /**
- * @file Shows pending update and missing install counts in the prompt footer, from the status file the dot daemon
- * keeps, or `dot updates status --json` while the daemon isn't running.
+ * @file Shows pending update and missing install counts in the prompt footer, from the dot daemon's status file, or `dot updates status --json` while the daemon is down
  */
 
 import { basename, join } from "node:path";
