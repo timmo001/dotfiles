@@ -737,6 +737,9 @@ function codeBlock(result: CodeResult, run: ReportRun): report.Content {
       label: `${section.title}: all files`,
       group: "group",
       groupsCollapsed: true,
+      // Every file is a long list: scrolled in its own frame, its header and
+      // the open group's heading stay in view
+      contained: true,
       sort: "path",
       search: "always",
       searchLabel: "Filter by path",
@@ -917,6 +920,7 @@ function dependencyTable(
     label,
     group: grouped ? "group" : undefined,
     groupsCollapsed: grouped,
+    contained: grouped,
     columns: [
       { id: "path", header: "File", wide: true },
       ...(grouped ? [{ id: "group", header: "Group" }] : []),
