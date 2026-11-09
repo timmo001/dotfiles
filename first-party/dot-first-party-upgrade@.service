@@ -14,6 +14,9 @@ Type=oneshot
 # The packages' install scripts restart their user services for the user who
 # ran the upgrade, whom they find through SUDO_USER
 Environment=SUDO_USER=%i
+# Omarchy's pacman guard stops a direct -Syu so system upgrades go through
+# omarchy update. This one can only reach [timmo], so it isn't one.
+Environment=OMARCHY_ALLOW_DIRECT_PACMAN=1
 # Only [timmo] is in this config, so the refresh leaves every other sync
 # database alone and the upgrade can't become a partial system upgrade
 ExecStart=/usr/bin/pacman --config /etc/dot/first-party/pacman.conf -Syu --noconfirm --noprogressbar
