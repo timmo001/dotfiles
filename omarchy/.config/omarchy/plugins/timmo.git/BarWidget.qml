@@ -177,7 +177,6 @@ BarWidget {
         target: "timmo.git"
         function refresh(): void { if (root.git) root.git.refresh() }
         function open(): void { root.open() }
-        function release(repo: string): void { root.open(JSON.stringify({ view: "releases", repo: repo })) }
         function pulls(repo: string): void { root.open(JSON.stringify({ view: "pulls", repo: repo })) }
         function issues(repo: string): void { root.open(JSON.stringify({ view: "issues", repo: repo })) }
         function issue(repo: string, number: int): string { return root.openItem("issue", repo, number) }
@@ -206,18 +205,6 @@ BarWidget {
             cursor: panel ? panel.cursorKey : "", loaded: root.git ? root.git.issuesLoaded : false,
             busy: root.git ? root.git.issuesBusy : false, error: root.git ? root.git.issuesError : "Service unavailable",
             count: root.git ? root.git.issueCount : 0
-          })
-        }
-        function releaseStatus(): string {
-          var panel = panelLoader.item
-          return JSON.stringify({
-            opened: root.opened, view: panel ? panel.view : "", repo: panel && panel.selectedRelease ? panel.selectedRelease.repo : "",
-            finding: panel ? panel.selectedFindingId : "", rows: panel ? panel.panelRows.length : 0,
-            cursor: panel ? panel.cursorKey : "", geometry: panel ? panel.releaseGeometry : null,
-            loaded: root.git ? root.git.releasesLoaded : false, busy: root.git ? root.git.releaseBusy : false,
-            error: root.git ? root.git.releasesError : "Service unavailable",
-            pending: root.git ? root.git.releasePendingCount : 0, stale: root.git ? root.git.releaseStale : false,
-            summary: panel && panel.releaseView ? panel.releaseSummary() : ""
           })
         }
         function other(): void { root.openOther() }
