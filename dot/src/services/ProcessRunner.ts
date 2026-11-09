@@ -16,8 +16,8 @@ export class ProcessRunTimeout extends Schema.TaggedError<ProcessRunTimeout>()(
 
 /** Execution limits for one command and its process group. */
 export interface ProcessRunOptions {
-  /** Maximum execution time in milliseconds. */
-  readonly timeout: number;
+  /** Maximum execution time in milliseconds; none when omitted. */
+  readonly timeout?: number;
   /** Grace period before escalating SIGTERM to SIGKILL, in milliseconds. */
   readonly killAfter: number;
 }
@@ -94,19 +94,26 @@ export class ProcessRunner extends Context.Service<
               ),
             );
 
-          return yield* Effect.raceFirst(
-            exitStatus(child).pipe(
-              Effect.mapError(
-                (error) => new ProcessRunError({ message: String(error) }),
-              ),
-              Effect.timeoutOrElse({
-                duration: options.timeout,
-                orElse: () =>
-                  Effect.fail(
-                    new ProcessRunTimeout({ milliseconds: options.timeout }),
-                  ),
-              }),
+          const exited = exitStatus(child).pipe(
+            Effect.mapError(
+              (error) => new ProcessRunError({ message: String(error) }),
             ),
+          );
+
+          const timeout = options.timeout;
+
+          return yield* Effect.raceFirst(
+            timeout === undefined
+              ? exited
+              : exited.pipe(
+                  Effect.timeoutOrElse({
+                    duration: timeout,
+                    orElse: () =>
+                      Effect.fail(
+                        new ProcessRunTimeout({ milliseconds: timeout }),
+                      ),
+                  }),
+                ),
             Deferred.await(interrupted),
           );
         }, Effect.scoped),
