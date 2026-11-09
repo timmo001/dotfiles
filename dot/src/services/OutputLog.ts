@@ -39,6 +39,8 @@ export interface OutputLogService {
    * effect runs without animation. The spinner line is always cleared when
    * `effect` completes, fails, or is interrupted. On successful completion a
    * `<label> (<duration>)` line is logged (file + stdout, all environments).
+   * Spinners nest: an inner one takes over the line until it finishes, then
+   * the outer one comes back.
    */
   readonly withSpinner: <A, E, R>(
     label: string,
@@ -239,11 +241,16 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
       // escapes never leak into piped output, redirects, or the init log tee.
       const spinnerEnabled = process.stdout.isTTY === true;
 
-      let spinner: {
+      interface SpinnerState {
         label: string;
         frame: number;
         startedAt: number;
-      } | null = null;
+      }
+
+      // Running spinners, oldest first. The newest one owns the line, and
+      // when it finishes the line goes back to the one before it.
+      const running: SpinnerState[] = [];
+      let spinner: SpinnerState | null = null;
 
       // Nested pause count; the spinner stays hidden while any pause is active.
       let paused = 0;
@@ -291,12 +298,15 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
           renderSpinner(now);
         });
 
-      const tick = Effect.gen(function* () {
-        if (!spinner) return;
-        const now = yield* Clock.currentTimeMillis;
-        spinner.frame += 1;
-        renderSpinner(now);
-      });
+      // Each spinner ticks only while it is the one on screen, so nesting
+      // never speeds up the animation.
+      const tick = (state: SpinnerState) =>
+        Effect.gen(function* () {
+          if (spinner !== state) return;
+          const now = yield* Clock.currentTimeMillis;
+          state.frame += 1;
+          renderSpinner(now);
+        });
 
       const runSpinner = <A, E, R>(
         label: string,
@@ -305,20 +315,34 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
       ): Effect.Effect<A, E, R> =>
         Effect.scoped(
           Effect.gen(function* () {
+            const state: SpinnerState = { label, frame: 0, startedAt };
+
             yield* Effect.acquireRelease(
               Effect.gen(function* () {
                 const now = yield* Clock.currentTimeMillis;
-                spinner = { label, frame: 0, startedAt };
-                process.stdout.write(HIDE_CURSOR);
+
+                if (!spinner && paused === 0) process.stdout.write(HIDE_CURSOR);
+                running.push(state);
+                spinner = state;
                 renderSpinner(now);
               }),
               () =>
-                Effect.sync(() => {
-                  spinner = null;
-                  process.stdout.write(CLEAR_LINE + SHOW_CURSOR);
+                Effect.gen(function* () {
+                  running.splice(running.indexOf(state), 1);
+                  spinner = running.at(-1) ?? null;
+
+                  if (paused > 0) return;
+
+                  if (!spinner) {
+                    process.stdout.write(CLEAR_LINE + SHOW_CURSOR);
+
+                    return;
+                  }
+
+                  renderSpinner(yield* Clock.currentTimeMillis);
                 }),
             );
-            yield* tick.pipe(
+            yield* tick(state).pipe(
               Effect.repeat(Schedule.spaced(SPINNER_INTERVAL)),
               Effect.forkScoped,
             );
