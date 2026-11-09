@@ -8,6 +8,9 @@ Type=simple
 # checks need, as the bar's commands get them, even before the graphical
 # session imports its environment.
 ExecStart=/usr/bin/bash -lc 'exec %h/.local/bin/dot daemon'
+# The status files mean the daemon is running; readers fall back to checking
+# for themselves once they are gone, including after a crash.
+ExecStopPost=/usr/bin/rm -rf %t/dot/status
 Restart=on-failure
 RestartSec=5s
 

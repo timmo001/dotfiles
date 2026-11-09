@@ -24,6 +24,7 @@ import { GitStore } from "./GitStore.js";
 import { DaemonRpcs } from "./Rpcs.js";
 import { ServicesStore } from "./ServicesStore.js";
 import { DAEMON_SOCKET_PATH } from "./socketPath.js";
+import { StatusFiles } from "./StatusFiles.js";
 import { UpdatesStore } from "./UpdatesStore.js";
 
 const Handlers = DaemonRpcs.toLayer(
@@ -182,6 +183,7 @@ export const daemonServe = Effect.gen(function* () {
       Layer.mergeAll(
         RpcServer.layer(DaemonRpcs),
         secureSocket(DAEMON_SOCKET_PATH),
+        StatusFiles,
       ).pipe(
         Layer.provide(Handlers),
         Layer.provide(

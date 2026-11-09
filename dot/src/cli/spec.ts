@@ -710,7 +710,7 @@ const updatesCommand = describe(
   ["dot updates status", "dot updates refresh", "dot updates watch"],
   {
     description:
-      "Refresh checks the dotfiles and dot-managed repositories, the managed skills checkout against timmo001/skills main, outdated and missing mise tools, every pending pacman and AUR update, packages from the public and private lists that aren't installed, Omarchy, and missing gh extensions and their upgrades. When dot daemon is running it keeps the status, refreshes it 15 minutes after the last full check, and answers status and refresh; watch needs it and exits 1 when it can't reach it or the daemon stops. Without the daemon, status reads the cache immediately and starts a background refresh once it is 15 minutes old, and refresh writes the cache atomically under a shared lock. Either way the cache is kept up to date. The bar's updates widget streams watch and restarts it when it exits; the OpenCode skill-updates plugin streams watch --json and reads status --json while the daemon is down. status --json and watch --json print the status, its groups and the bar and footer output. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --cache-dir and --timeout to override defaults; a custom --cache-dir always refreshes without the daemon.",
+      "Refresh checks the dotfiles and dot-managed repositories, the managed skills checkout against timmo001/skills main, outdated and missing mise tools, every pending pacman and AUR update, packages from the public and private lists that aren't installed, Omarchy, and missing gh extensions and their upgrades. When dot daemon is running it keeps the status, refreshes it 15 minutes after the last full check, and answers status and refresh; watch needs it and exits 1 when it can't reach it or the daemon stops. Without the daemon, status reads the cache immediately and starts a background refresh once it is 15 minutes old, and refresh writes the cache atomically under a shared lock. Either way the cache is kept up to date. The bar's updates widget and the OpenCode skill-updates plugin read the daemon's status files ($XDG_RUNTIME_DIR/dot/status/updates-bar.json and updates.json) and run status or status --json while they are missing. status --json and watch --json print the status, its groups and the bar and footer output. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --cache-dir and --timeout to override defaults; a custom --cache-dir always refreshes without the daemon.",
   },
 );
 
@@ -720,7 +720,7 @@ const daemonCommand = describe(
   ["dot daemon"],
   {
     description:
-      "Run the dot daemon in the foreground, as dot-daemon.service does; dot stow enables that unit, and rebuilding dot through dot up restarts it (after mise run dot:build, restart it with systemctl --user restart dot-daemon.service). It listens on $XDG_RUNTIME_DIR/dot/daemon.sock, mode 0600, and serves the update status over effect/rpc with NDJSON framing: dot updates status, refresh and watch, and the status dot up saves, go through it when it answers. It loads the status from the cache on start, refreshes it 15 minutes after the last full check, and writes the cache after each change. SIGINT, SIGTERM and SIGHUP stop it cleanly and remove the socket.",
+      "Run the dot daemon in the foreground, as dot-daemon.service does; dot stow enables that unit, and rebuilding dot through dot up restarts it (after mise run dot:build, restart it with systemctl --user restart dot-daemon.service). It listens on $XDG_RUNTIME_DIR/dot/daemon.sock, mode 0600, and serves over effect/rpc with NDJSON framing: the update status (dot updates status, refresh and watch, and the status dot up saves go through it when it answers), the registered services (dot services status and watch) and the Git panel (dot git watch and refresh). It loads the update status from the cache on start, refreshes it 15 minutes after the last full check and writes the cache after each change; it checks the services and reads the Git panel every minute. It also mirrors each status to $XDG_RUNTIME_DIR/dot/status/ (updates.json, updates-bar.json, services.json and git.json) for the bar and the OpenCode footer to watch; the directory only exists while the daemon runs. SIGINT, SIGTERM and SIGHUP stop it cleanly and remove the socket and the status files.",
   },
 );
 
@@ -750,7 +750,7 @@ const servicesCommand = describe(
         ["dot services watch"],
         {
           description:
-            "The daemon checks the registered services every minute and whenever dot services status, dot services notify, a tunnel or the fan controller asks it to. Each line is the snapshot dot services status --json prints. Exits 1 when the daemon can't be reached or stops, so a supervisor such as the services panel can restart it.",
+            "The daemon checks the registered services every minute and whenever dot services status, dot services notify, a tunnel or the fan controller asks it to. Each line is the snapshot dot services status --json prints, which the daemon also keeps in $XDG_RUNTIME_DIR/dot/status/services.json for the services panel. Exits 1 when the daemon can't be reached or stops.",
         },
       ),
       describe(
@@ -1702,7 +1702,7 @@ const gitCommand = describe(
         ["dot git watch"],
         {
           description:
-            "The daemon reads the Git panel's parts every minute: diff (as dot git diff --bar-json prints it), panel (dot git diff --panel-json), notifications (dot git notifications --bar-json), pullRequests (dot pr list --panel-json), issues (dot git issues --panel-json) and log (dot git log --panel-json). Each is { value } or { error }, and is missing until it has been read once. Each part is published as soon as it is read. Exits 1 when the daemon can't be reached or stops, so a supervisor such as the Git panel can restart it.",
+            "The daemon reads the Git panel's parts every minute: diff (as dot git diff --bar-json prints it), panel (dot git diff --panel-json), notifications (dot git notifications --bar-json), pullRequests (dot pr list --panel-json), issues (dot git issues --panel-json) and log (dot git log --panel-json). Each is { value } or { error }, and is missing until it has been read once. Each part is published as soon as it is read, and the daemon also keeps the whole snapshot in $XDG_RUNTIME_DIR/dot/status/git.json for the Git panel. Exits 1 when the daemon can't be reached or stops.",
         },
       ),
       describe(
