@@ -1,6 +1,7 @@
 /**
- * @file The dot daemon: serves {@link DaemonRpcs} over a Unix socket until
- * SIGINT, SIGTERM or SIGHUP, following the upnext and ha-bridge servers.
+ * @file The dot daemon: serves {@link DaemonRpcs} (the update status, the
+ * registered services and the Git panel) over a Unix socket until SIGINT,
+ * SIGTERM or SIGHUP, following the upnext and ha-bridge servers.
  */
 
 import { NodeSocketServer } from "@effect/platform-node";
@@ -19,19 +20,27 @@ import {
 } from "effect";
 import { RpcSerialization, RpcServer } from "effect/rpc";
 import { Socket, SocketServer } from "effect/socket";
+import { GitStore } from "./GitStore.js";
 import { DaemonRpcs } from "./Rpcs.js";
+import { ServicesStore } from "./ServicesStore.js";
 import { DAEMON_SOCKET_PATH } from "./socketPath.js";
 import { UpdatesStore } from "./UpdatesStore.js";
 
 const Handlers = DaemonRpcs.toLayer(
   Effect.gen(function* () {
     const updates = yield* UpdatesStore;
+    const services = yield* ServicesStore;
+    const git = yield* GitStore;
 
     return DaemonRpcs.of({
       GetUpdates: () => Effect.map(updates.get, Option.getOrNull),
       WatchUpdates: () => Stream.map(updates.changes, Option.getOrNull),
       RefreshUpdates: (options) => updates.refresh(options),
       PublishUpdates: ({ status }) => updates.publish(status),
+      WatchServices: () => Stream.map(services.changes, Option.getOrNull),
+      RefreshServices: () => services.refresh,
+      WatchGit: () => git.changes,
+      RefreshGit: ({ force }) => git.refresh(force),
     });
   }),
 );
@@ -175,7 +184,13 @@ export const daemonServe = Effect.gen(function* () {
         secureSocket(DAEMON_SOCKET_PATH),
       ).pipe(
         Layer.provide(Handlers),
-        Layer.provide(UpdatesStore.layer),
+        Layer.provide(
+          Layer.mergeAll(
+            UpdatesStore.layer,
+            ServicesStore.layer,
+            GitStore.layer,
+          ),
+        ),
         Layer.provide(RpcServer.layerProtocolSocketServer),
         Layer.provide(RpcSerialization.layerNdjson),
         Layer.provide(quietSocketServer(DAEMON_SOCKET_PATH)),

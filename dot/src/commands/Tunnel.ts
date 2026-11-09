@@ -13,9 +13,13 @@ import {
 } from "effect";
 import { FetchHttpClient, HttpClient } from "effect/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
-import { CommandExecutor, exitStatus } from "../services/CommandExecutor.js";
+import { exitStatus } from "../services/CommandExecutor.js";
 import { CONFIG_DIR, STATE_DIR } from "../lib/paths.js";
-import { type ReportedStatus, writeReportedStatus } from "./Services.js";
+import {
+  refreshServicesPanel,
+  type ReportedStatus,
+  writeReportedStatus,
+} from "./Services.js";
 
 /** A tunnel's credentials or Cloudflare's view of its connectors are unavailable. */
 export class TunnelError extends Schema.TaggedError<TunnelError>()(
@@ -119,7 +123,6 @@ export const tunnelRun = Effect.fn("Tunnel.run")(
 
     const fs = yield* FileSystem.FileSystem;
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-    const executor = yield* CommandExecutor;
     const http = yield* HttpClient.HttpClient;
     const tokenFile = join(TUNNELS_DIR, `${name}.token`);
     const statusFile = join(STATE_DIR, "dot", "tunnels", name, "status.json");
@@ -130,9 +133,7 @@ export const tunnelRun = Effect.fn("Tunnel.run")(
       Option.none(),
     );
 
-    const refreshPanel = executor
-      .exitCode("omarchy-shell", ["-q", "timmo.services", "refresh"])
-      .pipe(Effect.ignore);
+    const refreshPanel = refreshServicesPanel;
 
     const onSignal = () => Deferred.doneUnsafe(stop, Effect.void);
 

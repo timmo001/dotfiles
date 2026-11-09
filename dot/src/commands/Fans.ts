@@ -18,7 +18,11 @@ import {
 } from "effect";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { CONFIG_DIR, STATE_DIR } from "../lib/paths.js";
-import { type ReportedStatus, writeReportedStatus } from "./Services.js";
+import {
+  refreshServicesPanel,
+  type ReportedStatus,
+  writeReportedStatus,
+} from "./Services.js";
 
 /** Fan controller configuration is missing or invalid. */
 export class FansError extends Schema.TaggedError<FansError>()("FansError", {
@@ -190,9 +194,7 @@ export const fansRun = Effect.gen(function* () {
     Option.none(),
   );
 
-  const refreshPanel = executor
-    .exitCode("omarchy-shell", ["-q", "timmo.services", "refresh"])
-    .pipe(Effect.ignore);
+  const refreshPanel = refreshServicesPanel;
 
   const onSignal = () => Deferred.doneUnsafe(stop, Effect.void);
 

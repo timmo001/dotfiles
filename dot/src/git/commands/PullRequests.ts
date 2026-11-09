@@ -22,16 +22,25 @@ export const pullRequestsOpenShell = Effect.fn("pullRequests.openShell")(
   handleCommandError("dot pr list"),
 );
 
-/** Read tracked PRs, returning JSON for the Git panel. */
-export const pullRequestsQuery = Effect.fn("pullRequests.query")(function* (
+/** Tracked PRs for every enabled repository, as `--panel-json` prints them. */
+export const pullRequestsValue = Effect.fn("pullRequests.value")(function* (
   options: PullRequestQuery,
-  panelJson: boolean,
 ) {
   const service = yield* GitPullRequests;
 
   const repositories = yield* service
     .query(options)
     .pipe(Effect.flatMap(markOffSchedule));
+
+  return { repositories };
+});
+
+/** Read tracked PRs, returning JSON for the Git panel. */
+export const pullRequestsQuery = Effect.fn("pullRequests.query")(function* (
+  options: PullRequestQuery,
+  panelJson: boolean,
+) {
+  const { repositories } = yield* pullRequestsValue(options);
 
   yield* writeText(
     panelJson

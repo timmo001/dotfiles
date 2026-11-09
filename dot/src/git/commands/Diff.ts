@@ -16,49 +16,50 @@ const handleDiffError = handleCommandError("dot git diff");
 
 /** Machine output: status bar JSON. */
 export const diffBarJson = (opts?: DiffScanOptions) =>
-  Effect.gen(function* () {
-    const config = yield* Config;
-    const dotDiff = yield* DotDiff;
-    const executor = yield* CommandExecutor;
-    const repos = yield* dotDiff.getAll({ ...opts, scheduledOnly: true });
+  diffBarValue(opts).pipe(Effect.flatMap(writeJsonLine), handleDiffError);
 
-    const includeBarRepo = Effect.fn("diff.includeBarRepo")(function* (
-      repo: DiffRepo,
-    ) {
-      const managedRepo = managedGitRepoForPath(config.gitConfig, repo.path);
+/** Status bar state for the repositories with changes, as `--bar-json` prints it. */
+export const diffBarValue = Effect.fn("diff.barJson")(function* (
+  opts?: DiffScanOptions,
+) {
+  const config = yield* Config;
+  const dotDiff = yield* DotDiff;
+  const executor = yield* CommandExecutor;
+  const repos = yield* dotDiff.getAll({ ...opts, scheduledOnly: true });
 
-      if (!managedRepo?.notifications.bar.ignoreBotActivity) return repo;
+  const includeBarRepo = Effect.fn("diff.includeBarRepo")(function* (
+    repo: DiffRepo,
+  ) {
+    const managedRepo = managedGitRepoForPath(config.gitConfig, repo.path);
 
-      if (repo.isDirty || repo.ahead > 0 || repo.behind === 0) return repo;
+    if (!managedRepo?.notifications.bar.ignoreBotActivity) return repo;
 
-      const output = yield* executor
-        .run("git", ["log", "HEAD..@{u}", "--pretty=%an <%ae>"], {
-          cwd: repo.path,
-        })
-        .pipe(Effect.orElseSucceed(() => null));
+    if (repo.isDirty || repo.ahead > 0 || repo.behind === 0) return repo;
 
-      if (output === null) return repo;
+    const output = yield* executor
+      .run("git", ["log", "HEAD..@{u}", "--pretty=%an <%ae>"], {
+        cwd: repo.path,
+      })
+      .pipe(Effect.orElseSucceed(() => null));
 
-      const authors = output
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
+    if (output === null) return repo;
 
-      if (authors.length === 0) return repo;
+    const authors = output
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
 
-      return authors.every(textLooksLikeBotActivity) ? null : repo;
-    });
+    if (authors.length === 0) return repo;
 
-    const changed = (yield* Effect.forEach(
-      changedRepos(repos),
-      includeBarRepo,
-      {
-        concurrency: 4,
-      },
-    )).filter((repo) => repo !== null);
+    return authors.every(textLooksLikeBotActivity) ? null : repo;
+  });
 
-    yield* writeJsonLine(formatDiffBarJson(changed));
-  }).pipe(Effect.withSpan("diff.barJson"), handleDiffError);
+  const changed = (yield* Effect.forEach(changedRepos(repos), includeBarRepo, {
+    concurrency: 4,
+  })).filter((repo) => repo !== null);
+
+  return formatDiffBarJson(changed);
+});
 
 /** Format repository state for status bars and the native shell panel. */
 export function formatDiffBarJson(changed: readonly DiffRepo[]) {
@@ -107,11 +108,17 @@ export function formatDiffBarJson(changed: readonly DiffRepo[]) {
 
 /** Machine output: full repository state for the native shell panel. */
 export const diffPanelJson = (opts?: DiffScanOptions) =>
-  Effect.gen(function* () {
-    const dotDiff = yield* DotDiff;
-    const repos = yield* dotDiff.getAll(opts);
-    yield* writeJsonLine(yield* formatDiffPanelJson(repos));
-  }).pipe(Effect.withSpan("diff.panelJson"), handleDiffError);
+  diffPanelValue(opts).pipe(Effect.flatMap(writeJsonLine), handleDiffError);
+
+/** Full repository state for the native shell panel, as `--panel-json` prints it. */
+export const diffPanelValue = Effect.fn("diff.panelJson")(function* (
+  opts?: DiffScanOptions,
+) {
+  const dotDiff = yield* DotDiff;
+  const repos = yield* dotDiff.getAll(opts);
+
+  return yield* formatDiffPanelJson(repos);
+});
 
 /** Format all repository state for the native shell panel. */
 export const formatDiffPanelJson = Effect.fn("diff.formatPanelJson")(function* (

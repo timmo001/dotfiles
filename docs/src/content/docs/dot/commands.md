@@ -675,6 +675,8 @@ Show the health of registered user services
 dot services status [flags]
 ```
 
+When dot daemon is running it checks the services, so watchers such as the services panel see the result too; otherwise the check runs here.
+
 **Options**
 
 | Option | Description |
@@ -687,6 +689,28 @@ dot services status [flags]
 ```bash
 dot services status
 dot services status --json
+```
+
+### `dot services watch`
+
+Print the services snapshot from the dot daemon as JSON, then again after each change
+
+```text
+dot services watch [flags]
+```
+
+The daemon checks the registered services every minute and whenever dot services status, dot services notify, a tunnel or the fan controller asks it to. Each line is the snapshot dot services status --json prints. Exits 1 when the daemon can't be reached or stops, so a supervisor such as the services panel can restart it.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot services watch
 ```
 
 ### `dot services start`
@@ -2362,6 +2386,52 @@ Opt in with issues.enabled in private dot-git.yml. Open issues exclude pull requ
 dot git issues --panel-json
 dot git issues --refresh
 dot git issues --open
+```
+
+### `dot git watch`
+
+Print the Git panel's state from the dot daemon as JSON, then again after each part changes
+
+```text
+dot git watch [flags]
+```
+
+The daemon reads the Git panel's parts every minute: diff (as dot git diff --bar-json prints it), panel (dot git diff --panel-json), notifications (dot git notifications --bar-json), pullRequests (dot pr list --panel-json), issues (dot git issues --panel-json) and log (dot git log --panel-json). Each is { value } or { error }, and is missing until it has been read once. Each part is published as soon as it is read. Exits 1 when the daemon can't be reached or stops, so a supervisor such as the Git panel can restart it.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot git watch
+```
+
+### `dot git refresh`
+
+Ask the dot daemon to read the Git panel's state again
+
+```text
+dot git refresh [flags]
+```
+
+Returns once every part has been read; dot git watch prints the changes. Exits 1 when the daemon can't be reached.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--force` | Fetch pull requests and issues and re-read the commit log instead of using their caches |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot git refresh
+dot git refresh --force
 ```
 
 ## `dot link`

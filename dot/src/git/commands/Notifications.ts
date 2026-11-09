@@ -27,7 +27,14 @@ export const notificationsOpenShell = Effect.gen(function* () {
 
 /** Machine output: status bar JSON. */
 export const notificationsBarJson = (opts?: GitNotificationQueryOptions) =>
-  Effect.gen(function* () {
+  notificationsBarValue(opts).pipe(
+    Effect.flatMap(writeJsonLine),
+    handleNotificationError,
+  );
+
+/** Notification state for the bar and the Git panel, as `--bar-json` prints it. */
+export const notificationsBarValue = Effect.fn("notifications.barJson")(
+  function* (opts?: GitNotificationQueryOptions) {
     const config = yield* Config;
     const executor = yield* CommandExecutor;
 
@@ -79,12 +86,13 @@ export const notificationsBarJson = (opts?: GitNotificationQueryOptions) =>
       { concurrency: 4 },
     );
 
-    yield* writeJsonLine({
+    return {
       ...formatNotificationsBarJson(filteredState),
       workspace: { name: "Dotfiles", path: config.publicDotfiles },
       repositories,
-    });
-  }).pipe(Effect.withSpan("notifications.barJson"), handleNotificationError);
+    };
+  },
+);
 
 /** Mark a notification read when opening it from the panel. */
 export const notificationsMarkRead = (threadId: string) =>

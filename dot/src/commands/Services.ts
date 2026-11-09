@@ -1,5 +1,6 @@
 import { basename, dirname, join, sep } from "node:path";
 import {
+  Cause,
   Clock,
   Console,
   Duration,
@@ -8,7 +9,11 @@ import {
   Option,
   Result,
   Schema,
+  Stream,
 } from "effect";
+import { DaemonClient, tryDaemon } from "../daemon/Client.js";
+import type { ServicesReport } from "../daemon/Rpcs.js";
+import { formatCause } from "../lib/schema.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import {
@@ -1096,10 +1101,8 @@ const findRegistered = Effect.fn("Services.findRegistered")(function* (
   });
 });
 
-/** Print the monitoring snapshot for every registered job. */
-export const servicesStatus = Effect.fn("Services.status")(function* (
-  json: boolean,
-) {
+/** The monitoring snapshot for every registered job, as `status --json` prints it. */
+export const servicesReport = Effect.gen(function* () {
   const { registered, errors } = yield* readRegisteredServices;
   const services = yield* collectServiceStatus(registered);
 
@@ -1115,33 +1118,116 @@ export const servicesStatus = Effect.fn("Services.status")(function* (
       services.some((status) => status.health === health),
     ) ?? "ok";
 
-  if (json) {
-    yield* Console.log(
-      JSON.stringify({
-        worst,
-        counts,
-        services,
-        errors,
-        directory: SERVICES_DIR,
-      }),
-    );
+  return {
+    worst,
+    counts,
+    services,
+    errors,
+    directory: SERVICES_DIR,
+  } satisfies ServicesReport;
+}).pipe(Effect.withSpan("Services.report"));
 
-    return;
-  }
+/** How long a status read waits for the daemon before checking itself. */
+const DAEMON_TIMEOUT = "15 seconds";
 
-  if (services.length === 0)
-    yield* Console.log(`No services registered in ${SERVICES_DIR}`);
+// The parts of a job's snapshot the text output prints.
+const decodeServiceLine = Schema.decodeUnknownOption(
+  Schema.Struct({
+    unit: Schema.String,
+    label: Schema.String,
+    health: Schema.String,
+    summary: Schema.String,
+  }),
+);
 
-  for (const status of services)
+/**
+ * Print the monitoring snapshot for every registered job. The dot daemon
+ * checks when it runs, so its watchers see the result too; otherwise the
+ * check runs here.
+ */
+export const servicesStatus = Effect.fn("Services.status")(function* (
+  json: boolean,
+) {
+  const viaDaemon = yield* tryDaemon(
+    Effect.gen(function* () {
+      const client = yield* DaemonClient;
+
+      return yield* client.RefreshServices();
+    }).pipe(Effect.timeout(DAEMON_TIMEOUT)),
+  );
+
+  const report = Option.isSome(viaDaemon)
+    ? viaDaemon.value
+    : yield* servicesReport;
+
+  if (json) return yield* Console.log(JSON.stringify(report));
+
+  if (report.services.length === 0)
+    yield* Console.log(`No services registered in ${report.directory}`);
+
+  for (const status of report.services.flatMap((entry) =>
+    Option.toArray(decodeServiceLine(entry)),
+  ))
     yield* Console.log(
       `${status.health.toUpperCase().padEnd(8)} ${status.label} (${status.unit}): ${status.summary}`,
     );
 
-  for (const error of errors)
+  for (const error of report.errors)
     yield* Console.error(
       `[WARN] Invalid descriptor ${error.file}: ${error.message}`,
     );
 });
+
+/**
+ * Print the snapshot from the dot daemon as JSON, then again after each
+ * change. Exits 1 when the daemon can't be reached or the connection ends.
+ */
+export const servicesWatch = Effect.gen(function* () {
+  yield* Effect.gen(function* () {
+    const client = yield* DaemonClient;
+
+    yield* client.WatchServices().pipe(
+      Stream.filter((report) => report !== null),
+      Stream.map((report) => JSON.stringify(report)),
+      Stream.changes,
+      Stream.runForEach((line) => Console.log(line)),
+    );
+  }).pipe(
+    Effect.provide(DaemonClient.layer),
+    Effect.catchCause((cause) =>
+      Console.error(
+        Cause.hasInterruptsOnly(cause)
+          ? "[ERROR] dot daemon stopped"
+          : `[ERROR] dot daemon unreachable: ${formatCause(Cause.squash(cause))}`,
+      ),
+    ),
+  );
+
+  process.exitCode = 1;
+}).pipe(Effect.withSpan("Services.watch"));
+
+/**
+ * Bring the services panel up to date after a change: the dot daemon checks
+ * again and its watchers see it, or without the daemon the panel is asked to
+ * poll.
+ */
+export const refreshServicesPanel = Effect.gen(function* () {
+  const viaDaemon = yield* tryDaemon(
+    Effect.gen(function* () {
+      const client = yield* DaemonClient;
+
+      return yield* client.RefreshServices();
+    }).pipe(Effect.timeout(DAEMON_TIMEOUT)),
+  );
+
+  if (Option.isSome(viaDaemon)) return;
+
+  const executor = yield* CommandExecutor;
+
+  yield* executor
+    .exitCode("omarchy-shell", ["-q", "timmo.services", "refresh"])
+    .pipe(Effect.ignore);
+}).pipe(Effect.withSpan("Services.refreshPanel"));
 
 /** Start a registered job's service now, restarting long-running services. */
 export const servicesStart = Effect.fn("Services.start")(function* (
@@ -1497,9 +1583,7 @@ export const servicesNotify = Effect.fn("Services.notify")(function* (
   const { descriptor } = yield* findRegistered(unit);
   const [status] = yield* collectServiceStatus([{ file: "", descriptor }]);
 
-  yield* executor
-    .exitCode("omarchy-shell", ["-q", "timmo.services", "refresh"])
-    .pipe(Effect.ignore);
+  yield* refreshServicesPanel;
 
   if (!status?.notify || status.health !== "failed") return;
 

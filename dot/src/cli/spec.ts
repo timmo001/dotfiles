@@ -52,7 +52,9 @@ import {
   servicesStart,
   servicesStop,
   servicesStatus,
+  servicesWatch,
 } from "../commands/Services.js";
+import { gitRefresh, gitWatch } from "../git/commands/Watch.js";
 import { fansRun } from "../commands/Fans.js";
 import {
   gameLaunch,
@@ -737,6 +739,19 @@ const servicesCommand = describe(
         ),
         "Show the health of registered user services",
         ["dot services status", "dot services status --json"],
+        {
+          description:
+            "When dot daemon is running it checks the services, so watchers such as the services panel see the result too; otherwise the check runs here.",
+        },
+      ),
+      describe(
+        Command.make("watch", {}, () => servicesWatch),
+        "Print the services snapshot from the dot daemon as JSON, then again after each change",
+        ["dot services watch"],
+        {
+          description:
+            "The daemon checks the registered services every minute and whenever dot services status, dot services notify, a tunnel or the fan controller asks it to. Each line is the snapshot dot services status --json prints. Exits 1 when the daemon can't be reached or stops, so a supervisor such as the services panel can restart it.",
+        },
       ),
       describe(
         Command.make("start", { unit: serviceUnit }, ({ unit }) =>
@@ -1681,6 +1696,33 @@ const gitCommand = describe(
       gitCommitCommand,
       gitNotificationsCommand,
       gitIssuesCommand,
+      describe(
+        Command.make("watch", {}, () => gitWatch),
+        "Print the Git panel's state from the dot daemon as JSON, then again after each part changes",
+        ["dot git watch"],
+        {
+          description:
+            "The daemon reads the Git panel's parts every minute: diff (as dot git diff --bar-json prints it), panel (dot git diff --panel-json), notifications (dot git notifications --bar-json), pullRequests (dot pr list --panel-json), issues (dot git issues --panel-json) and log (dot git log --panel-json). Each is { value } or { error }, and is missing until it has been read once. Each part is published as soon as it is read. Exits 1 when the daemon can't be reached or stops, so a supervisor such as the Git panel can restart it.",
+        },
+      ),
+      describe(
+        Command.make(
+          "refresh",
+          {
+            force: bool(
+              "force",
+              "Fetch pull requests and issues and re-read the commit log instead of using their caches",
+            ),
+          },
+          ({ force }) => gitRefresh(force),
+        ),
+        "Ask the dot daemon to read the Git panel's state again",
+        ["dot git refresh", "dot git refresh --force"],
+        {
+          description:
+            "Returns once every part has been read; dot git watch prints the changes. Exits 1 when the daemon can't be reached.",
+        },
+      ),
     ]),
   ),
   "Work across tracked Git repositories",

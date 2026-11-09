@@ -18,16 +18,25 @@ export const issuesOpenShell = Effect.fn("issues.openShell")(function* (
   yield* executor.run("omarchy-shell", ["timmo.git", "issues", repo ?? ""]);
 }, handleCommandError("dot git issues"));
 
-/** Read tracked issues, returning JSON for the Git panel. */
-export const issuesQuery = Effect.fn("issues.query")(function* (
+/** Tracked issues for every enabled repository, as `--panel-json` prints them. */
+export const issuesValue = Effect.fn("issues.value")(function* (
   options: IssueQuery,
-  panelJson: boolean,
 ) {
   const service = yield* GitIssues;
 
   const repositories = yield* service
     .query(options)
     .pipe(Effect.flatMap(markOffSchedule));
+
+  return { repositories };
+});
+
+/** Read tracked issues, returning JSON for the Git panel. */
+export const issuesQuery = Effect.fn("issues.query")(function* (
+  options: IssueQuery,
+  panelJson: boolean,
+) {
+  const { repositories } = yield* issuesValue(options);
 
   const text = panelJson
     ? JSON.stringify({ repositories }) + "\n"
