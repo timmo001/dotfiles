@@ -38,6 +38,7 @@ import {
   checkPrivatePackageRepo,
   checkPrivatePackages,
 } from "./checks/packages.js";
+import { checkFirstParty } from "./checks/firstParty.js";
 import { checkPacmanHooks } from "./checks/pacmanHooks.js";
 import { checkFileManager } from "./checks/fileManager.js";
 import { checkHex } from "./checks/hex.js";
@@ -119,6 +120,7 @@ const sections: readonly SectionDef[] = [
     check: checkPrivatePackages,
     requiresPrivate: true,
   },
+  { name: "First-party upgrades", check: checkFirstParty },
   { name: "Pacman hooks", check: checkPacmanHooks },
   { name: "File manager", check: checkFileManager },
   { name: "Hex dictation", check: checkHex },

@@ -1,0 +1,14 @@
+// Lets a wheel user start their own first-party upgrade without a password.
+// The unit runs fixed commands and only installs packages signed by the
+// [timmo] repository's key, so starting it grants nothing else.
+polkit.addRule(function (action, subject) {
+  if (
+    action.id === "org.freedesktop.systemd1.manage-units" &&
+    action.lookup("verb") === "start" &&
+    action.lookup("unit") ===
+      "dot-first-party-upgrade@" + subject.user + ".service" &&
+    subject.isInGroup("wheel")
+  ) {
+    return polkit.Result.YES;
+  }
+});

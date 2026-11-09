@@ -23,6 +23,7 @@ import {
   privatePackageRepoIncludeRegistered,
 } from "../doctor/checks/packages.js";
 import { setupPrivatePackageRepo } from "./SetupPrivateRepo.js";
+import { syncRootFirstParty } from "../lib/firstPartyPackages.js";
 import { patchDrift, syncRootPatches } from "../lib/omarchyPatches.js";
 import { installMissingArchPackages } from "../lib/packageSetup.js";
 import {
@@ -103,6 +104,11 @@ const GROUP_INFO: Record<
     title: "Agent plugins",
     description: "Update the Pi, Plannotator and OpenCode plugins",
   },
+  "first-party": {
+    title: "First-party packages",
+    description:
+      "Upgrade the packages from the signed [timmo] repository without a password, and restart what still runs an old binary",
+  },
   herdr: {
     title: "Herdr",
     description: "Restore pinned Herdr plugins and sync the saved machines",
@@ -139,6 +145,7 @@ const GROUP_INFO: Record<
 const groupWork = (
   groups: readonly PendingGroup[],
   repoPulls: readonly RepoPull[],
+  firstParty: readonly string[],
 ) => {
   const byId = new Map(groups.map((group) => [group.id, group]));
 
@@ -166,12 +173,16 @@ const groupWork = (
     stow: dotfiles.filter(isStow),
     tools: lines("tools"),
     plugins: lines("plugins"),
+    "first-party": firstParty,
     herdr: dotfiles.filter(isHerdrPin),
     agents: [],
     shell: [],
     gh: lines("gh"),
     packages: (packages?.missing ?? []).map((name) => `${name} (missing)`),
-    system: [...(packages?.pending ?? []), ...lines("omarchy")],
+    system: [
+      ...(packages?.pending ?? []).filter((line) => !firstParty.includes(line)),
+      ...lines("omarchy"),
+    ],
   } satisfies Record<UpGroup, readonly string[]>;
 };
 
@@ -553,6 +564,17 @@ const offerPatchAgent = Effect.fn("Up.offerPatchAgent")(function* (
   ]);
 });
 
+/** Install the first-party upgrade unit and polkit rule root-owned when they changed. */
+const firstPartyRootSync = Effect.gen(function* () {
+  const synced = yield* syncRootFirstParty();
+
+  return synced === null
+    ? warn("Could not install the first-party upgrade unit")
+    : synced
+      ? done("Installed the first-party upgrade unit")
+      : skip("First-party upgrade unit already current");
+}).pipe(Effect.withSpan("Up.firstPartyRootSync"));
+
 /** Register the private pacman repo before pacman needs it, if it went missing. */
 const ensurePrivateRepo = Effect.gen(function* () {
   const config = yield* Config;
@@ -662,7 +684,12 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
 
     pulls = repoPulls(repos, status.dot.pending);
 
-    const work = groupWork(pendingGroups(status), pulls);
+    const work = groupWork(
+      pendingGroups(status),
+      pulls,
+      status.packages.firstParty ?? [],
+    );
+
     const style = cliStyler();
 
     for (const group of UP_GROUPS) {
@@ -726,6 +753,10 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
     ran.add(group);
 
     if (isUpStage(group)) {
+      // The stage itself never asks for a password, so set up the unit it
+      // starts first, while there's a terminal to ask in.
+      if (group === "first-party") actions.push(yield* firstPartyRootSync);
+
       // Stages never prompt, so a spinner can hold the bottom line throughout.
       const result: UpStageResult = yield* log.withSpinner(
         GROUP_INFO[group].title,
@@ -787,6 +818,9 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
             ? done("Installed the Omarchy patch hook")
             : skip("Omarchy patch hook already current"),
       );
+
+      if (!ran.has("first-party")) actions.push(yield* firstPartyRootSync);
+
       actions.push(yield* systemUpdate);
     }
   }

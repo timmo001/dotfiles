@@ -1,6 +1,7 @@
 /**
  * @file The stages of `dot up`, each runnable on its own as `dot up <stage>`:
- * dotfiles, skills, repos, stow, tools, plugins, herdr, agents and shell. A
+ * dotfiles, skills, repos, stow, tools, plugins, first-party, herdr, agents
+ * and shell. A
  * stage never prompts or opens Herdr, so a background runner such as Upkeep can
  * call it, and with `--json` it prints one result saying what changed.
  */
@@ -16,6 +17,7 @@ import {
   updatePlannotatorPlugins,
 } from "../lib/agentRuntime.js";
 import { syncSkills } from "../lib/externalSkills.js";
+import { upgradeFirstParty } from "../lib/firstPartyPackages.js";
 import { gitCurrentBranch, gitOutput } from "../lib/git.js";
 import { ensureInitCompleteMarker } from "../lib/initState.js";
 import { printJson } from "../lib/jsonStdout.js";
@@ -381,6 +383,14 @@ const pluginsStage = Effect.gen(function* () {
   } satisfies StageOutcome;
 });
 
+/**
+ * Upgrade the packages installed from [timmo] without a password, then
+ * restart what's still running a replaced binary.
+ */
+const firstPartyStage = Effect.gen(function* () {
+  return { actions: yield* upgradeFirstParty } satisfies StageOutcome;
+});
+
 /** Restore Herdr's pinned plugins and sync the saved Herdr and hc machines. */
 const herdrStage = Effect.gen(function* () {
   return {
@@ -445,6 +455,8 @@ const stageEffect = (stage: UpStage, opts: UpStageOptions) =>
         return yield* toolsStage;
       case "plugins":
         return yield* pluginsStage;
+      case "first-party":
+        return yield* firstPartyStage;
       case "herdr":
         return yield* herdrStage;
       case "agents":

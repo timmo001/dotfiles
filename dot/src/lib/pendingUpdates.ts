@@ -65,6 +65,8 @@ export interface ToolsStatus extends Schema.Schema.Type<typeof ToolsStatus> {}
 export const PackagesStatus = Schema.Struct({
   /** `name old -> new` lines from checkupdates and yay. */
   pending: Schema.Array(Schema.String),
+  /** The pending lines for packages from the [timmo] repository. */
+  firstParty: Schema.optionalKey(Schema.Array(Schema.String)),
   /** Packages from the public and private lists that aren't installed. */
   missing: Schema.Array(Schema.String),
   /** Whether the AUR check ran; pending is repository updates only when false. */
@@ -287,20 +289,26 @@ export const packages = Effect.fn("PendingUpdates.packages")(function* (
   const [failures, until] = saved;
   const aurSkipped = backoff?.respect === true && now < until;
 
-  const [repo, aur, publicMissing, privateMissing] = yield* Effect.all(
-    [
-      query("checkupdates", ["--nocolor"], timeout),
-      aurSkipped
-        ? Effect.succeed<QueryResult>({
-            code: 75,
-            stdout: "",
-            stderr: "backed off",
-          })
-        : query("yay", ["-Qua"], timeout),
-      missingArchPackages("public"),
-      missingArchPackages("private"),
-    ],
-    { concurrency: "unbounded" },
+  const [repo, aur, publicMissing, privateMissing, firstParty] =
+    yield* Effect.all(
+      [
+        query("checkupdates", ["--nocolor"], timeout),
+        aurSkipped
+          ? Effect.succeed<QueryResult>({
+              code: 75,
+              stdout: "",
+              stderr: "backed off",
+            })
+          : query("yay", ["-Qua"], timeout),
+        missingArchPackages("public"),
+        missingArchPackages("private"),
+        query("pacman", ["-Slq", "timmo"], timeout),
+      ],
+      { concurrency: "unbounded" },
+    );
+
+  const firstPartyNames = new Set(
+    firstParty.code === 0 ? lines(firstParty.stdout) : [],
   );
 
   // checkupdates exits 2 when nothing is pending; yay -Qua exits 1.
@@ -337,6 +345,9 @@ export const packages = Effect.fn("PendingUpdates.packages")(function* (
 
   return {
     pending,
+    firstParty: pending.filter((line) =>
+      firstPartyNames.has(line.split(/\s+/, 1)[0] ?? ""),
+    ),
     missing: [
       ...new Set([...(publicMissing ?? []), ...(privateMissing ?? [])]),
     ].sort(),
