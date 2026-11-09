@@ -726,11 +726,15 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
     ran.add(group);
 
     if (isUpStage(group)) {
-      const result: UpStageResult = yield* runUpStage(group, {
-        repos: group === "repos" ? pulls.map((repo) => repo.path) : [],
-        reload: opts.reload !== false && agentsNeedReload,
-        refreshStatus: false,
-      });
+      // Stages never prompt, so a spinner can hold the bottom line throughout.
+      const result: UpStageResult = yield* log.withSpinner(
+        GROUP_INFO[group].title,
+        runUpStage(group, {
+          repos: group === "repos" ? pulls.map((repo) => repo.path) : [],
+          reload: opts.reload !== false && agentsNeedReload,
+          refreshStatus: false,
+        }),
+      );
 
       updatedRepos.push(...result.updatedRepos);
       miseToolChanges.push(...result.miseTools);
