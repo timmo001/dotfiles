@@ -63,6 +63,36 @@ function monitorSpec(monitor: Monitor): string {
     : `${spec}, transform = ${monitor.transform}`;
 }
 
+/** The primary monitor: HDMI-A-2 on the desktop, the focused one elsewhere. */
+const primaryMonitor = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+
+  const monitors = yield* executor.run("hyprctl", ["-j", "monitors"]).pipe(
+    Effect.flatMap(decodeMonitors),
+    Effect.mapError(
+      () => new HdrError({ message: "Could not read Hyprland monitor state." }),
+    ),
+  );
+
+  const monitor =
+    currentOmarchyHost() === "desktop"
+      ? monitors.find((candidate) => candidate.name === DESKTOP_MONITOR)
+      : monitors.find((candidate) => candidate.focused);
+
+  if (!monitor)
+    return yield* new HdrError({
+      message: "The primary monitor is not connected.",
+    });
+
+  return monitor;
+}).pipe(Effect.withSpan("Hdr.primaryMonitor"));
+
+/** Whether the primary monitor is in HDR now. */
+export const hdrEnabled = primaryMonitor.pipe(
+  Effect.map(isHdr),
+  Effect.withSpan("Hdr.enabled"),
+);
+
 /** Switch the primary monitor's HDR on or off, leaving it alone when it is already there. */
 export const hdr = Effect.fn("hdr")(function* (state: "on" | "off") {
   const executor = yield* CommandExecutor;
@@ -84,25 +114,8 @@ export const hdr = Effect.fn("hdr")(function* (state: "on" | "off") {
       .pipe(Effect.asVoid);
 
   const switchHdr = Effect.gen(function* () {
-    const monitors = yield* executor.run("hyprctl", ["-j", "monitors"]).pipe(
-      Effect.flatMap(decodeMonitors),
-      Effect.mapError(
-        () =>
-          new HdrError({ message: "Could not read Hyprland monitor state." }),
-      ),
-    );
-
+    const monitor = yield* primaryMonitor;
     const desktop = currentOmarchyHost() === "desktop";
-
-    const monitor = desktop
-      ? monitors.find((candidate) => candidate.name === DESKTOP_MONITOR)
-      : monitors.find((candidate) => candidate.focused);
-
-    if (!monitor)
-      return yield* new HdrError({
-        message: "The primary monitor is not connected.",
-      });
-
     const file = stateFile();
 
     if (state === "off") {
