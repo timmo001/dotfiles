@@ -185,6 +185,7 @@ o.bind("CTRL + ALT + U", "Services panel", "omarchy-shell shell toggle timmo.ser
 o.bind("CTRL + ALT + SHIFT + S", "Services panel", "omarchy-shell shell toggle timmo.services")
 o.bind("CTRL + ALT + C", "Capture note", "omarchy-shell timmo.notes capture")
 o.bind("CTRL + ALT + M", "MOMENTUM 4 controls", "omarchy-shell shell toggle timmo.momentumctl")
+o.bind("CTRL + ALT + P", "Games panel", "omarchy-shell shell toggle timmo.games")
 o.bind("CTRL + ALT + T", "Up Next: Twitch", "omarchy-shell timmo.upnext twitch")
 o.bind("CTRL + ALT + Y", "Up Next: YouTube", "omarchy-shell timmo.upnext youtube")
 o.bind("CTRL + ALT + F", "Agent Checks: CI", [[omarchy-shell timmo.agent-checks ci "" ""]])

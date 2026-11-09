@@ -141,6 +141,7 @@
       "managed": true,
       "repository": "timmo001/omarchy-momentumctl"
     },
+    { "id": "timmo.games" },
     { "id": "timmo.workspace-relayout" },
     { "id": "timmo.popup-loading" },
     {

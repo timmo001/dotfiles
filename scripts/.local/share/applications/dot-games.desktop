@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Games
+Comment=Launch a game in gaming mode
+Exec=omarchy-shell shell toggle timmo.games
+Icon=applications-games
+Terminal=false
+Categories=Game;
