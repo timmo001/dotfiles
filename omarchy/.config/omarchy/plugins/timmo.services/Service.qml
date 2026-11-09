@@ -29,7 +29,7 @@ Item {
 
   function apply(raw) {
     try {
-      var payload = JSON.parse(String(raw || "").trim())
+      const payload = JSON.parse(String(raw || "").trim())
       services = Array.isArray(payload.services) ? payload.services : []
       errors = Array.isArray(payload.errors) ? payload.errors : []
       counts = payload.counts || {}
@@ -41,6 +41,7 @@ Item {
     }
   }
 
+  // Through the dot daemon this also updates the watch below.
   function refresh() {
     if (!statusProcess.running) statusProcess.running = true
   }
@@ -153,9 +154,36 @@ Item {
     onTriggered: root.refresh()
   }
 
+  // Follows the dot daemon's checks. While the daemon is down the watch exits
+  // and is retried, and the timer below polls instead.
+  Process {
+    id: watchProcess
+    property bool live: false
+    command: ["dot", "services", "watch"]
+    running: true
+    stdout: SplitParser {
+      onRead: function(line) {
+        if (String(line).trim() === "") return
+        watchProcess.live = true
+        root.apply(line)
+        root.currentTime = Date.now()
+      }
+    }
+    onExited: function(exitCode) {
+      live = false
+      watchRestart.restart()
+    }
+  }
+
+  Timer {
+    id: watchRestart
+    interval: 5000
+    onTriggered: if (!watchProcess.running) watchProcess.running = true
+  }
+
   Timer {
     interval: 60000
-    running: true
+    running: !watchProcess.live
     repeat: true
     triggeredOnStart: true
     onTriggered: root.refresh()

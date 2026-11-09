@@ -168,9 +168,11 @@ Item {
   }, []).sort(function(a, b) { return Date.parse(b.commit.date) - Date.parse(a.commit.date) })
   signal panelUpdated()
 
-  readonly property bool refreshing: diffProcess.running || panelProcess.running || notificationsProcess.running || pulling || pullRequestsBusy || issuesBusy || logBusy
-  readonly property bool repositoriesBusy: diffProcess.running || panelProcess.running || pulling
-  readonly property bool notificationsBusy: notificationsProcess.running
+  readonly property bool refreshing: diffProcess.running || panelProcess.running || notificationsProcess.running || gitRefreshProcess.running || pulling || pullRequestsBusy || issuesBusy || logBusy
+  readonly property bool repositoriesBusy: diffProcess.running || panelProcess.running || gitRefreshProcess.running || pulling
+  readonly property bool notificationsBusy: notificationsProcess.running || gitRefreshProcess.running
+  // The last JSON applied for each part of the dot daemon's snapshot.
+  property var gitSections: ({})
   readonly property bool pulling: pullProcess.running || pullRecovering
   readonly property var pullableRepos: changedRepos.filter(function(repo) { return root.canPullRepo(repo) })
   readonly property bool clear: diffLoaded && notificationsLoaded && pullRequestsLoaded
@@ -253,8 +255,56 @@ Item {
     panelError = message
   }
 
+  // Apply the parts of a dot daemon snapshot that changed since the last one,
+  // each as its own command's output would be.
+  function applySnapshot(raw) {
+    var snapshot
+    try { snapshot = JSON.parse(String(raw || "").trim()) } catch (error) { return }
+    if (!snapshot || typeof snapshot !== "object") return
+    var seen = Object.assign({}, gitSections)
+    function part(key) {
+      var section = snapshot[key]
+      if (!section || typeof section !== "object") return null
+      var text = JSON.stringify(section)
+      if (seen[key] === text) return null
+      seen[key] = text
+      return section
+    }
+    function value(section) { return JSON.stringify(section.value) }
+    var diff = part("diff")
+    if (diff) diff.error === undefined ? applyDiff(value(diff)) : failDiff("Repository status unavailable")
+    var panel = part("panel")
+    if (panel) panel.error === undefined ? applyPanel(value(panel)) : failPanel("Repository panel unavailable")
+    var notifications = part("notifications")
+    if (notifications) notifications.error === undefined ? applyNotifications(value(notifications)) : failNotifications("GitHub notifications unavailable")
+    var pulls = part("pullRequests")
+    if (pulls) {
+      if (pulls.error === undefined) applyPullRequests(value(pulls), false)
+      else { pullRequestsLoaded = true; pullRequestsError = String(pulls.error).slice(0, 500) }
+    }
+    var issues = part("issues")
+    if (issues) {
+      if (issues.error === undefined) applyIssues(value(issues))
+      else { issuesLoaded = true; issuesError = String(issues.error).slice(0, 500) }
+    }
+    var log = part("log")
+    if (log) {
+      if (log.error === undefined) applyLog(value(log))
+      else { logLoaded = true; logError = String(log.error).slice(0, 500) }
+    }
+    gitSections = seen
+  }
+
   function refresh(mode) {
     if (mode !== "scheduled") refreshHerdrContext()
+    // The dot daemon reads on its own schedule; other refreshes ask it to
+    // read now, and the watch delivers the result.
+    if (gitWatchProcess.live) {
+      if (mode === "scheduled" || gitRefreshProcess.running) return
+      gitRefreshProcess.command = ["dot", "git", "refresh"].concat(mode === "refresh" ? ["--force"] : [])
+      gitRefreshProcess.running = true
+      return
+    }
     refreshRepositories()
     refreshNotifications()
     refreshPullRequests(mode === "scheduled" ? "scheduled" : (mode === "action" ? "read" : "refresh"))
@@ -997,6 +1047,42 @@ Item {
     id: pullUnitTimer
     interval: 2000
     onTriggered: pullUnitProcess.running = true
+  }
+
+  // Follows the dot daemon's snapshot. While the daemon is down the watch
+  // exits and is retried, and the timer below runs each command instead.
+  Process {
+    id: gitWatchProcess
+    property bool live: false
+    command: ["dot", "git", "watch"]
+    running: true
+    stdout: SplitParser {
+      onRead: function(line) {
+        if (String(line).trim() === "") return
+        gitWatchProcess.live = true
+        root.applySnapshot(line)
+      }
+    }
+    onExited: function(exitCode) {
+      live = false
+      root.gitSections = ({})
+      gitWatchRestart.restart()
+    }
+  }
+
+  Timer {
+    id: gitWatchRestart
+    interval: 5000
+    onTriggered: if (!gitWatchProcess.running) gitWatchProcess.running = true
+  }
+
+  Process {
+    id: gitRefreshProcess
+    stderr: StdioCollector { id: gitRefreshStderr; waitForEnd: true }
+    // Without the daemon after all, read through each command instead.
+    onExited: function(exitCode) {
+      if (exitCode !== 0 && !gitWatchProcess.live) root.refresh("action")
+    }
   }
 
   Timer {
