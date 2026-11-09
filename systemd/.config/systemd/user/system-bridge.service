@@ -1,0 +1,14 @@
+# The System Bridge backend for the desktop session. Hyprland's autostart
+# starts it, and as a unit `dot up first-party` restarts it once an upgrade
+# replaces its binary, which a process started straight from Hyprland missed.
+[Unit]
+Description=System Bridge backend
+Documentation=https://system-bridge.timmo.dev/running/
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/system-bridge backend
+Restart=on-failure
+RestartSec=5

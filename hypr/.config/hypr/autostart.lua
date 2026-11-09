@@ -1,7 +1,10 @@
 -- Extra autostart processes.
 -- o.launch_on_start("my-service")
 
-o.exec_on_start("timmo-run-command system-bridge backend")
+-- system-bridge runs as a user unit so dot up first-party restarts it after an upgrade.
+if not o.cmd_missing("system-bridge") then
+  o.exec_on_start("systemctl --user start system-bridge.service")
+end
 o.exec_on_start("uwsm app -- kdeconnectd")
 o.exec_on_start("dot herdr start")
 -- Hex's XDG autostart entry doesn't run under Hyprland; hex start runs hex.service.
