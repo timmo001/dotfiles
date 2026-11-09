@@ -15,6 +15,7 @@ import {
   managedGitRepoForGitHub,
   managedGitRepos,
 } from "../services/GitConfig.js";
+import { readGameState } from "./Game.js";
 import { herdrRepoOpen } from "./HerdrRepoOpen.js";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "../lib/paths.js";
 import { hasManualStart, writeManualStart } from "../lib/manualStart.js";
@@ -93,6 +94,7 @@ export type ServiceHealth =
   | "degraded"
   | "warning"
   | "running"
+  | "paused"
   | "ok";
 
 const HEALTH_ORDER: readonly ServiceHealth[] = [
@@ -103,6 +105,7 @@ const HEALTH_ORDER: readonly ServiceHealth[] = [
   "degraded",
   "warning",
   "running",
+  "paused",
   "ok",
 ];
 
@@ -740,6 +743,8 @@ function summarise(status: Omit<ServiceStatus, "summary">): string {
       return "Last run completed with warnings";
     case "running":
       return "Running now";
+    case "paused":
+      return "Paused for gaming";
     case "ok":
       if (
         status.runs.length > 0 &&
@@ -828,6 +833,9 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
     timers.length > 0 ? yield* nextElapses : new Map<string, number>();
 
   const resumedAt = yield* lastResume;
+
+  // Services dot game stopped show as paused, not inactive.
+  const pausedUnits = new Set((yield* readGameState).stopped);
 
   return yield* Effect.forEach(
     registered,
@@ -1008,7 +1016,9 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
             : properties.ActiveState !== "active" &&
                 properties.ActiveState !== "activating" &&
                 properties.ActiveState !== "reloading"
-              ? "inactive"
+              ? pausedUnits.has(service)
+                ? "paused"
+                : "inactive"
               : consecutiveFailures > 0 ||
                   (restartLimit !== undefined &&
                     recentRestarts >= restartLimit.count)

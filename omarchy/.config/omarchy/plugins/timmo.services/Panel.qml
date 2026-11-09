@@ -129,6 +129,7 @@ Panel {
     if (severity(health) === 2) return urgentColor
     if (severity(health) === 1) return warningColor
     if (health === "running") return contentForeground
+    if (health === "paused") return mutedColor
     return successColor
   }
 
@@ -136,6 +137,7 @@ Panel {
     if (severity(health) === 2) return "󰅚"
     if (severity(health) === 1) return "󰀪"
     if (health === "running") return "󰦖"
+    if (health === "paused") return "󰏤"
     return "󰗠"
   }
 
