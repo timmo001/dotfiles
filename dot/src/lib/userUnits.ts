@@ -27,6 +27,8 @@ interface DefaultUnit {
 const DEFAULT_UNITS: readonly DefaultUnit[] = [
   // Wraps new game shortcuts in gaming mode as launchers write them.
   { unit: "dot-game-sync.path" },
+  // Serves the update status to the bar, OpenCode and the CLI.
+  { unit: "dot-daemon.service" },
   // Hokum draws black cards on the desktop's NVIDIA GPU.
   { unit: "hokum.service", onlyHosts: ["laptop"] },
 ];

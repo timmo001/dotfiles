@@ -1,0 +1,15 @@
+[Unit]
+Description=dot daemon, serving status checks to the bar, OpenCode and the CLI
+OnFailure=dot-service-failed@%n.service
+
+[Service]
+Type=simple
+# A login shell sets OMARCHY_PATH and the mise and ~/.local/bin PATH the
+# checks need, as the bar's commands get them, even before the graphical
+# session imports its environment.
+ExecStart=/usr/bin/bash -lc 'exec %h/.local/bin/dot daemon'
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=default.target
