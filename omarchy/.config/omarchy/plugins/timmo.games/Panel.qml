@@ -33,7 +33,7 @@ Item {
       games.sort(function(a, b) { return String(a.name).localeCompare(String(b.name)) })
       for (var i = 0; i < games.length; i++)
         rows.push({
-          key: "game:" + games[i].url,
+          key: "game:" + games[i].desktopFile,
           kind: "game",
           section: games[i].store,
           primaryText: String(games[i].name || ""),

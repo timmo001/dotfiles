@@ -508,8 +508,18 @@ const readGameFiles = Effect.gen(function* () {
   const files = yield* Effect.forEach(names, (name) => {
     const path = join(APPLICATIONS_DIR, name);
 
-    return fs.readFileString(path).pipe(
-      Effect.map((text) => ({ path, text })),
+    return Effect.all({
+      text: fs.readFileString(path),
+      info: fs.stat(path),
+    }).pipe(
+      Effect.map(({ text, info }) => ({
+        path,
+        text,
+        modified: Option.match(info.mtime, {
+          onNone: () => 0,
+          onSome: (date) => date.getTime(),
+        }),
+      })),
       Effect.option,
     );
   });
@@ -537,7 +547,17 @@ export const gameList = Effect.fn("Game.list")(function* (options: {
   const state = yield* readGameState;
   const holders = yield* liveHolders(state.holders);
 
-  const games: GameEntry[] = files.map((file) => ({
+  // Launchers leave the old shortcut behind when a game is renamed, so keep
+  // only the newest shortcut for each URL.
+  const newest = new Map<string, (typeof files)[number]>();
+
+  for (const file of files) {
+    const kept = newest.get(file.url);
+
+    if (!kept || file.modified > kept.modified) newest.set(file.url, file);
+  }
+
+  const games: GameEntry[] = [...newest.values()].map((file) => ({
     name: desktopValue(file.entry, "Name") ?? basename(file.path, ".desktop"),
     icon: desktopValue(file.entry, "Icon") ?? "",
     url: file.url,
@@ -665,6 +685,15 @@ export const gameSync = Effect.gen(function* () {
 
     yield* fs.writeFileString(`${file.path}.tmp`, text);
     yield* fs.rename(`${file.path}.tmp`, file.path);
+
+    // Keep the launcher's timestamp, which dot game list uses to tell a
+    // renamed game's shortcut from the stale one left behind.
+    if (file.modified > 0) {
+      const modified = new Date(file.modified);
+
+      yield* fs.utimes(file.path, modified, modified);
+    }
+
     changed++;
   }
 
