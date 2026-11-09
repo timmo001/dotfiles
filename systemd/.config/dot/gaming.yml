@@ -1,0 +1,9 @@
+---
+# User units dot game stops while a game runs, and starts again afterwards.
+# Units that aren't running on a machine are skipped.
+stop:
+  - triage-worker.service
+  - upkeep-worker.service
+  - ollaya.service
+  - ollama.service
+  - hex.service

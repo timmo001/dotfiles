@@ -877,7 +877,7 @@ Switch the primary monitor between HDR and SDR
 dot hdr <subcommand> [flags]
 ```
 
-The primary monitor is HDMI-A-2 on the desktop host and the focused monitor elsewhere. On sets 10-bit output with HDR colour management and doubled SDR brightness, and saves the setting so a Hyprland reload keeps it; off restores 8-bit sRGB. Either does nothing when the monitor is already there. The hdr-on and hdr-off scripts wrap these for launchers that take a script path, such as Heroic's per-game before and after launch scripts.
+The primary monitor is HDMI-A-2 on the desktop host and the focused monitor elsewhere. On sets 10-bit output with HDR colour management and doubled SDR brightness, and saves the setting so a Hyprland reload keeps it; off restores 8-bit sRGB. Either does nothing when the monitor is already there. The hdr-on and hdr-off scripts wrap these for launchers that take a script path, such as a desktop entry for a video app. Games use dot game, which turns HDR on as part of gaming mode.
 
 **Options**
 
@@ -930,6 +930,177 @@ dot hdr off [flags]
 
 ```bash
 dot hdr off
+```
+
+## `dot game`
+
+Pause heavy background services and turn on HDR while gaming
+
+```text
+dot game <subcommand> [flags]
+```
+
+Gaming mode stops the user units listed in ~/.config/dot/gaming.yml that are running, waiting up to 15 seconds for them to exit, and turns HDR on unless it already is or --sdr is given. It stays on while anything holds it: each dot game run or dot game launch process, or dot game on until dot game off. When the last holder exits it starts the stopped units again and turns HDR off if it turned it on. Holders that died are dropped on the next call, so a killed wrapper can't keep services stopped. State lives in $XDG_RUNTIME_DIR/dot-game.json.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot game launch steam://rungameid/1086940
+dot game on
+dot game off
+```
+
+### `dot game on`
+
+Turn gaming mode on until dot game off
+
+```text
+dot game on [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--sdr` | Leave HDR alone, for games that look wrong in it |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot game on
+dot game on --sdr
+```
+
+### `dot game off`
+
+Turn gaming mode off now and put everything back
+
+```text
+dot game off [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot game off
+```
+
+### `dot game run`
+
+Run a game's command in gaming mode
+
+```text
+dot game run [flags] <command> [<args...>]
+```
+
+Gaming mode stays on until the command exits, then everything it changed is put back. dot game run exits with the game's exit code; SIGINT, SIGTERM and SIGHUP are passed on to the game's process group. game-run wraps it for launchers: Heroic's wrapper (dot game sync sets it) and Steam's launch options (game-run %command%).
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--sdr` | Leave HDR alone, for games that look wrong in it |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<command>` | The game's executable, after -- |
+| `<args>` | Arguments passed unchanged to the game |
+
+**Examples**
+
+```bash
+dot game run -- %command%
+game-run %command%
+```
+
+### `dot game launch`
+
+Launch a game by its store URL in gaming mode
+
+```text
+dot game launch [flags] <url>
+```
+
+Steam games are opened through Steam, and gaming mode is held until Steam's reaper process for the app exits; a game that hasn't started within 10 minutes ends it. Heroic games are only opened, since game-run holds gaming mode for them. Lutris games run through lutris with LUTRIS_SKIP_INIT=1 and hold gaming mode until it exits. Game desktop files and the Games panel launch through this.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--sdr` | Leave HDR alone, for games that look wrong in it |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<url>` | A steam://rungameid/, heroic://launch? or lutris:rungameid/ URL |
+
+**Examples**
+
+```bash
+dot game launch steam://rungameid/1086940
+dot game launch "heroic://launch?appName=1495134320&runner=gog"
+```
+
+### `dot game list`
+
+List game shortcuts and whether gaming mode is on
+
+```text
+dot game list [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print JSON for the Games panel |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot game list
+dot game list --json
+```
+
+### `dot game sync`
+
+Make every game shortcut and Heroic game launch in gaming mode
+
+```text
+dot game sync [flags]
+```
+
+Rewrites the Steam, Heroic and Lutris game desktop files in ~/.local/share/applications to run dot game launch, keeping the store URL in X-Dot-Game-Url. Sets Heroic's default and per-game wrapper to game-run, and clears hdr-on and hdr-off launch scripts that it replaces. Only changed files are written. dot-game-sync.path runs it whenever those directories change.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot game sync
 ```
 
 ## `dot tunnel`

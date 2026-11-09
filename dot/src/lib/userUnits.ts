@@ -25,6 +25,8 @@ interface DefaultUnit {
  * some hosts is masked on the others, so D-Bus activation can't start it.
  */
 const DEFAULT_UNITS: readonly DefaultUnit[] = [
+  // Wraps new game shortcuts in gaming mode as launchers write them.
+  { unit: "dot-game-sync.path" },
   // Hokum draws black cards on the desktop's NVIDIA GPU.
   { unit: "hokum.service", onlyHosts: ["laptop"] },
 ];

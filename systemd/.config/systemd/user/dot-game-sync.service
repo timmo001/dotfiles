@@ -1,0 +1,6 @@
+[Unit]
+Description=Wrap game shortcuts and Heroic games in gaming mode
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/dot game sync

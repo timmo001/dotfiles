@@ -49,6 +49,14 @@ import {
   servicesStatus,
 } from "../commands/Services.js";
 import { fansRun } from "../commands/Fans.js";
+import {
+  gameLaunch,
+  gameList,
+  gameOff,
+  gameOn,
+  gameRun,
+  gameSync,
+} from "../commands/Game.js";
 import { hdr } from "../commands/Hdr.js";
 import { tunnelRun } from "../commands/Tunnel.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
@@ -866,7 +874,97 @@ const hdrCommand = describe(
   ["dot hdr on", "dot hdr off"],
   {
     description:
-      "The primary monitor is HDMI-A-2 on the desktop host and the focused monitor elsewhere. On sets 10-bit output with HDR colour management and doubled SDR brightness, and saves the setting so a Hyprland reload keeps it; off restores 8-bit sRGB. Either does nothing when the monitor is already there. The hdr-on and hdr-off scripts wrap these for launchers that take a script path, such as Heroic's per-game before and after launch scripts.",
+      "The primary monitor is HDMI-A-2 on the desktop host and the focused monitor elsewhere. On sets 10-bit output with HDR colour management and doubled SDR brightness, and saves the setting so a Hyprland reload keeps it; off restores 8-bit sRGB. Either does nothing when the monitor is already there. The hdr-on and hdr-off scripts wrap these for launchers that take a script path, such as a desktop entry for a video app. Games use dot game, which turns HDR on as part of gaming mode.",
+  },
+);
+
+const sdrFlag = bool("sdr", "Leave HDR alone, for games that look wrong in it");
+
+const gameCommand = describe(
+  Command.make("game").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make("on", { sdr: sdrFlag }, (options) => gameOn(options)),
+        "Turn gaming mode on until dot game off",
+        ["dot game on", "dot game on --sdr"],
+      ),
+      describe(
+        Command.make("off", {}, () => gameOff),
+        "Turn gaming mode off now and put everything back",
+        ["dot game off"],
+      ),
+      describe(
+        Command.make(
+          "run",
+          {
+            sdr: sdrFlag,
+            command: Argument.String("command").pipe(
+              Argument.withDescription("The game's executable, after --"),
+            ),
+            args: Argument.String("args").pipe(
+              Argument.variadic(),
+              Argument.withDescription(
+                "Arguments passed unchanged to the game",
+              ),
+            ),
+          },
+          ({ command, args, sdr }) => gameRun(command, args, { sdr }),
+        ),
+        "Run a game's command in gaming mode",
+        ["dot game run -- %command%", "game-run %command%"],
+        {
+          description:
+            "Gaming mode stays on until the command exits, then everything it changed is put back. dot game run exits with the game's exit code; SIGINT, SIGTERM and SIGHUP are passed on to the game's process group. game-run wraps it for launchers: Heroic's wrapper (dot game sync sets it) and Steam's launch options (game-run %command%).",
+        },
+      ),
+      describe(
+        Command.make(
+          "launch",
+          {
+            sdr: sdrFlag,
+            url: Argument.String("url").pipe(
+              Argument.withDescription(
+                "A steam://rungameid/, heroic://launch? or lutris:rungameid/ URL",
+              ),
+            ),
+          },
+          ({ url, sdr }) => gameLaunch(url, { sdr }),
+        ),
+        "Launch a game by its store URL in gaming mode",
+        [
+          "dot game launch steam://rungameid/1086940",
+          'dot game launch "heroic://launch?appName=1495134320&runner=gog"',
+        ],
+        {
+          description:
+            "Steam games are opened through Steam, and gaming mode is held until Steam's reaper process for the app exits; a game that hasn't started within 10 minutes ends it. Heroic games are only opened, since game-run holds gaming mode for them. Lutris games run through lutris with LUTRIS_SKIP_INIT=1 and hold gaming mode until it exits. Game desktop files and the Games panel launch through this.",
+        },
+      ),
+      describe(
+        Command.make(
+          "list",
+          { json: bool("json", "Print JSON for the Games panel") },
+          (options) => gameList(options),
+        ),
+        "List game shortcuts and whether gaming mode is on",
+        ["dot game list", "dot game list --json"],
+      ),
+      describe(
+        Command.make("sync", {}, () => gameSync),
+        "Make every game shortcut and Heroic game launch in gaming mode",
+        ["dot game sync"],
+        {
+          description:
+            "Rewrites the Steam, Heroic and Lutris game desktop files in ~/.local/share/applications to run dot game launch, keeping the store URL in X-Dot-Game-Url. Sets Heroic's default and per-game wrapper to game-run, and clears hdr-on and hdr-off launch scripts that it replaces. Only changed files are written. dot-game-sync.path runs it whenever those directories change.",
+        },
+      ),
+    ]),
+  ),
+  "Pause heavy background services and turn on HDR while gaming",
+  ["dot game launch steam://rungameid/1086940", "dot game on", "dot game off"],
+  {
+    description:
+      "Gaming mode stops the user units listed in ~/.config/dot/gaming.yml that are running, waiting up to 15 seconds for them to exit, and turns HDR on unless it already is or --sdr is given. It stays on while anything holds it: each dot game run or dot game launch process, or dot game on until dot game off. When the last holder exits it starts the stopped units again and turns HDR off if it turned it on. Holders that died are dropped on the next call, so a killed wrapper can't keep services stopped. State lives in $XDG_RUNTIME_DIR/dot-game.json.",
   },
 );
 
@@ -3476,6 +3574,7 @@ export const dotCommand = describe(
       servicesCommand,
       fansCommand,
       hdrCommand,
+      gameCommand,
       tunnelCommand,
       stowCommand,
       omarchyCommand,
