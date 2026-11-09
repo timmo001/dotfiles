@@ -24,6 +24,13 @@ Item {
     return filterController.filteredModel.some(function(row) { return row.kind === "game" && row.section === store })
   })
   readonly property var actionRows: filterController.filteredModel.filter(function(row) { return row.kind === "action" })
+  // Stores the user collapsed, kept while the shell runs. Filtering opens every store.
+  property var collapsedSections: ({})
+  readonly property bool sectionsCollapsible: !filterController.filterText
+  // Games in collapsed stores leave keyboard navigation.
+  readonly property var navigationRows: filterController.filteredModel.filter(function(row) {
+    return row.kind !== "game" || sectionExpanded(row.section)
+  })
 
   function buildRows() {
     if (!service) return []
@@ -31,6 +38,7 @@ Item {
     for (var s = 0; s < storeOrder.length; s++) {
       var games = service.games.filter(function(game) { return game.store === storeOrder[s] })
       games.sort(function(a, b) { return String(a.name).localeCompare(String(b.name)) })
+      if (games.length > 0) rows.push({ key: "toggle:" + storeOrder[s], kind: "toggle", section: storeOrder[s] })
       for (var i = 0; i < games.length; i++)
         rows.push({
           key: "game:" + games[i].desktopFile,
@@ -45,6 +53,22 @@ Item {
     if (service.active)
       rows.push({ key: "action:off", kind: "action", action: "off", primaryText: "Turn off gaming mode", secondaryText: "Restart paused services and turn HDR back off", icon: "󰏤" })
     return rows
+  }
+
+  function sectionExpanded(id) {
+    return !!filterController.filterText || collapsedSections[id] !== true
+  }
+
+  function toggleSection(id) {
+    var next = Object.assign({}, collapsedSections)
+    next[id] = sectionExpanded(id)
+    collapsedSections = next
+  }
+
+  // reset() lands on the first heading, so move on to the first game.
+  function selectFirstGame() {
+    var index = filterController.navigationEntries.findIndex(function(entry) { return entry.kind === "game" })
+    if (index >= 0) filterController.selectIndex(index)
   }
 
   function storeTitle(store) {
@@ -71,6 +95,7 @@ Item {
 
   function activateEntry(entry) {
     if (!entry || !service) return
+    if (entry.kind === "toggle") { toggleSection(entry.section); return }
     if (entry.kind === "action" && entry.action === "off") service.turnOff()
     else if (entry.kind === "game") service.launch(entry.value.url)
     requestClose()
@@ -102,6 +127,7 @@ Item {
     filterController.reset()
     if (service) service.refresh()
     Qt.callLater(function() {
+      selectFirstGame()
       scrollArea.contentY = 0
       filterController.forceActiveFocus()
     })
@@ -208,6 +234,7 @@ Item {
         id: filterController
         anchors.fill: parent
         model: root.rows
+        navigationModel: root.navigationRows
         onActivateRequested: function(entry) { root.activateEntry(entry) }
         onCloseRequested: root.requestClose()
         onRefreshRequested: if (root.service) root.service.refresh()
@@ -257,26 +284,35 @@ Item {
                 readonly property var entries: filterController.filteredModel.filter(function(row) {
                   return row.kind === "game" && row.section === storeSection.modelData
                 })
+                readonly property bool bodyShown: root.sectionExpanded(modelData)
                 width: contentColumn.width
                 spacing: Style.space(4)
 
                 function itemForKey(key) {
+                  if (key === "toggle:" + modelData) return storeHeading
                   for (var i = 0; i < entries.length; i++)
                     if (entries[i].key === key) return gameRepeater.itemAt(i)
                   return null
                 }
 
                 PanelComponents.SectionHeading {
+                  id: storeHeading
                   title: root.storeTitle(storeSection.modelData) + " · " + storeSection.entries.length
                   icon: root.storeIcon(storeSection.modelData)
                   foreground: root.foreground
                   fontFamily: root.fontFamily
                   refreshable: storeSection.index === 0
                   refreshing: root.service ? root.service.refreshing : false
+                  collapsible: root.sectionsCollapsible
+                  expanded: storeSection.bodyShown
+                  toggleHasCursor: filterController.cursorIndex === filterController.indexForKey("toggle:" + storeSection.modelData)
+                  onToggleHovered: filterController.cursorIndex = filterController.indexForKey("toggle:" + storeSection.modelData)
+                  onToggleRequested: root.toggleSection(storeSection.modelData)
                   onRefreshRequested: if (root.service) root.service.refresh()
                 }
 
                 Column {
+                  visible: storeSection.bodyShown
                   width: parent.width
                   spacing: Style.space(2)
 
