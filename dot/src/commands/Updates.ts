@@ -1,54 +1,30 @@
-import { Clock, Console, Effect, FileSystem, Option, Schema } from "effect";
-import { ChildProcess, ChildProcessSpawner } from "effect/process";
-import { join } from "path";
-import { CACHE_DIR } from "../lib/paths.js";
 import {
-  agentPlugins,
-  checkAll,
-  dotfiles,
-  ghExtensions,
-  ghUpgrades,
-  groupLines,
-  hasWork,
-  pendingGroups,
-  PendingStatus,
-  query,
-  skills,
-  tools,
-} from "../lib/pendingUpdates.js";
+  Cause,
+  Clock,
+  Console,
+  Effect,
+  FileSystem,
+  Option,
+  Stream,
+} from "effect";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
+import { DaemonClient, tryDaemon } from "../daemon/Client.js";
+import { formatCause } from "../lib/schema.js";
+import type { PendingStatus } from "../lib/pendingUpdates.js";
+import {
+  barOf,
+  checkSnapshot,
+  readSnapshot,
+  snapshotJson,
+  snapshotOf,
+  STALE_AFTER_MILLIS,
+  updatesPaths,
+  type UpdatesSnapshot,
+  writeSnapshot,
+} from "../lib/updatesSnapshot.js";
 
-const BarStatus = Schema.Struct({
-  text: Schema.String,
-  tooltip: Schema.String,
-  class: Schema.Literals([
-    "updates",
-    "updates-missing",
-    "updates-current",
-    "updates-unknown",
-  ]),
-});
-
-type BarStatus = typeof BarStatus.Type;
-
-const CachedStatus = Schema.Struct({
-  ...BarStatus.fields,
-  footerText: Schema.String,
-  status: PendingStatus,
-  packagesCheckedAt: Schema.Finite,
-  checkedAt: Schema.Finite,
-});
-
-const decodeStatus = Schema.decodeUnknownOption(
-  Schema.fromJsonString(CachedStatus),
-);
-
-const loading: BarStatus = {
-  text: "\uF4B5 ..",
-  tooltip: "Checking for updates",
-  class: "updates-unknown",
-};
-
-const DOT_ICON = "\uF4B5";
+/** How long a status read waits for the daemon before reading the cache. */
+const DAEMON_READ_TIMEOUT = "3 seconds";
 
 /** Paths and timing controls for update refreshes. */
 export interface UpdatesOptions {
@@ -58,77 +34,39 @@ export interface UpdatesOptions {
   readonly timeout: number;
 }
 
-const paths = (options: Pick<UpdatesOptions, "cacheDir">) => {
-  const directory = options.cacheDir ?? join(CACHE_DIR, "status-bar");
-
-  return {
-    directory,
-    cache: join(directory, "package-updates.json"),
-    lock: join(directory, "package-updates.lock"),
-    backoff: join(directory, "package-updates.backoff"),
-  };
-};
-
-/** Compose the bar, tooltip and footer text from a status. */
-const render = (status: PendingStatus) => {
-  const groups = pendingGroups(status);
-
-  const attention = groups.flatMap((group) => {
-    const count = group.pending.length + group.missing.length;
-    const blocked = group.blocked.length > 0 ? "!" : "";
-
-    if (count > 0 || blocked) return [`${group.icon} ${count}${blocked}`];
-
-    return group.unknown ? [`${group.icon} ?`] : [];
-  });
-
-  const tooltip = groups
-    .map((group) => {
-      if (hasWork(group) || group.blocked.length > 0) {
-        return [
-          `${group.title}:`,
-          ...groupLines(group).map((line) => `  ${line}`),
-        ].join("\n");
-      }
-
-      return `${group.title}: ${group.unknown ? "unavailable" : "up to date"}`;
-    })
-    .join("\n");
-
-  const working = groups.some(hasWork);
-
-  const bar: BarStatus = {
-    text: attention.length > 0 ? attention.join("  ") : DOT_ICON,
-    tooltip: working ? `${tooltip}\n\nClick to run dot up` : tooltip,
-    class: groups.some(
-      (group) => group.missing.length > 0 || group.blocked.length > 0,
-    )
-      ? "updates-missing"
-      : working
-        ? "updates"
-        : groups.some((group) => group.unknown)
-          ? "updates-unknown"
-          : "updates-current",
-  };
-
-  return {
-    bar,
-    footerText: attention.length > 0 ? attention.join("  ") : `${DOT_ICON} 0`,
-  };
-};
+const printSnapshot = (snapshot: UpdatesSnapshot | undefined, json: boolean) =>
+  Console.log(JSON.stringify(json ? snapshotJson(snapshot) : barOf(snapshot)));
 
 /**
- * Refresh the update status and notify the shell. `quick` keeps the cached
- * package and Omarchy status, for the end of `dot update`; scheduled runs
- * respect the AUR request backoff.
+ * Refresh the update status. The dot daemon runs it when it answers, and its
+ * watchers see the result; otherwise it runs here, under a lock shared with
+ * other refreshes, and updates the cache. `quick` keeps the cached package and Omarchy status, for the end
+ * of `dot up`; scheduled runs respect the AUR request backoff.
  */
 export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
   options: UpdatesOptions,
   scheduled = false,
   quick = false,
 ) {
+  // A custom cache directory is a separate status the daemon doesn't keep.
+  if (options.cacheDir === undefined) {
+    const viaDaemon = yield* tryDaemon(
+      Effect.gen(function* () {
+        const client = yield* DaemonClient;
+
+        return yield* client.RefreshUpdates({
+          quick,
+          scheduled,
+          timeout: options.timeout,
+        });
+      }),
+    );
+
+    if (Option.isSome(viaDaemon)) return;
+  }
+
   const fs = yield* FileSystem.FileSystem;
-  const locations = paths(options);
+  const locations = updatesPaths(options.cacheDir);
   yield* fs.makeDirectory(locations.directory, { recursive: true });
   yield* Effect.acquireUseRelease(
     fs.makeDirectory(locations.lock).pipe(
@@ -141,40 +79,17 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
       Effect.gen(function* () {
         if (!acquired) return;
 
-        const previous = quick
-          ? yield* fs.readFileString(locations.cache).pipe(
-              Effect.map(decodeStatus),
-              Effect.orElseSucceed(() => Option.none()),
-              Effect.map(Option.getOrUndefined),
-            )
-          : undefined;
-
-        const backoff = { file: locations.backoff, respect: scheduled };
-
-        const status: PendingStatus = previous
-          ? {
-              ...previous.status,
-              ...(yield* Effect.all(
-                {
-                  dot: dotfiles(options.timeout),
-                  skills: skills(options.timeout),
-                  tools: tools(options.timeout),
-                  plugins: agentPlugins(options.timeout),
-                  gh: ghExtensions(),
-                  ghUpgrades: ghUpgrades(options.timeout),
-                },
-                { concurrency: "unbounded" },
-              )),
-            }
-          : yield* checkAll(options.timeout, backoff);
-
-        const now = yield* Clock.currentTimeMillis;
-
-        yield* writeStatus(
-          locations.cache,
-          status,
-          previous?.packagesCheckedAt ?? now,
+        const snapshot = yield* checkSnapshot(
+          {
+            timeout: options.timeout,
+            backoffFile: locations.backoff,
+            scheduled,
+            quick,
+          },
+          quick ? yield* readSnapshot(locations.cache) : Option.none(),
         );
+
+        yield* writeSnapshot(locations.cache, snapshot);
       }),
     (acquired) =>
       acquired
@@ -183,56 +98,49 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
   );
 });
 
-const writeStatus = Effect.fn("Updates.write")(function* (
-  cache: string,
-  status: PendingStatus,
-  packagesCheckedAt: number,
-) {
-  const fs = yield* FileSystem.FileSystem;
-  const now = yield* Clock.currentTimeMillis;
-  const { bar, footerText } = render(status);
-  const temporary = `${cache}.${process.pid}.tmp`;
-
-  yield* fs.writeFileString(
-    temporary,
-    `${JSON.stringify({
-      ...bar,
-      footerText,
-      status,
-      packagesCheckedAt,
-      checkedAt: now,
-    } satisfies typeof CachedStatus.Type)}\n`,
-    { mode: 0o600 },
-  );
-  yield* fs.rename(temporary, cache);
-  yield* query("omarchy-shell", ["-q", "timmo.updates", "refresh"], 5);
-});
-
-/** Save a fresh full check as the cached status, as `dot up` does after checking. */
+/** Save a fresh full check as the status, as `dot up` does after checking. */
 export const saveStatus = Effect.fn("Updates.save")(function* (
   status: PendingStatus,
 ) {
-  const fs = yield* FileSystem.FileSystem;
-  const locations = paths({});
-  const now = yield* Clock.currentTimeMillis;
+  const viaDaemon = yield* tryDaemon(
+    Effect.gen(function* () {
+      const client = yield* DaemonClient;
 
-  yield* fs.makeDirectory(locations.directory, { recursive: true });
-  yield* writeStatus(locations.cache, status, now);
+      return yield* client.PublishUpdates({ status });
+    }),
+  );
+
+  if (Option.isSome(viaDaemon)) return;
+
+  yield* writeSnapshot(updatesPaths().cache, yield* snapshotOf(status));
 });
 
-/** Print cached status immediately and start a detached refresh when it is stale. */
+/**
+ * Print the current status. The dot daemon answers when it runs; otherwise
+ * print the cache and start a detached refresh when it is stale.
+ */
 export const updatesStatus = Effect.fn("Updates.status")(function* (
   json = false,
 ) {
+  const viaDaemon = yield* tryDaemon(
+    Effect.gen(function* () {
+      const client = yield* DaemonClient;
+
+      return yield* client.GetUpdates();
+    }).pipe(Effect.timeout(DAEMON_READ_TIMEOUT)),
+  );
+
+  if (Option.isSome(viaDaemon))
+    return yield* printSnapshot(viaDaemon.value ?? undefined, json);
+
   const fs = yield* FileSystem.FileSystem;
-  const locations = paths({});
+  const locations = updatesPaths();
   const now = yield* Clock.currentTimeMillis;
-  const cached = yield* fs.readFileString(locations.cache).pipe(Effect.option);
-  const status = Option.flatMap(cached, decodeStatus);
+  const cached = yield* readSnapshot(locations.cache);
 
   if (
-    (Option.isNone(status) ||
-      now - status.value.packagesCheckedAt >= 900 * 1000) &&
+    (Option.isNone(cached) ||
+      now - cached.value.packagesCheckedAt >= STALE_AFTER_MILLIS) &&
     !(yield* fs.exists(locations.lock))
   ) {
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
@@ -265,26 +173,41 @@ export const updatesStatus = Effect.fn("Updates.status")(function* (
       );
   }
 
-  const current = Option.getOrUndefined(status);
+  yield* printSnapshot(Option.getOrUndefined(cached), json);
+});
 
-  const bar: BarStatus = current
-    ? { text: current.text, tooltip: current.tooltip, class: current.class }
-    : loading;
+/**
+ * Print the status from the dot daemon, then again after each change. Exits
+ * 1 when the daemon can't be reached or the connection ends, so a supervisor
+ * can restart it.
+ */
+export const updatesWatch = Effect.fn("Updates.watch")(function* (
+  json: boolean,
+) {
+  yield* Effect.gen(function* () {
+    const client = yield* DaemonClient;
 
-  if (json) {
-    yield* Console.log(
-      JSON.stringify({
-        checkedAt: current?.checkedAt ?? null,
-        status: current?.status ?? null,
-        groups: current ? pendingGroups(current.status) : [],
-        skills: current?.status.skills ?? null,
-        bar,
-        footer: { ...bar, text: current?.footerText ?? bar.text },
-      }),
+    yield* client.WatchUpdates().pipe(
+      Stream.map((snapshot) =>
+        JSON.stringify(
+          json
+            ? snapshotJson(snapshot ?? undefined)
+            : barOf(snapshot ?? undefined),
+        ),
+      ),
+      Stream.changes,
+      Stream.runForEach((line) => Console.log(line)),
     );
+  }).pipe(
+    Effect.provide(DaemonClient.layer),
+    Effect.catchCause((cause) =>
+      Console.error(
+        Cause.hasInterruptsOnly(cause)
+          ? "[ERROR] dot daemon stopped"
+          : `[ERROR] dot daemon unreachable: ${formatCause(Cause.squash(cause))}`,
+      ),
+    ),
+  );
 
-    return;
-  }
-
-  yield* Console.log(JSON.stringify(bar));
+  process.exitCode = 1;
 });

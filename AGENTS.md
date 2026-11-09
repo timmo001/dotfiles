@@ -86,6 +86,7 @@ dot/src/
   types.ts                - Shared domain types
   cli/spec.ts             - Executable Effect command tree
   commands/               - Native dot command implementations
+  daemon/                 - dot daemon: effect/rpc protocol, socket server, client and status stores
   doctor/                 - Health-check runner and checks
   git/                    - Git and GitHub commands and services
   mcp/                    - MCP config generation

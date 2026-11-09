@@ -36,7 +36,12 @@ import {
   omarchyPlugin,
   OmarchyPluginInput,
 } from "../commands/OmarchyPlugin.js";
-import { updatesRefresh, updatesStatus } from "../commands/Updates.js";
+import {
+  updatesRefresh,
+  updatesStatus,
+  updatesWatch,
+} from "../commands/Updates.js";
+import { daemonServe } from "../daemon/Server.js";
 import { workTime } from "../commands/WorkTime.js";
 import {
   servicesInvestigate,
@@ -683,13 +688,37 @@ const updatesCommand = describe(
         "Refresh the update status and notify the shell",
         ["dot updates refresh", "dot updates refresh --quick"],
       ),
+      describe(
+        Command.make(
+          "watch",
+          {
+            json: bool(
+              "json",
+              "Print the status, its groups, and the bar and footer output, as JSON",
+            ),
+          },
+          ({ json }) => updatesWatch(json),
+        ),
+        "Print status-bar JSON from the dot daemon, then again after each change",
+        ["dot updates watch", "dot updates watch --json"],
+      ),
     ]),
   ),
   "Check everything dot up updates, for the status bar and OpenCode",
-  ["dot updates status", "dot updates refresh"],
+  ["dot updates status", "dot updates refresh", "dot updates watch"],
   {
     description:
-      "Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks the dotfiles and dot-managed repositories, the managed skills checkout against timmo001/skills main, outdated and missing mise tools, every pending pacman and AUR update, packages from the public and private lists that aren't installed, Omarchy, and missing gh extensions and their upgrades. It writes the cache atomically under a shared lock and notifies the Omarchy shell. status --json prints the cached status, its groups and the bar and footer output for other readers such as the OpenCode skill-updates plugin. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --cache-dir and --timeout to override defaults.",
+      "Refresh checks the dotfiles and dot-managed repositories, the managed skills checkout against timmo001/skills main, outdated and missing mise tools, every pending pacman and AUR update, packages from the public and private lists that aren't installed, Omarchy, and missing gh extensions and their upgrades. When dot daemon is running it keeps the status, refreshes it 15 minutes after the last full check, and answers status and refresh; watch needs it and exits 1 when it can't reach it or the daemon stops. Without the daemon, status reads the cache immediately and starts a background refresh once it is 15 minutes old, and refresh writes the cache atomically under a shared lock. Either way the cache is kept up to date. The bar's updates widget streams watch and restarts it when it exits; the OpenCode skill-updates plugin streams watch --json and reads status --json while the daemon is down. status --json and watch --json print the status, its groups and the bar and footer output. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --cache-dir and --timeout to override defaults; a custom --cache-dir always refreshes without the daemon.",
+  },
+);
+
+const daemonCommand = describe(
+  Command.make("daemon", {}, () => daemonServe),
+  "Serve status checks to the bar, OpenCode and the CLI over a Unix socket",
+  ["dot daemon"],
+  {
+    description:
+      "Run the dot daemon in the foreground, as dot-daemon.service does; dot stow enables that unit, and rebuilding dot through dot up restarts it (after mise run dot:build, restart it with systemctl --user restart dot-daemon.service). It listens on $XDG_RUNTIME_DIR/dot/daemon.sock, mode 0600, and serves the update status over effect/rpc with NDJSON framing: dot updates status, refresh and watch, and the status dot up saves, go through it when it answers. It loads the status from the cache on start, refreshes it 15 minutes after the last full check, and writes the cache after each change. SIGINT, SIGTERM and SIGHUP stop it cleanly and remove the socket.",
   },
 );
 
@@ -3573,6 +3602,7 @@ export const dotCommand = describe(
       httpCommand,
       statusCommand,
       updatesCommand,
+      daemonCommand,
       servicesCommand,
       fansCommand,
       hdrCommand,
