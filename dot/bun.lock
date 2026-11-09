@@ -10,7 +10,7 @@
         "@timmo001/effect-ha-bridge": "1.8.0",
         "@timmo001/effect-herdr": "0.9.0-timmo001.6",
         "@timmo001/effect-upnext": "2.3.0",
-        "@timmo001/groundwork-report": "0.22.0",
+        "@timmo001/groundwork-report": "0.23.0",
         "effect": "4.1.2",
         "fuse.js": "7.5.0",
         "semver": "^7.8.5",
@@ -100,11 +100,11 @@
 
     "@timmo001/effect-upnext-shared": ["@timmo001/effect-upnext-shared@2.3.0", "", { "peerDependencies": { "effect": "^4.1.2" } }, "sha512-0qIuktHpffc/dGN4Ky9zOcN4ebPRMTbR5cY4O9I7b6aDeJk64PgemWYRBTcdAPk2PYR6u3/Lvnbz6lL3WPY5zA=="],
 
-    "@timmo001/groundwork-report": ["@timmo001/groundwork-report@0.22.0", "", { "dependencies": { "@timmo001/groundwork-tokens": "0.22.0", "@timmo001/groundwork-ui": "0.22.0", "effect": "4.1.2" } }, "sha512-wMwmxuC26KvBw4PVKLs3bqDZVyv1o+1KPPiEIrG0xyukbcpu+hWabWNOK+q95prYHdbQmFrI7KS4xvX5iDv1Gg=="],
+    "@timmo001/groundwork-report": ["@timmo001/groundwork-report@0.23.0", "", { "dependencies": { "@timmo001/groundwork-tokens": "0.23.0", "@timmo001/groundwork-ui": "0.23.0", "effect": "4.1.2" } }, "sha512-19pUc3Tjb5mYljl2HuqBWcZPTfjQtPsAx8ema2Rtp7AOBNXBpWwrIVlKf7CifeyqFhavGz/4R0s20dHf4fn9Fw=="],
 
-    "@timmo001/groundwork-tokens": ["@timmo001/groundwork-tokens@0.22.0", "", { "dependencies": { "@effect/platform-node": "4.1.2", "@types/culori": "4.0.1", "culori": "4.0.2", "effect": "4.1.2" }, "bin": { "groundwork-tokens": "src/bin.ts" } }, "sha512-2RbhoSENLnsYPB1LERKRLdjeyYFTk7buNqcmAdWYrO/hFgkrXY93jib1gBr7p00RtzdPJXKqwpH+7NGX3lxwBQ=="],
+    "@timmo001/groundwork-tokens": ["@timmo001/groundwork-tokens@0.23.0", "", { "dependencies": { "@effect/platform-node": "4.1.2", "@types/culori": "4.0.1", "culori": "4.0.2", "effect": "4.1.2" }, "bin": { "groundwork-tokens": "src/bin.ts" } }, "sha512-EVZdXwnSGopbnRNtyYS9a2LCzMiOM7lcSVKKJKhlviYxOlMkv+RuWeVxciK00lUJ3oLoDHAGmgC6/2fbypBVhw=="],
 
-    "@timmo001/groundwork-ui": ["@timmo001/groundwork-ui@0.22.0", "", { "dependencies": { "@codemirror/lang-json": "6.0.2", "@codemirror/language": "6.13.1", "@codemirror/search": "6.7.2", "@codemirror/state": "6.7.6", "@codemirror/view": "6.43.15", "@lezer/highlight": "1.2.5", "@tanstack/table-core": "9.3.1", "@tanstack/virtual-core": "3.19.11", "micromark": "4.0.3", "micromark-extension-gfm": "3.0.0" } }, "sha512-MSIuUOTeGxBVF8WpZz1m8APagQXHv5JYlzG+famhrpGQQQ0CbvjQoTn7saiRsic+WFyZvoYez9rQSFAcixUVag=="],
+    "@timmo001/groundwork-ui": ["@timmo001/groundwork-ui@0.23.0", "", { "dependencies": { "@codemirror/lang-json": "6.0.2", "@codemirror/language": "6.13.1", "@codemirror/search": "6.7.2", "@codemirror/state": "6.7.6", "@codemirror/view": "6.43.15", "@lezer/highlight": "1.2.5", "@tanstack/table-core": "9.3.1", "@tanstack/virtual-core": "3.19.11", "micromark": "4.0.3", "micromark-extension-gfm": "3.0.0" } }, "sha512-5ui5ZEmJZXuex2gijjBudqhfqgOACgMJZ3a5wa0z1sSGV4HLt+EqGr/CVnVMbAOOZ6roRTUvdvKkyOAxh/eW+A=="],
 
     "@types/bun": ["@types/bun@1.4.4", "", { "dependencies": { "bun-types": "1.4.4" } }, "sha512-9wkRDXUXK124pEnAutE6n/l18j+i9GC5IAHK8TmX/2nlySETmky0OU6yL5U8pW1AoKh++AN9auDCr647BfurjQ=="],
 
