@@ -1,3 +1,4 @@
+import { Api } from "@timmo001/effect-gh";
 import { Effect, FileSystem, Option, Result, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http";
 import { basename, dirname, join, resolve } from "path";
@@ -495,9 +496,72 @@ export const updatePlannotatorPlugins = Effect.gen(function* () {
   Effect.withSpan("agentRuntime.updatePlannotatorPlugins"),
 );
 
+/** A GitHub plugin spec's repository, branch and package folder. */
+const GITHUB_PLUGIN_SPEC = /^github:([^/#]+\/[^/#]+)#([^:]+)::path:(.+)$/;
+
+/** GitHub lists at most this many files in a comparison. */
+const COMPARE_FILE_LIMIT = 300;
+
+const ComparedFiles = Schema.Struct({
+  files: Schema.optionalKey(
+    Schema.Array(Schema.Struct({ filename: Schema.String })),
+  ),
+});
+
 /**
- * Move the global OpenCode plugins to their branch heads. OpenCode keeps a
- * Git plugin on the commit it first installed until asked to update it.
+ * Whether a Git plugin's package folder changed between its installed
+ * revision and its branch head. OpenCode flags a Git plugin as outdated on
+ * any commit to its repository, and every update is a full reinstall, so a
+ * commit outside the folder isn't worth one. Unknown counts as changed.
+ */
+const pluginFolderChanged = Effect.fn("agentRuntime.pluginFolderChanged")(
+  function* (spec: string, revision: string) {
+    const [, repo, branch, folder] = GITHUB_PLUGIN_SPEC.exec(spec) ?? [];
+
+    if (!repo || !branch || !folder || !revision) return true;
+
+    const { files = [] } = yield* Api.json(
+      {
+        endpoint: `repos/${repo}/compare/${revision}...${encodeURIComponent(branch)}`,
+        method: "GET",
+      },
+      ComparedFiles,
+    );
+
+    return (
+      files.length >= COMPARE_FILE_LIMIT ||
+      files.some(({ filename }) => filename.startsWith(`${folder}/`))
+    );
+  },
+  Effect.orElseSucceed(() => true),
+);
+
+/**
+ * Check every global OpenCode plugin at once, keeping those that are
+ * outdated and whose package folder changed. Each check's failure is kept
+ * with its spec.
+ */
+const dueGlobalPlugins = Effect.forEach(
+  GLOBAL_PLUGINS,
+  (spec) =>
+    opencodePluginState(spec).pipe(
+      Effect.flatMap((state) =>
+        state?.outdated
+          ? pluginFolderChanged(spec, state.revision).pipe(
+              Effect.map((changed) => (changed ? state : null)),
+            )
+          : Effect.succeed(null),
+      ),
+      Effect.result,
+      Effect.map((result) => ({ spec, result })),
+    ),
+  { concurrency: "unbounded" },
+).pipe(Effect.withSpan("agentRuntime.dueGlobalPlugins"));
+
+/**
+ * Move the global OpenCode plugins to their branch heads when their package
+ * folder changed. OpenCode keeps a Git plugin on the commit it first
+ * installed until asked to update it.
  */
 export const updateGlobalOpencodePlugins = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
@@ -508,8 +572,18 @@ export const updateGlobalOpencodePlugins = Effect.gen(function* () {
 
   const updated: string[] = [];
   const failed: string[] = [];
+  const due: string[] = [];
 
-  for (const spec of GLOBAL_PLUGINS) {
+  for (const { spec, result } of yield* dueGlobalPlugins) {
+    if (Result.isFailure(result)) {
+      yield* log.warn(
+        `${spec}: ${result.failure.stderr.trim() || `exit ${result.failure.exitCode}`}`,
+      );
+      failed.push(spec);
+    } else if (result.success) due.push(spec);
+  }
+
+  for (const spec of due) {
     const output = yield* executor
       .run(OPENCODE, ["plugin", "update", spec], { cwd: HOME_DIR })
       .pipe(Effect.result);
@@ -661,18 +735,19 @@ export const pendingAgentPlugins = Effect.gen(function* () {
         pendingPiPackage,
         { concurrency: "unbounded" },
       ),
-      Effect.forEach(
-        opencodeRunning ? GLOBAL_PLUGINS : [],
-        (spec) =>
-          opencodePluginState(spec).pipe(
-            Effect.map((state) =>
-              state?.outdated
-                ? [`${state.name} ${state.revision} (update available)`]
-                : [],
+      opencodeRunning
+        ? dueGlobalPlugins.pipe(
+            Effect.flatMap((checked) =>
+              Effect.forEach(checked, ({ result }) =>
+                Effect.map(Effect.fromResult(result), (state) =>
+                  state
+                    ? [`${state.name} ${state.revision} (update available)`]
+                    : [],
+                ),
+              ),
             ),
-          ),
-        { concurrency: "unbounded" },
-      ),
+          )
+        : Effect.succeed([]),
       pendingPlannotatorPlugins(opencodeRunning, installs),
     ],
     { concurrency: "unbounded" },
