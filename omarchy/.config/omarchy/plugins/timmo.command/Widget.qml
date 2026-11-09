@@ -3,11 +3,15 @@
 // Runs `exec` on an interval and renders the resulting status-bar JSON
 // (text/tooltip/class) via a WidgetButton, mapping the parsed class to a
 // colour and hiding on configured classes. The Waybar custom/* equivalent
-// for the Omarchy 4 Quickshell bar.
+// for the Omarchy 4 Quickshell bar. With `stream`, `exec` instead runs
+// continuously and each line it prints replaces the output.
 //
 // Per-instance settings (inline on the shell.json bar layout entry):
 //   run            Shell command to run (its stdout is parsed)
 //   interval       Poll interval in milliseconds (default 60000)
+//   stream         Run `run` continuously, rendering each line it prints;
+//                  shows the loading state and restarts it when it exits
+//   restartInterval  Delay before restarting a stream, ms (default 5000)
 //   returnType     "json" (text/tooltip/class) or "text" (default "json")
 //   tooltip        Whether to show the JSON tooltip (default true)
 //   onClick        Command run on left click
@@ -39,6 +43,9 @@ BarWidget {
 
   readonly property string exec: setting("run", "")
   readonly property int intervalMs: setting("interval", 60000)
+  readonly property bool stream: setting("stream", false)
+  readonly property int restartDelayMs: setting("restartInterval", 5000)
+  readonly property bool streamWanted: root.stream && root.activeInstance && root.exec !== ""
   readonly property string returnType: setting("returnType", "json")
   readonly property bool tooltipEnabled: setting("tooltip", true)
   readonly property string onClickCmd: setting("onClick", "")
@@ -128,9 +135,21 @@ BarWidget {
     if (!proc.running) proc.running = true
   }
 
+  // Start or stop the stream to match the settings and output it runs on.
+  function syncStream() {
+    if (root.streamWanted && !streamProc.running) {
+      if (root.outText === "" && root.loadingText !== "") root.loading = true
+      streamProc.running = true
+    } else if (!root.streamWanted && streamProc.running) {
+      streamProc.running = false
+    }
+  }
+
   // Explicit refresh (IPC / resume): always show the loading placeholder so
-  // the reload is visible, like the legacy grey "loading" state.
+  // the reload is visible, like the legacy grey "loading" state. A stream
+  // reports changes itself, so it only needs starting if it isn't running.
   function refresh() {
+    if (root.stream) return root.syncStream()
     if (!root.activeInstance || root.exec === "") return
     if (root.loadingText !== "") root.loading = true
     if (!proc.running) proc.running = true
@@ -232,10 +251,38 @@ BarWidget {
 
   Timer {
     interval: Math.max(1000, root.intervalMs)
-    running: root.activeInstance && root.exec !== ""
+    running: !root.stream && root.activeInstance && root.exec !== ""
     repeat: true
     triggeredOnStart: true
     onTriggered: root.poll()
+  }
+
+  onStreamWantedChanged: root.syncStream()
+  Component.onCompleted: root.syncStream()
+
+  Process {
+    id: streamProc
+    command: ["bash", "-lc", root.exec]
+    stdout: SplitParser {
+      onRead: function (line) {
+        if (line.trim() === "") return
+        root.applyOutput(line)
+        root.loading = false
+      }
+    }
+    onExited: function (exitCode) {
+      // Show the unknown state until the restarted command reports again.
+      root.applyOutput("")
+      if (root.loadingText !== "") root.loading = true
+      if (root.streamWanted) streamRestart.start()
+    }
+  }
+
+  Timer {
+    id: streamRestart
+    interval: Math.max(1000, root.restartDelayMs)
+    repeat: false
+    onTriggered: root.syncStream()
   }
 
   Loader {
