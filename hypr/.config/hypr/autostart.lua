@@ -1,7 +1,7 @@
 -- Extra autostart processes.
 -- o.launch_on_start("my-service")
 
--- system-bridge runs as a user unit so dot up first-party restarts it after an upgrade.
+-- system-bridge runs as the user unit its package ships, so each upgrade restarts it.
 if not o.cmd_missing("system-bridge") then
   o.exec_on_start("systemctl --user start system-bridge.service")
 end
