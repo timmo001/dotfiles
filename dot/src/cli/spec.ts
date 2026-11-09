@@ -260,7 +260,7 @@ const STAGE_DESCRIPTIONS: Record<UpStage, string> = {
   tools: "Install missing mise tools, upgrade the rest and prune removed ones",
   plugins: "Update the Pi, Plannotator and OpenCode plugins",
   "first-party":
-    "Upgrade the packages installed from the signed [timmo] repository through dot-first-party-upgrade@<user>.service, which polkit lets you start without a password, then restart the user units still running a replaced binary. The packages' install scripts restart their own services first, so nothing restarts twice. Only [timmo] is refreshed, so it can't become a partial system upgrade. Does nothing until dot init, or ticking System in dot up, installs the unit",
+    "Upgrade the packages installed from the signed [timmo] repository through dot-first-party-upgrade@<user>.service, which polkit lets you start without a password, then restart the user units whose main process still runs a replaced binary; any other process still on an old binary, such as one inside the compositor's unit, is only reported. The packages' install scripts restart their own services first, so nothing restarts twice. Only [timmo] is refreshed, so it can't become a partial system upgrade. Does nothing until dot init, or ticking System in dot up, installs the unit",
   herdr:
     "Restore pinned Herdr plugins and sync the saved Herdr and hc machines",
   agents: "Sync agent instructions and reload running agents",

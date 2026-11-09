@@ -206,12 +206,30 @@ const staleProcesses = Effect.fn("FirstPartyPackages.staleProcesses")(
   },
 );
 
+/** A user unit's main process, or null when it has none or can't be read. */
+const mainPidOf = Effect.fn("FirstPartyPackages.mainPidOf")(function* (
+  unit: string,
+) {
+  const result = yield* query(
+    "systemctl",
+    ["--user", "show", "--property=MainPID", "--value", unit],
+    QUERY_TIMEOUT,
+  );
+
+  const pid = result.stdout.trim();
+
+  return result.code === 0 && pid !== "" && pid !== "0" ? pid : null;
+});
+
 /**
- * Restart the user units still running an executable of `packages` from
- * before the upgrade replaced it. The unit this stage runs in, such as the
- * Upkeep worker, is left for whatever restarts it, since restarting it would
- * stop this run. Processes outside a unit are only reported, and only for
- * `upgraded`, so a stale one isn't reported on every run after.
+ * Restart the user units whose main process still runs an executable of
+ * `packages` from before the upgrade replaced it. Only a unit's main process
+ * counts: a stale child, such as a client the desktop shell started inside
+ * the compositor's unit, would otherwise restart the whole session. The unit
+ * this stage runs in, such as the Upkeep worker, is left for whatever
+ * restarts it, since restarting it would stop this run. Every other stale
+ * process is only reported, and only for `upgraded`, so it isn't reported on
+ * every run after.
  */
 const restartStale = Effect.fn("FirstPartyPackages.restartStale")(function* (
   packages: readonly string[],
@@ -235,9 +253,24 @@ const restartStale = Effect.fn("FirstPartyPackages.restartStale")(function* (
   const own = yield* userUnitOf(String(process.pid));
   const actions: RecapEntry[] = [];
 
+  const candidates = [
+    ...new Set(stale.flatMap(({ unit }) => (unit === null ? [] : [unit]))),
+  ];
+
+  const mains = new Map(
+    yield* Effect.forEach(candidates, (unit) =>
+      mainPidOf(unit).pipe(Effect.map((pid) => [unit, pid] as const)),
+    ),
+  );
+
+  const isMain = ({ unit, pid }: StaleProcess) =>
+    unit !== null && mains.get(unit) === pid;
+
   const units = new Map(
-    stale.flatMap(({ unit, binary }) =>
-      unit === null ? [] : [[unit, binary] as const],
+    stale.flatMap((found) =>
+      found.unit !== null && isMain(found)
+        ? [[found.unit, found.binary] as const]
+        : [],
     ),
   );
 
@@ -270,7 +303,7 @@ const restartStale = Effect.fn("FirstPartyPackages.restartStale")(function* (
     stale.flatMap((found) => {
       const owner = owners.get(found.binary);
 
-      return found.unit === null && owner !== undefined && upgraded.has(owner)
+      return !isMain(found) && owner !== undefined && upgraded.has(owner)
         ? [[found.binary, found.pid] as const]
         : [];
     }),
