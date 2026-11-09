@@ -60,7 +60,7 @@ export interface HerdrRepoOpenOptions {
   readonly layout?: "auto" | "vertical" | "horizontal" | "tab";
   /** Qt keyboard modifiers, resolved with Ctrl, Alt, then Shift precedence. */
   readonly modifiers?: number;
-  /** Requested Herdr workspace label. */
+  /** Requested Herdr workspace label; a linked worktree keeps Herdr's own and groups under its repository. */
   readonly label: string;
   /** Repository working directory. */
   readonly directory: string;
@@ -202,6 +202,24 @@ const readIdleShell = Effect.fn("herdrRepoOpen.readIdleShell")(function* (
     return;
 
   return shell;
+});
+
+/** The main checkout of a linked worktree, which Herdr opens it from so it groups under its repository. */
+const mainCheckout = Effect.fn("herdrRepoOpen.mainCheckout")(function* (
+  directory: string,
+) {
+  const executor = yield* CommandExecutor;
+
+  const listing = yield* executor
+    .run("git", ["-C", directory, "worktree", "list", "--porcelain"])
+    .pipe(Effect.orElseSucceed(() => ""));
+
+  const main = listing.split("\n\n")[0]?.split("\n") ?? [];
+  const path = main.find((line) => line.startsWith("worktree "))?.slice(9);
+
+  if (!path || main.includes("bare") || resolve(path) === directory) return;
+
+  return path;
 });
 
 /** Open or focus a repository workspace with a configurable readiness schedule. */
@@ -410,8 +428,23 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   }
 
   const workspaces = yield* herdr.workspaces.list();
+  const checkout = yield* mainCheckout(directory);
 
-  const workspace = workspaces.find((workspace) => workspace.label === label);
+  const worktree =
+    checkout === undefined
+      ? undefined
+      : yield* herdr.worktrees.open({
+          cwd: checkout,
+          path: directory,
+          focus: false,
+        });
+
+  const workspace = worktree
+    ? worktree.alreadyOpen
+      ? worktree.workspace
+      : undefined
+    : workspaces.find((workspace) => workspace.label === label);
+
   let workspaceId = workspace?.id;
 
   let tabId: TabId | undefined;
@@ -419,7 +452,15 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   let renameTab = false;
   const created = { workspace: false, tab: false, pane: false };
 
-  if (!workspaceId) {
+  if (!workspaceId && worktree) {
+    workspaceId = worktree.workspace.id;
+    tabId = worktree.tab.id;
+    paneId = worktree.rootPane.id;
+    renameTab = true;
+    created.workspace = true;
+    created.tab = true;
+    created.pane = true;
+  } else if (!workspaceId) {
     const opened = yield* herdr.workspaces.createInDirectory(
       directory,
       label ? { label, focus: false } : { focus: false },

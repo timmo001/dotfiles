@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { Effect, Option, Schema } from "../../dot/node_modules/effect/dist/index.js";
 import { NodeServices } from "../../dot/node_modules/@effect/platform-node/dist/index.js";
-import { Agent, HerdrSdk, herdrSdkLayerFromOptions, Pane, PaneProcessInfo, Tab, Workspace } from "../../dot/node_modules/@timmo001/effect-herdr/src/index.ts";
+import { Agent, HerdrSdk, herdrSdkLayerFromOptions, Pane, PaneProcessInfo, Tab, Workspace, WorktreeOpenResult } from "../../dot/node_modules/@timmo001/effect-herdr/src/index.ts";
 import { openHerdrRepo, type HerdrRepoOpenOptions } from "../../dot/src/commands/HerdrRepoOpen.js";
 import { HOME_DIR } from "../../dot/src/lib/paths.js";
 import { CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
@@ -35,6 +35,8 @@ async function launch(options: {
   detectedKind?: string;
   nameTaken?: boolean;
   opencode2?: string;
+  /** Opens the directory as a linked worktree of this main checkout, already open in Herdr or not. */
+  worktree?: { main: string; alreadyOpen: boolean };
   onResult?: (result: Effect.Success<ReturnType<typeof openHerdrRepo>>) => void;
 } = {}) {
   const panes = options.panes ?? [idlePane()];
@@ -74,6 +76,14 @@ async function launch(options: {
   const program = Effect.gen(function* () {
     const sdk = yield* HerdrSdk;
 
+    const opened = options.worktree && Schema.decodeUnknownSync(WorktreeOpenResult)({
+      worktree: { path: directory, label: "repo", is_bare: false, is_detached: true, is_linked_worktree: true, is_prunable: false, open_workspace_id: "w1" },
+      workspace: { workspace_id: "w1", active_tab_id: "w1:t1", label: "upkeep-agent-fixture", number: 1, pane_count: panes.length, tab_count: tabs.length, agent_status: "idle", focused: false },
+      tab: { tab_id: "w1:t9", workspace_id: "w1", label: "1", number: 1, pane_count: 1, agent_status: "idle", focused: false },
+      root_pane: { pane_id: "w1:p9", tab_id: "w1:t9", workspace_id: "w1", terminal_id: "terminal-w1:p9", revision: 0, focused: false, agent_status: "idle", cwd: directory },
+      already_open: options.worktree.alreadyOpen,
+    });
+
     return yield* openHerdrRepo({ label: "fixture", directory, tabLabel: "Action", command: "lazygit", ...options.request }, {
       foregroundClientReady: options.request?.noFocus ? Effect.die("Background launch checked the terminal client") : Effect.succeed(true),
       launchTerminal: Effect.die("Unexpected terminal launch"),
@@ -96,6 +106,9 @@ async function launch(options: {
         list: () => record("workspaces.list", options.workspaceExists === false ? [] : [workspace]),
         createInDirectory: (cwd, input) => record("workspaces.create", { workspace, tab: newTab, rootPane: newPane }, cwd, input),
         focus: id => record("workspaces.focus", workspace, id),
+      },
+      worktrees: { ...sdk.worktrees,
+        open: input => opened ? record("worktrees.open", opened, undefined, input) : Effect.die("Unexpected worktree open"),
       },
       tabs: { ...sdk.tabs,
         list: () => record("tabs.list", tabs),
@@ -122,6 +135,11 @@ async function launch(options: {
     Effect.provide(herdrSdkLayerFromOptions({ socketPath: "/fixture/herdr.sock" })),
     Effect.provideService(CommandExecutor, CommandExecutor.of({
       run: (command, args) => {
+        if (command === "git" && args?.slice(2).join(" ") === "worktree list --porcelain")
+          return Effect.succeed(options.worktree
+            ? `worktree ${options.worktree.main}\nHEAD fixture\nbranch refs/heads/main\n\nworktree ${args[1]}\nHEAD fixture\ndetached\n`
+            : `worktree ${args[1]}\nHEAD fixture\nbranch refs/heads/main\n`);
+
         if (command === "herdr" && args?.join(" ") === "integration status") return record("executor.run", "opencode: current\n", command, args);
 
         if (command === "mise" && args?.join(" ") === "which opencode2") return record("executor.run", options.opencode2 ?? "/fixture/opencode2", command, args);
@@ -252,6 +270,30 @@ test("background workspace creation returns owned resource IDs without focusing"
 
   expect(calls.some(call => call.method.endsWith(".focus"))).toBe(false);
   expect(calls.find(call => call.method === "workspaces.create")?.input).toMatchObject({ focus: false });
+});
+
+test("a linked worktree opens from its main checkout so Herdr groups it under the repository", async () => {
+  const calls = await launch({
+    worktree: { main: "/fixture/main", alreadyOpen: false },
+    request: { noFocus: true },
+    onResult: result => expect(result).toMatchObject({
+      workspaceId: "w1", tabId: "w1:t9", paneId: "w1:p9", created: { workspace: true, tab: true, pane: true },
+    }),
+  });
+
+  expect(calls.find(call => call.method === "worktrees.open")?.input).toEqual({ cwd: "/fixture/main", path: directory, focus: false });
+  expect(calls.some(call => call.method === "workspaces.create")).toBe(false);
+  expect(calls.find(call => call.method === "panes.sendInput")).toMatchObject({ id: "w1:p9", input: { text: "lazygit" } });
+});
+
+test("a linked worktree already open in Herdr reuses its workspace", async () => {
+  const calls = await launch({
+    worktree: { main: "/fixture/main", alreadyOpen: true },
+    onResult: result => expect(result).toMatchObject({ workspaceId: "w1", created: { workspace: false } }),
+  });
+
+  expect(calls.some(call => call.method === "workspaces.create")).toBe(false);
+  expect(calls.find(call => call.method === "panes.sendInput")?.id).toBe("w1:p1");
 });
 
 test("naming or prompting requires the detected agent to match the requested kind", async () => {
