@@ -1,8 +1,22 @@
+import { join } from "node:path";
+import { NodeServices } from "@effect/platform-node";
 import { Tool } from "@opencode/schema/tool";
+import { layer as ghClientLayer, Repository } from "@timmo001/effect-gh";
 import { Duration, Effect, Layer, Schema } from "effect";
-import { type ClientNamespace, clientTools, commandExists, runCli, runCliText, tailLines } from "./tool";
+import {
+  type ClientNamespace,
+  clientTools,
+  commandExists,
+  type Redirect,
+  runCli,
+  runCliText,
+  tailLines,
+  toToolError,
+} from "./tool";
 
 const tool = clientTools(Layer.empty);
+
+const ghLayer = ghClientLayer().pipe(Layer.provide(NodeServices.layer));
 
 const directory = Schema.optionalKey(
   Schema.String.check(Schema.isStartingWith("/")).annotate({
@@ -43,12 +57,99 @@ const records = (text: string, keys: readonly string[]) =>
     Object.fromEntries(line.split(SEPARATOR).map((value, index) => [keys[index] ?? String(index), value])),
   );
 
+/**
+ * Run a git command that changes the repository, returning what it printed, or undefined when it
+ * printed nothing. Both streams are kept together, so a conflict's report survives a failure.
+ */
+const gitChange = (args: readonly string[], dir: string, timeout: Duration.Input = "2 minutes") =>
+  runCli("git", ["--no-pager", ...args], {
+    cwd: dir,
+    timeout,
+    mergeStderr: true,
+    // Continuing a merge, rebase or cherry-pick keeps its message instead of waiting on an editor.
+    env: { GIT_EDITOR: "true", GIT_TERMINAL_PROMPT: "0" },
+  }).pipe(
+    Effect.flatMap((run) =>
+      run.exitCode === 0
+        ? Effect.succeed(run.stdout.trim() || undefined)
+        : Effect.fail(
+            new Tool.Error({
+              message: `git ${args[0]} exited ${run.exitCode}\n${tailLines(run.stdout)}`,
+              metadata: { exitCode: run.exitCode },
+            }),
+          ),
+    ),
+  );
+
+const Action = Schema.Literals(["continue", "abort"]).annotate({
+  description: "Continue or abort the one in progress instead of starting one",
+});
+
+const ActionOrSkip = Schema.Literals(["continue", "abort", "skip"]).annotate({
+  description: "Continue, abort or skip the commit in progress instead of starting one",
+});
+
+/** Start a merge, rebase or cherry-pick with `args`, or act on the one in progress. */
+const sequence = (
+  command: string,
+  input: { readonly directory?: string; readonly action?: string },
+  context: { readonly directory: string },
+  args: readonly string[] | undefined,
+) =>
+  input.action !== undefined
+    ? gitChange([command, `--${input.action}`], cwd(input, context))
+    : args === undefined
+      ? Effect.fail(new Tool.Error({ message: `git ${command} needs a revision to start, or an action` }))
+      : gitChange([command, ...args], cwd(input, context));
+
+const GITHUB_URL =
+  /^(?:https:\/\/(?:[^@/]+@)?github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/;
+
+/** OWNER/REPO when a clone source is a github.com URL. */
+const githubRepository = (source: string) => {
+  const match = GITHUB_URL.exec(source);
+
+  return match === null ? undefined : `${match[1]}/${match[2]}`;
+};
+
+/** Where a clone of a GitHub repository goes: the destination, or the repository's name. */
+const cloneDestination = (input: { readonly directory?: string; readonly destination?: string }, repository: string) => {
+  const destination = input.destination ?? repository.split("/")[1] ?? repository;
+
+  return input.directory === undefined ? destination : join(input.directory, destination);
+};
+
+const cloneRedirect = (input: {
+  readonly directory?: string;
+  readonly source: string;
+  readonly destination?: string;
+  readonly depth?: number;
+}): Redirect | undefined => {
+  const repository = githubRepository(input.source);
+
+  if (repository === undefined) return undefined;
+
+  const destination = cloneDestination(input, repository);
+
+  return {
+    namespace: "gh",
+    tool: "repo_clone",
+    input:
+      input.depth === undefined
+        ? { repository, directory: destination }
+        : { repository, directory: destination, depth: input.depth },
+    reason: "gh clones GitHub repositories with your gh login and adds an upstream remote to forks",
+  };
+};
+
+const depthArgs = (depth: number | undefined) => (depth === undefined ? [] : [`--depth=${depth}`]);
+
 /** Git repositories through the git CLI: status, history, diffs and other reads, plus fetch. */
 export const gitNamespace: ClientNamespace = {
   kind: "client",
   command: "git",
   description:
-    "Git in the session's directory, or another with directory: status, log, show, diff, grep, files, blame, branches, remotes, refs, stashes and worktrees, plus fetch. Commit with dot.git_commit.",
+    "Git in the session's directory, or another with directory: status, log, show, diff, grep, files, blame, branches, tags, remotes, refs, reflog, stashes and worktrees, plus fetch, pull, clone, staging, switching and deleting branches, stashing, merges, rebases, cherry-picks and submodules. Commit and push with dot.git_commit; pull requests, forks and other GitHub work go through gh.",
   available: commandExists("git"),
   tools: [
     tool({
@@ -331,6 +432,49 @@ export const gitNamespace: ClientNamespace = {
         ),
     }),
     tool({
+      name: "tag_list",
+      description: "List tags, newest first, with their SHA, date and subject.",
+      access: "read",
+      input: Schema.Struct({
+        directory,
+        pattern: Schema.optionalKey(Rev.annotate({ description: "A glob such as v1.*" })),
+        contains: Schema.optionalKey(Rev).annotate({ description: "Only tags that contain this commit" }),
+      }),
+      run: (input, context) =>
+        Effect.map(
+          git(
+            [
+              "tag",
+              "--list",
+              "--sort=-creatordate",
+              `--format=${["%(refname:short)", "%(objectname:short)", "%(creatordate:iso-strict)", "%(subject)"].join("%1f")}`,
+              ...option("--contains", input.contains),
+              ...(input.pattern === undefined ? [] : [input.pattern]),
+            ],
+            cwd(input, context),
+          ),
+          (text) => records(text, ["name", "sha", "date", "subject"]),
+        ),
+    }),
+    tool({
+      name: "reflog",
+      description: "List where a ref, HEAD by default, has pointed, newest first: commits, checkouts, resets and rebases.",
+      access: "read",
+      input: Schema.Struct({
+        directory,
+        rev: Schema.optionalKey(Rev),
+        limit: Schema.optionalKey(Schema.Int).annotate({ description: "How many entries, 20 by default" }),
+      }),
+      run: (input, context) =>
+        Effect.map(
+          git(
+            ["reflog", "show", `--max-count=${input.limit ?? 20}`, "--format=%H%x1f%gd%x1f%gs", input.rev ?? "HEAD"],
+            cwd(input, context),
+          ),
+          (text) => records(text, ["sha", "ref", "message"]),
+        ),
+    }),
+    tool({
       name: "worktree_list",
       description: "List the repository's worktrees with their paths, HEADs and branches.",
       access: "read",
@@ -382,6 +526,256 @@ export const gitNamespace: ClientNamespace = {
               ? Effect.succeed((run.stdout + run.stderr).trim())
               : Effect.fail(new Tool.Error({ message: `git fetch exited ${run.exitCode}\n${tailLines(run.stderr)}` })),
           ),
+        ),
+    }),
+    tool({
+      name: "pull",
+      description:
+        "Fetch and bring the current branch up to date with its upstream, or a remote's branch: fast-forward only, or rebasing onto it with rebase.",
+      access: "write",
+      timeout: "5 minutes",
+      input: Schema.Struct({
+        directory,
+        remote: Schema.optionalKey(Rev).annotate({ description: "origin by default when branch is given" }),
+        branch: Schema.optionalKey(Rev),
+        rebase: Schema.optionalKey(Schema.Boolean).annotate({ description: "Rebase local commits instead of fast-forwarding" }),
+      }),
+      run: (input, context) =>
+        gitChange(
+          [
+            "pull",
+            input.rebase ? "--rebase" : "--ff-only",
+            ...(input.remote === undefined && input.branch === undefined ? [] : [input.remote ?? "origin"]),
+            ...(input.branch === undefined ? [] : [input.branch]),
+          ],
+          cwd(input, context),
+          "5 minutes",
+        ),
+    }),
+    tool({
+      name: "clone",
+      description:
+        "Clone a repository into destination, relative to directory. A github.com URL runs gh.repo_clone instead, so call that for GitHub repositories.",
+      access: "write",
+      timeout: "10 minutes",
+      input: Schema.Struct({
+        directory,
+        source: Rev.annotate({ description: "A clone URL or a local repository's path" }),
+        destination: Schema.optionalKey(Schema.String).annotate({
+          description: "Where to clone to; the repository's name by default",
+        }),
+        depth: Schema.optionalKey(Schema.Int).annotate({ description: "A shallow clone with this many commits" }),
+      }),
+      redirect: cloneRedirect,
+      resource: (input) => githubRepository(input.source) ?? input.source,
+      summary: (input) => {
+        const repository = githubRepository(input.source);
+
+        return repository === undefined
+          ? ["git clone", ...depthArgs(input.depth), input.source, ...(input.destination === undefined ? [] : [input.destination])].join(" ")
+          : `gh repo clone ${repository} ${cloneDestination(input, repository)}`;
+      },
+      run: (input, context) => {
+        const repository = githubRepository(input.source);
+
+        if (repository === undefined)
+          return gitChange(
+            ["clone", ...depthArgs(input.depth), "--", input.source, ...(input.destination === undefined ? [] : [input.destination])],
+            cwd(input, context),
+            "10 minutes",
+          );
+
+        const destination = cloneDestination(input, repository);
+
+        return Repository.clone(
+          { repository, directory: destination, gitArgs: depthArgs(input.depth) },
+          { cwd: context.directory, env: { GIT_TERMINAL_PROMPT: "0" } },
+        ).pipe(
+          Effect.as(`Cloned ${repository} into ${destination}`),
+          Effect.catchTag("GhCommandError", (error) =>
+            Effect.fail(
+              new Tool.Error({
+                message: `gh repo clone exited ${error.exitCode}\n${tailLines(error.stderr || error.stdout)}`,
+                error,
+              }),
+            ),
+          ),
+          Effect.mapError(toToolError),
+          Effect.provide(ghLayer),
+        );
+      },
+    }),
+    tool({
+      name: "add",
+      description: "Stage changes to these paths, including new and deleted files.",
+      access: "write",
+      input: Schema.Struct({ directory, paths: Schema.NonEmptyArray(Schema.String) }),
+      run: (input, context) => gitChange(["add", "--", ...input.paths], cwd(input, context)),
+    }),
+    tool({
+      name: "restore",
+      description:
+        "Unstage paths with staged, or discard their working tree changes without it. Discarded changes can't be recovered.",
+      access: "write",
+      input: Schema.Struct({
+        directory,
+        paths: Schema.NonEmptyArray(Schema.String),
+        staged: Schema.optionalKey(Schema.Boolean).annotate({ description: "Unstage, leaving the working tree alone" }),
+        source: Schema.optionalKey(Rev).annotate({ description: "Restore from this revision instead of the index or HEAD" }),
+      }),
+      // Unstaging and discarding are told apart, so "always" for one doesn't allow the other.
+      resource: (input) => (input.staged ? "--staged" : "--worktree"),
+      run: (input, context) =>
+        gitChange(
+          ["restore", ...flag("--staged", input.staged), ...option("--source", input.source), "--", ...input.paths],
+          cwd(input, context),
+        ),
+    }),
+    tool({
+      name: "switch",
+      description: "Switch to a branch, or create one with create, from startPoint or HEAD.",
+      access: "write",
+      input: Schema.Struct({
+        directory,
+        branch: Rev,
+        create: Schema.optionalKey(Schema.Boolean),
+        startPoint: Schema.optionalKey(Rev).annotate({ description: "Where a new branch starts" }),
+      }),
+      run: (input, context) =>
+        gitChange(
+          [
+            "switch",
+            ...(input.create ? ["--create", input.branch] : [input.branch]),
+            ...(input.create && input.startPoint !== undefined ? [input.startPoint] : []),
+          ],
+          cwd(input, context),
+        ),
+    }),
+    tool({
+      name: "branch_delete",
+      description: "Delete a local branch, refusing an unmerged one unless force.",
+      access: "write",
+      input: Schema.Struct({ directory, branch: Rev, force: Schema.optionalKey(Schema.Boolean) }),
+      resource: (input) => (input.force ? "--force" : input.branch),
+      run: (input, context) => gitChange(["branch", input.force ? "-D" : "-d", input.branch], cwd(input, context)),
+    }),
+    tool({
+      name: "stash_push",
+      description: "Stash working tree and staged changes, or only some paths', and leave the working tree clean.",
+      access: "write",
+      input: Schema.Struct({
+        directory,
+        message: Schema.optionalKey(Schema.String),
+        paths,
+        untracked: Schema.optionalKey(Schema.Boolean).annotate({ description: "Stash untracked files too" }),
+        staged: Schema.optionalKey(Schema.Boolean).annotate({ description: "Stash only staged changes" }),
+      }),
+      run: (input, context) =>
+        gitChange(
+          [
+            "stash",
+            "push",
+            ...(input.message === undefined ? [] : ["--message", input.message]),
+            ...flag("--include-untracked", input.untracked),
+            ...flag("--staged", input.staged),
+            ...pathArgs(input),
+          ],
+          cwd(input, context),
+        ),
+    }),
+    ...(
+      [
+        ["apply", "Apply a stash, the latest by default, and keep it."],
+        ["pop", "Apply a stash, the latest by default, and drop it once it applies cleanly."],
+        ["drop", "Delete a stash, the latest by default."],
+      ] as const
+    ).map(([action, description]) =>
+      tool({
+        name: `stash_${action}`,
+        description,
+        access: "write",
+        input: Schema.Struct({
+          directory,
+          stash: Schema.optionalKey(Rev).annotate({ description: "A stash such as stash@{1}, from stash_list" }),
+        }),
+        run: (input, context) =>
+          gitChange(["stash", action, ...(input.stash === undefined ? [] : [input.stash])], cwd(input, context)),
+      }),
+    ),
+    tool({
+      name: "merge",
+      description:
+        "Merge a revision into the current branch with git's default message, or continue or abort a merge with conflicts.",
+      access: "write",
+      input: Schema.Struct({
+        directory,
+        rev: Schema.optionalKey(Rev),
+        ffOnly: Schema.optionalKey(Schema.Boolean).annotate({ description: "Fail unless it fast-forwards" }),
+        noFf: Schema.optionalKey(Schema.Boolean).annotate({ description: "Always make a merge commit" }),
+        action: Schema.optionalKey(Action),
+      }),
+      run: (input, context) =>
+        sequence(
+          "merge",
+          input,
+          context,
+          input.rev === undefined
+            ? undefined
+            : ["--no-edit", ...flag("--ff-only", input.ffOnly), ...flag("--no-ff", input.noFf), input.rev],
+        ),
+    }),
+    tool({
+      name: "rebase",
+      description:
+        "Rebase the current branch onto upstream, never interactively, or continue, abort or skip during one with conflicts.",
+      access: "write",
+      input: Schema.Struct({
+        directory,
+        upstream: Schema.optionalKey(Rev),
+        onto: Schema.optionalKey(Rev).annotate({ description: "Replay the commits after upstream onto this instead" }),
+        autostash: Schema.optionalKey(Schema.Boolean).annotate({
+          description: "Stash local changes first and reapply them after",
+        }),
+        action: Schema.optionalKey(ActionOrSkip),
+      }),
+      run: (input, context) =>
+        sequence(
+          "rebase",
+          input,
+          context,
+          input.upstream === undefined
+            ? undefined
+            : [...flag("--autostash", input.autostash), ...option("--onto", input.onto), input.upstream],
+        ),
+    }),
+    tool({
+      name: "cherry_pick",
+      description:
+        "Apply commits onto the current branch with their own messages, or continue, abort or skip during one with conflicts.",
+      access: "write",
+      input: Schema.Struct({
+        directory,
+        revs: Schema.optionalKey(Schema.NonEmptyArray(Rev)),
+        action: Schema.optionalKey(ActionOrSkip),
+      }),
+      run: (input, context) => sequence("cherry-pick", input, context, input.revs),
+    }),
+    tool({
+      name: "submodule_update",
+      description: "Check out submodules at the commits the superproject records, initialising new ones with init.",
+      access: "write",
+      timeout: "10 minutes",
+      input: Schema.Struct({
+        directory,
+        paths,
+        init: Schema.optionalKey(Schema.Boolean),
+        recursive: Schema.optionalKey(Schema.Boolean),
+      }),
+      run: (input, context) =>
+        gitChange(
+          ["submodule", "update", ...flag("--init", input.init), ...flag("--recursive", input.recursive), ...pathArgs(input)],
+          cwd(input, context),
+          "10 minutes",
         ),
     }),
   ],
