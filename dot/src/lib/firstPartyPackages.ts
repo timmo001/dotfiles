@@ -6,7 +6,7 @@
  * only what they leave on an old binary is restarted here, never twice.
  */
 
-import { Effect, FileSystem, Schema } from "effect";
+import { Clock, Effect, FileSystem, Schema } from "effect";
 import { userInfo } from "os";
 import { basename, join } from "path";
 import { lines, query } from "./boundedQuery.js";
@@ -319,25 +319,26 @@ const restartStale = Effect.fn("FirstPartyPackages.restartStale")(function* (
   return actions;
 });
 
-/** Log the upgrade's own output from the system journal, best effort. */
+/**
+ * Log the upgrade's own output from the system journal since it started,
+ * best effort. A oneshot unit forgets its invocation once it succeeds, so
+ * this reads by unit and time rather than invocation.
+ */
 const logInvocation = Effect.fn("FirstPartyPackages.logInvocation")(function* (
   unit: string,
+  startedAt: number,
 ) {
   const log = yield* OutputLog;
 
-  const invocation = yield* query(
-    "systemctl",
-    ["show", "--property=InvocationID", "--value", unit],
-    QUERY_TIMEOUT,
-  );
-
-  const id = invocation.stdout.trim();
-
-  if (invocation.code !== 0 || id === "") return;
-
   const journal = yield* query(
     "journalctl",
-    [`_SYSTEMD_INVOCATION_ID=${id}`, "--output=cat", "--no-pager", "--quiet"],
+    [
+      `--unit=${unit}`,
+      `--since=@${Math.floor(startedAt / 1000)}`,
+      "--output=cat",
+      "--no-pager",
+      "--quiet",
+    ],
     QUERY_TIMEOUT,
   );
 
@@ -379,13 +380,15 @@ export const upgradeFirstParty = Effect.gen(function* () {
 
   yield* log.info(`Starting ${unit}`);
 
+  const startedAt = yield* Clock.currentTimeMillis;
+
   const exitCode = yield* executor.exitCode("systemctl", [
     "start",
     "--no-ask-password",
     unit,
   ]);
 
-  yield* logInvocation(unit);
+  yield* logInvocation(unit, startedAt);
 
   if (exitCode !== 0)
     return yield* new FirstPartyUpgradeError({
