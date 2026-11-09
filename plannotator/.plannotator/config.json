@@ -64,8 +64,13 @@
     "shownAt": "2026-10-29T15:52:19.745Z"
   },
   "inboxListIntro": {
-    "dueAt": "2026-10-31T12:33:06.973Z",
-    "shownAt": "2026-10-31T13:04:02.111Z"
+    "dueAt": "2026-11-08T21:41:59.759Z",
+    "version": 2,
+    "before": {
+      "dueAt": "2026-10-31T12:33:06.973Z",
+      "shownAt": "2026-10-31T13:04:02.111Z"
+    },
+    "shownAt": "2026-11-08T22:05:48.462Z"
   },
   "inboxTextSize": 15,
   "inboxVoiceIntro": {
@@ -75,16 +80,23 @@
     "firstUseAt": "2026-10-10T21:35:20.772Z"
   },
   "inboxRows": [
-    "highlight",
     "roomy",
-    "previewTwo"
+    "previewTwo",
+    "marksThreads",
+    "marksProjects",
+    "repoLogo"
   ],
-  "inboxRowsRev": 14,
+  "inboxRowsRev": 15,
   "inboxReveals": {
     "waitingSince": {
       "snooze": "2026-11-04T20:03:24.162Z",
-      "voice": "2026-11-08T11:01:31.699Z"
-    }
+      "voice": "2026-11-08T11:01:31.699Z",
+      "list_intro": "2026-11-08T21:42:09.166Z"
+    },
+    "dayShownAt": "2026-11-08T22:05:48.462Z",
+    "lastShownAt": "2026-11-08T22:05:48.462Z",
+    "shownLoad": "76091ee5-3827-486d-8bc5-d01be33df8a9"
   },
-  "inboxSteps": true
+  "inboxSteps": true,
+  "inboxRowsDefaults": 2
 }
