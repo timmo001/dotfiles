@@ -154,39 +154,32 @@ Item {
     onTriggered: root.refresh()
   }
 
-  // Follows the dot daemon's checks. While the daemon is down the watch exits
-  // and is retried, and the timer below polls instead.
-  Process {
-    id: watchProcess
+  // Follows the dot daemon's checks through the file it keeps. While the
+  // daemon is down the file is gone, and the timer below polls instead.
+  FileView {
+    id: statusFile
     property bool live: false
-    command: ["dot", "services", "watch"]
-    running: true
-    stdout: SplitParser {
-      onRead: function(line) {
-        if (String(line).trim() === "") return
-        watchProcess.live = true
-        root.apply(line)
-        root.currentTime = Date.now()
-      }
+    path: Quickshell.env("XDG_RUNTIME_DIR") + "/dot/status/services.json"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: {
+      live = true
+      root.apply(text())
+      root.currentTime = Date.now()
     }
-    onExited: function(exitCode) {
-      live = false
-      watchRestart.restart()
-    }
-  }
-
-  Timer {
-    id: watchRestart
-    interval: 5000
-    onTriggered: if (!watchProcess.running) watchProcess.running = true
+    onLoadFailed: live = false
   }
 
   Timer {
     interval: 60000
-    running: !watchProcess.live
+    running: !statusFile.live
     repeat: true
     triggeredOnStart: true
-    onTriggered: root.refresh()
+    onTriggered: {
+      statusFile.reload()
+      root.refresh()
+    }
   }
 
   Timer {

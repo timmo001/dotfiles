@@ -19,14 +19,14 @@ Several centre/right widgets are primary-output only, with host-specific outputs
 | --- | --- |
 | `timmo.workspaces` | Dynamic workspace numbers (no persistent empties), with the focused workspace's name and every name on bar hover; focused full opacity, others dimmed |
 | `timmo.upnext` | Twitch live channels, YouTube uploads and the watch-later queue from the local [upnext](https://upnext.timmo.dev) daemon |
-| `timmo.git` | Managed-repo state, recent commits, GitHub notifications, release reviews, and open pull requests in one centre widget and panel, streamed from `dot git watch` |
-| `timmo.command` | Interval or streaming command cell; here streams Dotfiles and watched package update status from `dot updates watch` |
+| `timmo.git` | Managed-repo state, recent commits, GitHub notifications, release reviews, and open pull requests in one centre widget and panel, read from the dot daemon's status file |
+| `timmo.command` | Interval command cell, or one following a runtime file; here shows Dotfiles and watched package update status from the dot daemon's status file |
 | `timmo.stream-command` | Streaming status JSON for long-running watchers; available but not placed on the public bar |
 | `timmo.home-assistant` | Home Assistant status on the right |
 | `timmo.system-bridge` | Local [System Bridge](https://system-bridge.timmo.dev) health (bar + detail panel) |
 | `sceny.devices` | Phones and tablets in the bar through [KDE Connect](https://kdeconnect.kde.org/) |
 | `timmo.notes` | Notes vault browse/search/capture panel wired to the `notes` CLI |
-| `timmo.services` | Health and run history of registered user services (bar + panel), streamed from `dot services watch` |
+| `timmo.services` | Health and run history of registered user services (bar + panel), read from the dot daemon's status file |
 | `timmo.clock` | Compact clock with calendar, year progress, and world clocks (replaces stock clock) |
 | `timmo.momentumctl` | Headset panel via `momentumctl`; panel-only in the public layout |
 | `timmo.plannotator-inbox` | Threads waiting on you in the local [Plannotator](https://plannotator.ai) Inbox (bar + panel); opens the Inbox as an Omarchy web app rather than redrawing it |

@@ -1,15 +1,20 @@
 /**
- * @file Shows pending update and missing install counts in the prompt footer, from `dot updates watch --json`,
- * or `dot updates status --json` while the dot daemon isn't running.
+ * @file Shows pending update and missing install counts in the prompt footer, from the status file the dot daemon
+ * keeps, or `dot updates status --json` while the daemon isn't running.
  */
 
+import { basename, join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { Plugin, usePlugin } from "@opencode/plugin/tui";
 import { TextAttributes } from "@opentui/core";
-import { Effect, Fiber, Schema, Stream } from "effect";
-import { ChildProcess, ChildProcessSpawner } from "effect/process";
+import { Effect, Fiber, FileSystem, Option, Schema, Stream } from "effect";
 import { createSignal, For, Show } from "solid-js";
 import { runText } from "../lib/process";
+
+// The dot daemon keeps `dot updates status --json` here while it runs.
+const STATUS_DIRECTORY = join(process.env.XDG_RUNTIME_DIR || `/run/user/${process.getuid?.() ?? 1000}`, "dot", "status");
+
+const STATUS_FILE = join(STATUS_DIRECTORY, "updates.json");
 
 // The parts of `dot updates status --json` this plugin reads.
 const Status = Schema.fromJsonString(
@@ -37,45 +42,33 @@ type Current = typeof Status.Type;
 
 const decode = Schema.decodeUnknownEffect(Status);
 
-// Reads the status once: from the daemon, or the cache dot refreshes in the
-// background once it is stale.
-const read = runText("dot", ["updates", "status", "--json"]).pipe(
+// Without the daemon, dot reads its cache and refreshes it in the background once it is stale.
+const check = runText("dot", ["updates", "status", "--json"]).pipe(
   Effect.flatMap(decode),
   Effect.timeout("10 seconds"),
   Effect.orElseSucceed((): Current | null => null),
 );
 
-// Follows the daemon's status until the watch exits, which it does at once
-// when the daemon isn't running. Returns whether it printed anything.
-const watch = (apply: (status: Current) => void) =>
-  Effect.gen(function* () {
-    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-    let seen = false;
+// The daemon's status file, or dot's own check while the daemon isn't running.
+const read = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const kept = yield* fs.readFileString(STATUS_FILE).pipe(Effect.flatMap(decode), Effect.option);
 
-    const proc = yield* spawner.spawn(
-      ChildProcess.make("dot", ["updates", "watch", "--json"], {
-        stdin: "ignore",
-        stdout: "pipe",
-        stderr: "ignore",
-      }),
-    );
+  return Option.isSome(kept) ? kept.value : yield* check;
+});
 
-    yield* proc.stdout.pipe(
-      Stream.decodeText(),
-      Stream.splitLines,
-      Stream.runForEach((line) =>
-        decode(line).pipe(
-          Effect.map((status) => {
-            seen = true;
-            apply(status);
-          }),
-          Effect.ignore,
-        ),
-      ),
-    );
+// Waits for the daemon to change the status file, or a minute while it isn't running.
+const nextChange = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
 
-    return seen;
-  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.orElseSucceed(() => false));
+  yield* fs.watch(STATUS_DIRECTORY).pipe(
+    Stream.filter((event) => basename(event.path) === "updates.json"),
+    Stream.take(1),
+    Stream.runDrain,
+    Effect.timeoutOption("1 minute"),
+    Effect.catch(() => Effect.sleep("1 minute")),
+  );
+});
 
 export default Plugin.define({
   id: "skill-updates",
@@ -116,16 +109,13 @@ export default Plugin.define({
       announced = items;
     };
 
-    // Watch the daemon; when the watch ends, read the status once and try
-    // again, soon after a dropped connection and after a minute when the
-    // daemon isn't running.
+    // Read the status, then again each time the daemon changes it, or every
+    // minute while the daemon isn't running.
     const follow = Effect.runFork(
       Effect.gen(function* () {
-        const watched = yield* watch(apply);
-
         apply(yield* read);
-        yield* Effect.sleep(watched ? "5 seconds" : "60 seconds");
-      }).pipe(Effect.forever),
+        yield* nextChange;
+      }).pipe(Effect.forever, Effect.provide(NodeServices.layer)),
     );
 
     function View() {

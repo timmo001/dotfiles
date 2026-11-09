@@ -3,15 +3,14 @@
 // Runs `exec` on an interval and renders the resulting status-bar JSON
 // (text/tooltip/class) via a WidgetButton, mapping the parsed class to a
 // colour and hiding on configured classes. The Waybar custom/* equivalent
-// for the Omarchy 4 Quickshell bar. With `stream`, `exec` instead runs
-// continuously and each line it prints replaces the output.
+// for the Omarchy 4 Quickshell bar. With `runtimeFile`, it renders that file
+// whenever it changes instead, and only polls `run` while the file is missing.
 //
 // Per-instance settings (inline on the shell.json bar layout entry):
 //   run            Shell command to run (its stdout is parsed)
 //   interval       Poll interval in milliseconds (default 60000)
-//   stream         Run `run` continuously, rendering each line it prints;
-//                  shows the loading state and restarts it when it exits
-//   restartInterval  Delay before restarting a stream, ms (default 5000)
+//   runtimeFile    File under $XDG_RUNTIME_DIR holding the output, such as
+//                  one a daemon keeps; `run` is the fallback while it's missing
 //   returnType     "json" (text/tooltip/class) or "text" (default "json")
 //   tooltip        Whether to show the JSON tooltip (default true)
 //   onClick        Command run on left click
@@ -43,9 +42,8 @@ BarWidget {
 
   readonly property string exec: setting("run", "")
   readonly property int intervalMs: setting("interval", 60000)
-  readonly property bool stream: setting("stream", false)
-  readonly property int restartDelayMs: setting("restartInterval", 5000)
-  readonly property bool streamWanted: root.stream && root.activeInstance && root.exec !== ""
+  readonly property string runtimeFile: setting("runtimeFile", "")
+  property bool fileLive: false
   readonly property string returnType: setting("returnType", "json")
   readonly property bool tooltipEnabled: setting("tooltip", true)
   readonly property string onClickCmd: setting("onClick", "")
@@ -135,21 +133,11 @@ BarWidget {
     if (!proc.running) proc.running = true
   }
 
-  // Start or stop the stream to match the settings and output it runs on.
-  function syncStream() {
-    if (root.streamWanted && !streamProc.running) {
-      if (root.outText === "" && root.loadingText !== "") root.loading = true
-      streamProc.running = true
-    } else if (!root.streamWanted && streamProc.running) {
-      streamProc.running = false
-    }
-  }
-
   // Explicit refresh (IPC / resume): always show the loading placeholder so
-  // the reload is visible, like the legacy grey "loading" state. A stream
-  // reports changes itself, so it only needs starting if it isn't running.
+  // the reload is visible, like the legacy grey "loading" state. A runtime
+  // file reports changes itself, so it's only read again.
   function refresh() {
-    if (root.stream) return root.syncStream()
+    if (root.fileLive) return statusFile.reload()
     if (!root.activeInstance || root.exec === "") return
     if (root.loadingText !== "") root.loading = true
     if (!proc.running) proc.running = true
@@ -249,40 +237,30 @@ BarWidget {
     }
   }
 
+  // While the runtime file is missing, each tick also checks for it again.
   Timer {
     interval: Math.max(1000, root.intervalMs)
-    running: !root.stream && root.activeInstance && root.exec !== ""
+    running: !root.fileLive && root.activeInstance && root.exec !== ""
     repeat: true
     triggeredOnStart: true
-    onTriggered: root.poll()
-  }
-
-  onStreamWantedChanged: root.syncStream()
-  Component.onCompleted: root.syncStream()
-
-  Process {
-    id: streamProc
-    command: ["bash", "-lc", root.exec]
-    stdout: SplitParser {
-      onRead: function (line) {
-        if (line.trim() === "") return
-        root.applyOutput(line)
-        root.loading = false
-      }
-    }
-    onExited: function (exitCode) {
-      // Show the unknown state until the restarted command reports again.
-      root.applyOutput("")
-      if (root.loadingText !== "") root.loading = true
-      if (root.streamWanted) streamRestart.start()
+    onTriggered: {
+      if (root.runtimeFile !== "") statusFile.reload()
+      root.poll()
     }
   }
 
-  Timer {
-    id: streamRestart
-    interval: Math.max(1000, root.restartDelayMs)
-    repeat: false
-    onTriggered: root.syncStream()
+  FileView {
+    id: statusFile
+    path: root.runtimeFile !== "" && root.activeInstance ? Quickshell.env("XDG_RUNTIME_DIR") + "/" + root.runtimeFile : ""
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: {
+      root.fileLive = true
+      root.applyOutput(text())
+      root.loading = false
+    }
+    onLoadFailed: root.fileLive = false
   }
 
   Loader {

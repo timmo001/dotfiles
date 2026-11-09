@@ -299,7 +299,7 @@ Item {
     if (mode !== "scheduled") refreshHerdrContext()
     // The dot daemon reads on its own schedule; other refreshes ask it to
     // read now, and the watch delivers the result.
-    if (gitWatchProcess.live) {
+    if (gitStatusFile.live) {
       if (mode === "scheduled" || gitRefreshProcess.running) return
       gitRefreshProcess.command = ["dot", "git", "refresh"].concat(mode === "refresh" ? ["--force"] : [])
       gitRefreshProcess.running = true
@@ -1049,31 +1049,24 @@ Item {
     onTriggered: pullUnitProcess.running = true
   }
 
-  // Follows the dot daemon's snapshot. While the daemon is down the watch
-  // exits and is retried, and the timer below runs each command instead.
-  Process {
-    id: gitWatchProcess
+  // Follows the dot daemon's snapshot through the file it keeps. While the
+  // daemon is down the file is gone, and the timer below runs each command
+  // instead.
+  FileView {
+    id: gitStatusFile
     property bool live: false
-    command: ["dot", "git", "watch"]
-    running: true
-    stdout: SplitParser {
-      onRead: function(line) {
-        if (String(line).trim() === "") return
-        gitWatchProcess.live = true
-        root.applySnapshot(line)
-      }
+    path: Quickshell.env("XDG_RUNTIME_DIR") + "/dot/status/git.json"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: {
+      live = true
+      root.applySnapshot(text())
     }
-    onExited: function(exitCode) {
+    onLoadFailed: {
       live = false
       root.gitSections = ({})
-      gitWatchRestart.restart()
     }
-  }
-
-  Timer {
-    id: gitWatchRestart
-    interval: 5000
-    onTriggered: if (!gitWatchProcess.running) gitWatchProcess.running = true
   }
 
   Process {
@@ -1081,7 +1074,10 @@ Item {
     stderr: StdioCollector { id: gitRefreshStderr; waitForEnd: true }
     // Without the daemon after all, read through each command instead.
     onExited: function(exitCode) {
-      if (exitCode !== 0 && !gitWatchProcess.live) root.refresh("action")
+      if (exitCode !== 0) {
+        gitStatusFile.live = false
+        root.refresh("action")
+      }
     }
   }
 
@@ -1090,6 +1086,9 @@ Item {
     running: true
     repeat: true
     triggeredOnStart: true
-    onTriggered: root.refresh("scheduled")
+    onTriggered: {
+      if (!gitStatusFile.live) gitStatusFile.reload()
+      root.refresh("scheduled")
+    }
   }
 }
