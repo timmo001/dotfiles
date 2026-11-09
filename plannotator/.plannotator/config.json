@@ -84,9 +84,10 @@
     "previewTwo",
     "marksThreads",
     "marksProjects",
-    "repoLogo"
+    "repoLogo",
+    "githubPictures"
   ],
-  "inboxRowsRev": 15,
+  "inboxRowsRev": 16,
   "inboxReveals": {
     "waitingSince": {
       "snooze": "2026-11-04T20:03:24.162Z",
