@@ -186,6 +186,16 @@ export const switchFlag = (name: string, value: boolean | undefined): readonly s
 export const valueFlag = (name: string, value: string | undefined): readonly string[] =>
   value === undefined ? [] : [`--${name}`, value];
 
+/** Another namespace's tool whose operation a call ran instead, because it covers the call better. */
+export interface Redirect {
+  readonly namespace: string;
+  readonly tool: string;
+  /** The input to call it with directly. */
+  readonly input: CliInput;
+  /** Why it covers the call better. */
+  readonly reason: string;
+}
+
 /** What a client tool call does, prepared before the permission check. */
 export interface ClientCall {
   /** The call as the permission prompt shows it. */
@@ -196,6 +206,8 @@ export interface ClientCall {
   readonly access?: CliToolAccess;
   /** The tool whose write permission this call asks for, when it runs another namespace's tool. */
   readonly permission?: { readonly namespace: string; readonly tool: string };
+  /** The tool this call was redirected to, which asks its permission and is named to the agent. */
+  readonly redirect?: Redirect;
   readonly run: Effect.Effect<unknown, Tool.Error>;
 }
 
@@ -283,6 +295,8 @@ export const clientTools =
     readonly resource?: (input: S["Type"]) => string;
     /** The call as the permission prompt shows it; the tool name and input when unset. */
     readonly summary?: (input: S["Type"]) => string;
+    /** Another namespace's tool that covers this call better, when `run` runs its operation instead. */
+    readonly redirect?: (input: S["Type"]) => Redirect | undefined;
     readonly run: (input: S["Type"], context: ClientContext) => Effect.Effect<A, E, R>;
   }): ClientTool => ({
     name: tool.name,
@@ -303,6 +317,7 @@ export const clientTools =
         Effect.map((decoded) => ({
           summary: tool.summary?.(decoded) ?? `${tool.name} ${JSON.stringify(input)}`,
           resource: tool.resource?.(decoded),
+          redirect: tool.redirect?.(decoded),
           run: tool.run(decoded, context).pipe(
             Effect.map((output) => (output === undefined ? { ok: true } : plain(output))),
             Effect.provide(layer),

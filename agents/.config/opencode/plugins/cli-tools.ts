@@ -39,6 +39,14 @@ import {
   strictToolInput,
 } from "./lib/cli-tools/tool";
 
+/** A tool result's content with a note for the agent added at the end. */
+const withNote = (content: Tool.Result["content"], note: string) =>
+  Array.isArray(content)
+    ? [...content, { type: "text" as const, text: note }]
+    : Schema.is(Schema.String)(content)
+      ? `${content}\n\n${note}`
+      : note;
+
 export default Plugin.define({
   id: "cli-tools",
   effect: (context) =>
@@ -119,13 +127,18 @@ export default Plugin.define({
           ),
         );
 
+      // Notes for the agent about calls redirected to another namespace's tool, by Code Mode call:
+      // the tools a Code Mode program calls share its execute call's ID.
+      const redirectNotes = new Map<Tool.CallID, string[]>();
+
       const executeClient = (namespace: ClientNamespace, tool: ClientTool) => {
         return (input: CliInput, call: Tool.Context) =>
           Effect.gen(function* () {
             const directory = yield* sessionDirectory(call);
             const prepared = yield* tool.prepare(input, { directory, sessionID: call.sessionID });
-            const owner = prepared.permission?.namespace ?? namespace.command;
-            const name = prepared.permission?.tool ?? tool.name;
+            const permission = prepared.redirect ?? prepared.permission;
+            const owner = permission?.namespace ?? namespace.command;
+            const name = permission?.tool ?? tool.name;
             const target = prepared.resource === undefined ? name : `${name} ${prepared.resource}`;
 
             yield* assertWrite(
@@ -137,7 +150,16 @@ export default Plugin.define({
               prepared.summary,
             );
 
-            return { output: yield* prepared.run };
+            const output = yield* prepared.run;
+            const { redirect } = prepared;
+
+            if (redirect !== undefined)
+              redirectNotes.set(call.id, [
+                ...(redirectNotes.get(call.id) ?? []),
+                `cli-tools: ${namespace.command}.${tool.name} ran tools.${redirect.namespace}.${redirect.tool}(${JSON.stringify(redirect.input)}) instead, since ${redirect.reason}. Call that directly next time.`,
+              ]);
+
+            return { output };
           });
       };
 
@@ -307,16 +329,23 @@ export default Plugin.define({
 
           if (nudge === undefined) return;
 
-          const existing = event.result.content;
+          event.result = { ...event.result, content: withNote(event.result.content, nudge) };
+        }),
+      );
 
-          event.result = {
-            ...event.result,
-            content: Array.isArray(existing)
-              ? [...existing, { type: "text" as const, text: nudge }]
-              : Schema.is(Schema.String)(existing)
-                ? `${existing}\n\n${nudge}`
-                : nudge,
-          };
+      yield* context.tool.hook("execute.after", (event) =>
+        Effect.sync(() => {
+          if (event.tool !== "execute") return;
+
+          const notes = redirectNotes.get(event.id);
+
+          if (notes === undefined) return;
+
+          redirectNotes.delete(event.id);
+
+          if (event.status !== "completed") return;
+
+          event.result = { ...event.result, content: withNote(event.result.content, notes.join("\n")) };
         }),
       );
     }),
