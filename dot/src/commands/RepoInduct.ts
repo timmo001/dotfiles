@@ -12,7 +12,6 @@ import {
   type AgentLintSettings,
   type GitManagedRepo,
 } from "../services/GitConfig.js";
-import { ReleaseSettings } from "../git/release/types.js";
 import {
   appendGitRepository,
   commitGitRepoConfigEdit,
@@ -41,7 +40,6 @@ const Preset = Schema.Struct({
   ),
   pull_requests: Schema.optionalKey(Schema.Boolean),
   issues: Schema.optionalKey(Schema.Boolean),
-  release_template: Schema.optionalKey(Schema.NullOr(Schema.String)),
   activity: ScheduledCheck,
   notifications: Schema.Struct({
     enabled: Schema.Boolean,
@@ -50,17 +48,9 @@ const Preset = Schema.Struct({
   }),
 });
 
-const ReleaseTemplate = Schema.Struct({
-  ...ReleaseSettings.fields,
-  branch: Schema.optionalKey(Schema.String),
-});
-
 const Presets = Schema.Struct({
   normal: Preset,
   "home-assistant": Preset,
-  release_templates: Schema.optionalKey(
-    Schema.Record(Schema.String, ReleaseTemplate),
-  ),
 });
 
 /** Terminal questionnaire defaults and non-interactive repository overrides. */
@@ -105,10 +95,6 @@ export interface RepoInductOptions {
   readonly agentLint?: string;
   /** Space- or comma-separated OpenCode MCP servers; an empty string means none. */
   readonly opencodeMcp?: string;
-  /** Private release template name, or `none`. */
-  readonly releaseTemplate?: string;
-  /** Branch compared with the published release; defaults to the template's, then origin's default branch. */
-  readonly releaseBranch?: string;
   /** Use defaults and flags without terminal prompts; preview unless commit is set. */
   readonly noninteractive?: boolean;
   /** Commit the previewed entry in non-interactive mode. */
@@ -257,45 +243,6 @@ export const inductRepository = Effect.fn("repoInduct.run")(
     const remote =
       options.github ?? (yield* gitLine(["remote", "get-url", "origin"]));
 
-    const defaultBranch = (yield* gitLine([
-      "symbolic-ref",
-      "--short",
-      "refs/remotes/origin/HEAD",
-    ])).replace(/^origin\//, "");
-
-    const templates = presets.release_templates ?? {};
-    const templateNames = Object.keys(templates);
-
-    let releaseTemplate =
-      options.releaseTemplate === undefined
-        ? (preset.release_template ?? null)
-        : options.releaseTemplate === "none"
-          ? null
-          : options.releaseTemplate.trim() || null;
-
-    if (releaseTemplate !== null && !Object.hasOwn(templates, releaseTemplate))
-      return yield* new GitRepoConfigError({
-        message: `Unknown release template: ${releaseTemplate}. Choose ${["none", ...templateNames].join(", ")}`,
-      });
-
-    let releaseBranch = options.releaseBranch ?? "";
-
-    const templateBranch = (name: string) =>
-      releaseBranch || templates[name]?.branch || defaultBranch || "main";
-
-    const releasesFor = (name: string | null): ReleaseSettings | undefined => {
-      if (name === null) return undefined;
-
-      const {
-        branch: _branch,
-        enabled,
-        schedule,
-        ...template
-      } = templates[name];
-
-      return { enabled, schedule, branch: templateBranch(name), ...template };
-    };
-
     const agentLintFor = (command: string): AgentLintSettings | undefined => {
       const [first, ...rest] = command.trim().split(/\s+/).filter(Boolean);
 
@@ -384,7 +331,6 @@ export const inductRepository = Effect.fn("repoInduct.run")(
             preset.notifications.bar.ignore_bot_activity,
         },
       },
-      releases: releasesFor(releaseTemplate),
     };
 
     const browserNames = Object.keys(edit.config.browsers);
@@ -509,32 +455,6 @@ export const inductRepository = Effect.fn("repoInduct.run")(
           },
         };
 
-        if (templateNames.length) {
-          releaseTemplate = yield* Prompt.run(
-            Prompt.Select<string | null>({
-              message: "Release watching template",
-              choices: [
-                {
-                  title: "None",
-                  value: null,
-                  selected: releaseTemplate === null,
-                },
-                ...templateNames.map((value) => ({
-                  title: value,
-                  value,
-                  selected: releaseTemplate === value,
-                })),
-              ],
-            }),
-          );
-        }
-
-        if (releaseTemplate !== null)
-          releaseBranch = yield* askText(
-            "Release branch",
-            templateBranch(releaseTemplate),
-          );
-
         answers = {
           name,
           path: root,
@@ -552,7 +472,6 @@ export const inductRepository = Effect.fn("repoInduct.run")(
           issues: issues ? { enabled: true } : undefined,
           activity,
           notifications,
-          releases: releasesFor(releaseTemplate),
         };
       }
 

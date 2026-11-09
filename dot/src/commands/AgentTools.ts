@@ -94,12 +94,6 @@ const AGENT_TOOLS = {
     description:
       "Print the brief for investigating a registered job: its recent runs, logs, file locations and the commands to investigate them.",
   },
-  "git releases review": { access: "write" },
-  "git releases publish": {
-    access: "write",
-    timeout: "30 minutes",
-    omit: ["interactive", "panel-json"],
-  },
   "git commit": { access: "write", timeout: "10 minutes", directory: true },
   "agent oxlint": {
     access: "read",

@@ -2092,101 +2092,6 @@ dot git notifications dismiss remaining [flags]
 | `--dry-run` | Print repository batches and reasons without changing notifications |
 | `--help` `-h` | Show help information |
 
-### `dot git releases`
-
-Compare enabled repositories with their latest published stable release, explain impact and retain local reviews.
-
-```text
-dot git releases <subcommand> [flags]
-```
-
-Read the last local snapshot, collecting one on first use. --refresh fetches immutable release and branch refs immediately; --scheduled follows each repository's local-time cron and records attempted minutes. Draft and prerelease releases are excluded. Before the first stable release, the comparison covers the full history with the same quiet rules, and the first version is 0.1.0 (1.0.0 for a major impact), today's CalVer or the upstream fork base. Failed checks retain previous evidence marked stale; with --refresh the output is still printed, then the command exits non-zero naming each repository that could not be refreshed. Quiet changes remain inspectable. Desktop notifications require --notify and honour configured minimum impact and cooldown. --open opens the release review, optionally selected by --repo, without fetching.
-
-Local reviews require the displayed snapshot ID. Finding overrides follow exact evidence; an overall override follows the release-relevant comparison. Changed evidence invalidates its review. Use --impact auto to clear an override. Extra CI-only commits do not repeat delivery. Incomplete or stale evidence cannot be reviewed.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--repo` `<string>` | Select an enabled repository by name or GitHub slug |
-| `--scheduled` | Check only in a due cron minute, once per minute |
-| `--refresh` | Fetch now, bypassing the schedule and cache |
-| `--notify` | Send eligible desktop notifications with review actions |
-| `--open` | Open the release review in the Omarchy shell |
-| `--panel-json` | Complete JSON review snapshots, including quiet changes and errors |
-| `--help` `-h` | Show help information |
-
-**Policy**
-
-```text
-Optional releases config selects oxlint-rules or system-bridge and a watched branch.
-Private overrides precede preset rules; the first match wins for each fact.
-Match paths with globs, change_types, exact dependencies, roles, submodules or explicit subjects regexes.
-Selectors are ANDed; values within each selector are ORed. Explicit path overrides match either rename endpoint.
-Preset rename impact is the highest affected old/new boundary; both endpoints must be quiet for a quiet rename.
-Subject selectors follow surviving source lines or individual structured values, excluding reverted intent.
-Each net fact is classified once; any attributed subject can match the first applicable ordered rule.
-Every override supplies impact (none/patch/minor/major) and a readable reason.
-Dependency versions never imply consumer minor or major changes.
-Notification enabled/minimum_impact/cooldown_minutes are stored for future explicit delivery.
-```
-
-**Examples**
-
-```bash
-dot git releases
-dot git releases --refresh --panel-json
-dot git releases --scheduled --notify --panel-json
-dot git releases --open --repo example/project
-dot git releases review --repo example/project --snapshot ID --finding FINDING --impact patch
-dot git releases review --repo example/project --snapshot ID --finding ONE --finding TWO --impact none
-dot git releases review --repo example/project --snapshot ID --impact auto
-dot git releases publish --repo example/project --snapshot ID --notes-file notes.md
-dot git releases publish --repo example/project --snapshot ID --notes-file notes.md --notes-mode replace --confirm PLAN
-```
-
-#### `dot git releases review`
-
-Review exact local release evidence without publishing anything
-
-```text
-dot git releases review [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--repo` `<string>` | Configured repository name or GitHub slug |
-| `--snapshot` `<string>` | Exact displayed snapshot ID; stale selections are rejected |
-| `--panel-json` | Return the updated complete JSON snapshot |
-| `--finding` `<string>` | Finding ID, or overall for the current release-relevant comparison (default); repeatable to set several findings at once |
-| `--impact` `<choice>` | Local release impact; auto clears the override (choices: none, patch, minor, major, auto) |
-| `--help` `-h` | Show help information |
-
-#### `dot git releases publish`
-
-Preview version changes, validation, pushes and release notes. --interactive explains and confirms in the terminal; --confirm PLAN executes a reviewed plan with live progress. --notes-file supplies hand-written notes.
-
-```text
-dot git releases publish [flags]
-```
-
-Requires an explicit private releases.publish recipe. The preview is read-only. Confirmation binds the reviewed snapshot, version files, commands and target. Preparation runs in an isolated worktree. Only agreed version changes, plus any releases.publish.generated_files the commands regenerate (such as a lockfile), are committed through dot git commit, then the version commit and tag are pushed atomically. GitHub release notes are generated from the previous stable release (or the full history for a first release), unless --notes-file supplies hand-written notes. The file must exist and not be empty; its text is shown in the preview and bound to the plan, so pass the same --notes-file on confirmation and an edited file needs a new preview. --notes-mode prepend (default) puts the file before the generated notes, editing the release straight after creation; replace uses only the file. Progress includes command output and a saved log. Release creation does not wait for GitHub publication jobs; follow the returned Actions URL. Failed preparation is retained for inspection. Refresh and preview again after resolving a failure.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--repo` `<string>` | Configured repository name or GitHub slug |
-| `--snapshot` `<string>` | Exact displayed snapshot ID; stale selections are rejected |
-| `--panel-json` | Stream JSON progress and the final plan or release result |
-| `--interactive` | Explain, confirm and run the release in this terminal, with an optional log pager |
-| `--confirm` `<string>` | Execute the exact plan ID returned by the preview |
-| `--notes-file` `<string>` | Markdown file with hand-written release notes, read at preview and again at confirmation |
-| `--notes-mode` `<choice>` | Put --notes-file before the generated notes (prepend, default) or use it alone (replace) (choices: prepend, replace) |
-| `--help` `-h` | Show help information |
-
 ### `dot git issues`
 
 Track open issues for enabled repositories, independently of GitHub notifications
@@ -2700,7 +2605,7 @@ Induct a local repository into private dot git config with a preview before comm
 dot repo induct [flags] [<path>]
 ```
 
-The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity, including an optional release watching template from its release_templates. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use dot agent oxlint --opt-in to enable their agent pass.
+The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use dot agent oxlint --opt-in to enable their agent pass.
 
 **Options**
 
@@ -2725,8 +2630,6 @@ The terminal wizard asks for Normal (first and default) or Home Assistant, then 
 | `--notes-remote` `<string>` | Git remote for notes; empty for none (default: upstream when present) |
 | `--agent-lint` `<string>` | Agent lint command, split on spaces; empty for none |
 | `--opencode-mcp` `<string>` | Space- or comma-separated OpenCode MCP overrides: name turns a server on, !name turns it off; empty for none |
-| `--release-template` `<string>` | Private release template name from dot-git-presets.yml, or none |
-| `--release-branch` `<string>` | Branch compared with the published release (default: the template's branch, then origin's default branch) |
 | `--noninteractive` | Use flags and preset defaults without questions; preview by default |
 | `--commit` | Commit the proposed entry with --noninteractive after reviewing its preview |
 | `--help` `-h` | Show help information |

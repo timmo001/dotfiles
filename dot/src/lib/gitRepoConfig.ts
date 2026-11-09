@@ -10,7 +10,6 @@ import {
   type GitManagedRepo,
 } from "../services/GitConfig.js";
 import { decodeJson, formatCause, isJsonObject } from "./schema.js";
-import type { ReleaseSettings } from "../git/release/types.js";
 import { displayPath } from "./paths.js";
 import { gitOutput } from "./git.js";
 
@@ -308,16 +307,11 @@ export function appendGitRepository(
 
   if (repo.issues) Object.assign(entry, { issues: repo.issues });
 
-  if (repo.releases) Object.assign(entry, { releases: repo.releases });
-
   if (repo.opencodeMcp && Object.keys(repo.opencodeMcp).length)
     Object.assign(entry, { opencode_mcp: repo.opencodeMcp });
   const newline = source.includes("\r\n") ? "\r\n" : "\n";
 
-  const nested = (
-    key: string,
-    value: typeof AgentLintSettings.Encoded | ReleaseSettings,
-  ) => [
+  const nested = (key: string, value: typeof AgentLintSettings.Encoded) => [
     `    ${key}:`,
     ...Bun.YAML.stringify(value, null, 2)
       .replace(/:[ \t]*\n\s+(\[\]|\{\})[ \t]*$/gm, ": $1")
@@ -378,7 +372,6 @@ export function appendGitRepository(
     `      schedule: ${JSON.stringify(entry.notifications.schedule)}`,
     "      bar:",
     `        ignore_bot_activity: ${entry.notifications.bar.ignore_bot_activity}`,
-    ...(repo.releases ? nested("releases", repo.releases) : []),
     "",
   ].join(newline);
 

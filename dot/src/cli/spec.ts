@@ -120,12 +120,6 @@ import {
 } from "../git/commands/PullRequests.js";
 import { issuesOpenShell, issuesQuery } from "../git/commands/Issues.js";
 import {
-  releasesAction,
-  releasesPublish,
-  releasesQuery,
-  releasesOpenShell,
-} from "../git/commands/Releases.js";
-import {
   notificationsBarJson,
   notificationsMarkRead,
   notificationsOpenShell,
@@ -1369,178 +1363,6 @@ const gitIssuesCommand = describe(
   },
 );
 
-const releaseActionFlags = {
-  repo: Flag.String("repo").pipe(
-    Flag.withDescription("Configured repository name or GitHub slug"),
-  ),
-  snapshot: Flag.String("snapshot").pipe(
-    Flag.withDescription(
-      "Exact displayed snapshot ID; stale selections are rejected",
-    ),
-  ),
-  panelJson: bool("panel-json", "Return the updated complete JSON snapshot"),
-};
-
-const gitReleasesCommand = describe(
-  Command.make(
-    "releases",
-    {
-      repo: text("repo", "Select an enabled repository by name or GitHub slug"),
-      scheduled: bool(
-        "scheduled",
-        "Check only in a due cron minute, once per minute",
-      ),
-      refresh: bool("refresh", "Fetch now, bypassing the schedule and cache"),
-      notify: bool(
-        "notify",
-        "Send eligible desktop notifications with review actions",
-      ),
-      open: bool("open", "Open the release review in the Omarchy shell"),
-      panelJson: bool(
-        "panel-json",
-        "Complete JSON review snapshots, including quiet changes and errors",
-      ),
-    },
-    ({ repo, scheduled, refresh, notify, open, panelJson }) =>
-      Effect.gen(function* () {
-        if (open) return yield* releasesOpenShell(optional(repo));
-
-        return yield* releasesQuery(
-          { repo: optional(repo), scheduled, refresh, notify },
-          panelJson,
-        );
-      }),
-  ).pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make(
-          "review",
-          {
-            ...releaseActionFlags,
-            findings: Flag.String("finding").pipe(
-              Flag.atLeast(0),
-              Flag.withDescription(
-                "Finding ID, or overall for the current release-relevant comparison (default); repeatable to set several findings at once",
-              ),
-            ),
-            impact: Flag.Literals("impact", [
-              "none",
-              "patch",
-              "minor",
-              "major",
-              "auto",
-            ]).pipe(
-              Flag.withDescription(
-                "Local release impact; auto clears the override",
-              ),
-            ),
-          },
-          ({ repo, snapshot, findings, impact, panelJson }) =>
-            releasesAction(
-              {
-                repo,
-                snapshot,
-                targets: findings.length ? findings : ["overall"],
-                impact,
-              },
-              panelJson,
-            ),
-        ),
-        "Review exact local release evidence without publishing anything",
-      ),
-      describe(
-        Command.make(
-          "publish",
-          {
-            ...releaseActionFlags,
-            interactive: bool(
-              "interactive",
-              "Explain, confirm and run the release in this terminal, with an optional log pager",
-            ),
-            panelJson: bool(
-              "panel-json",
-              "Stream JSON progress and the final plan or release result",
-            ),
-            confirm: text(
-              "confirm",
-              "Execute the exact plan ID returned by the preview",
-            ),
-            notesFile: text(
-              "notes-file",
-              "Markdown file with hand-written release notes, read at preview and again at confirmation",
-            ),
-            notesMode: Flag.Literals("notes-mode", ["prepend", "replace"]).pipe(
-              Flag.optional,
-              Flag.withDescription(
-                "Put --notes-file before the generated notes (prepend, default) or use it alone (replace)",
-              ),
-            ),
-          },
-          ({
-            repo,
-            snapshot,
-            confirm,
-            panelJson,
-            interactive,
-            notesFile,
-            notesMode,
-          }) =>
-            releasesPublish(
-              {
-                repo,
-                snapshot,
-                confirm: optional(confirm),
-                notesFile: optional(notesFile),
-                notesMode: optional(notesMode),
-              },
-              panelJson,
-              interactive,
-            ),
-        ),
-        "Preview version changes, validation, pushes and release notes. --interactive explains and confirms in the terminal; --confirm PLAN executes a reviewed plan with live progress. --notes-file supplies hand-written notes.",
-        [],
-        {
-          description:
-            "Requires an explicit private releases.publish recipe. The preview is read-only. Confirmation binds the reviewed snapshot, version files, commands and target. Preparation runs in an isolated worktree. Only agreed version changes, plus any releases.publish.generated_files the commands regenerate (such as a lockfile), are committed through dot git commit, then the version commit and tag are pushed atomically. GitHub release notes are generated from the previous stable release (or the full history for a first release), unless --notes-file supplies hand-written notes. The file must exist and not be empty; its text is shown in the preview and bound to the plan, so pass the same --notes-file on confirmation and an edited file needs a new preview. --notes-mode prepend (default) puts the file before the generated notes, editing the release straight after creation; replace uses only the file. Progress includes command output and a saved log. Release creation does not wait for GitHub publication jobs; follow the returned Actions URL. Failed preparation is retained for inspection. Refresh and preview again after resolving a failure.",
-        },
-      ),
-    ]),
-  ),
-  "Compare enabled repositories with their latest published stable release, explain impact and retain local reviews.",
-  [
-    "dot git releases",
-    "dot git releases --refresh --panel-json",
-    "dot git releases --scheduled --notify --panel-json",
-    "dot git releases --open --repo example/project",
-    "dot git releases review --repo example/project --snapshot ID --finding FINDING --impact patch",
-    "dot git releases review --repo example/project --snapshot ID --finding ONE --finding TWO --impact none",
-    "dot git releases review --repo example/project --snapshot ID --impact auto",
-    "dot git releases publish --repo example/project --snapshot ID --notes-file notes.md",
-    "dot git releases publish --repo example/project --snapshot ID --notes-file notes.md --notes-mode replace --confirm PLAN",
-  ],
-  {
-    description:
-      "Read the last local snapshot, collecting one on first use. --refresh fetches immutable release and branch refs immediately; --scheduled follows each repository's local-time cron and records attempted minutes. Draft and prerelease releases are excluded. Before the first stable release, the comparison covers the full history with the same quiet rules, and the first version is 0.1.0 (1.0.0 for a major impact), today's CalVer or the upstream fork base. Failed checks retain previous evidence marked stale; with --refresh the output is still printed, then the command exits non-zero naming each repository that could not be refreshed. Quiet changes remain inspectable. Desktop notifications require --notify and honour configured minimum impact and cooldown. --open opens the release review, optionally selected by --repo, without fetching.\n\nLocal reviews require the displayed snapshot ID. Finding overrides follow exact evidence; an overall override follows the release-relevant comparison. Changed evidence invalidates its review. Use --impact auto to clear an override. Extra CI-only commits do not repeat delivery. Incomplete or stale evidence cannot be reviewed.",
-    sections: [
-      {
-        title: "Policy",
-        lines: [
-          "Optional releases config selects oxlint-rules or system-bridge and a watched branch.",
-          "Private overrides precede preset rules; the first match wins for each fact.",
-          "Match paths with globs, change_types, exact dependencies, roles, submodules or explicit subjects regexes.",
-          "Selectors are ANDed; values within each selector are ORed. Explicit path overrides match either rename endpoint.",
-          "Preset rename impact is the highest affected old/new boundary; both endpoints must be quiet for a quiet rename.",
-          "Subject selectors follow surviving source lines or individual structured values, excluding reverted intent.",
-          "Each net fact is classified once; any attributed subject can match the first applicable ordered rule.",
-          "Every override supplies impact (none/patch/minor/major) and a readable reason.",
-          "Dependency versions never imply consumer minor or major changes.",
-          "Notification enabled/minimum_impact/cooldown_minutes are stored for future explicit delivery.",
-        ],
-      },
-    ],
-  },
-);
-
 const gitCommitCommand = describe(
   Command.make(
     "commit",
@@ -1729,7 +1551,6 @@ const gitCommand = describe(
       gitWebCommand,
       gitCommitCommand,
       gitNotificationsCommand,
-      gitReleasesCommand,
       gitIssuesCommand,
     ]),
   ),
@@ -2412,14 +2233,6 @@ const repoInductCommand = describe(
         "opencode-mcp",
         "Space- or comma-separated OpenCode MCP overrides: name turns a server on, !name turns it off; empty for none",
       ),
-      releaseTemplate: text(
-        "release-template",
-        "Private release template name from dot-git-presets.yml, or none",
-      ),
-      releaseBranch: text(
-        "release-branch",
-        "Branch compared with the published release (default: the template's branch, then origin's default branch)",
-      ),
       noninteractive: bool(
         "noninteractive",
         "Use flags and preset defaults without questions; preview by default",
@@ -2451,8 +2264,6 @@ const repoInductCommand = describe(
         notesRemote: optional(input.notesRemote),
         agentLint: optional(input.agentLint),
         opencodeMcp: optional(input.opencodeMcp),
-        releaseTemplate: optional(input.releaseTemplate),
-        releaseBranch: optional(input.releaseBranch),
         noninteractive: input.noninteractive,
         commit: input.commit,
       }),
@@ -2465,7 +2276,7 @@ const repoInductCommand = describe(
   ],
   {
     description:
-      "The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity, including an optional release watching template from its release_templates. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use dot agent oxlint --opt-in to enable their agent pass.",
+      "The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use dot agent oxlint --opt-in to enable their agent pass.",
   },
 );
 

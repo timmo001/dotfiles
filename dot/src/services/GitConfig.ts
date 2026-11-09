@@ -1,6 +1,5 @@
 import { join } from "path";
-import { Cron, Duration, Effect, FileSystem, Option, Schema } from "effect";
-import { ReleaseSettings } from "../git/release/types.js";
+import { Duration, Effect, FileSystem, Option, Schema } from "effect";
 import { displayPath, expandHomePath } from "../lib/paths.js";
 import {
   decodeJson,
@@ -42,7 +41,6 @@ const REPO_KEYS = new Set([
   "notifications",
   "pull_requests",
   "issues",
-  "releases",
   "herdr_after",
   "machines",
 ]);
@@ -249,8 +247,6 @@ export interface GitManagedRepo {
   readonly pullRequests?: TrackingSettings;
   /** Whether open issues appear in the Git panel; omitted means disabled. */
   readonly issues?: TrackingSettings;
-  /** Optional release comparison policy and schedule; omitted means disabled. */
-  readonly releases?: ReleaseSettings;
 }
 
 /** Loaded private dot git config and validation diagnostics. */
@@ -774,12 +770,6 @@ function parseRepo(
           onExcessProperty: "error",
         });
 
-  const releases = parseReleases(
-    value.releases,
-    `${location}.releases`,
-    diagnostics,
-  );
-
   if (rawGithub && !github) {
     diagnostics.push(`${location}.github must be a GitHub owner/repo slug`);
   }
@@ -806,7 +796,6 @@ function parseRepo(
       notifications,
       ...(pullRequests && { pullRequests }),
       ...(issues && { issues }),
-      ...(releases && { releases }),
     },
   ];
 }
@@ -840,131 +829,6 @@ function parseAgentLint(
         )
       )
         throw new Error(`${command.name}: timeout must be finite and positive`);
-    }
-
-    return settings;
-  } catch (error) {
-    diagnostics.push(`${location}: ${formatError(error)}`);
-
-    return undefined;
-  }
-}
-
-function parseReleases(
-  value: JsonValue,
-  location: string,
-  diagnostics: string[],
-): ReleaseSettings | undefined {
-  if (value === undefined) return undefined;
-
-  try {
-    const settings = Schema.decodeUnknownSync(ReleaseSettings)(value, {
-      onExcessProperty: "error",
-    });
-
-    if (settings.schedule.trim().split(/\s+/).length !== 5)
-      throw new Error("schedule must contain five fields");
-    Cron.parseUnsafe(settings.schedule);
-
-    if (settings.publish) {
-      const paths = settings.publish.version_files.map((file) =>
-        isString(file) ? file : file.path,
-      );
-
-      for (const file of settings.publish.version_files) {
-        const path = isString(file) ? file : file.path;
-
-        if (
-          !/^[A-Za-z0-9_][A-Za-z0-9_./-]*$/.test(path) ||
-          (isString(file)
-            ? !path.endsWith(".json")
-            : !/(^|\/)setup\.py$/.test(path)) ||
-          path.split("/").some((part) => part === ".." || part === "." || !part)
-        )
-          throw new Error(
-            "publish version_files must be repository-relative JSON or explicit setup.py paths",
-          );
-      }
-
-      if (new Set(paths).size !== paths.length)
-        throw new Error("publish version_files must be unique");
-
-      const generated = settings.publish.generated_files ?? [];
-
-      if (
-        generated.some(
-          (path) =>
-            !/^[A-Za-z0-9_][A-Za-z0-9_./-]*$/.test(path) ||
-            path
-              .split("/")
-              .some((part) => part === ".." || part === "." || !part),
-        ) ||
-        new Set(generated).size !== generated.length
-      )
-        throw new Error(
-          "publish generated_files must be unique repository-relative paths",
-        );
-
-      for (const command of settings.publish.commands) {
-        if (!command.length || command.some((arg) => !arg.trim()))
-          throw new Error("publish commands must be non-empty argv arrays");
-      }
-    }
-
-    if (
-      !/^[A-Za-z0-9_][A-Za-z0-9_./-]*$/.test(settings.branch) ||
-      /\.\.|\/\.|\/\/|\.lock(?:\/|$)|[./]$/.test(settings.branch)
-    )
-      throw new Error("branch must be a valid branch name");
-
-    if (
-      !Number.isInteger(settings.notifications.cooldown_minutes) ||
-      settings.notifications.cooldown_minutes < 0
-    )
-      throw new Error(
-        "notification cooldown_minutes must be a non-negative integer",
-      );
-
-    if (
-      settings.source_minor_threshold !== undefined &&
-      (!Number.isInteger(settings.source_minor_threshold) ||
-        settings.source_minor_threshold < 0)
-    )
-      throw new Error("source_minor_threshold must be a non-negative integer");
-
-    for (const path of settings.source_excludes ?? []) {
-      if (
-        !path.trim() ||
-        path.startsWith("/") ||
-        path.split("/").includes("..")
-      )
-        throw new Error(
-          "source_excludes must contain non-empty repository-relative globs",
-        );
-    }
-
-    for (const rule of settings.overrides ?? []) {
-      if (!rule.reason.trim())
-        throw new Error("override reason must not be empty");
-
-      for (const values of [
-        rule.paths,
-        rule.dependencies,
-        rule.roles,
-        rule.submodules,
-        rule.change_types,
-        rule.subjects,
-      ]) {
-        if (values && (!values.length || values.some((value) => !value.trim())))
-          throw new Error("override match lists must contain non-empty values");
-      }
-
-      for (const pattern of rule.subjects ?? []) new RegExp(pattern);
-
-      for (const path of [...(rule.paths ?? []), ...(rule.submodules ?? [])]) {
-        if (path.startsWith("/") || path.split("/").includes(".."))
-          throw new Error("override paths must be repository-relative");
-      }
     }
 
     return settings;
