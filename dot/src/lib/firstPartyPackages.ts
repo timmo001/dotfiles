@@ -225,11 +225,13 @@ const mainPidOf = Effect.fn("FirstPartyPackages.mainPidOf")(function* (
  * Restart the user units whose main process still runs an executable of
  * `packages` from before the upgrade replaced it. Only a unit's main process
  * counts: a stale child, such as a client the desktop shell started inside
- * the compositor's unit, would otherwise restart the whole session. The unit
- * this stage runs in, such as the Upkeep worker, is left for whatever
- * restarts it, since restarting it would stop this run. Every other stale
- * process is only reported, and only for `upgraded`, so it isn't reported on
- * every run after.
+ * the compositor's unit, would otherwise restart the whole session. A unit
+ * that can reload is reloaded instead, so one whose reload drains, such as
+ * the Upkeep worker finishing its runs before it restarts on the new binary,
+ * isn't cut off. The unit this stage runs in is left for whatever restarts
+ * it, since restarting it would stop this run. Every other stale process is
+ * only reported, and only for `upgraded`, so it isn't reported on every run
+ * after.
  */
 const restartStale = Effect.fn("FirstPartyPackages.restartStale")(function* (
   packages: readonly string[],
@@ -286,16 +288,16 @@ const restartStale = Effect.fn("FirstPartyPackages.restartStale")(function* (
 
     const exitCode = yield* executor.exitCode("systemctl", [
       "--user",
-      "try-restart",
+      "try-reload-or-restart",
       unit,
     ]);
 
     actions.push(
       exitCode === 0
         ? notable(
-            `Restarted ${unit}, which was running the old ${basename(binary)}`,
+            `Reloaded or restarted ${unit}, which was running the old ${basename(binary)}`,
           )
-        : warn(`Could not restart ${unit} (exit ${exitCode})`),
+        : warn(`Could not reload or restart ${unit} (exit ${exitCode})`),
     );
   }
 
