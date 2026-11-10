@@ -460,31 +460,23 @@ export const runRepoPostUpdate = (repo: GitManagedRepo) =>
 
 /**
  * Pull selected repositories and run their hooks. Unless `pullOnly` is set,
- * also apply changed dotfiles once. With `report`, finish with
- * `dot up --check` unless a restarted update reports instead.
+ * a dotfiles pull also rebuilds dot; applying the rest of it is left to
+ * `dot up`. With `report`, finish with `dot up --check`.
  */
 export const updateRepositories = Effect.fn("Update.repositories")(function* (
   paths: readonly string[],
-  reload = true,
   pullOnly = false,
   report = false,
 ) {
   const config = yield* Config;
   const fs = yield* FileSystem.FileSystem;
   const log = yield* OutputLog;
-  const startedAt = yield* Clock.currentTimeMillis;
   const updatedNames: string[] = [];
   const updatedPaths = new Set<string>();
   const failures: string[] = [];
   const failedPulls: string[] = [];
-  const pulledDotfiles: string[] = [];
   const managed = managedGitRepos(config.gitConfig);
   const publicPath = yield* fs.realPath(config.publicDotfiles);
-
-  const privatePath = config.privateDotfiles
-    ? yield* fs.realPath(config.privateDotfiles)
-    : null;
-
   const uniquePaths = [...new Set(paths)];
 
   const results = yield* Effect.forEach(
@@ -531,21 +523,11 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
     if (!result) continue;
     updatedNames.push(result.name);
     updatedPaths.add(result.repoPath);
-
-    if (result.repoPath === publicPath || result.repoPath === privatePath)
-      pulledDotfiles.push(basename(result.repoPath));
   }
 
-  const restartsForDotfiles = !pullOnly && pulledDotfiles.length > 0;
-
-  // The restarted update summarises pulled dotfiles itself.
   yield* logRepoChanges(
     results.flatMap((result) =>
-      result &&
-      !(
-        restartsForDotfiles &&
-        (result.repoPath === publicPath || result.repoPath === privatePath)
-      )
+      result
         ? [{ name: result.name, path: result.repoPath, ...result.range }]
         : [],
     ),
@@ -569,22 +551,14 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
     }
   }
 
-  if (restartsForDotfiles) {
+  // Only dot itself is kept current here; the check below lists the stow and
+  // other work a dotfiles pull left, for dot up to apply.
+  if (!pullOnly && updatedPaths.has(publicPath))
     yield* requiredUpdateStep("Rebuild", STEP_TIMEOUT_SECONDS.rebuild, rebuild);
-    yield* restartDot([
-      "update",
-      "--stow",
-      "--app",
-      ...(reload ? [] : ["--no-reload"]),
-      ...pulledDotfiles.flatMap((name) => [POST_HOOK_REPO_ARG, name]),
-      STARTED_AT_ARG,
-      String(startedAt),
-    ]);
-  } else {
-    yield* notifyUpdated(updatedNames);
 
-    if (report) yield* reportPendingUpdates;
-  }
+  yield* notifyUpdated(updatedNames);
+
+  if (report) yield* reportPendingUpdates;
 
   if (failedPulls.length > 0)
     return yield* new RepoPullError({
@@ -1496,8 +1470,7 @@ export const haltOnLegacyHyprRepo = (config: ConfigService) =>
  * self-update, and the restarted run skips the final rebuild. Repositories
  * pulled earlier in the run are not fetched again by the scan.
  * Pull notifications fire only when a repo actually moved, while post-hooks
- * (agent sync) run on every full update and the changed-dotfiles handoff.
- * Ordinary flag-scoped runs skip them.
+ * (agent sync) run on every full update. Ordinary flag-scoped runs skip them.
  */
 export const update = (updateOpts?: UpdateOptions) =>
   Effect.gen(function* () {
@@ -1513,16 +1486,6 @@ export const update = (updateOpts?: UpdateOptions) =>
 
     const config = yield* Config;
     const log = yield* OutputLog;
-
-    const applyPulledDotfiles =
-      doStow &&
-      doApp &&
-      opts?.postHookRepos?.some(
-        (name) =>
-          name === basename(config.publicDotfiles) ||
-          (config.privateDotfiles !== null &&
-            name === basename(config.privateDotfiles)),
-      );
 
     const privatePackageRepo = config.canUsePrivate
       ? yield* loadPrivatePackageRepoConfig(config)
@@ -1928,9 +1891,7 @@ export const update = (updateOpts?: UpdateOptions) =>
       );
     }
 
-    const runsFullPhases = isFullUpdate || applyPulledDotfiles;
-
-    if (runsFullPhases) {
+    if (isFullUpdate) {
       yield* requiredUpdateStep(
         "Herdr Plugins",
         STEP_TIMEOUT_SECONDS.herdrPlugins,
@@ -1951,8 +1912,8 @@ export const update = (updateOpts?: UpdateOptions) =>
       yield* notifyUpdated(updatedRepos.map((repo) => repo.name));
     }
 
-    // Full updates and the changed-dotfiles handoff sync agent instructions.
-    if (runsFullPhases) {
+    // Full updates sync agent instructions.
+    if (isFullUpdate) {
       yield* requiredUpdateStep(
         "Agents Rules Sync",
         STEP_TIMEOUT_SECONDS.postHooks,
@@ -1979,7 +1940,7 @@ export const update = (updateOpts?: UpdateOptions) =>
 
     if (opts?.reload === false) {
       completedActions.push(skip("Agent reload skipped (--no-reload)"));
-    } else if (!runsFullPhases) {
+    } else if (!isFullUpdate) {
       completedActions.push(skip("Agent reload skipped (scoped update)"));
     } else {
       const reloaded = yield* withStepTimeout(

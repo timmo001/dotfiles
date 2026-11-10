@@ -2,7 +2,7 @@
  * @file `dot up`: check everything, pick from the groups with work, then run
  * them in order. A stage the check found no work for only runs when an
  * earlier stage changed something it applies, such as stow after a dotfiles
- * pull.
+ * pull that brings new links.
  */
 
 import { Extension } from "@timmo001/effect-gh";
@@ -38,6 +38,7 @@ import {
 } from "../lib/pendingUpdates.js";
 import {
   hasLocalUpdateWork,
+  pendingUpdateMaintenance,
   pullKeepsLocalWork,
 } from "../lib/updateMaintenance.js";
 import {
@@ -137,6 +138,13 @@ const GROUP_INFO: Record<
   },
 };
 
+/** A check line for a stow package with links to apply. */
+const isStowLine = (line: string) => line.endsWith(" needs stow");
+
+/** A check line for a Herdr plugin pin to restore. */
+const isHerdrPinLine = (line: string) =>
+  / Herdr pin .* needs restoring$/.test(line);
+
 /**
  * Which `dot up` stage or group handles each line of the check's work:
  * tracked repository pulls go to repos, stow and Herdr pin maintenance to
@@ -159,22 +167,18 @@ const groupWork = (
   const packages = byId.get("packages");
   const dotfiles = lines("dotfiles");
   const isPull = (line: string) => repoPulls.some((repo) => repo.line === line);
-  const isStow = (line: string) => line.endsWith(" needs stow");
-
-  const isHerdrPin = (line: string) =>
-    / Herdr pin .* needs restoring$/.test(line);
 
   return {
     dotfiles: dotfiles.filter(
-      (line) => !isPull(line) && !isStow(line) && !isHerdrPin(line),
+      (line) => !isPull(line) && !isStowLine(line) && !isHerdrPinLine(line),
     ),
     skills: lines("skills"),
     repos: dotfiles.filter(isPull),
-    stow: dotfiles.filter(isStow),
+    stow: dotfiles.filter(isStowLine),
     tools: lines("tools"),
     plugins: lines("plugins"),
     "first-party": firstParty,
-    herdr: dotfiles.filter(isHerdrPin),
+    herdr: dotfiles.filter(isHerdrPinLine),
     agents: [],
     shell: [],
     gh: lines("gh"),
@@ -188,11 +192,11 @@ const groupWork = (
 
 /**
  * Whether a stage the check found no work for still needs to run, because a
- * stage before it changed something it applies: a dotfiles pull brings stow
- * links, mise config, Herdr pins and agent instructions; a mise upgrade can
- * move the Plannotator CLI its plugins follow; changed skills or plugins need
- * running agents reloaded; and the shell refreshes after any change. Tools and
- * plugins are checked again before they run.
+ * stage before it changed something it applies: a dotfiles pull can bring
+ * stow links, mise config, Herdr pins and agent instructions; a mise upgrade
+ * can move the Plannotator CLI its plugins follow; changed skills or plugins
+ * need running agents reloaded; and the shell refreshes after any change.
+ * Stow, tools, plugins and Herdr are checked again before they run.
  */
 const followsOn = (
   group: UpGroup,
@@ -215,8 +219,34 @@ const followsOn = (
   }
 };
 
+/**
+ * The stow and Herdr pin work the update check finds in the dotfiles, so a
+ * dotfiles pull only brings in the stages its changes need.
+ */
+const dotfilesMaintenance = Effect.gen(function* () {
+  const repos = yield* (yield* DotDiff).getAll({
+    categories: new Set(["dotfiles"]),
+  });
+
+  const pending = yield* Effect.forEach(repos, pendingUpdateMaintenance);
+
+  return pending.flat();
+}).pipe(Effect.withSpan("Up.dotfilesMaintenance"));
+
 /** Check a follow-on stage again, now earlier stages have run, for whether it has work. */
-const stillNeeded = Effect.fn("Up.stillNeeded")(function* (group: UpGroup) {
+const stillNeeded = Effect.fn("Up.stillNeeded")(function* <R>(
+  group: UpGroup,
+  maintenance: Effect.Effect<readonly string[] | null, never, R>,
+) {
+  if (group === "stow" || group === "herdr") {
+    const pending = yield* maintenance;
+
+    return (
+      pending === null ||
+      pending.some(group === "stow" ? isStowLine : isHerdrPinLine)
+    );
+  }
+
   if (group === "tools") {
     const status = yield* checkTools(CHECK_TIMEOUT);
 
@@ -734,12 +764,25 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
   const actions: RecapEntry[] = [];
   let agentsNeedReload = false;
 
+  // Only scanned when a dotfiles pull might need stow or Herdr, then reused.
+  const maintenance = yield* Effect.cached(
+    dotfilesMaintenance.pipe(
+      Effect.catchCause((cause) =>
+        log
+          .warn(
+            `Could not check the dotfiles for stow and Herdr work, so both run: ${formatCause(cause)}`,
+          )
+          .pipe(Effect.as(null)),
+      ),
+    ),
+  );
+
   for (const [index, group] of UP_GROUPS.entries()) {
     if (!picked.has(group)) {
       if (
         declined.has(group) ||
         !followsOn(group, changed, agentsNeedReload) ||
-        !(yield* stillNeeded(group))
+        !(yield* stillNeeded(group, maintenance))
       )
         continue;
     }

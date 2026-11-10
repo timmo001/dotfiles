@@ -256,7 +256,7 @@ const pullBlocker = Effect.fn("UpStage.pullBlocker")(function* (
 const reposStage = (paths: readonly string[]) =>
   Effect.gen(function* () {
     if (paths.length > 0) {
-      const updatedRepos = yield* updateRepositories(paths, false, true);
+      const updatedRepos = yield* updateRepositories(paths, true);
 
       return {
         actions: [

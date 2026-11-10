@@ -64,7 +64,7 @@ dot up <subcommand> [flags]
 
 dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, Pi, Plannotator and OpenCode plugins, pending pacman and AUR packages, packages from the public and private lists that aren't installed, Omarchy and gh extensions. It saves the result for the bar, lists it, then asks which groups to run, offering only those with work, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order:
 
-1. Stages: dotfiles, skills, repos, stow, tools, plugins, first-party, herdr, agents and shell, as `dot up <stage>` runs them. First-party offers the pending updates from the [timmo] repository, installing its unit root-owned first, and System takes the rest. A stage that wasn't offered still runs when an earlier one changed something it applies, such as stow, tools and Herdr after a dotfiles pull, plugins after a tools upgrade, agents after changed skills or plugins and the shell after any change; tools and plugins are checked again first. A stage offered and left unticked never runs.
+1. Stages: dotfiles, skills, repos, stow, tools, plugins, first-party, herdr, agents and shell, as `dot up <stage>` runs them. First-party offers the pending updates from the [timmo] repository, installing its unit root-owned first, and System takes the rest. A stage that wasn't offered still runs when an earlier one changed something it applies: stow and Herdr after a dotfiles pull that brings new links or Herdr pins, tools after a dotfiles pull that brings mise changes, plugins after a tools upgrade, agents after a dotfiles pull or changed skills or plugins, and the shell after any change; stow, tools, plugins and Herdr are checked again first. A stage offered and left unticked never runs.
 2. gh extensions: installs missing ones and upgrades the rest.
 3. Missing packages: installs packages from the public and private lists.
 4. System: installs the Omarchy patch hook and the first-party upgrade unit root-owned, then hands over to omarchy update -y for pacman, AUR and Omarchy updates, skipping its ready prompt and running its later prompts unattended. When a dotfiles patch no longer applies to the pending Omarchy, it holds the system update back and offers a Herdr agent to fix the patch.
@@ -73,13 +73,13 @@ It finishes with a summary of updated repositories, mise tools and every step, t
 
 --check reports everything without changing anything. --check-repos reports only the dotfiles repositories, and --check-all every tracked repository, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.
 
-Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands. The Git panel uses --no-reload to skip agent reload and module refresh.
+Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Pulled public dotfiles also rebuild dot; stow, agent instructions and the rest of a dotfiles pull are left to dot up, which the closing check lists. Add --pull to only pull and run post-update commands.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-| `--repo` `<string>` | Fast-forward this repository when local work can be preserved, then run its post-update command; repeat for a batch. Changed dotfiles also rebuild and stow |
+| `--repo` `<string>` | Fast-forward this repository when local work can be preserved, then run its post-update command; repeat for a batch. Pulled dotfiles only rebuild dot, leaving stow and the rest to dot up |
 | `--pull` | Run the repository pull phase only |
 | `--stow` | Generate completions, sync MCP configs, and stow only |
 | `--app` | Install Bun dependencies and rebuild the dot binary only |
