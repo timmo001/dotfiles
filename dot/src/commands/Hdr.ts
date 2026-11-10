@@ -13,8 +13,19 @@ export class HdrError extends Schema.TaggedError<HdrError>()("HdrError", {
 const DESKTOP_MONITOR = "HDMI-A-2";
 
 /** AORUS FO32U2P in its Peak 1000 HDR mode; the EDID only reports the True Black 400 peak. */
-const DESKTOP_LUMINANCE =
+const DESKTOP_HDR =
   ", min_luminance = 0, max_luminance = 1000, max_avg_luminance = 277";
+
+/** Built-in panel on the laptop. */
+const LAPTOP_PANEL = "eDP-1";
+
+/**
+ * XPS OLED panel (LGD RW24G). It lists BT.2020 and PQ only in its DisplayID 2.0
+ * block, not the CTA-861 HDR metadata Hyprland reads, so without forcing support
+ * Hyprland quietly keeps sRGB. Luminance comes from the same DisplayID block.
+ */
+const LAPTOP_PANEL_HDR =
+  ", supports_wide_color = 1, supports_hdr = 1, min_luminance = 0, max_luminance = 525, max_avg_luminance = 400";
 
 const MonitorSchema = Schema.Struct({
   name: Schema.String,
@@ -48,11 +59,26 @@ function stateFile(): string {
   return join(runtimeDir, "hypr-hdr-monitor.lua");
 }
 
+/** Whether the monitor is in HDR; 10-bit output that Hyprland left in sRGB doesn't count. */
 function isHdr(monitor: Monitor): boolean {
-  return (
-    monitor.colorManagementPreset === "hdr" ||
-    (monitor.currentFormat === "XRGB2101010" && monitor.sdrBrightness === 2)
-  );
+  return monitor.colorManagementPreset === "hdr";
+}
+
+/** Whether dot hdr on left anything to undo, including a fall back to sRGB. */
+function hasHdrSettings(monitor: Monitor): boolean {
+  return isHdr(monitor) || monitor.sdrBrightness === 2;
+}
+
+/** Settings a monitor needs on top of the HDR rule, where its EDID gets them wrong. */
+function hdrOverrides(monitor: Monitor): string {
+  switch (currentOmarchyHost()) {
+    case "desktop":
+      return DESKTOP_HDR;
+    case "laptop":
+      return monitor.name === LAPTOP_PANEL ? LAPTOP_PANEL_HDR : "";
+    default:
+      return "";
+  }
 }
 
 function monitorSpec(monitor: Monitor): string {
@@ -115,13 +141,12 @@ export const hdr = Effect.fn("hdr")(function* (state: "on" | "off") {
 
   const switchHdr = Effect.gen(function* () {
     const monitor = yield* primaryMonitor;
-    const desktop = currentOmarchyHost() === "desktop";
     const file = stateFile();
 
     if (state === "off") {
       yield* fs.remove(file, { force: true });
 
-      if (!isHdr(monitor)) {
+      if (!hasHdrSettings(monitor)) {
         yield* Effect.sync(() =>
           process.stdout.write(`HDR is already disabled on ${monitor.name}.\n`),
         );
@@ -141,7 +166,7 @@ export const hdr = Effect.fn("hdr")(function* (state: "on" | "off") {
       return;
     }
 
-    const hdrMonitor = `hl.monitor({ ${monitorSpec(monitor)}, bitdepth = 10, cm = "hdr", sdrbrightness = 2.0${desktop ? DESKTOP_LUMINANCE : ""} })`;
+    const hdrMonitor = `hl.monitor({ ${monitorSpec(monitor)}, bitdepth = 10, cm = "hdr", sdrbrightness = 2.0${hdrOverrides(monitor)} })`;
 
     yield* fs.writeFileString(`${file}.tmp`, `${hdrMonitor}\n`);
     yield* fs.rename(`${file}.tmp`, file);
