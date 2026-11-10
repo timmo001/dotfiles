@@ -39,6 +39,6 @@ tools:
     reviewed: v0.0.16
     review: Check the browse MCP server entry in the private mcp.yml (its command, the OPENCODE_BROWSER_RUNTIME environment and which harnesses enable it) against the release, and whether browse install now writes config the sync should own instead.
   - repo: Effect-TS/effect
-    reviewed: effect@4.1.2
+    reviewed: effect@4.1.3
     tags: ^effect@
     review: Check dot and the OpenCode plugins for moved modules or changed APIs. The plugins' Effect pin follows OpenCode, so a change there waits for an OpenCode release that adopts it.
