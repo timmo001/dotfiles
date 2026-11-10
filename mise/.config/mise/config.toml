@@ -172,14 +172,14 @@ asset_pattern = "scrcpy-linux-x86_64-v*.tar.gz"
 filter_bins = "scrcpy"
 
 # The v2 desktop app is only published on opencode.ai, not GitHub releases.
-[tools."http:opencode-desktop"]
-version = "latest"
-minimum_release_age = "0s"
-url = "https://opencode.ai/files/bin/{{ version }}/opencode-desktop-linux-x86_64.AppImage"
-version_list_url = "https://opencode.ai/update/api/latest/desktop/opencode"
-version_json_path = ".version"
-format = "raw"
-bin = "opencode-desktop"
+# [tools."http:opencode-desktop"]
+# version = "latest"
+# minimum_release_age = "0s"
+# url = "https://opencode.ai/files/bin/{{ version }}/opencode-desktop-linux-x86_64.AppImage"
+# version_list_url = "https://opencode.ai/update/api/latest/desktop/opencode"
+# version_json_path = ".version"
+# format = "raw"
+# bin = "opencode-desktop"
 
 [tools."github:bambulab/BambuStudio"]
 version = "latest"
