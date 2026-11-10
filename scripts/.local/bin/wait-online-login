@@ -1,0 +1,44 @@
+#!/bin/sh
+# Hold a login-time user unit until the network and the desktop session have
+# both been up for a while, so jobs that catch up at login don't race them.
+# User units can't order after network-online.target, and /proc/uptime starts
+# with the kernel, so neither works on its own.
+#
+# Usage: ExecStartPre=%h/.local/bin/wait-online-login [settle-seconds] [timeout-seconds]
+# Waits until network-online.target and graphical-session.target have been
+# active for settle seconds (120) and github.com resolves. After timeout
+# seconds (600) it gives up and lets the unit start anyway. Don't use it in a
+# unit graphical-session.target wants: the target waits on that unit.
+
+settle=${1:-120}
+timeout=${2:-600}
+start=$(date +%s)
+
+# When a unit became active, in Unix seconds; fails while it isn't active.
+since() {
+  [ "$(systemctl "$1" is-active "$2")" = active ] || return 1
+  stamp=$(systemctl "$1" show -P ActiveEnterTimestamp --timestamp=unix "$2")
+  echo "${stamp#@}"
+}
+
+while :; do
+  now=$(date +%s)
+
+  if net=$(since --system network-online.target) &&
+    login=$(since --user graphical-session.target) &&
+    getent hosts github.com >/dev/null; then
+    ready=$((net > login ? net : login))
+    left=$((ready + settle - now))
+    [ "$left" -le 0 ] && exit 0
+    echo "Network and login are up; settling for ${left}s"
+    sleep "$left"
+    continue
+  fi
+
+  if [ $((now - start)) -ge "$timeout" ]; then
+    echo "Network or login still not ready after ${timeout}s; starting anyway" >&2
+    exit 0
+  fi
+
+  sleep 5
+done

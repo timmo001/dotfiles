@@ -1,11 +1,11 @@
 [Unit]
 Description=Process queued notes captures with local OpenCode
-After=network-online.target
-Wants=network-online.target
 OnFailure=dot-service-failed@%n.service
 
 [Service]
 Type=simple
+ExecStartPre=%h/.local/bin/wait-online-login
+TimeoutStartSec=11min
 ExecStart=%h/.local/bin/notes-capture-daemon
 # The Effect runtime exits 130 when systemd stops it.
 SuccessExitStatus=130

@@ -4,5 +4,6 @@ After=graphical-session.target
 
 [Service]
 Type=oneshot
+ExecStartPre=%h/.local/bin/wait-online-login
 ExecStart=%h/.local/bin/dot-doctor-notify
 Environment=DISPLAY=:0
