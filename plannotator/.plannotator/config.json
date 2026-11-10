@@ -54,7 +54,7 @@
     ]
   },
   "theme": {
-    "dark": "plannotator-modern"
+    "dark": "plannotator"
   },
   "experimental": {
     "decisionMode": true
@@ -103,5 +103,8 @@
     "shownLoad": "76091ee5-3827-486d-8bc5-d01be33df8a9"
   },
   "inboxSteps": true,
-  "inboxRowsDefaults": 2
+  "inboxRowsDefaults": 2,
+  "inboxThemeChooser": {
+    "notNeededAt": "2026-11-10T12:19:20.804Z"
+  }
 }
