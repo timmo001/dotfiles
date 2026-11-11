@@ -154,12 +154,10 @@ export const stowPlanNeedsApply = (output: string): boolean => {
     const kind = action[1];
     const body = action[2] ?? "";
     const reverts = body.endsWith(REVERTS);
-    const path = (reverts ? body.slice(0, -REVERTS.length) : body).split(
-      " => ",
-    )[0];
+    const [path = ""] = body.replace(REVERTS, "").split(" => ");
 
-    if (kind === "LINK") linked.add(path ?? "");
-    else if (kind === "UNLINK") unlinked.add(path ?? "");
+    if (kind === "LINK") linked.add(path);
+    else if (kind === "UNLINK") unlinked.add(path);
     else if (!reverts) structureChanged = true;
   }
 
