@@ -36,7 +36,6 @@ jobs:
               - 'mise.toml'
               - '.github/actions/setup-mise/**'
               - 'package.json'
-              - 'tests/dot/**'
               - '.github/workflows/dot-build.yml'
               - '.github/workflows/lint.yml'
 

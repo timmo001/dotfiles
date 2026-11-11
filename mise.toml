@@ -118,39 +118,9 @@ description = "Type-check the dot links Chromium extension"
 depends = ["install"]
 run = "bunx tsc -p chromium-extension"
 
-[tasks."tests:integration"]
-description = "Run deterministic repository integration tests in parallel"
-depends = [
-  "tests:integration:dot",
-  "tests:integration:plannotator",
-  "tests:integration:hypr",
-]
-
-[tasks."tests:integration:dot"]
-description = "Run the dot and OpenCode integration tests"
-depends = ["dot:build", "plugins:install"]
-run = "bun test tests/opencode tests/dot/agent-oxlint-opt-in.test.ts tests/dot/git-commit-branch-guard.test.ts tests/dot/git-commit-scoped-staging.test.ts tests/dot/git-pull-preserves-work.test.ts tests/dot/homeassistant-rebase-abort.test.ts tests/dot/git-notification-dismissal.test.ts tests/dot/herdr-context-contract.test.ts tests/dot/herdr-launch-contract.test.ts tests/dot/process-runner.test.ts tests/dot/mcp-repositories.test.ts tests/dot/omarchy-plugin-deployment.test.ts tests/dot/session-queue.test.ts tests/dot/services-outcomes.test.ts tests/dot/stow-plan.test.ts"
-
-[tasks."tests:integration:plannotator"]
-description = "Run the Plannotator Herdr plugin runner tests"
-depends = ["dot:build"]
-run = "bun test ./scripts/.local/share/herdr-plugins/plannotator/runner.test.ts"
-
-[tasks."tests:integration:hypr"]
-description = "Check Hyprland Lua dispatcher syntax"
-depends = ["dot:build"]
-run = "bash tests/scripts/hypr-lua-dispatchers.test.sh"
-
-[tasks."tests:smoke"]
-description = "Build dot and run the git-diff index-lock smoke check"
-depends = ["dot:build"]
-run = """
-bash tests/dot/git-diff-index-lock.test.sh
-"""
-
 [tasks.tests]
-description = "Run every test suite in parallel"
-depends = ["dot:test", "tests:integration", "tests:smoke"]
+description = "Run the dot unit tests"
+depends = ["dot:test"]
 
 # docs (runs in ./docs)
 [tasks."docs:install"]

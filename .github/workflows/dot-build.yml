@@ -10,7 +10,6 @@ on:
       - 'mise.toml'
       - '.github/actions/setup-mise/**'
       - 'package.json'
-      - 'tests/dot/**'
       - 'docs/**'
       - '.github/workflows/dot-build.yml'
   pull_request: {}
@@ -37,7 +36,6 @@ jobs:
               - 'mise.toml'
               - '.github/actions/setup-mise/**'
               - 'package.json'
-              - 'tests/dot/**'
               - '.github/workflows/dot-build.yml'
             docs:
               - 'docs/**'

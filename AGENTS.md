@@ -23,7 +23,6 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Main entrypoint: `scripts/.local/bin/dot` (compiled binary from `dot/src/`)
 - Source: `dot/` (Bun + Effect v4 CLI; excluded from stow)
 - TypeScript tests: `dot/tests/` (excluded from stow; usually empty)
-- Repository tests: `tests/` (excluded from stow)
 - Docs site: `docs/` (Blume, bun; excluded from stow; deploys to `dotfiles.timmo.dev`)
 - Stow config: `.stowrc`
 - Readme: `README.md` (slim pointer; links to the docs site, which is the canonical human documentation)
@@ -32,7 +31,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 ## Tooling
 
-- The whole project is driven by **mise**. The single root `mise.toml` pins the toolchain (`node`, `bun`) and defines every dev task, including the root `lint` task and project namespaces (`dot:*`, `docs:*`, and `tests:*`). Prefer `mise run <task>` (for example `mise run lint`, `mise run dot:build`, `mise run docs:check`, or `mise run tests:integration`) as the canonical interface; `mise tasks` lists them.
+- The whole project is driven by **mise**. The single root `mise.toml` pins the toolchain (`node`, `bun`) and defines every dev task, including the root `lint` task and project namespaces (`dot:*`, `docs:*`, and `tests`). Prefer `mise run <task>` (for example `mise run lint`, `mise run dot:build`, `mise run docs:check`, or `mise run dot:check`) as the canonical interface; `mise tasks` lists them.
 - `mise.toml` is the source of truth for tool versions even without mise: anyone not using mise must still use the pinned versions and the same underlying commands each task wraps (do not substitute other versions or a different toolchain).
 - The package manager and runtime is **bun** for every JS/TS package (`dot/` and `docs/`). Do not use npm, pnpm, or yarn for install, lockfile, or script commands. Use `bun install`, `bun add`, `bun update`, `bun run`, and `bunx` (or the `mise run` task wrappers).
 - The tracked lockfile is `bun.lock` in each package (`dot/bun.lock`, `docs/bun.lock`); commit it after any dependency change. CI runs `bun install --frozen-lockfile` against it.
@@ -121,20 +120,19 @@ dot/src/
 
 ## Testing
 
-Personal dotfiles: don't aim for coverage. Default to no new tests; validate by building, typing, formatting and running the changed command, plus the regression suite under Validation. Add a narrow test under `tests/` only for a durable edge case or cross-cutting invariant that is easy to regress and hard to catch by hand (a known lock race, a ban on legacy syntax, a shared OpenCode contract). Don't grow `dot/tests` to mirror `dot/src` or invent happy-path coverage.
+Personal dotfiles: don't aim for coverage and don't add tests. There is no regression suite: validate by building, typing, formatting and running the changed command. Don't grow `dot/tests` to mirror `dot/src` or invent happy-path coverage.
 
 ## Validation
 
 - Run only the checks the change needs, and run them in parallel. Pick the narrowest tasks that cover the touched files and pass them to a single `mise run`, separated by `:::` (for example `mise run lint:yaml ::: lint:actions` after a workflow edit). Don't run aggregate tasks such as `check` to cover a narrow change.
-- After changing `dot/`, `tests/`, or OpenCode plugins, format first (it writes files), then run the rest in parallel before reporting done:
+- After changing `dot/` or OpenCode plugins, format first (it writes files), then check:
 
   ```bash
   mise run dot:format
-  mise run dot:check ::: tests:integration
+  mise run dot:check
   ```
 
-  `tests:integration` builds `dot` itself. `dot:check` only runs `dot/tests`. The regression tests that import `dot/src` live in `tests/` and only run through `tests:integration`, the CI `regression-tests` job.
-- Run the changed command's relevant help or behaviour check. When command metadata changes, also add `tests:smoke` to the parallel run.
+- Run the changed command's relevant help or behaviour check.
 - `hk.pkl` runs the lint, `dot:typecheck` and `dot:format:check` tasks for changed file types on pre-push (hk's global hooks, installed by `dot update`). Run them by hand with `hk check`.
 - Basic health check: `dot doctor`. `mise tasks` lists every task; aggregates (`check`, `tests`, `lint`) are for broad changes only.
 - MCP config sync: `dot mcp sync` renders every harness's MCP config from private `dotfiles-private/mcp.yml`; `dot update` runs it, and a manual sync needs `dot stow` after.

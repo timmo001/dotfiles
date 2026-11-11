@@ -53,7 +53,7 @@
   ],
   "packageRules": [
     {
-      "description": "Leave the OpenCode plugins' Effect packages to OpenCode bumps, which tests/opencode/plugin-effect-version.test.ts keeps aligned.",
+      "description": "Leave the OpenCode plugins' Effect packages to OpenCode bumps.",
       "matchFileNames": ["agents/.config/opencode/plugins/package.json"],
       "matchPackageNames": ["effect", "@effect/**"],
       "enabled": false
