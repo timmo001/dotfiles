@@ -130,6 +130,48 @@ export const pullKeepsLocalWork = Effect.fn("Update.pullKeepsLocalWork")(
   },
 );
 
+const REVERTS = " (reverts previous action)";
+
+/**
+ * Whether a `stow --simulate --verbose` plan would change the target tree.
+ *
+ * A restow prints `UNLINK` for every existing link and a `LINK` marked as
+ * reverting the previous action when it puts that same link back. Those
+ * pairs leave the tree as it is. A path that is only unlinked is a file the
+ * package no longer ships, and a link, directory creation or removal that
+ * does not revert is a change to apply.
+ */
+export const stowPlanNeedsApply = (output: string): boolean => {
+  const linked = new Set<string>();
+  const unlinked = new Set<string>();
+  let structureChanged = false;
+
+  for (const line of output.split("\n")) {
+    const action = /^(LINK|UNLINK|MKDIR|RMDIR): (.*)$/.exec(line);
+
+    if (!action) continue;
+
+    const kind = action[1];
+    const body = action[2] ?? "";
+    const reverts = body.endsWith(REVERTS);
+    const path = (reverts ? body.slice(0, -REVERTS.length) : body).split(
+      " => ",
+    )[0];
+
+    if (kind === "LINK") linked.add(path ?? "");
+    else if (kind === "UNLINK") unlinked.add(path ?? "");
+    else if (!reverts) structureChanged = true;
+  }
+
+  if (structureChanged || linked.size !== unlinked.size) return true;
+
+  for (const path of linked) {
+    if (!unlinked.has(path)) return true;
+  }
+
+  return false;
+};
+
 /** Find unapplied submodule pins, stow links and Herdr lockfile commits. */
 export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
   function* (repo: DiffRepo) {
@@ -151,7 +193,13 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
     if (repo.category !== "dotfiles") return pending;
 
     for (const folder of (yield* listStowFolders(repo.path, config)).sort()) {
-      const flags = ["--simulate", "--verbose"];
+      // Match stowRepo: every package except hypr is restowed, so a removed
+      // file's symlink is part of the plan. Hypr is never restowed.
+      const flags = [
+        ...(folder === "hypr" ? [] : ["-R"]),
+        "--simulate",
+        "--verbose",
+      ];
 
       if (yield* requiresNoFolding(repo.path, folder))
         flags.push("--no-folding");
@@ -183,15 +231,7 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
         { cwd: repo.path },
       );
 
-      if (
-        output
-          .split("\n")
-          .some(
-            (line) =>
-              /^(LINK|UNLINK|MKDIR|RMDIR):/.test(line) &&
-              !line.includes("reverts previous action"),
-          )
-      )
+      if (stowPlanNeedsApply(output))
         pending.push(`${repo.name}: ${folder} needs stow`);
     }
 
