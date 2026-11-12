@@ -18,7 +18,7 @@
     "predev": "bun run gen"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "14.4.6",
+    "@astrojs/cloudflare": "14.4.7",
     "@fontsource-variable/geist-mono": "5.3.0",
     "@fontsource-variable/mona-sans": "5.3.0",
     "@timmo001/docs-kit": "0.23.0",
