@@ -1298,7 +1298,8 @@ export interface UpdateCheckOptions {
  *
  * Scans repos via {@link DotDiff} (TTL-cached fetch). By default only
  * core/system repos (dotfiles + omarchy) are considered; `all` widens the
- * scope to every tracked repo. Repositories with local work are skipped.
+ * scope to every tracked repo. Repositories with local work are skipped, and
+ * listed under a blocked heading when they are behind but can't be pulled.
  * Returns {@link UPDATE_CHECK_AVAILABLE_EXIT} for actionable pulls or maintenance,
  * {@link UPDATE_CHECK_ERROR_EXIT} when checks fail without finding an update,
  * and 0 when no updates need applying.
@@ -1357,6 +1358,7 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
         .join(", ")}`,
     );
     const pending: string[] = [];
+    const blocked: string[] = [];
     let failed = false;
 
     for (const repo of scoped) {
@@ -1364,6 +1366,10 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
         if (yield* hasLocalUpdateWork(repo)) {
           if (yield* pullKeepsLocalWork(repo)) {
             pending.push(`${repo.name}: ${repo.behind} behind (local work)`);
+          } else if (repo.behind > 0) {
+            blocked.push(
+              `${repo.name} is ${repo.behind} behind, local work blocks the pull`,
+            );
           } else {
             yield* log.info(`Skipping ${repo.name} (local work)`);
           }
@@ -1394,14 +1400,26 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
       );
     }
 
+    const reportBlocked = Effect.gen(function* () {
+      if (blocked.length === 0) return;
+
+      yield* log.info(`${blocked.length} blocked updates:`);
+
+      for (const item of blocked) {
+        yield* log.info(`  ${item}`);
+      }
+    });
+
     if (pending.length === 0) {
       if (failed) {
         yield* Effect.sync(() => {
           process.exitCode = UPDATE_CHECK_ERROR_EXIT;
         });
-      } else {
+      } else if (blocked.length === 0) {
         yield* log.info(`No updates needed for ${scopeRepos}`);
       }
+
+      yield* reportBlocked;
 
       return;
     }
@@ -1413,6 +1431,7 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
     }
 
     yield* log.info("Run `dot up` to apply.");
+    yield* reportBlocked;
     yield* Effect.sync(() => {
       process.exitCode = UPDATE_CHECK_AVAILABLE_EXIT;
     });

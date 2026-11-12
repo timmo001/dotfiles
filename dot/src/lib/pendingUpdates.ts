@@ -28,6 +28,8 @@ export const DotState = Schema.Literals(["current", "available", "unknown"]);
 export const DotStatus = Schema.Struct({
   state: DotState,
   pending: Schema.Array(Schema.String),
+  /** Repositories behind their upstream whose local work blocks the pull. */
+  blocked: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
 /** Dotfiles check result. */
@@ -101,17 +103,21 @@ export interface PendingStatus extends Schema.Schema.Type<
   typeof PendingStatus
 > {}
 
-/** Read the items `dot update --check` lists under its "N pending updates:" heading. */
-const pendingItems = (output: string) => {
+/** Read the items `dot update --check` lists under its "N <kind> updates:" heading. */
+const listedItems = (output: string, kind: "pending" | "blocked") => {
   const all = output.split("\n").map((line) => line.trim());
-  const start = all.findIndex((line) => /^\d+ pending updates:$/.test(line));
+  const heading = new RegExp(`^\\d+ ${kind} updates:$`);
+  const start = all.findIndex((line) => heading.test(line));
 
   if (start === -1) return [];
 
   const items = all.slice(start + 1);
 
   const end = items.findIndex(
-    (line) => line === "" || line.startsWith("Run `dot "),
+    (line) =>
+      line === "" ||
+      line.startsWith("Run `dot ") ||
+      /^\d+ \w+ updates:$/.test(line),
   );
 
   return end === -1 ? items : items.slice(0, end);
@@ -134,7 +140,8 @@ export const dotfiles = Effect.fn("PendingUpdates.dotfiles")(function* (
 
   return {
     state,
-    pending: state === "available" ? pendingItems(result.stdout) : [],
+    pending: state === "available" ? listedItems(result.stdout, "pending") : [],
+    blocked: listedItems(result.stdout, "blocked"),
   } satisfies DotStatus;
 });
 
@@ -443,7 +450,7 @@ export const pendingGroups = (
         ? ["Updates available"]
         : status.dot.pending,
     missing: [],
-    blocked: [],
+    blocked: status.dot.blocked ?? [],
     unknown: status.dot.state === "unknown",
   },
   {
