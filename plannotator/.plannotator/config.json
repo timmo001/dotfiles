@@ -15,6 +15,9 @@
   "prompts": {
     "review": {
       "denied": "\n\nThe feedback above comes from a human reviewer. Make the requested corrections in the code. Focus only on addressing this feedback; do not perform a separate code review or introduce unrelated changes. Run the relevant tests or checks after making the corrections. If any request is unclear, conflicts with the codebase, or cannot be applied safely, explain the issue and ask for clarification before proceeding with that item. When finished, briefly summarize what you changed and how you validated it."
+    },
+    "inbox": {
+      "rules": "Always communicate with plannotator inbox: checklists, questions, status updates, screenshots, videos, plans, reviews, guides, research documents, generated documents that plannotator inbox supports, etc."
     }
   },
   "pfmReminder": true,
@@ -96,15 +99,35 @@
     "waitingSince": {
       "snooze": "2026-11-04T20:03:24.162Z",
       "voice": "2026-11-08T11:01:31.699Z",
-      "list_intro": "2026-11-08T21:42:09.166Z"
+      "list_intro": "2026-11-08T21:42:09.166Z",
+      "bro": "2026-11-11T20:57:13.468Z",
+      "agent_rules": "2026-11-12T16:04:04.406Z"
     },
-    "dayShownAt": "2026-11-08T22:05:48.462Z",
-    "lastShownAt": "2026-11-08T22:05:48.462Z",
-    "shownLoad": "76091ee5-3827-486d-8bc5-d01be33df8a9"
+    "dayShownAt": "2026-11-12T16:20:59.276Z",
+    "lastShownAt": "2026-11-12T16:20:59.276Z",
+    "shownLoad": "f56d24fa-90e3-4b02-b40a-d67e193c26a7",
+    "bro": {
+      "shownAt": "2026-11-11T23:10:09.973Z",
+      "key": "bd7738a4-e2c5-4c8c-8a76-e1b8cb2e9306"
+    },
+    "launch_tip": {
+      "shownAt": "2026-11-12T11:35:44.377Z",
+      "key": "lt-mwdeeg6t-6245eg9c"
+    },
+    "agent_rules": {
+      "shownAt": "2026-11-12T16:20:59.276Z",
+      "key": "50a75d8c-f109-4343-b9a7-46cbc5dc7123"
+    }
   },
   "inboxSteps": true,
   "inboxRowsDefaults": 2,
   "inboxThemeChooser": {
     "notNeededAt": "2026-11-10T12:19:20.804Z"
-  }
+  },
+  "starAsk": {
+    "answer": "already",
+    "answeredAt": "2026-11-11T21:38:05.634Z",
+    "surface": "inbox"
+  },
+  "inboxBro": true
 }
