@@ -117,6 +117,9 @@
     "agent_rules": {
       "shownAt": "2026-11-12T16:20:59.276Z",
       "key": "50a75d8c-f109-4343-b9a7-46cbc5dc7123"
+    },
+    "priority": {
+      "dueAt": "2026-11-13T11:21:13.143Z"
     }
   },
   "inboxSteps": true,
