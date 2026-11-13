@@ -11,6 +11,13 @@ o.exec_on_start("dot herdr start")
 if not o.cmd_missing("hex") then
   o.exec_on_start("hex start")
 end
+-- Kestrel's desktop app, where it's installed, straight into the tray.
+local kestrel = os.getenv("HOME") .. "/.local/share/dev.timmo.kestrel/stable/app/bin/launcher"
+local kestrel_installed = io.open(kestrel, "r")
+if kestrel_installed then
+  kestrel_installed:close()
+  o.exec_on_start("uwsm app -t service -s b -a kestrel -- env GROUNDWORK_DESKTOP_HIDDEN=1 " .. o.shell_quote(kestrel))
+end
 
 -- Xwayland takes its default arrow once, at startup, while Omarchy's blank
 -- startup cursor is active, and Hyprland never refreshes it. Set it again,
