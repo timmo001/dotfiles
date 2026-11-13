@@ -5,6 +5,7 @@ import { Config } from "../services/Config.js";
 import { managedGitRepoForGitHub } from "../services/GitConfig.js";
 import { LauncherError } from "../services/Launcher.js";
 import { lstatOrNull, pathExists, readTextOrNull } from "./fsProbe.js";
+import { HOME_DIR } from "./paths.js";
 import {
   parseManagedPlugins,
   type ManagedPlugin,
@@ -207,6 +208,82 @@ const sameFiles = Effect.fn("OmarchyPlugin.sameFiles")(function* (
 
   return Buffer.from(sourceBytes).equals(Buffer.from(targetBytes));
 });
+
+/** Whether a plugin directory has anything to copy besides its git metadata. */
+const hasPluginFiles = Effect.fn("OmarchyPlugin.hasFiles")(function* (
+  source: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const info = yield* lstatOrNull(source);
+
+  if (info?.type !== "Directory") return false;
+
+  return (yield* fs.readDirectory(source)).some((name) => name !== ".git");
+});
+
+/** Whether the exported or checked-out plugin differs from its live copy. */
+const pluginDiffers = Effect.fn("OmarchyPlugin.differs")(function* (
+  source: string,
+  target: string,
+) {
+  if (!(yield* hasPluginFiles(source))) return false;
+
+  return !(yield* sameFiles(source, target).pipe(
+    Effect.orElseSucceed(() => false),
+  ));
+});
+
+/**
+ * Whether stow would replace a live Omarchy plugin.
+ *
+ * Submodule plugins are ignored by the stow plan, and tracked plugins are
+ * copied from another repository, so neither shows up as a link change. An
+ * empty checkout is left alone: copying it would replace the live plugin
+ * with nothing. A tracked export that cannot be read is skipped.
+ */
+export const omarchyPluginsNeedDeploy = Effect.fn("OmarchyPlugin.needsDeploy")(
+  function* (repo: string) {
+    const registry = yield* managedOmarchyPlugins(repo);
+
+    const tracked = registry.flatMap(({ id, repository, path }) =>
+      repository ? [{ id, repository, path }] : [],
+    );
+
+    const trackedIds = new Set(tracked.map(({ id }) => id));
+    const live = (id: string) => join(HOME_DIR, ".config/omarchy/plugins", id);
+
+    for (const checkout of yield* omarchyPluginSubmodules(repo)) {
+      const id = basename(checkout);
+
+      if (trackedIds.has(id)) continue;
+
+      const source = join(
+        checkout,
+        registry.find((entry) => entry.id === id)?.path ?? "",
+      );
+
+      if (yield* pluginDiffers(source, live(id))) return true;
+    }
+
+    for (const { id, repository, path } of tracked) {
+      const checkout = yield* trackedPluginCheckout(repository);
+
+      if (!checkout) continue;
+
+      const differs = yield* Effect.scoped(
+        Effect.gen(function* () {
+          const exported = yield* exportTrackedPlugin(checkout, path);
+
+          return yield* pluginDiffers(exported.files, live(id));
+        }),
+      ).pipe(Effect.orElseSucceed(() => false));
+
+      if (differs) return true;
+    }
+
+    return false;
+  },
+);
 
 /** A validated plugin copy staged beside the live plugin it replaces. */
 export interface StagedOmarchyPlugin {
