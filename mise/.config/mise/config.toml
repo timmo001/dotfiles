@@ -114,6 +114,11 @@ asset_pattern = "go2rtc_linux_amd64"
 format = "raw"
 bin = "go2rtc"
 
+# Kestrel's desktop app, in its own app/ folder; only the kestrel command goes on PATH.
+[tools."github:timmo001/kestrel"]
+version = "latest"
+minimum_release_age = "0s"
+
 [tools."github:github/app"]
 version = "latest"
 asset_pattern = "GitHub-Copilot-linux-x64.AppImage"

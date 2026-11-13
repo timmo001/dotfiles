@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Kestrel
+Comment=Recorder and camera client
+TryExec=kestrel
+Exec=kestrel
+Icon=kestrel
+Terminal=false
+StartupWMClass=Kestrel
+Categories=Utility;
