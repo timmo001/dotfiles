@@ -28,6 +28,7 @@ export const pullRequestsQuery = Effect.fn("pullRequests.query")(function* (
 ) {
   const config = yield* Config;
   const { repositories } = yield* pullRequestsValue(options);
+
   const none = !config.canUsePrivate
     ? `No tracked repositories: ${config.privateReason}`
     : isCloudSession()
