@@ -29,6 +29,7 @@ import { install } from "../commands/Install.js";
 import { isAgentCommand } from "../commands/IsAgent.js";
 import { notesCaptureSync } from "../commands/NotesCaptureSync.js";
 import { updatesRefresh, updatesStatus } from "../commands/Updates.js";
+import { workTime } from "../commands/WorkTime.js";
 import {
   servicesInvestigate,
   servicesLogs,
@@ -39,7 +40,6 @@ import {
   servicesStart,
   servicesStop,
   servicesStatus,
-  servicesWatch,
   servicesExport,
   servicesAct,
   servicesBusy,
@@ -55,7 +55,6 @@ import {
   backupTestRestore,
   backupVerify,
 } from "../commands/Backup.js";
-import { gitRefresh, gitWatch } from "../git/commands/Watch.js";
 import { fansRun } from "../commands/Fans.js";
 import { tunnelRun } from "../commands/Tunnel.js";
 import { prQueue } from "../commands/PrQueue.js";
@@ -101,12 +100,16 @@ import {
 } from "../commands/SessionQueue.js";
 import { repos, searchRepos } from "../commands/Repos.js";
 import { up, upCheck } from "../commands/Up.js";
+import { upStage } from "../commands/UpStage.js";
+import { reserveStdout } from "../lib/jsonStdout.js";
 import { branchUpdate } from "../commands/BranchUpdate.js";
 import {
   update,
   updateCheck,
   updateRepositories,
   UP_GROUPS,
+  UP_STAGES,
+  type UpStage,
 } from "../commands/Update.js";
 import { RELOAD_PARTS, reload } from "../commands/Reload.js";
 import { configureFirewallRules } from "../lib/firewallSetup.js";
@@ -115,11 +118,6 @@ import { gitCommitRaw } from "../git/commands/Commit.js";
 import { gitLog, gitLogShow } from "../git/commands/Log.js";
 import { pullRequestsQuery } from "../git/commands/PullRequests.js";
 import { issuesQuery } from "../git/commands/Issues.js";
-import {
-  releasesAction,
-  releasesPublish,
-  releasesQuery,
-} from "../git/commands/Releases.js";
 import {
   notificationsBarJson,
   notificationsMarkRead,
@@ -237,6 +235,65 @@ const branchUpdateCommand = describe(
   },
 );
 
+const STAGE_DESCRIPTIONS: Record<UpStage, string> = {
+  dotfiles:
+    "Pull the public and private dotfiles and their pinned submodules, and rebuild dot when its source moved",
+  stow: "Generate completions, sync MCP config and skills, and stow",
+  skills:
+    "Move the skills checkout to the latest main, rebuild skill-maintenance and relink skills",
+  repos:
+    "Pull tracked repositories that are behind, leaving any with work in progress alone; name repositories to pull just those",
+  tools: "Install missing mise tools, upgrade the rest and prune removed ones",
+  plugins: "Update the Pi and OpenCode plugins",
+  herdr:
+    "Restore pinned Herdr plugins and sync the saved Herdr and hc machines",
+  agents: "Sync agent instructions and reload running agents",
+  shell: "Start the doctor check",
+};
+
+const stageJson = bool(
+  "json",
+  "Print the result as JSON on stdout, with the log on stderr",
+);
+
+const upStageCommand = (stage: UpStage) =>
+  describe(
+    Command.make(
+      stage,
+      {
+        json: stageJson,
+        repos: Argument.String("repo").pipe(
+          Argument.variadic(),
+          Argument.withDescription(
+            stage === "repos"
+              ? "Repository paths to pull, instead of every safe one"
+              : "Not used by this stage",
+          ),
+        ),
+      },
+      ({ json, repos }) =>
+        Effect.suspend(() => {
+          if (stage !== "repos" && repos.length > 0)
+            return Effect.fail(
+              new CliError.InvalidValue({
+                option: "repo",
+                value: repos.join(", "),
+                kind: "argument",
+                expected: "no arguments; only dot up repos takes repositories",
+              }),
+            );
+
+          if (json) reserveStdout();
+
+          return upStage(stage, { repos, json });
+        }),
+    ),
+    `${STAGE_DESCRIPTIONS[stage]}. Never prompts, so it can run in the background.`,
+    stage === "repos"
+      ? ["dot up repos", "dot up repos ~/repos/upkeep", "dot up repos --json"]
+      : [`dot up ${stage}`, `dot up ${stage} --json`],
+  );
+
 const updateCommand = describe(
   Command.make(
     "up",
@@ -279,6 +336,18 @@ const updateCommand = describe(
           "Internal: the groups picked before a restart handoff",
         ),
       ),
+      declined: Flag.Literals("declined", UP_GROUPS).pipe(
+        Flag.atLeast(0),
+        Flag.withDescription(
+          "Internal: the groups offered but not picked before a restart handoff",
+        ),
+      ),
+      changed: Flag.Literals("changed", UP_GROUPS).pipe(
+        Flag.atLeast(0),
+        Flag.withDescription(
+          "Internal: the stages that changed something before a restart handoff",
+        ),
+      ),
       noSelfUpdate: bool(
         "no-self-update",
         "Skip the internal self-update phase, which pulls the public and private dotfiles",
@@ -305,6 +374,7 @@ const updateCommand = describe(
       check,
       checkAll,
       checkRepos,
+      declined,
       force,
       group,
       noSelfUpdate,
@@ -328,6 +398,8 @@ const updateCommand = describe(
             noSelfUpdate ||
             postHookRepo.length > 0 ||
             group.length > 0 ||
+            declined.length > 0 ||
+            changed.length > 0 ||
             Option.isSome(startedAt)
           )
             return yield* new CliError.InvalidValue({
@@ -357,14 +429,26 @@ const updateCommand = describe(
         if (pull || onlyStow || app)
           return yield* update({ ...options, pull, stow: onlyStow, app });
 
-        return yield* up({ ...options, groups: group, yes, force });
+        return yield* up({
+          ...options,
+          groups: group,
+          declined,
+          changed,
+          yes,
+          force,
+        });
       }),
-  ).pipe(Command.withSubcommands([branchUpdateCommand])),
-  "Check everything, pick what to update, then run it: dotfiles, mise tools, gh extensions, missing packages, apt and release packages, and compose up. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at and --group flags carry a run across the self-update restart.",
+  ).pipe(
+    Command.withSubcommands([
+      ...UP_STAGES.map(upStageCommand),
+      branchUpdateCommand,
+    ]),
+  ),
+  "Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell), then gh extensions, missing packages, apt and release packages, and compose up; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.",
   ["dot up", "dot up --check", "dot up --yes", "dot up --stow"],
   {
     description:
-      "dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and gh extensions. It saves the result for the status cache, lists it, then asks which groups to run, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order, each numbered with a one-line description:\n\n1. Dotfiles: pulls the public dotfiles, rebuilds and relaunches dot, scans and pulls tracked repositories, moves the skills checkout to the latest skills main, syncs MCP config, stows, installs mise tools, refreshes agent runtimes, syncs agent instructions, reloads agents and starts the doctor check. Pulls are fast-forward-only and never stash or rebase.\n2. Mise tools: installs missing tools and runs mise up with no release delay.\n3. gh extensions: installs missing ones and upgrades the rest.\n4. Missing packages: installs apt packages from the public and private lists.\n5. System: runs apt-get update and upgrade (with -y under --yes), then installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs.\n6. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.\n\nOn the server branch it then runs dot up branch unless --no-branch is given. It finishes with a summary of updated repositories, mise tools and every step.\n\n--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands. --no-reload skips the agent reload and doctor check.",
+      "dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and gh extensions. It saves the result for the status cache, lists it, then asks which groups to run, offering only those with work, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order:\n\n1. Stages: dotfiles, skills, repos, stow, tools, plugins, herdr, agents and shell, as `dot up <stage>` runs them. A stage that wasn't offered still runs when an earlier one changed something it applies: stow and Herdr after a dotfiles pull that brings new links or Herdr pins, tools after a dotfiles pull that brings mise changes, plugins after a tools upgrade, agents after a dotfiles pull or changed skills or plugins, and the shell after any change; stow, tools, plugins and Herdr are checked again first. A stage offered and left unticked never runs.\n2. gh extensions: installs missing ones and upgrades the rest.\n3. Missing packages: installs apt packages from the public and private lists.\n4. System: runs apt-get update and upgrade (with -y under --yes), then installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs.\n5. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.\n\nOn the server branch it then runs dot up branch unless --no-branch is given. It finishes with a summary of updated repositories, mise tools and every step, then runs dot up --check to report what is still pending. dot up <stage>, the phase flags and --repo end the same way, except with --json.\n\n--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Pulled public dotfiles also rebuild dot; stow, agent instructions and the rest of a dotfiles pull are left to dot up, which the closing check lists. Add --pull to only pull and run post-update commands.",
     sections: [
       {
         title: "Exit codes",
@@ -654,20 +738,6 @@ const updatesCommand = describe(
         "Refresh the update status",
         ["dot updates refresh", "dot updates refresh --quick"],
       ),
-      describe(
-        Command.make(
-          "watch",
-          {
-            json: bool(
-              "json",
-              "Print the status, its groups, and the bar and footer output, as JSON",
-            ),
-          },
-          ({ json }) => updatesWatch(json),
-        ),
-        "Print status-bar JSON from the dot daemon, then again after each change",
-        ["dot updates watch", "dot updates watch --json"],
-      ),
     ]),
   ),
   "Check everything dot up updates, for status readers and OpenCode",
@@ -816,10 +886,6 @@ const servicesCommand = describe(
         ),
         "Show the health of registered user services",
         ["dot services status", "dot services status --json"],
-        {
-          description:
-            "When dot daemon is running it checks the services, so watchers such as dot services watch see the result too; otherwise the check runs here.",
-        },
       ),
       describe(
         Command.make("export", {}, () => servicesExport),
@@ -827,7 +893,7 @@ const servicesCommand = describe(
         ["dot services export"],
         {
           description:
-            "Prints JSON in System Bridge's services provider schema, version 1: updated (epoch milliseconds), busy (the items whose work is under way, each with item, label and since), items (each with id, label, kind, health, summary, busy, lastRun, lastSuccess, nextRun, progress, stats, notes, lists and actions, each action with id, label, confirm and disabled) and errors (each descriptor that didn't decode, with source and message). Health keeps dot's nine values. Run history, restart counts and log paths stay in dot services status --json. Reads the dot daemon's snapshot when it runs, otherwise checks here.",
+            "Prints JSON in System Bridge's services provider schema, version 1: updated (epoch milliseconds), busy (the items whose work is under way, each with item, label and since), items (each with id, label, kind, health, summary, busy, lastRun, lastSuccess, nextRun, progress, stats, notes, lists and actions, each action with id, label, confirm and disabled) and errors (each descriptor that didn't decode, with source and message). Health keeps dot's nine values. Run history, restart counts and log paths stay in dot services status --json. Reads the snapshot by checking here.",
         },
       ),
       describe(
@@ -957,15 +1023,6 @@ const servicesCommand = describe(
           ]),
         ),
         "Commands for services.d checks that print a check status",
-      ),
-      describe(
-        Command.make("watch", {}, () => servicesWatch),
-        "Print the services snapshot from the dot daemon as JSON, then again after each change",
-        ["dot services watch"],
-        {
-          description:
-            "The daemon checks the registered services every minute and whenever dot services status, dot services notify, a tunnel or the fan controller asks it to. Each line is the snapshot dot services status --json prints, which the daemon also keeps in $XDG_RUNTIME_DIR/dot/status/services.json. Exits 1 when the daemon can't be reached or stops.",
-        },
       ),
       describe(
         Command.make("start", { unit: serviceUnit }, ({ unit }) =>
@@ -1104,7 +1161,7 @@ const servicesCommand = describe(
   ["dot services status", "dot services logs dot-doctor.timer"],
   {
     description:
-      'Each job registers itself with a YAML descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor\'s id, the stable key System Bridge and Home Assistant use, defaults to its file name. Instead of a unit, a descriptor can name a check ({ run, every, timeout, environmentFile }, default every 5 minutes with a 30 second timeout): a command, given as arguments rather than a shell string, that prints a status as JSON, with environmentFile\'s KEY=value lines added to its environment. dot runs it whenever its last result, cached in ~/.local/state/dot/services/checks/, is older than every; a non-zero exit, a timeout or output that isn\'t a status is a failed run summarised by stderr, and the dot daemon notifies when a check turns failed. A timer can add busy: true, so it counts as busy while the job it starts runs. actions lists the commands dot services act may run for the item, each with id, label, run (arguments) and an optional confirm question for clients. Status files and check output can add busy, progress (0 to 1), stats ({ id, label, value, unit, kind }), notes, lists ({ id, label, items: [{ label, value }] }) and actions ({ id, disabled }), which can only disable an action the item lists. A timer\'s status file is read from its latest run, and its busy only counts while that run is active. dot services status --json adds the busy items at the top, and dot services export prints the lot for System Bridge. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour", counted from the latest of the last completed run, the last boot or resume, and one interval before the first calendar run due after those, so sleep, power off and gaps in the schedule are not missed runs), restartLimit ({ count, within }) for long-running services, counting only restarts that follow a failed run, notify, logs ({ dir, file }) for jobs that keep their own run logs, and repository (a GitHub owner/repo slug from dot-git.yml) naming the repository that logs and agents open in. A long-running service can add status ({ file }) pointing at a JSON file it writes with health ("ok", "warning", "degraded" or "failed"), summary and updated (epoch milliseconds); while systemd sees the service as healthy, a report from its current run replaces the health and summary. Without repository, the repository containing the unit\'s executable is used, falling back to the public dotfiles. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations also break the failure streak, but don\'t count as completed work. dot services dismiss <unit> clears a failure streak by hand. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. A job can summarise each run by printing a line containing "[RESULT] " followed by a short outcome; the last such line per invocation becomes that run\'s summary in status, run logs, notifications and System Bridge. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and has the dot daemon check again. Timer services with ExecCondition=dot services schedule check run only at their calendar times, or within --grace of one, not as later catch-up runs after boot or resume; those runs show as skipped. dot services start always runs them.',
+      'Each job registers itself with a YAML descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor\'s id, the stable key System Bridge and Home Assistant use, defaults to its file name. Instead of a unit, a descriptor can name a check ({ run, every, timeout, environmentFile }, default every 5 minutes with a 30 second timeout): a command, given as arguments rather than a shell string, that prints a status as JSON, with environmentFile\'s KEY=value lines added to its environment. dot runs it whenever its last result, cached in ~/.local/state/dot/services/checks/, is older than every; a non-zero exit, a timeout or output that isn\'t a status is a failed run summarised by stderr. A timer can add busy: true, so it counts as busy while the job it starts runs. actions lists the commands dot services act may run for the item, each with id, label, run (arguments) and an optional confirm question for clients. Status files and check output can add busy, progress (0 to 1), stats ({ id, label, value, unit, kind }), notes, lists ({ id, label, items: [{ label, value }] }) and actions ({ id, disabled }), which can only disable an action the item lists. A timer\'s status file is read from its latest run, and its busy only counts while that run is active. dot services status --json adds the busy items at the top, and dot services export prints the lot for System Bridge. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour", counted from the latest of the last completed run, the last boot or resume, and one interval before the first calendar run due after those, so sleep, power off and gaps in the schedule are not missed runs), restartLimit ({ count, within }) for long-running services, counting only restarts that follow a failed run, notify, logs ({ dir, file }) for jobs that keep their own run logs, and repository (a GitHub owner/repo slug from dot-git.yml) naming the repository that logs and agents open in. A long-running service can add status ({ file }) pointing at a JSON file it writes with health ("ok", "warning", "degraded" or "failed"), summary and updated (epoch milliseconds); while systemd sees the service as healthy, a report from its current run replaces the health and summary. Without repository, the repository containing the unit\'s executable is used, falling back to the public dotfiles. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations also break the failure streak, but don\'t count as completed work. dot services dismiss <unit> clears a failure streak by hand. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. A job can summarise each run by printing a line containing "[RESULT] " followed by a short outcome; the last such line per invocation becomes that run\'s summary in status, run logs, notifications and System Bridge. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and has the dot daemon check again. Timer services with ExecCondition=dot services schedule check run only at their calendar times, or within --grace of one, not as later catch-up runs after boot or resume; those runs show as skipped. dot services start always runs them.',
   },
 );
 
@@ -1122,7 +1179,7 @@ const fansCommand = describe(
   ["dot fans run"],
   {
     description:
-      "Reads ~/.config/dot/fans.yml: entity (a Home Assistant temperature sensor), device (a liquidctl --match string), channels (a list such as fan1 and fan2), ramp ({ from, to } in °C), speed ({ min, max } in percent) and optionally cpu ({ hwmon, label, ramp }, such as k10temp and Tctl). Watches the entity through ha-bridge and ramps the channels linearly from speed.min at ramp.from to speed.max at ramp.to, in 5% steps. With cpu, it also polls that hwmon temperature every 5 seconds, ramps it on cpu.ramp from the average of the last 60 seconds of readings, and runs the fans at the higher of the two speeds; an unreadable CPU sensor sets speed.max. An unavailable or non-numeric reading, no reading within 30 seconds, or a stopped watcher sets speed.max until readings resume; the watcher restarts after 15 seconds. Health is written to $XDG_STATE_HOME/dot/fans/status.json for the status field of a dot services descriptor. Stopping hands the device back to motherboard control with liquidctl initialize.",
+      "Reads ~/.config/dot/fans.yml: entity (a Home Assistant temperature sensor), device (a liquidctl --match string), channels (a list such as fan1 and fan2), ramp ({ from, to } in °C) and speed ({ min, max } in percent). Watches the entity through ha-bridge and ramps the channels linearly from speed.min at ramp.from to speed.max at ramp.to, in 5% steps. An unavailable or non-numeric reading, no reading within 30 seconds, or a stopped watcher sets speed.max until readings resume; the watcher restarts after 15 seconds. Health is written to $XDG_STATE_HOME/dot/fans/status.json for the status field of a dot services descriptor. Stopping hands the device back to motherboard control with liquidctl initialize.",
   },
 );
 
@@ -1340,173 +1397,6 @@ const gitIssuesCommand = describe(
   },
 );
 
-const releaseActionFlags = {
-  repo: Flag.String("repo").pipe(
-    Flag.withDescription("Configured repository name or GitHub slug"),
-  ),
-  snapshot: Flag.String("snapshot").pipe(
-    Flag.withDescription(
-      "Exact displayed snapshot ID; stale selections are rejected",
-    ),
-  ),
-  panelJson: bool("panel-json", "Return the updated complete JSON snapshot"),
-};
-
-const gitReleasesCommand = describe(
-  Command.make(
-    "releases",
-    {
-      repo: text("repo", "Select an enabled repository by name or GitHub slug"),
-      scheduled: bool(
-        "scheduled",
-        "Check only in a due cron minute, once per minute",
-      ),
-      refresh: bool("refresh", "Fetch now, bypassing the schedule and cache"),
-      notify: bool(
-        "notify",
-        "Send eligible desktop notifications with review actions",
-      ),
-      panelJson: bool(
-        "panel-json",
-        "Complete JSON review snapshots, including quiet changes and errors",
-      ),
-    },
-    ({ repo, scheduled, refresh, notify, panelJson }) =>
-      releasesQuery(
-        { repo: optional(repo), scheduled, refresh, notify },
-        panelJson,
-      ),
-  ).pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make(
-          "review",
-          {
-            ...releaseActionFlags,
-            findings: Flag.String("finding").pipe(
-              Flag.atLeast(0),
-              Flag.withDescription(
-                "Finding ID, or overall for the current release-relevant comparison (default); repeatable to set several findings at once",
-              ),
-            ),
-            impact: Flag.Literals("impact", [
-              "none",
-              "patch",
-              "minor",
-              "major",
-              "auto",
-            ]).pipe(
-              Flag.withDescription(
-                "Local release impact; auto clears the override",
-              ),
-            ),
-          },
-          ({ repo, snapshot, findings, impact, panelJson }) =>
-            releasesAction(
-              {
-                repo,
-                snapshot,
-                targets: findings.length ? findings : ["overall"],
-                impact,
-              },
-              panelJson,
-            ),
-        ),
-        "Review exact local release evidence without publishing anything",
-      ),
-      describe(
-        Command.make(
-          "publish",
-          {
-            ...releaseActionFlags,
-            interactive: bool(
-              "interactive",
-              "Explain, confirm and run the release in this terminal, with an optional log pager",
-            ),
-            panelJson: bool(
-              "panel-json",
-              "Stream JSON progress and the final plan or release result",
-            ),
-            confirm: text(
-              "confirm",
-              "Execute the exact plan ID returned by the preview",
-            ),
-            notesFile: text(
-              "notes-file",
-              "Markdown file with hand-written release notes, read at preview and again at confirmation",
-            ),
-            notesMode: Flag.Literals("notes-mode", ["prepend", "replace"]).pipe(
-              Flag.optional,
-              Flag.withDescription(
-                "Put --notes-file before the generated notes (prepend, default) or use it alone (replace)",
-              ),
-            ),
-          },
-          ({
-            repo,
-            snapshot,
-            confirm,
-            panelJson,
-            interactive,
-            notesFile,
-            notesMode,
-          }) =>
-            releasesPublish(
-              {
-                repo,
-                snapshot,
-                confirm: optional(confirm),
-                notesFile: optional(notesFile),
-                notesMode: optional(notesMode),
-              },
-              panelJson,
-              interactive,
-            ),
-        ),
-        "Preview version changes, validation, pushes and release notes. --interactive explains and confirms in the terminal; --confirm PLAN executes a reviewed plan with live progress. --notes-file supplies hand-written notes.",
-        [],
-        {
-          description:
-            "Requires an explicit private releases.publish recipe. The preview is read-only. Confirmation binds the reviewed snapshot, version files, commands and target. Preparation runs in an isolated worktree. Only agreed version changes, plus any releases.publish.generated_files the commands regenerate (such as a lockfile), are committed through dot git commit, then the version commit and tag are pushed atomically. GitHub release notes are generated from the previous stable release (or the full history for a first release), unless --notes-file supplies hand-written notes. The file must exist and not be empty; its text is shown in the preview and bound to the plan, so pass the same --notes-file on confirmation and an edited file needs a new preview. --notes-mode prepend (default) puts the file before the generated notes, editing the release straight after creation; replace uses only the file. Progress includes command output and a saved log. Release creation does not wait for GitHub publication jobs; follow the returned Actions URL. Failed preparation is retained for inspection. Refresh and preview again after resolving a failure.",
-        },
-      ),
-    ]),
-  ),
-  "Compare enabled repositories with their latest published stable release, explain impact and retain local reviews.",
-  [
-    "dot git releases",
-    "dot git releases --refresh --panel-json",
-    "dot git releases --scheduled --notify --panel-json",
-    "dot git releases --open --repo example/project",
-    "dot git releases review --repo example/project --snapshot ID --finding FINDING --impact patch",
-    "dot git releases review --repo example/project --snapshot ID --finding ONE --finding TWO --impact none",
-    "dot git releases review --repo example/project --snapshot ID --impact auto",
-    "dot git releases publish --repo example/project --snapshot ID --notes-file notes.md",
-    "dot git releases publish --repo example/project --snapshot ID --notes-file notes.md --notes-mode replace --confirm PLAN",
-  ],
-  {
-    description:
-      "Read the last local snapshot, collecting one on first use. --refresh fetches immutable release and branch refs immediately; --scheduled follows each repository's local-time cron and records attempted minutes. Draft and prerelease releases are excluded. Before the first stable release, the comparison covers the full history with the same quiet rules, and the first version is 0.1.0 (1.0.0 for a major impact), today's CalVer or the upstream fork base. Failed checks retain previous evidence marked stale; with --refresh the output is still printed, then the command exits non-zero naming each repository that could not be refreshed. Quiet changes remain inspectable. Desktop notifications require --notify and honour configured minimum impact and cooldown. --open opens the release review, optionally selected by --repo, without fetching.\n\nLocal reviews require the displayed snapshot ID. Finding overrides follow exact evidence; an overall override follows the release-relevant comparison. Changed evidence invalidates its review. Use --impact auto to clear an override. Extra CI-only commits do not repeat delivery. Incomplete or stale evidence cannot be reviewed.",
-    sections: [
-      {
-        title: "Policy",
-        lines: [
-          "Optional releases config selects oxlint-rules or system-bridge and a watched branch.",
-          "Private overrides precede preset rules; the first match wins for each fact.",
-          "Match paths with globs, change_types, exact dependencies, roles, submodules or explicit subjects regexes.",
-          "Selectors are ANDed; values within each selector are ORed. Explicit path overrides match either rename endpoint.",
-          "Preset rename impact is the highest affected old/new boundary; both endpoints must be quiet for a quiet rename.",
-          "Subject selectors follow surviving source lines or individual structured values, excluding reverted intent.",
-          "Each net fact is classified once; any attributed subject can match the first applicable ordered rule.",
-          "Every override supplies impact (none/patch/minor/major) and a readable reason.",
-          "Dependency versions never imply consumer minor or major changes.",
-          "Notification enabled/minimum_impact/cooldown_minutes are stored for future explicit delivery.",
-        ],
-      },
-    ],
-  },
-);
-
 const gitCommitCommand = describe(
   Command.make(
     "commit",
@@ -1692,33 +1582,6 @@ const gitCommand = describe(
       gitCommitCommand,
       gitNotificationsCommand,
       gitIssuesCommand,
-      describe(
-        Command.make("watch", {}, () => gitWatch),
-        "Print the Git panel's state from the dot daemon as JSON, then again after each part changes",
-        ["dot git watch"],
-        {
-          description:
-            "The daemon reads the Git panel's parts every minute: diff (as dot git diff --bar-json prints it), panel (dot git diff --panel-json), notifications (dot git notifications --bar-json), pullRequests (dot pr list --panel-json), issues (dot git issues --panel-json) and log (dot git log --panel-json). Each is { value } or { error }, and is missing until it has been read once. Each part is published as soon as it is read, and the daemon also keeps the whole snapshot in $XDG_RUNTIME_DIR/dot/status/git.json for the Git panel. Exits 1 when the daemon can't be reached or stops.",
-        },
-      ),
-      describe(
-        Command.make(
-          "refresh",
-          {
-            force: bool(
-              "force",
-              "Fetch pull requests and issues and re-read the commit log instead of using their caches",
-            ),
-          },
-          ({ force }) => gitRefresh(force),
-        ),
-        "Ask the dot daemon to read the Git panel's state again",
-        ["dot git refresh", "dot git refresh --force"],
-        {
-          description:
-            "Returns once every part has been read; dot git watch prints the changes. Exits 1 when the daemon can't be reached.",
-        },
-      ),
     ]),
   ),
   "Work across tracked Git repositories",
@@ -2065,11 +1928,11 @@ const setupCommand = describe(
           Command.withSubcommands([
             describe(
               Command.make("machines", {}, () => setupHerdrMachines),
-              "Save the Herdr SSH machines from the private machine list",
+              "Save the Herdr SSH machines from the private machine list in Herdr and hc",
               ["dot setup herdr machines"],
               {
                 description:
-                  "Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's saved-machine catalog (~/.local/state/herdr/client/endpoints.json), in the list's order and with its profile IDs, labels, SSH targets and sessions, so every device has the same machines. A machine whose host is this device's hostname is left out, so a device never lists itself. Herdr keeps the catalog in client state rather than config, so dot stow can't link it. A machine this device already has keeps its enabled state, so toggles survive; enabled in the list only applies when it's added. Machines the list doesn't name are kept after it. Open Herdr clients pick up the change. dot up runs the same step and only reports it when it saves machines or fails, so a device without the list, or whose machines already match, sees nothing. Host keys and remote installs stay with Herdr: run herdr machine reconnect <label> once for a new machine.",
+                  "Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's saved-machine catalog (~/.local/state/herdr/client/endpoints.json), in the list's order and with its profile IDs, labels, SSH targets and sessions, so every device has the same machines. A machine whose host is this device's hostname is left out, so a device never lists itself. Herdr keeps the catalog in client state rather than config, so dot stow can't link it. A machine this device already has keeps its enabled state, so toggles survive; enabled in the list only applies when it's added. Machines the list doesn't name are kept after it. Open Herdr clients pick up the change. When the Herdr app's core (hc) is installed, it also adds each listed machine hc doesn't have yet with hc machine add --install, named from its label in lowercase (\"[HA] SSH\" is ha-ssh), and an ssh:// target with a port goes through --via. A machine that can't be reached is tried again next time. dot up runs the same steps and only reports them when they save or add machines or fail, so a device without the list, or whose machines already match, sees nothing. Host keys and remote installs for Herdr stay with Herdr: run herdr machine reconnect <label> once for a new machine.",
               },
             ),
           ]),
@@ -3418,7 +3281,6 @@ export const dotCommand = describe(
       serverCommand,
       statusCommand,
       updatesCommand,
-      daemonCommand,
       servicesCommand,
       backupCommand,
       fansCommand,

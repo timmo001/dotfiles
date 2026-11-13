@@ -13,7 +13,6 @@ import { herdrNamespace } from "./lib/cli-tools/herdr";
 import { loadAgentTools, loadDotTools } from "./lib/cli-tools/dot";
 import { jobsNamespace } from "./lib/cli-tools/jobs";
 import { miseNamespace } from "./lib/cli-tools/mise";
-import { notesNamespace } from "./lib/cli-tools/notes";
 import { opencode2Namespace } from "./lib/cli-tools/opencode2";
 import {
   aubeNamespace,
@@ -36,7 +35,14 @@ import {
   runCliOutput,
   strictToolInput,
 } from "./lib/cli-tools/tool";
-import { triageNamespace } from "./lib/cli-tools/triage";
+
+/** A tool result's content with a note for the agent added at the end. */
+const withNote = (content: Tool.Result["content"], note: string) =>
+  Array.isArray(content)
+    ? [...content, { type: "text" as const, text: note }]
+    : Schema.is(Schema.String)(content)
+      ? `${content}\n\n${note}`
+      : note;
 
 /** CLIs, besides dot, whose Code Mode tools come from their own `agent tools --json`. */
 const manifestCommands = [
@@ -83,8 +89,6 @@ export default Plugin.define({
         },
         ...manifestNamespaces.map((entry) => entry.namespace),
         herdrNamespace,
-        haBridgeNamespace,
-        systemBridgeNamespace,
         systemdNamespace,
         pitchforkNamespace,
         miseNamespace,
@@ -95,7 +99,6 @@ export default Plugin.define({
         yarnNamespace,
         gitNamespace,
         opencode2Namespace,
-        skillMaintenanceNamespace,
       ];
 
       const namespaces: readonly Namespace[] = [
@@ -291,20 +294,6 @@ export default Plugin.define({
         });
       });
 
-      // System Bridge's own plugin adds its namespace; these are the tools the hyprctl nudges name.
-      const externalTools: ReadonlyMap<string, ReadonlyMap<string, boolean>> = (yield* systemBridgeAvailable)
-        ? new Map([
-            [
-              "system-bridge",
-              new Map([
-                ["get_data", false],
-                ["hyprland_get_option", false],
-                ["hyprland_set_option", false],
-              ]),
-            ],
-          ])
-        : new Map();
-
       // `jobs` is a shell builtin, not the jobs namespace.
       const catalogue: CodeModeCatalogue = namespaces.reduce((map, namespace, index) => {
         if (!enabled[index] || namespace.command === "jobs") return map;
@@ -318,7 +307,7 @@ export default Plugin.define({
             ...tools.map((tool): [string, boolean] => [tool.name, tool.directory ?? false]),
           ]),
         );
-      }, new Map<string, ReadonlyMap<string, boolean>>(externalTools));
+      }, new Map<string, ReadonlyMap<string, boolean>>());
 
       // Background shells are how long runs stay out of the foreground, so they keep the shell.
       yield* context.tool.hook("execute.after", (event) =>

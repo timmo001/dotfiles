@@ -58,7 +58,6 @@ The branch rebases onto `origin/distro/arch-omarchy-quattro`. Look ahead before 
 - Main entrypoint: `scripts/.local/bin/dot` (compiled binary from `dot/src/`)
 - Source: `dot/` (Bun + Effect v4 CLI; excluded from stow)
 - TypeScript tests: `dot/tests/` (excluded from stow; usually empty)
-- Repository tests: `tests/` (excluded from stow)
 - Docs site: `docs/` (Blume, bun; excluded from stow; deploys to `dotfiles.timmo.dev`)
 - Stow config: `.stowrc`
 - Readme: `README.md` (slim pointer; links to the docs site, which is the canonical human documentation)
@@ -67,18 +66,18 @@ The branch rebases onto `origin/distro/arch-omarchy-quattro`. Look ahead before 
 
 ## Tooling
 
-- The whole project is driven by **mise**. The single root `mise.toml` pins the toolchain (`node`, `bun`) and defines every dev task, including the root `lint` task and project namespaces (`dot:*`, `docs:*`, and `tests:*`). Prefer `mise run <task>` (for example `mise run lint`, `mise run dot:build`, `mise run docs:check`, or `mise run tests:integration`) as the canonical interface; `mise tasks` lists them.
+- The whole project is driven by **mise**. The single root `mise.toml` pins the toolchain (`node`, `bun`) and defines every dev task, including the root `lint` task and project namespaces (`dot:*`, `docs:*`, and `tests`). Prefer `mise run <task>` (for example `mise run lint`, `mise run dot:build`, `mise run docs:check`, or `mise run dot:check`) as the canonical interface; `mise tasks` lists them.
 - `mise.toml` is the source of truth for tool versions: without mise, still use the pinned versions and the commands each task wraps.
 - The package manager and runtime is **bun** for every JS/TS package (`dot/` and `docs/`). Do not use npm, pnpm, or yarn for install, lockfile, or script commands. Use `bun install`, `bun add`, `bun update`, `bun run`, and `bunx` (or the `mise run` task wrappers).
 - The tracked lockfile is `bun.lock` in each package (`dot/bun.lock`, `docs/bun.lock`); commit it after any dependency change. CI runs `bun install --frozen-lockfile` against it.
 - Keep Renovate update grouping limited to standard presets except for the coordinated Effect runtime and OpenCode 2 packages in `renovate.json`. Keep Effect compiler tooling outside the runtime group.
-- `tooling.yml` records the releases of the third-party tools the configuration, custom plugins, Code Mode `cli-tools` and `dot` code were last reviewed against; a newly wrapped third-party CLI gets an entry there; the Tooling drift workflow opens a review pull request when one moves. After the review, move the pin with `mise run tooling:update <repo> <tag>`, never by hand; the `tooling-drift` skill has the steps.
+- `tooling.yml` records the releases of the third-party tools the configuration, custom plugins, Code Mode `cli-tools` and `dot` code were last reviewed against; a newly wrapped third-party CLI gets an entry there; Upkeep's [`drift` job](https://upkeep.timmo.dev/running#drift) checks it for new releases. Record a review by setting `reviewed` in `tooling.yml` and pushing.
 
 ## OpenCode Assets
 
 - Prefer UK spelling in human-written command names and prose; keep upstream names unchanged.
 - `agents/.config/opencode/` is the shared OpenCode config source. Relative plugin imports from `lib/` must resolve before publication.
-- Shared skills come from `timmo001/skills` `main` (see Key Paths); `dot update` refreshes and relinks them. `.agents/skills/` holds this repo's own skills (also linked from `.claude/skills`), and `dotfiles-skills/.agents/skills/` holds global skills tied to dotfiles paths or commands. Public `SKILL.md` files must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules.
+- Shared skills come from `timmo001/skills` `main` (see Key Paths); `dot up skills` refreshes and relinks them. `.agents/skills/` holds this repo's own skills (also linked from `.claude/skills`), and `dotfiles-skills/.agents/skills/` holds global skills tied to dotfiles paths or commands. Public `SKILL.md` files must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules.
 - `herdr/.config/herdr/` stows the main Herdr config and selected plugin config; runtime state stays untracked.
 - `dot agent sync` mirrors the private global AGENTS source into harness instruction files; `dot update` and `dot init` run it.
 - Pin private OpenCode packages through the npm regex custom manager in `dotfiles-private/renovate.json`.
@@ -113,6 +112,7 @@ The branch rebases onto `origin/distro/arch-omarchy-quattro`. Look ahead before 
 - `dot update` compiles to a temporary path and atomically renames the result over the running binary to avoid `ETXTBSY`. Keep that behaviour when changing self-update code.
 - Bounded external jobs use `ProcessRunner` through `dot run --timeout <duration> -- <command> [args...]`. Keep caller-specific arguments and permissions in the caller; the runner owns the deadline, signals, and process-group cleanup.
 - Generated `dot` and `skill-maintenance` completions are ignored by Git. Public `dot stow`, `dot install` (including `dot init`), and `dot update` generate them before stowing. Keep hand-written completions tracked; use package-provided completions for external tools such as `context`.
+- Dependency updates for this repository and the private overlay come from Upkeep's `deps` job, not from `dot`.
 
 ## Documentation
 
@@ -126,7 +126,7 @@ The branch rebases onto `origin/distro/arch-omarchy-quattro`. Look ahead before 
 
 ## Testing
 
-Personal dotfiles: don't aim for coverage. Default to no new tests; validate by building, typing, formatting and running the changed command, plus the regression suite under Validation. Add a narrow test under `tests/` only for a durable edge case or cross-cutting invariant that is easy to regress and hard to catch by hand (a known lock race, a ban on legacy syntax, a shared OpenCode contract). Don't grow `dot/tests` to mirror `dot/src` or invent happy-path coverage.
+Personal dotfiles: don't aim for coverage and don't add tests. There is no regression suite: validate by building, typing, formatting and running the changed command. Don't grow `dot/tests` to mirror `dot/src` or invent happy-path coverage.
 
 ## Validation
 
@@ -135,7 +135,7 @@ Personal dotfiles: don't aim for coverage. Default to no new tests; validate by 
 
   ```bash
   mise run dot:format
-  mise run dot:check ::: tests:integration
+  mise run dot:check
   ```
 
 - After changing OpenCode plugins, run `mise run lint:oxlint`; `dot:format` covers only `dot/`.
@@ -145,6 +145,8 @@ Personal dotfiles: don't aim for coverage. Default to no new tests; validate by 
 - Basic health check: `dot doctor`. `mise tasks` lists every task; aggregates (`check`, `tests`, `lint`) are for broad changes only.
 - MCP config sync: `dot mcp sync` renders every harness's MCP config from private `dotfiles-private/mcp.yml`; `dot update` runs it, and a manual sync needs `dot stow` after.
 
-## After Committing
+## Applying Changes
 
-- When a change only takes effect on this machine through `dot update` (a rebuilt `dot`, a submodule or plugin bump, agent or MCP sync, or anything else `dot update` regenerates), offer "Run `dot update`" in the next-steps question alongside commit and push. `dot update` pulls from the remote, so it needs the push first; say so when the user picks it without pushing.
+- When a change only takes effect on this machine through `dot up`, run the narrowest stage yourself once checks pass, without offering it: `dot up stow` (stow, completions, MCP sync), `dot up tools` (mise), `dot up plugins` (Pi and OpenCode plugins), `dot up herdr` (Herdr plugins and machines) or `dot agent sync` (agent instructions). These stages are headless and apply the local checkout, so they need no commit or push. `mise run dot:build` already installs a rebuilt `dot`.
+- `dot up dotfiles` and `dot up skills` read the remote, so only run them after a push; on other machines they arrive through their own `dot up`.
+- Leave `dot up agents`, which reloads running agents, and the full interactive `dot up` to the user.

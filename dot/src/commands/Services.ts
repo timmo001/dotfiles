@@ -1,7 +1,6 @@
 import { basename, dirname, join, sep } from "node:path";
 import { parseEnv } from "node:util";
 import {
-  Cause,
   Clock,
   Console,
   Duration,
@@ -10,18 +9,13 @@ import {
   Option,
   Result,
   Schema,
-  Stream,
 } from "effect";
-import { DaemonClient, tryDaemon } from "../daemon/Client.js";
-import type { ServicesReport } from "../daemon/Rpcs.js";
-import { formatCause } from "../lib/schema.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import {
   managedGitRepoForGitHub,
   managedGitRepos,
 } from "../services/GitConfig.js";
-import { readGameState } from "./Game.js";
 import { installedHerdrAgents } from "./HerdrAgents.js";
 import { herdrRepoOpen } from "./HerdrRepoOpen.js";
 import {
@@ -880,11 +874,7 @@ function summarise(status: Omit<ServiceStatus, "summary">): string {
       return "Last run completed with warnings";
     case "running":
       return "Running now";
-    case "paused":
-      return "Paused for gaming";
-    case "ok": {
-      const latest = status.runs.find((run) => run.result !== "skipped");
-
+    case "ok":
       if (
         status.runs[0]?.result === "skipped" &&
         (latest === undefined || latest.result === "failed")
@@ -1061,9 +1051,6 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
     timers.length > 0 ? yield* nextElapses : new Map<string, number>();
 
   const resumedAt = yield* lastResume;
-
-  // Services dot game stopped show as paused, not inactive.
-  const pausedUnits = new Set((yield* readGameState).stopped);
 
   const desktop = yield* onDesktop;
 
@@ -1257,9 +1244,7 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
             : properties.ActiveState !== "active" &&
                 properties.ActiveState !== "activating" &&
                 properties.ActiveState !== "reloading"
-              ? pausedUnits.has(service)
-                ? "paused"
-                : "inactive"
+              ? "inactive"
               : consecutiveFailures > 0 ||
                   (restartLimit !== undefined &&
                     recentRestarts >= restartLimit.count)
@@ -1714,9 +1699,6 @@ export const servicesReport = Effect.fn("Services.report")(function* (
 /** Read the monitoring snapshot for every registered job, as `dot services status --json` prints it. */
 export const servicesSnapshot = servicesReport();
 
-/** How long a status read waits for the daemon before checking itself. */
-const DAEMON_TIMEOUT = "15 seconds";
-
 // The parts of a job's snapshot the text output prints.
 const decodeServiceLine = Schema.decodeUnknownOption(
   Schema.Struct({
@@ -1727,22 +1709,10 @@ const decodeServiceLine = Schema.decodeUnknownOption(
   }),
 );
 
-/**
- * The services report, from the dot daemon when it runs, so its watchers see
- * the result too; otherwise checked here.
- */
-const currentReport = Effect.gen(function* () {
-  const viaDaemon = yield* tryDaemon(
-    Effect.gen(function* () {
-      const client = yield* DaemonClient;
-
-      return yield* client.RefreshServices();
-    }).pipe(Effect.timeout(DAEMON_TIMEOUT)),
-  );
-
-  return Option.isSome(viaDaemon) ? viaDaemon.value : yield* servicesReport();
-}).pipe(Effect.withSpan("Services.currentReport"));
-
+/** The services report, checked here. */
+const currentReport = servicesReport().pipe(
+  Effect.withSpan("Services.currentReport"),
+);
 // The parts of a snapshot System Bridge's provider document carries.
 const ExportItem = Schema.Struct({
   id: Schema.String,
@@ -1951,47 +1921,6 @@ export const servicesStatus = Effect.fn("Services.status")(function* (
 });
 
 /**
- * Print the snapshot from the dot daemon as JSON, then again after each
- * change. Exits 1 when the daemon can't be reached or the connection ends.
- */
-export const servicesWatch = Effect.gen(function* () {
-  yield* Effect.gen(function* () {
-    const client = yield* DaemonClient;
-
-    yield* client.WatchServices().pipe(
-      Stream.filter((report) => report !== null),
-      Stream.map((report) => JSON.stringify(report)),
-      Stream.changes,
-      Stream.runForEach((line) => Console.log(line)),
-    );
-  }).pipe(
-    Effect.provide(DaemonClient.layer),
-    Effect.catchCause((cause) =>
-      Console.error(
-        Cause.hasInterruptsOnly(cause)
-          ? "[ERROR] dot daemon stopped"
-          : `[ERROR] dot daemon unreachable: ${formatCause(Cause.squash(cause))}`,
-      ),
-    ),
-  );
-
-  process.exitCode = 1;
-}).pipe(Effect.withSpan("Services.watch"));
-
-/**
- * Have the dot daemon check the services again after a change, so its
- * watchers see it. Without the daemon there's nothing to tell: the next read
- * checks for itself.
- */
-export const refreshServicesDaemon = tryDaemon(
-  Effect.gen(function* () {
-    const client = yield* DaemonClient;
-
-    return yield* client.RefreshServices();
-  }).pipe(Effect.timeout(DAEMON_TIMEOUT)),
-).pipe(Effect.asVoid, Effect.withSpan("Services.refreshDaemon"));
-
-/**
  * Start a registered job's service now, restarting long-running services, or
  * run a check now.
  */
@@ -2009,7 +1938,6 @@ export const servicesStart = Effect.fn("Services.start")(function* (
       yield* Clock.currentTimeMillis,
     );
 
-    yield* refreshServicesDaemon;
     yield* Console.log(`[INFO] ${item.entry.id}: ${health}, ${summary}`);
 
     return;
@@ -2073,7 +2001,6 @@ export const servicesDismiss = Effect.fn("Services.dismiss")(function* (
     .exitCode("systemctl", ["--user", "reset-failed", "--", service])
     .pipe(Effect.ignore);
 
-  yield* refreshServicesDaemon;
   yield* Console.log(`[INFO] Dismissed the failures of ${descriptor.unit}`);
 });
 

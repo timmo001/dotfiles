@@ -1,19 +1,12 @@
 /**
- * @file Shows pending update and missing install counts in the prompt footer, from the dot daemon's status file, or `dot updates status --json` while the daemon is down
+ * @file Shows pending update and missing install counts in the prompt footer, from `dot updates status --json`.
  */
 
-import { basename, join } from "node:path";
-import { NodeServices } from "@effect/platform-node";
 import { Plugin, usePlugin } from "@opencode/plugin/tui";
 import { TextAttributes } from "@opentui/core";
-import { Effect, Fiber, FileSystem, Option, Schema, Stream } from "effect";
+import { Effect, Schema } from "effect";
 import { createSignal, For, Show } from "solid-js";
 import { runText } from "../lib/process";
-
-// The dot daemon keeps `dot updates status --json` here while it runs.
-const STATUS_DIRECTORY = join(process.env.XDG_RUNTIME_DIR || `/run/user/${process.getuid?.() ?? 1000}`, "dot", "status");
-
-const STATUS_FILE = join(STATUS_DIRECTORY, "updates.json");
 
 // The parts of `dot updates status --json` this plugin reads.
 const Status = Schema.fromJsonString(
@@ -39,35 +32,15 @@ const Status = Schema.fromJsonString(
 
 type Current = typeof Status.Type;
 
-const decode = Schema.decodeUnknownEffect(Status);
-
-// Without the daemon, dot reads its cache and refreshes it in the background once it is stale.
-const check = runText("dot", ["updates", "status", "--json"]).pipe(
-  Effect.flatMap(decode),
-  Effect.timeout("10 seconds"),
-  Effect.orElseSucceed((): Current | null => null),
-);
-
-// The daemon's status file, or dot's own check while the daemon isn't running.
-const read = Effect.gen(function* () {
-  const fs = yield* FileSystem.FileSystem;
-  const kept = yield* fs.readFileString(STATUS_FILE).pipe(Effect.flatMap(decode), Effect.option);
-
-  return Option.isSome(kept) ? kept.value : yield* check;
-});
-
-// Waits for the daemon to change the status file, or a minute while it isn't running.
-const nextChange = Effect.gen(function* () {
-  const fs = yield* FileSystem.FileSystem;
-
-  yield* fs.watch(STATUS_DIRECTORY).pipe(
-    Stream.filter((event) => basename(event.path) === "updates.json"),
-    Stream.take(1),
-    Stream.runDrain,
-    Effect.timeoutOption("1 minute"),
-    Effect.catch(() => Effect.sleep("1 minute")),
+// Reads the cache, which dot refreshes in the background once it is stale.
+const read = () =>
+  Effect.runPromise(
+    runText("dot", ["updates", "status", "--json"]).pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(Status)),
+      Effect.timeout("10 seconds"),
+      Effect.orElseSucceed((): Current | null => null),
+    ),
   );
-});
 
 export default Plugin.define({
   id: "skill-updates",
@@ -75,7 +48,9 @@ export default Plugin.define({
     const [status, setStatus] = createSignal<Current | null>(null);
     let announced = new Set<string>();
 
-    const apply = (next: Current | null) => {
+    const poll = async () => {
+      const next = await read();
+
       setStatus(next);
 
       if (!next) return;
@@ -108,14 +83,9 @@ export default Plugin.define({
       announced = items;
     };
 
-    // Read the status, then again each time the daemon changes it, or every
-    // minute while the daemon isn't running.
-    const follow = Effect.runFork(
-      Effect.gen(function* () {
-        apply(yield* read);
-        yield* nextChange;
-      }).pipe(Effect.forever, Effect.provide(NodeServices.layer)),
-    );
+    void poll();
+
+    const timer = setInterval(() => void poll(), 60_000);
 
     function View() {
       const theme = context.theme.surface("dialog");
@@ -178,7 +148,7 @@ export default Plugin.define({
     });
 
     return () => {
-      Effect.runFork(Fiber.interrupt(follow));
+      clearInterval(timer);
       slot();
     };
   },
