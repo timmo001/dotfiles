@@ -1,6 +1,6 @@
 // Generates the OpenCode reference pages under
 // docs/src/content/docs/agents/opencode/ from the live OpenCode assets in this repo:
-//   agents/.config/opencode/{agents,commands,plugins}
+//   agents/.config/opencode/{commands,plugins}
 // Skills are catalogued in timmo001/skills SKILLS.md, not generated here.
 // Run with: mise run docs:gen:opencode
 //
@@ -96,31 +96,6 @@ function pageHeader(
   return lines;
 }
 
-async function generateAgents(): Promise<void> {
-  const dir = path.join(repoRoot, OPENCODE_PREFIX, 'agents');
-  const files = (await readdir(dir)).filter((f) => f.endsWith('.md')).sort();
-  const lines = pageHeader(
-    'Agents',
-    'OpenCode agents defined in this repo.',
-    2,
-  );
-  lines.push(
-    'Agents set the execution posture (permissions, tool access, delegation) for OpenCode sessions. They are loaded from `~/.config/opencode/agents/`.',
-    '',
-    '| Agent | Description |',
-    '| --- | --- |',
-  );
-  for (const file of files) {
-    const name = file.replace(/\.md$/, '');
-    const fm = await frontmatter(path.join(dir, file));
-    if (fm.hidden === 'true') continue;
-    const link = `${BLOB}/${OPENCODE_PREFIX}/agents/${file}`;
-    lines.push(`| [\`${name}\`](${link}) | ${escapeCell(fm.description ?? '')} |`);
-  }
-  lines.push('');
-  await writeFile(path.join(outDir, 'agents.md'), `${lines.join('\n')}`);
-}
-
 async function generateCommands(): Promise<void> {
   const dir = path.join(repoRoot, OPENCODE_PREFIX, 'commands');
   const files = await listMarkdown(dir);
@@ -130,7 +105,7 @@ async function generateCommands(): Promise<void> {
     3,
   );
   lines.push(
-    'Commands are thin routing prompts: they name an agent, declare required skills or injected context, and define the output shape. They are loaded from `~/.config/opencode/commands/`.',
+    'Commands are thin routing prompts: they force an agent or carry explicit authorisation, declare required skills or injected context, and define the output shape. They are loaded from `~/.config/opencode/commands/`.',
     '',
     '| Command | Description | Agent |',
     '| --- | --- | --- |',
@@ -208,8 +183,7 @@ async function generatePlugins(): Promise<void> {
 
 await mkdir(outDir, { recursive: true });
 await Promise.all([
-  generateAgents(),
   generateCommands(),
   generatePlugins(),
 ]);
-console.log('Wrote agents/opencode/{agents,commands,plugins}.md');
+console.log('Wrote agents/opencode/{commands,plugins}.md');

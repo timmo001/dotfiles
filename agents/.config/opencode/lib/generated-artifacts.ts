@@ -10,7 +10,7 @@ const GENERATED_ARTIFACTS = [
     path: "docs/src/content/docs/dot/commands.md",
     command: "mise run docs:gen:cli",
   },
-  ...["agents.md", "commands.md", "plugins.md"].map((name) => ({
+  ...["commands.md", "plugins.md"].map((name) => ({
     path: `docs/src/content/docs/agents/opencode/${name}`,
     command: "mise run docs:gen:opencode",
   })),

@@ -43,7 +43,7 @@ Ongoing: `dot doctor` (health checks), `dot up` (check and apply every update).
 - [Hyprland](https://dotfiles.timmo.dev/desktop/hyprland/) · [Ghostty](https://dotfiles.timmo.dev/desktop/ghostty/) · [Herdr](https://dotfiles.timmo.dev/desktop/herdr/) · [UWSM](https://dotfiles.timmo.dev/desktop/uwsm/) · [Omarchy Shell](https://dotfiles.timmo.dev/desktop/omarchy-shell/)
 - [Stow packages](https://dotfiles.timmo.dev/stow/)
 - [Agents](https://dotfiles.timmo.dev/agents/overview/) · [skills](https://dotfiles.timmo.dev/agents/skills/)
-- [OpenCode](https://dotfiles.timmo.dev/agents/opencode/overview/) · [agents](https://dotfiles.timmo.dev/agents/opencode/agents/) · [commands](https://dotfiles.timmo.dev/agents/opencode/commands/) · [plugins](https://dotfiles.timmo.dev/agents/opencode/plugins/)
+- [OpenCode](https://dotfiles.timmo.dev/agents/opencode/overview/) · [commands](https://dotfiles.timmo.dev/agents/opencode/commands/) · [plugins](https://dotfiles.timmo.dev/agents/opencode/plugins/)
 - [Pi](https://dotfiles.timmo.dev/agents/pi/) · [Cursor](https://dotfiles.timmo.dev/agents/cursor/)
 
 Detail lives in code and `--help`. The site stays a short what-and-why reference.

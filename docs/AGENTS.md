@@ -15,7 +15,7 @@ This directory is the Blume + Astro documentation site for the dotfiles repo, de
 
 ## Layout
 
-- Content: `src/content/docs/` (Markdown/MDX with YAML frontmatter; file names map to routes). Top-level pages for the main sections; `dot/`, `desktop/`, and `agents/` hold section pages (`agents/opencode/` for OpenCode, other harnesses directly under `agents/`). Generated catalogues live under `dot/commands.md` and `agents/opencode/{agents,commands,plugins}.md`.
+- Content: `src/content/docs/` (Markdown/MDX with YAML frontmatter; file names map to routes). Top-level pages for the main sections; `dot/`, `desktop/`, and `agents/` hold section pages (`agents/opencode/` for OpenCode, other harnesses directly under `agents/`). Generated catalogues live under `dot/commands.md` and `agents/opencode/{commands,plugins}.md`.
 - Sidebar order is set explicitly in `blume.config.ts` (`navigation.sidebar`).
 - Branding: `src/assets/logo.svg` is the source logo; `public/favicon.svg`, `public/logo-light.svg` and `public/logo-dark.svg` are copies of it. Overview illustrations live in `public/illustrations/`.
 - Shared parts come from [`@timmo001/docs-kit`](https://github.com/timmo001/groundwork): `components.ts` wires its home banner and header GitHub link, and `theme.css` imports its layout styles (wider content column, "On this page" next to the content). Put site-specific style overrides after that import.
@@ -41,7 +41,7 @@ To add a distro:
 Two areas are generated from the single source of truth in the repo:
 
 - `src/content/docs/dot/commands.md` ← `dot/src/cli/spec.ts` via `mise run docs:gen:cli` (wraps `bun run gen:cli`).
-- `src/content/docs/agents/opencode/{agents,commands,plugins}.md` ← `agents/.config/opencode/**` via `mise run docs:gen:opencode` (wraps `bun run gen:opencode`). Skills are catalogued in [timmo001/skills `SKILLS.md`](https://github.com/timmo001/skills/blob/main/SKILLS.md#skills-catalogue), not generated here.
+- `src/content/docs/agents/opencode/{commands,plugins}.md` ← `agents/.config/opencode/**` via `mise run docs:gen:opencode` (wraps `bun run gen:opencode`). Skills are catalogued in [timmo001/skills `SKILLS.md`](https://github.com/timmo001/skills/blob/main/SKILLS.md#skills-catalogue), not generated here.
 
 Regenerate the affected catalogue from its source and include the output in the changeset; never hand-edit it. `mise run docs:gen` regenerates both. `docs:dev` also regenerates them, while production builds consume committed output. CI checks catalogue drift and builds the site.
 
