@@ -39,6 +39,30 @@ const onlyLinksTo = Effect.fn("opencodePluginFolders.onlyLinksTo")(function* (
 });
 
 /**
+ * Home-relative paths of OpenCode plugin folders already folded to their
+ * source, which a `--no-folding` stow dry run would unfold.
+ *
+ * @param repoDir - Absolute path to the stow repo root.
+ */
+export const foldedOpencodePluginFolders = Effect.fn(
+  "opencodePluginFolders.folded",
+)(function* (repoDir: string) {
+  const sourceRoot = join(repoDir, "agents", PLUGINS_DIR);
+  const targetRoot = join(HOME_DIR, PLUGINS_DIR);
+  const folded: string[] = [];
+
+  for (const entry of (yield* readDirectoryOrNull(sourceRoot)) ?? []) {
+    const target = join(targetRoot, entry);
+    const link = yield* readLinkOrNull(target);
+
+    if (link !== null && resolve(targetRoot, link) === join(sourceRoot, entry))
+      folded.push(join(PLUGINS_DIR, entry));
+  }
+
+  return folded;
+});
+
+/**
  * Replace stowed OpenCode plugin folders with one symlink each.
  *
  * The `agents` package is stowed with `--no-folding`, which leaves each plugin
