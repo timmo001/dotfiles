@@ -102,11 +102,11 @@
       "list_intro": "2026-11-08T21:42:09.166Z",
       "bro": "2026-11-11T20:57:13.468Z",
       "agent_rules": "2026-11-12T16:04:04.406Z",
-      "personal_agents": "2026-11-13T11:34:55.378Z"
+      "personal_agents": "2026-11-13T13:28:13.352Z"
     },
-    "dayShownAt": "2026-11-12T16:20:59.276Z",
-    "lastShownAt": "2026-11-12T16:20:59.276Z",
-    "shownLoad": "f56d24fa-90e3-4b02-b40a-d67e193c26a7",
+    "dayShownAt": "2026-11-13T14:03:16.813Z",
+    "lastShownAt": "2026-11-13T14:03:16.813Z",
+    "shownLoad": "58a40360-6a8d-4407-ae50-638c5d104d2e",
     "bro": {
       "shownAt": "2026-11-11T23:10:09.973Z",
       "key": "bd7738a4-e2c5-4c8c-8a76-e1b8cb2e9306"
@@ -119,8 +119,16 @@
       "shownAt": "2026-11-12T16:20:59.276Z",
       "key": "50a75d8c-f109-4343-b9a7-46cbc5dc7123"
     },
+    "sidebar_tip": {
+      "shownAt": "2026-11-11T14:00:18.494Z",
+      "key": "0cbeb723-6ceb-4cbd-a3d1-a2680411dec7"
+    },
     "priority": {
-      "dueAt": "2026-11-13T11:21:13.143Z"
+      "dueAt": "2026-11-13T13:27:02.241Z"
+    },
+    "personal_agents": {
+      "shownAt": "2026-11-13T14:03:16.813Z",
+      "key": "a8900162-5190-435e-b2a7-e949c763d3df"
     }
   },
   "inboxSteps": true,
@@ -133,5 +141,27 @@
     "answeredAt": "2026-11-11T21:38:05.634Z",
     "surface": "inbox"
   },
-  "inboxBro": true
+  "inboxBro": true,
+  "inboxSidebar": {
+    "top": [
+      "search",
+      "new-message",
+      "inbox",
+      "board",
+      "shape",
+      "artifacts",
+      "reviews",
+      "drafts"
+    ],
+    "bottom": [
+      "copy-prompt",
+      "feedback",
+      "usage",
+      "settings"
+    ],
+    "hidden": [
+      "copy-prompt"
+    ]
+  },
+  "inboxSidebarRev": 1
 }
