@@ -3,6 +3,7 @@ import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import type { DiffRepo } from "../types.js";
+import { foldedOpencodePluginFolders } from "./opencodePluginFolders.js";
 import { CONFIG_DIR } from "./paths.js";
 import { requiresNoFolding, selectedStowFolders } from "./stowFolders.js";
 
@@ -138,9 +139,13 @@ const REVERTS = " (reverts previous action)";
  * reverting the previous action when it puts that same link back. Those
  * pairs leave the tree as it is. A path that is only unlinked is a file the
  * package no longer ships, and a link, directory creation or removal that
- * does not revert is a change to apply.
+ * does not revert is a change to apply. Actions on or under `folded` paths
+ * are skipped: dot folds those after stowing, so the plan always unfolds them.
  */
-export const stowPlanNeedsApply = (output: string): boolean => {
+export const stowPlanNeedsApply = (
+  output: string,
+  folded: ReadonlyArray<string> = [],
+): boolean => {
   const linked = new Set<string>();
   const unlinked = new Set<string>();
   let structureChanged = false;
@@ -154,6 +159,9 @@ export const stowPlanNeedsApply = (output: string): boolean => {
     const body = action[2] ?? "";
     const reverts = body.endsWith(REVERTS);
     const [path = ""] = body.replace(REVERTS, "").split(" => ");
+
+    if (folded.some((dir) => path === dir || path.startsWith(`${dir}/`)))
+      continue;
 
     if (kind === "LINK") linked.add(path);
     else if (kind === "UNLINK") unlinked.add(path);
@@ -217,7 +225,14 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
         { cwd: repo.path },
       );
 
-      if (stowPlanNeedsApply(output))
+      if (
+        stowPlanNeedsApply(
+          output,
+          folder === "agents" && repo.path === config.publicDotfiles
+            ? yield* foldedOpencodePluginFolders(repo.path)
+            : [],
+        )
+      )
         pending.push(`${repo.name}: ${folder} needs stow`);
     }
 
