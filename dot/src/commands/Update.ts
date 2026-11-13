@@ -10,6 +10,7 @@ import {
   reloadAgents,
   restartStalePitchforkDaemons,
   restartStaleServices,
+  updateGlobalOpencodePlugins,
   updatePiExtensions,
 } from "../lib/agentRuntime.js";
 import { agentsSync } from "./AgentsSync.js";
@@ -61,7 +62,7 @@ import { HOME_DIR, DOT_BIN, displayPath } from "../lib/paths.js";
 import { notify } from "../lib/notify.js";
 import { ENV, envFlag } from "../lib/env.js";
 import { loadDotGitConfig, managedGitRepos } from "../services/GitConfig.js";
-import { syncHerdrMachines } from "./SetupHerdrMachines.js";
+import { syncHcMachines, syncHerdrMachines } from "./SetupHerdrMachines.js";
 import type { ConfigService } from "../services/Config.js";
 import type { GitManagedRepo } from "../services/GitConfig.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
@@ -191,8 +192,27 @@ export interface UpdateRun {
   readonly completedActions: readonly RecapEntry[];
 }
 
-/** What `dot up` can run, in the order it runs them. */
-export const UP_GROUPS = ["dotfiles", "gh"] as const;
+/** Stages `dot up` runs, each also on its own as `dot up <stage>`, in order. */
+export const UP_STAGES = [
+  "dotfiles",
+  "skills",
+  "repos",
+  "stow",
+  "plugins",
+  "herdr",
+  "agents",
+  "gh",
+  "clean",
+] as const;
+
+/**
+ * What `dot up` can run, in the order it runs them: every stage. The OpenCode
+ * app owns packages and tools.
+ */
+export const UP_GROUPS = UP_STAGES;
+
+/** One `dot up` stage. */
+export type UpStage = (typeof UP_STAGES)[number];
 
 /** One kind of work `dot up` can run. */
 export type UpGroup = (typeof UP_GROUPS)[number];
@@ -274,7 +294,7 @@ function logInitMarkerStatus(
  * and lets Git fast-forward only when local work can be preserved.
  * Returns the revisions before and after only if the pull moved HEAD.
  */
-const safePull = (
+export const safePull = (
   name: string,
   path: string,
   required = false,
@@ -386,7 +406,7 @@ const safePull = (
   });
 
 /** Record a best-effort notification for repos that pulled new changes */
-const notifyUpdated = (names: readonly string[]) =>
+export const notifyUpdated = (names: readonly string[]) =>
   Effect.gen(function* () {
     if (names.length === 0) return;
 
@@ -403,7 +423,7 @@ const notifyUpdated = (names: readonly string[]) =>
   });
 
 /** Run a repository's configured command after its pull moves HEAD. */
-const runRepoPostUpdate = (repo: GitManagedRepo) =>
+export const runRepoPostUpdate = (repo: GitManagedRepo) =>
   Effect.gen(function* () {
     if (!repo.postUpdate) return;
     const command = repo.postUpdate;
@@ -439,29 +459,23 @@ const runRepoPostUpdate = (repo: GitManagedRepo) =>
 
 /**
  * Pull selected repositories and run their hooks. Unless `pullOnly` is set,
- * also apply changed dotfiles once.
+ * a dotfiles pull also rebuilds dot; applying the rest of it is left to
+ * `dot up`. With `report`, finish with `dot up --check`.
  */
 export const updateRepositories = Effect.fn("Update.repositories")(function* (
   paths: readonly string[],
-  reload = true,
   pullOnly = false,
+  report = false,
 ) {
   const config = yield* Config;
   const fs = yield* FileSystem.FileSystem;
   const log = yield* OutputLog;
-  const startedAt = yield* Clock.currentTimeMillis;
   const updatedNames: string[] = [];
   const updatedPaths = new Set<string>();
   const failures: string[] = [];
   const failedPulls: string[] = [];
-  const pulledDotfiles: string[] = [];
   const managed = managedGitRepos(config.gitConfig);
   const publicPath = yield* fs.realPath(config.publicDotfiles);
-
-  const privatePath = config.privateDotfiles
-    ? yield* fs.realPath(config.privateDotfiles)
-    : null;
-
   const uniquePaths = [...new Set(paths)];
 
   const results = yield* Effect.forEach(
@@ -508,21 +522,11 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
     if (!result) continue;
     updatedNames.push(result.name);
     updatedPaths.add(result.repoPath);
-
-    if (result.repoPath === publicPath || result.repoPath === privatePath)
-      pulledDotfiles.push(basename(result.repoPath));
   }
 
-  const restartsForDotfiles = !pullOnly && pulledDotfiles.length > 0;
-
-  // The restarted update summarises pulled dotfiles itself.
   yield* logRepoChanges(
     results.flatMap((result) =>
-      result &&
-      !(
-        restartsForDotfiles &&
-        (result.repoPath === publicPath || result.repoPath === privatePath)
-      )
+      result
         ? [{ name: result.name, path: result.repoPath, ...result.range }]
         : [],
     ),
@@ -546,20 +550,14 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
     }
   }
 
-  if (restartsForDotfiles) {
+  // Only dot itself is kept current here; the check below lists the stow and
+  // other work a dotfiles pull left, for dot up to apply.
+  if (!pullOnly && updatedPaths.has(publicPath))
     yield* requiredUpdateStep("Rebuild", STEP_TIMEOUT_SECONDS.rebuild, rebuild);
-    yield* restartDot([
-      "update",
-      "--stow",
-      "--app",
-      ...(reload ? [] : ["--no-reload"]),
-      ...pulledDotfiles.flatMap((name) => [POST_HOOK_REPO_ARG, name]),
-      STARTED_AT_ARG,
-      String(startedAt),
-    ]);
-  } else {
-    yield* notifyUpdated(updatedNames);
-  }
+
+  yield* notifyUpdated(updatedNames);
+
+  if (report) yield* reportPendingUpdates;
 
   if (failedPulls.length > 0)
     return yield* new RepoPullError({
@@ -569,6 +567,12 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
 
   if (failures.length > 0)
     return yield* new UpdateError({ message: failures.join("\n") });
+
+  return results.flatMap((result): UpdatedRepo[] =>
+    result
+      ? [{ name: result.name, path: result.repoPath, ...result.range }]
+      : [],
+  );
 });
 
 function selectedUpdateFlags(opts?: UpdateOptions): readonly string[] {
@@ -965,9 +969,12 @@ const pruneRemovedMiseTools = Effect.gen(function* () {
 /**
  * Install missing mise tools, optionally upgrade them all, prune removed ones,
  * then refresh the agent runtimes, so plugins and services match the tools.
+ * `plugins: false` leaves Pi and OpenCode plugins to
+ * `dot up plugins`.
  */
 export const refreshTools = Effect.fn("Update.refreshTools")(function* (
   upgrade: boolean,
+  opts: { readonly plugins?: boolean } = {},
 ) {
   const log = yield* OutputLog;
   const tools: MiseToolChange[] = [];
@@ -1019,7 +1026,9 @@ export const refreshTools = Effect.fn("Update.refreshTools")(function* (
           [
             // Services first: a stale service can hold a daemon's port
             Effect.all([restartStaleServices, restartStalePitchforkDaemons]),
-            updatePiExtensions,
+            opts.plugins === false
+              ? Effect.succeed([])
+              : Effect.all([updatePiExtensions, updateGlobalOpencodePlugins]),
           ],
           { concurrency: "unbounded" },
         )).flat(),
@@ -1063,7 +1072,7 @@ export function canRunHerdrSessionActions(): boolean {
 }
 
 /** Restore Herdr plugins to the commits in the stowed Herdr Lazy lockfile. */
-const restoreHerdrPlugins = Effect.gen(function* () {
+export const restoreHerdrPlugins = Effect.gen(function* () {
   const log = yield* OutputLog;
   const executor = yield* CommandExecutor;
   const config = yield* Config;
@@ -1200,6 +1209,16 @@ const restoreHerdrPlugins = Effect.gen(function* () {
   return done("Restored and linked Herdr plugins");
 });
 
+/**
+ * Run `dot up --check` once a run has finished, to report what is still
+ * pending and save it for the bar. Its exit code leaves the run's alone.
+ */
+export const reportPendingUpdates = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+
+  yield* executor.inherit(DOT_BIN, ["up", "--check"]);
+}).pipe(Effect.withSpan("Update.reportPending"));
+
 /** Exit code from `dot update --check` when in-scope updates are available. */
 export const UPDATE_CHECK_AVAILABLE_EXIT = 10;
 
@@ -1222,7 +1241,8 @@ export interface UpdateCheckOptions {
  *
  * Scans repos via {@link DotDiff} (TTL-cached fetch). By default only
  * core repos (the dotfiles) are considered; `all` widens the
- * scope to every tracked repo. Repositories with local work are skipped.
+ * scope to every tracked repo. Repositories with local work are skipped, and
+ * listed under a blocked heading when they are behind but can't be pulled.
  * Returns {@link UPDATE_CHECK_AVAILABLE_EXIT} for actionable pulls or maintenance,
  * {@link UPDATE_CHECK_ERROR_EXIT} when checks fail without finding an update,
  * and 0 when no updates need applying.
@@ -1281,6 +1301,7 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
         .join(", ")}`,
     );
     const pending: string[] = [];
+    const blocked: string[] = [];
     let failed = false;
 
     for (const repo of scoped) {
@@ -1288,6 +1309,10 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
         if (yield* hasLocalUpdateWork(repo)) {
           if (yield* pullKeepsLocalWork(repo)) {
             pending.push(`${repo.name}: ${repo.behind} behind (local work)`);
+          } else if (repo.behind > 0) {
+            blocked.push(
+              `${repo.name} is ${repo.behind} behind, local work blocks the pull`,
+            );
           } else {
             yield* log.info(`Skipping ${repo.name} (local work)`);
           }
@@ -1318,14 +1343,26 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
       );
     }
 
+    const reportBlocked = Effect.gen(function* () {
+      if (blocked.length === 0) return;
+
+      yield* log.info(`${blocked.length} blocked updates:`);
+
+      for (const item of blocked) {
+        yield* log.info(`  ${item}`);
+      }
+    });
+
     if (pending.length === 0) {
       if (failed) {
         yield* Effect.sync(() => {
           process.exitCode = UPDATE_CHECK_ERROR_EXIT;
         });
-      } else {
+      } else if (blocked.length === 0) {
         yield* log.info(`No updates needed for ${scopeRepos}`);
       }
+
+      yield* reportBlocked;
 
       return;
     }
@@ -1337,6 +1374,7 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
     }
 
     yield* log.info("Run `dot up` to apply.");
+    yield* reportBlocked;
     yield* Effect.sync(() => {
       process.exitCode = UPDATE_CHECK_AVAILABLE_EXIT;
     });
@@ -1359,8 +1397,7 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
  * self-update, and the restarted run skips the final rebuild. Repositories
  * pulled earlier in the run are not fetched again by the scan.
  * Pull notifications fire only when a repo actually moved, while post-hooks
- * (agent sync) run on every full update and the changed-dotfiles handoff.
- * Ordinary flag-scoped runs skip them.
+ * (agent sync) run on every full update. Ordinary flag-scoped runs skip them.
  */
 export const update = (updateOpts?: UpdateOptions) =>
   Effect.gen(function* () {
@@ -1376,16 +1413,6 @@ export const update = (updateOpts?: UpdateOptions) =>
 
     const config = yield* Config;
     const log = yield* OutputLog;
-
-    const applyPulledDotfiles =
-      doStow &&
-      doApp &&
-      opts?.postHookRepos?.some(
-        (name) =>
-          name === basename(config.publicDotfiles) ||
-          (config.privateDotfiles !== null &&
-            name === basename(config.privateDotfiles)),
-      );
 
     // Every handoff that names public dotfiles rebuilt dot from that pull first.
     let dotRebuilt =
@@ -1759,9 +1786,7 @@ export const update = (updateOpts?: UpdateOptions) =>
       );
     }
 
-    const runsFullPhases = isFullUpdate || applyPulledDotfiles;
-
-    if (runsFullPhases) {
+    if (isFullUpdate) {
       yield* requiredUpdateStep(
         "Herdr Plugins",
         STEP_TIMEOUT_SECONDS.herdrPlugins,
@@ -1772,6 +1797,7 @@ export const update = (updateOpts?: UpdateOptions) =>
         ),
       );
       completedActions.push(yield* syncHerdrMachines);
+      completedActions.push(yield* syncHcMachines);
     } else {
       completedActions.push(skip("Herdr plugins skipped (scoped update)"));
     }
@@ -1781,8 +1807,8 @@ export const update = (updateOpts?: UpdateOptions) =>
       yield* notifyUpdated(updatedRepos.map((repo) => repo.name));
     }
 
-    // Full updates and the changed-dotfiles handoff sync agent instructions.
-    if (runsFullPhases) {
+    // Full updates sync agent instructions.
+    if (isFullUpdate) {
       yield* requiredUpdateStep(
         "Agents Rules Sync",
         STEP_TIMEOUT_SECONDS.postHooks,
@@ -1809,7 +1835,7 @@ export const update = (updateOpts?: UpdateOptions) =>
 
     if (opts?.reload === false) {
       completedActions.push(skip("Agent reload skipped (--no-reload)"));
-    } else if (!runsFullPhases) {
+    } else if (!isFullUpdate) {
       completedActions.push(skip("Agent reload skipped (scoped update)"));
     } else {
       const reloaded = yield* withStepTimeout(
@@ -1834,36 +1860,13 @@ export const update = (updateOpts?: UpdateOptions) =>
       } satisfies UpdateRun;
     }
 
-    const executor = yield* CommandExecutor;
-
-    const refreshExitCode = yield* executor.exitCode("dot", [
-      "updates",
-      "refresh",
-      "--quick",
-    ]);
-
-    yield* refreshExitCode === 0
-      ? log.success("Refreshed the update status")
-      : log.warn(`Update status refresh failed (exit ${refreshExitCode})`);
-
-    completedActions.push(
-      refreshExitCode === 0
-        ? done("Refreshed the update status")
-        : warn(`Update status refresh failed (exit ${refreshExitCode})`),
-    );
-
-    if (opts.branch === false) {
-      completedActions.push(skip("Branch update skipped (--no-branch)"));
-    } else if (isFullUpdate) {
-      completedActions.push(yield* branchUpdate);
-    }
-
     yield* logUpdateSummary(
       updatedRepos,
       miseToolChanges,
       completedActions,
       startedAt,
     );
+    yield* reportPendingUpdates;
 
     return {
       updatedRepos,

@@ -1,20 +1,12 @@
 /**
  * @file The stages of `dot up`, each runnable on its own as `dot up <stage>`:
- * dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents,
- * shell, gh, packages, system and clean. A
- * stage never prompts or opens Herdr, so a background runner such as Upkeep can
- * call it, and with `--json` it prints one result saying what changed.
+ * dotfiles, skills, repos, stow, plugins, herdr, agents, gh and clean. A stage
+ * never prompts or opens Herdr, so a background runner such as Upkeep can call
+ * it, and with `--json` it prints one result saying what changed. The OpenCode
+ * app installs and updates packages and tools itself.
  */
 import { Extension } from "@timmo001/effect-gh";
-import {
-  Clock,
-  Duration,
-  Effect,
-  FileSystem,
-  Option,
-  Result,
-  Schema,
-} from "effect";
+import { Clock, Duration, Effect, FileSystem, Schema } from "effect";
 import { basename, join } from "path";
 import { DotDiff } from "../git/services/DotDiff.js";
 import { syncNotesRemotes } from "../git/notesRemote.js";
@@ -27,15 +19,8 @@ import {
 import { syncSkills } from "../lib/externalSkills.js";
 import { installGhExtensions } from "../lib/ghExtensions.js";
 import { gitCurrentBranch, gitOutput } from "../lib/git.js";
-import { installMissingPackages } from "../lib/packageSetup.js";
 import { ensureInitCompleteMarker } from "../lib/initState.js";
 import { printJson } from "../lib/jsonStdout.js";
-import {
-  autoUpdate,
-  hasPodman,
-  markedContainers,
-  podmanLines,
-} from "../lib/podman.js";
 import { plural } from "../lib/runSummary.js";
 import {
   CACHE_DIR,
@@ -48,7 +33,6 @@ import { trustRepoMiseConfigs } from "../lib/miseTrust.js";
 import { syncNotesRepositoryDirectories } from "../lib/notesRepositoryDirectories.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { formatCause } from "../lib/schema.js";
-import { DOT_BIN } from "../lib/paths.js";
 import { rebuild } from "../lib/selfUpdate.js";
 import {
   buildSkillsMaintenance,
@@ -81,12 +65,10 @@ import { syncHcMachines, syncHerdrMachines } from "./SetupHerdrMachines.js";
 import { stow as runStow } from "./Stow.js";
 import {
   notifyUpdated,
-  refreshTools,
   reportPendingUpdates,
   restoreHerdrPlugins,
   runRepoPostUpdate,
   safePull,
-  startDoctorCheck,
   updatePinnedSubmodules,
   updateRepositories,
   type UpStage,
@@ -133,8 +115,6 @@ export interface UpStageOptions {
   readonly repos?: readonly string[];
   /** Whether the agents stage reloads running agents. */
   readonly reload?: boolean;
-  /** Whether the shell stage refreshes the update status; `dot up` does a full one after. */
-  readonly refreshStatus?: boolean;
 }
 
 const changedBy = (actions: readonly RecapEntry[]) =>
@@ -374,12 +354,6 @@ const stowStage = Effect.gen(function* () {
   } satisfies StageOutcome;
 });
 
-const toolsStage = Effect.gen(function* () {
-  const { tools, actions } = yield* refreshTools(true, { plugins: false });
-
-  return { actions, miseTools: tools } satisfies StageOutcome;
-});
-
 /**
  * Update the Pi and global OpenCode plugins.
  */
@@ -392,65 +366,6 @@ const pluginsStage = Effect.gen(function* () {
   return {
     actions,
     pluginsChanged: changedBy(actions),
-  } satisfies StageOutcome;
-});
-
-/**
- * Pull new images for the running containers marked `AutoUpdate=registry`,
- * restart those whose image changed (Podman rolls a unit back when it fails
- * to start), then prune unused images. Pinned images change through their
- * Quadlet file, which stow applies. Fails only when every pull failed, so one
- * registry being down warns and is tried again on the next run.
- */
-const containersStage = Effect.gen(function* () {
-  if (!(yield* hasPodman))
-    return {
-      actions: [skip("No containers (Podman isn't installed)")],
-    } satisfies StageOutcome;
-
-  if ((yield* markedContainers).length === 0)
-    return {
-      actions: [skip("No containers marked AutoUpdate=registry")],
-    } satisfies StageOutcome;
-
-  const reports = yield* autoUpdate(false);
-
-  const actions = reports.flatMap((report): RecapEntry[] => {
-    switch (report.Updated) {
-      case "true":
-        return [notable(`Updated ${report.ContainerName} (${report.Image})`)];
-      case "rolled back":
-        return [
-          warn(
-            `Rolled back ${report.ContainerName}: ${report.Unit} failed to start on the new image`,
-          ),
-        ];
-      case "failed":
-        return [
-          warn(`Could not update ${report.ContainerName} (${report.Image})`),
-        ];
-      default:
-        return [];
-    }
-  });
-
-  if (actions.length === 0) actions.push(skip("Containers already up to date"));
-
-  const pruned = yield* podmanLines(["image", "prune", "--all", "--force"]);
-
-  actions.push(
-    pruned.length > 0
-      ? notable(`Pruned ${plural(pruned.length, "unused image")}`)
-      : skip("No unused images"),
-  );
-
-  const allFailed =
-    reports.length > 0 &&
-    reports.every((report) => report.Updated === "failed");
-
-  return {
-    actions,
-    ...(allFailed && { error: "Every container's image pull failed" }),
   } satisfies StageOutcome;
 });
 
@@ -503,119 +418,6 @@ const ghStage = Effect.gen(function* () {
       error: `gh extension upgrade exited ${failure.exitCode}`,
     }),
   } satisfies StageOutcome;
-});
-
-/**
- * Install the apt packages from the public and private lists that aren't
- * installed, with `apt-get install -y` through sudo.
- */
-const packagesStage = Effect.gen(function* () {
-  const installed = [
-    ...(yield* installMissingPackages({ scope: "public" })),
-    ...(yield* installMissingPackages({ scope: "private" })),
-  ];
-
-  return {
-    actions: [
-      installed.length > 0
-        ? notable(`Installed ${installed.join(", ")}`)
-        : skip("Every listed package is installed"),
-    ],
-  } satisfies StageOutcome;
-});
-
-/** Where `dot up system` expects the root-owned upgrade script. */
-const SYSTEM_UPGRADE_SCRIPT = "/usr/local/sbin/dot-system-upgrade";
-
-/** The command that adds the sudo rule for the upgrade script alone. */
-const SUDO_RULE = `echo "$USER ALL=(root) NOPASSWD: ${SYSTEM_UPGRADE_SCRIPT}" | sudo tee /etc/sudoers.d/dot-system-upgrade`;
-
-/** apt's "N upgraded, N newly installed, N to remove" counts, summed over its runs. */
-const aptPackageCount = (output: string) =>
-  [
-    ...output.matchAll(
-      /(\d+) upgraded, (\d+) newly installed, (\d+) to remove/g,
-    ),
-  ].reduce(
-    (total, [, upgraded = "0", installed = "0", removed = "0"]) =>
-      total + Number(upgraded) + Number(installed) + Number(removed),
-    0,
-  );
-
-/**
- * Upgrade the apt packages through the root-owned dot-system-upgrade, which a
- * sudo rule lets this user run without a password. `sudo -n` never prompts,
- * so a missing rule fails the stage instead of hanging. The script is
- * installed by hand from the dotfiles, so a copy that differs only warns.
- */
-const systemStage = Effect.gen(function* () {
-  const config = yield* Config;
-  const fs = yield* FileSystem.FileSystem;
-  const executor = yield* CommandExecutor;
-  const log = yield* OutputLog;
-  const actions: RecapEntry[] = [];
-
-  const source = join(
-    config.publicDotfiles,
-    "system-upgrade",
-    "dot-system-upgrade",
-  );
-
-  const install = `sudo install -o root -g root -m 0755 ${source} ${SYSTEM_UPGRADE_SCRIPT}`;
-
-  const installed = yield* fs
-    .readFileString(SYSTEM_UPGRADE_SCRIPT)
-    .pipe(Effect.option);
-
-  if (Option.isNone(installed))
-    return {
-      actions: [warn("dot-system-upgrade isn't installed")],
-      error: `${SYSTEM_UPGRADE_SCRIPT} isn't installed. Install it with ${install}, then add its sudo rule with ${SUDO_RULE}`,
-    } satisfies StageOutcome;
-
-  const wanted = yield* fs.readFileString(source).pipe(Effect.option);
-
-  if (Option.isSome(wanted) && wanted.value !== installed.value)
-    actions.push(
-      warn(
-        `The installed dot-system-upgrade differs from the dotfiles; update it with ${install}`,
-      ),
-    );
-
-  const run = yield* executor
-    .run("sudo", ["-n", SYSTEM_UPGRADE_SCRIPT], { mergeStderr: true })
-    .pipe(Effect.result);
-
-  const output = Result.isSuccess(run)
-    ? run.success
-    : (run.failure.stdout ?? run.failure.stderr);
-
-  for (const line of output.trimEnd().split("\n"))
-    if (line) yield* log.info(line);
-
-  if (Result.isFailure(run))
-    return {
-      actions: [...actions, warn("System upgrade failed")],
-      error:
-        /password is required|not allowed to execute|may not run sudo/.test(
-          output,
-        )
-          ? `No sudo rule lets dot run dot-system-upgrade without a password; add it with ${SUDO_RULE}`
-          : `dot-system-upgrade exited ${run.failure.exitCode}`,
-    } satisfies StageOutcome;
-
-  const packages = aptPackageCount(output);
-
-  actions.push(
-    packages > 0
-      ? notable(`Changed ${plural(packages, "apt package")}`)
-      : skip("apt packages already up to date"),
-  );
-
-  if (yield* fs.exists("/var/run/reboot-required"))
-    actions.push(warn("A reboot is required"));
-
-  return { actions } satisfies StageOutcome;
 });
 
 /** Optional extra folders for `dot up clean`, with how old their files must be. */
@@ -806,29 +608,6 @@ const agentsStage = (reload: boolean) =>
     } satisfies StageOutcome;
   });
 
-const shellStage = (refreshStatus: boolean) =>
-  Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    const refreshed = yield* startDoctorCheck;
-
-    if (!refreshStatus) return { actions: [refreshed] } satisfies StageOutcome;
-
-    const exitCode = yield* executor.exitCode(DOT_BIN, [
-      "updates",
-      "refresh",
-      "--quick",
-    ]);
-
-    return {
-      actions: [
-        refreshed,
-        exitCode === 0
-          ? done("Refreshed the update status")
-          : warn(`Update status refresh failed (exit ${exitCode})`),
-      ],
-    } satisfies StageOutcome;
-  });
-
 const stageEffect = (stage: UpStage, opts: UpStageOptions) =>
   Effect.gen(function* () {
     switch (stage) {
@@ -840,26 +619,16 @@ const stageEffect = (stage: UpStage, opts: UpStageOptions) =>
         return yield* reposStage(opts.repos ?? []);
       case "stow":
         return yield* stowStage;
-      case "tools":
-        return yield* toolsStage;
       case "plugins":
         return yield* pluginsStage;
-      case "containers":
-        return yield* containersStage;
       case "herdr":
         return yield* herdrStage;
       case "agents":
         return yield* agentsStage(opts.reload ?? true);
       case "gh":
         return yield* ghStage;
-      case "packages":
-        return yield* packagesStage;
-      case "system":
-        return yield* systemStage;
       case "clean":
         return yield* cleanStage;
-      case "shell":
-        return yield* shellStage(opts.refreshStatus ?? true);
     }
   });
 
@@ -911,11 +680,7 @@ export const upStage = Effect.fn("UpStage.command")(function* (
 
   yield* log.section(`Up ${stage.charAt(0).toUpperCase()}${stage.slice(1)}`);
 
-  // The closing check saves the status, so the shell stage needn't refresh it.
-  const result = yield* runUpStage(stage, {
-    ...opts,
-    refreshStatus: opts.json,
-  });
+  const result = yield* runUpStage(stage, opts);
 
   if (result.failed) process.exitCode = 1;
 

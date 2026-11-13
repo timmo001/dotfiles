@@ -1,9 +1,10 @@
 /**
- * @file Checks for everything `dot up` updates or installs: dotfiles, skills
- * and gh extensions. The OpenCode app updates system packages and tools
- * itself. The status cache and `dot up` share these checks.
+ * @file Checks for everything `dot up` updates or installs: dotfiles, skills,
+ * agent plugins and gh extensions. The OpenCode app updates system packages
+ * and tools itself. The status cache and `dot up` share these checks.
  */
 
+import { Extension } from "@timmo001/effect-gh";
 import { Effect, Match, Schema } from "effect";
 import { query, type QueryResult } from "./boundedQuery.js";
 import { Config } from "../services/Config.js";
@@ -13,6 +14,7 @@ import {
   loadGhExtensions,
 } from "./ghExtensions.js";
 import { SKILLS_CHECKOUT } from "./skillsMaintenance.js";
+import { pendingAgentPlugins } from "./agentRuntime.js";
 
 export { query, type QueryResult };
 
@@ -23,6 +25,8 @@ export const DotState = Schema.Literals(["current", "available", "unknown"]);
 export const DotStatus = Schema.Struct({
   state: DotState,
   pending: Schema.Array(Schema.String),
+  /** Repositories behind their upstream whose local work blocks the pull. */
+  blocked: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
 /** Dotfiles check result. */
@@ -41,7 +45,11 @@ export interface SkillsStatus extends Schema.Schema.Type<typeof SkillsStatus> {}
 export const PendingStatus = Schema.Struct({
   dot: DotStatus,
   skills: Schema.NullOr(SkillsStatus),
+  /** Pi and OpenCode plugins with an update. */
+  plugins: Schema.optionalKey(Schema.NullOr(Schema.Array(Schema.String))),
   gh: Schema.NullOr(Schema.Array(Schema.String)),
+  /** Installed gh extensions with an upgrade, as `name old -> new`. */
+  ghUpgrades: Schema.optionalKey(Schema.NullOr(Schema.Array(Schema.String))),
 });
 
 /** Every pending update and missing install, with null for a check that couldn't run. */
@@ -49,27 +57,34 @@ export interface PendingStatus extends Schema.Schema.Type<
   typeof PendingStatus
 > {}
 
-/** Read the items `dot update --check` lists under its "N pending updates:" heading. */
-const pendingItems = (output: string) => {
+/** Read the items `dot update --check` lists under its "N <kind> updates:" heading. */
+const listedItems = (output: string, kind: "pending" | "blocked") => {
   const all = output.split("\n").map((line) => line.trim());
-  const start = all.findIndex((line) => /^\d+ pending updates:$/.test(line));
+  const heading = new RegExp(`^\\d+ ${kind} updates:$`);
+  const start = all.findIndex((line) => heading.test(line));
 
   if (start === -1) return [];
 
   const items = all.slice(start + 1);
 
   const end = items.findIndex(
-    (line) => line === "" || line.startsWith("Run `dot "),
+    (line) =>
+      line === "" ||
+      line.startsWith("Run `dot ") ||
+      /^\d+ \w+ updates:$/.test(line),
   );
 
   return end === -1 ? items : items.slice(0, end);
 };
 
-/** Check the dotfiles and core repositories with `dot up --check-repos`. */
+/**
+ * Check the dotfiles and every tracked repository with `dot up --check-all`,
+ * as the dotfiles group pulls them all.
+ */
 export const dotfiles = Effect.fn("PendingUpdates.dotfiles")(function* (
   timeout: number,
 ) {
-  const result = yield* query("dot", ["up", "--check-repos"], timeout);
+  const result = yield* query("dot", ["up", "--check-all"], timeout);
 
   const state = Match.value(result.code).pipe(
     Match.when(0, () => "current" as const),
@@ -79,7 +94,8 @@ export const dotfiles = Effect.fn("PendingUpdates.dotfiles")(function* (
 
   return {
     state,
-    pending: state === "available" ? pendingItems(result.stdout) : [],
+    pending: state === "available" ? listedItems(result.stdout, "pending") : [],
+    blocked: listedItems(result.stdout, "blocked"),
   } satisfies DotStatus;
 });
 
@@ -132,8 +148,8 @@ export const skills = Effect.fn("PendingUpdates.skills")(function* (
 });
 
 /**
- * Configured gh extensions that aren't installed. Upgrades have no typed
- * dry run, so `dot up` upgrades every extension instead of checking first.
+ * Configured gh extensions that aren't installed. Upgrades to installed ones
+ * come from {@link ghUpgrades}.
  */
 export const ghExtensions = Effect.fn("PendingUpdates.ghExtensions")(
   function* () {
@@ -150,10 +166,31 @@ export const ghExtensions = Effect.fn("PendingUpdates.ghExtensions")(
   },
 );
 
+/** Installed gh extensions with an upgrade, from gh's dry run, or null when it fails. */
+export const ghUpgrades = (timeout: number) =>
+  Extension.checkUpgrades({ timeout: `${timeout} seconds` }).pipe(
+    Effect.map((upgrades) =>
+      upgrades
+        .filter((upgrade) => upgrade.status === "upgraded")
+        .map((upgrade) => `${upgrade.name} ${upgrade.from} -> ${upgrade.to}`),
+    ),
+    Effect.orElseSucceed(() => null),
+  );
+
+/** Pi and OpenCode plugins with an update, or null when the check fails. */
+export const agentPlugins = (timeout: number) =>
+  pendingAgentPlugins.pipe(
+    Effect.timeoutOrElse({
+      duration: `${timeout} seconds`,
+      orElse: () => Effect.succeed(null),
+    }),
+    Effect.orElseSucceed(() => null),
+  );
+
 /** One kind of pending work, as the bar, the OpenCode footer and `dot up` show it. */
 export interface PendingGroup {
   /** Stable identifier. */
-  readonly id: "dotfiles" | "skills" | "gh";
+  readonly id: "dotfiles" | "skills" | "plugins" | "gh";
   /** Display title. */
   readonly title: string;
   /** Nerd Font glyph for the bar. */
@@ -184,7 +221,7 @@ export const pendingGroups = (
         ? ["Updates available"]
         : status.dot.pending,
     missing: [],
-    blocked: [],
+    blocked: status.dot.blocked ?? [],
     unknown: status.dot.state === "unknown",
   },
   {
@@ -202,13 +239,22 @@ export const pendingGroups = (
     unknown: status.skills === null,
   },
   {
+    id: "plugins",
+    title: "Agent plugins",
+    icon: "\uF1E6",
+    pending: status.plugins ?? [],
+    missing: [],
+    blocked: [],
+    unknown: status.plugins === null,
+  },
+  {
     id: "gh",
     title: "gh extensions",
     icon: "\uF408",
-    pending: [],
+    pending: status.ghUpgrades ?? [],
     missing: status.gh ?? [],
     blocked: [],
-    unknown: status.gh === null,
+    unknown: status.gh === null || status.ghUpgrades === null,
   },
 ];
 
@@ -231,7 +277,9 @@ export const checkAll = Effect.fn("PendingUpdates.checkAll")(function* (
     {
       dot: dotfiles(timeout),
       skills: skills(timeout),
+      plugins: agentPlugins(timeout),
       gh: ghExtensions(),
+      ghUpgrades: ghUpgrades(timeout),
     },
     { concurrency: "unbounded" },
   );
