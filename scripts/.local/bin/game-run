@@ -1,5 +1,0 @@
-#!/bin/bash
-
-# For launchers that wrap a game's command, such as Heroic's wrapper (set by
-# dot game sync) and Steam's launch options (game-run %command%).
-exec dot game run -- "$@"

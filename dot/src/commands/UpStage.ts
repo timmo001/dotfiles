@@ -1,11 +1,10 @@
 /**
  * @file The stages of `dot up`, each runnable on its own as `dot up <stage>`:
- * dotfiles, skills, repos, stow, tools, plugins, first-party, herdr, agents
- * and shell. A
+ * dotfiles, skills, repos, stow, tools, plugins, herdr, agents and shell. A
  * stage never prompts or opens Herdr, so a background runner such as Upkeep can
  * call it, and with `--json` it prints one result saying what changed.
  */
-import { Clock, Effect, Schema } from "effect";
+import { Clock, Effect } from "effect";
 import { basename } from "path";
 import { DotDiff } from "../git/services/DotDiff.js";
 import { syncNotesRemotes } from "../git/notesRemote.js";
@@ -14,10 +13,8 @@ import {
   reloadAgents,
   updateGlobalOpencodePlugins,
   updatePiExtensions,
-  updatePlannotatorPlugins,
 } from "../lib/agentRuntime.js";
 import { syncSkills } from "../lib/externalSkills.js";
-import { upgradeFirstParty } from "../lib/firstPartyPackages.js";
 import { gitCurrentBranch, gitOutput } from "../lib/git.js";
 import { ensureInitCompleteMarker } from "../lib/initState.js";
 import { printJson } from "../lib/jsonStdout.js";
@@ -56,14 +53,13 @@ import { agentsSync } from "./AgentsSync.js";
 import { syncHcMachines, syncHerdrMachines } from "./SetupHerdrMachines.js";
 import { stow as runStow } from "./Stow.js";
 import {
-  haltOnLegacyHyprRepo,
   notifyUpdated,
-  refreshShellModules,
   refreshTools,
   reportPendingUpdates,
   restoreHerdrPlugins,
   runRepoPostUpdate,
   safePull,
+  startDoctorCheck,
   updatePinnedSubmodules,
   updateRepositories,
   type UpStage,
@@ -114,10 +110,6 @@ export interface UpStageOptions {
 
 const changedBy = (actions: readonly RecapEntry[]) =>
   actions.some((entry) => entry.notable === true);
-
-class StageError extends Schema.TaggedError<StageError>()("StageError", {
-  message: Schema.String,
-}) {}
 
 /**
  * Pull both dotfiles and their pinned submodules, rebuilding dot when its
@@ -339,24 +331,12 @@ const reposStage = (paths: readonly string[]) =>
 
 /** Generate completions and sync MCP config, skills and stow links. */
 const stowStage = Effect.gen(function* () {
-  const config = yield* Config;
-
-  if (yield* haltOnLegacyHyprRepo(config))
-    return yield* new StageError({
-      message: "The legacy omarchy-hypr clone needs migrating first",
-    });
-
   yield* mcpSync;
   yield* syncNotesRemotes;
   const result = yield* runStow();
 
-  const actions = [done("Synced MCP config"), ...result.actions];
-
-  if (result.shellChanged)
-    actions.push(notable("Omarchy shell applied its changes live"));
-
   return {
-    actions,
+    actions: [done("Synced MCP config"), ...result.actions],
     skillsChanged: changedBy(result.actions),
   } satisfies StageOutcome;
 });
@@ -368,12 +348,11 @@ const toolsStage = Effect.gen(function* () {
 });
 
 /**
- * Update the Pi, Plannotator and global OpenCode plugins.
+ * Update the Pi and global OpenCode plugins.
  */
 const pluginsStage = Effect.gen(function* () {
   const actions = [
     yield* updatePiExtensions,
-    yield* updatePlannotatorPlugins,
     yield* updateGlobalOpencodePlugins,
   ];
 
@@ -381,14 +360,6 @@ const pluginsStage = Effect.gen(function* () {
     actions,
     pluginsChanged: changedBy(actions),
   } satisfies StageOutcome;
-});
-
-/**
- * Upgrade the packages installed from [timmo] without a password, then
- * restart what's still running a replaced binary.
- */
-const firstPartyStage = Effect.gen(function* () {
-  return { actions: yield* upgradeFirstParty } satisfies StageOutcome;
 });
 
 /** Restore Herdr's pinned plugins and sync the saved Herdr and hc machines. */
@@ -420,7 +391,7 @@ const agentsStage = (reload: boolean) =>
 const shellStage = (refreshStatus: boolean) =>
   Effect.gen(function* () {
     const executor = yield* CommandExecutor;
-    const refreshed = yield* refreshShellModules;
+    const refreshed = yield* startDoctorCheck;
 
     if (!refreshStatus) return { actions: [refreshed] } satisfies StageOutcome;
 
@@ -455,8 +426,6 @@ const stageEffect = (stage: UpStage, opts: UpStageOptions) =>
         return yield* toolsStage;
       case "plugins":
         return yield* pluginsStage;
-      case "first-party":
-        return yield* firstPartyStage;
       case "herdr":
         return yield* herdrStage;
       case "agents":

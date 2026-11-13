@@ -121,23 +121,6 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
   options: UpdatesOptions,
   quick = false,
 ) {
-  // A custom cache directory is a separate status the daemon doesn't keep.
-  if (options.cacheDir === undefined) {
-    const viaDaemon = yield* tryDaemon(
-      Effect.gen(function* () {
-        const client = yield* DaemonClient;
-
-        return yield* client.RefreshUpdates({
-          quick,
-          scheduled,
-          timeout: options.timeout,
-        });
-      }),
-    );
-
-    if (Option.isSome(viaDaemon)) return;
-  }
-
   const fs = yield* FileSystem.FileSystem;
   const locations = paths(options);
   yield* fs.makeDirectory(locations.directory, { recursive: true });
@@ -230,21 +213,11 @@ export const saveStatus = Effect.fn("Updates.save")(function* (
 export const updatesStatus = Effect.fn("Updates.status")(function* (
   json = false,
 ) {
-  const viaDaemon = yield* tryDaemon(
-    Effect.gen(function* () {
-      const client = yield* DaemonClient;
-
-      return yield* client.GetUpdates();
-    }).pipe(Effect.timeout(DAEMON_READ_TIMEOUT)),
-  );
-
-  if (Option.isSome(viaDaemon))
-    return yield* printSnapshot(viaDaemon.value ?? undefined, json);
-
   const fs = yield* FileSystem.FileSystem;
   const locations = paths({});
   const now = yield* Clock.currentTimeMillis;
-  const cached = yield* readSnapshot(locations.cache);
+  const cached = yield* fs.readFileString(locations.cache).pipe(Effect.option);
+  const status = Option.flatMap(cached, decodeStatus);
 
   if (
     (Option.isNone(status) ||
@@ -297,16 +270,9 @@ export const updatesStatus = Effect.fn("Updates.status")(function* (
         footer: { ...bar, text: current?.footerText ?? bar.text },
       }),
     );
-  }).pipe(
-    Effect.provide(DaemonClient.layer),
-    Effect.catchCause((cause) =>
-      Console.error(
-        Cause.hasInterruptsOnly(cause)
-          ? "[ERROR] dot daemon stopped"
-          : `[ERROR] dot daemon unreachable: ${formatCause(Cause.squash(cause))}`,
-      ),
-    ),
-  );
 
-  process.exitCode = 1;
+    return;
+  }
+
+  yield* Console.log(JSON.stringify(bar));
 });

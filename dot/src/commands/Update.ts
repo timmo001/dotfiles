@@ -63,7 +63,7 @@ import { HOME_DIR, displayPath } from "../lib/paths.js";
 import { notify } from "../lib/notify.js";
 import { ENV, envFlag } from "../lib/env.js";
 import { loadDotGitConfig, managedGitRepos } from "../services/GitConfig.js";
-import { syncHerdrMachines } from "./SetupHerdrMachines.js";
+import { syncHcMachines, syncHerdrMachines } from "./SetupHerdrMachines.js";
 import type { ConfigService } from "../services/Config.js";
 import type { GitManagedRepo } from "../services/GitConfig.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
@@ -194,15 +194,34 @@ export interface UpdateRun {
   readonly completedActions: readonly RecapEntry[];
 }
 
+/** Stages `dot up` runs, each also on its own as `dot up <stage>`, in order. */
+export const UP_STAGES = [
+  "dotfiles",
+  "skills",
+  "repos",
+  "stow",
+  "tools",
+  "plugins",
+  "herdr",
+  "agents",
+  "shell",
+] as const;
+
 /** What `dot up` can run, in the order it runs them. */
 export const UP_GROUPS = [
-  "dotfiles",
-  "tools",
+  ...UP_STAGES,
   "gh",
   "packages",
   "system",
   "compose",
 ] as const;
+
+/** One `dot up` stage. */
+export type UpStage = (typeof UP_STAGES)[number];
+
+/** Whether a `dot up` group is one of its stages. */
+export const isUpStage = (group: UpGroup): group is UpStage =>
+  UP_STAGES.some((stage) => stage === group);
 
 /** One kind of work `dot up` can run. */
 export type UpGroup = (typeof UP_GROUPS)[number];
@@ -385,7 +404,7 @@ export const safePull = (
   });
 
 /** Record a best-effort notification for repos that pulled new changes */
-const notifyUpdated = (names: readonly string[]) =>
+export const notifyUpdated = (names: readonly string[]) =>
   Effect.gen(function* () {
     if (names.length === 0) return;
 
@@ -949,9 +968,12 @@ const pruneRemovedMiseTools = Effect.gen(function* () {
 /**
  * Install missing mise tools, optionally upgrade them all, prune removed ones,
  * then refresh the agent runtimes, so plugins and services match the tools.
+ * `plugins: false` leaves Pi and OpenCode plugins to
+ * `dot up plugins`.
  */
 export const refreshTools = Effect.fn("Update.refreshTools")(function* (
   upgrade: boolean,
+  opts: { readonly plugins?: boolean } = {},
 ) {
   const log = yield* OutputLog;
   const tools: MiseToolChange[] = [];
@@ -1003,7 +1025,9 @@ export const refreshTools = Effect.fn("Update.refreshTools")(function* (
           [
             // Services first: a stale service can hold a daemon's port
             Effect.all([restartStaleServices, restartStalePitchforkDaemons]),
-            updatePiExtensions,
+            opts.plugins === false
+              ? Effect.succeed([])
+              : Effect.all([updatePiExtensions, updateGlobalOpencodePlugins]),
           ],
           { concurrency: "unbounded" },
         )).flat(),
@@ -1185,7 +1209,7 @@ export const restoreHerdrPlugins = Effect.gen(function* () {
 });
 
 /** Start the doctor check after an update. */
-const startDoctorCheck = Effect.gen(function* () {
+export const startDoctorCheck = Effect.gen(function* () {
   const log = yield* OutputLog;
   const executor = yield* CommandExecutor;
 
@@ -1243,7 +1267,8 @@ export interface UpdateCheckOptions {
  *
  * Scans repos via {@link DotDiff} (TTL-cached fetch). By default only
  * core repos (the dotfiles) are considered; `all` widens the
- * scope to every tracked repo. Repositories with local work are skipped.
+ * scope to every tracked repo. Repositories with local work are skipped, and
+ * listed under a blocked heading when they are behind but can't be pulled.
  * Returns {@link UPDATE_CHECK_AVAILABLE_EXIT} for actionable pulls or maintenance,
  * {@link UPDATE_CHECK_ERROR_EXIT} when checks fail without finding an update,
  * and 0 when no updates need applying.
@@ -1310,6 +1335,10 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
         if (yield* hasLocalUpdateWork(repo)) {
           if (yield* pullKeepsLocalWork(repo)) {
             pending.push(`${repo.name}: ${repo.behind} behind (local work)`);
+          } else if (repo.behind > 0) {
+            blocked.push(
+              `${repo.name} is ${repo.behind} behind, local work blocks the pull`,
+            );
           } else {
             yield* log.info(`Skipping ${repo.name} (local work)`);
           }
@@ -1371,6 +1400,7 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
     }
 
     yield* log.info("Run `dot up` to apply.");
+    yield* reportBlocked;
     yield* Effect.sync(() => {
       process.exitCode = UPDATE_CHECK_AVAILABLE_EXIT;
     });
@@ -1409,16 +1439,6 @@ export const update = (updateOpts?: UpdateOptions) =>
 
     const config = yield* Config;
     const log = yield* OutputLog;
-
-    const applyPulledDotfiles =
-      doStow &&
-      doApp &&
-      opts?.postHookRepos?.some(
-        (name) =>
-          name === basename(config.publicDotfiles) ||
-          (config.privateDotfiles !== null &&
-            name === basename(config.privateDotfiles)),
-      );
 
     // Every handoff that names public dotfiles rebuilt dot from that pull first.
     let dotRebuilt =
@@ -1803,6 +1823,7 @@ export const update = (updateOpts?: UpdateOptions) =>
         ),
       );
       completedActions.push(yield* syncHerdrMachines);
+      completedActions.push(yield* syncHcMachines);
     } else {
       completedActions.push(skip("Herdr plugins skipped (scoped update)"));
     }
@@ -1883,24 +1904,6 @@ export const update = (updateOpts?: UpdateOptions) =>
       } satisfies UpdateRun;
     }
 
-    const executor = yield* CommandExecutor;
-
-    const refreshExitCode = yield* executor.exitCode("dot", [
-      "updates",
-      "refresh",
-      "--quick",
-    ]);
-
-    yield* refreshExitCode === 0
-      ? log.success("Refreshed the update status")
-      : log.warn(`Update status refresh failed (exit ${refreshExitCode})`);
-
-    completedActions.push(
-      refreshExitCode === 0
-        ? done("Refreshed the update status")
-        : warn(`Update status refresh failed (exit ${refreshExitCode})`),
-    );
-
     if (opts.branch === false) {
       completedActions.push(skip("Branch update skipped (--no-branch)"));
     } else if (isFullUpdate) {
@@ -1913,6 +1916,7 @@ export const update = (updateOpts?: UpdateOptions) =>
       completedActions,
       startedAt,
     );
+    yield* reportPendingUpdates;
 
     return {
       updatedRepos,

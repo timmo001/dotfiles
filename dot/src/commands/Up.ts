@@ -1,7 +1,9 @@
 /**
- * @file `dot up`: check everything, pick what to run, then run it in order:
- * dotfiles, mise tools, gh extensions, missing packages, the apt and release
- * package system update and compose up, then the distro branch update.
+ * @file `dot up`: check everything, pick from the groups with work, then run
+ * them in order, ending with the apt and release package system update,
+ * compose up and the distro branch update. A stage the check found no work
+ * for only runs when an earlier stage changed something it applies, such as
+ * stow after a dotfiles pull that brings new links.
  */
 
 import { Extension } from "@timmo001/effect-gh";
@@ -97,12 +99,7 @@ const GROUP_INFO: Record<
   },
   plugins: {
     title: "Agent plugins",
-    description: "Update the Pi, Plannotator and OpenCode plugins",
-  },
-  "first-party": {
-    title: "First-party packages",
-    description:
-      "Upgrade the packages from the signed [timmo] repository without a password, and restart what still runs an old binary",
+    description: "Update the Pi and OpenCode plugins",
   },
   herdr: {
     title: "Herdr",
@@ -114,8 +111,8 @@ const GROUP_INFO: Record<
       "Sync agent instructions, and reload running agents when skills or plugins changed",
   },
   shell: {
-    title: "Shell",
-    description: "Refresh shell modules and start the doctor check",
+    title: "Doctor",
+    description: "Start the doctor check",
   },
   gh: {
     title: "gh extensions",
@@ -151,7 +148,6 @@ const isHerdrPinLine = (line: string) =>
 const groupWork = (
   groups: readonly PendingGroup[],
   repoPulls: readonly RepoPull[],
-  firstParty: readonly string[],
 ) => {
   const byId = new Map(groups.map((group) => [group.id, group]));
 
@@ -175,7 +171,6 @@ const groupWork = (
     stow: dotfiles.filter(isStowLine),
     tools: lines("tools"),
     plugins: lines("plugins"),
-    "first-party": firstParty,
     herdr: dotfiles.filter(isHerdrPinLine),
     agents: [],
     shell: [],
@@ -190,8 +185,8 @@ const groupWork = (
  * Whether a stage the check found no work for still needs to run, because a
  * stage before it changed something it applies: a dotfiles pull can bring
  * stow links, mise config, Herdr pins and agent instructions; a mise upgrade
- * can move the Plannotator CLI its plugins follow; changed skills or plugins
- * need running agents reloaded; and the shell refreshes after any change.
+ * can move the runtimes its plugins follow; changed skills or plugins need
+ * running agents reloaded; and the doctor check starts after any change.
  * Stow, tools, plugins and Herdr are checked again before they run.
  */
 const followsOn = (
@@ -517,8 +512,8 @@ export const upCheck = Effect.gen(function* () {
 }).pipe(Effect.withSpan("Up.check"));
 
 /**
- * Pick the groups to run, all with work ticked. gh extensions and compose
- * have no dry run, so they are always offered.
+ * Pick the groups to run from those with work, all ticked. Compose has no dry
+ * run, so it is always offered when a compose config exists.
  */
 const pickGroups = Effect.fn("Up.pick")(function* (
   work: Record<UpGroup, readonly string[]>,
@@ -531,9 +526,7 @@ const pickGroups = Effect.fn("Up.pick")(function* (
     .pipe(Effect.orElseSucceed(() => false));
 
   const offered: UpGroup[] = UP_GROUPS.filter((group) =>
-    group === "compose"
-      ? compose
-      : opts.force || group === "gh" || work[group].length > 0,
+    group === "compose" ? compose : opts.force || work[group].length > 0,
   );
 
   if (opts.yes) return { offered, picked: offered };
@@ -681,11 +674,7 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
 
     pulls = repoPulls(repos, status.dot.pending);
 
-    const work = groupWork(
-      pendingGroups(status),
-      pulls,
-      status.packages.firstParty ?? [],
-    );
+    const work = groupWork(pendingGroups(status), pulls);
 
     const style = cliStyler();
 
@@ -726,7 +715,6 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
   }
 
   const picked = new Set(groups);
-  const ran = new Set<UpGroup>();
   const updatedRepos: UpdatedRepo[] = [];
   const miseToolChanges: MiseToolChange[] = [];
   const actions: RecapEntry[] = [];
@@ -755,8 +743,23 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
         continue;
     }
 
-      // The restarted binary carries on with the picked groups.
-      if (result === "restarted") return;
+    yield* log.section(GROUP_INFO[group].title);
+    yield* log.info(
+      picked.has(group)
+        ? GROUP_INFO[group].description
+        : `${GROUP_INFO[group].description}, to apply what changed`,
+    );
+
+    if (isUpStage(group)) {
+      // Stages never prompt, so a spinner can hold the bottom line throughout.
+      const result: UpStageResult = yield* log.withSpinner(
+        GROUP_INFO[group].title,
+        runUpStage(group, {
+          repos: group === "repos" ? pulls.map((repo) => repo.path) : [],
+          reload: opts.reload !== false && agentsNeedReload,
+          refreshStatus: false,
+        }),
+      );
 
       updatedRepos.push(...result.updatedRepos);
       miseToolChanges.push(...result.miseTools);
@@ -787,6 +790,7 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
           ...[...changed].flatMap((next) => ["--changed", next]),
           ...(opts.yes ? ["--yes"] : []),
           ...(opts.reload === false ? ["--no-reload"] : []),
+          ...(opts.branch === false ? ["--no-branch"] : []),
           "--started-at",
           String(startedAt),
         ]);
@@ -811,17 +815,6 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
       );
     }
   }
-
-  const refreshExitCode = yield* executor.exitCode("dot", [
-    "updates",
-    "refresh",
-  ]);
-
-  actions.push(
-    refreshExitCode === 0
-      ? done("Refreshed the update status")
-      : warn(`Update status refresh failed (exit ${refreshExitCode})`),
-  );
 
   actions.push(yield* updateBranches(opts));
 
