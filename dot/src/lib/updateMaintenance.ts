@@ -3,7 +3,11 @@ import { basename, join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import type { DiffRepo } from "../types.js";
-import { omarchyPluginSubmodules } from "./omarchyPluginDeployment.js";
+import {
+  omarchyPluginSubmodules,
+  omarchyPluginsNeedDeploy,
+} from "./omarchyPluginDeployment.js";
+import { omarchyShellConfigNeedsApply } from "./omarchyShellConfig.js";
 import { CONFIG_DIR } from "./paths.js";
 import { listStowFolders, requiresNoFolding } from "./stowFolders.js";
 
@@ -232,6 +236,17 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
       if (stowPlanNeedsApply(output))
         pending.push(`${repo.name}: ${folder} needs stow`);
     }
+
+    // Plugin copies and shell.json are applied by the stow stage, but neither
+    // is a GNU Stow link, so a pull that only changes them looks like no work.
+    if (yield* omarchyPluginsNeedDeploy(repo.path))
+      pending.push(`${repo.name}: plugin deployment needs stow`);
+
+    if (
+      repo.path === config.publicDotfiles &&
+      (yield* omarchyShellConfigNeedsApply)
+    )
+      pending.push(`${repo.name}: shell config needs stow`);
 
     const lockPath = join(
       repo.path,

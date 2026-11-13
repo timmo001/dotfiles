@@ -577,20 +577,26 @@ export function mergeOmarchyShellConfig(
   return base;
 }
 
+/** Rendered shell config, or null when there is nothing to apply. */
+interface PreparedShellConfig {
+  /** Live `shell.json` path. */
+  readonly target: string;
+  /** Config that {@link applyOmarchyShellConfig} would write. */
+  readonly rendered: string;
+  /** Current file contents, or null when the file is absent. */
+  readonly existing: string | null;
+  /** Host the render was built for. */
+  readonly host: string;
+}
+
 /**
- * Generate and apply the per-host Quickshell `shell.json` by extending
- * Omarchy's shipped default with the personal modules. Reads the default from
- * `$OMARCHY_PATH/config/omarchy/shell.json`, inserts the custom widgets, and
- * writes the result. Idempotent: only writes when the rendered content
- * differs. Skips silently when Omarchy is disabled, the host is unknown,
- * Omarchy is not installed, or no default shell config exists (pre-Omarchy 4).
+ * Render the per-host Quickshell `shell.json` without writing it.
  *
- * @returns `true` when `shell.json` was rewritten (content changed), `false`
- *   when it was already up to date or the step was skipped. Callers use this to
- *   decide whether the running shell needs reloading.
+ * Skips when Omarchy is disabled, the host is unknown, Omarchy is not
+ * installed, or no default shell config exists (pre-Omarchy 4).
  */
-export const applyOmarchyShellConfig: Effect.Effect<
-  boolean,
+const prepareOmarchyShellConfig: Effect.Effect<
+  PreparedShellConfig | null,
   never,
   Config | OutputLog | FileSystem.FileSystem
 > = Effect.gen(function* () {
@@ -598,7 +604,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
   const config = yield* Config;
   const log = yield* OutputLog;
 
-  if (!config.omarchy.enabled) return false;
+  if (!config.omarchy.enabled) return null;
 
   const host = yield* resolvedOmarchyHost(config);
 
@@ -609,7 +615,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
       ),
     );
 
-    return false;
+    return null;
   }
 
   const omarchyDir = join(CONFIG_DIR, "omarchy");
@@ -621,7 +627,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
       ),
     );
 
-    return false;
+    return null;
   }
 
   const defaultPath = omarchyDefaultShellConfigPath();
@@ -633,7 +639,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
       ),
     );
 
-    return false;
+    return null;
   }
 
   const defaultText = yield* readTextOrNull(defaultPath);
@@ -653,7 +659,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
       `Skipping Omarchy shell config (could not read ${displayPath(defaultPath)})`,
     );
 
-    return false;
+    return null;
   }
 
   if (!isShellConfig(parsed)) {
@@ -661,7 +667,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
       `Skipping Omarchy shell config (unexpected default shape in ${displayPath(defaultPath)})`,
     );
 
-    return false;
+    return null;
   }
 
   const managedPluginsPath = join(
@@ -686,7 +692,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
       `Skipping Omarchy shell config (invalid managed plugin registry at ${displayPath(managedPluginsPath)})`,
     );
 
-    return false;
+    return null;
   }
 
   if (config.privateDotfiles) {
@@ -717,7 +723,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
           `Skipping Omarchy shell config (invalid private managed plugin registry at ${displayPath(privateManagedPluginsPath)})`,
         );
 
-        return false;
+        return null;
       }
 
       managedPlugins = mergeManagedPluginConfigs(
@@ -737,19 +743,57 @@ export const applyOmarchyShellConfig: Effect.Effect<
     ? yield* fs.readFileString(target).pipe(Effect.orDie)
     : null;
 
-  if (existing === rendered) {
+  return { target, rendered, existing, host } satisfies PreparedShellConfig;
+}).pipe(Effect.withSpan("OmarchyShellConfig.prepare"));
+
+/**
+ * Whether applying the Omarchy shell config would rewrite `shell.json`.
+ *
+ * False when the step is skipped or the live file already matches.
+ */
+export const omarchyShellConfigNeedsApply = Effect.gen(function* () {
+  const prepared = yield* prepareOmarchyShellConfig;
+
+  return prepared !== null && prepared.existing !== prepared.rendered;
+}).pipe(Effect.withSpan("OmarchyShellConfig.needsApply"));
+
+/**
+ * Generate and apply the per-host Quickshell `shell.json` by extending
+ * Omarchy's shipped default with the personal modules. Reads the default from
+ * `$OMARCHY_PATH/config/omarchy/shell.json`, inserts the custom widgets, and
+ * writes the result. Idempotent: only writes when the rendered content
+ * differs. Skips silently when Omarchy is disabled, the host is unknown,
+ * Omarchy is not installed, or no default shell config exists (pre-Omarchy 4).
+ *
+ * @returns `true` when `shell.json` was rewritten (content changed), `false`
+ *   when it was already up to date or the step was skipped. Callers use this to
+ *   decide whether the running shell needs reloading.
+ */
+export const applyOmarchyShellConfig: Effect.Effect<
+  boolean,
+  never,
+  Config | OutputLog | FileSystem.FileSystem
+> = Effect.gen(function* () {
+  const log = yield* OutputLog;
+  const prepared = yield* prepareOmarchyShellConfig;
+
+  if (prepared === null) return false;
+
+  if (prepared.existing === prepared.rendered) {
     yield* log.info(
       cliStyler().dim(
-        `Omarchy shell config up to date: ${displayPath(target)} (host: ${host})`,
+        `Omarchy shell config up to date: ${displayPath(prepared.target)} (host: ${prepared.host})`,
       ),
     );
 
     return false;
   }
 
-  yield* Effect.sync(() => writeFileAtomic(target, rendered, { mode: 0o600 }));
+  yield* Effect.sync(() =>
+    writeFileAtomic(prepared.target, prepared.rendered, { mode: 0o600 }),
+  );
   yield* log.success(
-    `Wrote Omarchy shell config: ${displayPath(target)} (host: ${host})`,
+    `Wrote Omarchy shell config: ${displayPath(prepared.target)} (host: ${prepared.host})`,
   );
 
   return true;
