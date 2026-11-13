@@ -101,13 +101,10 @@ const AGENT_TOOLS = {
     directory: true,
   },
   "herdr repo open": { access: "write", omit: ["modifiers", "prompt-file"] },
-  deps: {
-    access: "write",
-    jobOnly: true,
-    timeout: "2 hours",
-    exitCodes: [0, 2],
-  },
-  "deps service": {
+  "services schedule check": { access: "read" },
+  "homeassistant status": { access: "read", directory: true },
+  "homeassistant logs": { access: "read", omit: ["follow"], directory: true },
+  "homeassistant stop": {
     access: "write",
     directory: true,
     required: ["target"],

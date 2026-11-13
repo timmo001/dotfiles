@@ -1,6 +1,7 @@
 ---
 customCommands:
-  # Runs the pull directly, so lazygit shows any failure.
+  # A plain git pull, then dot offers the repository's post-update command
+  # when the pull moved HEAD.
   - key: p
     context: global
     command: >-
@@ -18,15 +19,3 @@ customCommands:
     command: git-rebase-default
     description: Fetch and rebase onto remote default branch
     output: terminal
-  - key: X
-    context: commits, subCommits, commitFiles
-    command: >-
-      omarchy-shell timmo.git commit "$(git rev-parse --show-toplevel)"
-      {{.SelectedCommit.Hash | quote}} {{.SelectedCommit.Name | quote}}
-      {{.SelectedCommit.AuthorName | quote}}
-      "$(date -u -d @{{.SelectedCommit.UnixTimestamp}} +%FT%TZ)"
-    description: Open the selected commit in the Git panel
-  - key: X
-    context: global
-    command: omarchy-shell timmo.git repo "$(git rev-parse --show-toplevel)"
-    description: Open this repository in the Git panel

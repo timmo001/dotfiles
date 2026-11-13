@@ -52,26 +52,25 @@ dot install [flags]
 
 Aliases: `dot update`
 
-Check everything, pick what to update, then run it: dotfiles, mise tools, gh extensions, missing packages, apt and release packages, and compose up. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at and --group flags carry a run across the self-update restart.
+Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell), then gh extensions, missing packages, apt and release packages, and compose up; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.
 
 ```text
 dot up <subcommand> [flags]
 ```
 
-dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and gh extensions. It saves the result for the status cache, lists it, then asks which groups to run, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order, each numbered with a one-line description:
+dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and gh extensions. It saves the result for the status cache, lists it, then asks which groups to run, offering only those with work, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order:
 
-1. Dotfiles: pulls the public dotfiles, rebuilds and relaunches dot, scans and pulls tracked repositories, moves the skills checkout to the latest skills main, syncs MCP config, stows, installs mise tools, refreshes agent runtimes, syncs agent instructions, reloads agents and starts the doctor check. Pulls are fast-forward-only and never stash or rebase.
-2. Mise tools: installs missing tools and runs mise up with no release delay.
-3. gh extensions: installs missing ones and upgrades the rest.
-4. Missing packages: installs apt packages from the public and private lists.
-5. System: runs apt-get update and upgrade (with -y under --yes), then installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs.
-6. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.
+1. Stages: dotfiles, skills, repos, stow, tools, plugins, herdr, agents and shell, as `dot up <stage>` runs them. A stage that wasn't offered still runs when an earlier one changed something it applies: stow and Herdr after a dotfiles pull that brings new links or Herdr pins, tools after a dotfiles pull that brings mise changes, plugins after a tools upgrade, agents after a dotfiles pull or changed skills or plugins, and the shell after any change; stow, tools, plugins and Herdr are checked again first. A stage offered and left unticked never runs.
+2. gh extensions: installs missing ones and upgrades the rest.
+3. Missing packages: installs apt packages from the public and private lists.
+4. System: runs apt-get update and upgrade (with -y under --yes), then installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs.
+5. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.
 
-On the server branch it then runs dot up branch unless --no-branch is given. It finishes with a summary of updated repositories, mise tools and every step.
+On the server branch it then runs dot up branch unless --no-branch is given. It finishes with a summary of updated repositories, mise tools and every step, then runs dot up --check to report what is still pending. dot up <stage>, the phase flags and --repo end the same way, except with --json.
 
 --check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.
 
-Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands. --no-reload skips the agent reload and doctor check.
+Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Pulled public dotfiles also rebuild dot; stow, agent instructions and the rest of a dotfiles pull are left to dot up, which the closing check lists. Add --pull to only pull and run post-update commands.
 
 **Options**
 
@@ -86,7 +85,9 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--check-all` | Also check development repos for pulls, skipping local work |
 | `--yes` | Run every group with work without asking, and pass -y to apt-get upgrade |
 | `--force` | Offer every group, even with nothing pending |
-| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, tools, gh, packages, system, compose) |
+| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell, gh, packages, system, compose) |
+| `--declined` `<choice>` | Internal: the groups offered but not picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell, gh, packages, system, compose) |
+| `--changed` `<choice>` | Internal: the stages that changed something before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell, gh, packages, system, compose) |
 | `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
 | `--no-branch` | Skip the final branch update, which opens an agent to rebase behind server and cloud branches |
@@ -112,29 +113,7 @@ dot up --yes
 dot up --stow
 ```
 
-### `dot up branch`
-
-Open an agent to rebase the distro branches when they are behind
-
-```text
-dot up branch [flags]
-```
-
-Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fast-forwards the permanent distro/cloud and distro/opencode-app worktrees at ~/.local/share/dot/dotfiles-cloud and ~/.local/share/dot/dotfiles-opencode-app, then checks whether distro/ubuntu-server is behind distro/arch-omarchy-quattro or either of those is behind distro/ubuntu-server, ignoring commits that only regenerate the distro diff page. When one is, it opens an OpenCode agent named branch-update in Herdr to follow the rebase steps in AGENTS.md, check and push. Nothing opens when all are up to date, a rebase is already in progress, the agent is already open, or dot runs under an agent. dot up runs it last; --no-branch skips it.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot up branch
-```
-
-## `dot deps`
+### `dot up dotfiles`
 
 Pull the public and private dotfiles and their pinned submodules, and rebuild dot when its source moved. Never prompts, so it can run in the background.
 
@@ -277,7 +256,7 @@ dot up tools --json
 
 ### `dot up plugins`
 
-Update the Pi, Plannotator and OpenCode plugins. Never prompts, so it can run in the background.
+Update the Pi and OpenCode plugins. Never prompts, so it can run in the background.
 
 ```text
 dot up plugins [flags] [<repo...>]
@@ -301,34 +280,6 @@ dot up plugins [flags] [<repo...>]
 ```bash
 dot up plugins
 dot up plugins --json
-```
-
-### `dot up first-party`
-
-Upgrade the packages installed from the signed [timmo] repository through dot-first-party-upgrade@<user>.service, which polkit lets you start without a password, then restart the user units whose main process still runs a replaced binary; any other process still on an old binary, such as one inside the compositor's unit, is only reported. The packages' install scripts restart their own services first, so nothing restarts twice. Only [timmo] is refreshed, so it can't become a partial system upgrade. Does nothing until dot init, or ticking System in dot up, installs the unit. Never prompts, so it can run in the background.
-
-```text
-dot up first-party [flags] [<repo...>]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--json` | Print the result as JSON on stdout, with the log on stderr |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<repo>` | Not used by this stage |
-
-**Examples**
-
-```bash
-dot up first-party
-dot up first-party --json
 ```
 
 ### `dot up herdr`
@@ -389,7 +340,7 @@ dot up agents --json
 
 ### `dot up shell`
 
-Refresh shell modules, start the doctor check and refresh the bar. Never prompts, so it can run in the background.
+Start the doctor check. Never prompts, so it can run in the background.
 
 ```text
 dot up shell [flags] [<repo...>]
@@ -413,6 +364,28 @@ dot up shell [flags] [<repo...>]
 ```bash
 dot up shell
 dot up shell --json
+```
+
+### `dot up branch`
+
+Open an agent to rebase the distro branches when they are behind
+
+```text
+dot up branch [flags]
+```
+
+Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fast-forwards the permanent distro/cloud and distro/opencode-app worktrees at ~/.local/share/dot/dotfiles-cloud and ~/.local/share/dot/dotfiles-opencode-app, then checks whether distro/ubuntu-server is behind distro/arch-omarchy-quattro or either of those is behind distro/ubuntu-server, ignoring commits that only regenerate the distro diff page. When one is, it opens an OpenCode agent named branch-update in Herdr to follow the rebase steps in AGENTS.md, check and push. Nothing opens when all are up to date, a rebase is already in progress, the agent is already open, or dot runs under an agent. dot up runs it last; --no-branch skips it.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot up branch
 ```
 
 ## `dot run`
@@ -651,7 +624,6 @@ Read cached status immediately and refresh it in the background after 15 minutes
 ```bash
 dot updates status
 dot updates refresh
-dot updates watch
 ```
 
 ### `dot updates status`
@@ -700,50 +672,6 @@ dot updates refresh
 dot updates refresh --quick
 ```
 
-### `dot updates watch`
-
-Print status-bar JSON from the dot daemon, then again after each change
-
-```text
-dot updates watch [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--json` | Print the status, its groups, and the bar and footer output, as JSON |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot updates watch
-dot updates watch --json
-```
-
-## `dot daemon`
-
-Serve status checks to the bar, OpenCode and the CLI over a Unix socket
-
-```text
-dot daemon [flags]
-```
-
-Run the dot daemon in the foreground, as dot-daemon.service does; dot stow enables that unit, and rebuilding dot through dot up restarts it (after mise run dot:build, restart it with systemctl --user restart dot-daemon.service). It listens on $XDG_RUNTIME_DIR/dot/daemon.sock, mode 0600, and serves over effect/rpc with NDJSON framing: the update status (dot updates status, refresh and watch, and the status dot up saves go through it when it answers), the registered services (dot services status and watch) and the Git panel (dot git watch and refresh). It loads the update status from the cache on start, refreshes it 15 minutes after the last full check and writes the cache after each change; it checks the services and reads the Git panel every minute. It also mirrors each status to $XDG_RUNTIME_DIR/dot/status/ (updates.json, updates-bar.json, services.json and git.json) for the bar and the OpenCode footer to watch; the directory only exists while the daemon runs. SIGINT, SIGTERM and SIGHUP stop it cleanly and remove the socket and the status files.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot daemon
-```
-
 ## `dot services`
 
 Monitor registered systemd user services and timers
@@ -775,8 +703,6 @@ Show the health of registered user services
 dot services status [flags]
 ```
 
-When dot daemon is running it checks the services, so watchers such as the services panel see the result too; otherwise the check runs here.
-
 **Options**
 
 | Option | Description |
@@ -789,28 +715,6 @@ When dot daemon is running it checks the services, so watchers such as the servi
 ```bash
 dot services status
 dot services status --json
-```
-
-### `dot services watch`
-
-Print the services snapshot from the dot daemon as JSON, then again after each change
-
-```text
-dot services watch [flags]
-```
-
-The daemon checks the registered services every minute and whenever dot services status, dot services notify, a tunnel or the fan controller asks it to. Each line is the snapshot dot services status --json prints, which the daemon also keeps in $XDG_RUNTIME_DIR/dot/status/services.json for the services panel. Exits 1 when the daemon can't be reached or stops.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot services watch
 ```
 
 ### `dot services start`
@@ -1032,7 +936,7 @@ Control chassis fans from a Home Assistant temperature
 dot fans <subcommand> [flags]
 ```
 
-Reads ~/.config/dot/fans.yml: entity (a Home Assistant temperature sensor), device (a liquidctl --match string), channels (a list such as fan1 and fan2), ramp ({ from, to } in °C), speed ({ min, max } in percent) and optionally cpu ({ hwmon, label, ramp }, such as k10temp and Tctl). Watches the entity through ha-bridge and ramps the channels linearly from speed.min at ramp.from to speed.max at ramp.to, in 5% steps. With cpu, it also polls that hwmon temperature every 5 seconds, ramps it on cpu.ramp from the average of the last 60 seconds of readings, and runs the fans at the higher of the two speeds; an unreadable CPU sensor sets speed.max. An unavailable or non-numeric reading, no reading within 30 seconds, or a stopped watcher sets speed.max until readings resume; the watcher restarts after 15 seconds. Health is written to $XDG_STATE_HOME/dot/fans/status.json for the status field of a dot services descriptor. Stopping hands the device back to motherboard control with liquidctl initialize.
+Reads ~/.config/dot/fans.yml: entity (a Home Assistant temperature sensor), device (a liquidctl --match string), channels (a list such as fan1 and fan2), ramp ({ from, to } in °C) and speed ({ min, max } in percent). Watches the entity through ha-bridge and ramps the channels linearly from speed.min at ramp.from to speed.max at ramp.to, in 5% steps. An unavailable or non-numeric reading, no reading within 30 seconds, or a stopped watcher sets speed.max until readings resume; the watcher restarts after 15 seconds. Health is written to $XDG_STATE_HOME/dot/fans/status.json for the status field of a dot services descriptor. Stopping hands the device back to motherboard control with liquidctl initialize.
 
 **Options**
 
@@ -1695,13 +1599,13 @@ dot setup herdr <subcommand> [flags]
 
 #### `dot setup herdr machines`
 
-Save the Herdr SSH machines from the private machine list
+Save the Herdr SSH machines from the private machine list in Herdr and hc
 
 ```text
 dot setup herdr machines [flags]
 ```
 
-Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's saved-machine catalog (~/.local/state/herdr/client/endpoints.json), in the list's order and with its profile IDs, labels, SSH targets and sessions, so every device has the same machines. A machine whose host is this device's hostname is left out, so a device never lists itself. Herdr keeps the catalog in client state rather than config, so dot stow can't link it. A machine this device already has keeps its enabled state, so toggles survive; enabled in the list only applies when it's added. Machines the list doesn't name are kept after it. Open Herdr clients pick up the change. dot up runs the same step and only reports it when it saves machines or fails, so a device without the list, or whose machines already match, sees nothing. Host keys and remote installs stay with Herdr: run herdr machine reconnect <label> once for a new machine.
+Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's saved-machine catalog (~/.local/state/herdr/client/endpoints.json), in the list's order and with its profile IDs, labels, SSH targets and sessions, so every device has the same machines. A machine whose host is this device's hostname is left out, so a device never lists itself. Herdr keeps the catalog in client state rather than config, so dot stow can't link it. A machine this device already has keeps its enabled state, so toggles survive; enabled in the list only applies when it's added. Machines the list doesn't name are kept after it. Open Herdr clients pick up the change. When the Herdr app's core (hc) is installed, it also adds each listed machine hc doesn't have yet with hc machine add --install, named from its label in lowercase ("[HA] SSH" is ha-ssh), and an ssh:// target with a port goes through --via. A machine that can't be reached is tried again next time. dot up runs the same steps and only reports them when they save or add machines or fail, so a device without the list, or whose machines already match, sees nothing. Host keys and remote installs for Herdr stay with Herdr: run herdr machine reconnect <label> once for a new machine.
 
 **Options**
 
@@ -1976,57 +1880,6 @@ dot git issues [flags]
 ```
 
 Opt in with issues.enabled in private dot-git.yml. Open issues exclude pull requests and are ordered by latest update. Rules under the top-level issues.exclude list hide matching issues, such as a Dependency Dashboard; each rule matches when every field it sets (title, author, label and optional repo) matches, case-insensitively. Queries fetch at most every five minutes unless --refresh is supplied. Failed fetches retain the last successful list and report an error.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--repo` `<string>` | Select an enabled repository by name or GitHub slug |
-| `--scheduled` | Check only in a due cron minute, once per minute |
-| `--refresh` | Fetch now, bypassing the schedule and cache |
-| `--notify` | Send eligible desktop notifications with review actions |
-| `--panel-json` | Complete JSON review snapshots, including quiet changes and errors |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot git issues --panel-json
-dot git issues --refresh
-dot git issues --open
-```
-
-### `dot git watch`
-
-Print the Git panel's state from the dot daemon as JSON, then again after each part changes
-
-```text
-dot git watch [flags]
-```
-
-The daemon reads the Git panel's parts every minute: diff (as dot git diff --bar-json prints it), panel (dot git diff --panel-json), notifications (dot git notifications --bar-json), pullRequests (dot pr list --panel-json), issues (dot git issues --panel-json) and log (dot git log --panel-json). Each is { value } or { error }, and is missing until it has been read once. Each part is published as soon as it is read, and the daemon also keeps the whole snapshot in $XDG_RUNTIME_DIR/dot/status/git.json for the Git panel. Exits 1 when the daemon can't be reached or stops.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot git watch
-```
-
-### `dot git refresh`
-
-Ask the dot daemon to read the Git panel's state again
-
-```text
-dot git refresh [flags]
-```
-
-Returns once every part has been read; dot git watch prints the changes. Exits 1 when the daemon can't be reached.
 
 **Options**
 

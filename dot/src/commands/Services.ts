@@ -1,6 +1,5 @@
 import { basename, dirname, join, sep } from "node:path";
 import {
-  Cause,
   Clock,
   Console,
   Duration,
@@ -9,18 +8,13 @@ import {
   Option,
   Result,
   Schema,
-  Stream,
 } from "effect";
-import { DaemonClient, tryDaemon } from "../daemon/Client.js";
-import type { ServicesReport } from "../daemon/Rpcs.js";
-import { formatCause } from "../lib/schema.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import {
   managedGitRepoForGitHub,
   managedGitRepos,
 } from "../services/GitConfig.js";
-import { readGameState } from "./Game.js";
 import { herdrRepoOpen } from "./HerdrRepoOpen.js";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "../lib/paths.js";
 import { hasManualStart, writeManualStart } from "../lib/manualStart.js";
@@ -664,8 +658,6 @@ function summarise(status: Omit<ServiceStatus, "summary">): string {
       return "Last run completed with warnings";
     case "running":
       return "Running now";
-    case "paused":
-      return "Paused for gaming";
     case "ok":
       if (
         status.runs.length > 0 &&
@@ -754,9 +746,6 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
     timers.length > 0 ? yield* nextElapses : new Map<string, number>();
 
   const resumedAt = yield* lastResume;
-
-  // Services dot game stopped show as paused, not inactive.
-  const pausedUnits = new Set((yield* readGameState).stopped);
 
   return yield* Effect.forEach(
     registered,
@@ -937,9 +926,7 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
             : properties.ActiveState !== "active" &&
                 properties.ActiveState !== "activating" &&
                 properties.ActiveState !== "reloading"
-              ? pausedUnits.has(service)
-                ? "paused"
-                : "inactive"
+              ? "inactive"
               : consecutiveFailures > 0 ||
                   (restartLimit !== undefined &&
                     recentRestarts >= restartLimit.count)
@@ -1053,94 +1040,22 @@ export const servicesStatus = Effect.fn("Services.status")(function* (
   if (json) {
     yield* Console.log(JSON.stringify(snapshot));
 
-/**
- * Print the monitoring snapshot for every registered job. The dot daemon
- * checks when it runs, so its watchers see the result too; otherwise the
- * check runs here.
- */
-export const servicesStatus = Effect.fn("Services.status")(function* (
-  json: boolean,
-) {
-  const viaDaemon = yield* tryDaemon(
-    Effect.gen(function* () {
-      const client = yield* DaemonClient;
+    return;
+  }
 
-      return yield* client.RefreshServices();
-    }).pipe(Effect.timeout(DAEMON_TIMEOUT)),
-  );
+  if (services.length === 0)
+    yield* Console.log(`No services registered in ${SERVICES_DIR}`);
 
-  const report = Option.isSome(viaDaemon)
-    ? viaDaemon.value
-    : yield* servicesReport;
-
-  if (json) return yield* Console.log(JSON.stringify(report));
-
-  if (report.services.length === 0)
-    yield* Console.log(`No services registered in ${report.directory}`);
-
-  for (const status of report.services.flatMap((entry) =>
-    Option.toArray(decodeServiceLine(entry)),
-  ))
+  for (const status of services)
     yield* Console.log(
       `${status.health.toUpperCase().padEnd(8)} ${status.label} (${status.unit}): ${status.summary}`,
     );
 
-  for (const error of report.errors)
+  for (const error of errors)
     yield* Console.error(
       `[WARN] Invalid descriptor ${error.file}: ${error.message}`,
     );
 });
-
-/**
- * Print the snapshot from the dot daemon as JSON, then again after each
- * change. Exits 1 when the daemon can't be reached or the connection ends.
- */
-export const servicesWatch = Effect.gen(function* () {
-  yield* Effect.gen(function* () {
-    const client = yield* DaemonClient;
-
-    yield* client.WatchServices().pipe(
-      Stream.filter((report) => report !== null),
-      Stream.map((report) => JSON.stringify(report)),
-      Stream.changes,
-      Stream.runForEach((line) => Console.log(line)),
-    );
-  }).pipe(
-    Effect.provide(DaemonClient.layer),
-    Effect.catchCause((cause) =>
-      Console.error(
-        Cause.hasInterruptsOnly(cause)
-          ? "[ERROR] dot daemon stopped"
-          : `[ERROR] dot daemon unreachable: ${formatCause(Cause.squash(cause))}`,
-      ),
-    ),
-  );
-
-  process.exitCode = 1;
-}).pipe(Effect.withSpan("Services.watch"));
-
-/**
- * Bring the services panel up to date after a change: the dot daemon checks
- * again and its watchers see it, or without the daemon the panel is asked to
- * poll.
- */
-export const refreshServicesPanel = Effect.gen(function* () {
-  const viaDaemon = yield* tryDaemon(
-    Effect.gen(function* () {
-      const client = yield* DaemonClient;
-
-      return yield* client.RefreshServices();
-    }).pipe(Effect.timeout(DAEMON_TIMEOUT)),
-  );
-
-  if (Option.isSome(viaDaemon)) return;
-
-  const executor = yield* CommandExecutor;
-
-  yield* executor
-    .exitCode("omarchy-shell", ["-q", "timmo.services", "refresh"])
-    .pipe(Effect.ignore);
-}).pipe(Effect.withSpan("Services.refreshPanel"));
 
 /** Start a registered job's service now, restarting long-running services. */
 export const servicesStart = Effect.fn("Services.start")(function* (

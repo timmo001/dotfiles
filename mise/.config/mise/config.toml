@@ -22,7 +22,7 @@ lazygit = "latest"
 "aqua:1password/cli" = "2.41.0"
 # Pre-1.0: plugins track the minor.
 "aqua:neovim/neovim" = "0.12.6"
-node = "26.13.0"
+node = "26.13.1"
 ollama = "latest"
 pitchfork = "latest"
 pnpm = "latest"

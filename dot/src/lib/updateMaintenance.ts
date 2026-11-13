@@ -190,7 +190,9 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
     if (repo.category !== "dotfiles") return pending;
 
     for (const folder of (yield* selectedStowFolders(repo.path)).sort()) {
-      const flags = ["--simulate", "--verbose"];
+      // Match stowRepo, which restows every package, so a removed file's
+      // symlink is part of the plan.
+      const flags = ["-R", "--simulate", "--verbose"];
 
       if (yield* requiresNoFolding(repo.path, folder))
         flags.push("--no-folding");
@@ -218,17 +220,6 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
       if (stowPlanNeedsApply(output))
         pending.push(`${repo.name}: ${folder} needs stow`);
     }
-
-    // Plugin copies and shell.json are applied by the stow stage, but neither
-    // is a GNU Stow link, so a pull that only changes them looks like no work.
-    if (yield* omarchyPluginsNeedDeploy(repo.path))
-      pending.push(`${repo.name}: plugin deployment needs stow`);
-
-    if (
-      repo.path === config.publicDotfiles &&
-      (yield* omarchyShellConfigNeedsApply)
-    )
-      pending.push(`${repo.name}: shell config needs stow`);
 
     const lockPath = join(
       repo.path,

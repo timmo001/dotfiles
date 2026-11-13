@@ -18,11 +18,7 @@ import {
 } from "effect";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { CONFIG_DIR, STATE_DIR } from "../lib/paths.js";
-import {
-  refreshServicesPanel,
-  type ReportedStatus,
-  writeReportedStatus,
-} from "./Services.js";
+import { type ReportedStatus, writeReportedStatus } from "./Services.js";
 
 /** Fan controller configuration is missing or invalid. */
 export class FansError extends Schema.TaggedError<FansError>()("FansError", {
@@ -233,8 +229,6 @@ export const fansRun = Effect.gen(function* () {
     summary: string,
     logLine: string = summary,
   ) {
-    const previous = yield* Ref.get(lastReport);
-
     const status = {
       health,
       summary,
@@ -250,8 +244,10 @@ export const fansRun = Effect.gen(function* () {
     );
     yield* Ref.set(lastReport, Option.some(status));
 
-    if (Option.getOrUndefined(previous)?.summary !== summary)
-      yield* Console.log(`[${health.toUpperCase()}] ${summary}`);
+    const line = `[${health.toUpperCase()}] ${logLine}`;
+
+    if ((yield* Ref.getAndSet(lastLogged, line)) !== line)
+      yield* Console.log(line);
   });
 
   /** Set every channel, returning those liquidctl rejected. */

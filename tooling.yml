@@ -25,9 +25,6 @@ tools:
     reviewed: v2.3.0
     tags: ^v2\.
     review: Check the OpenCode config, agents, commands and plugins under agents/.config/opencode (including the opencode2 Code Mode tools in plugins/lib/cli-tools/opencode2.ts), and the dot commands and doctor checks that drive OpenCode. mise installs the latest OpenCode with no release delay, so this review is what keeps the plugins compliant. Bump the @opencode/* plugin packages to the release, and keep the plugins' effect and @effect/platform-node pins on the versions it runs on.
-  - repo: anomalyco/browse
-    reviewed: v0.0.16
-    review: Check the browse MCP server entry in the private mcp.yml (its command, the OPENCODE_BROWSER_RUNTIME environment and which harnesses enable it) against the release, and whether browse install now writes config the sync should own instead.
   - repo: Effect-TS/effect
     reviewed: effect@4.1.4
     tags: ^effect@

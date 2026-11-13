@@ -1,9 +1,10 @@
 /**
  * @file Checks for everything `dot up` updates or installs: dotfiles, skills,
- * mise tools, apt packages, GitHub release packages and gh extensions. The
- * status cache and `dot up` share these checks.
+ * mise tools, agent plugins, apt packages, GitHub release packages and gh
+ * extensions. The status cache and `dot up` share these checks.
  */
 
+import { Extension } from "@timmo001/effect-gh";
 import { Effect, Match, Option, Schema } from "effect";
 import { lines, query, type QueryResult } from "./boundedQuery.js";
 import { HOME_DIR } from "./paths.js";
@@ -16,6 +17,7 @@ import {
   loadGhExtensions,
 } from "./ghExtensions.js";
 import { SKILLS_CHECKOUT } from "./skillsMaintenance.js";
+import { pendingAgentPlugins } from "./agentRuntime.js";
 
 export { query, type QueryResult };
 
@@ -65,8 +67,6 @@ export interface ToolsStatus extends Schema.Schema.Type<typeof ToolsStatus> {}
 export const PackagesStatus = Schema.Struct({
   /** `name old -> new` lines from `apt list --upgradable`. */
   pending: Schema.Array(Schema.String),
-  /** The pending lines for packages from the [timmo] repository. */
-  firstParty: Schema.optionalKey(Schema.Array(Schema.String)),
   /** Packages from the public and private lists that aren't installed. */
   missing: Schema.Array(Schema.String),
   /** Whether the upgrade check ran. */
@@ -86,6 +86,8 @@ export const PendingStatus = Schema.Struct({
   packages: PackagesStatus,
   /** GitHub release packages with a newer release, as `name old -> new`. */
   releases: Schema.NullOr(Schema.Array(Schema.String)),
+  /** Pi and OpenCode plugins with an update. */
+  plugins: Schema.optionalKey(Schema.NullOr(Schema.Array(Schema.String))),
   gh: Schema.NullOr(Schema.Array(Schema.String)),
   /** Installed gh extensions with an upgrade, as `name old -> new`. */
   ghUpgrades: Schema.optionalKey(Schema.NullOr(Schema.Array(Schema.String))),
@@ -283,9 +285,6 @@ export const packages = Effect.fn("PendingUpdates.packages")(function* (
 
   return {
     pending,
-    firstParty: pending.filter((line) =>
-      firstPartyNames.has(line.split(/\s+/, 1)[0] ?? ""),
-    ),
     missing: [
       ...new Set([...(publicMissing ?? []), ...(privateMissing ?? [])]),
     ].sort(),
@@ -333,7 +332,7 @@ export const ghUpgrades = (timeout: number) =>
     Effect.orElseSucceed(() => null),
   );
 
-/** Pi, Plannotator and OpenCode plugins with an update, or null when the check fails. */
+/** Pi and OpenCode plugins with an update, or null when the check fails. */
 export const agentPlugins = (timeout: number) =>
   pendingAgentPlugins.pipe(
     Effect.timeoutOrElse({
@@ -346,7 +345,14 @@ export const agentPlugins = (timeout: number) =>
 /** One kind of pending work, as the bar, the OpenCode footer and `dot up` show it. */
 export interface PendingGroup {
   /** Stable identifier. */
-  readonly id: "dotfiles" | "skills" | "tools" | "packages" | "releases" | "gh";
+  readonly id:
+    | "dotfiles"
+    | "skills"
+    | "tools"
+    | "plugins"
+    | "packages"
+    | "releases"
+    | "gh";
   /** Display title. */
   readonly title: string;
   /** Nerd Font glyph for the bar. */
@@ -465,6 +471,7 @@ export const checkAll = Effect.fn("PendingUpdates.checkAll")(function* (
       tools: tools(timeout),
       packages: packages(timeout),
       releases: releases(timeout),
+      plugins: agentPlugins(timeout),
       gh: ghExtensions(),
       ghUpgrades: ghUpgrades(timeout),
     },

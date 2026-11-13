@@ -99,29 +99,13 @@ dir = "dot"
 depends = ["dot:install"]
 run = "bun run src/buildSkillsMaintenance.ts"
 
-[tasks."tests:integration"]
-description = "Run deterministic repository integration tests in parallel"
-depends = [
-  "tests:integration:dot",
-  "tests:integration:dependencies",
-]
-
-[tasks."tests:integration:dot"]
-description = "Run the dot and OpenCode integration tests"
-depends = ["dot:build"]
-run = "bun test tests/opencode tests/dot/agent-oxlint-opt-in.test.ts tests/dot/git-commit-branch-guard.test.ts tests/dot/git-commit-scoped-staging.test.ts tests/dot/git-pull-preserves-work.test.ts tests/dot/homeassistant-rebase-abort.test.ts tests/dot/git-notification-dismissal.test.ts tests/dot/git-releases-contract.test.ts tests/dot/herdr-context-contract.test.ts tests/dot/herdr-launch-contract.test.ts tests/dot/process-runner.test.ts tests/dot/mcp-repositories.test.ts tests/dot/session-queue.test.ts"
-
-[tasks."tests:integration:dependencies"]
-description = "Run the dependency service integration tests"
-depends = ["dot:build"]
-run = "bun test tests/dot/dependency-validation.test.ts tests/dot/dependency-lease.test.ts tests/dot/services-outcomes.test.ts"
-
-[tasks."tests:smoke"]
-description = "Build dot and run the git-diff index-lock smoke check"
-depends = ["dot:build"]
-run = """
-bash tests/dot/git-diff-index-lock.test.sh
-"""
+# OpenCode plugins (runs in ./agents/.config/opencode/plugins)
+[tasks."plugins:install"]
+description = "Install OpenCode plugin dependencies"
+dir = "agents/.config/opencode/plugins"
+run = "bun install"
+sources = ["package.json", "bun.lock"]
+outputs = ["node_modules/.bin"]
 
 [tasks.tests]
 description = "Run the dot unit tests"
@@ -259,19 +243,3 @@ depends = ["docs:build"]
 [tasks.check]
 description = "Run every lint, check, test, and docs build in parallel"
 depends = ["lint", "dot:check", "tests", "docs:check"]
-
-[tasks."tooling:status"]
-description = "Compare the reviewed releases in tooling.yml with the latest"
-run = "tooling-drift status"
-
-[tasks."tooling:update"]
-description = "Record a tool release as reviewed in tooling.yml after reviewing it"
-usage = '''
-arg "<repo>" help="Tool repository, e.g. cli/cli"
-arg "<tag>" help="Release tag, e.g. v2.102.0"
-'''
-run = "tooling-drift update $usage_repo $usage_tag"
-
-[tasks."tooling:publish"]
-description = "Open or refresh a review pull request for every tool behind its latest release"
-run = "tooling-drift publish"

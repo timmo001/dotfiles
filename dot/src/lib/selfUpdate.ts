@@ -113,12 +113,6 @@ export const rebuild = Effect.gen(function* () {
   yield* installCompiledBinary(tmpPath, binPath, buildKey).pipe(Effect.orDie);
   log("Binary replaced");
 
-  // A running daemon keeps serving the old code until it restarts; a stopped
-  // one stays stopped.
-  yield* executor
-    .exitCode("systemctl", ["--user", "try-restart", "dot-daemon.service"])
-    .pipe(Effect.ignore);
-
   return true;
 });
 

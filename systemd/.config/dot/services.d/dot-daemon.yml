@@ -1,6 +1,0 @@
----
-unit: dot-daemon.service
-label: dot daemon
-restartLimit:
-  count: 3
-  within: 1 hour

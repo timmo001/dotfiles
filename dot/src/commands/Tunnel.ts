@@ -15,11 +15,7 @@ import { FetchHttpClient, HttpClient } from "effect/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { exitStatus } from "../services/CommandExecutor.js";
 import { CONFIG_DIR, STATE_DIR } from "../lib/paths.js";
-import {
-  refreshServicesPanel,
-  type ReportedStatus,
-  writeReportedStatus,
-} from "./Services.js";
+import { type ReportedStatus, writeReportedStatus } from "./Services.js";
 
 /** A tunnel's credentials or Cloudflare's view of its connectors are unavailable. */
 export class TunnelError extends Schema.TaggedError<TunnelError>()(
