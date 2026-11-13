@@ -52,29 +52,29 @@ dot install [flags]
 
 Aliases: `dot update`
 
-Check everything, pick what to update, then run it: dotfiles, gh extensions and compose up. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at and --group flags carry a run across the self-update restart.
+Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, plugins, herdr, agents), then gh extensions and compose up; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.
 
 ```text
 dot up <subcommand> [flags]
 ```
 
-dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout and gh extensions. System packages and tools come from the OpenCode app, which updates them itself. It saves the result for the status cache, lists it, then asks which groups to run, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order, each numbered with a one-line description:
+dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, agent plugins and gh extensions. System packages and tools come from the OpenCode app, which updates them itself. It saves the result for the status cache, lists it, then asks which groups to run, offering only those with work, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order:
 
-1. Dotfiles: pulls the public dotfiles, rebuilds and relaunches dot, scans and pulls tracked repositories, moves the skills checkout to the latest skills main, syncs MCP config, stows, installs mise tools, refreshes agent runtimes, syncs agent instructions and reloads agents. Pulls are fast-forward-only and never stash or rebase.
+1. Stages: dotfiles, skills, repos, stow, plugins, herdr and agents, as `dot up <stage>` runs them. A stage that wasn't offered still runs when an earlier one changed something it applies: stow and Herdr after a dotfiles pull that brings new links or Herdr pins, and agents after a dotfiles pull or changed skills or plugins; stow and Herdr are checked again first. A stage offered and left unticked never runs.
 2. gh extensions: installs missing ones and upgrades the rest.
 3. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.
 
-It then runs dot up branch unless --no-branch is given. It finishes with a summary of updated repositories, mise tools and every step.
+It then runs dot up branch unless --no-branch is given. It finishes with a summary of updated repositories, mise tools and every step, then runs dot up --check to report what is still pending. dot up <stage>, the phase flags and --repo end the same way, except with --json.
 
 --check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.
 
-Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Add --pull to only pull and run post-update commands. --no-reload skips the agent reload.
+Use --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Pulled public dotfiles also rebuild dot; stow, agent instructions and the rest of a dotfiles pull are left to dot up, which the closing check lists. Add --pull to only pull and run post-update commands.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-| `--repo` `<string>` | Fast-forward this repository when local work can be preserved, then run its post-update command; repeat for a batch. Changed dotfiles also rebuild and stow |
+| `--repo` `<string>` | Fast-forward this repository when local work can be preserved, then run its post-update command; repeat for a batch. Pulled dotfiles only rebuild dot, leaving stow and the rest to dot up |
 | `--pull` | Run the repository pull phase only |
 | `--stow` | Generate completions, sync MCP configs, and stow only |
 | `--app` | Install Bun dependencies and rebuild the dot binary only |
@@ -83,7 +83,9 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--check-all` | Also check development repos for pulls, skipping local work |
 | `--yes` | Run every group with work without asking |
 | `--force` | Offer every group, even with nothing pending |
-| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, gh, compose) |
+| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, skills, repos, stow, plugins, herdr, agents, gh, compose) |
+| `--declined` `<choice>` | Internal: the groups offered but not picked before a restart handoff (choices: dotfiles, skills, repos, stow, plugins, herdr, agents, gh, compose) |
+| `--changed` `<choice>` | Internal: the stages that changed something before a restart handoff (choices: dotfiles, skills, repos, stow, plugins, herdr, agents, gh, compose) |
 | `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
 | `--no-branch` | Skip the final branch update, which opens an agent to rebase behind server and cloud branches |
@@ -109,6 +111,203 @@ dot up --yes
 dot up --stow
 ```
 
+### `dot up dotfiles`
+
+Pull the public and private dotfiles and their pinned submodules, and rebuild dot when its source moved. Never prompts, so it can run in the background.
+
+```text
+dot up dotfiles [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up dotfiles
+dot up dotfiles --json
+```
+
+### `dot up skills`
+
+Move the skills checkout to the latest main, rebuild skill-maintenance and relink skills. Never prompts, so it can run in the background.
+
+```text
+dot up skills [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up skills
+dot up skills --json
+```
+
+### `dot up repos`
+
+Pull tracked repositories that are behind, leaving any with work in progress alone; name repositories to pull just those. Never prompts, so it can run in the background.
+
+```text
+dot up repos [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Repository paths to pull, instead of every safe one |
+
+**Examples**
+
+```bash
+dot up repos
+dot up repos ~/repos/upkeep
+dot up repos --json
+```
+
+### `dot up stow`
+
+Generate completions, sync MCP config and skills, and stow. Never prompts, so it can run in the background.
+
+```text
+dot up stow [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up stow
+dot up stow --json
+```
+
+### `dot up plugins`
+
+Update the OpenCode plugins. Never prompts, so it can run in the background.
+
+```text
+dot up plugins [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up plugins
+dot up plugins --json
+```
+
+### `dot up herdr`
+
+Restore pinned Herdr plugins and sync the saved Herdr and hc machines. Never prompts, so it can run in the background.
+
+```text
+dot up herdr [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up herdr
+dot up herdr --json
+```
+
+### `dot up agents`
+
+Sync agent instructions and reload running agents. Never prompts, so it can run in the background.
+
+```text
+dot up agents [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up agents
+dot up agents --json
+```
+
 ### `dot up branch`
 
 Open an agent to rebase the distro branches when they are behind
@@ -129,113 +328,6 @@ Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fa
 
 ```bash
 dot up branch
-```
-
-## `dot deps`
-
-Validate and publish grouped native dependency updates
-
-```text
-dot deps <subcommand> [flags] [<repository>]
-```
-
-Read native policy and manifests from a pinned remote target, preserving the caller's checkout. Exclude whole groups covered by any open dependency PR, including failed, pending and draft PRs. --all bypasses only PR inventory and exclusion. --dry-run discovers updates without repository scripts, installs, checks or writes to Git. Bare dot deps starts groups by priority and prepares and validates them concurrently in isolated worktrees, bounded by --concurrency. Check commands share the same concurrency cap across groups; setup and shared Git operations are serialised. A command's optional skipFor exclusions apply only when every updated dependency matches; mixed or unknown groups retain checks. The first ready group takes the publication slot and publishes one checked commit without creating PRs or waiting for hosted CI. Host permissions are read from $XDG_CONFIG_HOME/dot/dependencies.yml (default ~/.config/dot/dependencies.yml), keyed by owner/repository with trusted and allowBypass booleans. Required hosted checks must have equivalent validation.checks mappings; protected direct pushes require explicit allowBypass permission and existing account rights. Workflow edits require a credential with workflow write access. Unsupported policy remains blocking. Git-backed claims serialise each repository/target across machines and service or manual runs. Publication atomically advances the ownership record and target; target movement rebuilds and revalidates, up to three attempts per group. Failed work and per-group logs remain under $XDG_STATE_HOME/dot/dependencies. Clean published worktrees are removed, including submodules. Setup/check mutations and commit-hook mutations prevent publication. Independent groups continue after failures, including groups sharing files; a partial run exits non-zero. A normal invocation authorises passing updates, regardless of Renovate automerge policy.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--dry-run` | Discover updates without running scripts, installing packages or publishing |
-| `--all` | Bypass open-PR inventory and exclusion only; leave PRs untouched |
-| `--target` `<string>` | Remote target branch (default: repository default branch) |
-| `--timeout` `<string>` | Deadline per command/provider lookup (default: 30 seconds) |
-| `--concurrency` `<integer>` | Maximum concurrent groups, lookups, PR inspections or check commands, 1-16 (default: 4) |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<repository>` | repository |
-
-**Examples**
-
-```bash
-dot deps --dry-run
-dot deps owner/repository --dry-run
-dot deps --dry-run --all --target main
-```
-
-### `dot deps service`
-
-Run one cross-machine dependency service interval
-
-```text
-dot deps service [flags]
-```
-
-Run configured repositories sequentially under one Git-backed service claim. Configuration supplies coordinationRepository, repositories, intervalMinutes and concurrency. Every repository requires host trust. Shared state prevents overlapping machine runs and records the next eligible interval. Repository/target claims also cover manual dot deps runs. Claims renew every 30 seconds and expire after two minutes; a lost claim interrupts work, and dependency publication atomically checks its target claim. State is stored on dedicated dot-deps-state branches. The user timer runs hourly at ten past, except between 01:00 and 07:00. Exit status 2 means completed with unsuccessful update groups (warning); 3 means the shared interval was skipped. --no-cooldown ignores the shared interval and each repository's interval but never an active claim; `dot services start dot-deps.timer` applies it to that one start automatically. Startup, policy and service failures exit 1. Local configuration validation with --dry-run performs no remote writes. Policy is read from published target commits, so repository policies must be pushed before enabling the service.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--config` `<string>` | Service YAML config (default: $XDG_CONFIG_HOME/dot/dependency-service.yml) |
-| `--dry-run` | Validate local service configuration and trust without running updates or writing to Git |
-| `--no-cooldown` | Run even if the shared interval is not due; an active claim still blocks the run |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot deps service --dry-run
-dot deps service
-dot deps service --no-cooldown
-```
-
-### `dot deps import`
-
-Import dependency policy from other tools
-
-```text
-dot deps import <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-#### `dot deps import renovate`
-
-Import Renovate policy into dot-deps.yml with an editor schema
-
-```text
-dot deps import renovate [flags] [<directory>]
-```
-
-Create dot-deps.yml and its editor schema from a repository's JSON Renovate config, migrating an existing dot-deps.json policy. The first import resolves presets with an isolated, pinned Renovate runtime. Later imports replace explicit override sections, including edits within them, while preserving the native base policy and local check mappings. Unsupported settings are recorded as publication blockers. Importing creates no commits or PRs. Ordinary previews use the saved native policy without running Renovate or refreshing presets.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--source` `<string>` | Repository-relative Renovate JSON file (default: renovate.json) |
-| `--timeout` `<string>` | Deadline per import pass (default: 5 minutes) |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<directory>` | directory |
-
-**Examples**
-
-```bash
-dot deps import renovate
-dot deps import renovate /path/to/repository
 ```
 
 ## `dot run`
@@ -542,7 +634,7 @@ Each job registers itself with a YAML descriptor in ~/.config/dot/services.d/, s
 
 ```bash
 dot services status
-dot services logs dot-deps.timer
+dot services logs dot-doctor.timer
 ```
 
 ### `dot services status`
@@ -590,7 +682,7 @@ dot services start [flags] <unit>
 **Examples**
 
 ```bash
-dot services start dot-deps.timer
+dot services start dot-doctor.timer
 ```
 
 ### `dot services stop`
@@ -683,8 +775,8 @@ dot services run logs [flags] <unit>
 **Examples**
 
 ```bash
-dot services run logs dot-deps.timer
-dot services run logs skill-updates-agent.timer --count 5 | wl-copy
+dot services run logs dot-doctor.timer
+dot services run logs dot-doctor.timer --count 5 | wl-copy
 ```
 
 ### `dot services investigate`
@@ -713,7 +805,7 @@ dot services investigate [flags] <unit>
 **Examples**
 
 ```bash
-dot services investigate skill-updates-agent.timer --agent opencode2
+dot services investigate dot-doctor.timer --agent opencode2
 ```
 
 ### `dot services notify`
@@ -739,7 +831,7 @@ dot services notify [flags] <unit>
 **Examples**
 
 ```bash
-dot services notify dot-deps.service
+dot services notify dot-doctor.service
 ```
 
 ### `dot services schedule`
@@ -1096,6 +1188,28 @@ dot snapshot --limit 40
 dot snapshot --min-memory-mib 50
 ```
 
+## `dot work-time`
+
+Print whether it's work time now, as JSON
+
+```text
+dot work-time [flags]
+```
+
+Print {"work": true} during work hours from the private work schedule, unless calendar leave is active, otherwise {"work": false}. A missing schedule counts as outside work time. Notes go to stderr, so stdout is always the JSON line.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot work-time
+```
+
 ## `dot doctor`
 
 Run parallel health checks for dependencies, repositories, stow integrity, the app's packages and tools, and OpenCode/Herdr integration. A timestamped report is always written under ~/.local/state/dot/logs/.
@@ -1405,13 +1519,13 @@ dot setup herdr <subcommand> [flags]
 
 #### `dot setup herdr machines`
 
-Save the Herdr SSH machines from the private machine list
+Save the Herdr SSH machines from the private machine list in Herdr and hc
 
 ```text
 dot setup herdr machines [flags]
 ```
 
-Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's saved-machine catalog (~/.local/state/herdr/client/endpoints.json), in the list's order and with its profile IDs, labels, SSH targets and sessions, so every device has the same machines. A machine whose host is this device's hostname is left out, so a device never lists itself. Herdr keeps the catalog in client state rather than config, so dot stow can't link it. A machine this device already has keeps its enabled state, so toggles survive; enabled in the list only applies when it's added. Machines the list doesn't name are kept after it. Open Herdr clients pick up the change. dot up runs the same step and only reports it when it saves machines or fails, so a device without the list, or whose machines already match, sees nothing. Host keys and remote installs stay with Herdr: run herdr machine reconnect <label> once for a new machine.
+Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's saved-machine catalog (~/.local/state/herdr/client/endpoints.json), in the list's order and with its profile IDs, labels, SSH targets and sessions, so every device has the same machines. A machine whose host is this device's hostname is left out, so a device never lists itself. Herdr keeps the catalog in client state rather than config, so dot stow can't link it. A machine this device already has keeps its enabled state, so toggles survive; enabled in the list only applies when it's added. Machines the list doesn't name are kept after it. Open Herdr clients pick up the change. When the Herdr app's core (hc) is installed, it also adds each listed machine hc doesn't have yet with hc machine add --install, named from its label in lowercase ("[HA] SSH" is ha-ssh), and an ssh:// target with a port goes through --via. A machine that can't be reached is tried again next time. dot up runs the same steps and only reports them when they save or add machines or fail, so a device without the list, or whose machines already match, sees nothing. Host keys and remote installs for Herdr stay with Herdr: run herdr machine reconnect <label> once for a new machine.
 
 **Options**
 
@@ -1646,7 +1760,7 @@ dot git notifications dismiss remaining
 
 #### `dot git notifications dismiss dependencies`
 
-Review unread merged Renovate/Dependabot updates regardless of CI results. All-mode excludes unverifiable CI and exits 2 when some notifications could not be inspected but nothing failed. Opening GitHub returns to the review without dismissing anything. The dot-notifications-dismiss.timer user timer runs all-mode every 15 minutes; dot services start dot-notifications-dismiss.timer runs it now.
+Review unread merged Renovate/Dependabot updates regardless of CI results. All-mode excludes unverifiable CI and exits 2 when some notifications could not be inspected but nothing failed. Opening GitHub returns to the review without dismissing anything. Upkeep's notifications job runs all-mode every 15 minutes; upkeep run notifications queues it now.
 
 ```text
 dot git notifications dismiss dependencies [flags]
@@ -1675,100 +1789,6 @@ dot git notifications dismiss remaining [flags]
 | --- | --- |
 | `--repo` `<string>` | Configured repository name/path or GitHub owner/repository |
 | `--dry-run` | Print repository batches and reasons without changing notifications |
-| `--help` `-h` | Show help information |
-
-### `dot git releases`
-
-Compare enabled repositories with their latest published stable release, explain impact and retain local reviews.
-
-```text
-dot git releases <subcommand> [flags]
-```
-
-Read the last local snapshot, collecting one on first use. --refresh fetches immutable release and branch refs immediately; --scheduled follows each repository's local-time cron and records attempted minutes. Draft and prerelease releases are excluded. Before the first stable release, the comparison covers the full history with the same quiet rules, and the first version is 0.1.0 (1.0.0 for a major impact), today's CalVer or the upstream fork base. Failed checks retain previous evidence marked stale; with --refresh the output is still printed, then the command exits non-zero naming each repository that could not be refreshed. Quiet changes remain inspectable. Desktop notifications require --notify and honour configured minimum impact and cooldown. --open opens the release review, optionally selected by --repo, without fetching.
-
-Local reviews require the displayed snapshot ID. Finding overrides follow exact evidence; an overall override follows the release-relevant comparison. Changed evidence invalidates its review. Use --impact auto to clear an override. Extra CI-only commits do not repeat delivery. Incomplete or stale evidence cannot be reviewed.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--repo` `<string>` | Select an enabled repository by name or GitHub slug |
-| `--scheduled` | Check only in a due cron minute, once per minute |
-| `--refresh` | Fetch now, bypassing the schedule and cache |
-| `--notify` | Send eligible desktop notifications with review actions |
-| `--panel-json` | Complete JSON review snapshots, including quiet changes and errors |
-| `--help` `-h` | Show help information |
-
-**Policy**
-
-```text
-Optional releases config selects oxlint-rules or system-bridge and a watched branch.
-Private overrides precede preset rules; the first match wins for each fact.
-Match paths with globs, change_types, exact dependencies, roles, submodules or explicit subjects regexes.
-Selectors are ANDed; values within each selector are ORed. Explicit path overrides match either rename endpoint.
-Preset rename impact is the highest affected old/new boundary; both endpoints must be quiet for a quiet rename.
-Subject selectors follow surviving source lines or individual structured values, excluding reverted intent.
-Each net fact is classified once; any attributed subject can match the first applicable ordered rule.
-Every override supplies impact (none/patch/minor/major) and a readable reason.
-Dependency versions never imply consumer minor or major changes.
-Notification enabled/minimum_impact/cooldown_minutes are stored for future explicit delivery.
-```
-
-**Examples**
-
-```bash
-dot git releases
-dot git releases --refresh --panel-json
-dot git releases --scheduled --notify --panel-json
-dot git releases --open --repo example/project
-dot git releases review --repo example/project --snapshot ID --finding FINDING --impact patch
-dot git releases review --repo example/project --snapshot ID --finding ONE --finding TWO --impact none
-dot git releases review --repo example/project --snapshot ID --impact auto
-dot git releases publish --repo example/project --snapshot ID --notes-file notes.md
-dot git releases publish --repo example/project --snapshot ID --notes-file notes.md --notes-mode replace --confirm PLAN
-```
-
-#### `dot git releases review`
-
-Review exact local release evidence without publishing anything
-
-```text
-dot git releases review [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--repo` `<string>` | Configured repository name or GitHub slug |
-| `--snapshot` `<string>` | Exact displayed snapshot ID; stale selections are rejected |
-| `--panel-json` | Return the updated complete JSON snapshot |
-| `--finding` `<string>` | Finding ID, or overall for the current release-relevant comparison (default); repeatable to set several findings at once |
-| `--impact` `<choice>` | Local release impact; auto clears the override (choices: none, patch, minor, major, auto) |
-| `--help` `-h` | Show help information |
-
-#### `dot git releases publish`
-
-Preview version changes, validation, pushes and release notes. --interactive explains and confirms in the terminal; --confirm PLAN executes a reviewed plan with live progress. --notes-file supplies hand-written notes.
-
-```text
-dot git releases publish [flags]
-```
-
-Requires an explicit private releases.publish recipe. The preview is read-only. Confirmation binds the reviewed snapshot, version files, commands and target. Preparation runs in an isolated worktree. Only agreed version changes, plus any releases.publish.generated_files the commands regenerate (such as a lockfile), are committed through dot git commit, then the version commit and tag are pushed atomically. GitHub release notes are generated from the previous stable release (or the full history for a first release), unless --notes-file supplies hand-written notes. The file must exist and not be empty; its text is shown in the preview and bound to the plan, so pass the same --notes-file on confirmation and an edited file needs a new preview. --notes-mode prepend (default) puts the file before the generated notes, editing the release straight after creation; replace uses only the file. Progress includes command output and a saved log. Release creation does not wait for GitHub publication jobs; follow the returned Actions URL. Failed preparation is retained for inspection. Refresh and preview again after resolving a failure.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--repo` `<string>` | Configured repository name or GitHub slug |
-| `--snapshot` `<string>` | Exact displayed snapshot ID; stale selections are rejected |
-| `--panel-json` | Stream JSON progress and the final plan or release result |
-| `--interactive` | Explain, confirm and run the release in this terminal, with an optional log pager |
-| `--confirm` `<string>` | Execute the exact plan ID returned by the preview |
-| `--notes-file` `<string>` | Markdown file with hand-written release notes, read at preview and again at confirmation |
-| `--notes-mode` `<choice>` | Put --notes-file before the generated notes (prepend, default) or use it alone (replace) (choices: prepend, replace) |
 | `--help` `-h` | Show help information |
 
 ### `dot git issues`
@@ -1889,7 +1909,7 @@ dot skills import [flags] <name>
 Check/apply imported skill updates
 
 ```text
-dot skills updates <subcommand> [flags]
+dot skills updates [flags]
 ```
 
 **Options**
@@ -1910,51 +1930,6 @@ dot skills updates <subcommand> [flags]
 dot skills updates --json
 dot skills updates --update --skill agentic-workflows --no-commit
 ```
-
-#### `dot skills updates agent`
-
-Run skill update automation
-
-```text
-dot skills updates agent <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-#### `dot skills updates agent github`
-
-Run GitHub skill update automation
-
-```text
-dot skills updates agent github [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--skills-dir` `<path>` | Use this Skills checkout |
-| `--help` `-h` | Show help information |
-
-#### `dot skills updates agent device`
-
-Run local device skill update automation
-
-```text
-dot skills updates agent device [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--config` `<path>` | Use this YAML config |
-| `--run-id` `<string>` | Wait for this workflow run |
-| `--help` `-h` | Show help information |
 
 ### `dot skills check`
 
@@ -2082,7 +2057,7 @@ dot completions fish
 
 ## `dot repo`
 
-List and induct tracked repositories in private dot-git.yml
+List, induct and run hooks for tracked repositories in private dot-git.yml
 
 ```text
 dot repo <subcommand> [flags]
@@ -2169,7 +2144,7 @@ Induct a local repository into private dot git config with a preview before comm
 dot repo induct [flags] [<path>]
 ```
 
-The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity, including an optional release watching template from its release_templates. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use dot agent oxlint --opt-in to enable their agent pass.
+The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use dot agent oxlint --opt-in to enable their agent pass.
 
 **Options**
 
@@ -2194,8 +2169,6 @@ The terminal wizard asks for Normal (first and default) or Home Assistant, then 
 | `--notes-remote` `<string>` | Git remote for notes; empty for none (default: upstream when present) |
 | `--agent-lint` `<string>` | Agent lint command, split on spaces; empty for none |
 | `--opencode-mcp` `<string>` | Space- or comma-separated OpenCode MCP overrides: name turns a server on, !name turns it off; empty for none |
-| `--release-template` `<string>` | Private release template name from dot-git-presets.yml, or none |
-| `--release-branch` `<string>` | Branch compared with the published release (default: the template's branch, then origin's default branch) |
 | `--noninteractive` | Use flags and preset defaults without questions; preview by default |
 | `--commit` | Commit the proposed entry with --noninteractive after reviewing its preview |
 | `--help` `-h` | Show help information |
@@ -2212,6 +2185,36 @@ The terminal wizard asks for Normal (first and default) or Home Assistant, then 
 dot repo induct
 dot repo induct ~/repos/example --noninteractive --preset normal --name Example --aliases example
 dot repo induct ~/repos/example --noninteractive --preset normal --name Example --aliases example --commit
+```
+
+### `dot repo hook`
+
+Offer to run a tracked repository's post-update command
+
+```text
+dot repo hook [flags] [<path>]
+```
+
+Looks up the repository containing path (default: the working directory) in private dot-git.yml and, when it has a post_update command, asks whether to run it from the repository root, as dot up does after pulling. With --from, does nothing when HEAD still matches that revision. Untracked repositories and ones without a post_update command exit quietly. Outside a terminal or under an AI agent it only prints the command. The gpu shell function and lazygit's p binding run it after a plain git pull.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--from` `<string>` | HEAD before the pull; skip when the pull did not move it |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<path>` | path |
+
+**Examples**
+
+```bash
+dot repo hook
+before=$(git rev-parse HEAD); git pull && dot repo hook --from "$before"
 ```
 
 ## `dot pr`
@@ -2282,13 +2285,14 @@ Print a pull request's reviews and review threads once
 dot pr reviews [flags] [<pr...>]
 ```
 
-Fetch each pull request's latest reviews, every review thread with its comments, and bot reviews still requested, then exit. Markdown matches the review dump in dot pr watch reports: reviews newest first, unresolved threads with every comment in full, and resolved or minimized threads with only their replies. --json prints { pullRequests } with number, title, url, owner, name, repo, head, openThreads, botRequests, reviews and threads for each pull request. Read-only; exits 1 when a pull request cannot be resolved or fetched.
+Fetch each pull request's latest reviews, every review thread with its comments, and bot reviews still requested, then exit. Markdown matches the review dump in dot pr watch reports: reviews newest first, unresolved threads with every comment in full, and resolved or minimized threads with only their replies. --branch finds the open pull request whose head is that branch of the repository (not a fork's) in the same GraphQL query as its reviews, for pollers that would otherwise look the pull request up first; with no open pull request it prints none and exits 0. --json prints { pullRequests } with number, title, url, owner, name, repo, head, openThreads, botRequests, reviews and threads for each pull request (empty when --branch has no open pull request). Read-only; exits 1 when a pull request cannot be resolved or fetched.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
 | `--repo` `<string>` | Repository slug when the PRs are elsewhere |
+| `--branch` `<string>` | Read the open pull request with this head branch instead |
 | `--json` | Print the review state as JSON instead of Markdown |
 | `--help` `-h` | Show help information |
 
@@ -2304,6 +2308,7 @@ Fetch each pull request's latest reviews, every review thread with its comments,
 dot pr reviews
 dot pr reviews --json
 dot pr reviews 54322 54325 --repo home-assistant/frontend
+dot pr reviews --branch fix-logs --repo home-assistant/frontend --json
 ```
 
 ### `dot pr queue`
@@ -2455,7 +2460,7 @@ dot herdr repo <subcommand> [flags]
 
 #### `dot herdr repo open`
 
-Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Use --agent to resolve the launcher, label and kind from dot herdr agents; it cannot be combined with a command or --agent-kind. With --agent opencode2, --model creates an OpenCode session on a uniquely matched model before launching the full TUI and sending any prompt. Agent launches wait for readiness and verify the selected kind before naming or prompting. --prompt-file reads the prompt from a file before anything is launched and cannot be combined with --prompt. --no-focus leaves the current view alone. --after-prefix places a newly created workspace after the last workspace whose label starts with the prefix, keeping related workspaces together. Without it, a new workspace whose label starts with a [tag] joins that tag's group, and one whose label extends an existing one by a whole word (Dotfiles Private after Dotfiles) joins that group. A herdr_after label in dot-git.yml takes priority: the workspace opens straight after the nearest open workspace in its herdr_after chain, or straight before the first open workspace that chains back to it. --json reports resource IDs, creation flags, agent details, model and whether the prompt was sent. Without a command or --agent, focus the workspace; an empty command opens a shell using the selected layout.
+Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Use --agent to resolve the launcher, label and kind from dot herdr agents; it cannot be combined with a command or --agent-kind. With --agent opencode2, --model creates an OpenCode session on a uniquely matched model before launching the full TUI and sending any prompt. Agent launches wait for readiness and verify the selected kind before naming or prompting. --prompt-file reads the prompt from a file before anything is launched and cannot be combined with --prompt. --no-focus leaves the current view alone. --after-prefix places a newly created workspace after the last workspace whose label starts with the prefix, keeping related workspaces together. Without it, a new workspace whose label starts with a [tag] joins that tag's group, and one whose label extends an existing one by a whole word (Dotfiles Private after Dotfiles) joins that group. A herdr_after label in dot-git.yml takes priority: the workspace opens straight after the nearest open workspace in its herdr_after chain, or straight before the first open workspace that chains back to it. A linked Git worktree of a checkout opens through Herdr's worktree open instead, grouped under its repository with Herdr's label, and reuses its workspace when already open. --json reports resource IDs, creation flags, agent details, model and whether the prompt was sent. Without a command or --agent, focus the workspace; an empty command opens a shell using the selected layout.
 
 ```text
 dot herdr repo open [flags] <label> <directory> [<tab-label>] [<command>]
@@ -2957,6 +2962,8 @@ Stop Home Assistant dev servers
 dot homeassistant stop [flags] [<target...>]
 ```
 
+With no targets, or all, stops every server the checkout owns. Under an agent, the targets must be named, or all given, so a bare stop can't take down every server.
+
 **Options**
 
 | Option | Description |
@@ -2967,13 +2974,14 @@ dot homeassistant stop [flags] [<target...>]
 
 | Argument | Description |
 | --- | --- |
-| `<target>` | core, build, serve, a serve target with a daemon, gallery, demo or e2e (default: all) |
+| `<target>` | core, build, serve, a serve target with a daemon, gallery, demo, e2e, or all |
 
 **Examples**
 
 ```bash
 dot ha stop
 dot ha stop gallery
+dot ha stop all
 ```
 
 ### `dot homeassistant logs`

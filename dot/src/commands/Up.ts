@@ -1,7 +1,10 @@
 /**
- * @file `dot up`: check everything, pick what to run, then run it in order:
- * dotfiles, gh extensions and compose up, then the distro branch update. The
- * OpenCode app installs and updates system packages and tools itself.
+ * @file `dot up`: check everything, pick from the groups with work, then run
+ * them in order, ending with gh extensions, compose up and the distro branch
+ * update. The OpenCode app installs and updates system packages and tools
+ * itself. A stage the check found no work for only runs when an earlier stage
+ * changed something it applies, such as stow after a dotfiles pull that brings
+ * new links.
  */
 
 import { Extension } from "@timmo001/effect-gh";
@@ -14,6 +17,7 @@ import { gitOutput } from "../lib/git.js";
 import { SKILLS_CHECKOUT } from "../lib/skillsMaintenance.js";
 import { ENV, envString } from "../lib/env.js";
 import { formatCause } from "../lib/schema.js";
+import { installGhExtensions } from "../lib/ghExtensions.js";
 import { DEFAULT_SOCKET_PATH, openHerdrRepo } from "./HerdrRepoOpen.js";
 import { branchUpdate } from "./BranchUpdate.js";
 import { COMPOSE_CONFIG, composeUp } from "./Compose.js";
@@ -26,6 +30,11 @@ import {
   type PendingStatus,
 } from "../lib/pendingUpdates.js";
 import {
+  hasLocalUpdateWork,
+  pendingUpdateMaintenance,
+  pullKeepsLocalWork,
+} from "../lib/updateMaintenance.js";
+import {
   done,
   logRepoChanges,
   logUpdateSummary,
@@ -35,18 +44,21 @@ import {
   type RecapEntry,
   type UpdatedRepo,
 } from "../lib/updateSummary.js";
-import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
+import type { DiffRepo } from "../types.js";
 import {
   CORE_CHECK_CATEGORIES,
-  update,
+  isUpStage,
+  reportPendingUpdates,
   UP_GROUPS,
   UPDATE_CHECK_AVAILABLE_EXIT,
   UPDATE_CHECK_ERROR_EXIT,
   type UpdateOptions,
   type UpGroup,
 } from "./Update.js";
+import { runUpStage, type UpStageResult } from "./UpStage.js";
+import { restartDot } from "../lib/selfUpdate.js";
 import { saveStatus } from "./Updates.js";
 
 /** Seconds each check may take. */
@@ -59,11 +71,38 @@ const GROUP_INFO: Record<
   dotfiles: {
     title: "Dotfiles",
     description:
-      "Pull the dotfiles and tracked repositories, stow, rebuild dot and move the skills checkout",
+      "Pull the public and private dotfiles and their pinned submodules, and rebuild dot",
+  },
+  skills: {
+    title: "Skills",
+    description:
+      "Move the skills checkout to the latest main, rebuild skill-maintenance and relink skills",
+  },
+  repos: {
+    title: "Repositories",
+    description:
+      "Pull tracked repositories that are behind, leaving any with work in progress alone",
+  },
+  stow: {
+    title: "Stow",
+    description: "Generate completions, sync MCP config and skills, and stow",
+  },
+  plugins: {
+    title: "Agent plugins",
+    description: "Update the OpenCode plugins",
+  },
+  herdr: {
+    title: "Herdr",
+    description: "Restore pinned Herdr plugins and sync the saved machines",
+  },
+  agents: {
+    title: "Agents",
+    description:
+      "Sync agent instructions, and reload running agents when skills or plugins changed",
   },
   gh: {
     title: "gh extensions",
-    description: "Install missing gh extensions and upgrade the others",
+    description: "Install missing gh extensions and upgrade the installed ones",
   },
   compose: {
     title: "Compose",
@@ -71,8 +110,22 @@ const GROUP_INFO: Record<
   },
 };
 
-/** Which `dot up` group handles each checked group's work. */
-const groupWork = (groups: readonly PendingGroup[]) => {
+/** A check line for a stow package with links to apply. */
+const isStowLine = (line: string) => line.endsWith(" needs stow");
+
+/** A check line for a Herdr plugin pin to restore. */
+const isHerdrPinLine = (line: string) =>
+  / Herdr pin .* needs restoring$/.test(line);
+
+/**
+ * Which `dot up` stage or group handles each line of the check's work:
+ * tracked repository pulls go to repos, stow and Herdr pin maintenance to
+ * stow and herdr, and the rest of the dotfiles work to the dotfiles stage.
+ */
+const groupWork = (
+  groups: readonly PendingGroup[],
+  repoPulls: readonly RepoPull[],
+) => {
   const byId = new Map(groups.map((group) => [group.id, group]));
 
   const lines = (...ids: PendingGroup["id"][]) =>
@@ -82,12 +135,77 @@ const groupWork = (groups: readonly PendingGroup[]) => {
       return group ? groupLines(group) : [];
     });
 
+  const dotfiles = lines("dotfiles");
+  const isPull = (line: string) => repoPulls.some((repo) => repo.line === line);
+
   return {
-    dotfiles: lines("dotfiles", "skills"),
+    dotfiles: dotfiles.filter(
+      (line) => !isPull(line) && !isStowLine(line) && !isHerdrPinLine(line),
+    ),
+    skills: lines("skills"),
+    repos: dotfiles.filter(isPull),
+    stow: dotfiles.filter(isStowLine),
+    plugins: lines("plugins"),
+    herdr: dotfiles.filter(isHerdrPinLine),
+    agents: [],
     gh: lines("gh"),
     compose: [],
   } satisfies Record<UpGroup, readonly string[]>;
 };
+
+/**
+ * Whether a stage the check found no work for still needs to run, because a
+ * stage before it changed something it applies: a dotfiles pull can bring
+ * stow links, Herdr pins and agent instructions, and changed skills or
+ * plugins need running agents reloaded. Stow, plugins and Herdr are checked
+ * again before they run.
+ */
+const followsOn = (
+  group: UpGroup,
+  changed: ReadonlySet<UpGroup>,
+  reload: boolean,
+) => {
+  switch (group) {
+    case "stow":
+    case "herdr":
+      return changed.has("dotfiles");
+    case "agents":
+      return changed.has("dotfiles") || reload;
+    default:
+      return false;
+  }
+};
+
+/**
+ * The stow and Herdr pin work the update check finds in the dotfiles, so a
+ * dotfiles pull only brings in the stages its changes need.
+ */
+const dotfilesMaintenance = Effect.gen(function* () {
+  const repos = yield* (yield* DotDiff).getAll({
+    categories: new Set(["dotfiles"]),
+  });
+
+  const pending = yield* Effect.forEach(repos, pendingUpdateMaintenance);
+
+  return pending.flat();
+}).pipe(Effect.withSpan("Up.dotfilesMaintenance"));
+
+/** Check a follow-on stage again, now earlier stages have run, for whether it has work. */
+const stillNeeded = Effect.fn("Up.stillNeeded")(function* <R>(
+  group: UpGroup,
+  maintenance: Effect.Effect<readonly string[] | null, never, R>,
+) {
+  if (group === "stow" || group === "herdr") {
+    const pending = yield* maintenance;
+
+    return (
+      pending === null ||
+      pending.some(group === "stow" ? isStowLine : isHerdrPinLine)
+    );
+  }
+
+  return true;
+});
 
 /** Colour a pending work line by its shape, leaving unknown shapes plain. */
 const styleWorkLine = (style: Styler, line: string) => {
@@ -119,22 +237,100 @@ const styleWorkLine = (style: Styler, line: string) => {
   return line;
 };
 
+/** A tracked repository outside the dotfiles that only needs pulling. */
+interface RepoPull {
+  /** Checkout path. */
+  readonly path: string;
+  /** Its line in the update check. */
+  readonly line: string;
+}
+
+/**
+ * Match the check's pending lines to tracked repositories outside the
+ * dotfiles, so the check's skips for local work still apply.
+ */
+const repoPulls = (
+  repos: readonly DiffRepo[],
+  pending: readonly string[],
+): readonly RepoPull[] =>
+  repos.flatMap((repo) => {
+    if (CORE_CHECK_CATEGORIES.has(repo.category) || repo.behind === 0)
+      return [];
+
+    const line = pending.find((item) => item.startsWith(`${repo.name}: `));
+
+    return line ? [{ path: repo.path, line }] : [];
+  });
+
+/**
+ * Repositories the update check would pull: behind upstream, and not blocked
+ * by local work a fast-forward would touch.
+ *
+ * A dotfiles restart only carries the picked group names. The repos stage
+ * treats an empty path list as "every safe default-branch repository", which
+ * drops feature-branch pulls the check already showed, so a restarted run
+ * rebuilds this list instead of passing nothing.
+ */
+const pendingRepoPulls = Effect.fn("Up.pendingRepoPulls")(function* () {
+  const log = yield* OutputLog;
+
+  const repos = yield* (yield* DotDiff)
+    .getAll()
+    .pipe(
+      Effect.catch((error) =>
+        log
+          .warn(
+            `Could not rescan tracked repositories, so only safe default-branch checkouts will be pulled: ${error.message}`,
+          )
+          .pipe(Effect.as<readonly DiffRepo[]>([])),
+      ),
+    );
+
+  const chosen = yield* Effect.forEach(
+    repos.filter(
+      (repo) => !CORE_CHECK_CATEGORIES.has(repo.category) && repo.behind > 0,
+    ),
+    (repo) =>
+      Effect.gen(function* () {
+        if (
+          (yield* hasLocalUpdateWork(repo)) &&
+          !(yield* pullKeepsLocalWork(repo))
+        )
+          return null;
+
+        return {
+          path: repo.path,
+          line: `${repo.name}: ${repo.behind} behind`,
+        } satisfies RepoPull;
+      }).pipe(
+        Effect.catch((error) =>
+          log
+            .warn(
+              `Could not check ${repo.name}, so it won't be pulled: ${error.message}`,
+            )
+            .pipe(Effect.as(null)),
+        ),
+      ),
+    { concurrency: 6 },
+  );
+
+  return chosen.flatMap((repo) => (repo === null ? [] : [repo]));
+});
+
 /**
  * Log the commits and changed files each pending pull brings in, from where
  * the checkout and its upstream split, as the Git panel shows incoming changes.
  */
-const logIncoming = Effect.fn("Up.incoming")(function* (status: PendingStatus) {
-  const dotDiff = yield* DotDiff;
+const logIncoming = Effect.fn("Up.incoming")(function* (
+  status: PendingStatus,
+  repos: readonly DiffRepo[],
+) {
   const log = yield* OutputLog;
 
-  const repos = yield* dotDiff
-    .getAll({ categories: CORE_CHECK_CATEGORIES })
-    .pipe(Effect.orElseSucceed(() => []));
-
   const behind = [
-    ...repos
-      .filter((repo) => repo.behind > 0)
-      .map((repo) => ({ name: repo.name, path: repo.path, to: "@{u}" })),
+    ...repos.flatMap((repo) =>
+      repo.behind > 0 ? [{ name: repo.name, path: repo.path, to: "@{u}" }] : [],
+    ),
     ...(status.skills && status.skills.behind > 0
       ? [{ name: "skills", path: SKILLS_CHECKOUT, to: "origin/main" }]
       : []),
@@ -159,6 +355,10 @@ const logIncoming = Effect.fn("Up.incoming")(function* (status: PendingStatus) {
 export interface UpOptions extends UpdateOptions {
   /** Offer every group, even those with nothing pending. */
   readonly force?: boolean;
+  /** Groups offered but not picked, carried across restart handoffs so they don't run as follow-ons. */
+  readonly declined?: readonly UpGroup[];
+  /** Stages that changed something before a restart handoff, so the stages that apply it follow. */
+  readonly changed?: readonly UpGroup[];
 }
 
 const interactive = () =>
@@ -264,8 +464,8 @@ export const upCheck = Effect.gen(function* () {
 }).pipe(Effect.withSpan("Up.check"));
 
 /**
- * Pick the groups to run, all with work ticked. gh extensions and compose
- * have no dry run, so they are always offered.
+ * Pick the groups to run from those with work, all ticked. Compose has no dry
+ * run, so it is always offered when a compose config exists.
  */
 const pickGroups = Effect.fn("Up.pick")(function* (
   work: Record<UpGroup, readonly string[]>,
@@ -278,14 +478,12 @@ const pickGroups = Effect.fn("Up.pick")(function* (
     .pipe(Effect.orElseSucceed(() => false));
 
   const offered: UpGroup[] = UP_GROUPS.filter((group) =>
-    group === "compose"
-      ? compose
-      : opts.force || group === "gh" || work[group].length > 0,
+    group === "compose" ? compose : opts.force || work[group].length > 0,
   );
 
-  if (opts.yes) return offered;
+  if (opts.yes) return { offered, picked: offered };
 
-  return yield* Prompt.run(
+  const picked = yield* Prompt.run(
     Prompt.MultiSelect({
       message: "Choose updates:",
       choices: offered.map((group) => ({
@@ -304,9 +502,13 @@ const pickGroups = Effect.fn("Up.pick")(function* (
     // NodeTerminal retains its raw readline resource for a 10 ms idle window.
     Effect.tap(() => Effect.sleep("20 millis")),
   );
+
+  return { offered, picked };
 });
 
 const ghUpgrade = Effect.gen(function* () {
+  yield* installGhExtensions;
+
   const exitCode = yield* Extension.upgradeAll({
     interactive: true,
     timeout: null,
@@ -319,7 +521,7 @@ const ghUpgrade = Effect.gen(function* () {
   );
 
   return exitCode === 0
-    ? done("Upgraded gh extensions")
+    ? done("Installed and upgraded gh extensions")
     : warn(`gh extension upgrade exited ${exitCode}`);
 }).pipe(Effect.withSpan("Up.gh"));
 
@@ -335,24 +537,41 @@ const updateBranches = (opts: UpOptions) =>
  */
 export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
   const log = yield* OutputLog;
-  const executor = yield* CommandExecutor;
   const startedAt = opts.startedAt ?? (yield* Clock.currentTimeMillis);
-  const restarted = (opts.groups?.length ?? 0) > 0;
+  const changed = new Set<UpGroup>(opts.changed ?? []);
+  const restarted = (opts.groups?.length ?? 0) > 0 || changed.size > 0;
 
   let status: PendingStatus | null = null;
   let groups: readonly UpGroup[];
+  let declined: ReadonlySet<UpGroup> = new Set(opts.declined ?? []);
+  let pulls: readonly RepoPull[] = [];
 
   if (restarted) {
     groups = opts.groups ?? [];
+
+    // The handoff keeps group names only. Rebuild the check's pull list so
+    // the repos stage does not fall through to its unnamed default-branch scan.
+    if (groups.includes("repos")) pulls = yield* pendingRepoPulls();
   } else {
     yield* log.section("Checking For Updates");
+
     status = yield* log.withSpinner(
       "Checking everything",
       checkAll(CHECK_TIMEOUT),
     );
     yield* saveStatus(status).pipe(Effect.ignore);
 
-    const work = groupWork(pendingGroups(status));
+    // The check has just fetched, so this scan reads the cached upstreams.
+    const dotDiff = yield* DotDiff;
+
+    const repos = yield* dotDiff
+      .getAll()
+      .pipe(Effect.orElseSucceed((): readonly DiffRepo[] => []));
+
+    pulls = repoPulls(repos, status.dot.pending);
+
+    const work = groupWork(pendingGroups(status), pulls);
+
     const style = cliStyler();
 
     for (const group of UP_GROUPS) {
@@ -363,7 +582,8 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
       for (const line of work[group])
         yield* log.info(`  ${styleWorkLine(style, line)}`);
 
-      if (group === "dotfiles") yield* logIncoming(status);
+      if (group === "dotfiles" || group === "repos")
+        yield* logIncoming(status, repos);
     }
 
     if (!opts.force && UP_GROUPS.every((group) => work[group].length === 0)) {
@@ -376,42 +596,102 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
     // Only work that needs prompts answered opens a Herdr tab.
     if (!interactive()) return yield* handOffToHerdr(opts);
 
-    groups = yield* pickGroups(work, opts);
+    const choice = yield* pickGroups(work, opts);
+
+    groups = choice.picked;
+    declined = new Set(
+      choice.offered.filter((group) => !choice.picked.includes(group)),
+    );
   }
 
-  if (groups.length === 0) {
+  if (groups.length === 0 && changed.size === 0) {
     yield* log.info("Nothing picked");
 
     return;
   }
 
   const picked = new Set(groups);
-  const ordered = UP_GROUPS.filter((group) => picked.has(group));
   const updatedRepos: UpdatedRepo[] = [];
   const miseToolChanges: MiseToolChange[] = [];
   const actions: RecapEntry[] = [];
+  let agentsNeedReload = false;
 
-  for (const [index, group] of ordered.entries()) {
-    yield* log.section(
-      `[${index + 1}/${ordered.length}] ${GROUP_INFO[group].title}`,
+  // Only scanned when a dotfiles pull might need stow or Herdr, then reused.
+  const maintenance = yield* Effect.cached(
+    dotfilesMaintenance.pipe(
+      Effect.catchCause((cause) =>
+        log
+          .warn(
+            `Could not check the dotfiles for stow and Herdr work, so both run: ${formatCause(cause)}`,
+          )
+          .pipe(Effect.as(null)),
+      ),
+    ),
+  );
+
+  for (const [index, group] of UP_GROUPS.entries()) {
+    if (!picked.has(group)) {
+      if (
+        declined.has(group) ||
+        !followsOn(group, changed, agentsNeedReload) ||
+        !(yield* stillNeeded(group, maintenance))
+      )
+        continue;
+    }
+
+    yield* log.section(GROUP_INFO[group].title);
+    yield* log.info(
+      picked.has(group)
+        ? GROUP_INFO[group].description
+        : `${GROUP_INFO[group].description}, to apply what changed`,
     );
-    yield* log.info(GROUP_INFO[group].description);
 
-    if (group === "dotfiles") {
-      const result = yield* update({
-        ...opts,
-        startedAt,
-        groups: ordered,
-        yes: true,
-        inUp: true,
-      });
-
-      // The restarted binary carries on with the picked groups.
-      if (result === "restarted") return;
+    if (isUpStage(group)) {
+      // Stages never prompt, so a spinner can hold the bottom line throughout.
+      const result: UpStageResult = yield* log.withSpinner(
+        GROUP_INFO[group].title,
+        runUpStage(group, {
+          repos: group === "repos" ? pulls.map((repo) => repo.path) : [],
+          reload: opts.reload !== false && agentsNeedReload,
+        }),
+      );
 
       updatedRepos.push(...result.updatedRepos);
-      miseToolChanges.push(...result.miseToolChanges);
-      actions.push(...result.completedActions);
+      miseToolChanges.push(...result.miseTools);
+      actions.push(...result.actions);
+      agentsNeedReload ||= result.skillsChanged || result.pluginsChanged;
+
+      if (result.changed) changed.add(group);
+
+      if (result.failed) process.exitCode = 1;
+
+      // The later stages run with the code the pull just brought in.
+      if (group === "dotfiles" && result.restartNeeded) {
+        const rest = UP_GROUPS.slice(index + 1).filter((next) =>
+          picked.has(next),
+        );
+
+        yield* logUpdateSummary(
+          updatedRepos,
+          miseToolChanges,
+          actions,
+          startedAt,
+        );
+        yield* log.info("Restarting dot up with the rebuilt binary");
+        yield* restartDot([
+          "up",
+          ...rest.flatMap((next) => ["--group", next]),
+          ...[...declined].flatMap((next) => ["--declined", next]),
+          ...[...changed].flatMap((next) => ["--changed", next]),
+          ...(opts.yes ? ["--yes"] : []),
+          ...(opts.reload === false ? ["--no-reload"] : []),
+          ...(opts.branch === false ? ["--no-branch"] : []),
+          "--started-at",
+          String(startedAt),
+        ]);
+
+        return;
+      }
     } else if (group === "gh") {
       actions.push(yield* ghUpgrade);
     } else {
@@ -427,18 +707,8 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
     }
   }
 
-  const refreshExitCode = yield* executor.exitCode("dot", [
-    "updates",
-    "refresh",
-  ]);
-
-  actions.push(
-    refreshExitCode === 0
-      ? done("Refreshed the update status")
-      : warn(`Update status refresh failed (exit ${refreshExitCode})`),
-  );
-
   actions.push(yield* updateBranches(opts));
 
   yield* logUpdateSummary(updatedRepos, miseToolChanges, actions, startedAt);
+  yield* reportPendingUpdates;
 });

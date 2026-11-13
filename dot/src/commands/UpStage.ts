@@ -1,8 +1,9 @@
 /**
  * @file The stages of `dot up`, each runnable on its own as `dot up <stage>`:
- * dotfiles, skills, repos, stow, tools, plugins, herdr, agents and shell. A
- * stage never prompts or opens Herdr, so a background runner such as Upkeep can
- * call it, and with `--json` it prints one result saying what changed.
+ * dotfiles, skills, repos, stow, plugins, herdr and agents. A stage never
+ * prompts or opens Herdr, so a background runner such as Upkeep can call it,
+ * and with `--json` it prints one result saying what changed. The OpenCode app
+ * installs and updates tools itself.
  */
 import { Clock, Effect } from "effect";
 import { basename } from "path";
@@ -39,7 +40,6 @@ import {
   skip,
   warn,
 } from "../lib/updateSummary.js";
-import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { managedGitRepos } from "../services/GitConfig.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -54,12 +54,10 @@ import { syncHcMachines, syncHerdrMachines } from "./SetupHerdrMachines.js";
 import { stow as runStow } from "./Stow.js";
 import {
   notifyUpdated,
-  refreshTools,
   reportPendingUpdates,
   restoreHerdrPlugins,
   runRepoPostUpdate,
   safePull,
-  startDoctorCheck,
   updatePinnedSubmodules,
   updateRepositories,
   type UpStage,
@@ -104,8 +102,6 @@ export interface UpStageOptions {
   readonly repos?: readonly string[];
   /** Whether the agents stage reloads running agents. */
   readonly reload?: boolean;
-  /** Whether the shell stage refreshes the update status; `dot up` does a full one after. */
-  readonly refreshStatus?: boolean;
 }
 
 const changedBy = (actions: readonly RecapEntry[]) =>
@@ -341,12 +337,6 @@ const stowStage = Effect.gen(function* () {
   } satisfies StageOutcome;
 });
 
-const toolsStage = Effect.gen(function* () {
-  const { tools, actions } = yield* refreshTools(true, { plugins: false });
-
-  return { actions, miseTools: tools } satisfies StageOutcome;
-});
-
 /**
  * Update the Pi and global OpenCode plugins.
  */
@@ -388,29 +378,6 @@ const agentsStage = (reload: boolean) =>
     } satisfies StageOutcome;
   });
 
-const shellStage = (refreshStatus: boolean) =>
-  Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    const refreshed = yield* startDoctorCheck;
-
-    if (!refreshStatus) return { actions: [refreshed] } satisfies StageOutcome;
-
-    const exitCode = yield* executor.exitCode("dot", [
-      "updates",
-      "refresh",
-      "--quick",
-    ]);
-
-    return {
-      actions: [
-        refreshed,
-        exitCode === 0
-          ? done("Refreshed the update status")
-          : warn(`Update status refresh failed (exit ${exitCode})`),
-      ],
-    } satisfies StageOutcome;
-  });
-
 const stageEffect = (stage: UpStage, opts: UpStageOptions) =>
   Effect.gen(function* () {
     switch (stage) {
@@ -422,16 +389,12 @@ const stageEffect = (stage: UpStage, opts: UpStageOptions) =>
         return yield* reposStage(opts.repos ?? []);
       case "stow":
         return yield* stowStage;
-      case "tools":
-        return yield* toolsStage;
       case "plugins":
         return yield* pluginsStage;
       case "herdr":
         return yield* herdrStage;
       case "agents":
         return yield* agentsStage(opts.reload ?? true);
-      case "shell":
-        return yield* shellStage(opts.refreshStatus ?? true);
     }
   });
 
@@ -483,11 +446,7 @@ export const upStage = Effect.fn("UpStage.command")(function* (
 
   yield* log.section(`Up ${stage.charAt(0).toUpperCase()}${stage.slice(1)}`);
 
-  // The closing check saves the status, so the shell stage needn't refresh it.
-  const result = yield* runUpStage(stage, {
-    ...opts,
-    refreshStatus: opts.json,
-  });
+  const result = yield* runUpStage(stage, opts);
 
   if (result.failed) process.exitCode = 1;
 
