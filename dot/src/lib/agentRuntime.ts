@@ -115,6 +115,18 @@ export const restartStalePitchforkDaemons = Effect.gen(function* () {
   if (Bun.which("pitchfork") === null)
     return skip("Pitchfork daemons skipped (pitchfork not installed)");
 
+  // pitchfork.service owns the supervisor; reaching it any other way while the
+  // unit is down would fail, or start a stray supervisor outside the unit
+  const unitActive = yield* executor.exitCode("systemctl", [
+    "--user",
+    "is-active",
+    "--quiet",
+    "pitchfork.service",
+  ]);
+
+  if (unitActive !== 0)
+    return skip("Pitchfork daemons skipped (pitchfork.service not running)");
+
   const daemons = yield* executor
     .run("pitchfork", ["list", "--json", "--status", "running"])
     .pipe(Effect.flatMap(Schema.decodeEffect(PitchforkDaemons)));
