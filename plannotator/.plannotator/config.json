@@ -102,11 +102,12 @@
       "list_intro": "2026-11-08T21:42:09.166Z",
       "bro": "2026-11-11T20:57:13.468Z",
       "agent_rules": "2026-11-12T16:04:04.406Z",
-      "personal_agents": "2026-11-13T13:28:13.352Z"
+      "personal_agents": "2026-11-13T13:28:13.352Z",
+      "priority": "2026-11-14T00:02:21.723Z"
     },
-    "dayShownAt": "2026-11-13T14:03:16.813Z",
-    "lastShownAt": "2026-11-13T14:03:16.813Z",
-    "shownLoad": "58a40360-6a8d-4407-ae50-638c5d104d2e",
+    "dayShownAt": "2026-11-14T00:03:19.752Z",
+    "lastShownAt": "2026-11-14T00:03:19.752Z",
+    "shownLoad": "29c0e496-ab1a-48db-ac80-6c2faf1703b9",
     "bro": {
       "shownAt": "2026-11-11T23:10:09.973Z",
       "key": "bd7738a4-e2c5-4c8c-8a76-e1b8cb2e9306"
@@ -124,7 +125,9 @@
       "key": "0cbeb723-6ceb-4cbd-a3d1-a2680411dec7"
     },
     "priority": {
-      "dueAt": "2026-11-13T13:27:02.241Z"
+      "dueAt": "2026-11-13T13:27:02.241Z",
+      "shownAt": "2026-11-14T00:03:19.752Z",
+      "key": "738665b0-7630-46f7-9c8d-150edaa38b18"
     },
     "personal_agents": {
       "shownAt": "2026-11-13T14:03:16.813Z",
