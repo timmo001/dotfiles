@@ -1,6 +1,5 @@
 [Unit]
 Description=pitchfork
-After=default.target
 
 [Service]
 Type=simple
