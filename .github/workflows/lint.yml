@@ -85,27 +85,27 @@ jobs:
         run: mise run lint:oxlint
 
   validate-skills:
-    uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@9bb6ae3c2a1542cec4195b63f9516c83001e578e # 20261113.0
+    uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@13dce11f125107b83ea662167f1091d070dcd359 # 20261114.0
     with:
       skill-roots: .agents/skills dotfiles-skills/.agents/skills
 
   actionlint:
-    uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@9bb6ae3c2a1542cec4195b63f9516c83001e578e # 20261113.0
+    uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@13dce11f125107b83ea662167f1091d070dcd359 # 20261114.0
 
   markdownlint:
-    uses: timmo001/workflows/.github/workflows/lint-markdownlint.yml@9bb6ae3c2a1542cec4195b63f9516c83001e578e # 20261113.0
+    uses: timmo001/workflows/.github/workflows/lint-markdownlint.yml@13dce11f125107b83ea662167f1091d070dcd359 # 20261114.0
 
   yamllint:
-    uses: timmo001/workflows/.github/workflows/lint-yamllint.yml@9bb6ae3c2a1542cec4195b63f9516c83001e578e # 20261113.0
+    uses: timmo001/workflows/.github/workflows/lint-yamllint.yml@13dce11f125107b83ea662167f1091d070dcd359 # 20261114.0
 
   jsonlint:
-    uses: timmo001/workflows/.github/workflows/lint-jsonlint.yml@9bb6ae3c2a1542cec4195b63f9516c83001e578e # 20261113.0
+    uses: timmo001/workflows/.github/workflows/lint-jsonlint.yml@13dce11f125107b83ea662167f1091d070dcd359 # 20261114.0
 
   markdown-links:
-    uses: timmo001/workflows/.github/workflows/lint-markdown-links.yml@9bb6ae3c2a1542cec4195b63f9516c83001e578e # 20261113.0
+    uses: timmo001/workflows/.github/workflows/lint-markdown-links.yml@13dce11f125107b83ea662167f1091d070dcd359 # 20261114.0
 
   shellcheck:
-    uses: timmo001/workflows/.github/workflows/lint-shellcheck.yml@9bb6ae3c2a1542cec4195b63f9516c83001e578e # 20261113.0
+    uses: timmo001/workflows/.github/workflows/lint-shellcheck.yml@13dce11f125107b83ea662167f1091d070dcd359 # 20261114.0
     with:
       scandir: ./scripts/.local/bin
       severity: warning
