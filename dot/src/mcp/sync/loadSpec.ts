@@ -42,6 +42,8 @@ const SERVER_KEYS = new Set([
   "headers",
   "env",
   "oauth",
+  "cwd",
+  "pool",
   "gated",
   "enabled",
   "overrides",
@@ -71,6 +73,8 @@ interface MutableMcpServerSpec {
   headers?: Readonly<Record<string, string>>;
   env?: Readonly<Record<string, string>>;
   oauth?: boolean | McpOAuthSpec;
+  cwd?: string;
+  pool?: boolean;
   gated: boolean;
   enabled: Readonly<Partial<Record<McpHarness, boolean>>>;
   overrides?: Readonly<Partial<Record<McpHarness, McpServerOverride>>>;
@@ -230,6 +234,13 @@ function parseServer(
 
   const env = parseStringMap(value.env, `${location}.env`, diagnostics);
   const oauth = parseOAuth(value.oauth, `${location}.oauth`, diagnostics);
+  const cwd = optionalString(value.cwd, `${location}.cwd`, diagnostics);
+
+  const pool =
+    value.pool === undefined
+      ? null
+      : requiredBoolean(value.pool, `${location}.pool`, diagnostics);
+
   const gated = requiredBoolean(value.gated, `${location}.gated`, diagnostics);
 
   const enabled = parseEnabled(
@@ -252,6 +263,10 @@ function parseServer(
     diagnostics.push(`${location}.url is required for remote servers`);
   }
 
+  if (type === "remote" && cwd) {
+    diagnostics.push(`${location}.cwd is only supported for local servers`);
+  }
+
   if (!name || !type || gated === null || !enabled) return [];
   const server: MutableMcpServerSpec = { name, type, gated, enabled };
 
@@ -264,6 +279,10 @@ function parseServer(
   if (env) server.env = env;
 
   if (oauth !== null) server.oauth = oauth;
+
+  if (cwd) server.cwd = cwd;
+
+  if (pool !== null) server.pool = pool;
 
   if (overrides) server.overrides = overrides;
 

@@ -85,6 +85,10 @@ function renderOpencodeEntry(
       disabled: !enabled,
     };
 
+    if (server.cwd !== undefined) entry.cwd = server.cwd;
+
+    if (server.pool !== undefined) entry.pool = server.pool;
+
     if (server.env) entry.environment = renderEnv(server.env, "opencode");
 
     return entry;
@@ -95,6 +99,8 @@ function renderOpencodeEntry(
     url: resolveUrl(server, "opencode") ?? "",
     disabled: !enabled,
   };
+
+  if (server.pool !== undefined) entry.pool = server.pool;
 
   if (server.oauth === false) entry.oauth = false;
 

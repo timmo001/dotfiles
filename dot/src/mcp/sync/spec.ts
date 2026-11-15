@@ -95,6 +95,13 @@ export interface McpServerSpec {
   readonly env?: Readonly<Record<string, string>>;
   /** OpenCode OAuth behaviour or fixed client settings for a remote server. */
   readonly oauth?: boolean | McpOAuthSpec;
+  /** OpenCode working directory for a local server; `~` expands to home. */
+  readonly cwd?: string;
+  /**
+   * Whether OpenCode shares one connection across every directory. Local
+   * servers also need a fixed `cwd` to be shared.
+   */
+  readonly pool?: boolean;
   /**
    * Held out of OpenCode's default tools by a V2 deny permission for the
    * server's normalised `<name>_*` actions. An agent can override the gate.
