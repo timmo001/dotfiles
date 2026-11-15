@@ -1,6 +1,12 @@
 import { Clock, Effect, FileSystem, Match, Option, Schema } from "effect";
 import { dirname, join } from "path";
-import { HOME_DIR, STATE_DIR, expandHomePath } from "../lib/paths.js";
+import {
+  CONFIG_DIR,
+  HOME_DIR,
+  STATE_DIR,
+  expandHomePath,
+} from "../lib/paths.js";
+import { ENV, envString } from "../lib/env.js";
 import { decodeJson, type JsonValue } from "../lib/schema.js";
 import {
   acquireWorkspaceMutationLock,
@@ -21,7 +27,7 @@ const TAGS = {
   slack: `${TAG_PREFIX}ws1-slack`,
   discord: `${TAG_PREFIX}ws1-discord`,
   browser: `${TAG_PREFIX}ws1-browser-main`,
-  githubNotifications: `${TAG_PREFIX}ws1-github-notifications`,
+  upkeep: `${TAG_PREFIX}ws1-upkeep`,
   plannotator: `${TAG_PREFIX}ws1-plannotator`,
   workspace2Terminal: `${TAG_PREFIX}ws2-term`,
   workspace2Cursor: `${TAG_PREFIX}ws2-cursor`,
@@ -125,7 +131,9 @@ const PATTERN_CHROMIUM = "^chromium$";
 // the Inbox prefixes with an unread count such as "(1) ".
 const PATTERN_PLANNOTATOR = "Plannotator Inbox$";
 
-const PATTERN_GITHUB_NOTIFICATIONS = "^chrome-github\\.com__notifications";
+// Upkeep's Attention page as a Chromium web app, whose class is the address's
+// host followed by its path.
+const PATTERN_UPKEEP = "^chrome-.+__attention-";
 
 const PATTERN_GHOSTTY = "^com\\.mitchellh\\.ghostty$";
 
@@ -395,9 +403,6 @@ function applicationName(client: WorkspaceSetupLayoutClient): string {
 
   if (fieldsMatch(client, PATTERN_PLANNOTATOR)) return "Plannotator";
 
-  if (fieldsMatch(client, PATTERN_GITHUB_NOTIFICATIONS))
-    return "GitHub notifications";
-
   if (fieldsMatch(client, PATTERN_CHROMIUM)) return "Chromium";
 
   return humanizeClassName(client.class || client.initialClass);
@@ -429,17 +434,15 @@ function leftoverWorkspace1Window(
       !fieldsMatch(client, PATTERN_HERDR) &&
       !fieldsMatch(client, PATTERN_CHROMIUM) &&
       !fieldsMatch(client, PATTERN_PLANNOTATOR) &&
-      (workLayout
-        ? !isWorkOnlyWindow(client)
-        : !fieldsMatch(client, PATTERN_GITHUB_NOTIFICATIONS)),
+      !fieldsMatch(client, PATTERN_UPKEEP) &&
+      (!workLayout || !isWorkOnlyWindow(client)),
   );
 }
 
 /**
  * First window that must be closed before the requested layout can run.
  *
- * Work-only apps block the normal layout, and the normal-only GitHub
- * notifications window blocks the work layout. Any other tiled window on
+ * Work-only apps block the normal layout. Any other tiled window on
  * workspace 1 that no slot uses also blocks. Close-first copy is the window
  * title and application name.
  */
@@ -447,13 +450,7 @@ export function findWorkspaceSetupBlocker(
   clients: readonly WorkspaceSetupLayoutClient[],
   workLayout: boolean,
 ): WorkspaceSetupBlocker | undefined {
-  if (workLayout) {
-    const notifications = clients.find((client) =>
-      fieldsMatch(client, PATTERN_GITHUB_NOTIFICATIONS),
-    );
-
-    if (notifications) return closeFirstWindow(notifications);
-  } else {
+  if (!workLayout) {
     for (const pattern of WORK_ONLY_PATTERNS) {
       const workOnly = clients.find((client) => fieldsMatch(client, pattern));
 
@@ -467,6 +464,51 @@ export function findWorkspaceSetupBlocker(
 
   return undefined;
 }
+
+const decodeShellLayout = Schema.decodeUnknownEffect(
+  Schema.fromJsonString(
+    Schema.Struct({
+      bar: Schema.Struct({
+        layout: Schema.Record(Schema.String, Schema.Array(Schema.Unknown)),
+      }),
+    }),
+  ),
+);
+
+const decodeUpkeepWidget = Schema.decodeUnknownOption(
+  Schema.Struct({
+    id: Schema.Literal("timmo.upkeep"),
+    url: Schema.NonEmptyString,
+  }),
+);
+
+/**
+ * Upkeep's Attention page: under $UPKEEP_SERVER, or else under the address the
+ * timmo.upkeep bar widget opens, since the Hyprland session doesn't carry the
+ * shell's environment.
+ */
+const upkeepAttentionUrl = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+
+  const server =
+    envString(ENV.UPKEEP_SERVER) ??
+    (yield* fs.readFileString(join(CONFIG_DIR, "omarchy", "shell.json")).pipe(
+      Effect.flatMap(decodeShellLayout),
+      Effect.map(
+        (shell) =>
+          Object.values(shell.bar.layout)
+            .flat()
+            .flatMap((entry) => Option.toArray(decodeUpkeepWidget(entry)))[0]
+            ?.url,
+      ),
+      Effect.orElseSucceed(() => undefined),
+    ));
+
+  if (!server || !URL.canParse(server)) return undefined;
+
+  return new URL("attention", server.endsWith("/") ? server : `${server}/`)
+    .href;
+}).pipe(Effect.withSpan("workspaceSetup.upkeepAttentionUrl"));
 
 /** Run the native workspace setup workflow. */
 export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
@@ -872,13 +914,22 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       false,
     );
 
-    const githubNotifications = slot(
-      TAGS.githubNotifications,
-      PATTERN_GITHUB_NOTIFICATIONS,
-      'uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory="Default" --force-device-scale-factor=0.8 --app=https://github.com/notifications',
-      1,
-      false,
-    );
+    const attentionUrl = yield* upkeepAttentionUrl;
+
+    if (!attentionUrl)
+      yield* logStep(
+        "Skipping Upkeep (no $UPKEEP_SERVER or timmo.upkeep url setting)",
+      );
+
+    const upkeep = attentionUrl
+      ? slot(
+          TAGS.upkeep,
+          PATTERN_UPKEEP,
+          `uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory="Default" --force-device-scale-factor=0.8 --app=${attentionUrl}`,
+          1,
+          false,
+        )
+      : undefined;
 
     const herdr = slot(
       TAGS.workspace2Terminal,
@@ -907,7 +958,6 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
 
     if (workTime) {
       yield* logStep("Preparing workspace 1 work apps");
-      yield* clearTag(TAGS.githubNotifications);
 
       const slackAddress = yield* ensureSlot(
         slot(
@@ -929,6 +979,8 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
 
       yield* ensureSlot(plannotator);
 
+      if (upkeep) yield* ensureSlot(upkeep);
+
       if (slackAddress) {
         yield* focus(slackAddress);
         yield* preselect("r");
@@ -949,12 +1001,13 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       const discord = yield* addressByTag(TAGS.discord);
       const browser = yield* addressByTag(TAGS.browser);
       const review = yield* addressByTag(TAGS.plannotator);
+      const attention = yield* addressByTag(TAGS.upkeep);
 
       if (slack && discord && browser && review) {
         yield* logStep("Rebuilding workspace 1 work tree");
 
-        for (const address of [slack, discord, browser, review]) {
-          yield* move(config.temporaryWorkspace, address);
+        for (const address of [slack, discord, browser, review, attention]) {
+          if (address) yield* move(config.temporaryWorkspace, address);
         }
 
         yield* sleep(0.2);
@@ -967,6 +1020,14 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
         yield* preselect("d");
         yield* sleep(0.1);
         yield* move(1, review);
+
+        if (attention) {
+          yield* focus(review);
+          yield* preselect("r");
+          yield* sleep(0.1);
+          yield* move(1, attention);
+        }
+
         yield* focus(slack);
         yield* preselect("r");
         yield* sleep(0.1);
@@ -982,7 +1043,12 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       yield* resize(TAGS.slack, 671, 660);
       yield* resize(TAGS.discord, 671, 660);
       yield* resize(TAGS.browser, 1348, 850);
-      yield* resize(TAGS.plannotator, 1348, 850);
+      // Two thirds of the row for the Inbox, the rest for Upkeep beside it.
+      yield* resize(
+        TAGS.plannotator,
+        (yield* addressByTag(TAGS.upkeep)) ? 899 : 1348,
+        850,
+      );
 
       if (activeAddress) yield* focus(activeAddress);
 
@@ -997,25 +1063,31 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       yield* clearTag(TAGS.slack);
       yield* clearTag(TAGS.discord);
       yield* ensureSlot(personalBrowser, startupBrowser);
-      yield* ensureSlot(githubNotifications);
+
+      if (upkeep) yield* ensureSlot(upkeep);
+
       yield* ensureSlot(plannotator);
 
-      const top = yield* addressByTag(TAGS.githubNotifications);
+      const top = yield* addressByTag(TAGS.upkeep);
       const browser = yield* addressByTag(TAGS.browser);
       const review = yield* addressByTag(TAGS.plannotator);
 
-      if (top && browser && review) {
+      if (browser && review) {
         yield* logStep("Rebuilding workspace 1 non-work tree");
 
         for (const address of [top, browser, review]) {
-          yield* move(config.temporaryWorkspace, address);
+          if (address) yield* move(config.temporaryWorkspace, address);
         }
 
         yield* sleep(0.2);
-        yield* move(1, top);
-        yield* focus(top);
-        yield* preselect("d");
-        yield* sleep(0.1);
+
+        if (top) {
+          yield* move(1, top);
+          yield* focus(top);
+          yield* preselect("d");
+          yield* sleep(0.1);
+        }
+
         yield* move(1, browser);
         yield* focus(browser);
         yield* preselect("d");
@@ -1029,7 +1101,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       }
 
       yield* logStep("Applying workspace 1 non-work layout sizes");
-      yield* resize(TAGS.githubNotifications, 1294, 660);
+      yield* resize(TAGS.upkeep, 1294, 660);
       yield* resize(TAGS.plannotator, 1348, 240);
       yield* resize(TAGS.browser, 1348, 850);
 
