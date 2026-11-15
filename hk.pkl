@@ -1,32 +1,33 @@
-// Pre-push checks for changed file types. Each step runs the repository task
-// CI runs, so the scopes match. There is no pre-commit hook: `dot git commit`
+// Pre-push checks: the shared base from timmo001/workflows, with its lint steps
+// running this repository's own tasks so the scopes match CI, plus the dot
+// type check and format check. There is no pre-commit hook: `dot git commit`
 // owns commit-time checks. Run them by hand with `hk check`.
-amends "package://github.com/jdx/hk/releases/download/v2.12.0/hk@2.12.0#/Config.pkl"
+amends "package://github.com/timmo001/workflows/releases/download/20261114.0/hk-base@20261114.0.0#/base.pkl"
 
-local lint = new Mapping<String, Step> {
+local repoSteps = new Mapping<String, Step> {
   ["oxlint"] {
     glob = List("**/*.{ts,mts,cts,js,mjs,cjs}")
     check = "mise run lint:oxlint"
   }
-  ["markdown"] {
+  ["markdownlint"] {
     glob = List("**/*.md")
     check = "mise run lint:markdown"
   }
-  ["yaml"] {
+  ["yamllint"] {
     glob = List("**/*.{yml,yaml}")
     check = "mise run lint:yaml"
+  }
+  ["actionlint"] {
+    glob = List(".github/workflows/*.{yml,yaml}")
+    check = "mise run lint:actions"
+  }
+  ["shellcheck"] {
+    types = List("shell")
+    check = "mise run lint:shell"
   }
   ["json"] {
     glob = List("**/*.json")
     check = "mise run lint:json"
-  }
-  ["shell"] {
-    types = List("shell")
-    check = "mise run lint:shell"
-  }
-  ["actions"] {
-    glob = List(".github/workflows/*.{yml,yaml}")
-    check = "mise run lint:actions"
   }
   ["dot-typecheck"] {
     glob = List("dot/**/*.ts")
@@ -40,11 +41,13 @@ local lint = new Mapping<String, Step> {
 
 hooks {
   ["pre-push"] {
-    fix = false
-    stash = "none"
-    steps = lint
+    steps {
+      ...repoSteps
+    }
   }
   ["check"] {
-    steps = lint
+    steps {
+      ...repoSteps
+    }
   }
 }

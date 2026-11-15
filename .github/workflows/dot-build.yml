@@ -15,16 +15,20 @@ on:
   pull_request: {}
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build:
+  changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      dot: ${{ steps.changes.outputs.dot }}
+      docs: ${{ steps.changes.outputs.docs }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: true
 
       - name: Detect dot changes
         id: changes
@@ -41,44 +45,37 @@ jobs:
               - 'docs/**'
               - '.github/workflows/dot-build.yml'
 
+  build:
+    needs:
+      - changes
+    if: needs.changes.outputs.dot == 'true' || needs.changes.outputs.docs == 'true'
+    uses: timmo001/workflows/.github/workflows/build-bun-cli.yml@13dce11f125107b83ea662167f1091d070dcd359 # 20261114.0
+    with:
+      smoke-test: |
+        scripts/.local/bin/dot --help
+        scripts/.local/bin/dot agent tools --json | jq -e 'length > 0'
+
+  command-reference:
+    needs:
+      - changes
+    if: needs.changes.outputs.dot == 'true' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: Setup mise
-        if: steps.changes.outputs.dot == 'true' || steps.changes.outputs.docs == 'true'
         uses: ./.github/actions/setup-mise
-        with:
-          install: false
-
-      - name: Install mise tools
-        if: steps.changes.outputs.dot == 'true' || steps.changes.outputs.docs == 'true'
-        run: |
-          mise trust
-          mise install
-
-      - name: Install dependencies
-        if: steps.changes.outputs.dot == 'true'
-        run: bun install --frozen-lockfile
-        working-directory: dot
-
-      - name: Build
-        if: steps.changes.outputs.dot == 'true'
-        run: mise run dot:build
 
       - name: Regenerate docs command reference
-        if: steps.changes.outputs.dot == 'true'
-        run: mise run docs:gen:cli
-
-      - name: Install docs dependencies
-        if: steps.changes.outputs.dot == 'true' || steps.changes.outputs.docs == 'true'
-        run: bun install --frozen-lockfile
-        working-directory: docs
-
-      - name: Build docs
-        if: steps.changes.outputs.dot == 'true' || steps.changes.outputs.docs == 'true'
-        run: mise run docs:build
+        run: |
+          mise run dot:install
+          mise run docs:install
+          mise run docs:gen:cli
 
       - name: Verify regenerated command reference is committed
-        if: steps.changes.outputs.dot == 'true' && github.event_name == 'push'
         run: |
-          if ! git diff --exit-code -- docs/src/content/docs/dot/commands.md; then
+          if ! git diff --exit-code -- docs/src/content/docs/dot/commands.md docs/src/content/docs/dot/agents.md; then
             echo "::error::Dot command reference is out of date. Run 'mise run docs:gen:cli' and commit the result (and run dot completions when command metadata changes)."
             exit 1
           fi
