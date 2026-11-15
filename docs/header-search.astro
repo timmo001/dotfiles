@@ -1,15 +1,11 @@
 ---
 // docs-kit's header search with the theme picker: the site's own amber theme
-// first, by default and under its own heading, then Groundwork's core themes,
-// then the optional ones.
+// first, by default and with no heading, then Groundwork's core themes, then
+// the optional ones by family.
 import HeaderSearch from '@timmo001/docs-kit/blume/header-search.astro';
-import { coreThemeChoices, optionalThemeChoices } from '@timmo001/groundwork-tokens/choices';
+import { themeChoices } from '@timmo001/groundwork-tokens/choices';
 
-const themes = [
-  { id: 'dotfiles', name: 'Dotfiles', family: 'Dotfiles' },
-  ...coreThemeChoices,
-  ...optionalThemeChoices,
-];
+const themes = themeChoices({ id: 'dotfiles', name: 'Dotfiles' });
 ---
 
 <HeaderSearch {...Astro.props} themes={themes} defaultTheme="dotfiles" />
