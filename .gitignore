@@ -8,6 +8,7 @@ __pycache__/
 /agents/.config/opencode/plugins/node_modules/
 /mise.lock
 /.mise/
+/.claude/settings.local.json
 /mise/.config/mise/mise.lock
 /plannotator/.plannotator/*
 !/plannotator/.plannotator/config.json
