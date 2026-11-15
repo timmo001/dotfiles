@@ -154,37 +154,52 @@ export const isWorkTime = Effect.fn("isWorkTime")(function* (
   const cachePath = join(config.cacheDir, "work-calendar-leave.json");
   const checkedAt = now.getTime();
 
-  const cached = yield* fs.readFileString(cachePath).pipe(
-    Effect.flatMap(Schema.decodeUnknownEffect(CalendarLeaveCache)),
-    Effect.map((cache) =>
-      checkedAt >= cache.checkedAt &&
-      checkedAt - cache.checkedAt < CALENDAR_LEAVE_TTL_MS
-        ? cache.leave
-        : undefined,
-    ),
-    Effect.orElseSucceed(() => undefined),
-  );
+  const lastKnown = yield* fs
+    .readFileString(cachePath)
+    .pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(CalendarLeaveCache)),
+      Effect.option,
+    );
 
-  const leave =
-    cached ??
-    (yield* resolveSocketPath(Option.none()).pipe(
-      Effect.flatMap((socketPath) =>
-        calendarLeave(schedule).pipe(
-          Effect.provide(BridgeClient.layer(socketPath)),
+  const leave = yield* Option.match(
+    Option.filter(
+      lastKnown,
+      (cache) =>
+        checkedAt >= cache.checkedAt &&
+        checkedAt - cache.checkedAt < CALENDAR_LEAVE_TTL_MS,
+    ),
+    {
+      onSome: (cache) => Effect.succeed(cache.leave),
+      onNone: () =>
+        resolveSocketPath(Option.none()).pipe(
+          Effect.flatMap((socketPath) =>
+            calendarLeave(schedule).pipe(
+              Effect.provide(BridgeClient.layer(socketPath)),
+            ),
+          ),
+          Effect.timeout("5 seconds"),
+          Effect.tap((leave) =>
+            fs
+              .writeFileString(cachePath, JSON.stringify({ checkedAt, leave }))
+              .pipe(Effect.ignore),
+          ),
+          // Early in a boot Home Assistant may not answer yet, and work hours
+          // alone would run work jobs through leave.
+          Effect.catch(() =>
+            Option.match(lastKnown, {
+              onSome: (cache) =>
+                log(
+                  `Calendar check unavailable; using the last check from ${new Date(cache.checkedAt).toLocaleString()}`,
+                ).pipe(Effect.as(cache.leave)),
+              onNone: () =>
+                log(
+                  "Calendar check unavailable and never made; treating it as leave",
+                ).pipe(Effect.as(true)),
+            }),
+          ),
         ),
-      ),
-      Effect.timeout("5 seconds"),
-      Effect.tap((leave) =>
-        fs
-          .writeFileString(cachePath, JSON.stringify({ checkedAt, leave }))
-          .pipe(Effect.ignore),
-      ),
-      Effect.catch(() =>
-        log("Calendar check unavailable; using work hours").pipe(
-          Effect.as(false),
-        ),
-      ),
-    ));
+    },
+  );
 
   if (leave) yield* log("Calendar leave is active; work schedule is inactive");
 
