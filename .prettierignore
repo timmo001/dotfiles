@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.blume/
+.blume-verify/
+bun.lock
+mise.lock
+LICENSE
+AGENTS.md
+scripts/.local/bin/dot
+omarchy/.config/omarchy/components/
+omarchy/.config/omarchy/plugins/sceny.devices/
+docs/src/content/docs/dot/commands.md
+docs/src/content/docs/agents/opencode/commands.md
+docs/src/content/docs/agents/opencode/plugins.md

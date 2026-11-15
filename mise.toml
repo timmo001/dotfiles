@@ -118,9 +118,21 @@ description = "Type-check the dot links Chromium extension"
 depends = ["install"]
 run = "bunx tsc -p chromium-extension"
 
-[tasks.tests]
+[tasks.test]
 description = "Run the dot unit tests"
 depends = ["dot:test"]
+
+[tasks.format]
+description = "Format the dot source with Prettier"
+depends = ["dot:format"]
+
+[tasks."format:check"]
+description = "Check formatting without writing"
+depends = ["dot:format:check"]
+
+[tasks.build]
+description = "Build the dot binary, the Chromium extension and the docs site"
+depends = ["dot:build", "extension:build", "docs:build"]
 
 # docs (runs in ./docs)
 [tasks."docs:install"]
@@ -187,9 +199,13 @@ dir = "docs"
 run = "bun run gen"
 
 [tasks."docs:check"]
-description = "Build the docs site (validates internal links)"
-depends = ["docs:build"]
+description = "Check the docs site's pages, links and types without disturbing a running dev server"
+dir = "docs"
+depends = ["docs:install"]
+# With .blume/ present a dev server may be using it, so check in --isolated's
+# .blume-verify/; in a fresh checkout such as CI, generate .blume/ itself.
+run = "if [ -d .blume ]; then bun run check -- --isolated; else bun run check; fi"
 
 [tasks.check]
-description = "Run every lint, check, test, and docs build in parallel"
-depends = ["lint", "dot:check", "extension:typecheck", "tests", "docs:check"]
+description = "Run every lint, check, test, and docs check in parallel"
+depends = ["lint", "dot:check", "extension:typecheck", "test", "docs:check"]
