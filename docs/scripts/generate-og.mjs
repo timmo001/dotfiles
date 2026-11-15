@@ -13,7 +13,7 @@ const written = await writeBrandImages({
   title: 'Dotfiles',
   tagline: ['An agent-driven Omarchy setup for', 'development, desktop, and automation.'],
   site: 'dotfiles.timmo.dev',
-  background: '#1e293b',
+  background: '#18181b',
   accent: '#d97706',
   outputs: {
     og: path.join(root, 'public/og.png'),

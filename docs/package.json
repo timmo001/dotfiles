@@ -3,15 +3,16 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "blume dev",
-    "start": "blume dev",
-    "build": "blume build --strict",
-    "check": "blume check --strict",
+    "dev": "bun scripts/theme.ts && blume dev",
+    "start": "bun scripts/theme.ts && blume dev",
+    "build": "bun scripts/theme.ts && blume build --strict",
+    "check": "bun scripts/theme.ts && blume check --strict",
     "validate": "blume validate --strict",
     "deploy": "wrangler deploy --config dist/server/wrangler.json",
     "deploy:preview": "wrangler versions upload --config dist/server/wrangler.json",
     "preview": "blume preview",
     "og": "bun scripts/generate-og.mjs",
+    "theme": "bun scripts/theme.ts",
     "gen:cli": "bun scripts/generate-cli-reference.ts",
     "gen:opencode": "bun scripts/generate-opencode-reference.ts",
     "gen": "bun run gen:cli && bun run gen:opencode",
@@ -19,14 +20,19 @@
   },
   "dependencies": {
     "@astrojs/cloudflare": "14.4.8",
+    "@fontsource-variable/geist": "5.3.0",
     "@fontsource-variable/geist-mono": "5.3.0",
+    "@fontsource-variable/inter": "5.3.0",
+    "@fontsource-variable/jetbrains-mono": "5.3.0",
     "@fontsource-variable/mona-sans": "5.3.0",
     "@timmo001/docs-kit": "0.45.0",
+    "@timmo001/groundwork-tokens": "0.45.0",
     "blume": "2.2.7",
-    "sharp": "^0.35.1"
+    "sharp": "0.35.5"
   },
   "devDependencies": {
-    "wrangler": "^4.125.0"
+    "effect": "4.1.4",
+    "wrangler": "4.162.0"
   },
   "trustedDependencies": ["esbuild", "sharp"]
 }
