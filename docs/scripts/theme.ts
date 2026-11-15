@@ -1,6 +1,6 @@
 // Writes the site's own amber theme (themes/dotfiles.json) into theme.css,
-// between its marker comments: once as the default, and once more for the
-// theme picker. Fails on a missed contrast check, so a theme that reads badly
+// between its marker comments: once as the default, once more for the theme
+// picker, and its Groundwork tokens for the picker's own controls. Fails on a missed contrast check, so a theme that reads badly
 // never ships. Runs before dev, build and check.
 import { readFile, writeFile } from 'node:fs/promises';
 import {
@@ -17,7 +17,7 @@ const parsed = parseTheme(await readFile('themes/dotfiles.json', 'utf8'));
 
 if ('failure' in parsed) throw new Error(String(parsed.failure));
 
-const { theme, checks } = runtimeTheme(parsed.success);
+const { theme, css: tokens, checks } = runtimeTheme(parsed.success);
 const misses = checks.filter((check) => !check.passes);
 
 if (misses.length > 0) {
@@ -32,6 +32,6 @@ const to = css.indexOf(end);
 
 if (from === -1 || to < from) throw new Error('theme.css has no markers');
 
-const rendered = `${css.slice(0, from + start.length)}\n${blumeThemeCss(theme)}\n${blumeThemesCss([theme])}\n${css.slice(to)}`;
+const rendered = `${css.slice(0, from + start.length)}\n${blumeThemeCss(theme)}\n${blumeThemesCss([theme])}\n${tokens}\n${css.slice(to)}`;
 
 if (rendered !== css) await writeFile('theme.css', rendered);
