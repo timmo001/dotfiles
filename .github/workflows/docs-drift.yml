@@ -13,11 +13,13 @@ on:
       - 'mise.toml'
       - '.github/actions/setup-mise/**'
       - 'dot/src/cli/spec.ts'
+      - 'dot/src/commands/AgentTools.ts'
       - 'agents/.config/opencode/**'
       - 'dotfiles-skills/.agents/skills/**'
       - 'docs/scripts/generate-cli-reference.ts'
       - 'docs/scripts/generate-opencode-reference.ts'
       - 'docs/src/content/docs/dot/commands.md'
+      - 'docs/src/content/docs/dot/agents.md'
       - 'docs/src/content/docs/agents/opencode/commands.md'
       - 'docs/src/content/docs/agents/opencode/plugins.md'
       - '.github/workflows/docs-drift.yml'
@@ -26,11 +28,13 @@ on:
       - 'mise.toml'
       - '.github/actions/setup-mise/**'
       - 'dot/src/cli/spec.ts'
+      - 'dot/src/commands/AgentTools.ts'
       - 'agents/.config/opencode/**'
       - 'dotfiles-skills/.agents/skills/**'
       - 'docs/scripts/generate-cli-reference.ts'
       - 'docs/scripts/generate-opencode-reference.ts'
       - 'docs/src/content/docs/dot/commands.md'
+      - 'docs/src/content/docs/dot/agents.md'
       - 'docs/src/content/docs/agents/opencode/commands.md'
       - 'docs/src/content/docs/agents/opencode/plugins.md'
       - '.github/workflows/docs-drift.yml'
@@ -63,6 +67,10 @@ jobs:
         run: bun install --frozen-lockfile
         working-directory: dot
 
+      - name: Install docs dependencies
+        run: bun install --frozen-lockfile
+        working-directory: docs
+
       - name: Regenerate generated docs
         run: mise run docs:gen
 
@@ -70,6 +78,7 @@ jobs:
         run: |
           if ! git diff --exit-code -- \
             docs/src/content/docs/dot/commands.md \
+            docs/src/content/docs/dot/agents.md \
             docs/src/content/docs/agents/opencode/commands.md \
             docs/src/content/docs/agents/opencode/plugins.md; then
             echo "::error::Generated docs are out of date. Run 'mise run docs:gen' and commit the result (the dot command reference also pairs with 'dot completions')."

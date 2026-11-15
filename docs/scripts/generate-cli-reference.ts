@@ -1,8 +1,10 @@
 // Generates the command reference from the executable Effect command tree.
+import { Effect } from 'effect';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { commandDocs, commandHelp, dotCommand } from '../../dot/src/cli/spec.ts';
+import { agentToolManifest } from '../../dot/src/commands/AgentTools.ts';
 
 type AnyCommand = (typeof dotCommand.subcommands)[number]['commands'][number];
 
@@ -102,3 +104,49 @@ for (const group of dotCommand.subcommands) for (const command of group.commands
 await mkdir(path.dirname(outFile), { recursive: true });
 await writeFile(outFile, `${lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()}\n`);
 console.log(`Wrote ${path.relative(root, outFile)}`);
+
+const agentsFile = path.join(root, 'src/content/docs/dot/agents.md');
+const { tools } = Effect.runSync(agentToolManifest);
+const access = (tool: (typeof tools)[number]) =>
+  tool.jobOnly ? 'Job only' : tool.alwaysAsk ? 'Write, always asks' : tool.access === 'read' ? 'Read' : 'Write';
+const mcp = (tool: (typeof tools)[number]) =>
+  tool.jobOnly ? 'Left out' : tool.alwaysAsk ? 'Destructive' : tool.access === 'read' ? 'Read-only' : 'Tool';
+
+const agents = [
+  '---',
+  'title: Agents',
+  "description: \"dot's agent surface: Code Mode tools, the MCP server, the skills and every operation with its access.\"",
+  '---',
+  '',
+  '<!-- Generated from dot/src/commands/AgentTools.ts by `mise run docs:gen:cli`. Do not edit by hand. -->',
+  '',
+  'Agents reach `dot` three ways, all from the same command tree. Try Code Mode first, then MCP, then the CLI with `--json`.',
+  '',
+  '| Surface | What it is |',
+  '| --- | --- |',
+  '| Code Mode | `dot agent tools --json`, read by the OpenCode `cli-tools` plugin as the `dot` namespace |',
+  '| MCP | `dot mcp`, a stdio server with the same tools; job-only ones are left out |',
+  '| Skills | The `dot-*` skills in `dotfiles-skills/`, published through `skills.sh.json` |',
+  '',
+  'Install the skills with the [Skills CLI](https://skills.sh):',
+  '',
+  '```bash',
+  'npx skills add timmo001/dotfiles',
+  '```',
+  '',
+  'Add the MCP server to a harness as a stdio server running `dot mcp`.',
+  '',
+  '## Operations',
+  '',
+  'Write tools ask before they run unless a permission rule allows them. Tools that always ask never save an "always" answer. Job-only tools run through the `jobs` namespace, since they take longer than a tool call should.',
+  '',
+  '| Tool | Command | Access | MCP |',
+  '| --- | --- | --- | --- |',
+  ...tools.map(
+    (tool) =>
+      `| ${code(tool.name)} | ${code(`dot ${tool.argv.join(' ')}`)} | ${access(tool)} | ${mcp(tool)} |`,
+  ),
+];
+
+await writeFile(agentsFile, `${agents.join('\n')}\n`);
+console.log(`Wrote ${path.relative(root, agentsFile)}`);

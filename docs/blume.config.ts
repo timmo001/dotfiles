@@ -27,6 +27,7 @@ export default defineConfig(
           items: [
             '/dot/overview',
             '/dot/commands',
+            '/dot/agents',
           ],
         },
         {

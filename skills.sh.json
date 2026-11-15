@@ -1,0 +1,31 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "paths": ["./dotfiles-skills/.agents/skills"],
+  "groupings": [
+    {
+      "title": "Use",
+      "description": "Drive dot and this Omarchy setup from an agent: repositories, pull requests, sessions, packages, stow and the shell bar.",
+      "skills": [
+        "dot-repositories",
+        "dot-pr-queue",
+        "dot-pr-watch",
+        "dot-pr-loop",
+        "dot-git-commit",
+        "dot-git-links",
+        "dot-session-status",
+        "dot-session-queue",
+        "dot-skill-consumers",
+        "dot-package-activation",
+        "dot-agent-oxlint",
+        "dot-stow",
+        "install-tool",
+        "omarchy-shell-quickshell"
+      ]
+    },
+    {
+      "title": "Work on dotfiles",
+      "description": "Change this repository itself.",
+      "skills": ["dotfiles-docs"]
+    }
+  ]
+}
