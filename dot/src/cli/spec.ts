@@ -3672,7 +3672,11 @@ export const dotCommand = describe(
       gitCommand,
       linkCommand,
       describe(
-        Command.make("mcp").pipe(
+        Command.make("mcp", {}, () =>
+          Effect.promise(() => import("../mcp/commands/McpServe.js")).pipe(
+            Effect.flatMap((module) => module.mcpServe),
+          ),
+        ).pipe(
           Command.withSubcommands([
             describe(
               Command.make("sync", {}, () =>
@@ -3689,7 +3693,12 @@ export const dotCommand = describe(
             ),
           ]),
         ),
-        "Manage agent MCP server configs",
+        "Serve dot's agent tools over MCP, or manage agent MCP server configs",
+        ["dot mcp", "dot mcp sync"],
+        {
+          description:
+            "With no subcommand, serve the commands from dot agent tools as MCP tools on stdio. Read commands are read-only tools, commands that always ask in Code Mode are marked destructive, and job-only commands are left out. Each call runs the dot command and returns its exit code, output (parsed JSON for --json commands) and stderr.",
+        },
       ),
       privateCommand,
       skillsCommand,

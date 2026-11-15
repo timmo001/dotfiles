@@ -2562,17 +2562,26 @@ Chromium runs this through the link-native-host wrapper; it isn't for running by
 
 ## `dot mcp`
 
-Manage agent MCP server configs
+Serve dot's agent tools over MCP, or manage agent MCP server configs
 
 ```text
 dot mcp <subcommand> [flags]
 ```
+
+With no subcommand, serve the commands from dot agent tools as MCP tools on stdio. Read commands are read-only tools, commands that always ask in Code Mode are marked destructive, and job-only commands are left out. Each call runs the dot command and returns its exit code, output (parsed JSON for --json commands) and stderr.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
 | `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot mcp
+dot mcp sync
+```
 
 ### `dot mcp sync`
 

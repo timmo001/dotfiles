@@ -112,6 +112,7 @@ const AGENT_TOOLS = {
   },
   "omarchy plugin remove": {
     access: "write",
+    alwaysAsk: true,
     fixed: ["--yes", "--no-commit-offer"],
     omit: ["yes", "no-commit-offer", "confirm", "save"],
   },
@@ -120,6 +121,7 @@ const AGENT_TOOLS = {
   "homeassistant logs": { access: "read", omit: ["follow"], directory: true },
   "homeassistant stop": {
     access: "write",
+    alwaysAsk: true,
     directory: true,
     required: ["target"],
     description:
@@ -127,7 +129,7 @@ const AGENT_TOOLS = {
   },
   snapshot: { access: "read" },
   doctor: { access: "read", timeout: "5 minutes" },
-  "report run": { access: "write", timeout: "10 minutes" },
+  "report run": { access: "write", timeout: "10 minutes", jobOnly: true },
   "services start": { access: "write" },
   "services stop": { access: "write" },
   "session send": { access: "write" },
@@ -153,11 +155,11 @@ const AGENT_TOOLS = {
     description:
       "Check for updates and return at once when nothing is pending; otherwise run dot up in a new Herdr tab in the dotfiles workspace, where the user answers its prompts, and return the pane to follow with herdr.pane_read. check reports what is pending without opening a tab.",
   },
-  "up dotfiles": { access: "write", timeout: "10 minutes" },
-  "up skills": { access: "write", timeout: "10 minutes" },
-  "up repos": { access: "write", timeout: "10 minutes" },
+  "up dotfiles": { access: "write", timeout: "10 minutes", jobOnly: true },
+  "up skills": { access: "write", timeout: "10 minutes", jobOnly: true },
+  "up repos": { access: "write", timeout: "10 minutes", jobOnly: true },
   "up stow": { access: "write", timeout: "5 minutes" },
-  "up tools": { access: "write", timeout: "30 minutes" },
+  "up tools": { access: "write", timeout: "30 minutes", jobOnly: true },
   "up plugins": { access: "write", timeout: "10 minutes" },
   "up herdr": { access: "write", timeout: "5 minutes" },
   "up agents": { access: "write", timeout: "5 minutes" },
@@ -172,11 +174,11 @@ const AGENT_TOOLS = {
   },
   reload: { access: "write" },
   "skills consumers add": { access: "write" },
-  "skills consumers remove": { access: "write" },
+  "skills consumers remove": { access: "write", alwaysAsk: true },
   "notes capture sync": { access: "write", timeout: "5 minutes" },
   "omarchy shell config": { access: "write" },
   "git notifications dismiss dependencies": { access: "write" },
-  "git notifications dismiss remaining": { access: "write" },
+  "git notifications dismiss remaining": { access: "write", alwaysAsk: true },
 } satisfies Readonly<Record<string, AgentToolSpec>>;
 
 /** How one tool input key maps back to a command-line argument or flag. */
@@ -207,7 +209,7 @@ export const AgentToolEntry = Schema.Struct({
   timeoutMillis: Schema.Int,
   exitCodes: Schema.Array(Schema.Int),
   json: Schema.Boolean,
-  input: Schema.Unknown,
+  input: Schema.Record(Schema.String, Schema.Unknown),
   params: Schema.Array(AgentToolParam),
 });
 
@@ -362,9 +364,18 @@ const describeTool = Effect.fnUntraced(function* (
     );
   }
 
-  const { schema } = Schema.toJsonSchemaDocument(Schema.Struct(fields), {
-    onExcessProperty: "error",
-  });
+  const { schema } =
+    Object.keys(fields).length === 0
+      ? {
+          schema: {
+            type: "object",
+            properties: {},
+            additionalProperties: false,
+          },
+        }
+      : Schema.toJsonSchemaDocument(Schema.Struct(fields), {
+          onExcessProperty: "error",
+        });
 
   return {
     name: argv.join("_").replaceAll("-", "_"),
