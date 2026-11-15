@@ -54,6 +54,10 @@ Item {
     runAction("stop", unit)
   }
 
+  function dismiss(unit) {
+    runAction("dismiss", unit)
+  }
+
   function runAction(action, unit) {
     if (actionProcess.running) return
     pendingUnit = unit

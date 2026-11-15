@@ -639,6 +639,17 @@ Panel {
                           }
 
                           PanelActionButton {
+                            visible: rowSurface.status.consecutiveFailures > 0
+                            enabled: root.service && !root.service.actionBusy
+                            // Nerd Font md-bell_off.
+                            iconText: "\u{f009b}"
+                            tooltipText: "Dismiss the failure until it fails again"
+                            foreground: root.contentForeground
+                            fontFamily: root.contentFontFamily
+                            onClicked: root.service.dismiss(rowSurface.status.unit)
+                          }
+
+                          PanelActionButton {
                             enabled: root.service && root.service.installedAgents.length > 0
                             iconText: "󱚣"
                             tooltipText: "Investigate in agent · " + rowSurface.status.repository.name

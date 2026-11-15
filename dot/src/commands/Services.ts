@@ -165,8 +165,10 @@ export interface ServiceStatus {
   readonly nextNote?: string;
   /** How the job runs: its kind first, then schedule or restart policy. */
   readonly tags: readonly string[];
-  /** Consecutive failed runs, excluding skipped invocations. */
+  /** Consecutive failed runs since the last success, skipped run or dismissal. */
   readonly consecutiveFailures: number;
+  /** When failures up to then were dismissed by hand, in epoch milliseconds. */
+  readonly dismissedAt?: number;
   /** Failed runs before the latest success, when the job has recovered. */
   readonly recoveredAfter: number;
   /** Consecutive failures before the job counts as failed. */
@@ -193,6 +195,23 @@ interface Registered {
 }
 
 const SERVICES_DIR = join(CONFIG_DIR, "dot", "services.d");
+
+const dismissalMarker = (service: string) =>
+  join(STATE_DIR, "dot", "services", "dismissed", service);
+
+const readDismissal = Effect.fn("Services.readDismissal")(function* (
+  service: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  const written = yield* fs
+    .readFileString(dismissalMarker(service))
+    .pipe(Effect.orElseSucceed(() => ""));
+
+  const at = Number(written);
+
+  return written && Number.isFinite(at) ? at : undefined;
+});
 
 const MESSAGE = {
   starting: "7d4958e842da4a758f6c1cdc7b36dcc5",
@@ -750,17 +769,22 @@ function summarise(status: Omit<ServiceStatus, "summary">): string {
       return "Running now";
     case "paused":
       return "Paused for gaming";
-    case "ok":
+    case "ok": {
+      const latest = status.runs.find((run) => run.result !== "skipped");
+
       if (
-        status.runs.length > 0 &&
-        status.runs.every((run) => run.result === "skipped")
+        status.runs[0]?.result === "skipped" &&
+        (latest === undefined || latest.result === "failed")
       )
         return "Last run skipped";
+
+      if (latest?.result === "failed") return "Failure dismissed";
 
       if (status.recoveredAfter > 0)
         return `Recovered after ${status.recoveredAfter} failure${status.recoveredAfter === 1 ? "" : "s"}`;
 
       return status.activeState === "active" ? "Running" : "Last run succeeded";
+    }
   }
 }
 
@@ -880,13 +904,22 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
           run.result === "failed",
       );
 
+      const dismissedAt = yield* readDismissal(service);
+
       let consecutiveFailures = 0;
 
       for (const run of runs) {
+        if (
+          dismissedAt !== undefined &&
+          (run.finished ?? run.started ?? 0) <= dismissedAt
+        )
+          break;
+
         if (run.result === "failed") consecutiveFailures++;
         else if (
           run.result === "success" ||
           run.result === "warning" ||
+          run.result === "skipped" ||
           (!oneshot && run.result === "running")
         )
           break;
@@ -895,7 +928,9 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
       if (
         properties.ActiveState === "failed" &&
         runs[0]?.result !== "warning" &&
-        runs[0]?.result !== "skipped"
+        runs[0]?.result !== "skipped" &&
+        (dismissedAt === undefined ||
+          (runs[0]?.finished ?? runs[0]?.started ?? 0) > dismissedAt)
       )
         consecutiveFailures = Math.max(consecutiveFailures, 1);
 
@@ -1054,6 +1089,7 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
         nextNote,
         tags,
         consecutiveFailures,
+        dismissedAt,
         recoveredAfter,
         failAfter,
         restarts: recentRestarts,
@@ -1264,6 +1300,32 @@ export const servicesStop = Effect.fn("Services.stop")(function* (
     "--",
     status?.service ?? descriptor.unit,
   ]);
+});
+
+/**
+ * Clear a registered job's failures by hand: runs up to now stop counting,
+ * systemd's failed state is reset and the panel refreshes. A later failure
+ * counts again as usual.
+ */
+export const servicesDismiss = Effect.fn("Services.dismiss")(function* (
+  unit: string,
+) {
+  const { descriptor } = yield* findRegistered(unit);
+  const [status] = yield* collectServiceStatus([{ file: "", descriptor }]);
+  const executor = yield* CommandExecutor;
+  const fs = yield* FileSystem.FileSystem;
+  const service = status?.service ?? descriptor.unit;
+  const marker = dismissalMarker(service);
+
+  yield* fs.makeDirectory(dirname(marker), { recursive: true });
+  yield* fs.writeFileString(marker, String(yield* Clock.currentTimeMillis));
+
+  yield* executor
+    .exitCode("systemctl", ["--user", "reset-failed", "--", service])
+    .pipe(Effect.ignore);
+
+  yield* refreshServicesPanel;
+  yield* Console.log(`[INFO] Dismissed the failures of ${descriptor.unit}`);
 });
 
 /**
