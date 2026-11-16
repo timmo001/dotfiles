@@ -4,8 +4,8 @@ This directory is the Blume + Astro documentation site for the dotfiles repo, de
 
 ## Toolchain
 
-- Use **bun** for dependencies (`bun install`). Run dev tasks via mise from the repo root: `mise run docs:dev`, `mise run docs:build`, `mise run docs:preview`, `mise run docs:gen`. Each task sets `dir = "docs"` and wraps the matching `bun run` script in `package.json`, so `bun run dev` / `bun run build` still work. Cloudflare Workers Builds runs `bun run build`, then `bun run deploy`.
-- Node + bun versions and the dev tasks are defined in the single root `mise.toml` (tasks namespaced `docs:*`). Workers Builds uses the committed `bun.lock` and pinned Wrangler dependency.
+- Use **bun** for dependencies (`bun install`). Run dev tasks via mise from the repo root: `mise run docs:dev`, `mise run docs:build`, `mise run docs:preview`, `mise run docs:gen`. Each task sets `dir = "docs"` and wraps the matching `bun run` script in `package.json`, so `bun run dev` / `bun run build` still work. The Deploy docs workflow runs `mise run docs:deploy` through the shared `deploy-alchemy.yml`, which builds the site and deploys this branch's stage of `alchemy.run.ts`.
+- Node + bun versions and the dev tasks are defined in the single root `mise.toml` (tasks namespaced `docs:*`). CI uses the committed `bun.lock`; Wrangler stays pinned because the Astro Cloudflare adapter needs it.
 
 ## Background Dev Servers
 
@@ -29,13 +29,13 @@ Each `distro/*` branch publishes its own copy of this site to its own Cloudflare
 
 - `distros.ts` lists every distro (ID, label, branch, host name). It lives on the default branch and merges into the others; never edit it only on a distro branch.
 - `current-distro.ts` names this branch's entry. `blume.config.ts` reads it for `site`, `github.branch` and the switcher. The default branch never changes this file, so merges keep each distro branch's value.
-- `wrangler.jsonc` holds this branch's Worker `name` and custom-domain route. Each distro branch sets its own; the default branch keeps `dotfiles-docs` on `dotfiles.timmo.dev`.
+- `alchemy.run.ts` maps each Alchemy stage to its Worker name and custom domain: `prod` is `dotfiles-docs` on `dotfiles.timmo.dev`, and each other distro's stage is its ID, with `dotfiles-docs-<id>` on `<id>.dotfiles.timmo.dev`. `.github/workflows/deploy-docs.yml` maps each branch to its stage. Both live on the default branch and carry over to the others.
 
 To add a distro:
 
-1. On the default branch, add its entry to `distros.ts` and a row to `src/content/docs/distros.mdx`, then merge into the other distro branches.
-2. On the distro branch, set `current-distro.ts` to the new ID and give `wrangler.jsonc` a new Worker name (`dotfiles-docs-<id>`) and route (`<id>.dotfiles.timmo.dev`). Trim the sidebar and pages to what the branch ships.
-3. In Cloudflare, create a Workers Builds project for that Worker with the distro branch as its production branch, the `docs` root directory, and the same build and deploy commands as the main site.
+1. On the default branch, add its entry to `distros.ts`, a row to `src/content/docs/distros.mdx`, its stage (the distro ID) to `alchemy.run.ts` with a new Worker name (`dotfiles-docs-<id>`) and domain (`<id>.dotfiles.timmo.dev`), and its branch to `.github/workflows/deploy-docs.yml`. Then carry it into the other distro branches.
+2. On the distro branch, set `current-distro.ts` to the new ID. Trim the sidebar and pages to what the branch ships.
+3. Check the new stage with `ALCHEMY_STAGE=<id> mise run docs:plan`; the first push to the branch creates the Worker.
 
 ## Generated Content
 
@@ -61,7 +61,7 @@ Regenerate the affected catalogue from its source and include the output in the 
 - Blume generates `llms.txt`, `llms-full.txt`, raw `.md` mirrors, WebMCP, and `agent-readability.json`.
 - The hosted read-only MCP server is enabled at `/mcp`, which requires Cloudflare server output.
 - Ask AI is intentionally disabled, so the site has no model provider, model API key, or paid AI binding.
-- `wrangler.jsonc` is adapter input. Blume emits the deployable Worker config at `dist/server/wrangler.json`, and deploy scripts target that file.
+- Blume emits the deployable Worker at `dist/server/`; `alchemy.run.ts` reads it with docs-kit's `blumeWorker` and adds the name, domain, compatibility date and `nodejs_compat`. `mise run docs:plan` shows what a deploy would change, and `mise run docs:deploy:github` (once, or to rotate) writes CI's Cloudflare token into the repository's secrets from `stacks/github.ts`.
 
 ## Source of truth
 

@@ -8,8 +8,9 @@
     "build": "bun scripts/theme.ts && blume build --strict",
     "check": "bun scripts/theme.ts && blume check --strict",
     "validate": "blume validate --strict",
-    "deploy": "wrangler deploy --config dist/server/wrangler.json",
-    "deploy:preview": "wrangler versions upload --config dist/server/wrangler.json",
+    "deploy": "alchemy deploy --yes",
+    "deploy:github": "alchemy deploy --config stacks/github.ts --stage prod --yes",
+    "plan": "alchemy plan",
     "preview": "blume preview",
     "og": "bun scripts/generate-og.mjs",
     "theme": "bun scripts/theme.ts",
@@ -31,6 +32,10 @@
     "sharp": "0.35.5"
   },
   "devDependencies": {
+    "@alchemy.run/cloudflare": "2.0.0-beta.87",
+    "@alchemy.run/github": "2.0.0-beta.87",
+    "@effect/platform-bun": "4.1.4",
+    "alchemy": "2.0.0-beta.87",
     "effect": "4.1.4",
     "wrangler": "4.162.0"
   },

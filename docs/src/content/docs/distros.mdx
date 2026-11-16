@@ -21,5 +21,5 @@ Like the rest of these docs, each distro is tuned for my own machines. Borrow th
 | --- | --- |
 | `docs/distros.ts` | Shared list of distros for the header switcher, kept on the default branch and merged into the others |
 | `docs/current-distro.ts` | Which entry this branch is, setting its site and GitHub branch |
-| `docs/wrangler.jsonc` | Worker name and custom domain for this branch's site |
-| [Cloudflare Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) | One Worker per distro, each deploying from its own branch |
+| `docs/alchemy.run.ts` | Worker name and custom domain for each distro's site, picked by its Alchemy stage |
+| [Deploy docs](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/.github/workflows/deploy-docs.yml) | One Worker per distro, each deploying from its own branch through GitHub Actions |

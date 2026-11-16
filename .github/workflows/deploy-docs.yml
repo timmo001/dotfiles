@@ -1,0 +1,43 @@
+---
+name: Deploy docs
+
+# Deploys each distro branch's docs site from its own stage of the Alchemy
+# stack in docs/alchemy.run.ts. The Cloudflare token comes from
+# docs/stacks/github.ts.
+
+on:
+  push:
+    branches:
+      - distro/arch-omarchy-quattro
+      - distro/cloud
+      - distro/ubuntu-server
+    paths:
+      - '.github/workflows/deploy-docs.yml'
+      - 'docs/**'
+      - 'mise.toml'
+  workflow_dispatch:
+
+# One group per branch, so per stage. Deploys queue rather than cancel, so a
+# stack update never stops halfway
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    # Only the distro branches have a stage; any other ref deploys nothing
+    if: >-
+      contains(fromJSON('["distro/arch-omarchy-quattro", "distro/cloud", "distro/ubuntu-server"]'), github.ref_name)
+    uses: timmo001/workflows/.github/workflows/deploy-alchemy.yml@db6f3692a31de24d2bee17e505dfd2bf3fd5a076 # 20261116.1
+    with:
+      task: docs:deploy
+      stage: >-
+        ${{ fromJSON('{"distro/arch-omarchy-quattro": "prod", "distro/cloud": "cloud", "distro/ubuntu-server": "ubuntu-server"}')[github.ref_name] }}
+      smoke-check: >-
+        https://${{ fromJSON('{"distro/arch-omarchy-quattro": "dotfiles.timmo.dev", "distro/cloud": "cloud.dotfiles.timmo.dev", "distro/ubuntu-server": "ubuntu-server.dotfiles.timmo.dev"}')[github.ref_name] }}/ 200
+    secrets:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

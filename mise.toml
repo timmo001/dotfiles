@@ -158,6 +158,24 @@ description = "Preview the built docs site"
 dir = "docs"
 run = "bun run preview"
 
+[tasks."docs:plan"]
+description = "Build the docs site, then show what deploying its stage would change (ALCHEMY_STAGE, prod by default)"
+depends = ["docs:build"]
+dir = "docs"
+run = 'bun run plan --stage "${ALCHEMY_STAGE:-prod}"'
+
+[tasks."docs:deploy"]
+description = "Build the docs site, then deploy its stage with Alchemy (ALCHEMY_STAGE, prod by default)"
+depends = ["docs:build"]
+dir = "docs"
+run = 'bun run deploy --stage "${ALCHEMY_STAGE:-prod}"'
+
+[tasks."docs:deploy:github"]
+description = "Mint CI's Cloudflare token into the repository's secrets"
+depends = ["docs:install"]
+dir = "docs"
+run = "bun run deploy:github"
+
 [tasks."serve:docs"]
 description = "Start the docs dev server in the background through Pitchfork"
 run = "pitchfork start docs"

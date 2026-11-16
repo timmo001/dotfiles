@@ -22,3 +22,5 @@ bun-debug.log*
 # Vercel
 .vercel
 .wrangler/
+# Alchemy's local state and build output
+.alchemy/
