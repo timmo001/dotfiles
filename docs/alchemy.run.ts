@@ -2,32 +2,18 @@
  * The docs sites' infrastructure as an Alchemy stack: one Worker per distro
  * branch, picked by stage, serving what `blume build` leaves in `dist/`.
  * Deploy it with `mise run docs:deploy`, which builds the site first and
- * deploys the stage in `ALCHEMY_STAGE`, `prod` by default. A stage only
- * deploys from its own distro's branch, as set in `current-distro.ts`.
+ * deploys the stage in `ALCHEMY_STAGE`, `prod` by default.
  */
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import { blumeWorker } from "@timmo001/docs-kit/blume/worker";
 import * as Alchemy from "alchemy";
 import * as Effect from "effect/Effect";
-import { currentDistro } from "./current-distro";
 
-/** Each distro branch's stage, with its distro, Worker and domain. */
-const workers: Record<
-  string,
-  { distro: string; name: string; domain: string }
-> = {
-  prod: {
-    distro: "arch-omarchy-quattro",
-    name: "dotfiles-docs",
-    domain: "dotfiles.timmo.dev",
-  },
-  cloud: {
-    distro: "cloud",
-    name: "dotfiles-docs-cloud",
-    domain: "cloud.dotfiles.timmo.dev",
-  },
+/** Each distro branch's stage, with its Worker and domain. */
+const workers: Record<string, { name: string; domain: string }> = {
+  prod: { name: "dotfiles-docs", domain: "dotfiles.timmo.dev" },
+  cloud: { name: "dotfiles-docs-cloud", domain: "cloud.dotfiles.timmo.dev" },
   "ubuntu-server": {
-    distro: "ubuntu-server",
     name: "dotfiles-docs-ubuntu-server",
     domain: "ubuntu-server.dotfiles.timmo.dev",
   },
@@ -41,15 +27,11 @@ export default Alchemy.Stack(
   },
   Effect.gen(function* () {
     const stage = yield* Alchemy.Stage;
-    // Stops one distro's docs deploying over another's site
-    const worker = Object.hasOwn(workers, stage) ? workers[stage] : undefined;
-    if (worker?.distro !== currentDistro) {
-      const expected = Object.keys(workers).find(
-        (key) => workers[key].distro === currentDistro,
-      );
+    const worker = workers[stage];
+    if (!worker) {
       return yield* Effect.die(
         new Error(
-          `This branch's docs are the ${currentDistro} distro, so deploy stage "${expected}", not "${stage}"`,
+          `No docs Worker for stage "${stage}"; use one of ${Object.keys(workers).join(", ")}`,
         ),
       );
     }
@@ -63,8 +45,7 @@ export default Alchemy.Stack(
     // compatibility date here. Each Worker was deployed by Workers Builds
     // before this stack, so it's adopted rather than failing as someone else's
     const docs = yield* Cloudflare.Worker("Docs", {
-      name: worker.name,
-      domain: worker.domain,
+      ...worker,
       ...built,
       compatibility: {
         date: "2026-07-17",
