@@ -585,14 +585,14 @@ function buildRuns(
   results: ReadonlyMap<string, string> = new Map(),
 ) {
   const runs = new Map<string, MutableRun>();
-  const restarts: number[] = [];
+  const restarts: { time: number; invocation?: string }[] = [];
 
   for (const entry of entries) {
     const time = Math.round(Number(entry.__REALTIME_TIMESTAMP) / 1000);
-
-    if (entry.MESSAGE_ID === MESSAGE.restart) restarts.push(time);
-
     const invocation = entry.USER_INVOCATION_ID;
+
+    if (entry.MESSAGE_ID === MESSAGE.restart)
+      restarts.push({ time, invocation });
 
     if (!invocation) continue;
 
@@ -689,7 +689,16 @@ function buildRuns(
     )
     .reverse();
 
-  return { runs: ordered, restarts };
+  // Only a restart after a failed run counts towards restartLimit. One after a
+  // clean exit is planned, such as a worker that drains and exits with a
+  // RestartForceExitStatus code to start again on an upgraded binary.
+  const failedRestarts = restarts.flatMap(({ time, invocation }) =>
+    invocation === undefined || runs.get(invocation)?.result === "failed"
+      ? [time]
+      : [],
+  );
+
+  return { runs: ordered, restarts: failedRestarts };
 }
 
 const expandDescriptorPath = (path: string) =>
