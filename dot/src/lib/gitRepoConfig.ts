@@ -18,6 +18,7 @@ export class GitRepoConfigError extends Schema.TaggedError<GitRepoConfigError>()
   "GitRepoConfigError",
   {
     message: Schema.String,
+    cause: Schema.optionalKey(Schema.Defect()),
   },
 ) {}
 
@@ -168,9 +169,10 @@ export const commitGitRepoConfigEdit = Effect.fn("gitRepoConfig.commit")(
       .run("dot", ["git", "commit", "--help"], { cwd: edit.privateRoot })
       .pipe(
         Effect.mapError(
-          () =>
+          (cause) =>
             new GitRepoConfigError({
               message: "dot git commit is unavailable",
+              cause,
             }),
         ),
       );

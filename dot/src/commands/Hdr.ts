@@ -7,6 +7,7 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 /** HDR could not be switched on the primary monitor. */
 export class HdrError extends Schema.TaggedError<HdrError>()("HdrError", {
   message: Schema.String,
+  cause: Schema.optionalKey(Schema.Defect()),
 }) {}
 
 /** Primary monitor on the desktop, whatever has focus. */
@@ -96,7 +97,11 @@ const primaryMonitor = Effect.gen(function* () {
   const monitors = yield* executor.run("hyprctl", ["-j", "monitors"]).pipe(
     Effect.flatMap(decodeMonitors),
     Effect.mapError(
-      () => new HdrError({ message: "Could not read Hyprland monitor state." }),
+      (cause) =>
+        new HdrError({
+          message: "Could not read Hyprland monitor state.",
+          cause,
+        }),
     ),
   );
 

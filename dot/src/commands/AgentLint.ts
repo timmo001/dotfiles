@@ -34,7 +34,7 @@ export interface AgentLintOptions {
 /** Domain error raised before any lint command starts. */
 export class AgentLintError extends Schema.TaggedError<AgentLintError>()(
   "AgentLintError",
-  { message: Schema.String },
+  { message: Schema.String, cause: Schema.optionalKey(Schema.Defect()) },
 ) {}
 
 /** Outcome of one configured command. */
@@ -263,9 +263,10 @@ export const agentLint = Effect.fn("agentLint")(function* (
     .run("git", ["rev-parse", "--show-toplevel"], { cwd: process.cwd() })
     .pipe(
       Effect.mapError(
-        () =>
+        (cause) =>
           new AgentLintError({
             message: "agent-lint: not inside a Git repository",
+            cause,
           }),
       ),
     )).trim();

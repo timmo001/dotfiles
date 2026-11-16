@@ -1,4 +1,4 @@
-import { Context, Effect, FileSystem, Layer, Option } from "effect";
+import { Context, Effect, FileSystem, Layer, Option, Schema } from "effect";
 import { join } from "path";
 import {
   defaultDotGitConfigPath,
@@ -36,6 +36,12 @@ export interface OmarchyRepoConfig {
   /** Whether omarchy diff repos are enabled */
   readonly enabled: boolean;
 }
+
+/** dot's own cache or log directory could not be created. */
+export class ConfigError extends Schema.TaggedError<ConfigError>()(
+  "ConfigError",
+  { message: Schema.String, cause: Schema.optionalKey(Schema.Defect()) },
+) {}
 
 /** Service interface providing resolved paths and environment detection */
 export interface ConfigService {
@@ -163,8 +169,20 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
       const stateDir = join(STATE_DIR, "dot");
       const logDir = join(stateDir, "logs");
 
-      yield* fs.makeDirectory(logDir, { recursive: true }).pipe(Effect.orDie);
-      yield* fs.makeDirectory(cacheDir, { recursive: true }).pipe(Effect.orDie);
+      yield* Effect.forEach(
+        [logDir, cacheDir],
+        (directory) =>
+          fs.makeDirectory(directory, { recursive: true }).pipe(
+            Effect.mapError(
+              (cause) =>
+                new ConfigError({
+                  message: `Could not create ${directory}`,
+                  cause,
+                }),
+            ),
+          ),
+        { discard: true },
+      );
 
       return {
         publicDotfiles,

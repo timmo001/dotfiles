@@ -112,6 +112,7 @@ export class HerdrRepoOpenError extends Schema.TaggedError<HerdrRepoOpenError>()
   {
     message: Schema.String,
     exitCode: Schema.Union([Schema.Literal(1), Schema.Literal(2)]),
+    cause: Schema.optionalKey(Schema.Defect()),
   },
 ) {}
 
@@ -325,11 +326,12 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
           AgentName.check(Schema.isPattern(/^[a-z][a-z0-9_-]{0,31}$/)),
         )(options.agentName).pipe(
           Effect.mapError(
-            () =>
+            (cause) =>
               new HerdrRepoOpenError({
                 message:
                   "Agent names must start with a lowercase letter and contain only lowercase letters, digits, '-' or '_' (1-32 characters)",
                 exitCode: 2,
+                cause,
               }),
           ),
         );
@@ -416,10 +418,11 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
       ),
       Effect.retry(runtime.readinessSchedule ?? READINESS_SCHEDULE),
       Effect.mapError(
-        () =>
+        (cause) =>
           new HerdrRepoOpenError({
             message: "Herdr terminal client did not become ready",
             exitCode: 1,
+            cause,
           }),
       ),
     );

@@ -16,6 +16,7 @@ class HerdrServerError extends Schema.TaggedError<HerdrServerError>()(
   "HerdrServerError",
   {
     message: Schema.String,
+    cause: Schema.optionalKey(Schema.Defect()),
   },
 ) {}
 
@@ -507,9 +508,10 @@ export const herdrServerAction = Effect.fn("herdrServerAction")(
       ),
       Effect.timeout("15 seconds"),
       Effect.mapError(
-        () =>
+        (cause) =>
           new HerdrServerError({
             message: `Herdr has not become ready. See ${join(STATE_DIR, "herdr-restart.log")}.`,
+            cause,
           }),
       ),
     );

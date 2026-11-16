@@ -17,7 +17,7 @@ import { type StatusRunOptions, statusOf, statusRun } from "./StatusRun.js";
 /** Home Assistant dev command failure. */
 export class HomeAssistantError extends Schema.TaggedError<HomeAssistantError>()(
   "HomeAssistantError",
-  { message: Schema.String },
+  { message: Schema.String, cause: Schema.optionalKey(Schema.Defect()) },
 ) {}
 
 const CONFIG_FILE = join(CONFIG_DIR, "dot", "homeassistant.yml");
@@ -82,9 +82,10 @@ const loadConfig = Effect.gen(function* () {
 
   const text = yield* fs.readFileString(CONFIG_FILE).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new HomeAssistantError({
           message: `Could not read ${CONFIG_FILE}`,
+          cause,
         }),
     ),
   );

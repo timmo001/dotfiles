@@ -31,7 +31,7 @@ const NativeRequest = Schema.fromJsonString(
 /** A request the native host can't answer. */
 class NativeHostError extends Schema.TaggedError<NativeHostError>()(
   "NativeHostError",
-  { message: Schema.String },
+  { message: Schema.String, cause: Schema.optionalKey(Schema.Defect()) },
 ) {}
 
 // Chromium frames each message with a 32-bit length in native byte order,
@@ -68,7 +68,8 @@ const readRequest = Effect.gen(function* () {
     Stream.takeUntil(frameEnded),
     Stream.runLast,
     Effect.mapError(
-      () => new NativeHostError({ message: "Could not read the request" }),
+      (cause) =>
+        new NativeHostError({ message: "Could not read the request", cause }),
     ),
   );
 
@@ -86,7 +87,7 @@ const readRequest = Effect.gen(function* () {
     new TextDecoder().decode(bytes.value.subarray(4, 4 + length)),
   ).pipe(
     Effect.mapError(
-      () => new NativeHostError({ message: "Unsupported request" }),
+      (cause) => new NativeHostError({ message: "Unsupported request", cause }),
     ),
   );
 }).pipe(Effect.withSpan("LinkNativeHost.readRequest"));
@@ -139,7 +140,9 @@ const startApp = Effect.fn("LinkNativeHost.startApp")(function* (
       Effect.flatMap((child) => child.unref),
       Effect.asVoid,
       Effect.scoped,
-      Effect.mapError(() => new NativeHostError({ message: failure })),
+      Effect.mapError(
+        (cause) => new NativeHostError({ message: failure, cause }),
+      ),
     );
 });
 
@@ -175,9 +178,10 @@ const answer = Effect.gen(function* () {
 
     yield* executor.run("upkeep", ["run", "notifications"]).pipe(
       Effect.mapError(
-        () =>
+        (cause) =>
           new NativeHostError({
             message: "Could not queue the upkeep notifications job",
+            cause,
           }),
       ),
     );

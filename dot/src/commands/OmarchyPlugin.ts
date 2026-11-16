@@ -63,24 +63,23 @@ interface AddOptions {
 }
 
 /** Typed input for managed Omarchy plugin operations. */
-export type OmarchyPluginInput =
-  | {
-      readonly _tag: "add";
-      readonly id: string;
-      readonly url: string;
-      readonly checkout: string;
-      readonly path?: string;
-      readonly section?: "left" | "center" | "right";
-      readonly before?: string;
-      readonly after?: string;
-    }
-  | { readonly _tag: "update"; readonly id?: string; readonly yes: boolean }
-  | {
-      readonly _tag: "remove";
-      readonly id: string;
-      readonly yes: boolean;
-      readonly offerCommit: boolean;
-    };
+export type OmarchyPluginInput = Data.TaggedEnum<{
+  add: {
+    readonly id: string;
+    readonly url: string;
+    readonly checkout: string;
+    readonly path?: string;
+    readonly section?: "left" | "center" | "right";
+    readonly before?: string;
+    readonly after?: string;
+  };
+  update: { readonly id?: string; readonly yes: boolean };
+  remove: {
+    readonly id: string;
+    readonly yes: boolean;
+    readonly offerCommit: boolean;
+  };
+}>;
 
 /** Constructors and guards for managed plugin operations. */
 export const OmarchyPluginInput = Data.taggedEnum<OmarchyPluginInput>();

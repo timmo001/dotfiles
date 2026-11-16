@@ -7,7 +7,7 @@ import { CONFIG_DIR } from "./paths.js";
 /** A decision model call failed, timed out, or its credentials are missing. */
 export class DecisionModelError extends Schema.TaggedError<DecisionModelError>()(
   "DecisionModelError",
-  { message: Schema.String },
+  { message: Schema.String, cause: Schema.optionalKey(Schema.Defect()) },
 ) {}
 
 /** Workers AI account and token for `@cf/` decision models, written by a secret file. */
@@ -58,9 +58,10 @@ export const workersAiFor = Effect.fn("decisionModel.workersAi")(function* (
     Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
     Effect.flatMap(Schema.decodeUnknownEffect(WorkersAi)),
     Effect.mapError(
-      () =>
+      (cause) =>
         new DecisionModelError({
           message: `${model} needs a Workers AI account_id and token in ${WORKERS_AI_PATH}`,
+          cause,
         }),
     ),
   );

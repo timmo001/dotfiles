@@ -100,7 +100,7 @@ export const opencode2Namespace: ClientNamespace = {
 
           yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown))(text).pipe(
             Effect.mapError(
-              () => new Tool.Error({ message: "Session export isn't complete JSON; the export was cut off" }),
+              (error) => new Tool.Error({ message: "Session export isn't complete JSON; the export was cut off", error }),
             ),
           );
           yield* fs.rename(partial, path);

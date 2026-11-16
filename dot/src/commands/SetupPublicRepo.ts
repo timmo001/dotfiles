@@ -21,7 +21,7 @@ const DEFAULT_PUBLIC_PACMAN_MAIN_CONFIG = "/etc/pacman.conf";
 /** Domain error for public pacman repository setup failures. */
 class SetupPublicRepoError extends Schema.TaggedError<SetupPublicRepoError>()(
   "SetupPublicRepoError",
-  { message: Schema.String },
+  { message: Schema.String, cause: Schema.optionalKey(Schema.Defect()) },
 ) {}
 
 function fail(message: string): Effect.Effect<never, SetupPublicRepoError> {
@@ -221,9 +221,10 @@ function verifyPublishedRepository(
       .run("gpg", ["--batch", "--show-keys", "--with-colons", keyPath])
       .pipe(
         Effect.mapError(
-          () =>
+          (cause) =>
             new SetupPublicRepoError({
               message: "Could not inspect downloaded public repository key",
+              cause,
             }),
         ),
       );

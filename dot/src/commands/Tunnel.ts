@@ -24,7 +24,7 @@ import {
 /** A tunnel's credentials or Cloudflare's view of its connectors are unavailable. */
 export class TunnelError extends Schema.TaggedError<TunnelError>()(
   "TunnelError",
-  { message: Schema.String },
+  { message: Schema.String, cause: Schema.optionalKey(Schema.Defect()) },
 ) {}
 
 /** Tunnel tokens (`<name>.token`) and the shared Cloudflare API token. */
@@ -202,7 +202,11 @@ export const tunnelRun = Effect.fn("Tunnel.run")(
         Buffer.from(token, "base64").toString(),
       ).pipe(
         Effect.mapError(
-          () => new TunnelError({ message: `Invalid token in ${tokenFile}` }),
+          (cause) =>
+            new TunnelError({
+              message: `Invalid token in ${tokenFile}`,
+              cause,
+            }),
         ),
       );
 
@@ -216,9 +220,10 @@ export const tunnelRun = Effect.fn("Tunnel.run")(
           Effect.timeout(REQUEST_TIMEOUT),
           Effect.flatMap(Schema.decodeUnknownEffect(ConnectionsResponse)),
           Effect.mapError(
-            () =>
+            (cause) =>
               new TunnelError({
                 message: "Could not reach the Cloudflare API",
+                cause,
               }),
           ),
         );

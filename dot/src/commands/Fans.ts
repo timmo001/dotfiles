@@ -27,6 +27,7 @@ import {
 /** Fan controller configuration is missing or invalid. */
 export class FansError extends Schema.TaggedError<FansError>()("FansError", {
   message: Schema.String,
+  cause: Schema.optionalKey(Schema.Defect()),
 }) {}
 
 const CONFIG_FILE = join(CONFIG_DIR, "dot", "fans.yml");
@@ -86,7 +87,8 @@ const loadConfig = Effect.gen(function* () {
     .readFileString(CONFIG_FILE)
     .pipe(
       Effect.mapError(
-        () => new FansError({ message: `Could not read ${CONFIG_FILE}` }),
+        (cause) =>
+          new FansError({ message: `Could not read ${CONFIG_FILE}`, cause }),
       ),
     );
 

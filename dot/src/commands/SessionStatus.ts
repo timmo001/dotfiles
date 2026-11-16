@@ -74,7 +74,11 @@ const Catalogue = Schema.Struct({
 /** Failure to read an explicitly identified OpenCode session. */
 export class SessionStatusError extends Schema.TaggedError<SessionStatusError>()(
   "SessionStatusError",
-  { message: Schema.String, exitCode: Schema.Literal(2) },
+  {
+    message: Schema.String,
+    exitCode: Schema.Literal(2),
+    cause: Schema.optionalKey(Schema.Defect()),
+  },
 ) {}
 
 /** Matches an OpenCode session ID. */
@@ -96,10 +100,11 @@ export const getOpenCode = Effect.fn("sessionStatus.get")(function* <A, I>(
 
   return yield* Schema.decodeEffect(Schema.fromJsonString(schema))(output).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new SessionStatusError({
           message: `Invalid or incomplete OpenCode response for ${path.split("?")[0]}`,
           exitCode: 2,
+          cause,
         }),
     ),
   );

@@ -8,7 +8,7 @@ const Check = Schema.Literals(["actions", "json", "yaml", "markdown", "shell"]);
 
 class SourceCheckError extends Schema.TaggedError<SourceCheckError>()(
   "SourceCheckError",
-  { message: Schema.String },
+  { message: Schema.String, cause: Schema.optionalKey(Schema.Defect()) },
 ) {}
 
 const checkRepositoryFiles = Effect.gen(function* () {
@@ -78,7 +78,8 @@ const checkRepositoryFiles = Effect.gen(function* () {
             Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Json)),
           ),
           Effect.mapError(
-            () => new SourceCheckError({ message: `Invalid JSON: ${file}` }),
+            (cause) =>
+              new SourceCheckError({ message: `Invalid JSON: ${file}`, cause }),
           ),
         ),
       { concurrency: 8, discard: true },

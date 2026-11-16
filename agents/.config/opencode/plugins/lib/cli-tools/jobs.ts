@@ -82,7 +82,7 @@ const readJob = Effect.fn("jobs.readJob")(function* (id: string) {
 
   const text = yield* fs
     .readFileString(join(jobDirectory(id), "job.json"))
-    .pipe(Effect.mapError(() => new Tool.Error({ message: `No job ${id}` })));
+    .pipe(Effect.mapError((error) => new Tool.Error({ message: `No job ${id}`, error })));
 
   return yield* decodeJob(text).pipe(
     Effect.mapError((error) => new Tool.Error({ message: `Job ${id} has a broken record: ${error.message}` })),
