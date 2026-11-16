@@ -12,7 +12,7 @@ CAMERA=""
 NAME=""
 HIDE="layout,caption"
 POPUP_WIDTH="480"
-POPUP_HEIGHT="420"
+POPUP_HEIGHT="360"
 POPUP_MARGIN="16"
 POPUP_BOTTOM_MARGIN="6"
 POPUP_MONITOR=""
@@ -31,7 +31,7 @@ Options:
                        (default: layout,caption)
   --monitor <name>     Target monitor name (e.g. DP-1)
   --width <px>         Popup width in pixels (default: 480)
-  --height <px>        Popup height in pixels (default: 420)
+  --height <px>        Popup height in pixels (default: 360)
   --help               Show this help
 
 Environment:
