@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Opens a Kestrel camera's live view in a small floating window, from
-# Kestrel's embed page, in the bottom-right corner of a monitor. One window
-# per popup name: opening it again moves the one already open back into
-# place. Prints the window's address.
+# Opens a Kestrel camera's live view in a floating window, from Kestrel's
+# embed page, in the bottom-right corner of a monitor. The window takes the
+# picture's shape, a share of the monitor's height tall, so the picture
+# fills it. One window per popup name: opening it again moves the one
+# already open back into place. Prints the window's address.
 
 set -euo pipefail
 
@@ -11,8 +12,10 @@ KESTREL_URL="${KESTREL_URL:-http://homeassistant.local:7380}"
 CAMERA=""
 NAME=""
 HIDE="layout,caption"
-POPUP_WIDTH="480"
-POPUP_HEIGHT="360"
+RATIO="16:9"
+SHARE="40"
+POPUP_WIDTH=""
+POPUP_HEIGHT=""
 POPUP_MARGIN="16"
 POPUP_BOTTOM_MARGIN="6"
 POPUP_MONITOR=""
@@ -29,9 +32,15 @@ Options:
   --hide <parts>       Embed parts to leave out, as a comma list, or "all"
                        for the plain video, or "" for none
                        (default: layout,caption)
-  --monitor <name>     Target monitor name (e.g. DP-1)
-  --width <px>         Popup width in pixels (default: 480)
-  --height <px>        Popup height in pixels (default: 360)
+  --ratio <w:h>        The picture's shape, which the window takes
+                       (default: 16:9)
+  --share <percent>    Window height as a share of the monitor's free
+                       height (default: 40)
+  --monitor <name>     Target monitor name (e.g. DP-1; default: focused)
+  --width <px>         Popup width in pixels, over the share; alone, the
+                       height follows the ratio
+  --height <px>        Popup height in pixels, over the share; alone, the
+                       width follows the ratio
   --help               Show this help
 
 Environment:
@@ -48,6 +57,14 @@ parse_args() {
         ;;
       --hide)
         HIDE="$2"
+        shift 2
+        ;;
+      --ratio)
+        RATIO="$2"
+        shift 2
+        ;;
+      --share)
+        SHARE="$2"
         shift 2
         ;;
       --monitor)
@@ -93,13 +110,51 @@ parse_args() {
 validate_numeric_settings() {
   local key value
 
-  for key in POPUP_WIDTH POPUP_HEIGHT; do
+  for key in POPUP_WIDTH POPUP_HEIGHT SHARE; do
     value="${!key}"
+    [[ -n "$value" ]] || continue
     if [[ ! "$value" =~ ^[0-9]+$ ]] || (( value <= 0 )); then
       printf 'camera-popup: %s must be a positive integer\n' "$key" >&2
       exit 1
     fi
   done
+
+  if [[ ! "$RATIO" =~ ^[1-9][0-9]*:[1-9][0-9]*$ ]]; then
+    printf 'camera-popup: --ratio must look like 16:9\n' >&2
+    exit 1
+  fi
+}
+
+# The window's size: as given, or the ratio's shape at a share of the
+# monitor's height, less what bars reserve on it
+popup_size() {
+  local across="${RATIO%%:*}" down="${RATIO##*:}" free
+
+  if [[ -n "$POPUP_WIDTH" && -n "$POPUP_HEIGHT" ]]; then
+    return
+  fi
+
+  if [[ -n "$POPUP_WIDTH" ]]; then
+    POPUP_HEIGHT=$(( (POPUP_WIDTH * down + across / 2) / across ))
+    return
+  fi
+
+  if [[ -z "$POPUP_HEIGHT" ]]; then
+    free="$(hyprctl -j monitors | jq -r --arg name "$POPUP_MONITOR" '
+      (map(select(if $name == "" then .focused else .name == $name end)) | first)
+      // empty
+      | (.height / .scale) - .reserved[1] - .reserved[3]
+      | floor')"
+
+    if [[ -z "$free" ]]; then
+      printf 'camera-popup: no monitor %s\n' "${POPUP_MONITOR:-focused}" >&2
+      exit 1
+    fi
+
+    POPUP_HEIGHT=$(( free * SHARE / 100 ))
+  fi
+
+  POPUP_WIDTH=$(( (POPUP_HEIGHT * across + down / 2) / down ))
 }
 
 require_commands() {
@@ -131,6 +186,7 @@ main() {
   parse_args "$@"
   validate_numeric_settings
   require_commands
+  popup_size
 
   local key addr_file addr
   key="${NAME:-$CAMERA}"

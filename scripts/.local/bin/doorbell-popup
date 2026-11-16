@@ -8,8 +8,9 @@ set -euo pipefail
 MOTION_ENTITY="input_boolean.doorbell"
 CAMERA="reolink-front-door/1"
 
-POPUP_WIDTH="480"
-POPUP_HEIGHT="360"
+POPUP_RATIO="4:3"
+POPUP_WIDTH=""
+POPUP_HEIGHT=""
 POPUP_DURATION_SECONDS="20"
 POPUP_MONITOR=""
 OPEN_ONLY=0
@@ -25,8 +26,8 @@ Usage: doorbell-popup [options]
 Options:
   --camera <id>                 Kestrel camera id (default: reolink-front-door/1)
   --monitor <name>              Target monitor name (e.g. DP-1)
-  --width <px>                  Popup width in pixels
-  --height <px>                 Popup height in pixels
+  --width <px>                  Popup width in pixels (default: from the monitor)
+  --height <px>                 Popup height in pixels (default: from the monitor)
   --open-only                   Open popup once and exit
   --no-auto-close               Keep popup open (disable auto-close timer)
   --help                        Show this help
@@ -96,7 +97,9 @@ window_exists() {
 
 # Opens the popup, or moves the one already open back into place
 open_popup() {
-  local -a args=(--name doorbell --width "$POPUP_WIDTH" --height "$POPUP_HEIGHT")
+  local -a args=(--name doorbell --ratio "$POPUP_RATIO")
+  [[ -z $POPUP_WIDTH ]] || args+=(--width "$POPUP_WIDTH")
+  [[ -z $POPUP_HEIGHT ]] || args+=(--height "$POPUP_HEIGHT")
   [[ -z $POPUP_MONITOR ]] || args+=(--monitor "$POPUP_MONITOR")
   popup_addr="$(camera-popup "${args[@]}" "$CAMERA")"
 }
