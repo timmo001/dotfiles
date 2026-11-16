@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=Inbox
+Comment=Your GitHub review load as one queue (gricha/inbox)
+TryExec=Inbox.AppImage
+Exec=Inbox.AppImage --no-sandbox %U
+Icon=gricha-inbox
+Type=Application
+Terminal=false
+StartupNotify=true
+StartupWMClass=inbox
+MimeType=x-scheme-handler/inbox;
+Categories=Development;
