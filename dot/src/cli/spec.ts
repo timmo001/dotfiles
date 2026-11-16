@@ -2027,7 +2027,7 @@ const notesCommand = describe(
               ["dot notes capture sync"],
               {
                 description:
-                  "Regenerate the notes capture repository picker from repositories with GitHub notifications enabled in the private dot-git.yml configuration. Updates only CAPTURE_REPOSITORIES in the ignored capture/wrangler.local.jsonc file, creating it from the deploy template when needed. Mirrors non-secret settings from the active Worker, then deploys when the live picker differs.",
+                  "Regenerate the notes capture repository picker from repositories with GitHub notifications enabled in the private dot-git.yml configuration. Updates only CAPTURE_REPOSITORIES in the ignored capture/.env.prod file the capture Alchemy stack reads. When the picker changes, deploys the notes-github stack, which copies it into the repository secret CI deploys with, then the capture stack, and restores the old picker if either deploy fails.",
               },
             ),
           ]),

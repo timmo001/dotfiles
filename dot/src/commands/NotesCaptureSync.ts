@@ -1,4 +1,4 @@
-import { Effect, FileSystem, Option, Schema } from "effect";
+import { Effect, FileSystem, Schema } from "effect";
 import { join } from "path";
 import { writeFileAtomic } from "../lib/atomicWrite.js";
 import { displayPath } from "../lib/paths.js";
@@ -9,9 +9,10 @@ import { OutputLog } from "../services/OutputLog.js";
 
 const NOTES_REPOSITORY = "timmo001/notes";
 
-const CAPTURE_CONFIG_PATH = join("capture", "wrangler.local.jsonc");
+// The ignored env file the capture Alchemy stack and its github stack read
+const CAPTURE_ENV_PATH = join("capture", ".env.prod");
 
-const CAPTURE_CONFIG_TEMPLATE_PATH = join("capture", "wrangler.deploy.jsonc");
+const CAPTURE_REPOSITORIES_KEY = "CAPTURE_REPOSITORIES";
 
 const CAPTURE_REPOSITORY_PRIORITY = [
   "Dotfiles",
@@ -21,42 +22,12 @@ const CAPTURE_REPOSITORY_PRIORITY = [
   "Workflows",
 ];
 
-const JsonObject = Schema.Record(Schema.String, Schema.Json);
-
-const WranglerConfig = Schema.Struct({ vars: Schema.optional(JsonObject) });
-
-const DeploymentStatus = Schema.Struct({
-  versions: Schema.Array(
-    Schema.Struct({ percentage: Schema.Finite, version_id: Schema.String }),
-  ),
-});
-
-const WorkerVersion = Schema.Struct({
-  resources: Schema.Struct({
-    script_runtime: Schema.Struct({
-      compatibility_date: Schema.String,
-      compatibility_flags: Schema.Array(Schema.String),
-    }),
-    bindings: Schema.Array(JsonObject),
-  }),
-});
-
 /** Repository picker record consumed by the notes capture application. */
 export interface CaptureRepositoryOption {
   /** Friendly repository label. */
   readonly label: string;
   /** Normalised GitHub owner/repository identifier. */
   readonly repository: string;
-}
-
-interface LiveCaptureConfig {
-  readonly compatibilityDate: string;
-  readonly compatibilityFlags: readonly string[];
-  readonly vars: Readonly<Record<string, string>>;
-  readonly kvNamespaces: readonly {
-    readonly binding: string;
-    readonly id: string;
-  }[];
 }
 
 class NotesCaptureSyncError extends Schema.TaggedError<NotesCaptureSyncError>()(
@@ -82,102 +53,30 @@ export function captureRepositoryOptions(
   ].map(({ name, github }) => ({ label: name, repository: github }));
 }
 
-/** Merge generated picker options into an existing Wrangler configuration. */
-export function mergeCaptureRepositories(
+/** Set CAPTURE_REPOSITORIES in dotenv source, keeping every other line. */
+export function setCaptureRepositories(
   source: string,
   repositories: readonly CaptureRepositoryOption[],
-  live?: LiveCaptureConfig,
 ): string {
-  const config = Schema.decodeUnknownSync(JsonObject)(Bun.JSONC.parse(source));
-  let existing: typeof WranglerConfig.Type;
+  const value = JSON.stringify(repositories);
 
-  try {
-    existing = Schema.decodeSync(WranglerConfig)(config);
-  } catch {
-    throw new Error("Wrangler vars configuration is not an object");
+  // Single quotes keep the JSON literal: dotenv parsers don't unescape inside them
+  if (value.includes("'")) {
+    throw new Error("Repository labels can't contain a single quote");
   }
 
-  const merged = { ...config };
+  const line = `${CAPTURE_REPOSITORIES_KEY}='${value}'`;
 
-  if (live) {
-    merged.compatibility_date = live.compatibilityDate;
-    merged.compatibility_flags = [...live.compatibilityFlags];
-    merged.kv_namespaces = [...live.kvNamespaces];
-  }
-
-  merged.vars = {
-    ...(live?.vars ?? existing.vars),
-    CAPTURE_REPOSITORIES: JSON.stringify(repositories),
-  };
-
-  return `${JSON.stringify(merged, null, 2)}\n`;
-}
-
-/** Decode the active deployment and return its version identifier. */
-export function activeVersionId(source: string): string {
-  const deployment = Schema.decodeUnknownSync(DeploymentStatus)(
-    JSON.parse(source),
+  const pattern = new RegExp(
+    `^\\s*(?:export\\s+)?${CAPTURE_REPOSITORIES_KEY}\\s*=.*$`,
+    "m",
   );
 
-  const versionId = deployment.versions.find(
-    ({ percentage }) => percentage === 100,
-  )?.version_id;
-
-  if (!versionId) {
-    throw new Error("Deployment has no active version");
+  if (pattern.test(source)) {
+    return source.replace(pattern, () => line);
   }
 
-  return versionId;
-}
-
-/** Convert Wrangler's active version details into a non-secret local config. */
-export function liveCaptureConfig(source: string): LiveCaptureConfig {
-  const { resources } = Schema.decodeUnknownSync(WorkerVersion)(
-    JSON.parse(source),
-  );
-
-  const compatibilityDate = resources.script_runtime.compatibility_date;
-  const compatibilityFlags = resources.script_runtime.compatibility_flags;
-
-  const vars: Record<string, string> = {};
-  const kvNamespaces: { binding: string; id: string }[] = [];
-
-  for (const binding of resources.bindings) {
-    const plainText = Schema.decodeUnknownOption(
-      Schema.Struct({
-        type: Schema.Literal("plain_text"),
-        name: Schema.String,
-        text: Schema.String,
-      }),
-    )(binding);
-
-    if (Option.isSome(plainText)) {
-      vars[plainText.value.name] = plainText.value.text;
-      continue;
-    }
-
-    const kvNamespace = Schema.decodeUnknownOption(
-      Schema.Struct({
-        type: Schema.Literal("kv_namespace"),
-        name: Schema.String,
-        namespace_id: Schema.String,
-      }),
-    )(binding);
-
-    if (Option.isSome(kvNamespace)) {
-      kvNamespaces.push({
-        binding: kvNamespace.value.name,
-        id: kvNamespace.value.namespace_id,
-      });
-    }
-  }
-
-  return {
-    compatibilityDate,
-    compatibilityFlags,
-    vars,
-    kvNamespaces,
-  };
+  return `${source}${source === "" || source.endsWith("\n") ? "" : "\n"}${line}\n`;
 }
 
 /** Atomically replace a private config while preserving restrictive permissions. */
@@ -240,98 +139,69 @@ export const notesCaptureSync = Effect.gen(function* () {
     return;
   }
 
-  const destination = join(notes.path, CAPTURE_CONFIG_PATH);
-  const template = join(notes.path, CAPTURE_CONFIG_TEMPLATE_PATH);
+  const destination = join(notes.path, CAPTURE_ENV_PATH);
 
-  const destinationExists = yield* fs.exists(destination).pipe(Effect.orDie);
-
-  if (!destinationExists && !(yield* fs.exists(template).pipe(Effect.orDie))) {
-    yield* log.warn(`Skipped (missing template): ${displayPath(template)}`);
+  if (!(yield* fs.exists(destination).pipe(Effect.orDie))) {
+    yield* log.warn(
+      `Skipped (missing ${displayPath(destination)}, which holds the capture stack's vars)`,
+    );
 
     return;
   }
 
   const repositories = captureRepositoryOptions(config.gitConfig.repositories);
-  const captureDirectory = join(notes.path, "capture");
-
-  const deployment = yield* executor.run(
-    "bunx",
-    ["wrangler", "deployments", "status", "--name", "notes-capture", "--json"],
-    { cwd: captureDirectory },
-  );
-
-  const versionId = yield* Effect.try({
-    try: () => activeVersionId(deployment),
-    catch: (error) =>
-      new NotesCaptureSyncError({
-        message: `Could not identify the active notes-capture version: ${String(error)}`,
-      }),
-  });
-
-  const version = yield* executor.run(
-    "bunx",
-    [
-      "wrangler",
-      "versions",
-      "view",
-      versionId,
-      "--name",
-      "notes-capture",
-      "--json",
-    ],
-    { cwd: captureDirectory },
-  );
-
-  const live = yield* Effect.try({
-    try: () => liveCaptureConfig(version),
-    catch: (error) =>
-      new NotesCaptureSyncError({
-        message: `Could not decode live notes-capture settings: ${String(error)}`,
-      }),
-  });
-
-  const source = yield* fs
-    .readFileString(destinationExists ? destination : template)
-    .pipe(Effect.orDie);
+  const source = yield* fs.readFileString(destination).pipe(Effect.orDie);
 
   const output = yield* Effect.try({
-    try: () => mergeCaptureRepositories(source, repositories, live),
+    try: () => setCaptureRepositories(source, repositories),
     catch: (error) =>
       new NotesCaptureSyncError({
-        message: `Invalid Wrangler config ${displayPath(destination)}: ${String(error)}`,
+        message: `Could not update ${displayPath(destination)}: ${String(error)}`,
       }),
   });
 
-  yield* writePrivateConfig(destination, output).pipe(
-    Effect.mapError(
-      (error) =>
-        new NotesCaptureSyncError({
-          message: `Could not write ${displayPath(destination)}: ${String(error)}`,
-        }),
-    ),
-  );
+  const write = (content: string) =>
+    writePrivateConfig(destination, content).pipe(
+      Effect.mapError(
+        (error) =>
+          new NotesCaptureSyncError({
+            message: `Could not write ${displayPath(destination)}: ${String(error)}`,
+          }),
+      ),
+    );
+
   yield* log.info(
     `${repositories.length} repositor${repositories.length === 1 ? "y" : "ies"} -> ${displayPath(destination)}`,
   );
 
-  const liveRepositories = live.vars.CAPTURE_REPOSITORIES;
-  const generatedRepositories = JSON.stringify(repositories);
-
-  if (liveRepositories === generatedRepositories) {
-    yield* log.info("Live Worker already matches");
+  if (output === source) {
+    yield* log.info("Picker unchanged");
 
     return;
   }
 
-  yield* log.info("Deploying notes-capture...");
+  yield* write(output);
 
-  const exitCode = yield* executor.inherit("bun", ["run", "deploy"], {
-    cwd: captureDirectory,
-  });
+  // The github stack copies the env file into the repository secret CI
+  // deploys with, so a later CI deploy keeps the new picker. Its deploy
+  // script doesn't pass --yes itself
+  for (const [args, label] of [
+    [["docs:deploy:github", "--yes"], "the repository's capture secrets"],
+    [["capture:deploy"], "notes-capture"],
+  ] as const) {
+    yield* log.info(`Deploying ${label}...`);
 
-  if (exitCode !== 0) {
-    return yield* new NotesCaptureSyncError({
-      message: `notes-capture deploy failed with exit code ${exitCode}`,
+    const exitCode = yield* executor.inherit("mise", ["run", ...args], {
+      cwd: notes.path,
     });
+
+    if (exitCode !== 0) {
+      // Put the old picker back so the next sync sees the change and retries
+      yield* write(source);
+
+      return yield* new NotesCaptureSyncError({
+        message: `mise run ${args[0]} failed with exit code ${exitCode}`,
+      });
+    }
   }
 });
