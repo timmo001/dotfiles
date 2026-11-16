@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+# Opens a Kestrel camera's live view in a small floating window, from
+# Kestrel's embed page, in the bottom-right corner of a monitor. One window
+# per popup name: opening it again moves the one already open back into
+# place. Prints the window's address.
+
+set -euo pipefail
+
+KESTREL_URL="${KESTREL_URL:-http://homeassistant.local:7380}"
+
+CAMERA=""
+NAME=""
+HIDE="layout,caption"
+POPUP_WIDTH="480"
+POPUP_HEIGHT="420"
+POPUP_MARGIN="16"
+POPUP_BOTTOM_MARGIN="6"
+POPUP_MONITOR=""
+
+usage() {
+  cat <<'EOF'
+Usage: camera-popup [options] <camera>
+
+Arguments:
+  <camera>             Kestrel camera id, such as reolink-front-door/1
+
+Options:
+  --name <name>        One window per name (default: the camera id)
+  --hide <parts>       Embed parts to leave out, as a comma list, or "all"
+                       for the plain video, or "" for none
+                       (default: layout,caption)
+  --monitor <name>     Target monitor name (e.g. DP-1)
+  --width <px>         Popup width in pixels (default: 480)
+  --height <px>        Popup height in pixels (default: 420)
+  --help               Show this help
+
+Environment:
+  KESTREL_URL          Kestrel's address (default: http://homeassistant.local:7380)
+EOF
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --name)
+        NAME="$2"
+        shift 2
+        ;;
+      --hide)
+        HIDE="$2"
+        shift 2
+        ;;
+      --monitor)
+        POPUP_MONITOR="$2"
+        shift 2
+        ;;
+      --width)
+        POPUP_WIDTH="$2"
+        shift 2
+        ;;
+      --height)
+        POPUP_HEIGHT="$2"
+        shift 2
+        ;;
+      --help|-h)
+        usage
+        exit 0
+        ;;
+      --*)
+        printf 'camera-popup: unknown option: %s\n' "$1" >&2
+        usage >&2
+        exit 1
+        ;;
+      *)
+        if [[ -n "$CAMERA" ]]; then
+          printf 'camera-popup: unexpected argument: %s\n' "$1" >&2
+          usage >&2
+          exit 1
+        fi
+        CAMERA="$1"
+        shift
+        ;;
+    esac
+  done
+
+  if [[ -z "$CAMERA" ]]; then
+    printf 'camera-popup: missing camera id\n' >&2
+    usage >&2
+    exit 1
+  fi
+}
+
+validate_numeric_settings() {
+  local key value
+
+  for key in POPUP_WIDTH POPUP_HEIGHT; do
+    value="${!key}"
+    if [[ ! "$value" =~ ^[0-9]+$ ]] || (( value <= 0 )); then
+      printf 'camera-popup: %s must be a positive integer\n' "$key" >&2
+      exit 1
+    fi
+  done
+}
+
+require_commands() {
+  local cmd
+  for cmd in hyprctl jq launch-floating-webapp; do
+    command -v "$cmd" >/dev/null 2>&1 || {
+      printf 'camera-popup: missing command: %s\n' "$cmd" >&2
+      exit 1
+    }
+  done
+}
+
+window_exists() {
+  local addr="$1"
+  [[ -n "$addr" ]] || return 1
+  hyprctl -j clients | jq -e --arg addr "$addr" '.[] | select(.address == $addr)' >/dev/null
+}
+
+# The embed's address: the camera, and the parts it leaves out
+popup_url() {
+  local query
+
+  query="camera=$(jq -rn --arg value "$CAMERA" '$value | @uri')"
+  [[ -z "$HIDE" ]] || query+="&hide=$(jq -rn --arg value "$HIDE" '$value | @uri')"
+  printf '%s/embed?%s\n' "${KESTREL_URL%/}" "$query"
+}
+
+main() {
+  parse_args "$@"
+  validate_numeric_settings
+  require_commands
+
+  local key addr_file addr
+  key="${NAME:-$CAMERA}"
+  key="${key//[^A-Za-z0-9_-]/-}"
+  addr_file="${XDG_RUNTIME_DIR:-/tmp}/camera-popup-${key}.address"
+
+  local -a args=(--width "$POPUP_WIDTH" --height "$POPUP_HEIGHT" --right-margin "$POPUP_MARGIN" --bottom-margin "$POPUP_BOTTOM_MARGIN")
+  [[ -z $POPUP_MONITOR ]] || args+=(--monitor "$POPUP_MONITOR")
+
+  if [[ -f "$addr_file" ]]; then
+    addr="$(< "$addr_file")"
+    if window_exists "$addr"; then
+      launch-floating-webapp "${args[@]}" --address "$addr" >/dev/null
+      printf '%s\n' "$addr"
+      return
+    fi
+    rm -f "$addr_file"
+  fi
+
+  addr="$(launch-floating-webapp "${args[@]}" "$(popup_url)")"
+  printf '%s\n' "$addr" >"$addr_file"
+  printf '%s\n' "$addr"
+}
+
+main "$@"
