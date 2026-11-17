@@ -1,5 +1,5 @@
 import { Effect, FileSystem, Schema } from "effect";
-import { basename, join } from "path";
+import { basename, join, resolve } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import type { DiffRepo } from "../types.js";
@@ -175,6 +175,32 @@ export const stowPlanNeedsApply = (output: string): boolean => {
   return false;
 };
 
+/**
+ * The OpenCode plugin folders already folded into one link into this repo's
+ * agents package, which a stow simulation would otherwise unfold.
+ */
+const foldedOpencodePluginFolders = Effect.fn(
+  "Update.foldedOpencodePluginFolders",
+)(function* (repoPath: string) {
+  const fs = yield* FileSystem.FileSystem;
+  const live = join(CONFIG_DIR, "opencode", "plugins");
+  const source = join(repoPath, "agents", ".config", "opencode", "plugins");
+  const folded: string[] = [];
+
+  for (const name of yield* fs
+    .readDirectory(live)
+    .pipe(Effect.orElseSucceed((): string[] => []))) {
+    const target = yield* fs
+      .readLink(join(live, name))
+      .pipe(Effect.orElseSucceed(() => null));
+
+    if (target !== null && resolve(live, target) === join(source, name))
+      folded.push(name);
+  }
+
+  return folded;
+});
+
 /** Find unapplied submodule pins, stow links and Herdr lockfile commits. */
 export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
   function* (repo: DiffRepo) {
@@ -218,7 +244,16 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
       if (folder === "agents") {
         flags.push(
           ...(repo.path === config.publicDotfiles
-            ? ["--ignore=^/\\.agents/skills($|/)"]
+            ? [
+                "--ignore=^/\\.agents/skills($|/)",
+                // Stow lays plugin folders down file by file, then
+                // foldOpencodePluginFolders swaps each for one link, so a
+                // folded folder would always read as needing stow.
+                ...(yield* foldedOpencodePluginFolders(repo.path)).map(
+                  (name) =>
+                    `--ignore=^/\\.config/opencode/plugins/${name.replaceAll(".", "\\.")}($|/)`,
+                ),
+              ]
             : [
                 "--ignore=node_modules",
                 "--ignore=package\\.json",
@@ -240,10 +275,12 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
 
     // Plugin copies and shell.json are applied by the stow stage, but neither
     // is a GNU Stow link, so a pull that only changes them looks like no work.
-    if (yield* omarchyPluginsNeedDeploy(repo.path))
+    // Without Omarchy, neither is deployed.
+    if (config.omarchy.enabled && (yield* omarchyPluginsNeedDeploy(repo.path)))
       pending.push(`${repo.name}: plugin deployment needs stow`);
 
     if (
+      config.omarchy.enabled &&
       repo.path === config.publicDotfiles &&
       (yield* omarchyShellConfigNeedsApply)
     )
