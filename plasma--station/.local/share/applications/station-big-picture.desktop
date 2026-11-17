@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Big Picture
+Comment=Steam's Big Picture on the desktop, without switching to gaming mode
+Exec=sh -c "dot screen steam-beta desktop; exec prime-run steam steam://open/bigpicture"
+Icon=steam
+Terminal=false
+Categories=Game;
+Keywords=steam;big picture;controller;tv;
