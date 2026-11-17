@@ -1315,6 +1315,28 @@ dot screen off
 headless
 ```
 
+### `dot screen hdr`
+
+Turn on HDR and wide colour on every screen in the Plasma session
+
+```text
+dot screen hdr [flags]
+```
+
+Runs kscreen-doctor against the running Plasma session, from any shell or over SSH, and turns on HDR and wide colour gamut on each connected screen, with that screen's own EDID as its colour profile in SDR and HDR. Each screen is set on its own, so one without HDR is reported and left alone. KWin keeps the settings per screen, and Plasma runs this at every login, so a newly connected TV picks it up on the next login. Gaming mode has its own HDR switch in Steam's display settings.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot screen hdr
+```
+
 ### `dot screen status`
 
 Say what's on screen and what the next login starts
