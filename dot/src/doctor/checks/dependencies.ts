@@ -30,6 +30,11 @@ const TOOLS: readonly ToolDef[] = [
     required: false,
   },
   {
+    name: "yay",
+    purpose: "AUR package installs and version checks",
+    required: false,
+  },
+  {
     name: "gh",
     purpose: "GitHub notifications",
     required: false,

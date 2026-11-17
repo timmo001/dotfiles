@@ -1,15 +1,14 @@
 # Public Arch packages managed by dot on Station (CachyOS).
 # One package per line, comments and blank lines are ignored.
-# Everything here comes from the official, CachyOS or [timmo] repositories:
-# Station has no AUR helper, so the desktop's AUR-only smem and
-# zsh-fast-syntax-highlighting are left out (.zshrc skips the highlighter when
-# it's missing). Kestrel, Triage and Upkeep join when they move over from the
-# Home Assistant Green.
+# They come from the official, CachyOS and [timmo] repositories, or the AUR
+# through yay, which CachyOS ships in its own repository. Kestrel, Triage and
+# Upkeep join when they move over from the Home Assistant Green.
 
 bmon
 cmake
 context-git
 cpio
+gamescope-session-cachyos
 gcc
 git
 gum
@@ -23,11 +22,15 @@ openssh
 pacman-contrib
 pkgconf
 repo-notes-git
+smem
+steam
 stow
 stress-ng
 sysbench
 sysstat
 syncthing
 system-bridge-git
+yay
 zsh
 zsh-autosuggestions
+zsh-fast-syntax-highlighting
