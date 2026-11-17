@@ -25,6 +25,8 @@ export interface ManagedPortRule {
    * as the ufw rule comment so it appears in `ufw status`.
    */
   readonly label: string;
+  /** `limit` rate-limits new connections, as for SSH; `allow` by default. */
+  readonly action?: "allow" | "limit";
   /** ufw port token: a single port (`8123`) or an inclusive range (`1714:1764`). */
   readonly port: string;
   /** Protocols this port should be allowed on. */
@@ -50,30 +52,34 @@ export interface ManagedRouteRule {
 export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
 
 /**
- * ufw rules dot keeps open.
+ * ufw rules dot keeps open on Station, taken from the desktop's where they
+ * apply. The Home Assistant dev ports, libvirt and Docker DNS are left out,
+ * since Station runs none of them. Services moved over from the Home
+ * Assistant Green add their own rules when they move.
  *
+ * - SSH is rate limited, the same as the desktop's rule.
  * - KDE Connect discovers and connects over the full 1714-1764 range on both
- *   UDP (discovery) and TCP (transfer).
- * - Home Assistant serves its frontend on 8123 and its companion port 8124.
+ *   UDP (discovery) and TCP (transfer). Plasma ships it.
  * - LocalSend discovers and transfers over 53317 on both UDP and TCP.
  * - System Bridge serves its API on 9170, which Home Assistant connects to.
- * - Sunshine serves Moonlight clients: HTTPS pairing on 47984, HTTP on 47989,
- *   its web UI on 47990 and RTSP on 48010 over TCP, with video, control and
- *   audio on UDP 47998-48000, 48002 and 48010.
- * - libvirt's default NAT network needs the host to accept guest DHCP (67) and
- *   DNS (53) on `virbr0` and to forward (route) guest traffic off `virbr0`,
- *   which ufw's default `deny (incoming)`/`deny (routed)` policy otherwise
- *   blocks.
+ * - The OpenCode server listens on 4096, as on the other machines.
+ * - Steam Remote Play finds devices over UDP 27031-27036 and streams over TCP
+ *   27036-27037.
  */
 export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
+  {
+    kind: "port",
+    label: "SSH",
+    port: "22",
+    protocols: ["tcp"],
+    action: "limit",
+  },
   {
     kind: "port",
     label: "KDE Connect",
     port: "1714:1764",
     protocols: ["udp", "tcp"],
   },
-  { kind: "port", label: "Home Assistant", port: "8123", protocols: ["tcp"] },
-  { kind: "port", label: "Home Assistant", port: "8124", protocols: ["tcp"] },
   {
     kind: "port",
     label: "LocalSend",
@@ -81,27 +87,28 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
     protocols: ["udp", "tcp"],
   },
   { kind: "port", label: "System Bridge", port: "9170", protocols: ["tcp"] },
-  { kind: "port", label: "Sunshine", port: "47984", protocols: ["tcp"] },
-  { kind: "port", label: "Sunshine", port: "47989:47990", protocols: ["tcp"] },
-  { kind: "port", label: "Sunshine", port: "48010", protocols: ["tcp", "udp"] },
-  { kind: "port", label: "Sunshine", port: "47998:48000", protocols: ["udp"] },
-  { kind: "port", label: "Sunshine", port: "48002", protocols: ["udp"] },
+  { kind: "port", label: "OpenCode server", port: "4096", protocols: ["tcp"] },
   {
     kind: "port",
-    label: "libvirt DHCP",
-    port: "67",
+    label: "Steam Remote Play",
+    port: "27031:27036",
     protocols: ["udp"],
-    interface: "virbr0",
   },
   {
     kind: "port",
-    label: "libvirt DNS",
-    port: "53",
-    protocols: ["tcp", "udp"],
-    interface: "virbr0",
+    label: "Steam Remote Play",
+    port: "27036:27037",
+    protocols: ["tcp"],
   },
-  { kind: "route", label: "libvirt NAT forward", interface: "virbr0" },
 ];
+
+/**
+ * ufw application profiles whose rules dot's own replace. CachyOS opens SSH
+ * and KDE Connect through these, without the comments dot matches on, so the
+ * profile rules are removed once dot's are in place rather than kept as
+ * duplicates.
+ */
+const REPLACED_APP_PROFILES = ["SSH", "KDE Connect"] as const;
 
 /** Domain error for firewall setup failures. */
 export class FirewallSetupError extends Schema.TaggedError<FirewallSetupError>()(
@@ -151,11 +158,12 @@ export function ufwRulesFilePath(): string {
 /** Build the specs (one per protocol) for a single port rule. */
 function portRuleSpecs(rule: ManagedPortRule): readonly FirewallRuleSpec[] {
   const direction = rule.interface ? `in_${rule.interface}` : "in";
+  const action = rule.action ?? "allow";
 
   return rule.protocols.map((protocol) => {
     const addArgs = rule.interface
       ? [
-          "allow",
+          action,
           "in",
           "on",
           rule.interface,
@@ -167,7 +175,7 @@ function portRuleSpecs(rule: ManagedPortRule): readonly FirewallRuleSpec[] {
           protocol,
         ]
       : [
-          "allow",
+          action,
           "proto",
           protocol,
           "from",
@@ -181,7 +189,7 @@ function portRuleSpecs(rule: ManagedPortRule): readonly FirewallRuleSpec[] {
     return {
       addArgs,
       deleteArgs: ["delete", ...addArgs],
-      tupleKey: `allow ${protocol} ${rule.port} 0.0.0.0/0 any 0.0.0.0/0 ${direction}`,
+      tupleKey: `${action} ${protocol} ${rule.port} 0.0.0.0/0 any 0.0.0.0/0 ${direction}`,
       comment: rule.label,
       describe: rule.interface
         ? `${rule.port}/${protocol} on ${rule.interface}`
@@ -274,6 +282,29 @@ export const presentUfwTuples = Effect.fn("FirewallSetup.presentUfwTuples")(
   },
 );
 
+/**
+ * The replaced application profiles that still have a rule. ufw stores a
+ * profile rule's tuple with the profile name URL-encoded in place of the
+ * comment, such as `KDE%20Connect - in`.
+ */
+const presentReplacedAppProfiles = Effect.fn(
+  "FirewallSetup.presentReplacedAppProfiles",
+)(function* () {
+  const text = yield* readTextOrNull(ufwRulesFilePath());
+
+  if (text === null) return [];
+
+  return REPLACED_APP_PROFILES.filter((app) =>
+    text
+      .split("\n")
+      .some(
+        (line) =>
+          line.startsWith("### tuple ###") &&
+          line.endsWith(` ${encodeURIComponent(app)} - in`),
+      ),
+  );
+});
+
 const unresolvedFirewallSpecs = Effect.fn("FirewallSetup.unresolvedSpecs")(
   function* (specs: readonly FirewallRuleSpec[]) {
     const present = yield* presentUfwTuples();
@@ -359,7 +390,13 @@ export const configureFirewallRules: Effect.Effect<
       present.get(spec.tupleKey)?.comment !== spec.comment,
   );
 
-  if (toAdd.length === 0 && toRecomment.length === 0) {
+  const appProfiles = yield* presentReplacedAppProfiles();
+
+  if (
+    toAdd.length === 0 &&
+    toRecomment.length === 0 &&
+    appProfiles.length === 0
+  ) {
     yield* log.info(cliStyler().dim("Firewall rules already configured"));
 
     return;
@@ -375,6 +412,12 @@ export const configureFirewallRules: Effect.Effect<
   for (const spec of toAdd) {
     yield* log.info(`Allowing ${spec.describe} (${spec.comment})`);
     commands.push(ufwAllowArgs(spec));
+  }
+
+  // Only after dot's own rules are added, so SSH is never left closed.
+  for (const app of appProfiles) {
+    yield* log.info(`Replacing the ${app} profile rule with dot's own`);
+    commands.push(["delete", "allow", app]);
   }
 
   commands.push(["reload"]);
@@ -398,6 +441,6 @@ export const configureFirewallRules: Effect.Effect<
     );
   }
 
-  const changed = toAdd.length + toRecomment.length;
+  const changed = toAdd.length + toRecomment.length + appProfiles.length;
   yield* log.success(`Configured ${plural(changed, "firewall rule")}`);
 });
