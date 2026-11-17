@@ -58,6 +58,10 @@ const DESKTOP_ONLY_STOW_FOLDERS = new Set<string>([
  *   themes and `dot-*` mods.
  * - `.config/hypr`: the runtime `~/.config/hypr/host` symlink, omarchy shaders,
  *   and `~/.local/state` toggles live alongside the stowed config.
+ * - `.config/opencode`: the public and private `agents` packages both stow into
+ *   it, and OpenCode writes its own files there. On a machine without it yet,
+ *   folding would make it one link into the public repo, which the private
+ *   package can't stow into.
  * - `.config/nvim`: `omarchy-nvim-setup` owns `~/.config/nvim` and writes into
  *   it (the `lua/plugins/theme.lua` symlink and its default plugin files).
  * - `.config/omarchy/plugins`: public and private user plugins share this
@@ -87,6 +91,7 @@ const NO_FOLDING_TARGET_PREFIXES = [
   ".config/herdr-app",
   ".config/hypr",
   ".config/nvim",
+  ".config/opencode",
   ".config/omarchy/plugins",
   ".config/pacman-hooks",
   ".config/uwsm",
