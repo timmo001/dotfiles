@@ -5,13 +5,13 @@
 import { resolve } from "node:path";
 import { Plugin } from "@opencode/plugin/effect";
 import { Tool } from "@opencode/schema/tool";
-import { Effect, Result, Schema } from "effect";
+import { Effect, Option, Result, Schema } from "effect";
 import { argRecord, stringArg } from "../lib/guard-paths";
 import { ghJobs } from "./lib/cli-tools/gh";
 import { gitNamespace } from "./lib/cli-tools/git";
 import { herdrNamespace } from "./lib/cli-tools/herdr";
 import { hyprctlNamespace, systemBridgeAvailable } from "./lib/cli-tools/hyprctl";
-import { loadDotTools } from "./lib/cli-tools/dot";
+import { loadAgentTools, loadDotTools } from "./lib/cli-tools/dot";
 import { jobsNamespace } from "./lib/cli-tools/jobs";
 import { miseNamespace } from "./lib/cli-tools/mise";
 import { omarchyNamespace } from "./lib/cli-tools/omarchy";
@@ -47,6 +47,15 @@ const withNote = (content: Tool.Result["content"], note: string) =>
       ? `${content}\n\n${note}`
       : note;
 
+/** CLIs, besides dot, whose Code Mode tools come from their own `agent tools --json`. */
+const manifestCommands = [
+  {
+    command: "files",
+    description:
+      "The files R2 bucket: public/ served at files.timmo.dev, private/ only through R2. List, read, download, upload, link to and delete files.",
+  },
+] as const;
+
 export default Plugin.define({
   id: "cli-tools",
   effect: (context) =>
@@ -56,6 +65,23 @@ export default Plugin.define({
       if (Result.isFailure(dotTools))
         yield* Effect.logWarning(`cli-tools: no dot tools: ${dotTools.failure.message}`);
 
+      // CLIs that describe their own tools with `agent tools --json`, loaded when installed.
+      const manifestNamespaces = yield* Effect.forEach(
+        manifestCommands.filter((entry) => Bun.which(entry.command) !== null),
+        (entry) =>
+          loadAgentTools(entry.command).pipe(
+            Effect.map(({ tools, jobs }) => ({
+              namespace: { kind: "cli", command: entry.command, description: entry.description, tools } as const,
+              jobs,
+            })),
+            Effect.tapError((error) =>
+              Effect.logWarning(`cli-tools: no ${entry.command} tools: ${error.message}`),
+            ),
+            Effect.option,
+          ),
+        { concurrency: "unbounded" },
+      ).pipe(Effect.map((loaded) => loaded.flatMap((entry) => (Option.isSome(entry) ? [entry.value] : []))));
+
       const ownNamespaces: readonly Namespace[] = [
         {
           kind: "cli",
@@ -64,6 +90,7 @@ export default Plugin.define({
             "The dot dotfiles CLI: tracked repositories, pull request queues, sessions, services, Herdr, skills and machine health.",
           tools: Result.isSuccess(dotTools) ? dotTools.success.tools : [],
         },
+        ...manifestNamespaces.map((entry) => entry.namespace),
         herdrNamespace,
         systemdNamespace,
         hyprctlNamespace,
@@ -86,9 +113,12 @@ export default Plugin.define({
           ...ownNamespaces.flatMap((namespace): CliNamespace[] => {
             if (namespace.kind !== "cli") return [];
 
-            return namespace.command === "dot" && Result.isSuccess(dotTools)
-              ? [{ ...namespace, tools: dotTools.success.jobs }]
-              : [namespace];
+            if (namespace.command === "dot")
+              return [Result.isSuccess(dotTools) ? { ...namespace, tools: dotTools.success.jobs } : namespace];
+
+            const manifest = manifestNamespaces.find((entry) => entry.namespace.command === namespace.command);
+
+            return [manifest === undefined ? namespace : { ...namespace, tools: manifest.jobs }];
           }),
           ghJobs,
         ]),

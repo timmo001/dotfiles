@@ -10,6 +10,8 @@ const Param = Schema.Struct({
   variadic: Schema.Boolean,
 });
 
+// A tool either lists `params` to build its command line from, as dot's do, or takes its whole
+// input as JSON on stdin (`stdin: true`), decoding it itself, as the files CLI's do.
 const Manifest = Schema.fromJsonString(
   Schema.Struct({
     tools: Schema.Array(
@@ -25,8 +27,9 @@ const Manifest = Schema.fromJsonString(
         timeoutMillis: Schema.Int,
         exitCodes: Schema.optionalKey(Schema.Array(Schema.Int)),
         json: Schema.Boolean,
+        stdin: Schema.optionalKey(Schema.Boolean),
         input: Schema.Record(Schema.String, Schema.Unknown),
-        params: Schema.Array(Param),
+        params: Schema.optionalKey(Schema.Array(Param)),
       }),
     ),
   }),
@@ -83,40 +86,50 @@ const invocation =
       }),
     );
 
-/**
- * Read the `dot` commands exposed as tools from `dot agent tools --json`. Job-only commands are
- * not tools of their own; `jobs.start` runs them as `dot.<name>`.
- */
-export const loadDotTools = runCli("dot", ["agent", "tools", "--json"], {
-  timeout: "30 seconds",
-}).pipe(
-  Effect.filterOrFail(
-    (run) => run.exitCode === 0,
-    (run) =>
-      new Tool.Error({ message: `dot agent tools exited ${run.exitCode}: ${run.stderr.trim()}` }),
-  ),
-  Effect.flatMap((run) => Schema.decodeUnknownEffect(Manifest)(run.stdout)),
-  Effect.map(({ tools }) => {
-    const all = tools.map((tool) => ({
-      jobOnly: tool.jobOnly ?? false,
-      tool: {
-        name: tool.name,
-        description: tool.description,
-        access: tool.access,
-        pinned: tool.pinned,
-        timeout: tool.timeoutMillis,
-        json: tool.json,
-        exitCodes: tool.exitCodes,
-        alwaysAsk: tool.alwaysAsk,
-        directory: tool.directory,
-        input: tool.input,
-        invocation: invocation(tool.argv, tool.params, tool.json, tool.directory ?? false),
-      } satisfies CliTool,
-    }));
+/** The whole input as JSON on stdin, for a CLI that decodes it itself. */
+const stdinInvocation = (argv: readonly string[]) => (input: CliInput) =>
+  Effect.succeed({ args: argv, stdin: JSON.stringify(input) });
 
-    return {
-      tools: all.flatMap((entry) => (entry.jobOnly ? [] : [entry.tool])),
-      jobs: all.map((entry) => entry.tool),
-    };
-  }),
-);
+/**
+ * Read the commands a CLI exposes as tools from `<command> agent tools --json`. Job-only commands
+ * are not tools of their own; `jobs.start` runs them as `<command>.<name>`.
+ */
+export const loadAgentTools = (command: string) =>
+  runCli(command, ["agent", "tools", "--json"], {
+    timeout: "30 seconds",
+  }).pipe(
+    Effect.filterOrFail(
+      (run) => run.exitCode === 0,
+      (run) =>
+        new Tool.Error({ message: `${command} agent tools exited ${run.exitCode}: ${run.stderr.trim()}` }),
+    ),
+    Effect.flatMap((run) => Schema.decodeUnknownEffect(Manifest)(run.stdout)),
+    Effect.map(({ tools }) => {
+      const all = tools.map((tool) => ({
+        jobOnly: tool.jobOnly ?? false,
+        tool: {
+          name: tool.name,
+          description: tool.description,
+          access: tool.access,
+          pinned: tool.pinned,
+          timeout: tool.timeoutMillis,
+          json: tool.json,
+          exitCodes: tool.exitCodes,
+          alwaysAsk: tool.alwaysAsk,
+          directory: tool.directory,
+          input: tool.input,
+          invocation: tool.stdin
+            ? stdinInvocation(tool.argv)
+            : invocation(tool.argv, tool.params ?? [], tool.json, tool.directory ?? false),
+        } satisfies CliTool,
+      }));
+
+      return {
+        tools: all.flatMap((entry) => (entry.jobOnly ? [] : [entry.tool])),
+        jobs: all.map((entry) => entry.tool),
+      };
+    }),
+  );
+
+/** The `dot` commands exposed as tools. */
+export const loadDotTools = loadAgentTools("dot");
