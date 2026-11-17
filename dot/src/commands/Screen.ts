@@ -185,6 +185,65 @@ export const screenHdr = Effect.gen(function* () {
   }
 }).pipe(Effect.withSpan("Screen.hdr"));
 
+/** Built-in panels, which only lead when nothing else is connected. */
+const INTERNAL_OUTPUT = /^(eDP|LVDS|DSI)-/;
+
+/**
+ * Make the TV Plasma's main screen, with the panel and new windows: the first
+ * connected screen that isn't the laptop's own panel. With only the panel
+ * connected, nothing changes.
+ */
+export const screenTvFirst = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const env = yield* plasmaSessionEnv;
+
+  const config = yield* executor.run("kscreen-doctor", ["-j"], { env }).pipe(
+    Effect.flatMap(Schema.decodeEffect(KScreenConfig)),
+    Effect.mapError(
+      (cause) =>
+        new ScreenError({
+          message: `Could not read the screens from kscreen-doctor: ${cause.message}`,
+        }),
+    ),
+  );
+
+  const tv = config.outputs.find(
+    (output) =>
+      output.connected && output.enabled && !INTERNAL_OUTPUT.test(output.name),
+  );
+
+  if (!tv) {
+    yield* Effect.sync(() =>
+      process.stdout.write(
+        "No TV connected; the panel stays the main screen\n",
+      ),
+    );
+
+    return;
+  }
+
+  const exitCode = yield* executor.exitCode(
+    "kscreen-doctor",
+    [`output.${tv.name}.priority.1`],
+    { env },
+  );
+
+  if (exitCode !== 0)
+    return yield* new ScreenError({
+      message: `Could not make ${tv.name} the main screen (kscreen-doctor exited ${exitCode})`,
+    });
+
+  yield* Effect.sync(() =>
+    process.stdout.write(`${tv.name} is the main screen\n`),
+  );
+}).pipe(Effect.withSpan("Screen.tvFirst"));
+
+/** Make the TV the main screen, then turn on HDR everywhere: what Plasma runs at login. */
+export const screenSetup = screenTvFirst.pipe(
+  Effect.andThen(screenHdr),
+  Effect.withSpan("Screen.setup"),
+);
+
 /** Say what's on screen now, and what the login manager logs into next. */
 export const screenStatus = Effect.gen(function* () {
   const executor = yield* CommandExecutor;

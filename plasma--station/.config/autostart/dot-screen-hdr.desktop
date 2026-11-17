@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=Screen HDR
-Comment=Turn on HDR and wide colour on every screen (dot screen hdr)
-Exec=sh -c '~/.local/bin/dot screen hdr'
+Name=Screen setup
+Comment=Make the TV the main screen and turn on HDR (dot screen setup)
+Exec=sh -c '~/.local/bin/dot screen setup'
 OnlyShowIn=KDE;
 X-KDE-autostart-phase=2
 NoDisplay=true
