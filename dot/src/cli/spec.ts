@@ -70,6 +70,7 @@ import {
   screenHdr,
   screenKeyboard,
   screenOff,
+  screenSteamBeta,
   screenOn,
   screenSetup,
   screenStatus,
@@ -979,6 +980,28 @@ const screenCommand = describe(
         {
           description:
             "Shows Plasma's on-screen keyboard through KWin's virtual keyboard, or hides it when it's showing. KWin only brings it up by itself after touch input, so this is how a mouse, a controller in Steam's desktop layout, Moonlight or RDP call it up. The On-Screen Keyboard entry in the app menu and on the desktop runs it.",
+        },
+      ),
+      describe(
+        Command.make("steam-beta").pipe(
+          Command.withSubcommands([
+            describe(
+              Command.make("game", {}, () => screenSteamBeta("game")),
+              "Translate the Steam beta choice for gaming mode's client",
+              ["dot screen steam-beta game"],
+            ),
+            describe(
+              Command.make("desktop", {}, () => screenSteamBeta("desktop")),
+              "Translate the Steam beta choice for the desktop's client",
+              ["dot screen steam-beta desktop"],
+            ),
+          ]),
+        ),
+        "Keep the Steam beta chosen in one mode for the other",
+        ["dot screen steam-beta game", "dot screen steam-beta desktop"],
+        {
+          description:
+            "Gaming mode runs the Steam Deck client, whose betas are steamdeck_publicbeta and steamdeck_beta, and the desktop runs the normal client, whose beta is publicbeta. Both keep the choice in ~/.local/share/Steam/package/beta and reset a name they don't know to stable, so a beta chosen in one mode was lost in the other. This rewrites the file into the name the given mode's client understands: publicbeta becomes steamdeck_publicbeta for gaming mode, a Steam Deck beta becomes publicbeta for the desktop, and steamdeck_stable becomes the desktop's stable. steam-launcher.service runs the game form before gaming mode's Steam starts, and the desktop's Steam login item runs the desktop form.",
         },
       ),
       describe(
