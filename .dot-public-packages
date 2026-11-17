@@ -17,6 +17,7 @@ herdr-app
 hokum-bin
 kestrel-nvr-bin
 momentum-git
+moonlight-qt
 music-assistant-tui-git
 openscad
 gtk4-layer-shell
@@ -31,6 +32,7 @@ qt6-webengine
 remmina
 smem
 stress-ng
+sunshine
 sysbench
 sysstat
 syncthing

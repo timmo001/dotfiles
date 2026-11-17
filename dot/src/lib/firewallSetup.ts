@@ -57,6 +57,9 @@ export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
  * - Home Assistant serves its frontend on 8123 and its companion port 8124.
  * - LocalSend discovers and transfers over 53317 on both UDP and TCP.
  * - System Bridge serves its API on 9170, which Home Assistant connects to.
+ * - Sunshine serves Moonlight clients: HTTPS pairing on 47984, HTTP on 47989,
+ *   its web UI on 47990 and RTSP on 48010 over TCP, with video, control and
+ *   audio on UDP 47998-48000, 48002 and 48010.
  * - libvirt's default NAT network needs the host to accept guest DHCP (67) and
  *   DNS (53) on `virbr0` and to forward (route) guest traffic off `virbr0`,
  *   which ufw's default `deny (incoming)`/`deny (routed)` policy otherwise
@@ -78,6 +81,11 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
     protocols: ["udp", "tcp"],
   },
   { kind: "port", label: "System Bridge", port: "9170", protocols: ["tcp"] },
+  { kind: "port", label: "Sunshine", port: "47984", protocols: ["tcp"] },
+  { kind: "port", label: "Sunshine", port: "47989:47990", protocols: ["tcp"] },
+  { kind: "port", label: "Sunshine", port: "48010", protocols: ["tcp", "udp"] },
+  { kind: "port", label: "Sunshine", port: "47998:48000", protocols: ["udp"] },
+  { kind: "port", label: "Sunshine", port: "48002", protocols: ["udp"] },
   {
     kind: "port",
     label: "libvirt DHCP",
