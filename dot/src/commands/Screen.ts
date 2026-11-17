@@ -7,6 +7,7 @@
  */
 
 import { Effect, FileSystem, Schema } from "effect";
+import { ENV, envString } from "../lib/env.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
 /** Plasma Login Manager, which logs in to the chosen session on the TV. */
@@ -92,6 +93,97 @@ export const screenOff = Effect.gen(function* () {
     process.stdout.write("Closed the screen session; Station is headless\n"),
   );
 }).pipe(Effect.withSpan("Screen.off"));
+
+/** KDE's screen config, as much of it as dot screen hdr reads. */
+const KScreenConfig = Schema.fromJsonString(
+  Schema.Struct({
+    outputs: Schema.Array(
+      Schema.Struct({
+        name: Schema.String,
+        connected: Schema.Boolean,
+        enabled: Schema.Boolean,
+      }),
+    ),
+  }),
+);
+
+/**
+ * The environment that reaches the running Plasma session from any shell,
+ * SSH included: its runtime directory, session bus and Wayland socket.
+ */
+const plasmaSessionEnv = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const runtime = `/run/user/${process.getuid?.() ?? 1000}`;
+
+  const socket =
+    envString(ENV.WAYLAND_DISPLAY) ??
+    (yield* fs
+      .readDirectory(runtime)
+      .pipe(Effect.orElseSucceed((): string[] => [])))
+      .filter((name) => /^wayland-\d+$/.test(name))
+      .sort()[0];
+
+  if (!socket)
+    return yield* new ScreenError({
+      message:
+        "No Wayland session is running: start one with dot screen desktop",
+    });
+
+  return {
+    XDG_RUNTIME_DIR: runtime,
+    DBUS_SESSION_BUS_ADDRESS: `unix:path=${runtime}/bus`,
+    WAYLAND_DISPLAY: socket,
+    QT_QPA_PLATFORM: "wayland",
+  };
+}).pipe(Effect.withSpan("Screen.plasmaSessionEnv"));
+
+/**
+ * Turn on HDR and wide colour on every connected screen in the Plasma
+ * session, with each screen's own EDID as its colour profile in SDR and HDR,
+ * so the panel and the TV each get their own. KWin keeps the settings per
+ * screen. A screen that can't do HDR is reported and left as it is.
+ */
+export const screenHdr = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const env = yield* plasmaSessionEnv;
+
+  const config = yield* executor.run("kscreen-doctor", ["-j"], { env }).pipe(
+    Effect.flatMap(Schema.decodeEffect(KScreenConfig)),
+    Effect.mapError(
+      (cause) =>
+        new ScreenError({
+          message: `Could not read the screens from kscreen-doctor: ${cause.message}`,
+        }),
+    ),
+  );
+
+  const screens = config.outputs.filter(
+    (output) => output.connected && output.enabled,
+  );
+
+  for (const { name } of screens) {
+    // One screen per call: KDE applies a call all or nothing, so a screen
+    // without HDR would otherwise stop the rest.
+    const exitCode = yield* executor.exitCode(
+      "kscreen-doctor",
+      [
+        `output.${name}.hdr.enable`,
+        `output.${name}.wcg.enable`,
+        `output.${name}.colorProfileSource.EDID`,
+        `output.${name}.hdrColorProfileSource.EDID`,
+      ],
+      { env },
+    );
+
+    yield* Effect.sync(() =>
+      process.stdout.write(
+        exitCode === 0
+          ? `HDR on for ${name}, with its EDID colour profile\n`
+          : `${name} didn't take HDR (kscreen-doctor exited ${exitCode}); it may not support it\n`,
+      ),
+    );
+  }
+}).pipe(Effect.withSpan("Screen.hdr"));
 
 /** Say what's on screen now, and what the login manager logs into next. */
 export const screenStatus = Effect.gen(function* () {
