@@ -34,4 +34,5 @@
 --ignore=^/tools
 --ignore=^/udev-rules
 --ignore=^/first-party
+--ignore=^/station
 --ignore=^/avahi

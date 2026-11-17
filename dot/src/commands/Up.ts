@@ -25,6 +25,7 @@ import {
 import { setupPrivatePackageRepo } from "./SetupPrivateRepo.js";
 import { syncRootFirstParty } from "../lib/firstPartyPackages.js";
 import { patchDrift, syncRootPatches } from "../lib/omarchyPatches.js";
+import { syncStationSystem } from "../lib/stationSystem.js";
 import { installMissingArchPackages } from "../lib/packageSetup.js";
 import {
   agentPlugins,
@@ -133,7 +134,8 @@ const GROUP_INFO: Record<
   },
   system: {
     title: "System",
-    description: "Upgrade the system packages with pacman -Syu",
+    description:
+      "Apply Station's lid, boot target and lingering settings, then upgrade the system packages with pacman -Syu",
   },
 };
 
@@ -884,6 +886,8 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
               ? done("Installed the Omarchy patch hook")
               : skip("Omarchy patch hook already current"),
         );
+      } else {
+        actions.push(...(yield* syncStationSystem));
       }
 
       if (!ran.has("first-party")) actions.push(yield* firstPartyRootSync);
