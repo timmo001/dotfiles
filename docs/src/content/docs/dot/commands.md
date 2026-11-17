@@ -1964,6 +1964,113 @@ dot station screen keyboard [flags]
 dot station screen keyboard
 ```
 
+## `dot screen`
+
+Switch Station's TV between gaming mode, the desktop and nothing
+
+```text
+dot screen <subcommand> [flags]
+```
+
+Station boots to a text console, so Plasma Login Manager only runs while a screen is on. game and desktop set the session it logs into with CachyOS's steam-set-session, the helper Steam's Switch to Desktop also uses, then restart it, replacing whatever was on screen; off stops it. Each works the same typed on Station or over SSH, and the game, desk and headless commands in /usr/local/bin run them. polkit lets wheel users start, stop and restart the login manager without a password.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot screen game
+dot screen desktop
+dot screen off
+```
+
+### `dot screen game`
+
+Show Steam's gaming mode on the TV
+
+```text
+dot screen game [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot screen game
+game
+```
+
+### `dot screen desktop`
+
+Show the Plasma desktop on the TV
+
+```text
+dot screen desktop [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot screen desktop
+desk
+```
+
+### `dot screen off`
+
+Close whatever is on screen, back to the text console
+
+```text
+dot screen off [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot screen off
+headless
+```
+
+### `dot screen status`
+
+Say what's on screen and what the next login starts
+
+```text
+dot screen status [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot screen status
+```
+
 ## `dot tunnel`
 
 Run shared Cloudflare tunnels on one machine at a time

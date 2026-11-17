@@ -103,6 +103,7 @@ import {
   stationDesktopWatch,
   stationScreen,
 } from "../commands/Station.js";
+import { screenOff, screenOn, screenStatus } from "../commands/Screen.js";
 import { tunnelRun } from "../commands/Tunnel.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { prQueue } from "../commands/PrQueue.js";
@@ -1261,6 +1262,39 @@ const macropadCommand = describe(
   {
     description:
       "macropad/layout.yaml in the public dotfiles lists what each key (in reading order) and knob (small left, small right, medium, big; each turned left, pressed and turned right) sends, as a wonkey command (key, media or mouse) and its value, and what it does. Apply runs wonkey once per action, so the pad needs its USB cable and udev-rules/60-ch57x-macropad.rules; wonkey is the patched copy vendored in macropad/vendor/wonkey, built by mise run macropad:build. Render draws the pad with those labels for the README, then converts it to PNG with rsvg-convert. Hyprland binds the keys' F13-F24, the middle knob's Ctrl+F16-F18 and the big knob's Ctrl+F13-F15.",
+  },
+);
+
+const screenCommand = describe(
+  Command.make("screen").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make("game", {}, () => screenOn("game")),
+        "Show Steam's gaming mode on the TV",
+        ["dot screen game", "game"],
+      ),
+      describe(
+        Command.make("desktop", {}, () => screenOn("desktop")),
+        "Show the Plasma desktop on the TV",
+        ["dot screen desktop", "desk"],
+      ),
+      describe(
+        Command.make("off", {}, () => screenOff),
+        "Close whatever is on screen, back to the text console",
+        ["dot screen off", "headless"],
+      ),
+      describe(
+        Command.make("status", {}, () => screenStatus),
+        "Say what's on screen and what the next login starts",
+        ["dot screen status"],
+      ),
+    ]),
+  ),
+  "Switch Station's TV between gaming mode, the desktop and nothing",
+  ["dot screen game", "dot screen desktop", "dot screen off"],
+  {
+    description:
+      "Station boots to a text console, so Plasma Login Manager only runs while a screen is on. game and desktop set the session it logs into with CachyOS's steam-set-session, the helper Steam's Switch to Desktop also uses, then restart it, replacing whatever was on screen; off stops it. Each works the same typed on Station or over SSH, and the game, desk and headless commands in /usr/local/bin run them. polkit lets wheel users start, stop and restart the login manager without a password.",
   },
 );
 
@@ -4257,6 +4291,7 @@ export const dotCommand = describe(
       macropadCommand,
       gameCommand,
       stationCommand,
+      screenCommand,
       tunnelCommand,
       stowCommand,
       omarchyCommand,

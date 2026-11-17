@@ -1,0 +1,14 @@
+// Lets a wheel user start, stop and restart Plasma Login Manager without a
+// password, so dot screen can switch what's on Station's TV, over SSH too.
+// It only logs in to the session steam-set-session picked, so it grants
+// nothing else. dot init and dot up install this root-owned.
+polkit.addRule(function (action, subject) {
+  if (
+    action.id === "org.freedesktop.systemd1.manage-units" &&
+    action.lookup("unit") === "plasmalogin.service" &&
+    ["start", "stop", "restart"].indexOf(action.lookup("verb")) !== -1 &&
+    subject.isInGroup("wheel")
+  ) {
+    return polkit.Result.YES;
+  }
+});

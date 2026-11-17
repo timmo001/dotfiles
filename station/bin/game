@@ -1,0 +1,4 @@
+#!/bin/sh
+# Show Steam's gaming mode on Station's TV: dot screen game, from any shell
+# or over SSH. Installed root-owned into /usr/local/bin by dot.
+exec "$HOME/.local/bin/dot" screen game "$@"
