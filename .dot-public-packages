@@ -1,50 +1,33 @@
-# Public Arch packages managed by dot.
+# Public Arch packages managed by dot on Station (CachyOS).
 # One package per line, comments and blank lines are ignored.
+# Everything here comes from the official, CachyOS or [timmo] repositories:
+# Station has no AUR helper, so the desktop's AUR-only smem and
+# zsh-fast-syntax-highlighting are left out (.zshrc skips the highlighter when
+# it's missing). Kestrel, Triage and Upkeep join when they move over from the
+# Home Assistant Green.
 
-blender
 bmon
-catppuccin-cursors-mocha
 cmake
-cpio
 context-git
-float-app-git
-freecad
-freerdp
+cpio
 gcc
 git
+gum
 ha-bridge-git
 herdr-app
-hokum-bin
-kestrel-nvr-bin
-momentum-git
-moonlight-qt
-music-assistant-tui-git
-openscad
-gtk4-layer-shell
 iperf3
 kdeconnect
 libva-utils
-mise-bin
-repo-notes-git
+mise
+openssh
+pacman-contrib
 pkgconf
-podman
-python-gobject
-qt6-webengine
-remmina
-smem
+repo-notes-git
+stow
 stress-ng
-sunshine
 sysbench
 sysstat
 syncthing
 system-bridge-git
-tailscale
-thunar
-triage-git
-upkeep-git
-upnext-git
-wl-mirror
-xorg-xsetroot
 zsh
 zsh-autosuggestions
-zsh-fast-syntax-highlighting
