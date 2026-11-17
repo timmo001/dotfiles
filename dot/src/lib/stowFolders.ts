@@ -16,6 +16,29 @@ export const INTERNAL_STOW_FOLDERS = [
 const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
 
 /**
+ * Packages only the Omarchy desktop uses, which Station never stows. They stay
+ * in the tree rather than being deleted, so merges from the desktop branch
+ * don't conflict whenever they change there.
+ *
+ * - `hypr`, `omarchy`, `omarchy-themes` and `uwsm`: the Omarchy session.
+ * - `hokum`: the desktop's notification and card app.
+ * - `pacman-hooks`: the Omarchy patch hook and Nautilus's file manager hook,
+ *   which `dot init` would otherwise install system-wide.
+ * - `plannotator`, `cursor` and `nix`: desktop-only tools.
+ */
+const DESKTOP_ONLY_STOW_FOLDERS = new Set<string>([
+  "cursor",
+  "hokum",
+  "hypr",
+  "nix",
+  "omarchy",
+  "omarchy-themes",
+  "pacman-hooks",
+  "plannotator",
+  "uwsm",
+]);
+
+/**
  * Home-relative target directories that must stay real directories instead of
  * collapsing to a single folded symlink. Any stow package that lays a file
  * into one of these directories requires `--no-folding`, because external
@@ -106,8 +129,9 @@ export const requiresNoFolding = Effect.fn("StowFolders.requiresNoFolding")(
 /**
  * List top-level stow package directories in a repo.
  *
- * Filters out non-directory entries, dotfiles, internal folders, the backup
- * folder, and host-specific packages that don't match `OMARCHY_HOST`.
+ * Filters out non-directory entries, dotfiles, internal folders, desktop-only
+ * packages, the backup folder, and host-specific packages that don't match
+ * `OMARCHY_HOST`.
  */
 export const listStowFolders = Effect.fn("StowFolders.listStowFolders")(
   function* (repoDir: string, config?: ConfigService) {
@@ -129,6 +153,8 @@ export const listStowFolders = Effect.fn("StowFolders.listStowFolders")(
 
       // Skip repo internals that are not stow packages.
       if (INTERNAL_FOLDERS.has(entry)) continue;
+
+      if (DESKTOP_ONLY_STOW_FOLDERS.has(entry)) continue;
 
       // Skip dot-internal directories that aren't stow packages
       if (entry.startsWith(".")) continue;
