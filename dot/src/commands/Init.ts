@@ -35,6 +35,7 @@ import { installGhExtensions } from "../lib/ghExtensions.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { ensureGlobalHkHooks } from "../lib/gitHooks.js";
 import { trustTrackedMiseConfigs } from "../lib/miseTrust.js";
+import { syncSkills } from "../lib/externalSkills.js";
 import { withStepTimeout } from "../lib/workflowStep.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
 import {
@@ -812,6 +813,27 @@ function ensureLoginShellZsh(): Effect.Effect<
   });
 }
 
+/**
+ * Create `~/.config/git/config` before anything writes global git config.
+ * Git writes `--global` settings to `~/.gitconfig` unless this file exists,
+ * and hk's hooks are the first such write on a fresh machine.
+ */
+const ensureXdgGitConfig = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const xdgConfig = join(CONFIG_DIR, "git", "config");
+
+  if (
+    (yield* pathExists(xdgConfig)) ||
+    (yield* pathExists(join(HOME_DIR, ".gitconfig")))
+  )
+    return;
+
+  yield* fs
+    .makeDirectory(join(CONFIG_DIR, "git"), { recursive: true })
+    .pipe(Effect.mapError(fsError));
+  yield* fs.writeFileString(xdgConfig, "").pipe(Effect.mapError(fsError));
+}).pipe(Effect.withSpan("init.ensureXdgGitConfig"));
+
 /** Run the one-time first-use setup workflow for a fresh machine. */
 export function init(
   input: InitOptions & { readonly interactive: boolean },
@@ -885,10 +907,25 @@ export function init(
       INIT_STEP_TIMEOUT_SECONDS.mise,
       installMiseTools,
     );
+    // The stowed global mise config isn't trusted on a fresh machine, so the
+    // skills install inside Install Dotfiles fails; trust it, then retry.
+    yield* step(
+      "Trust Stowed Mise Configs",
+      INIT_STEP_TIMEOUT_SECONDS.miseTrust,
+      trustTrackedMiseConfigs,
+    );
+    yield* step(
+      "Install Skills",
+      INIT_STEP_TIMEOUT_SECONDS.agents,
+      Effect.asVoid(syncSkills),
+    );
     yield* step(
       "Install Git Hooks",
       INIT_STEP_TIMEOUT_SECONDS.gitHooks,
-      Effect.asVoid(ensureGlobalHkHooks),
+      ensureXdgGitConfig.pipe(
+        Effect.andThen(ensureGlobalHkHooks),
+        Effect.asVoid,
+      ),
     );
     yield* step(
       "Setup Public Package Repository",
