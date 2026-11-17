@@ -27,6 +27,8 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  * don't conflict whenever they change there.
  *
  * - `hypr`, `omarchy`, `omarchy-themes` and `uwsm`: the Omarchy session.
+ * - `herdr-app`: the Herdr app, which Station leaves out since it only comes
+ *   as an AUR build.
  * - `hokum`: the desktop's notification and card app.
  * - `pacman-hooks`: the Omarchy patch hook and Nautilus's file manager hook,
  *   which `dot init` would otherwise install system-wide.
@@ -34,6 +36,7 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  */
 const DESKTOP_ONLY_STOW_FOLDERS = new Set<string>([
   "cursor",
+  "herdr-app",
   "hokum",
   "hypr",
   "nix",
