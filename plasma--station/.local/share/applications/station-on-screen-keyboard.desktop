@@ -2,7 +2,7 @@
 Type=Application
 Name=On-Screen Keyboard
 Comment=Show or hide Plasma's on-screen keyboard (dot screen keyboard)
-Exec=sh -c '~/.local/bin/dot screen keyboard'
+Exec=dot screen keyboard
 Icon=input-keyboard-virtual
 Terminal=false
 Categories=Utility;Accessibility;
