@@ -29,6 +29,8 @@ const DEFAULT_UNITS: readonly DefaultUnit[] = [
   { unit: "dot-game-sync.path" },
   // Serves the update status to the bar, OpenCode and the CLI.
   { unit: "dot-daemon.service" },
+  // Station's always-on System Bridge, stowed over the package's session unit.
+  { unit: "system-bridge.service" },
   // Hokum draws black cards on the desktop's NVIDIA GPU.
   { unit: "hokum.service", onlyHosts: ["laptop"] },
 ];

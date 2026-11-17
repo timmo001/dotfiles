@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=System Bridge session
+Comment=Restart System Bridge so it picks up the Plasma session's display
+Exec=systemctl --user try-restart system-bridge.service
+OnlyShowIn=KDE;
+X-KDE-autostart-phase=2
+NoDisplay=true

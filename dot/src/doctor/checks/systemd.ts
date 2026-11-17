@@ -259,6 +259,34 @@ export const checkNotesCaptureDaemon = Effect.gen(function* () {
   return results;
 });
 
+/**
+ * Check Station's System Bridge is enabled and running. Registered services
+ * only warn once they fail, but Home Assistant needs this one up all the time.
+ */
+export const checkSystemBridge = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const unit = "system-bridge.service";
+  const results: CheckResult[] = [];
+
+  yield* addFilePresenceCheck(
+    results,
+    userSystemdUnitPath(unit),
+    `System Bridge unit found: ${unit}`,
+    `System Bridge unit missing: ${unit}`,
+    "Run dot stow to link systemd user units",
+  );
+
+  yield* checkRequiredUserUnit(
+    results,
+    executor,
+    unit,
+    "System Bridge",
+    `Enable with: systemctl --user enable --now ${unit}`,
+  );
+
+  return results;
+});
+
 /** Report registered services whose monitoring policy says they need attention. */
 export const checkRegisteredServices = Effect.gen(function* () {
   const { registered, errors } = yield* readRegisteredServices;
