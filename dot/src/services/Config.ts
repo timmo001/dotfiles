@@ -22,6 +22,12 @@ import {
 import { ENV, envString } from "../lib/env.js";
 import { readPrivateSelection } from "../lib/privateSelection.js";
 
+/** dot's own cache or log directory could not be created. */
+export class ConfigError extends Schema.TaggedError<ConfigError>()(
+  "ConfigError",
+  { message: Schema.String, cause: Schema.optionalKey(Schema.Defect()) },
+) {}
+
 /** Service interface providing resolved paths and environment detection */
 export interface ConfigService {
   /** Path to the public dotfiles repository */

@@ -874,7 +874,9 @@ function summarise(status: Omit<ServiceStatus, "summary">): string {
       return "Last run completed with warnings";
     case "running":
       return "Running now";
-    case "ok":
+    case "ok": {
+      const latest = status.runs.find((run) => run.result !== "skipped");
+
       if (
         status.runs[0]?.result === "skipped" &&
         (latest === undefined || latest.result === "failed")
@@ -1979,9 +1981,8 @@ export const servicesStop = Effect.fn("Services.stop")(function* (
 });
 
 /**
- * Clear a registered job's failures by hand: runs up to now stop counting,
- * systemd's failed state is reset and the dot daemon checks again. A later
- * failure counts again as usual.
+ * Clear a registered job's failures by hand: runs up to now stop counting and
+ * systemd's failed state is reset. A later failure counts again as usual.
  */
 export const servicesDismiss = Effect.fn("Services.dismiss")(function* (
   unit: string,

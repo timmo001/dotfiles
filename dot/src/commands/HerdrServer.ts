@@ -444,6 +444,7 @@ export const herdrServerAction = Effect.fn("herdrServerAction")(
         (cause) =>
           new HerdrServerError({
             message: `Herdr has not become ready. See journalctl --user -u ${HERDR_UNIT}.`,
+            cause,
           }),
       ),
     );
