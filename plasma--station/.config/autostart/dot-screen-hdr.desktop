@@ -2,7 +2,7 @@
 Type=Application
 Name=Screen HDR
 Comment=Turn on HDR and wide colour on every screen (dot screen hdr)
-Exec=sh -c '"$HOME/.local/bin/dot" screen hdr'
+Exec=sh -c '~/.local/bin/dot screen hdr'
 OnlyShowIn=KDE;
 X-KDE-autostart-phase=2
 NoDisplay=true
