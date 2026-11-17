@@ -2107,6 +2107,56 @@ Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's 
 dot setup herdr machines
 ```
 
+## `dot secrets`
+
+Write other machines' secret files from this desktop
+
+```text
+dot secrets <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot secrets push aidan@arch-station.local
+```
+
+### `dot secrets push`
+
+Write another machine's secret files from this desktop's 1Password
+
+```text
+dot secrets push [flags] <target>
+```
+
+Reads the target's own descriptors from ~/.config/dot/secret-files.d/ over SSH, so it gets exactly its host's files, fills in their {{ op://... }} references with op on this machine, where 1Password unlocks through its app, and copies each file over with mode 0600. Only files that are missing or whose template changed are written, unless --force. Each written file is recorded in the target's ~/.local/state/dot/secret-files.json with the hash dot stow uses, so the target's own stow treats it as current and never needs op, and its units are enabled and restarted.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--force` | Write every file, even ones whose template hasn't changed |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<target>` | SSH destination of the machine, such as aidan@arch-station.local |
+
+**Examples**
+
+```bash
+dot secrets push aidan@arch-station.local
+dot secrets push --force aidan@nas.local
+```
+
 ## `dot git`
 
 Work across tracked Git repositories

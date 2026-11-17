@@ -74,6 +74,7 @@ import { reportList, reportRun } from "../commands/Report.js";
 import { prReviews } from "../commands/PrReviews.js";
 import { prWatch } from "../commands/PrWatch.js";
 import { setupHerdrMachines } from "../commands/SetupHerdrMachines.js";
+import { secretsPush } from "../commands/SecretsPush.js";
 import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
 import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
 import { editSkillConsumer, runSkillsMaintenance } from "../commands/Skills.js";
@@ -2040,6 +2041,41 @@ const notesCommand = describe(
   "Integrate with the notes tool",
 );
 
+const secretsCommand = describe(
+  Command.make("secrets").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "push",
+          {
+            target: Argument.String("target").pipe(
+              Argument.withDescription(
+                "SSH destination of the machine, such as aidan@arch-station.local",
+              ),
+            ),
+            force: bool(
+              "force",
+              "Write every file, even ones whose template hasn't changed",
+            ),
+          },
+          (options) => secretsPush(options),
+        ),
+        "Write another machine's secret files from this desktop's 1Password",
+        [
+          "dot secrets push aidan@arch-station.local",
+          "dot secrets push --force aidan@nas.local",
+        ],
+        {
+          description:
+            "Reads the target's own descriptors from ~/.config/dot/secret-files.d/ over SSH, so it gets exactly its host's files, fills in their {{ op://... }} references with op on this machine, where 1Password unlocks through its app, and copies each file over with mode 0600. Only files that are missing or whose template changed are written, unless --force. Each written file is recorded in the target's ~/.local/state/dot/secret-files.json with the hash dot stow uses, so the target's own stow treats it as current and never needs op, and its units are enabled and restarted.",
+        },
+      ),
+    ]),
+  ),
+  "Write other machines' secret files from this desktop",
+  ["dot secrets push aidan@arch-station.local"],
+);
+
 const setupCommand = describe(
   Command.make("setup").pipe(
     Command.withSubcommands([
@@ -3670,6 +3706,7 @@ export const dotCommand = describe(
       agentCommand,
       notesCommand,
       setupCommand,
+      secretsCommand,
       gitCommand,
       linkCommand,
       describe(

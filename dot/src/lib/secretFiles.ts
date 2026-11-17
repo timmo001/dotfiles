@@ -17,7 +17,7 @@ export const SECRET_FILES_DIR = join(CONFIG_DIR, "dot", "secret-files.d");
 const STATE_PATH = join(STATE_DIR, "dot", "secret-files.json");
 
 /** A file written from a template whose `{{ op://... }}` references 1Password fills in. */
-const SecretFile = Schema.Struct({
+export const SecretFile = Schema.Struct({
   /** Where the filled-in file goes, written with mode 0600. */
   output: Schema.String,
   /** The file's content, with secrets as `{{ op://vault/item/field }}`. */
@@ -31,9 +31,28 @@ const SecretFile = Schema.Struct({
   units: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
-interface SecretFile extends Schema.Schema.Type<typeof SecretFile> {}
+/** A secret file descriptor from `~/.config/dot/secret-files.d/`. */
+export interface SecretFile extends Schema.Schema.Type<typeof SecretFile> {}
 
-const WrittenFrom = Schema.fromJsonString(
+/**
+ * The hash a file is recorded under once written, so it's only filled in
+ * again when its template or account changes. The account joins the hash only
+ * when set, so files without one keep their hash.
+ */
+export const secretFileHash = (file: SecretFile) =>
+  createHash("sha256")
+    .update(
+      file.account === undefined
+        ? file.template
+        : `${file.template}\0${file.account}`,
+    )
+    .digest("hex");
+
+/** Where {@link applySecretFiles} records its hashes, relative to the state directory. */
+export const SECRET_FILES_STATE = "dot/secret-files.json";
+
+/** The recorded template hashes, by output path. */
+export const WrittenFrom = Schema.fromJsonString(
   Schema.Record(Schema.String, Schema.String),
 );
 
@@ -80,7 +99,7 @@ const readWrittenFrom = Effect.gen(function* () {
 );
 
 /** Replace each secret reference with its value from `op read`, in `account` when given. */
-const fillIn = Effect.fn("SecretFiles.fillIn")(function* (
+export const fillIn = Effect.fn("SecretFiles.fillIn")(function* (
   template: string,
   account: string | undefined,
 ) {
@@ -183,16 +202,7 @@ export const applySecretFiles = Effect.gen(function* () {
 
   for (const file of files) {
     const output = expandHomePath(file.output);
-
-    // The account joins the hash only when set, so files without one keep
-    // their hash and aren't read from 1Password again.
-    const hash = createHash("sha256")
-      .update(
-        file.account === undefined
-          ? file.template
-          : `${file.template}\0${file.account}`,
-      )
-      .digest("hex");
+    const hash = secretFileHash(file);
 
     const current = writtenFrom[output] === hash && (yield* fs.exists(output));
 
