@@ -31,6 +31,8 @@ const DEFAULT_UNITS: readonly DefaultUnit[] = [
   { unit: "dot-daemon.service" },
   // Sunshine streams this machine to Moonlight, starting with the desktop.
   { unit: "app-dev.lizardbyte.app.Sunshine.service" },
+  // Station's always-on System Bridge, stowed over the package's session unit.
+  { unit: "system-bridge.service" },
   // Hokum draws black cards on the desktop's NVIDIA GPU.
   { unit: "hokum.service", onlyHosts: ["laptop"] },
 ];

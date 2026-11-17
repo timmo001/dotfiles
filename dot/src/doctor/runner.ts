@@ -26,6 +26,7 @@ import {
   checkLocalBinPath,
   checkNotesCaptureDaemon,
   checkRegisteredServices,
+  checkSystemBridge,
 } from "./checks/systemd.js";
 import { checkOmarchy } from "./checks/omarchy.js";
 import { checkNvimThemeLink } from "./checks/omarchyNvim.js";
@@ -99,6 +100,7 @@ const sections: readonly SectionDef[] = [
   { name: "Git notification checks", check: checkGitNotifications },
   { name: "Doctor notification", check: checkDoctorNotify },
   { name: "Notes capture daemon", check: checkNotesCaptureDaemon },
+  { name: "System Bridge", check: checkSystemBridge },
   { name: "Registered services", check: checkRegisteredServices },
   { name: "uwsm session PATH", check: checkLocalBinPath, omarchy: true },
   { name: "Daily volume reset", check: checkDailyVolumeReset, omarchy: true },

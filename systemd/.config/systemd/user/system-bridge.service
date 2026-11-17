@@ -1,0 +1,18 @@
+# System Bridge on Station, always on. It replaces the package's unit of the
+# same name, which only runs inside a graphical session, so it starts at boot
+# through lingering with no screen on, as System Bridge's docs set out. Plasma
+# restarts it at login (system-bridge-session.desktop) so it picks up the
+# session's display. Package upgrades still restart it by this name.
+[Unit]
+Description=System Bridge backend
+Documentation=https://system-bridge.timmo.dev/running/
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/system-bridge backend
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
