@@ -148,11 +148,9 @@ const AGENT_TOOLS = {
   "up skills": { access: "write", timeout: "10 minutes", jobOnly: true },
   "up repos": { access: "write", timeout: "10 minutes", jobOnly: true },
   "up stow": { access: "write", timeout: "5 minutes" },
-  "up tools": { access: "write", timeout: "30 minutes", jobOnly: true },
   "up plugins": { access: "write", timeout: "10 minutes" },
   "up herdr": { access: "write", timeout: "5 minutes" },
   "up agents": { access: "write", timeout: "5 minutes" },
-  "up shell": { access: "write", timeout: "5 minutes" },
   "updates refresh": { access: "write", timeout: "5 minutes" },
   "repo induct": {
     access: "write",
