@@ -13,6 +13,7 @@ import { agentsSync } from "../commands/AgentsSync.js";
 import { agentOxlint } from "../commands/AgentOxlint.js";
 import { agentLint } from "../commands/AgentLint.js";
 import { agentTools } from "../commands/AgentTools.js";
+import { mcpServe } from "../mcp/commands/McpServe.js";
 import { repoHook } from "../commands/RepoHook.js";
 import { repoInduct } from "../commands/RepoInduct.js";
 import { clean } from "../commands/Clean.js";
@@ -3672,11 +3673,7 @@ export const dotCommand = describe(
       gitCommand,
       linkCommand,
       describe(
-        Command.make("mcp", {}, () =>
-          Effect.promise(() => import("../mcp/commands/McpServe.js")).pipe(
-            Effect.flatMap((module) => module.mcpServe),
-          ),
-        ).pipe(
+        Command.make("mcp", {}, () => mcpServe).pipe(
           Command.withSubcommands([
             describe(
               Command.make("sync", {}, () =>
