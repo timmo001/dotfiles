@@ -269,6 +269,12 @@ const installExternalSkills = Effect.fn("ExternalSkills.install")(function* (
 
   const before = yield* readManifest(AGENT_SKILLS_DIR);
 
+  // The checkout pins its own tools, npm:skills among them, which a fresh
+  // machine hasn't installed yet; this is a no-op once they're there.
+  yield* executor.exitCode("mise", ["install", "--yes"], {
+    cwd: SKILLS_CHECKOUT,
+  });
+
   const exitCode = yield* executor.inherit(
     executable,
     ["install", "--target", AGENT_SKILLS_DIR],
