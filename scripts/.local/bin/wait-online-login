@@ -4,15 +4,36 @@
 # User units can't order after network-online.target, and /proc/uptime starts
 # with the kernel, so neither works on its own.
 #
-# Usage: ExecStartPre=%h/.local/bin/wait-online-login [settle-seconds] [timeout-seconds]
+# Usage: ExecStartPre=%h/.local/bin/wait-online-login [--headless] [settle-seconds] [timeout-seconds]
 # Waits until network-online.target and graphical-session.target have been
 # active for settle seconds (120) and github.com resolves. After timeout
 # seconds (600) it gives up and lets the unit start anyway. Don't use it in a
 # unit graphical-session.target wants: the target waits on that unit.
+#
+# --headless only waits for github.com to resolve, for a machine such as
+# Station that usually has no desktop session and nothing that pulls in
+# network-online.target.
+
+headless=false
+if [ "${1:-}" = --headless ]; then
+  headless=true
+  shift
+fi
 
 settle=${1:-120}
 timeout=${2:-600}
 start=$(date +%s)
+
+if [ "$headless" = true ]; then
+  until getent hosts github.com >/dev/null; do
+    if [ $(($(date +%s) - start)) -ge "$timeout" ]; then
+      echo "github.com still doesn't resolve after ${timeout}s; starting anyway" >&2
+      exit 0
+    fi
+    sleep 5
+  done
+  exit 0
+fi
 
 # When a unit became active, in Unix seconds; fails while it isn't active.
 since() {
