@@ -132,7 +132,8 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
       const omarchyWorktreeRepos: readonly string[] = [];
       const omarchyWorktreeBranches = ["desktop", "laptop"];
       const omarchyExpectedBranches: Readonly<Record<string, string>> = {};
-      const omarchyEnabled = true;
+      // Station runs CachyOS without Omarchy, so every Omarchy step is off.
+      const omarchyEnabled = false;
 
       const omarchy: OmarchyRepoConfig = {
         repoBase: omarchyRepoBase,

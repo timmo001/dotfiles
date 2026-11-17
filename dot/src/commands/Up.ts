@@ -145,8 +145,7 @@ const GROUP_INFO: Record<
   },
   system: {
     title: "System",
-    description:
-      "Hand over to omarchy update for pacman, AUR and Omarchy updates",
+    description: "Upgrade the system packages with pacman -Syu",
   },
 };
 
@@ -671,10 +670,33 @@ const ensurePrivateRepo = Effect.gen(function* () {
   );
 }).pipe(Effect.withSpan("Up.ensurePrivateRepo"));
 
+/**
+ * Station's system step: a plain pacman upgrade, since CachyOS has no
+ * `omarchy update`. Ticking System in the picker already confirmed it.
+ */
+const pacmanSystemUpdate = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+
+  yield* ensurePrivateRepo;
+
+  const exitCode = yield* executor.inherit("sudo", ["pacman", "-Syu"]);
+
+  if (exitCode !== 0) {
+    process.exitCode = exitCode;
+
+    return warn(`pacman -Syu exited ${exitCode}`);
+  }
+
+  return notable("Ran pacman -Syu");
+}).pipe(Effect.withSpan("Up.pacmanSystem"));
+
 /** The Omarchy system step, held back when the patches no longer apply. */
 const systemUpdate = Effect.gen(function* () {
+  const config = yield* Config;
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
+
+  if (!config.omarchy.enabled) return yield* pacmanSystemUpdate;
 
   const drift = yield* patchDrift(CHECK_TIMEOUT);
 
@@ -905,15 +927,17 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
       yield* installMissingArchPackages({ scope: "private" });
       actions.push(done("Installed missing packages"));
     } else {
-      const synced = yield* syncRootPatches();
+      if ((yield* Config).omarchy.enabled) {
+        const synced = yield* syncRootPatches();
 
-      actions.push(
-        synced === null
-          ? warn("Could not install the Omarchy patch hook")
-          : synced
-            ? done("Installed the Omarchy patch hook")
-            : skip("Omarchy patch hook already current"),
-      );
+        actions.push(
+          synced === null
+            ? warn("Could not install the Omarchy patch hook")
+            : synced
+              ? done("Installed the Omarchy patch hook")
+              : skip("Omarchy patch hook already current"),
+        );
+      }
 
       if (!ran.has("first-party")) actions.push(yield* firstPartyRootSync);
 

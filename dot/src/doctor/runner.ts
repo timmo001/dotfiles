@@ -76,6 +76,8 @@ interface SectionDef {
   >;
   readonly requiresPrivate?: boolean;
   readonly host?: string;
+  /** Only meaningful on the Omarchy desktop, so skipped without Omarchy. */
+  readonly omarchy?: boolean;
 }
 
 /** All doctor check sections in display order */
@@ -98,17 +100,18 @@ const sections: readonly SectionDef[] = [
   { name: "Doctor notification", check: checkDoctorNotify },
   { name: "Notes capture daemon", check: checkNotesCaptureDaemon },
   { name: "Registered services", check: checkRegisteredServices },
-  { name: "uwsm session PATH", check: checkLocalBinPath },
-  { name: "Daily volume reset", check: checkDailyVolumeReset },
-  { name: "Omarchy config checks", check: checkOmarchy },
-  { name: "Neovim theme link", check: checkNvimThemeLink },
+  { name: "uwsm session PATH", check: checkLocalBinPath, omarchy: true },
+  { name: "Daily volume reset", check: checkDailyVolumeReset, omarchy: true },
+  { name: "Omarchy config checks", check: checkOmarchy, omarchy: true },
+  { name: "Neovim theme link", check: checkNvimThemeLink, omarchy: true },
   { name: "Private access", check: checkPrivateAccess },
-  { name: "Browser flags", check: checkBrowserFlags },
-  { name: "Hardware video decode", check: checkHardwareVideo },
+  { name: "Browser flags", check: checkBrowserFlags, omarchy: true },
+  { name: "Hardware video decode", check: checkHardwareVideo, omarchy: true },
   {
     name: "Browser extension checks",
     check: checkBrowserExtensions,
     requiresPrivate: true,
+    omarchy: true,
   },
   { name: "Public package checks", check: checkPublicPackages },
   { name: "Public package repo checks", check: checkPublicPackageRepo },
@@ -126,10 +129,10 @@ const sections: readonly SectionDef[] = [
   { name: "LAN-direct routing", check: checkLanDirect },
   { name: "btrfs space", check: checkBtrfs },
   { name: "Pacman hooks", check: checkPacmanHooks },
-  { name: "File manager", check: checkFileManager },
-  { name: "Hex dictation", check: checkHex },
-  { name: "Default browser", check: checkDefaultBrowser },
-  { name: "dot links", check: checkDotLinks },
+  { name: "File manager", check: checkFileManager, omarchy: true },
+  { name: "Hex dictation", check: checkHex, omarchy: true },
+  { name: "Default browser", check: checkDefaultBrowser, omarchy: true },
+  { name: "dot links", check: checkDotLinks, omarchy: true },
   { name: "Firewall rules", check: checkFirewall },
   { name: "Syncthing", check: checkSyncthing },
   { name: "Session queue", check: checkSessionQueue },
@@ -175,7 +178,8 @@ export const runDoctor = (
     const applicable = sections.filter(
       (s) =>
         (!s.requiresPrivate || config.canUsePrivate) &&
-        (!s.host || s.host === host),
+        (!s.host || s.host === host) &&
+        (!s.omarchy || config.omarchy.enabled),
     );
 
     // Seed the running view before any check starts; under unbounded

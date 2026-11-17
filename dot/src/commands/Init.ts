@@ -51,16 +51,17 @@ import { logRunSummary } from "../lib/runSummary.js";
 import { syncRootFirstParty } from "../lib/firstPartyPackages.js";
 import { syncRootLanDirect } from "../lib/lanDirect.js";
 import { syncRootBtrfsBalance } from "../lib/btrfsBalance.js";
-import { syncRootPatches } from "../lib/omarchyPatches.js";
 import type { ConfigService } from "../services/Config.js";
 
 const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
 
 const DOCTOR_TIMER_UNIT = "dot-doctor.timer";
 
-const DEFAULT_INIT_OMARCHY_HOST = "desktop";
+// This branch only sets up Station. OMARCHY_HOST still names the host, since
+// host-suffixed stow packages, package lists and Ghostty's config read it.
+const DEFAULT_INIT_OMARCHY_HOST = "station";
 
-const INIT_OMARCHY_HOSTS = ["desktop", "laptop"] as const;
+const INIT_OMARCHY_HOSTS = ["station"] as const;
 
 const ETC_SHELLS = "/etc/shells";
 
@@ -272,7 +273,7 @@ function promptForHost(): Effect.Effect<
           [
             "choose",
             "--header",
-            "Select Omarchy host for this machine",
+            "Select the host for this machine",
             "--selected",
             DEFAULT_INIT_OMARCHY_HOST,
             ...INIT_OMARCHY_HOSTS,
@@ -329,13 +330,13 @@ function resolveInitOptions(
         Effect.mapError((error) => new InitError({ message: error.message })),
       );
       const host = yield* promptForHost();
-      yield* log.success(`Selected Hypr host ${cliStyler().accent(host)}`);
+      yield* log.success(`Selected host ${cliStyler().accent(host)}`);
 
       return { ...options, host };
     }
 
     const host = initOmarchyHost(options);
-    yield* log.info(`Using Hypr host ${cliStyler().accent(host)}`);
+    yield* log.info(`Using host ${cliStyler().accent(host)}`);
 
     return { ...options, host };
   });
@@ -396,10 +397,17 @@ function ensureInitHyprHostLink(
 > {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
-
-    if (!config.omarchy.enabled) return;
-
     const host = initOmarchyHost(options);
+
+    // Without Omarchy there's no Hypr host link, but the host still selects
+    // host-suffixed packages, so it's set and persisted all the same.
+    if (!config.omarchy.enabled) {
+      yield* log.section("Host");
+      setEnv(ENV.OMARCHY_HOST, host);
+      yield* persistOmarchyHostEnv(host);
+
+      return;
+    }
 
     yield* log.section("Omarchy Host Links");
 
@@ -859,7 +867,7 @@ export function init(
       ensureLocalesGenerated,
     );
     yield* step(
-      "Omarchy Host Links",
+      "Host",
       INIT_STEP_TIMEOUT_SECONDS.hostLinks,
       ensureInitHyprHostLink(config, options),
     );
@@ -928,19 +936,6 @@ export function init(
       "Configure Git",
       INIT_STEP_TIMEOUT_SECONDS.git,
       configureGitInclude(config),
-    );
-    yield* step(
-      "Install Omarchy Patches",
-      INIT_STEP_TIMEOUT_SECONDS.hooks,
-      syncRootPatches().pipe(
-        Effect.flatMap((synced) =>
-          synced === null
-            ? OutputLog.use((log) =>
-                log.warn("Could not install the Omarchy patches and hook"),
-              )
-            : Effect.void,
-        ),
-      ),
     );
     yield* step(
       "Install First-Party Upgrades",
@@ -1016,7 +1011,7 @@ export function init(
     yield* log.info("");
     yield* log.info(style.label("Next steps"));
     yield* log.info(
-      `  Reboot so the Omarchy session picks up ${style.accent("OMARCHY_HOST")} and stowed user services`,
+      `  Reboot so logins pick up ${style.accent("OMARCHY_HOST")} and stowed user services`,
     );
     yield* log.info(
       `  After reboot, run ${style.command("dot doctor")} to verify this setup`,

@@ -159,25 +159,30 @@ export const missingArchPackages = Effect.fn("PackageSetup.missing")(function* (
   );
 });
 
-function installWithOmarchyPkgAdd(
+/**
+ * Install one package with pacman. Station has no Omarchy package helpers, and
+ * everything it needs is in the official, CachyOS or [timmo] repositories.
+ */
+function installWithPacmanFor(
   packageName: string,
   reason: string,
 ): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
   return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
     const log = yield* OutputLog;
 
-    if (!(yield* commandAvailable("omarchy-pkg-add"))) {
-      return yield* fail(
-        `Required command missing: omarchy-pkg-add (needed to install ${packageName} for ${reason})`,
-      );
-    }
-
     yield* log.info(`Installing: ${packageName}`);
-    const exitCode = yield* executor.inherit("omarchy-pkg-add", [packageName]);
+
+    const exitCode = yield* runElevated("pacman", [
+      "-S",
+      "--needed",
+      "--noconfirm",
+      packageName,
+    ]);
 
     if (exitCode !== 0) {
-      return yield* fail(`omarchy-pkg-add ${packageName} exited ${exitCode}`);
+      return yield* fail(
+        `pacman -S ${packageName} exited ${exitCode} (needed for ${reason})`,
+      );
     }
   });
 }
@@ -207,7 +212,7 @@ export const ensureStowInstalled: Effect.Effect<
     return;
   }
 
-  yield* installWithOmarchyPkgAdd("stow", "dotfile linking");
+  yield* installWithPacmanFor("stow", "dotfile linking");
   yield* assertCommandAvailable(
     "stow",
     "stow is still unavailable after installation",
@@ -230,7 +235,7 @@ export const ensureGumInstalled: Effect.Effect<
     return;
   }
 
-  yield* installWithOmarchyPkgAdd("gum", "interactive init questionnaire");
+  yield* installWithPacmanFor("gum", "interactive init questionnaire");
   yield* assertCommandAvailable(
     "gum",
     "gum is still unavailable after installation",
@@ -273,7 +278,7 @@ export const installMiseTools: Effect.Effect<
   }
 
   if (!(yield* commandAvailable("mise"))) {
-    yield* installWithOmarchyPkgAdd("mise-bin", "tool version setup");
+    yield* installWithPacmanFor("mise", "tool version setup");
   }
 
   yield* assertCommandAvailable(
@@ -306,35 +311,6 @@ function shouldSkipPackageScope(
     }
 
     return false;
-  });
-}
-
-function installWithAurHelper(
-  opts: {
-    readonly scope: ArchPackageScope;
-  },
-  missing: readonly string[],
-): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    const log = yield* OutputLog;
-
-    if (!(yield* commandAvailable("omarchy-pkg-aur-add"))) {
-      return yield* fail(
-        `Cannot install missing ${opts.scope} Arch packages (omarchy-pkg-aur-add not found): ${missing.join(" ")}`,
-      );
-    }
-
-    yield* log.section(`Install ${opts.scope} Arch packages`);
-
-    yield* log.info(`Installing: ${missing.join(" ")}`);
-    const exitCode = yield* executor.inherit("omarchy-pkg-aur-add", missing);
-
-    if (exitCode !== 0) {
-      return yield* fail(
-        `omarchy-pkg-aur-add ${missing.join(" ")} exited ${exitCode}`,
-      );
-    }
   });
 }
 
@@ -437,7 +413,7 @@ export function installMissingArchPackages(opts: {
     } else {
       const remaining = yield* installPublicPackageReplacements(missing);
 
-      if (remaining.length > 0) yield* installWithAurHelper(opts, remaining);
+      if (remaining.length > 0) yield* installWithPacman(opts, remaining);
     }
   });
 }

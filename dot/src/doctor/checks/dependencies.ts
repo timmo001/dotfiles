@@ -15,13 +15,13 @@ const TOOLS: readonly ToolDef[] = [
   { name: "stow", purpose: "dotfile linking", required: true },
   { name: "bash", purpose: "dot runtime", required: true },
   {
-    name: "omarchy-pkg-add",
-    purpose: "dot init/install installs stow when missing",
-    required: false,
+    name: "pacman",
+    purpose: "dot init and dot up install packages",
+    required: true,
   },
   {
-    name: "omarchy-pkg-aur-add",
-    purpose: "dot init installs missing AUR packages",
+    name: "checkupdates",
+    purpose: "pending package checks (pacman-contrib)",
     required: false,
   },
   {
@@ -30,21 +30,11 @@ const TOOLS: readonly ToolDef[] = [
     required: false,
   },
   {
-    name: "yay",
-    purpose: "used by omarchy-pkg-aur-add and AUR version checks",
-    required: false,
-  },
-  {
     name: "gh",
     purpose: "GitHub notifications",
     required: false,
   },
   { name: "gum", purpose: "interactive init questionnaire", required: false },
-  {
-    name: "omarchy",
-    purpose: "desktop workflow notifications",
-    required: false,
-  },
 ];
 
 /** Check that required and optional CLI tools are available */

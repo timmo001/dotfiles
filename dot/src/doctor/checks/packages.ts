@@ -546,7 +546,7 @@ function packageListResults<R>(
     if (pending.length > 0)
       results.push({
         severity: "warn",
-        message: `Install/update with: omarchy-pkg-aur-add ${pending.join(" ")}`,
+        message: `Install/update with: pkexec pacman -S --needed ${pending.join(" ")}`,
       });
 
     return results;
