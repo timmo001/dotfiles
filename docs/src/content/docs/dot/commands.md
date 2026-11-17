@@ -1323,7 +1323,7 @@ Make the TV the main screen and turn on HDR, as Plasma does at login
 dot screen setup [flags]
 ```
 
-Makes the first connected screen that isn't the laptop's own panel Plasma's main screen (priority 1), with the panel and new windows, then runs dot screen hdr. With only the panel connected, the main screen stays as it is. Plasma runs this at every login.
+First reads the EDID again for any connected screen the kernel read none for, which can happen through the USB-C to HDMI link after gaming mode and leaves the TV on 640x480, then tells KWin through udev. Then makes the first connected screen that isn't the laptop's own panel Plasma's main screen (priority 1) at 250%, with the panel and new windows, and runs dot screen hdr. With only the panel connected, the main screen stays as it is. Plasma runs this at every login.
 
 **Options**
 

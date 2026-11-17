@@ -190,6 +190,74 @@ export const screenHdr = Effect.gen(function* () {
 /** Built-in panels, which only lead when nothing else is connected. */
 const INTERNAL_OUTPUT = /^(eDP|LVDS|DSI)-/;
 
+/** The TV's scale in the Plasma desktop: 250%, a 1536x864 desktop at 4K. */
+const TV_SCALE = "2.5";
+
+/** The kernel's DRM connectors, such as `card1-DP-3`. */
+const DRM_CLASS = "/sys/class/drm";
+
+/**
+ * Read the TV's EDID again when the kernel lost it. Coming back from gaming
+ * mode, the kernel sometimes reads no EDID through the USB-C to HDMI link, so
+ * the TV only offers 640x480 and the like, and KWin can't match its saved
+ * settings. Probing the connector again and telling KWin brings its real
+ * modes back. Station's sudo needs no password, so this works at login.
+ */
+const reprobeBlankEdid = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const executor = yield* CommandExecutor;
+  const blank: string[] = [];
+
+  const entries = yield* fs
+    .readDirectory(DRM_CLASS)
+    .pipe(Effect.orElseSucceed((): string[] => []));
+
+  for (const entry of entries) {
+    const connector = /^card\d+-(.+)$/.exec(entry)?.[1];
+
+    if (!connector || INTERNAL_OUTPUT.test(connector)) continue;
+
+    const status = yield* fs
+      .readFileString(join(DRM_CLASS, entry, "status"))
+      .pipe(Effect.orElseSucceed(() => ""));
+
+    if (status.trim() !== "connected") continue;
+
+    const edid = yield* fs
+      .readFile(join(DRM_CLASS, entry, "edid"))
+      .pipe(Effect.orElseSucceed(() => new Uint8Array()));
+
+    if (edid.length === 0) blank.push(entry);
+  }
+
+  if (blank.length === 0) return;
+
+  for (const entry of blank)
+    yield* executor.exitCode("sudo", [
+      "-n",
+      "sh",
+      "-c",
+      `echo detect > ${join(DRM_CLASS, entry, "status")}`,
+    ]);
+
+  yield* executor.exitCode("sudo", [
+    "-n",
+    "udevadm",
+    "trigger",
+    "--action=change",
+    "--subsystem-match=drm",
+  ]);
+
+  // KWin picks up the new modes from the change event.
+  yield* Effect.sleep("4 seconds");
+
+  yield* Effect.sync(() =>
+    process.stdout.write(
+      `Read the EDID again for ${blank.map((entry) => entry.replace(/^card\d+-/, "")).join(", ")}\n`,
+    ),
+  );
+}).pipe(Effect.withSpan("Screen.reprobeBlankEdid"));
+
 /**
  * Make the TV Plasma's main screen, with the panel and new windows: the first
  * connected screen that isn't the laptop's own panel. With only the panel
@@ -198,6 +266,8 @@ const INTERNAL_OUTPUT = /^(eDP|LVDS|DSI)-/;
 export const screenTvFirst = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const env = yield* plasmaSessionEnv;
+
+  yield* reprobeBlankEdid;
 
   const config = yield* executor.run("kscreen-doctor", ["-j"], { env }).pipe(
     Effect.flatMap(Schema.decodeEffect(KScreenConfig)),
@@ -226,7 +296,7 @@ export const screenTvFirst = Effect.gen(function* () {
 
   const exitCode = yield* executor.exitCode(
     "kscreen-doctor",
-    [`output.${tv.name}.priority.1`],
+    [`output.${tv.name}.priority.1`, `output.${tv.name}.scale.${TV_SCALE}`],
     { env },
   );
 
@@ -236,7 +306,9 @@ export const screenTvFirst = Effect.gen(function* () {
     });
 
   yield* Effect.sync(() =>
-    process.stdout.write(`${tv.name} is the main screen\n`),
+    process.stdout.write(
+      `${tv.name} is the main screen, at ${Number(TV_SCALE) * 100}%\n`,
+    ),
   );
 }).pipe(Effect.withSpan("Screen.tvFirst"));
 
