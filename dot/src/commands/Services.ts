@@ -16,6 +16,7 @@ import { DaemonClient, tryDaemon } from "../daemon/Client.js";
 import type { ServicesReport } from "../daemon/Rpcs.js";
 import { formatCause } from "../lib/schema.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
+import { notify } from "../lib/notify.js";
 import { Config } from "../services/Config.js";
 import {
   managedGitRepoForGitHub,
@@ -2534,29 +2535,24 @@ export const servicesNotify = Effect.fn("Services.notify")(function* (
   yield* sendFailureNotification(status);
 });
 
-/** Raise the desktop notification for an item that has failed. */
+/** Notify that an item has failed, through Station's journal and notify-send. */
 const sendFailureNotification = Effect.fn("Services.sendFailureNotification")(
   function* (status: ServiceStatus) {
-    const executor = yield* CommandExecutor;
     const lastFailure = status.runs.find((run) => run.result === "failed");
 
-    yield* executor.run("omarchy", [
-      "notification",
-      "send",
-      "--app-name",
-      "dot services",
-      "-g",
-      "󰀦",
-      "-u",
-      "critical",
+    yield* notify(
       `${status.label} failed`,
-      [status.summary, lastFailure?.summary ?? lastFailure?.detail]
+      [
+        status.summary,
+        lastFailure?.summary ?? lastFailure?.detail,
+        // A check has no journal for dot services logs to follow.
+        status.kind === "check"
+          ? `dot services act ${status.id} logs`
+          : `dot services logs ${status.unit}`,
+      ]
         .filter(Boolean)
         .join(" · "),
-      // A check has no journal for the logs tab to follow.
-      ...(status.kind === "check"
-        ? []
-        : ["--exec", "dot", "services", "logs", status.unit]),
-    ]);
+      "critical",
+    );
   },
 );

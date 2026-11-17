@@ -4,6 +4,7 @@ import { parse as parseToml } from "smol-toml";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
+import { notify } from "../lib/notify.js";
 import { DotDiff, recordUpstreamFetch } from "../git/services/DotDiff.js";
 import { stow as runStow } from "./Stow.js";
 import {
@@ -404,7 +405,6 @@ export const safePull = (
 export const notifyUpdated = (names: readonly string[]) =>
   Effect.gen(function* () {
     if (names.length === 0) return;
-    const executor = yield* CommandExecutor;
 
     const title = names.length === 1 ? "Git repo updated" : "Git repos updated";
 
@@ -415,13 +415,7 @@ export const notifyUpdated = (names: readonly string[]) =>
             .map((n) => `- ${n}`)
             .join("\n")}`;
 
-    yield* executor.exitCode("omarchy", [
-      "notification",
-      "send",
-      "󰊢",
-      title,
-      message,
-    ]);
+    yield* notify(title, message);
   });
 
 /** Run a repository's configured command after its pull moves HEAD. */
