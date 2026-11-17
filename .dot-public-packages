@@ -9,6 +9,7 @@ cpio
 context-git
 float-app-git
 freecad
+freerdp
 gcc
 git
 ha-bridge-git
@@ -27,6 +28,7 @@ repo-notes-git
 pkgconf
 python-gobject
 qt6-webengine
+remmina
 smem
 stress-ng
 sysbench
