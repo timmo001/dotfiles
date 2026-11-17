@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Chromium
+Comment=Browse the web
+Exec=chromium
+Icon=chromium
+Terminal=false

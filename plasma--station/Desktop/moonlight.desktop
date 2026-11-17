@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Moonlight
+Comment=Stream from the desktop or laptop's Sunshine
+Exec=moonlight
+Icon=moonlight
+Terminal=false
