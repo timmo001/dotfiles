@@ -160,8 +160,9 @@ export const missingArchPackages = Effect.fn("PackageSetup.missing")(function* (
 });
 
 /**
- * Install one package with pacman. Station has no Omarchy package helpers, and
- * everything it needs is in the official, CachyOS or [timmo] repositories.
+ * Install one repository package with pacman, for the tools dot needs before
+ * anything else: stow, gum, mise and yay. Station has no Omarchy package
+ * helpers.
  */
 function installWithPacmanFor(
   packageName: string,
@@ -339,6 +340,41 @@ function installWithPacman(
   });
 }
 
+/**
+ * Install packages with yay, which takes them from the repositories or the
+ * AUR, as the desktop does through omarchy-pkg-aur-add. CachyOS ships yay in
+ * its own repository, so it's installed with pacman first when missing.
+ */
+function installWithYay(
+  opts: {
+    readonly scope: ArchPackageScope;
+  },
+  missing: readonly string[],
+): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const log = yield* OutputLog;
+
+    if (!(yield* commandAvailable("yay")))
+      yield* installWithPacmanFor("yay", "AUR packages");
+
+    yield* log.section(`Install ${opts.scope} Arch packages`);
+    yield* log.info(`Installing: ${missing.join(" ")}`);
+
+    // yay elevates through sudo itself and refuses to run as root.
+    const exitCode = yield* executor.inherit("yay", [
+      "-S",
+      "--needed",
+      "--noconfirm",
+      ...missing,
+    ]);
+
+    if (exitCode !== 0) {
+      return yield* fail(`yay -S ${missing.join(" ")} exited ${exitCode}`);
+    }
+  });
+}
+
 function installPublicPackageReplacements(
   missing: readonly string[],
 ): Effect.Effect<
@@ -413,7 +449,7 @@ export function installMissingArchPackages(opts: {
     } else {
       const remaining = yield* installPublicPackageReplacements(missing);
 
-      if (remaining.length > 0) yield* installWithPacman(opts, remaining);
+      if (remaining.length > 0) yield* installWithYay(opts, remaining);
     }
   });
 }
