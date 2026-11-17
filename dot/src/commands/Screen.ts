@@ -193,6 +193,32 @@ const INTERNAL_OUTPUT = /^(eDP|LVDS|DSI)-/;
 /** The TV's scale in the Plasma desktop: 250%, a 1536x864 desktop at 4K. */
 const TV_SCALE = "2.5";
 
+/** Where ACPI reports the lid, as `state: open` or `state: closed`. */
+const LID_DIR = "/proc/acpi/button/lid";
+
+/**
+ * Whether the laptop's lid is shut. Station's logind ignores the lid so it
+ * never suspends, and KWin leaves the panel on too, so Plasma and Steam's Big
+ * Picture would otherwise count the shut panel as a screen.
+ */
+const lidClosed = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+
+  const lids = yield* fs
+    .readDirectory(LID_DIR)
+    .pipe(Effect.orElseSucceed((): string[] => []));
+
+  for (const lid of lids) {
+    const state = yield* fs
+      .readFileString(join(LID_DIR, lid, "state"))
+      .pipe(Effect.orElseSucceed(() => ""));
+
+    if (state.includes("closed")) return true;
+  }
+
+  return false;
+}).pipe(Effect.withSpan("Screen.lidClosed"));
+
 /** The kernel's DRM connectors, such as `card1-DP-3`. */
 const DRM_CLASS = "/sys/class/drm";
 
@@ -310,6 +336,31 @@ export const screenTvFirst = Effect.gen(function* () {
       `${tv.name} is the main screen, at ${Number(TV_SCALE) * 100}%\n`,
     ),
   );
+
+  // With the lid shut, the panel is a screen nobody can see.
+  const closed = yield* lidClosed;
+
+  const panels = config.outputs.filter(
+    (output) => output.connected && INTERNAL_OUTPUT.test(output.name),
+  );
+
+  for (const panel of panels) {
+    if (panel.enabled === !closed) continue;
+
+    const panelExit = yield* executor.exitCode(
+      "kscreen-doctor",
+      [`output.${panel.name}.${closed ? "disable" : "enable"}`],
+      { env },
+    );
+
+    yield* Effect.sync(() =>
+      process.stdout.write(
+        panelExit === 0
+          ? `${closed ? "Switched off" : "Switched on"} ${panel.name}: the lid is ${closed ? "shut" : "open"}\n`
+          : `Could not switch ${panel.name} ${closed ? "off" : "on"} (kscreen-doctor exited ${panelExit})\n`,
+      ),
+    );
+  }
 }).pipe(Effect.withSpan("Screen.tvFirst"));
 
 /** Make the TV the main screen, then turn on HDR everywhere: what Plasma runs at login. */
