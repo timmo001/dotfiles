@@ -280,7 +280,7 @@ const ensureVirtualKeyboard = Effect.gen(function* () {
 
   const result = yield* query(
     "kwriteconfig6",
-    [...key, VIRTUAL_KEYBOARD],
+    ["--notify", ...key, VIRTUAL_KEYBOARD],
     QUERY_TIMEOUT,
   );
 
