@@ -9,7 +9,7 @@ import {
 } from "./omarchyPluginDeployment.js";
 import { omarchyShellConfigNeedsApply } from "./omarchyShellConfig.js";
 import { CONFIG_DIR } from "./paths.js";
-import { listStowFolders, requiresNoFolding } from "./stowFolders.js";
+import { requiresNoFolding, selectedStowFolders } from "./stowFolders.js";
 import { systemBridgeProviderNeedsApply } from "./systemBridgeProvider.js";
 
 const HerdrPlugins = Schema.Array(
@@ -221,7 +221,7 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
 
     if (repo.category !== "dotfiles") return pending;
 
-    for (const folder of (yield* listStowFolders(repo.path, config)).sort()) {
+    for (const folder of (yield* selectedStowFolders(repo.path)).sort()) {
       // Match stowRepo: every package except hypr is restowed, so a removed
       // file's symlink is part of the plan. Hypr is never restowed.
       const flags = [
