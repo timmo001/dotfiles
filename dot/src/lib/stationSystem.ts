@@ -1,9 +1,9 @@
 /**
  * @file Station's system setup: what an always-on server by the TV needs from
  * the system itself. The lid never suspends it, it boots to a text console
- * rather than a desktop, user services run without anyone logged in, and
- * `dot screen` can start and stop the TV's session. Each part checks first,
- * so a machine already set up needs no elevation.
+ * rather than a desktop, user services run without anyone logged in, sudo
+ * needs no password, and `dot screen` can start and stop the TV's session.
+ * Each part checks first, so a machine already set up needs no elevation.
  */
 
 import { Effect, FileSystem } from "effect";
@@ -12,7 +12,10 @@ import { join } from "path";
 import { lines, query } from "./boundedQuery.js";
 import { runElevated } from "./elevatedCommand.js";
 import { done, skip, warn, type RecapEntry } from "./updateSummary.js";
+import { cliStyler } from "./ansi.js";
+import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
+import { OutputLog } from "../services/OutputLog.js";
 
 /** The target Station boots into: no desktop until a session command starts one. */
 const BOOT_TARGET = "multi-user.target";
@@ -35,7 +38,21 @@ interface RootFile {
   readonly label: string;
   /** A command run as root after installing it, such as a reload. */
   readonly after?: string;
+  /** A command that checks the staged file (`$1`) first, such as visudo. */
+  readonly validate?: string;
+  /** Only root can read it, so it's read back through `sudo -n`. */
+  readonly rootOnly?: boolean;
 }
+
+/**
+ * Passwordless sudo for Station's user. Station runs unattended and is set up
+ * and switched over SSH, where there's no one to type a password, the same
+ * reason the screen commands get a polkit rule.
+ */
+const sudoersDropIn = (user: string) =>
+  `# Written by dot for Station: ${user} runs sudo without a password.
+${user} ALL=(ALL:ALL) NOPASSWD: ALL
+`;
 
 /**
  * Plasma Login Manager's main config. It logs `user` in automatically, and
@@ -60,6 +77,14 @@ const rootFiles = Effect.gen(function* () {
   const read = (path: string) => fs.readFileString(join(station, path));
 
   const files: RootFile[] = [
+    {
+      target: "/etc/sudoers.d/50-station-nopasswd",
+      content: sudoersDropIn(userInfo().username),
+      mode: "440",
+      label: "passwordless sudo",
+      validate: 'visudo -cqf "$1"',
+      rootOnly: true,
+    },
     {
       target: "/etc/systemd/logind.conf.d/50-station-lid.conf",
       content: yield* read("logind.conf.d/50-station-lid.conf"),
@@ -97,10 +122,15 @@ const syncRootFile = Effect.fn("StationSystem.syncRootFile")(function* (
   file: RootFile,
 ) {
   const fs = yield* FileSystem.FileSystem;
+  const executor = yield* CommandExecutor;
 
-  const installed = yield* fs
-    .readFileString(file.target)
-    .pipe(Effect.orElseSucceed(() => null));
+  const installed = file.rootOnly
+    ? yield* executor
+        .run("sudo", ["-n", "cat", file.target])
+        .pipe(Effect.orElseSucceed(() => null))
+    : yield* fs
+        .readFileString(file.target)
+        .pipe(Effect.orElseSucceed(() => null));
 
   if (installed === file.content)
     return skip(`Already installed ${file.label}`);
@@ -112,7 +142,8 @@ const syncRootFile = Effect.fn("StationSystem.syncRootFile")(function* (
   const exitCode = yield* runElevated("sh", [
     "-c",
     `set -e
-install -Dm"$3" "$1" "$2"
+${file.validate ?? ""}
+install -Dm"$3" -o root -g root "$1" "$2"
 ${file.after ?? ""}`,
     "sh",
     staged,
@@ -194,3 +225,16 @@ export const syncStationSystem = Effect.gen(function* () {
 
   return actions;
 }).pipe(Effect.withSpan("StationSystem.sync"));
+
+/** Apply Station's system setup and log what each part did. */
+export const applyStationSystem = Effect.gen(function* () {
+  const log = yield* OutputLog;
+
+  yield* log.section("Station System");
+
+  for (const entry of yield* syncStationSystem) {
+    if (entry.status === "warn") yield* log.warn(entry.message);
+    else if (entry.status === "done") yield* log.success(entry.message);
+    else yield* log.info(cliStyler().dim(entry.message));
+  }
+}).pipe(Effect.withSpan("StationSystem.apply"));

@@ -104,6 +104,7 @@ import {
   stationScreen,
 } from "../commands/Station.js";
 import { screenOff, screenOn, screenStatus } from "../commands/Screen.js";
+import { applyStationSystem } from "../lib/stationSystem.js";
 import { tunnelRun } from "../commands/Tunnel.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { prQueue } from "../commands/PrQueue.js";
@@ -2621,9 +2622,18 @@ const setupCommand = describe(
         ),
         "Set up Herdr",
       ),
+      describe(
+        Command.make("station", {}, () => applyStationSystem),
+        "Apply Station's system setup",
+        ["dot setup station"],
+        {
+          description:
+            "Install Station's root-owned files when they differ: passwordless sudo for this user (checked with visudo first), the logind lid settings, the polkit rule for dot screen, Plasma Login Manager's autologin and the game, desk and headless commands in /usr/local/bin. Then set the boot target to multi-user.target and turn on lingering. dot init runs it, and dot up runs it before the system upgrade.",
+        },
+      ),
     ]),
   ),
-  "Set up package repositories and Herdr machines",
+  "Set up package repositories, Herdr machines and Station's system",
 );
 
 const privatePublishCommand = describe(

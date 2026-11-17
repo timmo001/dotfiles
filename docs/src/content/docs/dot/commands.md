@@ -2994,7 +2994,7 @@ dot notes capture sync
 
 ## `dot setup`
 
-Set up package repositories and Herdr machines
+Set up package repositories, Herdr machines and Station's system
 
 ```text
 dot setup <subcommand> [flags]
@@ -3112,6 +3112,28 @@ Write the machines in the private ~/.config/dot/herdr-machines.yml into Herdr's 
 
 ```bash
 dot setup herdr machines
+```
+
+### `dot setup station`
+
+Apply Station's system setup
+
+```text
+dot setup station [flags]
+```
+
+Install Station's root-owned files when they differ: passwordless sudo for this user (checked with visudo first), the logind lid settings, the polkit rule for dot screen, Plasma Login Manager's autologin and the game, desk and headless commands in /usr/local/bin. Then set the boot target to multi-user.target and turn on lingering. dot init runs it, and dot up runs it before the system upgrade.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot setup station
 ```
 
 ## `dot secrets`

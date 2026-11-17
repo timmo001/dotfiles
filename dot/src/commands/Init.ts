@@ -55,7 +55,7 @@ import { logRunSummary } from "../lib/runSummary.js";
 import { syncRootFirstParty } from "../lib/firstPartyPackages.js";
 import { syncRootLanDirect } from "../lib/lanDirect.js";
 import { syncRootBtrfsBalance } from "../lib/btrfsBalance.js";
-import { syncStationSystem } from "../lib/stationSystem.js";
+import { applyStationSystem } from "../lib/stationSystem.js";
 import type { ConfigService } from "../services/Config.js";
 
 const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
@@ -812,19 +812,6 @@ function ensureLoginShellZsh(): Effect.Effect<
   });
 }
 
-/** Apply Station's system setup and log what each part did. */
-const logStationSystem = Effect.gen(function* () {
-  const log = yield* OutputLog;
-
-  yield* log.section("Station System");
-
-  for (const entry of yield* syncStationSystem) {
-    if (entry.status === "warn") yield* log.warn(entry.message);
-    else if (entry.status === "done") yield* log.success(entry.message);
-    else yield* log.info(cliStyler().dim(entry.message));
-  }
-}).pipe(Effect.withSpan("init.stationSystem"));
-
 /** Run the one-time first-use setup workflow for a fresh machine. */
 export function init(
   input: InitOptions & { readonly interactive: boolean },
@@ -992,7 +979,7 @@ export function init(
     yield* step(
       "Station System",
       INIT_STEP_TIMEOUT_SECONDS.hooks,
-      logStationSystem,
+      applyStationSystem,
     );
     yield* step(
       "Install Pacman Hooks",
