@@ -15,8 +15,10 @@ gum
 ha-bridge-git
 iperf3
 kdeconnect
+krdp
 libva-utils
 mise
+moonlight-qt
 openssh
 pacman-contrib
 pkgconf
@@ -25,6 +27,7 @@ smem
 steam
 stow
 stress-ng
+sunshine
 sysbench
 sysstat
 syncthing
