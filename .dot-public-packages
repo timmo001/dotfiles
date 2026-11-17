@@ -24,6 +24,7 @@ pacman-contrib
 pkgconf
 repo-notes-git
 smem
+starship
 steam
 stow
 stress-ng
