@@ -2095,6 +2095,69 @@ Shows Plasma's on-screen keyboard through KWin's virtual keyboard, or hides it w
 dot screen keyboard
 ```
 
+### `dot screen steam-beta`
+
+Keep the Steam beta chosen in one mode for the other
+
+```text
+dot screen steam-beta <subcommand> [flags]
+```
+
+Gaming mode runs the Steam Deck client, whose betas are steamdeck_publicbeta and steamdeck_beta, and the desktop runs the normal client, whose beta is publicbeta. Both keep the choice in ~/.local/share/Steam/package/beta and reset a name they don't know to stable, so a beta chosen in one mode was lost in the other. This rewrites the file into the name the given mode's client understands: publicbeta becomes steamdeck_publicbeta for gaming mode, a Steam Deck beta becomes publicbeta for the desktop, and steamdeck_stable becomes the desktop's stable. steam-launcher.service runs the game form before gaming mode's Steam starts, and the desktop's Steam login item runs the desktop form.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot screen steam-beta game
+dot screen steam-beta desktop
+```
+
+#### `dot screen steam-beta game`
+
+Translate the Steam beta choice for gaming mode's client
+
+```text
+dot screen steam-beta game [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot screen steam-beta game
+```
+
+#### `dot screen steam-beta desktop`
+
+Translate the Steam beta choice for the desktop's client
+
+```text
+dot screen steam-beta desktop [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot screen steam-beta desktop
+```
+
 ### `dot screen hdr`
 
 Turn on HDR and wide colour on every screen in the Plasma session

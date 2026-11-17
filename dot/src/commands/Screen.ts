@@ -7,7 +7,9 @@
  */
 
 import { Effect, FileSystem, Schema } from "effect";
+import { join } from "path";
 import { ENV, envString } from "../lib/env.js";
+import { HOME_DIR } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
 /** Plasma Login Manager, which logs in to the chosen session on the TV. */
@@ -289,6 +291,65 @@ export const screenKeyboard = Effect.gen(function* () {
     process.stdout.write("Showing the on-screen keyboard\n"),
   );
 }).pipe(Effect.withSpan("Screen.keyboard"));
+
+/** Steam's client beta choice, which both of Steam's clients read and write. */
+const STEAM_BETA_FILE = join(
+  HOME_DIR,
+  ".local",
+  "share",
+  "Steam",
+  "package",
+  "beta",
+);
+
+/**
+ * The beta name each Steam client understands for the choice in the file.
+ * Gaming mode runs the Steam Deck client, whose betas are `steamdeck_*`, and
+ * the desktop runs the normal client, whose only beta is `publicbeta`. Each
+ * resets a name it doesn't know to its own stable channel, so without this a
+ * beta chosen in one mode was lost on the switch to the other. Returns the
+ * name to write, `null` for stable, or `undefined` to leave the file alone.
+ */
+const steamBetaFor = (
+  mode: "game" | "desktop",
+  current: string,
+): string | null | undefined => {
+  if (mode === "game")
+    return current === "publicbeta" ? "steamdeck_publicbeta" : undefined;
+
+  if (current === "steamdeck_publicbeta" || current === "steamdeck_beta")
+    return "publicbeta";
+
+  return current === "steamdeck_stable" ? null : undefined;
+};
+
+/**
+ * Keep the Steam beta chosen in one mode for the other: translate the shared
+ * beta file into the name the gaming mode or desktop client understands,
+ * before that client starts.
+ */
+export const screenSteamBeta = Effect.fn("Screen.steamBeta")(function* (
+  mode: "game" | "desktop",
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  const current = (yield* fs
+    .readFileString(STEAM_BETA_FILE)
+    .pipe(Effect.orElseSucceed(() => ""))).trim();
+
+  const next = steamBetaFor(mode, current);
+
+  if (next === undefined) return;
+
+  if (next === null) yield* fs.remove(STEAM_BETA_FILE, { force: true });
+  else yield* fs.writeFileString(STEAM_BETA_FILE, `${next}\n`);
+
+  yield* Effect.sync(() =>
+    process.stdout.write(
+      `Steam beta for ${mode === "game" ? "gaming mode" : "the desktop"}: ${next ?? "stable"} (was ${current})\n`,
+    ),
+  );
+});
 
 /** Say what's on screen now, and what the login manager logs into next. */
 export const screenStatus = Effect.gen(function* () {
