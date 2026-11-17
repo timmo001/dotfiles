@@ -13,7 +13,6 @@ gcc
 git
 gum
 ha-bridge-git
-herdr-app
 iperf3
 kdeconnect
 libva-utils
