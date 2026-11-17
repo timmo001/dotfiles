@@ -1315,6 +1315,28 @@ dot screen off
 headless
 ```
 
+### `dot screen setup`
+
+Make the TV the main screen and turn on HDR, as Plasma does at login
+
+```text
+dot screen setup [flags]
+```
+
+Makes the first connected screen that isn't the laptop's own panel Plasma's main screen (priority 1), with the panel and new windows, then runs dot screen hdr. With only the panel connected, the main screen stays as it is. Plasma runs this at every login.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot screen setup
+```
+
 ### `dot screen hdr`
 
 Turn on HDR and wide colour on every screen in the Plasma session

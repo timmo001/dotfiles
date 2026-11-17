@@ -70,6 +70,7 @@ import {
   screenHdr,
   screenOff,
   screenOn,
+  screenSetup,
   screenStatus,
 } from "../commands/Screen.js";
 import { applyStationSystem } from "../lib/stationSystem.js";
@@ -960,6 +961,15 @@ const screenCommand = describe(
         Command.make("off", {}, () => screenOff),
         "Close whatever is on screen, back to the text console",
         ["dot screen off", "headless"],
+      ),
+      describe(
+        Command.make("setup", {}, () => screenSetup),
+        "Make the TV the main screen and turn on HDR, as Plasma does at login",
+        ["dot screen setup"],
+        {
+          description:
+            "Makes the first connected screen that isn't the laptop's own panel Plasma's main screen (priority 1), with the panel and new windows, then runs dot screen hdr. With only the panel connected, the main screen stays as it is. Plasma runs this at every login.",
+        },
       ),
       describe(
         Command.make("hdr", {}, () => screenHdr),
