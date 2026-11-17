@@ -8,7 +8,8 @@ import qs.Ui
 import "../../components" as PanelComponents
 
 // Games from the Steam, Heroic and Lutris shortcuts, each launched through
-// `dot game launch` so it runs in gaming mode. Type to filter.
+// `dot game launch` so it runs in gaming mode, then apps marked for the panel
+// (X-Dot-Game-App), such as Moonlight, which launch as they are. Type to filter.
 Item {
   id: root
 
@@ -18,7 +19,7 @@ Item {
   readonly property color foreground: Commons.Color.foreground
   readonly property string fontFamily: Style.font.family
   readonly property color mutedColor: Qt.darker(foreground, 1.4)
-  readonly property var storeOrder: ["steam", "heroic", "lutris"]
+  readonly property var storeOrder: ["steam", "heroic", "lutris", "app"]
   readonly property var rows: buildRows()
   readonly property var stores: storeOrder.filter(function(store) {
     return filterController.filteredModel.some(function(row) { return row.kind === "game" && row.section === store })
@@ -72,11 +73,11 @@ Item {
   }
 
   function storeTitle(store) {
-    return store === "steam" ? "Steam" : store === "heroic" ? "Heroic" : "Lutris"
+    return store === "steam" ? "Steam" : store === "heroic" ? "Heroic" : store === "app" ? "Apps" : "Lutris"
   }
 
   function storeIcon(store) {
-    return store === "steam" ? "󰓓" : store === "heroic" ? "󰊴" : "󰮂"
+    return store === "steam" ? "󰓓" : store === "heroic" ? "󰊴" : store === "app" ? "󰀻" : "󰮂"
   }
 
   function iconSource(icon) {

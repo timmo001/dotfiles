@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Moonlight
+Comment=Stream games and other applications from another PC running Sunshine or GeForce Experience
+TryExec=moonlight
+Exec=sh -c "hdr-on; moonlight; hdr-off"
+Icon=moonlight
+Terminal=false
+Type=Application
+Categories=Qt;Game;Network;RemoteAccess;
+Keywords=nvidia;gamestream;stream;sunshine;remote play;
+X-Dot-Game-App=true

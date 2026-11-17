@@ -72,6 +72,15 @@ const GAME_RUN_BIN = join(HOME_DIR, ".local", "bin", "game-run");
 /** The URL a game desktop file launches with, kept once dot has wrapped it. */
 const URL_KEY = "X-Dot-Game-Url";
 
+/**
+ * Marks a desktop file that isn't a store game, such as Moonlight, for the
+ * Games panel. It's listed as `app:<desktop id>` and launched as it is, so
+ * its own Exec decides whether it needs HDR, and gaming mode stays off.
+ */
+const APP_KEY = "X-Dot-Game-App";
+
+const APP_URL = "app:";
+
 const GAME_URL =
   /(steam:\/\/rungameid\/\d+|heroic:\/\/launch\?[^\s"']+|lutris:rungameid\/\d+)/;
 
@@ -402,13 +411,28 @@ const waitForSteamGame = Effect.fn("Game.waitForSteamGame")(function* (
   );
 });
 
-/** Launch a game by its store URL in gaming mode, holding it until the game exits. */
+/**
+ * Launch a game by its store URL in gaming mode, holding it until the game
+ * exits, or open a marked app (`app:<desktop id>`) as it is.
+ */
 export const gameLaunch = Effect.fn("Game.launch")(function* (
   url: string,
   options: { readonly sdr: boolean },
 ) {
   const executor = yield* CommandExecutor;
   const steam = /^steam:\/\/rungameid\/(\d+)$/.exec(url);
+
+  // A marked app, such as Moonlight, runs its own desktop file the way
+  // Omarchy launches apps, outside gaming mode.
+  if (url.startsWith(APP_URL)) {
+    yield* executor.run("uwsm-app", [
+      "--",
+      "gtk-launch",
+      url.slice(APP_URL.length),
+    ]);
+
+    return;
+  }
 
   // Heroic runs every game through game-run (dot game sync), which holds
   // gaming mode itself.
@@ -456,8 +480,8 @@ export interface GameEntry {
   readonly icon: string;
   /** Store URL the game launches with. */
   readonly url: string;
-  /** Which launcher owns the game. */
-  readonly store: "steam" | "heroic" | "lutris";
+  /** Which launcher owns the game, or `app` for a marked desktop file. */
+  readonly store: "steam" | "heroic" | "lutris" | "app";
   /** The desktop file's path. */
   readonly desktopFile: string;
 }
@@ -493,9 +517,11 @@ const storeOf = (url: string): GameEntry["store"] =>
     ? "steam"
     : url.startsWith("heroic:")
       ? "heroic"
-      : "lutris";
+      : url.startsWith(APP_URL)
+        ? "app"
+        : "lutris";
 
-/** The game shortcuts Steam, Heroic and Lutris wrote, with their contents. */
+/** The game shortcuts Steam, Heroic and Lutris wrote, and marked apps, with their contents. */
 const readGameFiles = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
 
@@ -533,7 +559,12 @@ const readGameFiles = Effect.gen(function* () {
     if (!group) return [];
 
     const entry = lines.slice(group.start, group.end);
-    const url = gameUrl(entry);
+
+    const url =
+      gameUrl(entry) ??
+      (desktopValue(entry, APP_KEY) === "true"
+        ? `${APP_URL}${basename(file.value.path, ".desktop")}`
+        : undefined);
 
     return url ? [{ ...file.value, lines, group, entry, url }] : [];
   });
@@ -679,6 +710,9 @@ export const gameSync = Effect.gen(function* () {
   let changed = 0;
 
   for (const file of yield* readGameFiles) {
+    // Marked apps launch as they are, never through gaming mode.
+    if (file.url.startsWith(APP_URL)) continue;
+
     const text = wrapDesktopFile(file);
 
     if (text === file.text) continue;

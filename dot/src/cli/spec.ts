@@ -984,7 +984,7 @@ const gameCommand = describe(
             sdr: sdrFlag,
             url: Argument.String("url").pipe(
               Argument.withDescription(
-                "A steam://rungameid/, heroic://launch? or lutris:rungameid/ URL",
+                "A steam://rungameid/, heroic://launch? or lutris:rungameid/ URL, or app:<desktop id> for a marked app",
               ),
             ),
           },
@@ -997,7 +997,7 @@ const gameCommand = describe(
         ],
         {
           description:
-            "Steam games are opened through Steam, and gaming mode is held until Steam's reaper process for the app exits; a game that hasn't started within 10 minutes ends it. Heroic games are only opened, since game-run holds gaming mode for them. Lutris games run through lutris with LUTRIS_SKIP_INIT=1 and hold gaming mode until it exits. Game desktop files and the Games panel launch through this.",
+            "Steam games are opened through Steam, and gaming mode is held until Steam's reaper process for the app exits; a game that hasn't started within 10 minutes ends it. Heroic games are only opened, since game-run holds gaming mode for them. Lutris games run through lutris with LUTRIS_SKIP_INIT=1 and hold gaming mode until it exits. An app:<desktop id> URL opens a desktop file marked X-Dot-Game-App=true, such as Moonlight's, through uwsm-app and gtk-launch, outside gaming mode. Game desktop files and the Games panel launch through this.",
         },
       ),
       describe(
@@ -1006,7 +1006,7 @@ const gameCommand = describe(
           { json: bool("json", "Print JSON for the Games panel") },
           (options) => gameList(options),
         ),
-        "List game shortcuts and whether gaming mode is on",
+        "List game shortcuts, marked apps and whether gaming mode is on",
         ["dot game list", "dot game list --json"],
       ),
       describe(
@@ -1015,7 +1015,7 @@ const gameCommand = describe(
         ["dot game sync"],
         {
           description:
-            "Rewrites the Steam, Heroic and Lutris game desktop files in ~/.local/share/applications to run dot game launch, keeping the store URL in X-Dot-Game-Url. Sets Heroic's default and per-game wrapper to game-run, and clears hdr-on and hdr-off launch scripts that it replaces. Only changed files are written. dot-game-sync.path runs it whenever those directories change.",
+            "Rewrites the Steam, Heroic and Lutris game desktop files in ~/.local/share/applications to run dot game launch, keeping the store URL in X-Dot-Game-Url. Sets Heroic's default and per-game wrapper to game-run, and clears hdr-on and hdr-off launch scripts that it replaces. Desktop files marked X-Dot-Game-App=true are left as they are. Only changed files are written. dot-game-sync.path runs it whenever those directories change.",
         },
       ),
     ]),
