@@ -15,6 +15,7 @@ import { DaemonClient, tryDaemon } from "../daemon/Client.js";
 import type { ServicesReport } from "../daemon/Rpcs.js";
 import { formatCause } from "../lib/schema.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
+import { notify } from "../lib/notify.js";
 import { Config } from "../services/Config.js";
 import {
   managedGitRepoForGitHub,
@@ -1650,7 +1651,6 @@ export const servicesInvestigate = Effect.fn("Services.investigate")(function* (
 export const servicesNotify = Effect.fn("Services.notify")(function* (
   unit: string,
 ) {
-  const executor = yield* CommandExecutor;
   const { descriptor } = yield* findRegistered(unit);
   const [status] = yield* collectServiceStatus([{ file: "", descriptor }]);
 
@@ -1660,23 +1660,15 @@ export const servicesNotify = Effect.fn("Services.notify")(function* (
 
   const lastFailure = status.runs.find((run) => run.result === "failed");
 
-  yield* executor.run("omarchy", [
-    "notification",
-    "send",
-    "--app-name",
-    "dot services",
-    "-g",
-    "󰀦",
-    "-u",
-    "critical",
+  yield* notify(
     `${status.label} failed`,
-    [status.summary, lastFailure?.summary ?? lastFailure?.detail]
+    [
+      status.summary,
+      lastFailure?.summary ?? lastFailure?.detail,
+      `dot services logs ${status.unit}`,
+    ]
       .filter(Boolean)
       .join(" · "),
-    "--exec",
-    "dot",
-    "services",
-    "logs",
-    status.unit,
-  ]);
+    "critical",
+  );
 });
