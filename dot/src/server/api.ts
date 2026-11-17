@@ -87,6 +87,8 @@ export const ServiceStatus = Schema.Struct({
   tags: Schema.Array(Schema.String),
   /** Consecutive failed runs, excluding skipped invocations. */
   consecutiveFailures: Schema.Finite,
+  /** When failures up to then were dismissed by hand, in epoch milliseconds. */
+  dismissedAt: Schema.optional(Schema.Finite),
   /** Failed runs before the latest success, when the job has recovered. */
   recoveredAfter: Schema.Finite,
   /** Consecutive failures before the job counts as failed. */

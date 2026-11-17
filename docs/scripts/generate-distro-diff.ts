@@ -1,5 +1,7 @@
 // Generates the page listing what this distro branch removed, changed and
 // added compared with the default branch, measured from their merge base.
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -21,15 +23,15 @@ if (current.id === base.id) {
 }
 
 function git(...args: string[]): string {
-  const result = Bun.spawnSync(['git', ...args], { cwd: repoRoot, stderr: 'pipe' });
-  if (result.exitCode !== 0) {
-    throw new Error(`git ${args.join(' ')} failed: ${result.stderr.toString().trim()}`);
+  const result = spawnSync('git', args, { cwd: repoRoot, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+  if (result.status !== 0) {
+    throw new Error(`git ${args.join(' ')} failed: ${result.stderr.trim()}`);
   }
-  return result.stdout.toString();
+  return result.stdout;
 }
 
 const succeeds = (...args: string[]) =>
-  Bun.spawnSync(['git', ...args], { cwd: repoRoot, stdout: 'ignore', stderr: 'ignore' }).exitCode === 0;
+  spawnSync('git', args, { cwd: repoRoot, stdio: 'ignore' }).status === 0;
 
 const baseRef = `origin/${base.branch}`;
 
@@ -92,7 +94,7 @@ const baseLink = (file: string) => `[desktop](${blobBase}/${mergeBase}/${file})`
 const headLink = (file: string) => `[server](${blobBase}/${current.branch}/${file})`;
 // GitHub anchors each file in a compare view by the SHA-256 of its path.
 const diffLink = (file: string) =>
-  `[diff](https://github.com/timmo001/dotfiles/compare/${mergeBase}...${current.branch}#diff-${new Bun.CryptoHasher('sha256').update(file).digest('hex')})`;
+  `[diff](https://github.com/timmo001/dotfiles/compare/${mergeBase}...${current.branch}#diff-${createHash('sha256').update(file).digest('hex')})`;
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
 const byPath = (a: string, b: string) => a.localeCompare(b);
 

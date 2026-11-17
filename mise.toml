@@ -107,7 +107,7 @@ run = "bun install"
 sources = ["package.json", "bun.lock"]
 outputs = ["node_modules/.bin"]
 
-[tasks.tests]
+[tasks.test]
 description = "Run the dot unit tests"
 depends = ["dot:test"]
 
@@ -120,8 +120,8 @@ description = "Check formatting without writing"
 depends = ["dot:format:check"]
 
 [tasks.build]
-description = "Build the dot binary, the Chromium extension and the docs site"
-depends = ["dot:build", "extension:build", "docs:build"]
+description = "Build the dot binary and the docs site"
+depends = ["dot:build", "docs:build"]
 
 # docs (runs in ./docs)
 [tasks."docs:install"]
@@ -275,5 +275,5 @@ depends = ["docs:install"]
 run = "if [ -d .blume ]; then bun run check -- --isolated; else bun run check; fi"
 
 [tasks.check]
-description = "Run every lint, check, test, and docs build in parallel"
-depends = ["lint", "dot:check", "tests", "docs:check"]
+description = "Run every lint, check, test, and docs check in parallel"
+depends = ["lint", "dot:check", "test", "docs:check"]

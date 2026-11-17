@@ -39,13 +39,11 @@ Write tools ask before they run unless a permission rule allows them. Tools that
 | `pr_watch` | `dot pr watch` | Read | Read-only |
 | `pr_list` | `dot pr list` | Read | Read-only |
 | `agent_lint` | `dot agent lint` | Read | Read-only |
-| `link_git` | `dot link git` | Read | Read-only |
 | `herdr_context` | `dot herdr context` | Read | Read-only |
 | `herdr_agents` | `dot herdr agents` | Read | Read-only |
 | `git_issues` | `dot git issues` | Read | Read-only |
 | `git_diff` | `dot git diff` | Read | Read-only |
 | `git_log_show` | `dot git log show` | Read | Read-only |
-| `report_list` | `dot report list` | Read | Read-only |
 | `skills_validate` | `dot skills validate` | Read | Read-only |
 | `skills_check` | `dot skills check` | Read | Read-only |
 | `services_run_logs` | `dot services run logs` | Read | Read-only |
@@ -54,16 +52,12 @@ Write tools ask before they run unless a permission rule allows them. Tools that
 | `git_commit` | `dot git commit` | Write | Tool |
 | `agent_oxlint` | `dot agent oxlint` | Read | Read-only |
 | `herdr_repo_open` | `dot herdr repo open` | Write | Tool |
-| `omarchy_plugin_add` | `dot omarchy plugin add` | Write | Tool |
-| `omarchy_plugin_update` | `dot omarchy plugin update --yes` | Write | Tool |
-| `omarchy_plugin_remove` | `dot omarchy plugin remove --yes --no-commit-offer` | Write, always asks | Destructive |
 | `services_schedule_check` | `dot services schedule check` | Read | Read-only |
 | `homeassistant_status` | `dot homeassistant status` | Read | Read-only |
 | `homeassistant_logs` | `dot homeassistant logs` | Read | Read-only |
 | `homeassistant_stop` | `dot homeassistant stop` | Write, always asks | Destructive |
 | `snapshot` | `dot snapshot` | Read | Read-only |
 | `doctor` | `dot doctor` | Read | Read-only |
-| `report_run` | `dot report run` | Job only | Left out |
 | `services_start` | `dot services start` | Write | Tool |
 | `services_stop` | `dot services stop` | Write | Tool |
 | `session_send` | `dot session send` | Write | Tool |
@@ -90,6 +84,3 @@ Write tools ask before they run unless a permission rule allows them. Tools that
 | `skills_consumers_add` | `dot skills consumers add` | Write | Tool |
 | `skills_consumers_remove` | `dot skills consumers remove` | Write, always asks | Destructive |
 | `notes_capture_sync` | `dot notes capture sync` | Write | Tool |
-| `omarchy_shell_config` | `dot omarchy shell config` | Write | Tool |
-| `git_notifications_dismiss_dependencies` | `dot git notifications dismiss dependencies` | Write | Tool |
-| `git_notifications_dismiss_remaining` | `dot git notifications dismiss remaining` | Write, always asks | Destructive |

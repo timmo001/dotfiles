@@ -78,10 +78,10 @@ export function cloneMissingGitConfigRepos(opts?: {
         if (opts?.captured) {
           yield* log.withSpinner(
             `Cloning ${repo.name}`,
-            ghRepoCloneCaptured(repo.github, repo.path, gitArgs),
+            ghRepoCloneCaptured(github, repo.path, gitArgs),
           );
         } else {
-          yield* ghRepoClone(repo.github, repo.path, gitArgs);
+          yield* ghRepoClone(github, repo.path, gitArgs);
         }
       });
 
