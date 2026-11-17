@@ -891,8 +891,8 @@ setopt HIST_REDUCE_BLANKS   # tidy surplus whitespace
 # Omarchy Part 2
 # ------------------------------
 # source ~/.local/share/omarchy/default/bash/shell
-source ~/.local/share/omarchy/default/bash/aliases
-source ~/.local/share/omarchy/default/bash/functions
+[[ -r ~/.local/share/omarchy/default/bash/aliases ]] && source ~/.local/share/omarchy/default/bash/aliases
+[[ -r ~/.local/share/omarchy/default/bash/functions ]] && source ~/.local/share/omarchy/default/bash/functions
 # source ~/.local/share/omarchy/default/bash/prompt
 
 # ------------------------------
@@ -915,7 +915,7 @@ fi
 # ------------------------------
 # Omarchy Part 4
 # ------------------------------
-source ~/.local/share/omarchy/default/bash/envs
+[[ -r ~/.local/share/omarchy/default/bash/envs ]] && source ~/.local/share/omarchy/default/bash/envs
 # [[ $- == *i* ]] && bind -f ~/.local/share/omarchy/default/bash/inputrc
 
 # ------------------------------
