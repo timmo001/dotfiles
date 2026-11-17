@@ -244,6 +244,52 @@ export const screenSetup = screenTvFirst.pipe(
   Effect.withSpan("Screen.setup"),
 );
 
+/** KWin's virtual keyboard on the session bus, as busctl arguments. */
+const KWIN_KEYBOARD = [
+  "org.kde.KWin",
+  "/VirtualKeyboard",
+  "org.kde.kwin.VirtualKeyboard",
+] as const;
+
+/**
+ * Show Plasma's on-screen keyboard, or hide it when it's showing. KWin only
+ * brings it up by itself after touch input, so a mouse, a controller in
+ * Steam's desktop layout, Moonlight or RDP need this to call it up.
+ */
+export const screenKeyboard = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const env = yield* plasmaSessionEnv;
+
+  const busctl = (args: readonly string[]) =>
+    executor.run("busctl", ["--user", ...args], { env }).pipe(
+      Effect.mapError(
+        (cause) =>
+          new ScreenError({
+            message: `Could not reach KWin's virtual keyboard: ${cause.message}`,
+          }),
+      ),
+    );
+
+  const visible = yield* busctl(["get-property", ...KWIN_KEYBOARD, "visible"]);
+
+  if (visible.trim() === "b true") {
+    yield* busctl(["set-property", ...KWIN_KEYBOARD, "active", "b", "false"]);
+
+    yield* Effect.sync(() =>
+      process.stdout.write("Hid the on-screen keyboard\n"),
+    );
+
+    return;
+  }
+
+  yield* busctl(["set-property", ...KWIN_KEYBOARD, "active", "b", "true"]);
+  yield* busctl(["call", ...KWIN_KEYBOARD, "forceActivate"]);
+
+  yield* Effect.sync(() =>
+    process.stdout.write("Showing the on-screen keyboard\n"),
+  );
+}).pipe(Effect.withSpan("Screen.keyboard"));
+
 /** Say what's on screen now, and what the login manager logs into next. */
 export const screenStatus = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
