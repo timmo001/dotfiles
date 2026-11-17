@@ -943,8 +943,8 @@ _dot_with_mcp_bearers() {
   local github_token system_bridge_token bin
   bin="$(whence -p "$1")" || return $?
   shift
-  github_token="$(gh auth token 2>/dev/null)" || return $?
-  system_bridge_token="$(system-bridge client token 2>/dev/null)" || return $?
+  github_token="$(gh auth token)" || return $?
+  system_bridge_token="$(system-bridge client token)" || return $?
   env \
     DOT_GH_MCP_BEARER="$github_token" \
     SYSTEM_BRIDGE_MCP_BEARER="$system_bridge_token" \
