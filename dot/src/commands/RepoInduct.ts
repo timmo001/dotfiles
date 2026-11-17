@@ -262,12 +262,15 @@ export const inductRepository = Effect.fn("repoInduct.run")(
 
     const upstream = yield* gitLine(["remote", "get-url", "upstream"]);
 
-    const github = normalizeGitHubSlug(remote.trim()) ?? "";
+    const github =
+      normalizeGitHubSlug(remote.trim()) ??
+      // An explicit value that isn't a slug is kept so validation reports it.
+      (options.github?.trim() || undefined);
 
     // Default issue tracking on only for your own repositories with GitHub issues enabled.
     const issuesDefault =
       (preset.issues ?? false) &&
-      github !== "" &&
+      github !== undefined &&
       (yield* Effect.all([
         Api.json(
           { endpoint: `repos/${github}`, method: "GET" },
@@ -289,7 +292,7 @@ export const inductRepository = Effect.fn("repoInduct.run")(
     let answers: GitManagedRepo = {
       name: options.name ?? `${preset.name_prefix ?? ""}${basename(root)}`,
       path: root,
-      github,
+      ...(github && { github }),
       aliases: splitList(options.aliases ?? ""),
       machines:
         options.machines === undefined
@@ -313,7 +316,8 @@ export const inductRepository = Effect.fn("repoInduct.run")(
           ? (preset.opencode_mcp ?? {})
           : parseMcpSelections(options.opencodeMcp),
       pullRequests:
-        (options.pullRequests ?? preset.pull_requests ?? false)
+        (options.pullRequests ??
+        (github !== undefined && (preset.pull_requests ?? false)))
           ? { enabled: true }
           : undefined,
       issues: (options.issues ?? issuesDefault) ? { enabled: true } : undefined,
@@ -322,7 +326,9 @@ export const inductRepository = Effect.fn("repoInduct.run")(
         schedule: options.activitySchedule ?? preset.activity.schedule,
       },
       notifications: {
-        enabled: options.notificationsEnabled ?? preset.notifications.enabled,
+        enabled:
+          options.notificationsEnabled ??
+          (github !== undefined && preset.notifications.enabled),
         schedule:
           options.notificationsSchedule ?? preset.notifications.schedule,
         bar: {
@@ -340,8 +346,9 @@ export const inductRepository = Effect.fn("repoInduct.run")(
         const name = yield* askText("Friendly name", answers.name);
 
         const github = yield* askText(
-          "GitHub owner/repository",
-          answers.github,
+          "GitHub owner/repository (blank if not on GitHub)",
+          answers.github ?? "",
+          false,
         );
 
         const aliases = splitList(
@@ -458,7 +465,7 @@ export const inductRepository = Effect.fn("repoInduct.run")(
         answers = {
           name,
           path: root,
-          github,
+          ...(github.trim() && { github: github.trim() }),
           aliases,
           machines,
           herdrAfter: optionalText(herdrAfter),

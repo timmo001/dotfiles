@@ -61,7 +61,7 @@ export const gitWeb = Effect.fn("gitWeb")(function* (options: {
 
   const url =
     options.url ??
-    (repo
+    (repo?.github
       ? `https://github.com/${repo.github}`
       : (yield* Repository.view(undefined, { cwd })).url);
 

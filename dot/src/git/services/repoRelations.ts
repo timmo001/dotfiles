@@ -2,12 +2,12 @@ import { Effect } from "effect";
 import type { CommandExecutorService } from "../../services/CommandExecutor.js";
 import {
   normalizeGitHubSlug,
-  type GitManagedRepo,
+  type GitHubManagedRepo,
 } from "../../services/GitConfig.js";
 
 /** Return the configured GitHub slug plus the checkout's upstream GitHub slug when present. */
 export function managedRepoGitHubSlugs(
-  repo: GitManagedRepo,
+  repo: GitHubManagedRepo,
   executor: CommandExecutorService,
 ) {
   return repoGitHubSlugs(repo.github, repo.path, executor);

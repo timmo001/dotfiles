@@ -6,7 +6,7 @@ import type {
 } from "../../types.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
-import { managedGitRepos } from "../../services/GitConfig.js";
+import { managedGitHubRepos } from "../../services/GitConfig.js";
 import { managedRepoGitHubSlugs } from "../services/repoRelations.js";
 import { GitNotifications } from "../services/GitNotifications.js";
 import { notificationReasonIsImportant } from "../services/notificationStatus.js";
@@ -44,7 +44,7 @@ export const notificationsBarValue = Effect.fn("notifications.barJson")(
     });
 
     const repositories = yield* Effect.forEach(
-      managedGitRepos(config.gitConfig),
+      managedGitHubRepos(config.gitConfig),
       (repo) =>
         Effect.gen(function* () {
           const slugs = yield* managedRepoGitHubSlugs(repo, executor);

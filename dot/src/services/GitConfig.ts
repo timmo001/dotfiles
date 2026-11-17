@@ -215,8 +215,8 @@ export interface GitManagedRepo {
   readonly name: string;
   /** Absolute filesystem path. */
   readonly path: string;
-  /** Normalised GitHub owner/repo slug. */
-  readonly github: string;
+  /** Normalised GitHub owner/repo slug; omitted for repositories not on GitHub, which skip every GitHub feature. */
+  readonly github?: string;
   /** Shell shortcuts generated for this repository. */
   readonly aliases: readonly string[];
   /** Machines that want this repository, such as `desktop` and `server`. */
@@ -371,6 +371,23 @@ export function managedGitRepos(
   return gitConfig.valid ? gitConfig.repositories : [];
 }
 
+/** A managed repository with a GitHub slug. */
+export type GitHubManagedRepo = GitManagedRepo & { readonly github: string };
+
+/** Check whether a managed repository is on GitHub. */
+export function isGitHubManagedRepo(
+  repo: GitManagedRepo,
+): repo is GitHubManagedRepo {
+  return repo.github !== undefined;
+}
+
+/** Return the managed repositories that are on GitHub. */
+export function managedGitHubRepos(
+  gitConfig: DotGitConfig,
+): readonly GitHubManagedRepo[] {
+  return managedGitRepos(gitConfig).filter(isGitHubManagedRepo);
+}
+
 /** Return repositories with an enabled check whose schedule is currently active. */
 export function activeGitReposForCheck(
   gitConfig: DotGitConfig,
@@ -407,7 +424,7 @@ export function managedGitRepoForGitHub(
   const normalized = github.toLowerCase();
 
   return managedGitRepos(gitConfig).find(
-    (repo) => repo.github.toLowerCase() === normalized,
+    (repo) => repo.github?.toLowerCase() === normalized,
   );
 }
 
@@ -659,7 +676,7 @@ function parseRepo(
   const name = requiredString(value.name, `${location}.name`, diagnostics);
   const rawPath = requiredString(value.path, `${location}.path`, diagnostics);
 
-  const rawGithub = requiredString(
+  const rawGithub = optionalString(
     value.github,
     `${location}.github`,
     diagnostics,
@@ -774,13 +791,25 @@ function parseRepo(
     diagnostics.push(`${location}.github must be a GitHub owner/repo slug`);
   }
 
-  if (!name || !rawPath || !github || !activity || !notifications) return [];
+  if (value.github === undefined)
+    for (const [key, enabled] of [
+      ["notifications", notifications?.enabled],
+      ["pull_requests", pullRequests?.enabled],
+      ["issues", issues?.enabled],
+      ["review_search", reviewSearch !== null],
+    ] as const)
+      if (enabled)
+        diagnostics.push(`${location}.${key} needs ${location}.github`);
+
+  if (!name || !rawPath || !activity || !notifications) return [];
+
+  if (value.github !== undefined && !github) return [];
 
   return [
     {
       name,
       path: expandHomePath(rawPath),
-      github,
+      ...(github && { github }),
       aliases,
       ...(machines && machines.length > 0 && { machines }),
       ...(herdrAfter && { herdrAfter }),
@@ -982,6 +1011,8 @@ function pushDuplicateDiagnostics(
 
   for (const repo of repositories) {
     const value = repo[key];
+
+    if (value === undefined) continue;
 
     if (seen.has(value))
       diagnostics.push(`Duplicate repository ${key}: ${value}`);

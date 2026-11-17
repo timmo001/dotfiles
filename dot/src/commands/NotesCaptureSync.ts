@@ -39,8 +39,10 @@ class NotesCaptureSyncError extends Schema.TaggedError<NotesCaptureSyncError>()(
 export function captureRepositoryOptions(
   repositories: readonly GitManagedRepo[],
 ): readonly CaptureRepositoryOption[] {
-  const enabled = repositories.filter(
-    ({ notifications }) => notifications.enabled,
+  const enabled = repositories.flatMap((repository) =>
+    repository.notifications.enabled && repository.github
+      ? [{ ...repository, github: repository.github }]
+      : [],
   );
 
   return [
@@ -130,7 +132,7 @@ export const notesCaptureSync = Effect.gen(function* () {
   }
 
   const notes = config.gitConfig.repositories.find(
-    ({ github }) => github.toLowerCase() === NOTES_REPOSITORY,
+    ({ github }) => github?.toLowerCase() === NOTES_REPOSITORY,
   );
 
   if (!notes) {

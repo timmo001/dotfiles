@@ -13,8 +13,8 @@ import {
 } from "effect";
 import { Config } from "../../services/Config.js";
 import {
-  managedGitRepos,
-  type GitManagedRepo,
+  managedGitHubRepos,
+  type GitHubManagedRepo,
   type IssueExclusion,
 } from "../../services/GitConfig.js";
 import { formatCause } from "../../lib/schema.js";
@@ -136,7 +136,7 @@ export class GitIssues extends Context.Service<GitIssues, GitIssuesService>()(
       const github = yield* GitHub;
       const fs = yield* FileSystem.FileSystem;
 
-      const stateDirectory = (repo: GitManagedRepo) =>
+      const stateDirectory = (repo: GitHubManagedRepo) =>
         join(
           config.stateDir,
           "git-issues",
@@ -179,7 +179,7 @@ export class GitIssues extends Context.Service<GitIssues, GitIssuesService>()(
             message: config.gitConfig.diagnostics.join("\n"),
           });
 
-        const repositories = managedGitRepos(config.gitConfig).filter(
+        const repositories = managedGitHubRepos(config.gitConfig).filter(
           (repo) =>
             repo.issues?.enabled &&
             (!options.repo ||

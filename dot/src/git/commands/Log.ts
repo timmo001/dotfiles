@@ -36,8 +36,8 @@ export interface GitLogRepository {
   readonly name: string;
   /** Local checkout path. */
   readonly path: string;
-  /** GitHub owner/repo slug. */
-  readonly repo: string;
+  /** GitHub owner/repo slug; null for repositories not on GitHub. */
+  readonly repo: string | null;
   /** Checked-out branch, or null when detached. */
   readonly branch: string | null;
   /** Newest first, including fetched upstream commits not yet pulled. */
@@ -150,7 +150,7 @@ export const queryGitLog = Effect.fn("gitLog.query")(function* (
         return {
           name: repo.name,
           path: repo.path,
-          repo: repo.github,
+          repo: repo.github ?? null,
           branch: entry?.branch ?? null,
           commits: entry?.commits ?? [],
           error: Result.isFailure(result)

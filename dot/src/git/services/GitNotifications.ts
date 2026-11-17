@@ -25,6 +25,7 @@ import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import {
   gitRepoNotificationsActive,
+  managedGitHubRepos,
   managedGitRepos,
   managedGitRepoForGitHub,
 } from "../../services/GitConfig.js";
@@ -416,7 +417,7 @@ export class GitNotifications extends Context.Service<
 
           const normalizedNotificationRepo = notificationRepo.toLowerCase();
 
-          for (const repo of managedGitRepos(config.gitConfig)) {
+          for (const repo of managedGitHubRepos(config.gitConfig)) {
             const slugs = yield* managedRepoGitHubSlugs(repo, executor);
 
             if (
