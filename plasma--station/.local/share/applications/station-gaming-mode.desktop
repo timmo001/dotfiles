@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Gaming Mode
+Comment=Switch the TV to Steam's gaming mode (dot screen game)
+Exec=game
+Icon=input-gaming
+Terminal=false
+Categories=Game;
+Keywords=steam;gamescope;console;tv;

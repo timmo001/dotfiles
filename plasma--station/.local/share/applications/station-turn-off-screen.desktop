@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Turn Off Screen
+Comment=Close the desktop and leave Station headless (dot screen off)
+Exec=headless
+Icon=video-display
+Terminal=false
+Categories=System;
+Keywords=headless;screen;off;tv;
