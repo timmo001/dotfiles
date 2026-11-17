@@ -80,17 +80,6 @@ minimum_release_age = "0s"
 version = "latest"
 minimum_release_age = "0s"
 
-[tools."github:backnotprop/plannotator"]
-version = "latest"
-minimum_release_age = "0s"
-# A long-lived Inbox server or MCP keeps the old binary; dot update also
-# restarts these, and moves the unpinned agent plugins to this version
-postinstall = "pitchfork restart plannotator/server >/dev/null 2>&1 || true"
-
-[tools."github:plannotator/plannotator-tui"]
-version = "latest"
-minimum_release_age = "0s"
-
 [tools."github:Vysp3r/ProtonPlus"]
 version = "latest"
 asset_pattern = "ProtonPlus-*-anylinux-x86_64.AppImage"

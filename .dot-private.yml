@@ -1,0 +1,43 @@
+---
+# What Station takes from the private dotfiles, which stay on their main
+# branch. The same format as the NAS's server branch; Station takes every
+# Syncthing folder and tracked repository, so it has no syncthing or repos keys.
+#
+# stow: the private stow packages dot links. Anything not listed, such as
+# pitchfork, whose daemons run the Plannotator Inbox, and the Omarchy, UWSM
+# and desktop service packages, is left alone, and links already made for a
+# package removed from the list are unstowed. A new private package Station
+# needs has to be added here.
+stow:
+  - agents
+  - dot-config
+  - git
+  - git--station
+  - groundwork
+  - herdr
+  - notes
+  - scripts
+  - systemd
+  - triage
+  - upkeep
+  - upnext
+  - zsh
+
+# mcp.exclude: servers from the private mcp.yml kept off this machine, as on
+# the NAS. dot mcp sync disables them in the untracked
+# ~/.config/opencode/opencode.jsonc and leaves them out of Claude Code, so the
+# shared generated configs stay as they are.
+mcp:
+  exclude:
+    - chrome-devtools
+    - cloudflare-api
+
+# opencode: settings dot mcp sync layers over the shared OpenCode config in
+# the untracked ~/.config/opencode/opencode.jsonc. Plannotator is off on
+# Station, as on the NAS, so the private config's plugin is removed, and the
+# server instructions say to report in chat instead.
+opencode:
+  plugins:
+    - -plannotator
+  instructions:
+    - ~/.config/opencode/instructions/server.md

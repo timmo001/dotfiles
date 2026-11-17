@@ -1,7 +1,8 @@
 import { Effect, FileSystem } from "effect";
 import { join } from "path";
-import type { ConfigService } from "../services/Config.js";
+import { Config, type ConfigService } from "../services/Config.js";
 import { resolvedOmarchyHost } from "./omarchyHost.js";
+import { readPrivateSelection } from "./privateSelection.js";
 
 /** Top-level repo directories that are not active stow packages. */
 export const INTERNAL_STOW_FOLDERS = [
@@ -180,3 +181,24 @@ export const listStowFolders = Effect.fn("StowFolders.listStowFolders")(
     return folders;
   },
 );
+
+/**
+ * List the stow packages dot links from a repository: every package in the
+ * public repository, and only those selected in `.dot-private.yml` in the
+ * private one.
+ */
+export const selectedStowFolders = Effect.fn("StowFolders.selected")(function* (
+  repoDir: string,
+) {
+  const config = yield* Config;
+  const folders = yield* listStowFolders(repoDir, config);
+
+  if (repoDir !== config.privateDotfiles) return folders;
+
+  const selection =
+    (yield* readPrivateSelection(config.publicDotfiles))?.stow ?? null;
+
+  return selection === null
+    ? folders
+    : folders.filter((folder) => selection.has(folder));
+});
