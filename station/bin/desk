@@ -1,0 +1,4 @@
+#!/bin/sh
+# Show the Plasma desktop on Station's TV: dot screen desktop, from any shell
+# or over SSH. Installed root-owned into /usr/local/bin by dot.
+exec "$HOME/.local/bin/dot" screen desktop "$@"

@@ -66,6 +66,7 @@ import {
   gameSync,
 } from "../commands/Game.js";
 import { hdr } from "../commands/Hdr.js";
+import { screenOff, screenOn, screenStatus } from "../commands/Screen.js";
 import { tunnelRun } from "../commands/Tunnel.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { prQueue } from "../commands/PrQueue.js";
@@ -933,6 +934,39 @@ const hdrCommand = describe(
   {
     description:
       "The primary monitor is HDMI-A-2 on the desktop host and the focused monitor elsewhere. On sets 10-bit output with HDR colour management and doubled SDR brightness, and saves the setting so a Hyprland reload keeps it; off restores 8-bit sRGB. Either does nothing when the monitor is already there. The hdr-on and hdr-off scripts wrap these for launchers that take a script path, such as a desktop entry for a video app. Games use dot game, which turns HDR on as part of gaming mode.",
+  },
+);
+
+const screenCommand = describe(
+  Command.make("screen").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make("game", {}, () => screenOn("game")),
+        "Show Steam's gaming mode on the TV",
+        ["dot screen game", "game"],
+      ),
+      describe(
+        Command.make("desktop", {}, () => screenOn("desktop")),
+        "Show the Plasma desktop on the TV",
+        ["dot screen desktop", "desk"],
+      ),
+      describe(
+        Command.make("off", {}, () => screenOff),
+        "Close whatever is on screen, back to the text console",
+        ["dot screen off", "headless"],
+      ),
+      describe(
+        Command.make("status", {}, () => screenStatus),
+        "Say what's on screen and what the next login starts",
+        ["dot screen status"],
+      ),
+    ]),
+  ),
+  "Switch Station's TV between gaming mode, the desktop and nothing",
+  ["dot screen game", "dot screen desktop", "dot screen off"],
+  {
+    description:
+      "Station boots to a text console, so Plasma Login Manager only runs while a screen is on. game and desktop set the session it logs into with CachyOS's steam-set-session, the helper Steam's Switch to Desktop also uses, then restart it, replacing whatever was on screen; off stops it. Each works the same typed on Station or over SSH, and the game, desk and headless commands in /usr/local/bin run them. polkit lets wheel users start, stop and restart the login manager without a password.",
   },
 );
 
@@ -3661,6 +3695,7 @@ export const dotCommand = describe(
       fansCommand,
       hdrCommand,
       gameCommand,
+      screenCommand,
       tunnelCommand,
       stowCommand,
       omarchyCommand,

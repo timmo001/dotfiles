@@ -1,0 +1,4 @@
+#!/bin/sh
+# Close whatever is on Station's TV, back to the text console: dot screen
+# off, from any shell or over SSH. Installed root-owned into /usr/local/bin.
+exec "$HOME/.local/bin/dot" screen off "$@"

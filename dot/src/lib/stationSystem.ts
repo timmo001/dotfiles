@@ -1,8 +1,9 @@
 /**
  * @file Station's system setup: what an always-on server by the TV needs from
  * the system itself. The lid never suspends it, it boots to a text console
- * rather than a desktop, and user services run without anyone logged in.
- * Each part checks first, so a machine already set up needs no elevation.
+ * rather than a desktop, user services run without anyone logged in, and
+ * `dot screen` can start and stop the TV's session. Each part checks first,
+ * so a machine already set up needs no elevation.
  */
 
 import { Effect, FileSystem } from "effect";
@@ -13,59 +14,116 @@ import { runElevated } from "./elevatedCommand.js";
 import { done, skip, warn, type RecapEntry } from "./updateSummary.js";
 import { Config } from "../services/Config.js";
 
-/** The lid drop-in's name, in the dotfiles and installed. */
-const LOGIND_DROP_IN = "50-station-lid.conf";
-
-/** Where logind reads drop-ins from. */
-const LOGIND_DROP_IN_DIR = "/etc/systemd/logind.conf.d";
-
 /** The target Station boots into: no desktop until a session command starts one. */
 const BOOT_TARGET = "multi-user.target";
 
 /** Seconds a quick systemctl query may take. */
 const QUERY_TIMEOUT = 30;
 
+/** The short `dot screen` commands, installed on every shell's PATH. */
+const SCREEN_COMMANDS = ["game", "desk", "headless"] as const;
+
+/** A root-owned file Station needs, and what installing it is for. */
+interface RootFile {
+  /** Where it's installed. */
+  readonly target: string;
+  /** Its content. */
+  readonly content: string;
+  /** Its mode, such as `644`. */
+  readonly mode: string;
+  /** What it does, for the recap. */
+  readonly label: string;
+  /** A command run as root after installing it, such as a reload. */
+  readonly after?: string;
+}
+
 /**
- * Install the lid drop-in root-owned when it differs from the dotfiles, then
- * have logind reload its config. Plasma's power management overrides the lid
- * while a desktop runs; this covers every other time.
+ * Plasma Login Manager's main config. It logs `user` in automatically, and
+ * back in when a session ends, as SteamOS does. The session itself comes from
+ * the drop-in CachyOS's steam-set-session writes, which this file must not
+ * set, since KConfig lets the main file override every drop-in.
  */
-const syncLogindDropIn = Effect.gen(function* () {
+const plasmaLoginConfig = (user: string) =>
+  `# Written by dot for Station. The session comes from
+# /etc/plasmalogin.conf.d/zz-steamos-autologin.conf, which dot screen and
+# Steam's Switch to Desktop set through steam-set-session.
+[Autologin]
+User=${user}
+Relogin=true
+`;
+
+/** Every root-owned file Station needs, read from the public dotfiles. */
+const rootFiles = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
   const config = yield* Config;
-  const target = join(LOGIND_DROP_IN_DIR, LOGIND_DROP_IN);
+  const station = join(config.publicDotfiles, "station");
+  const read = (path: string) => fs.readFileString(join(station, path));
 
-  const source = join(
-    config.publicDotfiles,
-    "station",
-    "logind.conf.d",
-    LOGIND_DROP_IN,
-  );
+  const files: RootFile[] = [
+    {
+      target: "/etc/systemd/logind.conf.d/50-station-lid.conf",
+      content: yield* read("logind.conf.d/50-station-lid.conf"),
+      mode: "644",
+      label: "the lid settings, so closing the lid never suspends",
+      after: "systemctl kill -s HUP systemd-logind",
+    },
+    {
+      target: "/etc/polkit-1/rules.d/50-dot-screen.rules",
+      content: yield* read("polkit/50-dot-screen.rules"),
+      mode: "644",
+      label: "the polkit rule that lets dot screen start the login manager",
+    },
+    {
+      target: "/etc/plasmalogin.conf",
+      content: plasmaLoginConfig(userInfo().username),
+      mode: "644",
+      label: "Plasma Login Manager's autologin",
+    },
+  ];
 
-  const current = yield* Effect.all([
-    fs.readFileString(source),
-    fs.readFileString(target),
-  ]).pipe(
-    Effect.map(([wanted, installed]) => wanted === installed),
-    Effect.orElseSucceed(() => false),
-  );
+  for (const name of SCREEN_COMMANDS)
+    files.push({
+      target: join("/usr/local/bin", name),
+      content: yield* read(join("bin", name)),
+      mode: "755",
+      label: `the ${name} command`,
+    });
 
-  if (current) return skip("Lid settings already installed");
+  return files;
+}).pipe(Effect.withSpan("StationSystem.rootFiles"));
+
+/** Install a root-owned file when its content differs from what's wanted. */
+const syncRootFile = Effect.fn("StationSystem.syncRootFile")(function* (
+  file: RootFile,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  const installed = yield* fs
+    .readFileString(file.target)
+    .pipe(Effect.orElseSucceed(() => null));
+
+  if (installed === file.content)
+    return skip(`Already installed ${file.label}`);
+
+  const staged = yield* fs.makeTempFileScoped({ prefix: "dot-station-" });
+
+  yield* fs.writeFileString(staged, file.content);
 
   const exitCode = yield* runElevated("sh", [
     "-c",
     `set -e
-install -Dm644 "$1" "$2"
-systemctl kill -s HUP systemd-logind`,
+install -Dm"$3" "$1" "$2"
+${file.after ?? ""}`,
     "sh",
-    source,
-    target,
+    staged,
+    file.target,
+    file.mode,
   ]);
 
   return exitCode === 0
-    ? done("Installed the lid settings, so closing the lid never suspends")
-    : warn(`Could not install the lid settings (exit ${exitCode})`);
-}).pipe(Effect.withSpan("StationSystem.logind"));
+    ? done(`Installed ${file.label}`)
+    : warn(`Could not install ${file.label} (exit ${exitCode})`);
+}, Effect.scoped);
 
 /** Boot to a text console, leaving the desktop to the session commands. */
 const ensureBootTarget = Effect.gen(function* () {
@@ -108,7 +166,29 @@ const ensureLinger = Effect.gen(function* () {
 export const syncStationSystem = Effect.gen(function* () {
   const actions: RecapEntry[] = [];
 
-  actions.push(yield* syncLogindDropIn);
+  const files = yield* rootFiles.pipe(
+    Effect.catch((error) =>
+      Effect.succeed(
+        warn(`Could not read Station's system files: ${error.message}`),
+      ),
+    ),
+  );
+
+  if (Array.isArray(files)) {
+    for (const file of files)
+      actions.push(
+        yield* syncRootFile(file).pipe(
+          Effect.catch((error) =>
+            Effect.succeed(
+              warn(`Could not install ${file.label}: ${error.message}`),
+            ),
+          ),
+        ),
+      );
+  } else {
+    actions.push(files);
+  }
+
   actions.push(yield* ensureBootTarget);
   actions.push(yield* ensureLinger);
 
