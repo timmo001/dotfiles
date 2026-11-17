@@ -243,16 +243,7 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
       if (folder === "agents") {
         flags.push(
           ...(repo.path === config.publicDotfiles
-            ? [
-                "--ignore=^/\\.agents/skills($|/)",
-                // Stow lays plugin folders down file by file, then
-                // foldOpencodePluginFolders swaps each for one link, so a
-                // folded folder would always read as needing stow.
-                ...(yield* foldedOpencodePluginFolders(repo.path)).map(
-                  (name) =>
-                    `--ignore=^/\\.config/opencode/plugins/${name.replaceAll(".", "\\.")}($|/)`,
-                ),
-              ]
+            ? ["--ignore=^/\\.agents/skills($|/)"]
             : [
                 "--ignore=node_modules",
                 "--ignore=package\\.json",
@@ -268,7 +259,30 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
         { cwd: repo.path },
       );
 
-      if (stowPlanNeedsApply(output))
+      // Stow lays OpenCode plugin folders down file by file, then
+      // foldOpencodePluginFolders swaps each for one link, so the plan always
+      // unfolds them. Leave those folders out; stow ignores can't, since a
+      // restow still unlinks the folded link.
+      const folded =
+        folder === "agents" && repo.path === config.publicDotfiles
+          ? (yield* foldedOpencodePluginFolders(repo.path)).map(
+              (name) => `.config/opencode/plugins/${name}`,
+            )
+          : [];
+
+      const plan = output
+        .split("\n")
+        .filter(
+          (line) =>
+            !folded.some((path) =>
+              new RegExp(
+                `^(LINK|UNLINK|MKDIR|RMDIR): ${path.replaceAll(".", "\\.")}($|/| )`,
+              ).test(line),
+            ),
+        )
+        .join("\n");
+
+      if (stowPlanNeedsApply(plan))
         pending.push(`${repo.name}: ${folder} needs stow`);
     }
 
