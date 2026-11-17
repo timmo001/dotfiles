@@ -1,7 +1,1 @@
-[Desktop Entry]
-Type=Application
-Name=Turn Off Screen
-Comment=Close the desktop and leave Station headless (dot screen off)
-Exec=headless
-Icon=video-display
-Terminal=false
+../.local/share/applications/station-turn-off-screen.desktop

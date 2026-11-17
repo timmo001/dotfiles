@@ -1,7 +1,1 @@
-[Desktop Entry]
-Type=Application
-Name=Gaming Mode
-Comment=Switch the TV to Steam's gaming mode (dot screen game)
-Exec=game
-Icon=input-gaming
-Terminal=false
+../.local/share/applications/station-gaming-mode.desktop
