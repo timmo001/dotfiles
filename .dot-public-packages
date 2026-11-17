@@ -4,6 +4,7 @@
 # through yay, which CachyOS ships in its own repository. Kestrel, Triage and
 # Upkeep join when they move over from the Home Assistant Green.
 
+1password
 bmon
 cmake
 context-git
