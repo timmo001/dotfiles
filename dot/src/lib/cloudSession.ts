@@ -68,7 +68,7 @@ export const withAttachedCheckouts = Effect.fn(
   const remapped: DotGitConfig = {
     ...gitConfig,
     repositories: gitConfig.repositories.map((repo) => {
-      const path = checkouts.get(repo.github.toLowerCase());
+      const path = repo.github && checkouts.get(repo.github.toLowerCase());
 
       return path ? { ...repo, path } : repo;
     }),
