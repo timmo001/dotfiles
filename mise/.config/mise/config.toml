@@ -1,11 +1,13 @@
+# Station's tools: the desktop's, less its desktop apps and hardware tools
+# (momentumctl, the Android SDK and scrcpy, Bambu Studio, the Home Assistant,
+# ESPHome, Music Assistant and GitHub Copilot apps, the storytold apps and
+# go2rtc).
 [tools]
-android-sdk = "latest"
 bat = "latest"
 "aqua:coder/boo" = "latest"
 "aqua:cloudflare/cloudflared" = "latest"
 bun = "1.4.4"
 "cargo:terminal-control" = "latest"
-"cargo:https://codeberg.org/galen/momentumctl" = "rev:d09ebb840b9741fc436767d6645171a203bfce48"
 deno = "2.9.8"
 eza = "latest"
 fd = "latest"
@@ -89,68 +91,6 @@ postinstall = "pitchfork restart plannotator/server >/dev/null 2>&1 || true"
 version = "latest"
 minimum_release_age = "0s"
 
-[tools."github:home-assistant/installer"]
-version = "0.0.0-alpha.7"
-prerelease = true
-asset_pattern = "Home.Assistant.Installer_*_amd64.AppImage"
-format = "raw"
-bin = "home-assistant-installer"
-
-[tools."github:esphome/esphome-desktop"]
-version = "latest"
-asset_pattern = "ESPHome.Device.Builder_*_amd64.AppImage"
-format = "raw"
-bin = "esphome-desktop"
-
-[tools."github:music-assistant/desktop-app"]
-version = "latest"
-asset_pattern = "Music.Assistant_*_amd64.AppImage"
-format = "raw"
-bin = "music-assistant-companion"
-
-[tools."github:AlexxIT/go2rtc"]
-version = "latest"
-asset_pattern = "go2rtc_linux_amd64"
-format = "raw"
-bin = "go2rtc"
-
-[tools."github:github/app"]
-version = "latest"
-asset_pattern = "GitHub-Copilot-linux-x64.AppImage"
-format = "raw"
-bin = "github-copilot"
-minimum_release_age = "0s"
-
-[tools."github:storytold/photocraft"]
-version = "latest"
-asset_pattern = "photocraft-*-linux-x86_64.tar.gz"
-strip_components = 1
-bin_path = "bin"
-
-[tools."github:storytold/vectorcraft"]
-version = "latest"
-asset_pattern = "vectorcraft-[0-9]*-linux-x86_64.tar.gz"
-strip_components = 1
-bin_path = "bin"
-
-[tools."github:storytold/effectcraft"]
-version = "latest"
-asset_pattern = "effectcraft-[0-9]*-linux-x86_64.tar.gz"
-strip_components = 1
-bin_path = "bin"
-
-[tools."github:storytold/filmcraft"]
-version = "latest"
-asset_pattern = "filmcraft-[0-9]*-linux-x86_64.tar.gz"
-strip_components = 1
-bin_path = "bin"
-
-[tools."github:storytold/lightcraft"]
-version = "latest"
-asset_pattern = "lightcraft-[0-9]*-linux-x86_64.tar.gz"
-strip_components = 1
-bin_path = "bin"
-
 [tools."github:Vysp3r/ProtonPlus"]
 version = "latest"
 asset_pattern = "ProtonPlus-*-anylinux-x86_64.AppImage"
@@ -165,12 +105,6 @@ asset_pattern = "plezy-linux-x64.tar.gz"
 filter_bins = "plezy.sh"
 postinstall = 'chmod 755 "$MISE_TOOL_INSTALL_PATH/plezy.sh" "$MISE_TOOL_INSTALL_PATH/lib/crashpad_handler"'
 
-# The bundled adb stays off PATH so the Android SDK's adb is used.
-[tools."github:Genymobile/scrcpy"]
-version = "latest"
-asset_pattern = "scrcpy-linux-x86_64-v*.tar.gz"
-filter_bins = "scrcpy"
-
 # The v2 desktop app is only published on opencode.ai, not GitHub releases.
 # [tools."http:opencode-desktop"]
 # version = "latest"
@@ -180,12 +114,6 @@ filter_bins = "scrcpy"
 # version_json_path = ".version"
 # format = "raw"
 # bin = "opencode-desktop"
-
-[tools."github:bambulab/BambuStudio"]
-version = "latest"
-asset_pattern = "BambuStudio_ubu24-v*.AppImage"
-format = "raw"
-bin = "bambu-studio"
 
 [tools."github:yt-dlp/yt-dlp"]
 version = "latest"
