@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Steam (background)
+Comment=Run Steam quietly on the desktop, so its desktop layout makes the controller a mouse and keyboard, as on SteamOS
+Exec=steam -silent
+Icon=steam
+OnlyShowIn=KDE;
+X-KDE-autostart-phase=2
+NoDisplay=true

@@ -2073,6 +2073,28 @@ Makes the first connected screen that isn't the laptop's own panel Plasma's main
 dot screen setup
 ```
 
+### `dot screen keyboard`
+
+Show or hide Plasma's on-screen keyboard
+
+```text
+dot screen keyboard [flags]
+```
+
+Shows Plasma's on-screen keyboard through KWin's virtual keyboard, or hides it when it's showing. KWin only brings it up by itself after touch input, so this is how a mouse, a controller in Steam's desktop layout, Moonlight or RDP call it up. The On-Screen Keyboard entry in the app menu and on the desktop runs it.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot screen keyboard
+```
+
 ### `dot screen hdr`
 
 Turn on HDR and wide colour on every screen in the Plasma session
