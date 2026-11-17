@@ -61,16 +61,25 @@ export function cloneMissingGitConfigRepos(opts?: {
     yield* log.section("Clone Private Git Repositories");
 
     for (const repo of missing) {
-      yield* log.info(`Cloning ${repo.name} (${repo.github})`);
+      if (!repo.github) {
+        yield* log.warn(
+          `Skipping ${repo.name}: it has no GitHub repository to clone from`,
+        );
+        continue;
+      }
+
+      const github = repo.github;
+
+      yield* log.info(`Cloning ${repo.name} (${github})`);
 
       const clone = Effect.gen(function* () {
         if (opts?.captured) {
           yield* log.withSpinner(
             `Cloning ${repo.name}`,
-            ghRepoCloneCaptured(repo.github, repo.path),
+            ghRepoCloneCaptured(github, repo.path),
           );
         } else {
-          yield* ghRepoClone(repo.github, repo.path);
+          yield* ghRepoClone(github, repo.path);
         }
       });
 

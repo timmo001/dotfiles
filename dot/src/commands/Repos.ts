@@ -266,7 +266,7 @@ export const loadTracked = Effect.gen(function* () {
 
   const entries: readonly (readonly [GitRepoShortcut, string | null])[] = [
     ...config.gitConfig.repositories.map(
-      (repo) => [repo, repo.github] as const,
+      (repo) => [repo, repo.github ?? null] as const,
     ),
     ...config.gitConfig.shortcuts.map((shortcut) => [shortcut, null] as const),
   ];

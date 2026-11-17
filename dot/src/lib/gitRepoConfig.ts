@@ -279,7 +279,7 @@ export function appendGitRepository(
   const entry = {
     name: repo.name,
     path: displayPath(repo.path),
-    github: repo.github,
+    ...(repo.github && { github: repo.github }),
     aliases: repo.aliases,
     agent_oxlint: repo.agentOxlint,
     activity: repo.activity,
@@ -329,7 +329,7 @@ export function appendGitRepository(
       : []),
     `    path: ${JSON.stringify(entry.path)}`,
     ...(repo.browser ? [`    browser: ${JSON.stringify(repo.browser)}`] : []),
-    `    github: ${JSON.stringify(entry.github)}`,
+    ...(repo.github ? [`    github: ${JSON.stringify(repo.github)}`] : []),
     ...(repo.notesRemote
       ? [`    notes_remote: ${JSON.stringify(repo.notesRemote)}`]
       : []),

@@ -13,8 +13,8 @@ import {
 } from "effect";
 import { Config } from "../../services/Config.js";
 import {
-  managedGitRepos,
-  type GitManagedRepo,
+  managedGitHubRepos,
+  type GitHubManagedRepo,
 } from "../../services/GitConfig.js";
 import {
   CheckContext,
@@ -224,7 +224,7 @@ export class GitPullRequests extends Context.Service<
       const github = yield* GitHub;
       const fs = yield* FileSystem.FileSystem;
 
-      const stateDirectory = (repo: GitManagedRepo) =>
+      const stateDirectory = (repo: GitHubManagedRepo) =>
         join(
           config.stateDir,
           "git-pull-requests",
@@ -281,7 +281,7 @@ export class GitPullRequests extends Context.Service<
               "Ignoring a pull request requires --repo and a positive PR number",
           });
 
-        const repositories = managedGitRepos(config.gitConfig).filter(
+        const repositories = managedGitHubRepos(config.gitConfig).filter(
           (repo) =>
             repo.pullRequests?.enabled &&
             (!options.repo ||

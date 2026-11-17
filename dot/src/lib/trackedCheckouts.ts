@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { managedGitRepos } from "../services/GitConfig.js";
+import { managedGitHubRepos } from "../services/GitConfig.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { pathExists } from "./fsProbe.js";
@@ -28,7 +28,7 @@ export const trackedCheckouts = Effect.fn("trackedCheckouts")(function* (
 ) {
   const config = yield* Config;
   const executor = yield* CommandExecutor;
-  const repos = managedGitRepos(config.gitConfig);
+  const repos = managedGitHubRepos(config.gitConfig);
 
   const checkouts = new Map<string, TrackedCheckout>(
     repos.map((repo) => [

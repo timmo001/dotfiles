@@ -404,7 +404,7 @@ Item {
   }
 
   function openCommitsWeb(repo, modifiers) {
-    if (!repo) return
+    if (!repo || !repo.repo) return
     openWeb("https://github.com/" + repo.repo + "/commits" + (repo.branch ? "/" + encodeURIComponent(repo.branch).replace(/%2F/g, "/") : ""), repo.path, modifiers)
   }
 
@@ -412,9 +412,9 @@ Item {
     if (!repo || !commit) return
     var sha = String(commit.sha)
     if (!/^[0-9a-f]{7,64}$/.test(sha)) return
-    if (action === "web")
-      openWeb("https://github.com/" + repo.repo + "/commit/" + sha, repo.path, modifiers)
-    else if (action === "diff")
+    if (action === "web") {
+      if (repo.repo) openWeb("https://github.com/" + repo.repo + "/commit/" + sha, repo.path, modifiers)
+    } else if (action === "diff")
       Quickshell.execDetached(herdrCommand(repo, "Commit " + sha.slice(0, 7), "git show --stat --patch " + sha, modifiers))
     else if (action === "plannotator")
       Quickshell.execDetached(herdrCommand(repo, "Plannotator", "git show --format= --patch --first-parent " + sha + " | plannotator review --patch-file -", modifiers))

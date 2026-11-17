@@ -7,7 +7,7 @@ import { cliStyler } from "../../lib/ansi.js";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { OutputLog } from "../../services/OutputLog.js";
-import { managedGitRepos } from "../../services/GitConfig.js";
+import { managedGitHubRepos } from "../../services/GitConfig.js";
 import {
   GitNotifications,
   GitNotificationError,
@@ -241,7 +241,7 @@ export const notificationsDismiss = Effect.fn("notifications.dismiss")(
     const style = cliStyler();
 
     const configured = options.repo
-      ? managedGitRepos(config.gitConfig).find((repo) =>
+      ? managedGitHubRepos(config.gitConfig).find((repo) =>
           [repo.name, repo.path, repo.github].some(
             (value) => value.toLowerCase() === options.repo?.toLowerCase(),
           ),

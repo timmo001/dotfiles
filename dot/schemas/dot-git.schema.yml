@@ -171,7 +171,6 @@ $defs:
     required:
       - name
       - path
-      - github
       - activity
       - notifications
     properties:
@@ -186,7 +185,7 @@ $defs:
       github:
         type: string
         pattern: "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
-        description: GitHub owner/repo slug.
+        description: GitHub owner/repo slug. Omit it for a repository not on GitHub, which then can't enable notifications, pull_requests, issues or review_search.
       aliases:
         type: array
         uniqueItems: true
