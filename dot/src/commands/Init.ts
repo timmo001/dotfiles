@@ -18,7 +18,11 @@ import { agentsSync } from "./AgentsSync.js";
 import { install } from "./Install.js";
 import { setupPrivateRepo } from "./SetupPrivateRepo.js";
 import { setupPublicRepo } from "./SetupPublicRepo.js";
-import { runElevated, withSudoKeepAlive } from "../lib/elevatedCommand.js";
+import {
+  elevatedCommand,
+  runElevated,
+  withSudoKeepAlive,
+} from "../lib/elevatedCommand.js";
 import { gitRequired } from "../lib/git.js";
 import {
   ensureGumInstalled,
@@ -364,19 +368,14 @@ function persistOmarchyHostEnv(
       `fi`,
     ].join("\n");
 
-    const persistCommand =
-      process.getuid?.() === 0
-        ? (["bash", ["-c", script]] as const)
-        : (yield* executor.exitCode("which", ["pkexec"])) === 0
-          ? (["pkexec", ["bash", "-c", script]] as const)
-          : (["sudo", ["-n", "bash", "-c", script]] as const);
+    // pkexec has no polkit agent to ask over SSH, so this goes through the
+    // shared helper, which uses init's sudo session without a desktop.
+    const [command, args] = yield* elevatedCommand("bash", ["-c", script]);
 
-    const exitCode = yield* executor
-      .exitCode(persistCommand[0], persistCommand[1])
-      .pipe(
-        Effect.timeout(Duration.seconds(OMARCHY_HOST_PERSIST_TIMEOUT_SECONDS)),
-        Effect.orElseSucceed(() => 1),
-      );
+    const exitCode = yield* executor.exitCode(command, args).pipe(
+      Effect.timeout(Duration.seconds(OMARCHY_HOST_PERSIST_TIMEOUT_SECONDS)),
+      Effect.orElseSucceed(() => 1),
+    );
 
     if (exitCode === 0) {
       yield* log.success(`Persisted ${line} ${cliStyler().dim(file)}`);
