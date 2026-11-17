@@ -239,6 +239,28 @@ function supportsDenoPackageArch(
   });
 }
 
+function supportsMisePackageArch(
+  sourceRepo: string,
+): Effect.Effect<boolean, never, CommandExecutor | FileSystem.FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+
+    const configs = yield* Effect.forEach(["mise.toml", ".mise.toml"], (name) =>
+      fs.exists(join(sourceRepo, name)).pipe(Effect.orDie),
+    );
+
+    if (!configs.some(Boolean)) return false;
+
+    const executor = yield* CommandExecutor;
+
+    const output = yield* executor
+      .run("mise", ["tasks", "ls", "--no-header"], { cwd: sourceRepo })
+      .pipe(Effect.orElseSucceed(() => ""));
+
+    return /(^|\s)package:arch($|\s)/m.test(output);
+  });
+}
+
 function buildPackage(
   packageName: string,
   sourceRepo: string,
@@ -263,6 +285,12 @@ function buildPackage(
 
     if (yield* fs.exists(join(sourceRepo, "Makefile")).pipe(Effect.orDie)) {
       return yield* runRequired("make", ["create_arch"], { cwd: sourceRepo });
+    }
+
+    if (yield* supportsMisePackageArch(sourceRepo)) {
+      return yield* runRequired("mise", ["run", "package:arch"], {
+        cwd: sourceRepo,
+      });
     }
 
     return yield* markFailure(
