@@ -65,6 +65,11 @@ export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
  * - The OpenCode server listens on 4096, as on the other machines.
  * - Steam Remote Play finds devices over UDP 27031-27036 and streams over TCP
  *   27036-27037.
+ * - KRdp, Plasma's RDP server, listens on 3389.
+ * - Sunshine serves Moonlight clients: HTTPS pairing on 47984, HTTP on 47989,
+ *   its web UI on 47990 and RTSP on 48010 over TCP, with video, control and
+ *   audio on UDP 47998-48000, 48002 and 48010. Moonlight on Station only connects
+ *   out, so it needs nothing.
  */
 export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
   {
@@ -100,6 +105,12 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
     port: "27036:27037",
     protocols: ["tcp"],
   },
+  { kind: "port", label: "KRdp", port: "3389", protocols: ["tcp"] },
+  { kind: "port", label: "Sunshine", port: "47984", protocols: ["tcp"] },
+  { kind: "port", label: "Sunshine", port: "47989:47990", protocols: ["tcp"] },
+  { kind: "port", label: "Sunshine", port: "48010", protocols: ["tcp", "udp"] },
+  { kind: "port", label: "Sunshine", port: "47998:48000", protocols: ["udp"] },
+  { kind: "port", label: "Sunshine", port: "48002", protocols: ["udp"] },
 ];
 
 /**
