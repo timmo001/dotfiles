@@ -2155,7 +2155,7 @@ const setupCommand = describe(
         ["dot setup station"],
         {
           description:
-            "Install Station's root-owned files when they differ: passwordless sudo for this user (checked with visudo first), the logind lid settings, the polkit rule for dot screen, Plasma Login Manager's autologin and the game, desk and headless commands in /usr/local/bin. Then set the boot target to multi-user.target and turn on lingering. dot init runs it, and dot up runs it before the system upgrade.",
+            "Install Station's root-owned files when they differ: passwordless sudo for this user (checked with visudo first), the logind lid settings, the polkit rule for dot screen, Plasma Login Manager's autologin and the game, desk and headless commands in /usr/local/bin. Then set the boot target to multi-user.target, turn on lingering, and enable KRdp and Sunshine so they start with a screen session (their logins are set in System Settings › Remote Desktop and Sunshine's web UI), and pick Plasma's on-screen keyboard as KWin's input method. dot init runs it, and dot up runs it before the system upgrade.",
         },
       ),
     ]),

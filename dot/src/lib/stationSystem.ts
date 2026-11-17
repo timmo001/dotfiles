@@ -2,7 +2,9 @@
  * @file Station's system setup: what an always-on server by the TV needs from
  * the system itself. The lid never suspends it, it boots to a text console
  * rather than a desktop, user services run without anyone logged in, sudo
- * needs no password, and `dot screen` can start and stop the TV's session.
+ * needs no password, `dot screen` can start and stop the TV's session, and
+ * RDP and game streaming start with that session, and Plasma has an on-screen
+ * keyboard.
  * Each part checks first, so a machine already set up needs no elevation.
  */
 
@@ -193,6 +195,100 @@ const ensureLinger = Effect.gen(function* () {
     : warn(`Could not turn on lingering (exit ${exitCode})`);
 }).pipe(Effect.withSpan("StationSystem.linger"));
 
+/**
+ * Remote access that starts with a screen session rather than at boot: KRdp
+ * with Plasma, and Sunshine with Plasma or gaming mode. Their logins stay
+ * with the user (System Settings › Remote Desktop, and Sunshine's web UI).
+ */
+const SESSION_UNITS = [
+  {
+    unit: "app-org.kde.krdpserver.service",
+    label: "KRdp, the RDP server, with Plasma",
+  },
+  {
+    unit: "app-dev.lizardbyte.app.Sunshine.service",
+    label: "Sunshine, the game stream host, with any screen session",
+  },
+] as const;
+
+/**
+ * Enable a session-bound user unit without starting it: it starts with the
+ * next screen session, and Station boots without one.
+ */
+const ensureSessionUnit = Effect.fn("StationSystem.sessionUnit")(function* ({
+  unit,
+  label,
+}: (typeof SESSION_UNITS)[number]) {
+  const state = yield* query(
+    "systemctl",
+    ["--user", "is-enabled", unit],
+    QUERY_TIMEOUT,
+  );
+
+  if (lines(state.stdout)[0] === "enabled")
+    return skip(`Already starts ${label}`);
+
+  if (
+    lines(state.stdout)[0] === "not-found" ||
+    state.stderr.includes("not found")
+  )
+    return warn(`Not installed: ${unit}`);
+
+  const result = yield* query(
+    "systemctl",
+    ["--user", "enable", unit],
+    QUERY_TIMEOUT,
+  );
+
+  return result.code === 0
+    ? done(`Enabled ${label}`)
+    : warn(`Could not enable ${unit}: ${result.stderr.trim()}`);
+});
+
+/** Plasma's on-screen keyboard, from the plasma-keyboard package. */
+const VIRTUAL_KEYBOARD =
+  "/usr/share/applications/org.kde.plasma.keyboard.desktop";
+
+/**
+ * Pick Plasma's on-screen keyboard as KWin's input method, for the sofa
+ * without a keyboard. KDE rewrites kwinrc itself, so it's set with
+ * kwriteconfig6 rather than stowed; it takes effect at the next Plasma login.
+ */
+const ensureVirtualKeyboard = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+
+  const key = [
+    "--file",
+    "kwinrc",
+    "--group",
+    "Wayland",
+    "--key",
+    "InputMethod",
+  ];
+
+  if (
+    !(yield* fs
+      .exists(VIRTUAL_KEYBOARD)
+      .pipe(Effect.orElseSucceed(() => false)))
+  )
+    return warn("Not installed: plasma-keyboard, the on-screen keyboard");
+
+  const current = yield* query("kreadconfig6", key, QUERY_TIMEOUT);
+
+  if (lines(current.stdout)[0] === VIRTUAL_KEYBOARD)
+    return skip("Already uses Plasma's on-screen keyboard");
+
+  const result = yield* query(
+    "kwriteconfig6",
+    [...key, VIRTUAL_KEYBOARD],
+    QUERY_TIMEOUT,
+  );
+
+  return result.code === 0
+    ? done("Picked Plasma's on-screen keyboard, from the next Plasma login")
+    : warn(`Could not pick the on-screen keyboard: ${result.stderr.trim()}`);
+}).pipe(Effect.withSpan("StationSystem.virtualKeyboard"));
+
 /** Apply Station's system setup, returning what each part did. */
 export const syncStationSystem = Effect.gen(function* () {
   const actions: RecapEntry[] = [];
@@ -222,6 +318,11 @@ export const syncStationSystem = Effect.gen(function* () {
 
   actions.push(yield* ensureBootTarget);
   actions.push(yield* ensureLinger);
+
+  for (const sessionUnit of SESSION_UNITS)
+    actions.push(yield* ensureSessionUnit(sessionUnit));
+
+  actions.push(yield* ensureVirtualKeyboard);
 
   return actions;
 }).pipe(Effect.withSpan("StationSystem.sync"));
