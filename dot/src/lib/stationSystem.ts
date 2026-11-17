@@ -289,6 +289,65 @@ const ensureVirtualKeyboard = Effect.gen(function* () {
     : warn(`Could not pick the on-screen keyboard: ${result.stderr.trim()}`);
 }).pipe(Effect.withSpan("StationSystem.virtualKeyboard"));
 
+/** Station's web browser, from the chromium package. */
+const DEFAULT_BROWSER = "chromium.desktop";
+
+/**
+ * Make Chromium the default browser, both for xdg-open and apps that ask
+ * xdg-settings, and for Plasma, which keeps its own choice in kdeglobals.
+ */
+const ensureDefaultBrowser = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+
+  const kde = [
+    "--file",
+    "kdeglobals",
+    "--group",
+    "General",
+    "--key",
+    "BrowserApplication",
+  ];
+
+  if (
+    !(yield* fs
+      .exists(join("/usr/share/applications", DEFAULT_BROWSER))
+      .pipe(Effect.orElseSucceed(() => false)))
+  )
+    return warn("Not installed: chromium, the default browser");
+
+  const xdg = yield* query(
+    "xdg-settings",
+    ["get", "default-web-browser"],
+    QUERY_TIMEOUT,
+  );
+
+  const plasma = yield* query("kreadconfig6", kde, QUERY_TIMEOUT);
+
+  if (
+    lines(xdg.stdout)[0] === DEFAULT_BROWSER &&
+    lines(plasma.stdout)[0] === DEFAULT_BROWSER
+  )
+    return skip("Chromium is already the default browser");
+
+  const set = yield* query(
+    "xdg-settings",
+    ["set", "default-web-browser", DEFAULT_BROWSER],
+    QUERY_TIMEOUT,
+  );
+
+  const setPlasma = yield* query(
+    "kwriteconfig6",
+    ["--notify", ...kde, DEFAULT_BROWSER],
+    QUERY_TIMEOUT,
+  );
+
+  return set.code === 0 && setPlasma.code === 0
+    ? done("Made Chromium the default browser")
+    : warn(
+        `Could not make Chromium the default browser: ${(set.stderr || setPlasma.stderr).trim()}`,
+      );
+}).pipe(Effect.withSpan("StationSystem.defaultBrowser"));
+
 /** Apply Station's system setup, returning what each part did. */
 export const syncStationSystem = Effect.gen(function* () {
   const actions: RecapEntry[] = [];
@@ -323,6 +382,7 @@ export const syncStationSystem = Effect.gen(function* () {
     actions.push(yield* ensureSessionUnit(sessionUnit));
 
   actions.push(yield* ensureVirtualKeyboard);
+  actions.push(yield* ensureDefaultBrowser);
 
   return actions;
 }).pipe(Effect.withSpan("StationSystem.sync"));

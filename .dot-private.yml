@@ -10,6 +10,7 @@
 # needs has to be added here.
 stow:
   - agents
+  - chromium--station
   - dot-config
   - git
   - git--station
