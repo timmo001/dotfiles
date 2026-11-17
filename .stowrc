@@ -37,4 +37,5 @@
 --ignore=^/first-party
 --ignore=^/lan-direct
 --ignore=^/btrfs-balance
+--ignore=^/station
 --ignore=^/avahi
