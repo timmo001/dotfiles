@@ -289,6 +289,40 @@ const ensureVirtualKeyboard = Effect.gen(function* () {
     : warn(`Could not pick the on-screen keyboard: ${result.stderr.trim()}`);
 }).pipe(Effect.withSpan("StationSystem.virtualKeyboard"));
 
+/**
+ * Turn on KWin's game controller plugin, which is off by default. While no
+ * app has the controller open, it moves the pointer with the sticks and
+ * clicks with the triggers, the way Steam's desktop layout does on SteamOS.
+ * Steam's own version can't reach Plasma's Wayland session.
+ */
+const ensureGameControllerPointer = Effect.gen(function* () {
+  const key = [
+    "--file",
+    "kwinrc",
+    "--group",
+    "Plugins",
+    "--key",
+    "gamecontrollerEnabled",
+  ];
+
+  const current = yield* query("kreadconfig6", key, QUERY_TIMEOUT);
+
+  if (lines(current.stdout)[0] === "true")
+    return skip("The controller already works as a pointer");
+
+  const result = yield* query(
+    "kwriteconfig6",
+    ["--notify", ...key, "true"],
+    QUERY_TIMEOUT,
+  );
+
+  return result.code === 0
+    ? done("Turned on KWin's controller pointer, from the next Plasma login")
+    : warn(
+        `Could not turn on KWin's controller pointer: ${result.stderr.trim()}`,
+      );
+}).pipe(Effect.withSpan("StationSystem.gameControllerPointer"));
+
 /** Station's web browser, from the chromium package. */
 const DEFAULT_BROWSER = "chromium.desktop";
 
@@ -383,6 +417,7 @@ export const syncStationSystem = Effect.gen(function* () {
 
   actions.push(yield* ensureVirtualKeyboard);
   actions.push(yield* ensureDefaultBrowser);
+  actions.push(yield* ensureGameControllerPointer);
 
   return actions;
 }).pipe(Effect.withSpan("StationSystem.sync"));

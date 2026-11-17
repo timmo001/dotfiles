@@ -1329,7 +1329,7 @@ const screenCommand = describe(
         ["dot screen steam-beta game", "dot screen steam-beta desktop"],
         {
           description:
-            "Gaming mode runs the Steam Deck client, whose betas are steamdeck_publicbeta and steamdeck_beta, and the desktop runs the normal client, whose beta is publicbeta. Both keep the choice in ~/.local/share/Steam/package/beta and reset a name they don't know to stable, so a beta chosen in one mode was lost in the other. This rewrites the file into the name the given mode's client understands: publicbeta becomes steamdeck_publicbeta for gaming mode, a Steam Deck beta becomes publicbeta for the desktop, and steamdeck_stable becomes the desktop's stable. steam-launcher.service runs the game form before gaming mode's Steam starts, and the desktop's Steam login item runs the desktop form.",
+            "Gaming mode runs the Steam Deck client, whose betas are steamdeck_publicbeta and steamdeck_beta, and the desktop runs the normal client, whose beta is publicbeta. Both keep the choice in ~/.local/share/Steam/package/beta and reset a name they don't know to stable, so a beta chosen in one mode was lost in the other. This rewrites the file into the name the given mode's client understands: publicbeta becomes steamdeck_publicbeta for gaming mode, a Steam Deck beta becomes publicbeta for the desktop, and steamdeck_stable becomes the desktop's stable. steam-launcher.service runs the game form before gaming mode's Steam starts, and the desktop's Steam and Big Picture shortcuts run the desktop form.",
         },
       ),
       describe(
@@ -2685,7 +2685,7 @@ const setupCommand = describe(
         ["dot setup station"],
         {
           description:
-            "Install Station's root-owned files when they differ: passwordless sudo for this user (checked with visudo first), the logind lid settings, the polkit rule for dot screen, Plasma Login Manager's autologin and the game, desk and headless commands in /usr/local/bin. Then set the boot target to multi-user.target, turn on lingering, and enable KRdp and Sunshine so they start with a screen session (their logins are set in System Settings › Remote Desktop and Sunshine's web UI), pick Plasma's on-screen keyboard as KWin's input method, and make Chromium the default browser for xdg-settings and Plasma. dot init runs it, and dot up runs it before the system upgrade.",
+            "Install Station's root-owned files when they differ: passwordless sudo for this user (checked with visudo first), the logind lid settings, the polkit rule for dot screen, Plasma Login Manager's autologin and the game, desk and headless commands in /usr/local/bin. Then set the boot target to multi-user.target, turn on lingering, and enable KRdp and Sunshine so they start with a screen session (their logins are set in System Settings › Remote Desktop and Sunshine's web UI), pick Plasma's on-screen keyboard as KWin's input method, make Chromium the default browser for xdg-settings and Plasma, and turn on KWin's game controller plugin, which moves the pointer with a controller while no app has it open. dot init runs it, and dot up runs it before the system upgrade.",
         },
       ),
     ]),

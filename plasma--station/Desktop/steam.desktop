@@ -2,6 +2,6 @@
 Type=Application
 Name=Steam
 Comment=Steam on the desktop
-Exec=prime-run steam
+Exec=sh -c "dot screen steam-beta desktop; exec prime-run steam"
 Icon=steam
 Terminal=false
