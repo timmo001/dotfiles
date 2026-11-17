@@ -10,10 +10,25 @@ strip_ansi() {
 status=0
 raw_output=$(dot doctor 2>&1) || status=$?
 plain=$(echo "$raw_output" | strip_ansi)
-summary=$(echo "$plain" | grep -E '[0-9]+ passed' | tail -1 | sed 's/^ *//')
+summary=$(echo "$plain" | grep -E '[0-9]+ passed' | tail -1 | sed 's/^ *//' || true)
+
+# Without a summary, doctor didn't get far, so keep its last lines in the
+# journal to say why.
+if [[ -z $summary ]]; then
+  summary="dot doctor exited $status before its summary"
+  echo "$plain" | tail -5 >&2
+fi
+
 echo "[RESULT] $summary"
 
 if [[ $status -ne 0 ]]; then
   errors=$(echo "$plain" | grep -E '^\[ERROR\]' | head -10 || true)
-  omarchy notification send -g "󰒓" -u critical --app-name "dot doctor" 'dot doctor' "$(printf '%s\n\n%s' "$summary" "$errors")"
+  body=$(printf '%s\n\n%s' "$summary" "$errors")
+
+  # Station has no Omarchy, so it uses the plain desktop notification instead.
+  if command -v omarchy >/dev/null; then
+    omarchy notification send -g "󰒓" -u critical --app-name "dot doctor" 'dot doctor' "$body"
+  else
+    notify-send -u critical -a "dot doctor" 'dot doctor' "$body" || true
+  fi
 fi
