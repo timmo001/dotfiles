@@ -296,17 +296,23 @@ export const packages = Effect.fn("PendingUpdates.packages")(function* (
   const [failures, until] = saved;
   const aurSkipped = backoff?.respect === true && now < until;
 
+  // Station installs nothing from the AUR and has no AUR helper, so its AUR
+  // check reads as done with nothing pending (yay's exit code for that).
+  const noAur = !(yield* Config).omarchy.enabled;
+
   const [repo, aur, publicMissing, privateMissing, firstParty] =
     yield* Effect.all(
       [
         query("checkupdates", ["--nocolor"], timeout),
-        aurSkipped
-          ? Effect.succeed<QueryResult>({
-              code: 75,
-              stdout: "",
-              stderr: "backed off",
-            })
-          : query("yay", ["-Qua"], timeout),
+        noAur
+          ? Effect.succeed<QueryResult>({ code: 1, stdout: "", stderr: "" })
+          : aurSkipped
+            ? Effect.succeed<QueryResult>({
+                code: 75,
+                stdout: "",
+                stderr: "backed off",
+              })
+            : query("yay", ["-Qua"], timeout),
         missingArchPackages("public"),
         missingArchPackages("private"),
         query("pacman", ["-Slq", "timmo"], timeout),
@@ -367,6 +373,8 @@ export const packages = Effect.fn("PendingUpdates.packages")(function* (
 export const omarchy = Effect.fn("PendingUpdates.omarchy")(function* (
   timeout: number,
 ) {
+  if (!(yield* Config).omarchy.enabled) return [];
+
   const result = yield* query("omarchy-update-available", [], timeout);
 
   // Exits 1 with "Omarchy is up to date" when nothing is pending.

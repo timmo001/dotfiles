@@ -122,10 +122,12 @@ export const install = Effect.gen(function* () {
     log,
   );
 
-  yield* log.section("Omarchy Shell Config");
+  if (config.omarchy.enabled) {
+    yield* log.section("Omarchy Shell Config");
 
-  if (yield* applyOmarchyShellConfig)
-    actions.push("Regenerated Omarchy shell config");
+    if (yield* applyOmarchyShellConfig)
+      actions.push("Regenerated Omarchy shell config");
+  }
 
   if (config.canUsePrivate && config.privateDotfiles) {
     yield* log.section("Install Private Dotfiles");

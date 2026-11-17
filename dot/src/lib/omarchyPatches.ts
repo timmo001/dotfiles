@@ -246,6 +246,8 @@ export const syncRootPatches = Effect.fn("OmarchyPatches.syncRoot")(
     const config = yield* Config;
     const sources = patchSources(config.publicDotfiles);
 
+    if (!config.omarchy.enabled) return false;
+
     if (yield* rootCopyCurrent()) return false;
 
     const exitCode = yield* runElevated("sh", [

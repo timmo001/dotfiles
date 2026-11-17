@@ -138,20 +138,22 @@ export const stow = (opts?: {
       yield* stowRepo(config.publicDotfiles, "public", counts);
       actions.push(done(`Stowed ${plural(counts.public, "public package")}`));
 
-      yield* log.section("Omarchy Neovim Theme");
-      yield* ensureNvimThemeLink(log);
+      if (config.omarchy.enabled) {
+        yield* log.section("Omarchy Neovim Theme");
+        yield* ensureNvimThemeLink(log);
 
-      yield* log.section("Omarchy Crash Notifications");
-      actions.push(...(yield* disableOmarchyCrashCapture));
+        yield* log.section("Omarchy Crash Notifications");
+        actions.push(...(yield* disableOmarchyCrashCapture));
 
-      yield* log.section("Omarchy Shell Config");
-      shellConfigChanged = yield* applyOmarchyShellConfig;
+        yield* log.section("Omarchy Shell Config");
+        shellConfigChanged = yield* applyOmarchyShellConfig;
 
-      actions.push(
-        shellConfigChanged
-          ? notable("Regenerated Omarchy shell config")
-          : skip("Omarchy shell config unchanged"),
-      );
+        actions.push(
+          shellConfigChanged
+            ? notable("Regenerated Omarchy shell config")
+            : skip("Omarchy shell config unchanged"),
+        );
+      }
 
       actions.push(...(yield* enableDefaultUnits));
     }
