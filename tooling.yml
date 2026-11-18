@@ -20,7 +20,7 @@ tools:
     reviewed: v0.3.2
     review: Check the custom bar plugin QML under omarchy/.config/omarchy/plugins, the qmllint setup in .github/workflows/quickshell-lint.yml, and the omarchy-shell-quickshell skill's Quickshell notes (reload semantics, IpcHandler, the qs CLI).
   - repo: cli/cli
-    reviewed: v2.104.0
+    reviewed: v2.105.0
     review: Check the gh calls in dot through @timmo001/effect-gh, the gh Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/gh.ts (new commands or flags they should expose, once effect-gh wraps them), and the GitHub credential command in mise/.config/mise/config.toml.
   - repo: hyprwm/Hyprland
     reviewed: v0.57.2
@@ -32,11 +32,11 @@ tools:
     reviewed: v2.35.0
     review: Check the pitchfork Code Mode tools in agents/.config/opencode/plugins/lib/cli-tools/pitchfork.ts for changed commands, flags or JSON output.
   - repo: anomalyco/opencode
-    reviewed: v2.3.0
+    reviewed: v2.3.2
     tags: ^v2\.
     review: Check the OpenCode config, agents, commands and plugins under agents/.config/opencode (including the opencode2 Code Mode tools in plugins/lib/cli-tools/opencode2.ts), and the dot commands and doctor checks that drive OpenCode. mise installs the latest OpenCode with no release delay, so this review is what keeps the plugins compliant. Bump the @opencode/* plugin packages to the release, and keep the plugins' effect and @effect/platform-node pins on the versions it runs on.
   - repo: anomalyco/browse
-    reviewed: v0.1.2
+    reviewed: v0.1.5
     review: Check the browse MCP server entry in the private mcp.yml (its command, the OPENCODE_BROWSER_RUNTIME environment and which harnesses enable it) against the release, and whether browse install now writes config the sync should own instead.
   - repo: Effect-TS/effect
     reviewed: effect@4.1.4
