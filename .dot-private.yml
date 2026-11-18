@@ -4,10 +4,11 @@
 # Syncthing folder and tracked repository, so it has no syncthing or repos keys.
 #
 # stow: the private stow packages dot links. Anything not listed, such as
-# pitchfork, whose daemons run the Plannotator Inbox, and the Omarchy, UWSM
-# and desktop service packages, is left alone, and links already made for a
-# package removed from the list are unstowed. A new private package Station
-# needs has to be added here.
+# pitchfork, whose daemons run the Plannotator Inbox, systemd, whose timmo.dev
+# tunnel belongs to the desktop and laptop, and the Omarchy, UWSM and desktop
+# service packages, is left alone, and links already made for a package
+# removed from the list are unstowed. A new private package Station needs has
+# to be added here.
 stow:
   - agents
   - chromium--station
@@ -18,7 +19,6 @@ stow:
   - herdr
   - notes
   - scripts
-  - systemd
   - triage
   - upkeep
   - upnext
