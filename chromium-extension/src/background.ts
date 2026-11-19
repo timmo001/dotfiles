@@ -126,3 +126,37 @@ chrome.tabs.onUpdated.addListener((_tabId, change, tab) => {
 });
 
 chrome.windows.onFocusChanged.addListener(() => void refreshActiveTab());
+
+const windowType = async (tabId: number) =>
+  (await chrome.windows.get((await chrome.tabs.get(tabId)).windowId)).type;
+
+/**
+ * Hand a link clicked in a web app window to `dot link open`, which picks the
+ * browser for it, and close the tab Chromium opened for it. Web app windows
+ * show up as popups; pop-ups a web app opens for itself are left alone.
+ */
+async function routeWebAppLink({
+  sourceTabId,
+  tabId,
+  url,
+}: chrome.webNavigation.WebNavigationSourceCallbackDetails): Promise<void> {
+  if (!/^https?:\/\//i.test(url)) return;
+
+  try {
+    const [source, target] = await Promise.all([
+      windowType(sourceTabId),
+      windowType(tabId),
+    ]);
+
+    if (source !== "popup" || target !== "normal") return;
+
+    await sendToDot({ type: "route", url });
+    await chrome.tabs.remove(tabId);
+  } catch (error: unknown) {
+    console.error("Could not route the web app link.", error);
+  }
+}
+
+chrome.webNavigation.onCreatedNavigationTarget.addListener(
+  (details) => void routeWebAppLink(details),
+);

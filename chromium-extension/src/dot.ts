@@ -122,7 +122,7 @@ export function pageOptions(
 }
 
 export async function sendToDot(message: {
-  readonly type: "resolve" | PageAction;
+  readonly type: "resolve" | "route" | PageAction;
   readonly url: string;
 }): Promise<Extract<DotReply, { ok: true }>> {
   const reply: DotReply | undefined = await chrome.runtime.sendNativeMessage(
