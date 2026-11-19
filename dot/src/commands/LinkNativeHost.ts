@@ -23,7 +23,14 @@ const MAX_MESSAGE_BYTES = 1024 * 1024;
 /** A request from the dot links extension about the page in a tab. */
 const NativeRequest = Schema.fromJsonString(
   Schema.Struct({
-    type: Schema.Literals(["resolve", "open", "review", "agent", "clear-deps"]),
+    type: Schema.Literals([
+      "resolve",
+      "open",
+      "review",
+      "agent",
+      "clear-deps",
+      "route",
+    ]),
     url: Schema.String,
   }),
 );
@@ -173,6 +180,18 @@ const answer = Effect.gen(function* () {
     return { ok: true } satisfies NativeReply;
   }
 
+  if (request.type === "route") {
+    if (!/^https?:\/\//i.test(request.url))
+      return yield* new NativeHostError({ message: "Not a web link" });
+
+    yield* startApp(
+      ["dot", "link", "open", request.url],
+      "Could not open the link",
+    );
+
+    return { ok: true } satisfies NativeReply;
+  }
+
   if (request.type === "clear-deps") {
     const executor = yield* CommandExecutor;
 
@@ -257,7 +276,8 @@ const answer = Effect.gen(function* () {
  * `review` opens a pull request in a Plannotator review, from any of its tabs,
  * and `agent` starts an OpenCode agent on an issue or pull request in its
  * tracked checkout. `clear-deps` queues a run of upkeep's `notifications` job
- * now instead of waiting for its schedule.
+ * now instead of waiting for its schedule. `route` opens any web link through
+ * `dot link open`, for links clicked in web app windows.
  * Stdout carries only the reply.
  */
 export const linkNativeHost = answer.pipe(
