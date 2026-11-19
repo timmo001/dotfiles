@@ -128,12 +128,17 @@ chrome.tabs.onUpdated.addListener((_tabId, change, tab) => {
 chrome.windows.onFocusChanged.addListener(() => void refreshActiveTab());
 
 const windowType = async (tabId: number) =>
-  (await chrome.windows.get((await chrome.tabs.get(tabId)).windowId)).type;
+  (
+    await chrome.windows.get((await chrome.tabs.get(tabId)).windowId, {
+      windowTypes: ["normal", "popup", "app"],
+    })
+  ).type;
 
 /**
  * Hand a link clicked in a web app window to `dot link open`, which picks the
- * browser for it, and close the tab Chromium opened for it. Web app windows
- * show up as popups; pop-ups a web app opens for itself are left alone.
+ * browser for it. The tab Chromium opened for it closes first, so it only
+ * flashes, and reopens if dot can't take the link. `--app` windows show up as
+ * `app` windows; pop-ups a web app opens for itself are left alone.
  */
 async function routeWebAppLink({
   sourceTabId,
@@ -148,12 +153,20 @@ async function routeWebAppLink({
       windowType(tabId),
     ]);
 
-    if (source !== "popup" || target !== "normal") return;
+    if (source !== "app" || target !== "normal") return;
 
-    await sendToDot({ type: "route", url });
     await chrome.tabs.remove(tabId);
   } catch (error: unknown) {
+    console.error("Could not check the web app link.", error);
+
+    return;
+  }
+
+  try {
+    await sendToDot({ type: "route", url });
+  } catch (error: unknown) {
     console.error("Could not route the web app link.", error);
+    await chrome.tabs.create({ url });
   }
 }
 
