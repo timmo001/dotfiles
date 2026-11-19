@@ -40,7 +40,14 @@ jobs:
         run: mise install zig rust
 
       - name: Build Terminal Control
-        run: mise install --force cargo:terminal-control
+        # deps.files.ghostty.org drops downloads now and then. Zig keeps the
+        # packages it fetched in ~/.cache/zig, so each retry gets further.
+        run: |
+          for attempt in 1 2 3; do
+            mise install --force cargo:terminal-control && exit 0
+            echo "::warning::Build attempt $attempt failed"
+          done
+          exit 1
 
       - name: Verify Terminal Control
         run: '"$(mise where cargo:terminal-control)/bin/termctrl" --version'
