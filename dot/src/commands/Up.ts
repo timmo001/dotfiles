@@ -22,7 +22,10 @@ import {
   loadPrivatePackageRepoConfig,
   privatePackageRepoIncludeRegistered,
 } from "../doctor/checks/packages.js";
-import { setupPrivatePackageRepo } from "./SetupPrivateRepo.js";
+import {
+  privatePackageMirrorCurrent,
+  setupPrivatePackageRepo,
+} from "./SetupPrivateRepo.js";
 import { syncRootFirstParty } from "../lib/firstPartyPackages.js";
 import { patchDrift, syncRootPatches } from "../lib/omarchyPatches.js";
 import { installMissingArchPackages } from "../lib/packageSetup.js";
@@ -605,7 +608,7 @@ const firstPartyRootSync = Effect.gen(function* () {
       : skip("First-party upgrade unit already current");
 }).pipe(Effect.withSpan("Up.firstPartyRootSync"));
 
-/** Register the private pacman repo before pacman needs it, if it went missing. */
+/** Register the private pacman repo before pacman needs it, and resync its mirror when the clone has moved on. */
 const ensurePrivateRepo = Effect.gen(function* () {
   const config = yield* Config;
   const log = yield* OutputLog;
@@ -614,12 +617,20 @@ const ensurePrivateRepo = Effect.gen(function* () {
 
   const repo = yield* loadPrivatePackageRepoConfig(config);
 
-  if (!repo || (yield* privatePackageRepoIncludeRegistered())) return;
+  if (!repo) return;
 
-  yield* log.info("Registering the private pacman repo");
+  const registered = yield* privatePackageRepoIncludeRegistered();
+
+  if (registered && (yield* privatePackageMirrorCurrent(repo))) return;
+
+  yield* log.info(
+    registered
+      ? "Syncing the private pacman repo mirror"
+      : "Registering the private pacman repo",
+  );
   yield* setupPrivatePackageRepo(repo).pipe(
     Effect.catch((error) =>
-      log.warn(`Could not register the private pacman repo: ${error.message}`),
+      log.warn(`Could not set up the private pacman repo: ${error.message}`),
     ),
   );
 }).pipe(Effect.withSpan("Up.ensurePrivateRepo"));
@@ -849,6 +860,7 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
       actions.push(yield* ghUpgrade);
     } else if (group === "packages") {
       yield* installMissingArchPackages({ scope: "public" });
+      yield* ensurePrivateRepo;
       yield* installMissingArchPackages({ scope: "private" });
       actions.push(done("Installed missing packages"));
     } else {

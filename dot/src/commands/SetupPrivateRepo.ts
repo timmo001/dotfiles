@@ -67,6 +67,32 @@ const privatePackageMirrorHasDatabase = Effect.fn(
   );
 });
 
+/** Whether the mirror's package database matches the source clone's. */
+export const privatePackageMirrorCurrent = Effect.fn(
+  "SetupPrivateRepo.mirrorCurrent",
+)(function* (repo: PrivatePackageRepoConfig) {
+  const fs = yield* FileSystem.FileSystem;
+
+  for (const suffix of [".db.tar.gz", ".db.tar.zst"]) {
+    const source = yield* fs
+      .readFile(join(repo.path, `${repo.name}${suffix}`))
+      .pipe(Effect.option);
+
+    if (Option.isNone(source)) continue;
+
+    const mirror = yield* fs
+      .readFile(join(repo.mirrorPath, `${repo.name}${suffix}`))
+      .pipe(Effect.option);
+
+    return (
+      Option.isSome(mirror) &&
+      Buffer.from(source.value).equals(Buffer.from(mirror.value))
+    );
+  }
+
+  return true;
+});
+
 const privatePackageRepoInstalled = Effect.fn("SetupPrivateRepo.installed")(
   function* (repo: PrivatePackageRepoConfig) {
     return (
