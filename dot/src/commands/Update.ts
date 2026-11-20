@@ -6,7 +6,6 @@ import { OutputLog } from "../services/OutputLog.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { DotDiff, recordUpstreamFetch } from "../git/services/DotDiff.js";
 import { stow as runStow } from "./Stow.js";
-import { branchUpdate } from "./BranchUpdate.js";
 import {
   reloadAgents,
   restartStalePitchforkDaemons,
@@ -168,8 +167,6 @@ export interface UpdateOptions {
   readonly selfUpdate?: boolean;
   /** Reload agents and start the doctor check after applying changes. */
   readonly reload?: boolean;
-  /** Hand behind server or cloud branches to a rebase agent at the end of a full update. */
-  readonly branch?: boolean;
   /** Repository names already pulled before restart, for post-hook handling. */
   readonly postHookRepos?: readonly string[];
   /** Epoch ms the run started, carried across restart handoffs. */
@@ -607,7 +604,6 @@ function restartUpdateArgs(
     ...selectedUpdateFlags(opts),
     DISABLE_SELF_UPDATE_ARG,
     ...(opts?.reload === false ? ["--no-reload"] : []),
-    ...(opts?.branch === false ? ["--no-branch"] : []),
     ...(opts?.postHookRepos ?? []).flatMap((name) => [
       POST_HOOK_REPO_ARG,
       name,
@@ -1902,12 +1898,6 @@ export const update = (updateOpts?: UpdateOptions) =>
         miseToolChanges,
         completedActions,
       } satisfies UpdateRun;
-    }
-
-    if (opts.branch === false) {
-      completedActions.push(skip("Branch update skipped (--no-branch)"));
-    } else if (isFullUpdate) {
-      completedActions.push(yield* branchUpdate);
     }
 
     yield* logUpdateSummary(

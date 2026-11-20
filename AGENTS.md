@@ -40,7 +40,7 @@ The branch rebases onto `origin/distro/arch-omarchy-quattro`. Look ahead before 
 
 `distro/cloud` and `distro/opencode-app` build on this branch, in permanent worktrees at `~/.local/share/dot/dotfiles-cloud` and `~/.local/share/dot/dotfiles-opencode-app`. Each branch's `AGENTS.md` owns what it takes. Rebase them with `git rebase --fork-point origin/distro/ubuntu-server`, so only their own commits replay after this branch is force-pushed; a plain `git rebase origin/distro/ubuntu-server` replays the old server commits too.
 
-`dot up branch` runs last in `dot up`. When any of these branches is behind, it opens an OpenCode agent named `branch-update` in Herdr to follow these steps and push. Commits that only regenerate the distro diff page don't count as behind. It never opens one under an agent, during a rebase, or while `branch-update` is open; `--no-branch` skips it.
+Nothing in `dot` rebases these branches any more. Upkeep is taking it over (timmo001/dotfiles-private#194); until then, rebase them by hand with these steps.
 
 ## Scope
 
