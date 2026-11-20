@@ -1,7 +1,8 @@
 /**
  * @file Doctor check for the LAN-direct unit: it should be installed
  * root-owned, match the dotfiles, and be enabled and active, so this machine
- * reaches its own networks directly rather than through Tailscale.
+ * reaches its own networks directly rather than through Tailscale. Its
+ * systemd-resolved .local drop-in should match the dotfiles too.
  */
 import { Effect } from "effect";
 import { lanDirectCurrent } from "../../lib/lanDirect.js";
@@ -17,7 +18,8 @@ export const checkLanDirect = Effect.gen(function* () {
         }
       : {
           severity: "warn",
-          message: "LAN-direct routing unit is missing, out of date or stopped",
+          message:
+            "LAN-direct routing unit or .local resolver config is missing, out of date or stopped",
           detail: "Run dot up and tick System, or rerun dot init",
         },
   ] satisfies CheckResult[];
