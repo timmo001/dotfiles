@@ -63,6 +63,9 @@ export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
  * - LocalSend discovers and transfers over 53317 on both UDP and TCP.
  * - System Bridge serves its API on 9170, which Home Assistant connects to.
  * - The OpenCode server listens on 4096, as on the other machines.
+ * - Plannotator plan reviews listen on 19432-19439 in remote mode, which binds
+ *   every interface, so only Tailscale may reach them. Code reviews and the
+ *   Inbox go through tailscale serve, which ufw never sees.
  * - Steam Remote Play finds devices over UDP 27031-27036 and streams over TCP
  *   27036-27037.
  * - KRdp, Plasma's RDP server, listens on 3389.
@@ -95,6 +98,13 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
   },
   { kind: "port", label: "System Bridge", port: "9170", protocols: ["tcp"] },
   { kind: "port", label: "OpenCode server", port: "4096", protocols: ["tcp"] },
+  {
+    kind: "port",
+    label: "Plannotator plan reviews",
+    port: "19432:19439",
+    protocols: ["tcp"],
+    interface: "tailscale0",
+  },
   {
     kind: "port",
     label: "Steam Remote Play",
