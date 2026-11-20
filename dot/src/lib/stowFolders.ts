@@ -54,10 +54,13 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  *   `_copilot` from the Copilot CLI) are written here.
  * - `.pi/agent`: Pi writes sessions and auth here, and the public `pi` and
  *   private `agents` packages both stow into it.
+ * - `.plannotator`: Plannotator keeps the Inbox, plans and reviews here
+ *   alongside the stowed `config.json`.
  */
 const NO_FOLDING_TARGET_PREFIXES = [
   ".agents/skills",
   ".pi/agent",
+  ".plannotator",
   ".config/fish/completions",
   ".config/ghostty",
   ".config/herdr",
