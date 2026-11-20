@@ -9,8 +9,8 @@
 # desktop service packages, is left alone, and links already made for a package
 # removed from the list are unstowed. A new private package Station needs has
 # to be added here. pitchfork--station holds Station's own Inbox daemon,
-# plannotator its config.json, and upkeep--station its maintenance-only
-# Upkeep worker.
+# plannotator its config.json, upkeep--station its Upkeep server and
+# maintenance-only worker, and triage--station its Triage server.
 stow:
   - agents
   - chromium--station
@@ -26,6 +26,7 @@ stow:
   - plannotator
   - scripts
   - triage
+  - triage--station
   - upkeep
   - upkeep--station
   - upnext

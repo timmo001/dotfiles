@@ -1,9 +1,9 @@
 # Public Arch packages managed by dot on Station (CachyOS).
 # One package per line, comments and blank lines are ignored.
 # They come from the official, CachyOS and [timmo] repositories, or the AUR
-# through yay, which CachyOS ships in its own repository. upkeep-git runs a
-# worker that only keeps Station current; Triage and the Upkeep server join
-# when they move over from the Home Assistant Green.
+# through yay, which CachyOS ships in its own repository. upkeep-git and
+# triage-git run the Upkeep and Triage servers, moved over from the Home
+# Assistant Green, and an Upkeep worker that only keeps Station current.
 
 1password
 bmon
@@ -39,6 +39,7 @@ sysstat
 syncthing
 system-bridge-git
 tailscale
+triage-git
 upkeep-git
 yay
 zsh
