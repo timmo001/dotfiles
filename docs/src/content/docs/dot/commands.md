@@ -3251,7 +3251,7 @@ Apply Station's system setup
 dot setup station [flags]
 ```
 
-Install Station's root-owned files when they differ: passwordless sudo for this user (checked with visudo first), the logind lid settings, the polkit rule for dot screen, Plasma Login Manager's autologin and the game, desk and headless commands in /usr/local/bin. Then set the boot target to multi-user.target, turn on lingering, and enable KRdp and Sunshine so they start with a screen session (their logins are set in System Settings › Remote Desktop and Sunshine's web UI), pick Plasma's on-screen keyboard as KWin's input method, make Chromium the default browser for xdg-settings and Plasma, and turn on KWin's game controller plugin, which moves the pointer with a controller while no app has it open. dot init runs it, and dot up runs it before the system upgrade.
+Install Station's root-owned files when they differ: passwordless sudo for this user (checked with visudo first), the logind lid settings, the polkit rule for dot screen, Plasma Login Manager's autologin and the game, desk and headless commands in /usr/local/bin. Then set the boot target to multi-user.target, turn on lingering, move Kestrel's recordings into their own btrfs subvolume so snapper's root snapshots leave them out (stopping Kestrel while they move), and enable KRdp and Sunshine so they start with a screen session (their logins are set in System Settings › Remote Desktop and Sunshine's web UI), pick Plasma's on-screen keyboard as KWin's input method, make Chromium the default browser for xdg-settings and Plasma, and turn on KWin's game controller plugin, which moves the pointer with a controller while no app has it open. dot init runs it, and dot up runs it before the system upgrade.
 
 **Options**
 
