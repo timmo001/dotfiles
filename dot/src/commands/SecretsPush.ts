@@ -193,12 +193,14 @@ export const secretsPush = Effect.fn("SecretsPush")(function* (
   yield* remote(`mkdir -p ${quote(posix.dirname(statePath))}`);
   yield* copy(stagedState, statePath);
 
-  // As dot stow does: enable each unit, restarting it so it reads the file.
+  // As dot stow does: enable each unit unless it already is, restarting it so
+  // it reads the file. Units Quadlet generates can't be enabled, but start with
+  // their [Install] section, so is-enabled reports them as generated.
   // Queue the starts rather than wait: a unit such as a tunnel can sit in its
   // start step for minutes, waiting for the network or its turn.
   for (const unit of units) {
     yield* remote(
-      `systemctl --user enable ${quote(unit)} && systemctl --user restart --no-block ${quote(unit)}`,
+      `(systemctl --user is-enabled --quiet ${quote(unit)} || systemctl --user enable ${quote(unit)}) && systemctl --user restart --no-block ${quote(unit)}`,
     );
     yield* log.success(`Restarted ${style.accent(unit)} on ${target}`);
   }
