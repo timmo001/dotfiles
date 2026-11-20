@@ -45,7 +45,7 @@
         "type": "string",
         "label": "Dashboard address",
         "defaultValue": "",
-        "description": "The dashboard's direct address, such as http://homeassistant.local:7272. Empty uses $UPKEEP_SERVER."
+        "description": "The dashboard's direct address, such as http://arch-station.local:7272. Empty uses $UPKEEP_SERVER."
       },
       {
         "key": "interval",
