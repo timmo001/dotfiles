@@ -33,7 +33,7 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  * - `hokum`: the desktop's notification and card app.
  * - `pacman-hooks`: the Omarchy patch hook and Nautilus's file manager hook,
  *   which `dot init` would otherwise install system-wide.
- * - `plannotator`, `cursor` and `nix`: desktop-only tools.
+ * - `cursor` and `nix`: desktop-only tools.
  */
 const DESKTOP_ONLY_STOW_FOLDERS = new Set<string>([
   "cursor",
@@ -44,7 +44,6 @@ const DESKTOP_ONLY_STOW_FOLDERS = new Set<string>([
   "omarchy",
   "omarchy-themes",
   "pacman-hooks",
-  "plannotator",
   "uwsm",
 ]);
 
