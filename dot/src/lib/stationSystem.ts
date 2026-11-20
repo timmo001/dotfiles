@@ -3,8 +3,8 @@
  * the system itself. The lid never suspends it, it boots to a text console
  * rather than a desktop, user services run without anyone logged in, sudo
  * needs no password, `dot screen` can start and stop the TV's session, and
- * RDP and game streaming start with that session, and Plasma has an on-screen
- * keyboard.
+ * RDP and game streaming start with that session, Plasma has an on-screen
+ * keyboard, and root snapshots leave Kestrel's recordings out.
  * Each part checks first, so a machine already set up needs no elevation.
  */
 
@@ -382,6 +382,64 @@ const ensureDefaultBrowser = Effect.gen(function* () {
       );
 }).pipe(Effect.withSpan("StationSystem.defaultBrowser"));
 
+/** Where Kestrel's system service keeps its own recordings. */
+const KESTREL_RECORDINGS =
+  "/var/lib/kestrel-nvr/.local/state/kestrel/recordings";
+
+/** The inode number of a btrfs subvolume's top directory. */
+const SUBVOLUME_ROOT_INODE = "256";
+
+/**
+ * Keep Kestrel's recordings in their own btrfs subvolume. Snapper's root
+ * snapshots leave nested subvolumes out, so a snapshot taken around a pacman
+ * run can't hold on to footage Kestrel has since recorded over, which once
+ * filled Station's disk. Kestrel stops while its recordings move in, which is
+ * quick: the copy shares their extents rather than copying the data.
+ */
+const ensureKestrelRecordingsSubvolume = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+
+  const stat = (args: readonly string[]) =>
+    executor.run("sudo", ["-n", "stat", ...args, KESTREL_RECORDINGS]).pipe(
+      Effect.map((out) => out.trim()),
+      Effect.orElseSucceed(() => null),
+    );
+
+  const inode = yield* stat(["-c", "%i"]);
+
+  if (inode === null) return skip("Kestrel has no recordings folder here");
+
+  if (inode === SUBVOLUME_ROOT_INODE)
+    return skip("Kestrel's recordings already have their own subvolume");
+
+  if ((yield* stat(["-f", "-c", "%T"])) !== "btrfs")
+    return skip("Kestrel's recordings aren't on btrfs");
+
+  const exitCode = yield* runElevated("sh", [
+    "-c",
+    `set -e
+old="$1.before-subvolume"
+active=$(systemctl is-active kestrel-nvr.service || true)
+[ "$active" = active ] && systemctl stop kestrel-nvr.service
+mv "$1" "$old"
+btrfs -q subvolume create "$1"
+chown --reference="$old" "$1"
+chmod --reference="$old" "$1"
+cp -a --reflink=always "$old"/. "$1"/
+rm -rf "$old"
+[ "$active" = active ] && systemctl start kestrel-nvr.service
+true`,
+    "sh",
+    KESTREL_RECORDINGS,
+  ]);
+
+  return exitCode === 0
+    ? done("Moved Kestrel's recordings into their own subvolume")
+    : warn(
+        `Could not move Kestrel's recordings into their own subvolume (exit ${exitCode})`,
+      );
+}).pipe(Effect.withSpan("StationSystem.kestrelRecordingsSubvolume"));
+
 /** Apply Station's system setup, returning what each part did. */
 export const syncStationSystem = Effect.gen(function* () {
   const actions: RecapEntry[] = [];
@@ -411,6 +469,7 @@ export const syncStationSystem = Effect.gen(function* () {
 
   actions.push(yield* ensureBootTarget);
   actions.push(yield* ensureLinger);
+  actions.push(yield* ensureKestrelRecordingsSubvolume);
 
   for (const sessionUnit of SESSION_UNITS)
     actions.push(yield* ensureSessionUnit(sessionUnit));
