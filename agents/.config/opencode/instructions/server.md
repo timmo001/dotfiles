@@ -2,5 +2,5 @@
 
 This machine is a headless server. These override the global instructions here.
 
-- Plannotator is on, with this machine's own Inbox. The "Desktop:" rules for the Plannotator Inbox, reviews, checklists and the `change-review-handoff` skill apply here too. The other "Desktop:" rules (pkexec, Omarchy and the browser) still don't.
-- Nothing here opens a browser. A plan or review prints its address, which opens from the person's devices over Tailscale: put that address in the Inbox message that asks for the decision.
+- Plannotator is off: there is no `plannotator` tool, no Plannotator Inbox and no browser to open a review in. Skip every step that sends to the Inbox or opens a Plannotator review, including the end-of-turn Inbox update and the `change-review-handoff`, `plannotator` and `plannotator-guide` skills.
+- Report findings, finished work and reviews in chat, and ask questions there, following `asking-questions` for how to ask.
