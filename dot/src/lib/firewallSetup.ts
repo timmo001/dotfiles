@@ -70,6 +70,8 @@ export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
  *   its web UI on 47990 and RTSP on 48010 over TCP, with video, control and
  *   audio on UDP 47998-48000, 48002 and 48010. Moonlight on Station only connects
  *   out, so it needs nothing.
+ * - Kestrel NVR serves its web app and API on 7380, and takes camera uploads
+ *   over FTP on 7381 with data on 7390-7399.
  */
 export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
   {
@@ -111,6 +113,19 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
   { kind: "port", label: "Sunshine", port: "48010", protocols: ["tcp", "udp"] },
   { kind: "port", label: "Sunshine", port: "47998:48000", protocols: ["udp"] },
   { kind: "port", label: "Sunshine", port: "48002", protocols: ["udp"] },
+  { kind: "port", label: "Kestrel", port: "7380", protocols: ["tcp"] },
+  {
+    kind: "port",
+    label: "Kestrel camera uploads",
+    port: "7381",
+    protocols: ["tcp"],
+  },
+  {
+    kind: "port",
+    label: "Kestrel camera uploads",
+    port: "7390:7399",
+    protocols: ["tcp"],
+  },
 ];
 
 /**
