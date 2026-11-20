@@ -86,6 +86,8 @@ const DESKTOP_ONLY_STOW_FOLDERS = new Set<string>([
  *   private `agents` packages both stow into it.
  * - `.plannotator`: Plannotator keeps the Inbox, plans and reviews here
  *   alongside the stowed `config.json`.
+ * - `.config/pitchfork`: the public `pitchfork` and private `pitchfork--station`
+ *   packages both stow into it.
  */
 const NO_FOLDING_TARGET_PREFIXES = [
   ".agents/skills",
@@ -94,6 +96,7 @@ const NO_FOLDING_TARGET_PREFIXES = [
   ".config/fish/completions",
   ".config/ghostty",
   ".config/herdr",
+  ".config/pitchfork",
   ".config/herdr-app",
   ".config/hypr",
   ".config/nvim",

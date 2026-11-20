@@ -1,0 +1,13 @@
+# Station's pitchfork settings. The desktop's come from the private overlay.
+
+[settings.boot]
+# Register the boot unit with the mise shim rather than the versioned install
+# path, so the supervisor doesn't rewrite the stowed pitchfork.service. It must
+# match the unit's ExecStart exactly.
+executable = "/home/aidan/.local/share/mise/shims/pitchfork"
+
+# Station's Plannotator Inbox, from the private pitchfork--station package.
+# Boot start only sees daemons in namespaces named here.
+[namespaces.plannotator]
+dir = "/home/aidan/.local/state/plannotator-inbox"
+config = ["/home/aidan/.config/pitchfork/plannotator/inbox.toml"]
