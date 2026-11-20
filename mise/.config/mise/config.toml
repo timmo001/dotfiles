@@ -43,6 +43,8 @@ just = "latest"
 "aqua:fastfetch-cli/fastfetch" = "latest"
 "aqua:tealdeer-rs/tealdeer" = "latest"
 "aqua:tree-sitter/tree-sitter" = "latest"
+# Backups: pinned so every machine runs the same version as the NAS's Kopia server.
+"aqua:kopia/kopia" = "0.23.1"
 # Pre-1.0: plugins track the minor.
 "aqua:neovim/neovim" = "0.12.6"
 # AI tooling and the tools Omarchy keeps current: no release delay, as in
