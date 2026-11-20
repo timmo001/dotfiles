@@ -75,6 +75,8 @@ export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
  *   out, so it needs nothing.
  * - Kestrel NVR serves its web app and API on 7380, and takes camera uploads
  *   over FTP on 7381 with data on 7390-7399.
+ * - The Upkeep server serves its API and dashboard to workers and admins on
+ *   7272, and Triage's server takes events and serves its API on 7171.
  */
 export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
   {
@@ -136,6 +138,8 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
     port: "7390:7399",
     protocols: ["tcp"],
   },
+  { kind: "port", label: "Upkeep server", port: "7272", protocols: ["tcp"] },
+  { kind: "port", label: "Triage server", port: "7171", protocols: ["tcp"] },
 ];
 
 /**
