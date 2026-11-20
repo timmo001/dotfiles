@@ -102,7 +102,6 @@ import { repos, searchRepos } from "../commands/Repos.js";
 import { up, upCheck } from "../commands/Up.js";
 import { upStage } from "../commands/UpStage.js";
 import { reserveStdout } from "../lib/jsonStdout.js";
-import { branchUpdate } from "../commands/BranchUpdate.js";
 import {
   update,
   updateCheck,
@@ -225,16 +224,6 @@ const installCommand = describe(
   "Ensure prerequisites, backup/adopt dotfiles and install the pinned OpenCode release",
 );
 
-const branchUpdateCommand = describe(
-  Command.make("branch", {}, () => Effect.asVoid(branchUpdate)),
-  "Open an agent to rebase the distro branches when they are behind",
-  ["dot up branch"],
-  {
-    description:
-      "Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fast-forwards the permanent distro/cloud and distro/opencode-app worktrees at ~/.local/share/dot/dotfiles-cloud and ~/.local/share/dot/dotfiles-opencode-app, then checks whether distro/ubuntu-server is behind distro/arch-omarchy-quattro or either of those is behind distro/ubuntu-server, ignoring commits that only regenerate the distro diff page. When one is, it opens an OpenCode agent named branch-update in Herdr to follow the rebase steps in AGENTS.md, check and push. Nothing opens when all are up to date, a rebase is already in progress, the agent is already open, or dot runs under an agent. dot up runs it last; --no-branch skips it.",
-  },
-);
-
 const STAGE_DESCRIPTIONS: Record<UpStage, string> = {
   dotfiles:
     "Pull the public and private dotfiles and their pinned submodules, and rebuild dot when its source moved",
@@ -353,10 +342,6 @@ const updateCommand = describe(
         "Skip the internal self-update phase, which pulls the public and private dotfiles",
       ),
       noReload: bool("no-reload", "Skip agent reload and module refresh"),
-      noBranch: bool(
-        "no-branch",
-        "Skip the final branch update, which opens an agent to rebase behind server and cloud branches",
-      ),
       postHookRepo: Flag.String("post-hook-repo").pipe(
         Flag.atLeast(0),
         Flag.withDescription("Internal post-hook repository"),
@@ -379,7 +364,6 @@ const updateCommand = describe(
       group,
       noSelfUpdate,
       noReload,
-      noBranch,
       postHookRepo,
       pull,
       repo,
@@ -421,7 +405,6 @@ const updateCommand = describe(
         const options = {
           selfUpdate: !noSelfUpdate,
           reload: !noReload,
-          branch: !noBranch,
           postHookRepos: postHookRepo,
           startedAt: optional(startedAt),
         };
@@ -438,17 +421,12 @@ const updateCommand = describe(
           force,
         });
       }),
-  ).pipe(
-    Command.withSubcommands([
-      ...UP_STAGES.map(upStageCommand),
-      branchUpdateCommand,
-    ]),
-  ),
+  ).pipe(Command.withSubcommands(UP_STAGES.map(upStageCommand))),
   "Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell), then gh extensions, missing packages, apt and release packages, and compose up; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.",
   ["dot up", "dot up --check", "dot up --yes", "dot up --stow"],
   {
     description:
-      "dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and gh extensions. It saves the result for the status cache, lists it, then asks which groups to run, offering only those with work, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order:\n\n1. Stages: dotfiles, skills, repos, stow, tools, plugins, herdr, agents and shell, as `dot up <stage>` runs them. A stage that wasn't offered still runs when an earlier one changed something it applies: stow and Herdr after a dotfiles pull that brings new links or Herdr pins, tools after a dotfiles pull that brings mise changes, plugins after a tools upgrade, agents after a dotfiles pull or changed skills or plugins, and the shell after any change; stow, tools, plugins and Herdr are checked again first. A stage offered and left unticked never runs.\n2. gh extensions: installs missing ones and upgrades the rest.\n3. Missing packages: installs apt packages from the public and private lists.\n4. System: runs apt-get update and upgrade (with -y under --yes), then installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs.\n5. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.\n\nOn the server branch it then runs dot up branch unless --no-branch is given. It finishes with a summary of updated repositories, mise tools and every step, then runs dot up --check to report what is still pending. dot up <stage>, the phase flags and --repo end the same way, except with --json.\n\n--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Pulled public dotfiles also rebuild dot; stow, agent instructions and the rest of a dotfiles pull are left to dot up, which the closing check lists. Add --pull to only pull and run post-update commands.",
+      "dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and gh extensions. It saves the result for the status cache, lists it, then asks which groups to run, offering only those with work, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order:\n\n1. Stages: dotfiles, skills, repos, stow, tools, plugins, herdr, agents and shell, as `dot up <stage>` runs them. A stage that wasn't offered still runs when an earlier one changed something it applies: stow and Herdr after a dotfiles pull that brings new links or Herdr pins, tools after a dotfiles pull that brings mise changes, plugins after a tools upgrade, agents after a dotfiles pull or changed skills or plugins, and the shell after any change; stow, tools, plugins and Herdr are checked again first. A stage offered and left unticked never runs.\n2. gh extensions: installs missing ones and upgrades the rest.\n3. Missing packages: installs apt packages from the public and private lists.\n4. System: runs apt-get update and upgrade (with -y under --yes), then installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs.\n5. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.\n\nIt finishes with a summary of updated repositories, mise tools and every step, then runs dot up --check to report what is still pending. dot up <stage>, the phase flags and --repo end the same way, except with --json.\n\n--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Pulled public dotfiles also rebuild dot; stow, agent instructions and the rest of a dotfiles pull are left to dot up, which the closing check lists. Add --pull to only pull and run post-update commands.",
     sections: [
       {
         title: "Exit codes",

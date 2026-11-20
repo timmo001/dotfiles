@@ -19,7 +19,6 @@ import { ENV, envString } from "../lib/env.js";
 import { formatCause } from "../lib/schema.js";
 import { installGhExtensions } from "../lib/ghExtensions.js";
 import { DEFAULT_SOCKET_PATH, openHerdrRepo } from "./HerdrRepoOpen.js";
-import { branchUpdate } from "./BranchUpdate.js";
 import { COMPOSE_CONFIG, composeUp } from "./Compose.js";
 import { installMissingPackages } from "../lib/packageSetup.js";
 import { autoUpdate, hasPodman } from "../lib/podman.js";
@@ -43,7 +42,6 @@ import {
   logRepoChanges,
   logUpdateSummary,
   notable,
-  skip,
   warn,
   type MiseToolChange,
   type RecapEntry,
@@ -464,7 +462,6 @@ const handOffToHerdr = Effect.fn("Up.handOffToHerdr")(function* (
     ...(opts.yes ? ["--yes"] : []),
     ...(opts.selfUpdate === false ? ["--no-self-update"] : []),
     ...(opts.reload === false ? ["--no-reload"] : []),
-    ...(opts.branch === false ? ["--no-branch"] : []),
   ].join(" ");
 
   const opened = yield* openHerdrRepo({
@@ -662,12 +659,6 @@ const installPackages = Effect.gen(function* () {
   );
 }).pipe(Effect.withSpan("Up.packages"));
 
-/** Hand behind distro branches to a rebase agent, unless --no-branch. */
-const updateBranches = (opts: UpOptions) =>
-  opts.branch === false
-    ? Effect.succeed(skip("Branch update skipped (--no-branch)"))
-    : branchUpdate;
-
 /**
  * Run `dot up`. A fresh run checks everything and asks which groups to run;
  * a run restarted by the dotfiles self-update carries its groups instead.
@@ -729,7 +720,6 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
 
     if (!opts.force && UP_GROUPS.every((group) => work[group].length === 0)) {
       yield* log.success("Everything is up to date");
-      yield* updateBranches(opts);
 
       return;
     }
@@ -827,7 +817,6 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
           ...[...changed].flatMap((next) => ["--changed", next]),
           ...(opts.yes ? ["--yes"] : []),
           ...(opts.reload === false ? ["--no-reload"] : []),
-          ...(opts.branch === false ? ["--no-branch"] : []),
           "--started-at",
           String(startedAt),
         ]);
@@ -852,8 +841,6 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
       );
     }
   }
-
-  actions.push(yield* updateBranches(opts));
 
   yield* logUpdateSummary(updatedRepos, miseToolChanges, actions, startedAt);
   yield* reportPendingUpdates;

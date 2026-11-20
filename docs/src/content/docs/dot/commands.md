@@ -66,7 +66,7 @@ dot up checks everything it can update or install: the dotfiles and tracked repo
 4. System: runs apt-get update and upgrade (with -y under --yes), then installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs.
 5. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.
 
-On the server branch it then runs dot up branch unless --no-branch is given. It finishes with a summary of updated repositories, mise tools and every step, then runs dot up --check to report what is still pending. dot up <stage>, the phase flags and --repo end the same way, except with --json.
+It finishes with a summary of updated repositories, mise tools and every step, then runs dot up --check to report what is still pending. dot up <stage>, the phase flags and --repo end the same way, except with --json.
 
 --check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.
 
@@ -90,7 +90,6 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--changed` `<choice>` | Internal: the stages that changed something before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell, gh, packages, system, compose) |
 | `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
-| `--no-branch` | Skip the final branch update, which opens an agent to rebase behind server and cloud branches |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
 | `--started-at` `<integer>` | Internal: epoch ms the run started, for the summary timing |
 | `--help` `-h` | Show help information |
@@ -364,28 +363,6 @@ dot up shell [flags] [<repo...>]
 ```bash
 dot up shell
 dot up shell --json
-```
-
-### `dot up branch`
-
-Open an agent to rebase the distro branches when they are behind
-
-```text
-dot up branch [flags]
-```
-
-Runs only on the distro/ubuntu-server checkout. It fetches origin, creates or fast-forwards the permanent distro/cloud and distro/opencode-app worktrees at ~/.local/share/dot/dotfiles-cloud and ~/.local/share/dot/dotfiles-opencode-app, then checks whether distro/ubuntu-server is behind distro/arch-omarchy-quattro or either of those is behind distro/ubuntu-server, ignoring commits that only regenerate the distro diff page. When one is, it opens an OpenCode agent named branch-update in Herdr to follow the rebase steps in AGENTS.md, check and push. Nothing opens when all are up to date, a rebase is already in progress, the agent is already open, or dot runs under an agent. dot up runs it last; --no-branch skips it.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot up branch
 ```
 
 ## `dot run`
