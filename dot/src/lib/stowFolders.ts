@@ -5,12 +5,16 @@ import { resolvedOmarchyHost } from "./omarchyHost.js";
 
 /** Top-level repo directories that are not active stow packages. */
 export const INTERNAL_STOW_FOLDERS = [
+  "avahi",
   "chromium-extension",
   "dot",
   "dot-migration",
   "docs",
+  "first-party",
+  "lan-direct",
   "node_modules",
   "tests",
+  "udev-rules",
 ] as const;
 
 const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
