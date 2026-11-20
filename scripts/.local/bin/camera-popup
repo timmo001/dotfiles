@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-KESTREL_URL="${KESTREL_URL:-http://homeassistant.local:7380}"
+KESTREL_URL="${KESTREL_URL:-http://arch-station.local:7380}"
 
 CAMERA=""
 NAME=""
@@ -44,7 +44,7 @@ Options:
   --help               Show this help
 
 Environment:
-  KESTREL_URL          Kestrel's address (default: http://homeassistant.local:7380)
+  KESTREL_URL          Kestrel's address (default: http://arch-station.local:7380)
 EOF
 }
 
