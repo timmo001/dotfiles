@@ -45,6 +45,8 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  *   private `agents` packages both stow into it.
  * - `.plannotator`: Plannotator keeps the Inbox, plans and reviews here
  *   alongside the stowed `config.json`.
+ * - `.config/pitchfork`: the public `pitchfork` and private `pitchfork--nas`
+ *   packages both stow into it.
  */
 const NO_FOLDING_TARGET_PREFIXES = [
   ".agents/skills",
@@ -52,6 +54,7 @@ const NO_FOLDING_TARGET_PREFIXES = [
   ".plannotator",
   ".config/fish/completions",
   ".config/herdr",
+  ".config/pitchfork",
   ".config/nvim",
   ".config/opencode",
   ".config/systemd/user",

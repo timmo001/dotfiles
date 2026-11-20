@@ -80,6 +80,13 @@ version = "latest"
 asset_pattern = "ollaya-linux-amd64.tar.zst"
 postinstall = "ollaya-cuda-postinstall"
 
+[tools."github:backnotprop/plannotator"]
+version = "latest"
+minimum_release_age = "0s"
+# A long-lived Inbox server or MCP keeps the old binary; dot update also
+# restarts these, and moves the unpinned agent plugins to this version
+postinstall = "pitchfork restart plannotator/server >/dev/null 2>&1 || true"
+
 # Read this machine's current gh token without invoking mise or its shims.
 # Search inside release archives too; gh's binary can sit below a platform directory.
 [settings.github]

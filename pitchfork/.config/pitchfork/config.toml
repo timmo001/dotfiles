@@ -11,3 +11,8 @@ executable = "/home/aidan/.local/share/mise/shims/pitchfork"
 [namespaces.dotfiles]
 dir = "/home/aidan/.config/dotfiles"
 config = ["/home/aidan/.config/dotfiles/pitchfork.toml"]
+
+# The NAS's Plannotator Inbox, from the private pitchfork--nas package
+[namespaces.plannotator]
+dir = "/home/aidan/.local/state/plannotator-inbox"
+config = ["/home/aidan/.config/pitchfork/plannotator/inbox.toml"]
