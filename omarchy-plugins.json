@@ -179,6 +179,10 @@
       "placement": { "section": "right", "before": "omarchy.bluetooth" }
     },
     {
+      "id": "omarchy.tailscale",
+      "placement": { "section": "right", "after": "omarchy.agents" }
+    },
+    {
       "id": "timmo.agent-checks",
       "managed": true,
       "repository": "timmo001/agent-checks",
