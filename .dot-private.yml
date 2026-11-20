@@ -13,6 +13,7 @@ stow:
   - agents
   - chromium--station
   - dot-config
+  - gateway--station
   - git
   - git--station
   - groundwork
