@@ -1,0 +1,12 @@
+[Unit]
+Description=Serve local decision models with Ollaya
+OnFailure=dot-service-failed@%n.service
+
+[Service]
+Type=simple
+ExecStart=%h/.local/share/mise/shims/ollaya serve
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=default.target
