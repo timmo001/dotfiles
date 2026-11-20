@@ -20,6 +20,8 @@ lazygit = "latest"
 "aqua:jesseduffield/lazydocker" = "latest"
 # 1Password CLI, for dot's secret files. Versions can't be listed, so pin exactly.
 "aqua:1password/cli" = "2.41.0"
+# Backups: pinned so every machine runs the same version as the Kopia server here.
+"aqua:kopia/kopia" = "0.23.1"
 # Pre-1.0: plugins track the minor.
 "aqua:neovim/neovim" = "0.12.6"
 node = "26.13.1"
