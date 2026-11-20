@@ -39,6 +39,7 @@ import {
   checkPrivatePackages,
 } from "./checks/packages.js";
 import { checkFirstParty } from "./checks/firstParty.js";
+import { checkLanDirect } from "./checks/lanDirect.js";
 import { checkPacmanHooks } from "./checks/pacmanHooks.js";
 import { checkFileManager } from "./checks/fileManager.js";
 import { checkHex } from "./checks/hex.js";
@@ -121,6 +122,7 @@ const sections: readonly SectionDef[] = [
     requiresPrivate: true,
   },
   { name: "First-party upgrades", check: checkFirstParty },
+  { name: "LAN-direct routing", check: checkLanDirect },
   { name: "Pacman hooks", check: checkPacmanHooks },
   { name: "File manager", check: checkFileManager },
   { name: "Hex dictation", check: checkHex },

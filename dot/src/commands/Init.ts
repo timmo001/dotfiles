@@ -49,6 +49,7 @@ import { ENV, envFlag, envString, setEnv } from "../lib/env.js";
 import { cliStyler } from "../lib/ansi.js";
 import { logRunSummary } from "../lib/runSummary.js";
 import { syncRootFirstParty } from "../lib/firstPartyPackages.js";
+import { syncRootLanDirect } from "../lib/lanDirect.js";
 import { syncRootPatches } from "../lib/omarchyPatches.js";
 import type { ConfigService } from "../services/Config.js";
 
@@ -948,6 +949,19 @@ export function init(
           synced === null
             ? OutputLog.use((log) =>
                 log.warn("Could not install the first-party upgrade unit"),
+              )
+            : Effect.void,
+        ),
+      ),
+    );
+    yield* step(
+      "Install LAN-Direct Routing",
+      INIT_STEP_TIMEOUT_SECONDS.hooks,
+      syncRootLanDirect().pipe(
+        Effect.flatMap((synced) =>
+          synced === null
+            ? OutputLog.use((log) =>
+                log.warn("Could not install the LAN-direct routing unit"),
               )
             : Effect.void,
         ),

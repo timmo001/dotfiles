@@ -27,6 +27,7 @@ import {
   setupPrivatePackageRepo,
 } from "./SetupPrivateRepo.js";
 import { syncRootFirstParty } from "../lib/firstPartyPackages.js";
+import { syncRootLanDirect } from "../lib/lanDirect.js";
 import { patchDrift, syncRootPatches } from "../lib/omarchyPatches.js";
 import { installMissingArchPackages } from "../lib/packageSetup.js";
 import {
@@ -875,6 +876,16 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
       );
 
       if (!ran.has("first-party")) actions.push(yield* firstPartyRootSync);
+
+      const lanDirect = yield* syncRootLanDirect();
+
+      actions.push(
+        lanDirect === null
+          ? warn("Could not install the LAN-direct routing unit")
+          : lanDirect
+            ? done("Installed the LAN-direct routing unit")
+            : skip("LAN-direct routing unit already current"),
+      );
 
       actions.push(yield* systemUpdate);
     }
