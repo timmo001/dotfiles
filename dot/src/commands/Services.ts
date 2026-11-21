@@ -2069,15 +2069,13 @@ export const servicesWatch = Effect.gen(function* () {
  * watchers see it. Without the daemon there's nothing to tell: the next read
  * checks for itself.
  */
-export const refreshServicesDaemon = Effect.gen(function* () {
-  yield* tryDaemon(
-    Effect.gen(function* () {
-      const client = yield* DaemonClient;
+export const refreshServicesDaemon = tryDaemon(
+  Effect.gen(function* () {
+    const client = yield* DaemonClient;
 
-      return yield* client.RefreshServices();
-    }).pipe(Effect.timeout(DAEMON_TIMEOUT)),
-  );
-}).pipe(Effect.withSpan("Services.refreshDaemon"));
+    return yield* client.RefreshServices();
+  }).pipe(Effect.timeout(DAEMON_TIMEOUT)),
+).pipe(Effect.asVoid, Effect.withSpan("Services.refreshDaemon"));
 
 /**
  * Start a registered job's service now, restarting long-running services, or
