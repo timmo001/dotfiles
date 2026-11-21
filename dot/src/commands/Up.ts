@@ -131,6 +131,11 @@ const GROUP_INFO: Record<
     description:
       "Update and upgrade apt packages, then install newer GitHub release packages",
   },
+  clean: {
+    title: "Clean",
+    description:
+      "Prune mise, remove old cache files and the folders in clean.yml, and warn about full disks",
+  },
   compose: {
     title: "Compose",
     description: "Pull and start the compose files with dot compose up",
@@ -183,6 +188,7 @@ const groupWork = (
     gh: lines("gh"),
     packages: (packages?.missing ?? []).map((name) => `${name} (missing)`),
     system: [...(packages?.pending ?? []), ...lines("releases")],
+    clean: [],
     compose: [],
   } satisfies Record<UpGroup, readonly string[]>;
 };
@@ -777,7 +783,12 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
         : `${GROUP_INFO[group].description}, to apply what changed`,
     );
 
-    if (isUpStage(group)) {
+    // The system stage is for headless runs, through the root-owned script and
+    // its sudo rule; here there's a terminal, so System keeps prompting for
+    // sudo and installs the release packages too.
+    if (group === "system") {
+      actions.push(...(yield* systemUpdate(opts.yes === true)));
+    } else if (isUpStage(group)) {
       // Stages never prompt, so a spinner can hold the bottom line throughout.
       const result: UpStageResult = yield* log.withSpinner(
         GROUP_INFO[group].title,
@@ -827,8 +838,6 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
       actions.push(yield* ghUpgrade);
     } else if (group === "packages") {
       actions.push(yield* installPackages);
-    } else if (group === "system") {
-      actions.push(...(yield* systemUpdate(opts.yes === true)));
     } else {
       const exitCode = yield* composeUp([]);
 

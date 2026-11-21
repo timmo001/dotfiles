@@ -14,6 +14,7 @@ export const INTERNAL_STOW_FOLDERS = [
   "macropad",
   "node_modules",
   "server",
+  "system-upgrade",
   "tests",
   "udev-rules",
 ] as const;

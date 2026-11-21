@@ -234,6 +234,10 @@ const STAGE_DESCRIPTIONS: Record<UpStage, string> = {
     "Pull tracked repositories that are behind, leaving any with work in progress alone; name repositories to pull just those",
   tools: "Install missing mise tools, upgrade the rest and prune removed ones",
   plugins: "Update the Pi and OpenCode plugins",
+  system:
+    "Upgrade the apt packages headless by running sudo -n /usr/local/sbin/dot-system-upgrade, a root-owned copy of system-upgrade/dot-system-upgrade installed by hand with a sudo rule for that one path: apt-get update, upgrade keeping existing config files, autoremove --purge and autoclean, then the GPU's CDI spec when nvidia-ctk is installed. It warns when the installed copy differs from the dotfiles, with the sudo install command to fix it; without the script or its sudo rule it fails naming the fix instead of prompting. Changed reports the package count, and /var/run/reboot-required is a warning. The interactive dot up's System group still prompts for sudo and installs the release packages",
+  clean:
+    "Free space without sudo: mise prune --yes, then remove files unchanged for 30 days from ~/.cache and the folders listed in the optional ~/.config/dot/clean.yml (folders: [{ path, olderThan }], such as logs older than 14 days), leaving the folders themselves. Changed reports the space freed, and any disk over 95% full is a warning",
   containers:
     "Keep Podman Quadlet containers current: podman auto-update pulls the image of each running container marked AutoUpdate=registry, restarts the units whose image changed and rolls back a unit that fails to start, then podman image prune --all --force removes unused images. Each container updated, rolled back or that failed to update gets its own action. It fails only when every pull failed, so one registry being down warns and is tried again next run. Without Podman or marked containers it changes nothing. Pinned images aren't touched; they change through their Quadlet file, which stow applies",
   herdr:
@@ -424,7 +428,7 @@ const updateCommand = describe(
         });
       }),
   ).pipe(Command.withSubcommands(UP_STAGES.map(upStageCommand))),
-  "Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell), then gh extensions, missing packages, apt and release packages, and compose up; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.",
+  "Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell), then gh extensions, missing packages, apt and release packages, and compose up; each stage also runs on its own, headless, as `dot up <stage>`, along with the system and clean stages for headless maintenance. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.",
   ["dot up", "dot up --check", "dot up --yes", "dot up --stow"],
   {
     description:

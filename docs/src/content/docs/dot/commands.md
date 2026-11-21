@@ -52,7 +52,7 @@ dot install [flags]
 
 Aliases: `dot update`
 
-Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell), then gh extensions, missing packages, apt and release packages, and compose up; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.
+Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell), then gh extensions, missing packages, apt and release packages, and compose up; each stage also runs on its own, headless, as `dot up <stage>`, along with the system and clean stages for headless maintenance. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.
 
 ```text
 dot up <subcommand> [flags]
@@ -85,9 +85,9 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--check-all` | Also check development repos for pulls, skipping local work |
 | `--yes` | Run every group with work without asking, and pass -y to apt-get upgrade |
 | `--force` | Offer every group, even with nothing pending |
-| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell, gh, packages, system, compose) |
-| `--declined` `<choice>` | Internal: the groups offered but not picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell, gh, packages, system, compose) |
-| `--changed` `<choice>` | Internal: the stages that changed something before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell, gh, packages, system, compose) |
+| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell, gh, packages, system, clean, compose) |
+| `--declined` `<choice>` | Internal: the groups offered but not picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell, gh, packages, system, clean, compose) |
+| `--changed` `<choice>` | Internal: the stages that changed something before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell, gh, packages, system, clean, compose) |
 | `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
@@ -391,6 +391,62 @@ dot up shell [flags] [<repo...>]
 ```bash
 dot up shell
 dot up shell --json
+```
+
+### `dot up system`
+
+Upgrade the apt packages headless by running sudo -n /usr/local/sbin/dot-system-upgrade, a root-owned copy of system-upgrade/dot-system-upgrade installed by hand with a sudo rule for that one path: apt-get update, upgrade keeping existing config files, autoremove --purge and autoclean, then the GPU's CDI spec when nvidia-ctk is installed. It warns when the installed copy differs from the dotfiles, with the sudo install command to fix it; without the script or its sudo rule it fails naming the fix instead of prompting. Changed reports the package count, and /var/run/reboot-required is a warning. The interactive dot up's System group still prompts for sudo and installs the release packages. Never prompts, so it can run in the background.
+
+```text
+dot up system [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up system
+dot up system --json
+```
+
+### `dot up clean`
+
+Free space without sudo: mise prune --yes, then remove files unchanged for 30 days from ~/.cache and the folders listed in the optional ~/.config/dot/clean.yml (folders: [{ path, olderThan }], such as logs older than 14 days), leaving the folders themselves. Changed reports the space freed, and any disk over 95% full is a warning. Never prompts, so it can run in the background.
+
+```text
+dot up clean [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up clean
+dot up clean --json
 ```
 
 ## `dot run`
