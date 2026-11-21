@@ -15,6 +15,7 @@ import {
 } from "../lib/opencodePlugins.js";
 import { syncSkills } from "../lib/externalSkills.js";
 import { applySyncthingConfig } from "../lib/syncthing.js";
+import { syncSystemBridgeProvider } from "../lib/systemBridgeProvider.js";
 import { applySecretFiles } from "../lib/secretFiles.js";
 import {
   backupUnmanagedTargets,
@@ -127,6 +128,7 @@ export const stow = (opts?: {
       yield* backupUnmanagedTargets(config.publicDotfiles, counts);
       yield* stowRepo(config.publicDotfiles, "public", counts);
       actions.push(done(`Stowed ${plural(counts.public, "public package")}`));
+      actions.push(yield* syncSystemBridgeProvider);
     }
 
     if (runPrivate) {
