@@ -20,6 +20,10 @@ export class ComposeError extends Schema.TaggedError<ComposeError>()(
   { message: Schema.String },
 ) {}
 
+const PULL_ATTEMPTS = 3;
+
+const PULL_RETRY_DELAY = "30 seconds";
+
 const expandHome = (path: string) => path.replace(/^~(?=\/|$)/, HOME_DIR);
 
 const loadConfig = Effect.gen(function* () {
@@ -94,10 +98,34 @@ const teeChildOutput = (logFile: string) =>
   );
 
 /**
+ * Pull a compose file's images, trying again after a pause when it fails:
+ * registries such as lscr.io sometimes time out for a few seconds.
+ */
+const pullImages = Effect.fn("Compose.pull")(function* (
+  args: readonly string[],
+  env: Record<string, string>,
+) {
+  const executor = yield* CommandExecutor;
+  const output = yield* OutputLog;
+
+  for (let attempt = 1; ; attempt++) {
+    const exitCode = yield* executor.inherit("docker", args, { env });
+
+    if (exitCode === 0 || attempt === PULL_ATTEMPTS) return exitCode;
+
+    yield* output.warn(
+      `Pull failed (exit ${exitCode}), trying again in ${PULL_RETRY_DELAY} (attempt ${attempt + 1} of ${PULL_ATTEMPTS})`,
+    );
+    yield* Effect.sleep(PULL_RETRY_DELAY);
+  }
+});
+
+/**
  * Pull and start each compose file, then prune unused Docker data. Runs every
- * `*.yml` in the configured directory, or only the given files. A failed file
- * does not stop the rest. Each step, any error and Docker's output go to the
- * run's dot log. Returns the exit code of the first failure, or 0.
+ * `*.yml` in the configured directory, or only the given files. A failed pull
+ * is tried again twice, and a failed file does not stop the rest. Each step,
+ * any error and Docker's output go to the run's dot log. Returns the exit code
+ * of the first failure, or 0.
  */
 export const composeUp = Effect.fn("Compose.up")(function* (
   files: readonly string[],
@@ -185,7 +213,10 @@ const composeSteps = Effect.fn("Compose.steps")(function* (
       ["Up", ["compose", "--file", file, "up", "-d", "--remove-orphans"]],
     ] as const) {
       yield* output.info(`${step}: docker ${args.join(" ")}`);
-      exitCode = yield* executor.inherit("docker", args, { env });
+      exitCode =
+        step === "Pull"
+          ? yield* pullImages(args, env)
+          : yield* executor.inherit("docker", args, { env });
 
       if (exitCode !== 0) {
         yield* output.error(`${step} failed (exit ${exitCode})`);
