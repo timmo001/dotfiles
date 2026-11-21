@@ -235,8 +235,38 @@ function writeTempPrivatePacmanRepoConfig(
   });
 }
 
+/**
+ * Whether the mirror's package database differs from the source clone's, such
+ * as after a pull brings packages published from another machine.
+ */
+export const privatePackageMirrorStale = Effect.fn(
+  "SetupPrivateRepo.mirrorStale",
+)(function* (repo: PrivatePackageRepoConfig) {
+  const fs = yield* FileSystem.FileSystem;
+
+  for (const extension of ["db.tar.gz", "db.tar.zst"]) {
+    const file = `${repo.name}.${extension}`;
+
+    const source = yield* fs
+      .readFile(join(repo.path, file))
+      .pipe(Effect.option);
+
+    if (Option.isNone(source)) continue;
+
+    const mirror = yield* fs
+      .readFile(join(repo.mirrorPath, file))
+      .pipe(Effect.option);
+
+    return (
+      Option.isNone(mirror) || Buffer.compare(source.value, mirror.value) !== 0
+    );
+  }
+
+  return false;
+});
+
 /** Sync the private package repository mirror consumed by pacman. */
-function syncPrivatePackageRepoMirror(
+export function syncPrivatePackageRepoMirror(
   repo: PrivatePackageRepoConfig,
 ): Effect.Effect<
   void,

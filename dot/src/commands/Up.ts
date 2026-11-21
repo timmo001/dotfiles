@@ -22,7 +22,11 @@ import {
   loadPrivatePackageRepoConfig,
   privatePackageRepoIncludeRegistered,
 } from "../doctor/checks/packages.js";
-import { setupPrivatePackageRepo } from "./SetupPrivateRepo.js";
+import {
+  privatePackageMirrorStale,
+  setupPrivatePackageRepo,
+  syncPrivatePackageRepoMirror,
+} from "./SetupPrivateRepo.js";
 import { syncRootFirstParty } from "../lib/firstPartyPackages.js";
 import { patchDrift, syncRootPatches } from "../lib/omarchyPatches.js";
 import { syncStationSystem } from "../lib/stationSystem.js";
@@ -606,7 +610,10 @@ const firstPartyRootSync = Effect.gen(function* () {
       : skip("First-party upgrade unit already current");
 }).pipe(Effect.withSpan("Up.firstPartyRootSync"));
 
-/** Register the private pacman repo before pacman needs it, if it went missing. */
+/**
+ * Register the private pacman repo before pacman needs it, if it went missing,
+ * and resync its mirror when the clone has packages pacman can't see yet.
+ */
 const ensurePrivateRepo = Effect.gen(function* () {
   const config = yield* Config;
   const log = yield* OutputLog;
@@ -615,12 +622,26 @@ const ensurePrivateRepo = Effect.gen(function* () {
 
   const repo = yield* loadPrivatePackageRepoConfig(config);
 
-  if (!repo || (yield* privatePackageRepoIncludeRegistered())) return;
+  if (!repo) return;
 
-  yield* log.info("Registering the private pacman repo");
-  yield* setupPrivatePackageRepo(repo).pipe(
+  if (!(yield* privatePackageRepoIncludeRegistered())) {
+    yield* log.info("Registering the private pacman repo");
+    yield* setupPrivatePackageRepo(repo).pipe(
+      Effect.catch((error) =>
+        log.warn(
+          `Could not register the private pacman repo: ${error.message}`,
+        ),
+      ),
+    );
+
+    return;
+  }
+
+  if (!(yield* privatePackageMirrorStale(repo))) return;
+
+  yield* syncPrivatePackageRepoMirror(repo).pipe(
     Effect.catch((error) =>
-      log.warn(`Could not register the private pacman repo: ${error.message}`),
+      log.warn(`Could not sync the private pacman repo: ${error.message}`),
     ),
   );
 }).pipe(Effect.withSpan("Up.ensurePrivateRepo"));
@@ -873,6 +894,7 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
       actions.push(yield* ghUpgrade);
     } else if (group === "packages") {
       yield* installMissingArchPackages({ scope: "public" });
+      yield* ensurePrivateRepo;
       yield* installMissingArchPackages({ scope: "private" });
       actions.push(done("Installed missing packages"));
     } else {
