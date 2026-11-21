@@ -49,6 +49,11 @@ Write tools ask before they run unless a permission rule allows them. Tools that
 | `skills_validate` | `dot skills validate` | Read | Read-only |
 | `skills_check` | `dot skills check` | Read | Read-only |
 | `services_run_logs` | `dot services run logs` | Read | Read-only |
+| `services_export` | `dot services export` | Read | Read-only |
+| `services_busy` | `dot services busy` | Read | Read-only |
+| `services_probe_syncthing` | `dot services probe syncthing` | Read | Read-only |
+| `services_probe_kopia` | `dot services probe kopia` | Read | Read-only |
+| `services_act` | `dot services act` | Write, always asks | Destructive |
 | `services_logs` | `dot services logs` | Read | Read-only |
 | `services_investigate` | `dot services investigate --print` | Read | Read-only |
 | `git_commit` | `dot git commit` | Write | Tool |

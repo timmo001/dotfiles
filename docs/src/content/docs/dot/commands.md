@@ -680,7 +680,7 @@ Monitor registered systemd user services and timers
 dot services <subcommand> [flags]
 ```
 
-Each job registers itself with a YAML descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour", counted from the latest of the last completed run, the last boot or resume, and one interval before the first calendar run due after those, so sleep, power off and gaps in the schedule are not missed runs), restartLimit ({ count, within }) for long-running services, counting only restarts that follow a failed run, notify, logs ({ dir, file }) for jobs that keep their own run logs, and repository (a GitHub owner/repo slug from dot-git.yml) naming the repository that logs and agents open in. A long-running service can add status ({ file }) pointing at a JSON file it writes with health ("ok", "warning", "degraded" or "failed"), summary and updated (epoch milliseconds); while systemd sees the service as healthy, a report from its current run replaces the health and summary. Without repository, the repository containing the unit's executable is used, falling back to the public dotfiles. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations also break the failure streak, but don't count as completed work. dot services dismiss <unit> clears a failure streak by hand. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. A job can summarise each run by printing a line containing "[RESULT] " followed by a short outcome; the last such line per invocation becomes that run's summary in status, run logs, notifications and the timmo.services panel. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel. Timer services with ExecCondition=dot services schedule check run only at their calendar times, or within --grace of one, not as later catch-up runs after boot or resume; those runs show as skipped. dot services start always runs them.
+Each job registers itself with a YAML descriptor in ~/.config/dot/services.d/, shipped by the stow package that owns the unit. A descriptor's id, the stable key System Bridge and Home Assistant use, defaults to its file name. Instead of a unit, a descriptor can name a check ({ run, every, timeout }, default every 5 minutes with a 30 second timeout): a command, given as arguments rather than a shell string, that prints a status as JSON. dot runs it whenever its last result, cached in ~/.local/state/dot/services/checks/, is older than every; a non-zero exit, a timeout or output that isn't a status is a failed run summarised by stderr, and the dot daemon notifies when a check turns failed. A timer can add busy: true, so it counts as busy while the job it starts runs. actions lists the commands dot services act may run for the item, each with id, label, run (arguments) and an optional confirm question for clients. Status files and check output can add busy, progress (0 to 1), stats ({ id, label, value, unit, kind }), notes, lists ({ id, label, items: [{ label, value }] }) and actions ({ id, disabled }), which can only disable an action the item lists. A timer's status file is read from its latest run, and its busy only counts while that run is active. dot services status --json adds the busy items at the top, and dot services export prints the lot for System Bridge. A descriptor names the unit and its monitoring policy: label, history, failAfter (consecutive failures before a job counts as failed), staleAfter (a duration such as "1 hour", counted from the latest of the last completed run, the last boot or resume, and one interval before the first calendar run due after those, so sleep, power off and gaps in the schedule are not missed runs), restartLimit ({ count, within }) for long-running services, counting only restarts that follow a failed run, notify, logs ({ dir, file }) for jobs that keep their own run logs, and repository (a GitHub owner/repo slug from dot-git.yml) naming the repository that logs and agents open in. A long-running service can add status ({ file }) pointing at a JSON file it writes with health ("ok", "warning", "degraded" or "failed"), summary and updated (epoch milliseconds); while systemd sees the service as healthy, a report from its current run replaces the health and summary. Without repository, the repository containing the unit's executable is used, falling back to the public dotfiles. Optional exitStatuses maps non-zero exit codes to "warning" or "skipped", for example { "2": "warning", "3": "skipped" }. Warnings break the failure streak and count as completed work for staleness; skipped invocations also break the failure streak, but don't count as completed work. dot services dismiss <unit> clears a failure streak by hand. These are monitor classifications; systemd still records non-zero exits. Run history comes from the user journal. A job can summarise each run by printing a line containing "[RESULT] " followed by a short outcome; the last such line per invocation becomes that run's summary in status, run logs, notifications and the timmo.services panel. Units with OnFailure=dot-service-failed@%n.service call dot services notify, which raises a desktop notification once failAfter is reached and refreshes the timmo.services panel. Timer services with ExecCondition=dot services schedule check run only at their calendar times, or within --grace of one, not as later catch-up runs after boot or resume; those runs show as skipped. dot services start always runs them.
 
 **Options**
 
@@ -717,6 +717,143 @@ When dot daemon is running it checks the services, so watchers such as the servi
 ```bash
 dot services status
 dot services status --json
+```
+
+### `dot services export`
+
+Print the services as System Bridge's provider document
+
+```text
+dot services export [flags]
+```
+
+Prints JSON in System Bridge's services provider schema, version 1: updated (epoch milliseconds), busy (the items whose work is under way, each with item, label and since), items (each with id, label, kind, health, summary, busy, lastRun, lastSuccess, nextRun, progress, stats, notes, lists and actions, each action with id, label, confirm and disabled) and errors (each descriptor that didn't decode, with source and message). Health keeps dot's nine values. Run history, restart counts and log paths stay in dot services status --json. Reads the dot daemon's snapshot when it runs, otherwise checks here.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot services export
+```
+
+### `dot services act`
+
+Run one of an item's actions, as System Bridge does
+
+```text
+dot services act [flags] <item> <action>
+```
+
+Refuses an action the item doesn't list or that is disabled. Built in: start (run a timer's job now, restart a service, or run a check now), stop and dismiss for units, logs (print the recent runs' output) and, on a desktop with Omarchy, investigate (open the first installed Herdr agent briefed on the item). Any other action runs the command its descriptor lists, with its output passed through and its exit code returned.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<item>` | The item's id, or its timer or service unit |
+| `<action>` | start, stop, dismiss, logs, investigate, or one of the item's own actions |
+
+**Examples**
+
+```bash
+dot services act kopia-offsite-r2 start
+dot services act kopia-verify verify
+```
+
+### `dot services busy`
+
+Print the items whose work is under way, exiting 1 while any is
+
+```text
+dot services busy [flags]
+```
+
+A timer is busy while the job it starts runs, when its descriptor says busy: true or its status file says busy. A long-running service or a check is busy while its status says so. Scripts on the machine can wait for it to exit 0 before shutting down.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the busy items as JSON |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot services busy
+dot services busy --json
+```
+
+### `dot services probe`
+
+Commands for services.d checks that print a check status
+
+```text
+dot services probe <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+#### `dot services probe syncthing`
+
+Print Syncthing's folders and errors as a check status
+
+```text
+dot services probe syncthing [flags]
+```
+
+Reads the folders, each folder's state and Syncthing's errors through its REST API, with the address and API key from syncthing cli. Failed when Syncthing doesn't answer, degraded when a folder has errors, a warning with Syncthing errors, otherwise ok.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot services probe syncthing
+```
+
+#### `dot services probe kopia`
+
+Print a Kopia repository's snapshots and size as a check status
+
+```text
+dot services probe kopia [flags]
+```
+
+Lists every source's newest snapshot with kopia snapshot list --all, and the repository's size with kopia blob stats, which for an off-site repository is what it uses there. A warning when a source's newest snapshot is older than --max-age, failed when the repository can't be read. A repository server's clients can't list blobs, so they get no size.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--config` `<string>` | Kopia config file of the repository (default: Kopia's own) |
+| `--max-age` `<string>` | Age of a source's newest snapshot that counts as a warning (default: 2 days) |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot services probe kopia
+dot services probe kopia --config ~/.config/kopia/r2.config
 ```
 
 ### `dot services watch`
