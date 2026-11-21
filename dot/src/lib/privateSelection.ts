@@ -10,6 +10,9 @@ const PrivateSelectionFile = Schema.Struct({
   syncthing: Schema.optionalKey(
     Schema.Struct({ exclude: Schema.Array(Schema.String) }),
   ),
+  packages: Schema.optionalKey(
+    Schema.Struct({ exclude: Schema.Array(Schema.String) }),
+  ),
   opencode: Schema.optionalKey(
     Schema.Struct({
       plugins: Schema.optionalKey(Schema.Array(Schema.String)),
@@ -48,6 +51,8 @@ export interface PrivateSelection {
   readonly mcpExclude: ReadonlySet<string>;
   /** Syncthing folder IDs from the private config this machine leaves out. */
   readonly syncthingExclude: ReadonlySet<string>;
+  /** Packages from the private package lists this machine doesn't install. */
+  readonly packagesExclude: ReadonlySet<string>;
   /** OpenCode plugins and instructions changed on this machine. */
   readonly opencode: OpenCodeLayer;
   /** Tracked repositories to keep, or `null` to keep them all. */
@@ -70,10 +75,18 @@ export const readPrivateSelection = Effect.fn("PrivateSelection.read")(
     return yield* Effect.try(() => Bun.YAML.parse(text)).pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(PrivateSelectionFile)),
       Effect.map(
-        ({ stow, mcp, syncthing, opencode, repos }): PrivateSelection => ({
+        ({
+          stow,
+          mcp,
+          syncthing,
+          packages,
+          opencode,
+          repos,
+        }): PrivateSelection => ({
           stow: stow === undefined ? null : new Set(stow),
           mcpExclude: new Set(mcp?.exclude),
           syncthingExclude: new Set(syncthing?.exclude),
+          packagesExclude: new Set(packages?.exclude),
           opencode: {
             plugins: opencode?.plugins ?? [],
             instructions: opencode?.instructions ?? [],
@@ -88,6 +101,7 @@ export const readPrivateSelection = Effect.fn("PrivateSelection.read")(
         stow: new Set(),
         mcpExclude: new Set(),
         syncthingExclude: new Set(),
+        packagesExclude: new Set(),
         opencode: { plugins: [], instructions: [] },
         repos: { machine: "", shallow: true },
       })),

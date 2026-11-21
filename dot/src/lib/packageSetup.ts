@@ -11,7 +11,7 @@ import { ENV, envString } from "./env.js";
 import {
   isPackageInstalled,
   loadPackageList,
-  loadPackageLists,
+  loadPrivatePackageLists,
 } from "./aptPackages.js";
 import { pathExists } from "./fsProbe.js";
 import type { ConfigService } from "../services/Config.js";
@@ -84,7 +84,10 @@ function missingPackages(
 
     const packages =
       scope === "private"
-        ? loadPackageLists(privatePackageListPaths(config))
+        ? yield* loadPrivatePackageLists(
+            privatePackageListPaths(config),
+            config.publicDotfiles,
+          )
         : loadPackageList(filePath);
 
     const missing: string[] = [];
