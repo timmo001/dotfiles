@@ -15,6 +15,7 @@ import {
   Schema,
 } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http";
+import { expandHomePath } from "../lib/paths.js";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
 import type { CheckOutput } from "./Services.js";
 
@@ -249,7 +250,9 @@ export const probeKopia = Effect.fn("Probe.kopia")(function* (
 ) {
   const executor = yield* CommandExecutor;
   const now = yield* Clock.currentTimeMillis;
-  const configArgs = config === undefined ? [] : [`--config-file=${config}`];
+
+  const configArgs =
+    config === undefined ? [] : [`--config-file=${expandHomePath(config)}`];
 
   const snapshots = yield* executor
     .run("kopia", [
