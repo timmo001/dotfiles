@@ -18,7 +18,7 @@ depends = ["lint:oxlint", "lint:actions", "lint:json", "lint:yaml", "lint:markdo
 
 [tasks."lint:oxlint"]
 description = "Lint owned TypeScript and JavaScript with Oxlint"
-depends = ["install", "dot:install", "plugins:install"]
+depends = ["install", "dot:install", "plugins:install", "server:install"]
 run = "bunx oxlint --disable-nested-config"
 
 [tasks."lint:actions"]
