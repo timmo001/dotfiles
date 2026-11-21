@@ -80,6 +80,11 @@ const AGENT_TOOLS = {
     omit: ["open-opencode"],
   },
   "services run logs": { access: "read" },
+  "services export": { access: "read" },
+  "services busy": { access: "read", exitCodes: [0, 1] },
+  "services probe syncthing": { access: "read" },
+  "services probe kopia": { access: "read" },
+  "services act": { access: "write", alwaysAsk: true },
   "services logs": {
     access: "read",
     description:
