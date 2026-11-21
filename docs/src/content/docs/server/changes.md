@@ -337,7 +337,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`dot/src/server/api.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/api.ts)
 - [`dot/src/server/auth.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/auth.ts)
 - [`dot/src/server/Serve.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/Serve.ts)
-- [`environment/.config/environment.d/50-dotfiles-path.conf`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/environment/.config/environment.d/50-dotfiles-path.conf)
+- [`environment/.config/environment.d/999-dotfiles-path.conf`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/environment/.config/environment.d/999-dotfiles-path.conf)
 - [`neovim/.config/nvim/.neoconf.json`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/.neoconf.json)
 - [`neovim/.config/nvim/init.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/init.lua)
 - [`neovim/.config/nvim/lua/config/autocmds.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/lua/config/autocmds.lua)
