@@ -1,4 +1,5 @@
 import { basename, dirname, join, sep } from "node:path";
+import { parseEnv } from "node:util";
 import {
   Cause,
   Clock,
@@ -70,6 +71,8 @@ const ServiceCheck = Schema.Struct({
   every: Schema.optionalKey(Schema.DurationFromString),
   /** How long one run may take (default: 30 seconds). */
   timeout: Schema.optionalKey(Schema.DurationFromString),
+  /** KEY=value lines added to its environment, like systemd's EnvironmentFile=. */
+  environmentFile: Schema.optionalKey(Schema.String),
 });
 
 const ServiceDescriptorFields = Schema.Struct({
@@ -1546,27 +1549,46 @@ const checkHealth = (
 /**
  * Run a check's command under its timeout and cache the result. A non-zero
  * exit, a timeout or output that isn't a status is a failed run, summarised by
- * stderr's last line.
+ * stderr's last line, and so is an environment file it can't read.
  */
 const runCheck = Effect.fn("Services.runCheck")(function* (
   check: RegisteredCheck,
 ) {
   const executor = yield* CommandExecutor;
+  const fs = yield* FileSystem.FileSystem;
   const [command, ...args] = check.descriptor.check.run;
+  const { environmentFile } = check.descriptor.check;
   const timeout = check.descriptor.check.timeout ?? CHECK_TIMEOUT;
   const previous = yield* readCheckCache(check.id);
   const started = yield* Clock.currentTimeMillis;
 
-  const result = yield* executor
-    .run(command, args)
-    .pipe(Effect.timeoutOption(timeout), Effect.result);
+  const env =
+    environmentFile === undefined
+      ? Option.some({})
+      : yield* fs.readFileString(expandDescriptorPath(environmentFile)).pipe(
+          Effect.map((text) =>
+            Object.fromEntries(
+              Object.entries(parseEnv(text)).flatMap(([key, value]) =>
+                value === undefined ? [] : [[key, value] as const],
+              ),
+            ),
+          ),
+          Effect.option,
+        );
+
+  const result = Option.isNone(env)
+    ? undefined
+    : yield* executor
+        .run(command, args, { env: env.value })
+        .pipe(Effect.timeoutOption(timeout), Effect.result);
 
   const finished = yield* Clock.currentTimeMillis;
 
   let output: CheckOutput | undefined;
   let error: string | undefined;
 
-  if (Result.isFailure(result))
+  if (result === undefined) error = `Can't read ${environmentFile}`;
+  else if (Result.isFailure(result))
     error =
       lastLine(result.failure.stderr) ??
       `${command} exited ${result.failure.exitCode}`;
