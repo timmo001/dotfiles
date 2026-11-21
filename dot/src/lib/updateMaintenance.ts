@@ -10,6 +10,7 @@ import {
 import { omarchyShellConfigNeedsApply } from "./omarchyShellConfig.js";
 import { CONFIG_DIR } from "./paths.js";
 import { requiresNoFolding, selectedStowFolders } from "./stowFolders.js";
+import { systemBridgeProviderNeedsApply } from "./systemBridgeProvider.js";
 
 const HerdrPlugins = Schema.Array(
   Schema.Struct({
@@ -298,6 +299,12 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
       (yield* omarchyShellConfigNeedsApply)
     )
       pending.push(`${repo.name}: shell config needs stow`);
+
+    if (
+      repo.path === config.publicDotfiles &&
+      (yield* systemBridgeProviderNeedsApply)
+    )
+      pending.push(`${repo.name}: System Bridge services provider needs stow`);
 
     const lockPath = join(
       repo.path,
