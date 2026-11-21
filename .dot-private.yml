@@ -47,6 +47,13 @@ syncthing:
     - nas01-music
     - nas01-pictures
 
+# packages.exclude: packages from the private package lists this machine
+# doesn't install. Those lists are pacman lists for the Arch machines, so
+# packages published only to the private pacman repo go here.
+packages:
+  exclude:
+    - files-cli
+
 # repos: this machine clones, pulls and checks the repositories in the
 # private dot-git.yml whose machines list includes machine. With shallow,
 # missing ones are cloned with --depth=1.

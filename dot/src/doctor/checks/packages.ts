@@ -9,7 +9,7 @@ import { ENV, envString } from "../../lib/env.js";
 import {
   isPackageInstalled,
   loadPackageList,
-  loadPackageLists,
+  loadPrivatePackageLists,
 } from "../../lib/aptPackages.js";
 import type { CheckResult } from "../types.js";
 
@@ -124,10 +124,13 @@ export const checkPrivatePackages = Effect.gen(function* () {
     ] satisfies CheckResult[];
   }
 
-  const packages = loadPackageLists([
-    packagesFile,
-    ...(packagesOverride ? [] : [`${packagesFile}--${hostname()}`]),
-  ]);
+  const packages = yield* loadPrivatePackageLists(
+    [
+      packagesFile,
+      ...(packagesOverride ? [] : [`${packagesFile}--${hostname()}`]),
+    ],
+    config.publicDotfiles,
+  );
 
   if (packages.length === 0) {
     return [

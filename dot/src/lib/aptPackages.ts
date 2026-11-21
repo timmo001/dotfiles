@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { readListFile } from "./listFile.js";
+import { readPrivateSelection } from "./privateSelection.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
 /** Whether an apt package is installed. */
@@ -30,3 +31,17 @@ export function loadPackageLists(
     ...new Set(filePaths.flatMap((filePath) => loadPackageList(filePath))),
   ];
 }
+
+/**
+ * Load the private package lists, leaving out the packages
+ * `.dot-private.yml` `packages.exclude` keeps off this machine.
+ */
+export const loadPrivatePackageLists = Effect.fn("AptPackages.loadPrivate")(
+  function* (filePaths: readonly string[], publicDotfiles: string) {
+    const exclude =
+      (yield* readPrivateSelection(publicDotfiles))?.packagesExclude ??
+      new Set<string>();
+
+    return loadPackageLists(filePaths).filter((pkg) => !exclude.has(pkg));
+  },
+);
