@@ -22,8 +22,14 @@ import {
   managedGitRepos,
 } from "../services/GitConfig.js";
 import { readGameState } from "./Game.js";
+import { installedHerdrAgents } from "./HerdrAgents.js";
 import { herdrRepoOpen } from "./HerdrRepoOpen.js";
-import { CONFIG_DIR, STATE_DIR, expandHomePath } from "../lib/paths.js";
+import {
+  CONFIG_DIR,
+  HOME_DIR,
+  STATE_DIR,
+  expandHomePath,
+} from "../lib/paths.js";
 import { hasManualStart, writeManualStart } from "../lib/manualStart.js";
 import { ENV, envString } from "../lib/env.js";
 
@@ -35,8 +41,45 @@ export class ServiceMonitorError extends Schema.TaggedError<ServiceMonitorError>
 
 const Count = Schema.Int.check(Schema.isGreaterThan(0));
 
-const ServiceDescriptor = Schema.Struct({
-  unit: Schema.String.check(Schema.isPattern(/^[\w@.:-]+\.(service|timer)$/)),
+/** Stable key for an item or action, such as `kopia-offsite` or `verify`. */
+const ItemId = Schema.String.check(Schema.isPattern(/^[\w@.-]+$/));
+
+/** Actions every item has without listing them; an item's own actions can't reuse these ids. */
+const BUILT_IN_ACTIONS = new Set([
+  "start",
+  "stop",
+  "dismiss",
+  "logs",
+  "investigate",
+]);
+
+/** A command a descriptor allows `dot services act` to run. */
+const ServiceAction = Schema.Struct({
+  id: ItemId,
+  label: Schema.String,
+  /** The command and its arguments, never a shell string. */
+  run: Schema.NonEmptyArray(Schema.String),
+  /** A question for clients to ask before running it. */
+  confirm: Schema.optionalKey(Schema.String),
+});
+
+/** A command dot runs to check something with no unit, printing a status. */
+const ServiceCheck = Schema.Struct({
+  run: Schema.NonEmptyArray(Schema.String),
+  /** How often to run it (default: 5 minutes). */
+  every: Schema.optionalKey(Schema.DurationFromString),
+  /** How long one run may take (default: 30 seconds). */
+  timeout: Schema.optionalKey(Schema.DurationFromString),
+});
+
+const ServiceDescriptorFields = Schema.Struct({
+  id: Schema.optionalKey(ItemId),
+  unit: Schema.optionalKey(
+    Schema.String.check(Schema.isPattern(/^[\w@.:-]+\.(service|timer)$/)),
+  ),
+  check: Schema.optionalKey(ServiceCheck),
+  busy: Schema.optionalKey(Schema.Boolean),
+  actions: Schema.optionalKey(Schema.Array(ServiceAction)),
   label: Schema.optionalKey(Schema.String),
   history: Schema.optionalKey(Count),
   failAfter: Schema.optionalKey(Count),
@@ -62,30 +105,129 @@ const ServiceDescriptor = Schema.Struct({
   status: Schema.optionalKey(Schema.Struct({ file: Schema.String })),
 });
 
+const ServiceDescriptor = ServiceDescriptorFields.check(
+  Schema.makeFilter((descriptor) => {
+    const issues: string[] = [];
+
+    if ((descriptor.unit === undefined) === (descriptor.check === undefined))
+      issues.push("needs either unit or check, not both");
+
+    if (descriptor.busy !== undefined && !descriptor.unit?.endsWith(".timer"))
+      issues.push(
+        "busy is for timers only; a long-running service reports busy in its status file",
+      );
+
+    if (descriptor.check !== undefined)
+      for (const key of ["exitStatuses", "restartLimit", "logs", "status"])
+        if (key in descriptor) issues.push(`${key} is for units, not checks`);
+
+    for (const action of descriptor.actions ?? [])
+      if (BUILT_IN_ACTIONS.has(action.id))
+        issues.push(`action ${action.id} is built in`);
+
+    return issues;
+  }),
+);
+
 type ServiceDescriptor = typeof ServiceDescriptor.Type;
 
-const ReportedStatus = Schema.Struct({
-  health: Schema.Literals(["ok", "warning", "degraded", "failed"]),
-  summary: Schema.String,
-  updated: Schema.Finite,
+/** A descriptor for a timer or service unit. */
+type UnitDescriptor = ServiceDescriptor & { readonly unit: string };
+
+/** A descriptor for a check, which has no unit. */
+type CheckDescriptor = ServiceDescriptor & {
+  readonly check: typeof ServiceCheck.Type;
+};
+
+const StatusStat = Schema.Struct({
+  id: Schema.String,
+  label: Schema.String,
+  value: Schema.Union([Schema.Finite, Schema.String]),
+  unit: Schema.optionalKey(Schema.String),
+  /** A hint for clients, such as Home Assistant picking a device class. */
+  kind: Schema.optionalKey(
+    Schema.Literals(["duration", "size", "timestamp", "count"]),
+  ),
 });
 
-/** Health a long-running service reports about its own work. */
+const StatusList = Schema.Struct({
+  id: Schema.String,
+  label: Schema.String,
+  items: Schema.Array(
+    Schema.Struct({ label: Schema.String, value: Schema.String }),
+  ),
+});
+
+/** The parts of a status file or check output beyond health and summary. */
+const StatusExtras = {
+  /** The item's work is under way, so the machine shouldn't turn off. */
+  busy: Schema.optionalKey(Schema.Boolean),
+  /** How far the work is, from 0 to 1. */
+  progress: Schema.optionalKey(
+    Schema.Finite.check(Schema.isBetween({ minimum: 0, maximum: 1 })),
+  ),
+  stats: Schema.optionalKey(Schema.Array(StatusStat)),
+  notes: Schema.optionalKey(Schema.Array(Schema.String)),
+  lists: Schema.optionalKey(Schema.Array(StatusList)),
+  /** Marks listed actions disabled, with the reason; it can't add actions. */
+  actions: Schema.optionalKey(
+    Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        disabled: Schema.optionalKey(Schema.String),
+      }),
+    ),
+  ),
+};
+
+const ReportedHealth = Schema.Literals(["ok", "warning", "degraded", "failed"]);
+
+const ReportedStatus = Schema.Struct({
+  health: ReportedHealth,
+  summary: Schema.String,
+  updated: Schema.Finite,
+  ...StatusExtras,
+});
+
+/** What a job reports about its own work in its status file. */
 export type ReportedStatus = typeof ReportedStatus.Type;
 
 const decodeReportedStatus = Schema.decodeOption(
   Schema.fromJsonString(ReportedStatus),
 );
 
+/** What a check's command prints; dot stamps the time when it's missing. */
+const CheckOutput = Schema.Struct({
+  health: ReportedHealth,
+  summary: Schema.String,
+  updated: Schema.optionalKey(Schema.Finite),
+  ...StatusExtras,
+});
+
+/** What a check's command prints on stdout. */
+export type CheckOutput = typeof CheckOutput.Type;
+
+const decodeCheckOutput = Schema.decodeResult(
+  Schema.fromJsonString(CheckOutput),
+);
+
+/** Atomically replace a JSON file, so a reader never sees half of it. */
+const writeJsonFile = Effect.fn("Services.writeJsonFile")(function* (
+  file: string,
+  value: ReportedStatus | CheckCache,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const temporary = `${file}.tmp`;
+
+  yield* fs.makeDirectory(dirname(file), { recursive: true });
+  yield* fs.writeFileString(temporary, JSON.stringify(value));
+  yield* fs.rename(temporary, file);
+});
+
 /** Atomically replace a service's self-reported status file. */
 export const writeReportedStatus = Effect.fn("Services.writeReportedStatus")(
   function* (file: string, status: ReportedStatus) {
-    const fs = yield* FileSystem.FileSystem;
-    const temporary = `${file}.tmp`;
-
-    yield* fs.makeDirectory(dirname(file), { recursive: true });
-    yield* fs.writeFileString(temporary, JSON.stringify(status));
-    yield* fs.rename(temporary, file);
+    yield* writeJsonFile(file, status);
   },
 );
 
@@ -140,16 +282,50 @@ export interface ServiceRepository {
   readonly path: string;
 }
 
+/** An action `dot services act` runs for an item, as clients show it. */
+export interface ItemAction {
+  /** Built-in (`start`, `stop`, `dismiss`, `logs`, `investigate`) or the descriptor's id. */
+  readonly id: string;
+  /** Button label. */
+  readonly label: string;
+  /** A question for clients to ask before running it. */
+  readonly confirm?: string;
+  /** Why it can't run now; it's refused until this clears. */
+  readonly disabled?: string;
+}
+
+/** A number or short string a job reports, with an optional unit and kind. */
+export type StatusStat = typeof StatusStat.Type;
+
+/** A labelled list of label and value pairs a job reports. */
+export type StatusList = typeof StatusList.Type;
+
 /** Monitoring snapshot for one registered job. */
 export interface ServiceStatus {
-  /** Registered unit, either a timer or a service. */
+  /** Stable key, the descriptor's `id` or its file name. */
+  readonly id: string;
+  /** Registered unit, either a timer or a service; a check's id. */
   readonly unit: string;
-  /** Service unit that does the work. */
+  /** Service unit that does the work; a check's id. */
   readonly service: string;
   /** Display label. */
   readonly label: string;
-  /** Whether the registered unit is a timer or a long-running service. */
-  readonly kind: "timer" | "service";
+  /** A timer and its oneshot, a long-running service, or a check with no unit. */
+  readonly kind: "timer" | "service" | "check";
+  /** Whether the item's work is under way, so the machine shouldn't turn off. */
+  readonly busy: boolean;
+  /** When the busy work started, when known. */
+  readonly busySince?: number;
+  /** How far the work is, from 0 to 1, from the status file or check. */
+  readonly progress?: number;
+  /** Figures from the status file or check. */
+  readonly stats?: readonly StatusStat[];
+  /** Short lines from the status file or check. */
+  readonly notes?: readonly string[];
+  /** Lists from the status file or check. */
+  readonly lists?: readonly StatusList[];
+  /** What `dot services act` can run for this item. */
+  readonly actions: readonly ItemAction[];
   /** Health derived from the monitoring policy. */
   readonly health: ServiceHealth;
   /** Short human summary of the health. */
@@ -192,8 +368,23 @@ export interface ServiceStatus {
 
 interface Registered {
   readonly file: string;
-  readonly descriptor: ServiceDescriptor;
+  readonly id: string;
+  readonly descriptor: UnitDescriptor;
 }
+
+interface RegisteredCheck {
+  readonly file: string;
+  readonly id: string;
+  readonly descriptor: CheckDescriptor;
+}
+
+const isUnitDescriptor = (
+  descriptor: ServiceDescriptor,
+): descriptor is UnitDescriptor => descriptor.unit !== undefined;
+
+const isCheckDescriptor = (
+  descriptor: ServiceDescriptor,
+): descriptor is CheckDescriptor => descriptor.check !== undefined;
 
 const SERVICES_DIR = join(CONFIG_DIR, "dot", "services.d");
 
@@ -269,10 +460,13 @@ const RESULT_MARKER = "[RESULT] ";
 export const readRegisteredServices = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
 
-  if (!(yield* fs.exists(SERVICES_DIR))) return { registered: [], errors: [] };
+  if (!(yield* fs.exists(SERVICES_DIR)))
+    return { registered: [], checks: [], errors: [] };
 
   const registered: Registered[] = [];
+  const checks: RegisteredCheck[] = [];
   const errors: { file: string; message: string }[] = [];
+  const ids = new Set<string>();
 
   for (const name of (yield* fs.readDirectory(SERVICES_DIR)).sort()) {
     if (!name.endsWith(".yml")) continue;
@@ -287,12 +481,30 @@ export const readRegisteredServices = Effect.gen(function* () {
       Effect.result,
     );
 
-    if (Result.isSuccess(decoded))
-      registered.push({ file, descriptor: decoded.success });
-    else errors.push({ file, message: decoded.failure.message });
+    if (Result.isFailure(decoded)) {
+      errors.push({ file, message: decoded.failure.message });
+      continue;
+    }
+
+    const descriptor = decoded.success;
+    const id = descriptor.id ?? name.replace(/\.yml$/, "");
+
+    if (ids.has(id)) {
+      errors.push({
+        file,
+        message: `Another descriptor already uses id ${id}`,
+      });
+      continue;
+    }
+
+    ids.add(id);
+
+    if (isUnitDescriptor(descriptor)) registered.push({ file, id, descriptor });
+    else if (isCheckDescriptor(descriptor))
+      checks.push({ file, id, descriptor });
   }
 
-  return { registered, errors };
+  return { registered, checks, errors };
 }).pipe(Effect.withSpan("Services.readRegistered"));
 
 type UnitProperties = Readonly<Record<string, string>>;
@@ -847,6 +1059,92 @@ const serviceRepository = Effect.fn("Services.repository")(function* (
   );
 });
 
+/** Whether this is a desktop with Omarchy, where `investigate` can open an agent. */
+const onDesktop = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+
+  return yield* fs
+    .exists(
+      envString(ENV.OMARCHY_PATH) ??
+        join(HOME_DIR, ".local", "share", "omarchy"),
+    )
+    .pipe(Effect.orElseSucceed(() => false));
+}).pipe(Effect.withSpan("Services.onDesktop"));
+
+/** The extras of a status file or check output that pass through to the snapshot. */
+const statusExtras = (
+  reported: Omit<CheckOutput, "health" | "summary" | "updated"> | undefined,
+) => ({
+  ...(reported?.progress !== undefined && { progress: reported.progress }),
+  ...(reported?.stats !== undefined && { stats: reported.stats }),
+  ...(reported?.notes !== undefined && { notes: reported.notes }),
+  ...(reported?.lists !== undefined && { lists: reported.lists }),
+});
+
+const START_LABELS = {
+  timer: "Run now",
+  service: "Restart",
+  check: "Check now",
+} satisfies Record<ServiceStatus["kind"], string>;
+
+/**
+ * What `dot services act` can run for an item: the built-ins, then the
+ * descriptor's own actions. A status file can mark any of them disabled but
+ * can't add one, so whatever writes it can't make a client run something new.
+ */
+const itemActions = (item: {
+  readonly kind: ServiceStatus["kind"];
+  readonly active: boolean;
+  readonly failing: boolean;
+  readonly desktop: boolean;
+  readonly descriptor: ServiceDescriptor;
+  readonly reported: Pick<CheckOutput, "actions"> | undefined;
+}): readonly ItemAction[] => {
+  const disabled = new Map(
+    (item.reported?.actions ?? []).flatMap(({ id, disabled: reason }) =>
+      reason === undefined ? [] : [[id, reason] as const],
+    ),
+  );
+
+  const unit = item.kind !== "check";
+
+  const actions: ItemAction[] = [
+    {
+      id: "start",
+      label: START_LABELS[item.kind],
+    },
+    ...(unit
+      ? [
+          {
+            id: "stop",
+            label: "Stop",
+            ...(!item.active && { disabled: "Not running" }),
+          },
+          {
+            id: "dismiss",
+            label: "Dismiss",
+            ...(!item.failing && { disabled: "No failures to dismiss" }),
+          },
+        ]
+      : []),
+    { id: "logs", label: "Logs" },
+    ...(unit && item.desktop
+      ? [{ id: "investigate", label: "Investigate" }]
+      : []),
+    ...(item.descriptor.actions ?? []).map(({ id, label, confirm }) => ({
+      id,
+      label,
+      ...(confirm !== undefined && { confirm }),
+    })),
+  ];
+
+  return actions.map((action) => {
+    const reason = disabled.get(action.id);
+
+    return reason === undefined ? action : { ...action, disabled: reason };
+  });
+};
+
 /** Build monitoring snapshots for registered jobs from systemd and the journal. */
 export const collectServiceStatus = Effect.fn("Services.collect")(function* (
   registered: readonly Registered[],
@@ -876,9 +1174,11 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
   // Services dot game stopped show as paused, not inactive.
   const pausedUnits = new Set((yield* readGameState).stopped);
 
+  const desktop = yield* onDesktop;
+
   return yield* Effect.forEach(
     registered,
-    Effect.fn("Services.collectOne")(function* ({ descriptor }) {
+    Effect.fn("Services.collectOne")(function* ({ id, descriptor }) {
       const kind = descriptor.unit.endsWith(".timer") ? "timer" : "service";
       const service = serviceFor(descriptor.unit);
 
@@ -1075,23 +1375,55 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
                 ? "degraded"
                 : "ok";
 
-      // A healthy long-running service can still report trouble in its own work.
+      // A job reports on its own work: a long-running service from its
+      // current start, a timer's job from its latest run.
+      const longRunning = !timer && !oneshot;
+
       const reported =
-        descriptor.status && !timer && !oneshot && systemdHealth === "ok"
+        descriptor.status && (!longRunning || systemdHealth === "ok")
           ? yield* readReportedStatus(
               descriptor.status,
-              unixMillis(properties.ActiveEnterTimestamp),
+              longRunning
+                ? unixMillis(properties.ActiveEnterTimestamp)
+                : runs[0]?.started,
             )
           : undefined;
 
-      const health = reported?.health ?? systemdHealth;
+      // Its health only replaces a healthy one; a running job keeps "running"
+      // but shows what it says it's doing.
+      const health =
+        reported && systemdHealth === "ok" ? reported.health : systemdHealth;
+
+      // A status file's busy only counts while its job runs, so a job that
+      // crashed mid-run can't hold the machine on.
+      const busy = longRunning
+        ? reported?.busy === true
+        : serviceBusy && (descriptor.busy === true || reported?.busy === true);
+
+      const busySince =
+        busy && !longRunning
+          ? (runs[0]?.started ?? unixMillis(properties.ActiveEnterTimestamp))
+          : undefined;
 
       const partial = {
+        id,
         unit: descriptor.unit,
         service,
         label: descriptor.label ?? descriptor.unit,
         kind,
         health,
+        busy,
+        busySince,
+        ...statusExtras(reported),
+        actions: itemActions({
+          kind,
+          active: serviceBusy,
+          failing:
+            consecutiveFailures > 0 || properties.ActiveState === "failed",
+          desktop,
+          descriptor,
+          reported,
+        }),
         activeState: properties.ActiveState ?? "unknown",
         lastRun: runs[0]?.started ?? unixMillis(timer?.LastTriggerUSec),
         lastSuccess: lastSuccessAt,
@@ -1118,9 +1450,266 @@ export const collectServiceStatus = Effect.fn("Services.collect")(function* (
 
       return {
         ...partial,
-        summary: reported?.summary ?? summarise(partial),
+        summary:
+          reported && (systemdHealth === "ok" || systemdHealth === "running")
+            ? reported.summary
+            : summarise(partial),
       } satisfies ServiceStatus;
     }),
+  );
+});
+
+const CHECK_EVERY = Duration.minutes(5);
+const CHECK_TIMEOUT = Duration.seconds(30);
+
+const CheckRun = Schema.Struct({
+  started: Schema.Finite,
+  finished: Schema.Finite,
+  result: Schema.Literals(["success", "warning", "failed"]),
+  summary: Schema.String,
+});
+
+/** A check's last result, kept so it only runs every `every`. */
+const CheckCache = Schema.Struct({
+  /** When it last ran, in epoch milliseconds. */
+  ran: Schema.Finite,
+  /** What the latest run printed, when it printed a status. */
+  output: Schema.optionalKey(CheckOutput),
+  /** Why the latest run failed, when it did. */
+  error: Schema.optionalKey(Schema.String),
+  /** Runs in a row that failed, reset by one that printed a status. */
+  consecutiveFailures: Schema.Int,
+  /** Recent runs, newest first. */
+  runs: Schema.Array(CheckRun),
+});
+
+type CheckCache = typeof CheckCache.Type;
+
+const decodeCheckCache = Schema.decodeOption(Schema.fromJsonString(CheckCache));
+
+const checkCacheFile = (id: string) =>
+  join(STATE_DIR, "dot", "services", "checks", `${id}.json`);
+
+const readCheckCache = Effect.fn("Services.readCheckCache")(function* (
+  id: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  const text = yield* fs
+    .readFileString(checkCacheFile(id))
+    .pipe(Effect.orElseSucceed(() => ""));
+
+  return Option.getOrUndefined(decodeCheckCache(text));
+});
+
+const lastLine = (text: string) =>
+  text
+    .trim()
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .at(-1);
+
+/** An item's health with the line that explains it. */
+interface ItemHealth {
+  readonly health: ServiceHealth;
+  readonly summary: string;
+}
+
+/** A check's health and summary from its cached result. */
+const checkHealth = (
+  check: RegisteredCheck,
+  cache: CheckCache | undefined,
+  now: number,
+): ItemHealth => {
+  if (!cache) return { health: "missing", summary: "Not checked yet" };
+
+  const staleAfter =
+    check.descriptor.staleAfter &&
+    Duration.toMillis(check.descriptor.staleAfter);
+
+  if (staleAfter !== undefined && now - cache.ran > staleAfter)
+    return { health: "stale", summary: "No check within the expected window" };
+
+  if (cache.error !== undefined || !cache.output)
+    return {
+      health:
+        cache.consecutiveFailures >= (check.descriptor.failAfter ?? 1)
+          ? "failed"
+          : "degraded",
+      summary: cache.error ?? "The check failed",
+    };
+
+  return { health: cache.output.health, summary: cache.output.summary };
+};
+
+/**
+ * Run a check's command under its timeout and cache the result. A non-zero
+ * exit, a timeout or output that isn't a status is a failed run, summarised by
+ * stderr's last line.
+ */
+const runCheck = Effect.fn("Services.runCheck")(function* (
+  check: RegisteredCheck,
+) {
+  const executor = yield* CommandExecutor;
+  const [command, ...args] = check.descriptor.check.run;
+  const timeout = check.descriptor.check.timeout ?? CHECK_TIMEOUT;
+  const previous = yield* readCheckCache(check.id);
+  const started = yield* Clock.currentTimeMillis;
+
+  const result = yield* executor
+    .run(command, args)
+    .pipe(Effect.timeoutOption(timeout), Effect.result);
+
+  const finished = yield* Clock.currentTimeMillis;
+
+  let output: CheckOutput | undefined;
+  let error: string | undefined;
+
+  if (Result.isFailure(result))
+    error =
+      lastLine(result.failure.stderr) ??
+      `${command} exited ${result.failure.exitCode}`;
+  else if (Option.isNone(result.success))
+    error = `Timed out after ${Duration.format(timeout)}`;
+  else {
+    const decoded = decodeCheckOutput(result.success.value);
+
+    if (Result.isSuccess(decoded))
+      output = {
+        ...decoded.success,
+        updated: decoded.success.updated ?? finished,
+      };
+    else error = `Output wasn't a status: ${lastLine(decoded.failure.message)}`;
+  }
+
+  const run = {
+    started,
+    finished,
+    result:
+      output === undefined || output.health === "failed"
+        ? "failed"
+        : output.health === "ok"
+          ? "success"
+          : "warning",
+    summary: error ?? output?.summary ?? "",
+  } satisfies typeof CheckRun.Type;
+
+  const cache: CheckCache = {
+    ran: finished,
+    ...(output !== undefined && { output }),
+    ...(error !== undefined && { error }),
+    consecutiveFailures:
+      error === undefined ? 0 : (previous?.consecutiveFailures ?? 0) + 1,
+    runs: [run, ...(previous?.runs ?? [])].slice(
+      0,
+      check.descriptor.history ?? 10,
+    ),
+  };
+
+  yield* writeJsonFile(checkCacheFile(check.id), cache);
+
+  return { previous, cache };
+});
+
+/** Build a check's snapshot from its cache, in the shape units use. */
+const checkSnapshot = Effect.fn("Services.checkSnapshot")(function* (
+  check: RegisteredCheck,
+  cache: CheckCache | undefined,
+  desktop: boolean,
+) {
+  const now = yield* Clock.currentTimeMillis;
+  const { descriptor, id } = check;
+  const every = descriptor.check.every ?? CHECK_EVERY;
+  const { health, summary } = checkHealth(check, cache, now);
+  const output = cache?.error === undefined ? cache?.output : undefined;
+  const lastSuccess = cache?.runs.find((run) => run.result !== "failed");
+  const busy = output?.busy === true;
+
+  return {
+    id,
+    unit: id,
+    service: id,
+    label: descriptor.label ?? id,
+    kind: "check",
+    health,
+    summary,
+    busy,
+    busySince: busy ? cache?.ran : undefined,
+    ...statusExtras(output),
+    actions: itemActions({
+      kind: "check",
+      active: false,
+      failing: false,
+      desktop,
+      descriptor,
+      reported: output,
+    }),
+    activeState: "inactive",
+    lastRun: cache?.runs[0]?.started,
+    lastSuccess: lastSuccess?.finished,
+    nextRun: cache ? cache.ran + Duration.toMillis(every) : undefined,
+    tags: ["Check", `every ${Duration.format(every)}`],
+    consecutiveFailures: cache?.consecutiveFailures ?? 0,
+    recoveredAfter: 0,
+    failAfter: descriptor.failAfter ?? 1,
+    restarts: 0,
+    staleAfter:
+      descriptor.staleAfter && Duration.toMillis(descriptor.staleAfter),
+    notify: descriptor.notify ?? true,
+    runs: (cache?.runs ?? []).map((run) => ({
+      invocation: `${id}-${run.started}`,
+      started: run.started,
+      finished: run.finished,
+      result: run.result,
+      summary: run.summary,
+    })),
+    repository: yield* serviceRepository(undefined, descriptor.repository),
+  } satisfies ServiceStatus;
+});
+
+/** Options for building the services report. */
+export interface ServicesReportOptions {
+  /** Notify when a check turns failed, as the dot daemon does. */
+  readonly notifyChecks?: boolean;
+}
+
+/**
+ * Run the checks whose last result is older than `every`, then build their
+ * snapshots. With `notifyChecks`, a check that has just turned failed
+ * notifies, since it has no unit for `OnFailure=` to do it.
+ */
+const collectCheckStatus = Effect.fn("Services.collectChecks")(function* (
+  checks: readonly RegisteredCheck[],
+  options: ServicesReportOptions,
+) {
+  const now = yield* Clock.currentTimeMillis;
+  const desktop = yield* onDesktop;
+
+  return yield* Effect.forEach(
+    checks,
+    (check) =>
+      Effect.gen(function* () {
+        const cached = yield* readCheckCache(check.id);
+        const every = check.descriptor.check.every ?? CHECK_EVERY;
+
+        if (cached && now - cached.ran < Duration.toMillis(every))
+          return yield* checkSnapshot(check, cached, desktop);
+
+        const { previous, cache } = yield* runCheck(check);
+        const status = yield* checkSnapshot(check, cache, desktop);
+
+        if (
+          options.notifyChecks &&
+          status.notify &&
+          status.health === "failed" &&
+          checkHealth(check, previous, now).health !== "failed"
+        )
+          yield* sendFailureNotification(status).pipe(Effect.ignore);
+
+        return status;
+      }),
+    { concurrency: 4 },
   );
 });
 
@@ -1130,7 +1719,8 @@ const findRegistered = Effect.fn("Services.findRegistered")(function* (
   const { registered } = yield* readRegisteredServices;
 
   const match = registered.find(
-    ({ descriptor }) =>
+    ({ id, descriptor }) =>
+      id === unit ||
       descriptor.unit === unit ||
       descriptor.unit.replace(/\.timer$/, ".service") === unit,
   );
@@ -1147,10 +1737,37 @@ const findRegistered = Effect.fn("Services.findRegistered")(function* (
   });
 });
 
-/** The monitoring snapshot for every registered job, as `status --json` prints it. */
-export const servicesReport = Effect.gen(function* () {
-  const { registered, errors } = yield* readRegisteredServices;
-  const services = yield* collectServiceStatus(registered);
+/** A registered unit or check, as `dot services act` finds it. */
+type RegisteredItem =
+  | { readonly kind: "unit"; readonly entry: Registered }
+  | { readonly kind: "check"; readonly entry: RegisteredCheck };
+
+/** Find a registered item by id, then by unit or service name. */
+const findItem = Effect.fn("Services.findItem")(function* (key: string) {
+  const { checks } = yield* readRegisteredServices;
+  const check = checks.find(({ id }) => id === key);
+
+  if (check) return { kind: "check", entry: check } satisfies RegisteredItem;
+
+  return {
+    kind: "unit",
+    entry: yield* findRegistered(key),
+  } satisfies RegisteredItem;
+});
+
+/**
+ * The monitoring snapshot for every registered job and check, as `status
+ * --json` prints it, with the busy items at the top.
+ */
+export const servicesReport = Effect.fn("Services.report")(function* (
+  options: ServicesReportOptions = {},
+) {
+  const { registered, checks, errors } = yield* readRegisteredServices;
+
+  const services = [
+    ...(yield* collectServiceStatus(registered)),
+    ...(yield* collectCheckStatus(checks, options)),
+  ];
 
   const counts = Object.fromEntries(
     HEALTH_ORDER.map((health) => [
@@ -1167,11 +1784,22 @@ export const servicesReport = Effect.gen(function* () {
   return {
     worst,
     counts,
+    busy: services.flatMap(({ busy, id, label, busySince }) =>
+      busy
+        ? [
+            {
+              item: id,
+              label,
+              ...(busySince !== undefined && { since: busySince }),
+            },
+          ]
+        : [],
+    ),
     services,
     errors,
     directory: SERVICES_DIR,
   } satisfies ServicesReport;
-}).pipe(Effect.withSpan("Services.report"));
+});
 
 /** How long a status read waits for the daemon before checking itself. */
 const DAEMON_TIMEOUT = "15 seconds";
@@ -1187,13 +1815,10 @@ const decodeServiceLine = Schema.decodeUnknownOption(
 );
 
 /**
- * Print the monitoring snapshot for every registered job. The dot daemon
- * checks when it runs, so its watchers see the result too; otherwise the
- * check runs here.
+ * The services report, from the dot daemon when it runs, so its watchers see
+ * the result too; otherwise checked here.
  */
-export const servicesStatus = Effect.fn("Services.status")(function* (
-  json: boolean,
-) {
+const currentReport = Effect.gen(function* () {
   const viaDaemon = yield* tryDaemon(
     Effect.gen(function* () {
       const client = yield* DaemonClient;
@@ -1202,9 +1827,197 @@ export const servicesStatus = Effect.fn("Services.status")(function* (
     }).pipe(Effect.timeout(DAEMON_TIMEOUT)),
   );
 
-  const report = Option.isSome(viaDaemon)
-    ? viaDaemon.value
-    : yield* servicesReport;
+  return Option.isSome(viaDaemon) ? viaDaemon.value : yield* servicesReport();
+}).pipe(Effect.withSpan("Services.currentReport"));
+
+// The parts of a snapshot System Bridge's provider document carries.
+const ExportItem = Schema.Struct({
+  id: Schema.String,
+  label: Schema.String,
+  kind: Schema.Literals(["timer", "service", "check"]),
+  health: Schema.String,
+  summary: Schema.String,
+  busy: Schema.Boolean,
+  lastRun: Schema.optional(Schema.Finite),
+  lastSuccess: Schema.optional(Schema.Finite),
+  nextRun: Schema.optional(Schema.Finite),
+  progress: Schema.optional(Schema.Finite),
+  stats: Schema.optional(Schema.Array(StatusStat)),
+  notes: Schema.optional(Schema.Array(Schema.String)),
+  lists: Schema.optional(Schema.Array(StatusList)),
+  actions: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      label: Schema.String,
+      confirm: Schema.optional(Schema.String),
+      disabled: Schema.optional(Schema.String),
+    }),
+  ),
+});
+
+const decodeExportItem = Schema.decodeUnknownOption(ExportItem);
+
+/**
+ * Print System Bridge's provider document: version 1, the busy items, every
+ * item with its health, figures and actions, and the descriptors that didn't
+ * decode. The schema is System Bridge's, so it never sees dot's own snapshot.
+ */
+export const servicesExport = Effect.gen(function* () {
+  let report = yield* currentReport;
+  let items = report.services.map((entry) => decodeExportItem(entry));
+
+  // A dot daemon from before these fields existed: check here instead.
+  if (items.some(Option.isNone)) {
+    report = yield* servicesReport();
+    items = report.services.map((entry) => decodeExportItem(entry));
+  }
+
+  yield* Console.log(
+    JSON.stringify({
+      version: 1,
+      updated: yield* Clock.currentTimeMillis,
+      busy: report.busy ?? [],
+      items: items.flatMap((item) =>
+        Option.toArray(item).map((entry) => ({
+          ...entry,
+          stats: entry.stats ?? [],
+          notes: entry.notes ?? [],
+          lists: entry.lists ?? [],
+        })),
+      ),
+      errors: report.errors.map(({ file, message }) => ({
+        source: `services.d/${basename(file)}`,
+        message,
+      })),
+    }),
+  );
+}).pipe(Effect.withSpan("Services.export"));
+
+const clockTime = (time: number) =>
+  new Date(time).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+
+/** Print what's busy, exiting 1 while anything is, for scripts on this machine. */
+export const servicesBusy = Effect.fn("Services.busy")(function* (
+  json: boolean,
+) {
+  const report = yield* currentReport;
+  const busy = report.busy ?? [];
+
+  if (json) yield* Console.log(JSON.stringify(busy));
+  else if (busy.length === 0) yield* Console.log("Nothing is busy");
+  else
+    for (const { label, since } of busy)
+      yield* Console.log(
+        since === undefined ? label : `${label}, since ${clockTime(since)}`,
+      );
+
+  if (busy.length > 0) process.exitCode = 1;
+});
+
+/** Print a check's recent runs from its cache. */
+const checkRunLogs = Effect.fn("Services.checkRunLogs")(function* (
+  status: ServiceStatus,
+) {
+  const runs = status.runs.map((run) => `- ${runSummary(run)}`);
+
+  yield* Console.log(
+    [
+      `${status.label} (${status.id}) · ${status.health} · ${status.summary}`,
+      ...(runs.length > 0 ? runs : ["No runs yet"]),
+    ].join("\n"),
+  );
+});
+
+/**
+ * Run one action for an item, as System Bridge does: a built-in, or one the
+ * item's descriptor lists. Anything not in the item's action list, or marked
+ * disabled, is refused.
+ */
+export const servicesAct = Effect.fn("Services.act")(function* (
+  key: string,
+  actionId: string,
+) {
+  const item = yield* findItem(key);
+
+  const status =
+    item.kind === "check"
+      ? yield* checkSnapshot(
+          item.entry,
+          yield* readCheckCache(item.entry.id),
+          yield* onDesktop,
+        )
+      : (yield* collectServiceStatus([item.entry]))[0];
+
+  if (!status)
+    return yield* new ServiceMonitorError({
+      message: `Could not read the status of ${key}`,
+    });
+
+  const action = status.actions.find(({ id }) => id === actionId);
+
+  if (!action)
+    return yield* new ServiceMonitorError({
+      message: `${status.label} has no ${actionId} action; it has ${status.actions.map(({ id }) => id).join(", ")}`,
+    });
+
+  if (action.disabled !== undefined)
+    return yield* new ServiceMonitorError({
+      message: `${action.label} is disabled for ${status.label}: ${action.disabled}`,
+    });
+
+  switch (actionId) {
+    case "start":
+      return yield* servicesStart(status.id);
+    case "stop":
+      return yield* servicesStop(status.unit);
+    case "dismiss":
+      return yield* servicesDismiss(status.unit);
+    case "logs":
+      return item.kind === "check"
+        ? yield* checkRunLogs(status)
+        : yield* servicesRunLogs(status.unit, 3);
+    case "investigate": {
+      const [agent] = yield* installedHerdrAgents;
+
+      if (!agent)
+        return yield* new ServiceMonitorError({
+          message: "No agent is installed for Herdr to open",
+        });
+
+      return yield* servicesInvestigate(
+        status.unit,
+        agent.command,
+        undefined,
+        false,
+      );
+    }
+  }
+
+  const command = item.entry.descriptor.actions?.find(
+    ({ id }) => id === actionId,
+  )?.run;
+
+  if (!command)
+    return yield* new ServiceMonitorError({
+      message: `${actionId} has no command`,
+    });
+
+  const executor = yield* CommandExecutor;
+  const [program, ...args] = command;
+  const exitCode = yield* executor.inherit(program, args);
+
+  if (exitCode !== 0) process.exitCode = exitCode;
+});
+
+/** Print the monitoring snapshot for every registered job and check. */
+export const servicesStatus = Effect.fn("Services.status")(function* (
+  json: boolean,
+) {
+  const report = yield* currentReport;
 
   if (json) return yield* Console.log(JSON.stringify(report));
 
@@ -1275,12 +2088,33 @@ export const refreshServicesPanel = Effect.gen(function* () {
     .pipe(Effect.ignore);
 }).pipe(Effect.withSpan("Services.refreshPanel"));
 
-/** Start a registered job's service now, restarting long-running services. */
+/**
+ * Start a registered job's service now, restarting long-running services, or
+ * run a check now.
+ */
 export const servicesStart = Effect.fn("Services.start")(function* (
   unit: string,
 ) {
-  const { descriptor } = yield* findRegistered(unit);
-  const [status] = yield* collectServiceStatus([{ file: "", descriptor }]);
+  const item = yield* findItem(unit);
+
+  if (item.kind === "check") {
+    const { cache } = yield* runCheck(item.entry);
+
+    const { health, summary } = checkHealth(
+      item.entry,
+      cache,
+      yield* Clock.currentTimeMillis,
+    );
+
+    yield* refreshServicesPanel;
+    yield* Console.log(`[INFO] ${item.entry.id}: ${health}, ${summary}`);
+
+    return;
+  }
+
+  const registered = item.entry;
+  const { descriptor } = registered;
+  const [status] = yield* collectServiceStatus([registered]);
   const executor = yield* CommandExecutor;
   const service = status?.service ?? descriptor.unit;
 
@@ -1299,8 +2133,9 @@ export const servicesStart = Effect.fn("Services.start")(function* (
 export const servicesStop = Effect.fn("Services.stop")(function* (
   unit: string,
 ) {
-  const { descriptor } = yield* findRegistered(unit);
-  const [status] = yield* collectServiceStatus([{ file: "", descriptor }]);
+  const registered = yield* findRegistered(unit);
+  const { descriptor } = registered;
+  const [status] = yield* collectServiceStatus([registered]);
   const executor = yield* CommandExecutor;
 
   yield* executor.run("systemctl", [
@@ -1320,8 +2155,9 @@ export const servicesStop = Effect.fn("Services.stop")(function* (
 export const servicesDismiss = Effect.fn("Services.dismiss")(function* (
   unit: string,
 ) {
-  const { descriptor } = yield* findRegistered(unit);
-  const [status] = yield* collectServiceStatus([{ file: "", descriptor }]);
+  const registered = yield* findRegistered(unit);
+  const { descriptor } = registered;
+  const [status] = yield* collectServiceStatus([registered]);
   const executor = yield* CommandExecutor;
   const fs = yield* FileSystem.FileSystem;
   const service = status?.service ?? descriptor.unit;
@@ -1383,8 +2219,9 @@ export const servicesOnSchedule = Effect.fn("Services.onSchedule")(function* (
 export const servicesLogs = Effect.fn("Services.logs")(function* (
   unit: string,
 ) {
-  const { descriptor } = yield* findRegistered(unit);
-  const [status] = yield* collectServiceStatus([{ file: "", descriptor }]);
+  const registered = yield* findRegistered(unit);
+  const { descriptor } = registered;
+  const [status] = yield* collectServiceStatus([registered]);
 
   const viewer = status?.latestLog
     ? [
@@ -1453,8 +2290,7 @@ export const servicesRunLogs = Effect.fn("Services.runLogs")(function* (
 ) {
   const fs = yield* FileSystem.FileSystem;
   const executor = yield* CommandExecutor;
-  const { file, descriptor } = yield* findRegistered(unit);
-  const [status] = yield* collectServiceStatus([{ file, descriptor }]);
+  const [status] = yield* collectServiceStatus([yield* findRegistered(unit)]);
 
   if (!status)
     return yield* new ServiceMonitorError({
@@ -1511,8 +2347,9 @@ export const servicesInvestigate = Effect.fn("Services.investigate")(function* (
 ) {
   const fs = yield* FileSystem.FileSystem;
   const executor = yield* CommandExecutor;
-  const { file, descriptor } = yield* findRegistered(unit);
-  const [status] = yield* collectServiceStatus([{ file, descriptor }]);
+  const registered = yield* findRegistered(unit);
+  const { file, descriptor } = registered;
+  const [status] = yield* collectServiceStatus([registered]);
 
   if (!status)
     return yield* new ServiceMonitorError({
@@ -1651,24 +2488,34 @@ export const servicesInvestigate = Effect.fn("Services.investigate")(function* (
 export const servicesNotify = Effect.fn("Services.notify")(function* (
   unit: string,
 ) {
-  const { descriptor } = yield* findRegistered(unit);
-  const [status] = yield* collectServiceStatus([{ file: "", descriptor }]);
+  const registered = yield* findRegistered(unit);
+  const [status] = yield* collectServiceStatus([registered]);
 
   yield* refreshServicesPanel;
 
   if (!status?.notify || status.health !== "failed") return;
 
-  const lastFailure = status.runs.find((run) => run.result === "failed");
-
-  yield* notify(
-    `${status.label} failed`,
-    [
-      status.summary,
-      lastFailure?.summary ?? lastFailure?.detail,
-      `dot services logs ${status.unit}`,
-    ]
-      .filter(Boolean)
-      .join(" · "),
-    "critical",
-  );
+  yield* sendFailureNotification(status);
 });
+
+/** Notify that an item has failed, through Station's journal and notify-send. */
+const sendFailureNotification = Effect.fn("Services.sendFailureNotification")(
+  function* (status: ServiceStatus) {
+    const lastFailure = status.runs.find((run) => run.result === "failed");
+
+    yield* notify(
+      `${status.label} failed`,
+      [
+        status.summary,
+        lastFailure?.summary ?? lastFailure?.detail,
+        // A check has no journal for dot services logs to follow.
+        status.kind === "check"
+          ? `dot services act ${status.id} logs`
+          : `dot services logs ${status.unit}`,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      "critical",
+    );
+  },
+);

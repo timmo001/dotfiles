@@ -29,6 +29,16 @@ export class StatusCheckError extends Schema.TaggedError<StatusCheckError>()(
 export const ServicesReport = Schema.Struct({
   worst: Schema.String,
   counts: Schema.Record(Schema.String, Schema.Int),
+  /** The items whose work is under way, so the machine shouldn't turn off. */
+  busy: Schema.optionalKey(
+    Schema.Array(
+      Schema.Struct({
+        item: Schema.String,
+        label: Schema.String,
+        since: Schema.optionalKey(Schema.Finite),
+      }),
+    ),
+  ),
   services: Schema.Array(Schema.Unknown),
   errors: Schema.Array(
     Schema.Struct({ file: Schema.String, message: Schema.String }),

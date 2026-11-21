@@ -17,7 +17,8 @@ const decodeReport = Schema.decodeUnknownEffect(
 
 const make = polledStore(
   "ServicesStore",
-  servicesReport.pipe(
+  // A check has no unit for OnFailure=, so the daemon notifies for it.
+  servicesReport({ notifyChecks: true }).pipe(
     Effect.flatMap((report) => decodeReport(JSON.stringify(report))),
     Effect.mapError(
       (error) => new StatusCheckError({ message: formatCause(error) }),
