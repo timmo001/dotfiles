@@ -54,32 +54,39 @@ const sameCommand = (a: readonly string[] | undefined, b: readonly string[]) =>
   a.every((part, i) => part === b[i]);
 
 /**
- * Add or correct the `dot` entry in System Bridge's `services.providers`,
- * keeping every other setting and provider. Leaves the file alone when the
- * entry is already right, when System Bridge isn't set up, or when the file
- * doesn't parse.
+ * What System Bridge's settings need: the settings to write when the `dot`
+ * entry is missing or wrong, otherwise the recap line saying why not.
  */
-export const syncSystemBridgeProvider = Effect.gen(function* () {
+const providerPlan = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
 
   if (!(yield* fs.exists(SETTINGS_FILE)))
-    return skip("System Bridge isn't set up here");
+    return {
+      kind: "done",
+      done: skip("System Bridge isn't set up here"),
+    } as const;
 
   const text = yield* fs.readFileString(SETTINGS_FILE);
   const settings = decodeSettings(text);
 
   if (Option.isNone(settings))
-    return warn(
-      `Left ${displayPath(SETTINGS_FILE)} alone: it isn't a JSON object`,
-    );
+    return {
+      kind: "done",
+      done: warn(
+        `Left ${displayPath(SETTINGS_FILE)} alone: it isn't a JSON object`,
+      ),
+    } as const;
 
   const current = settings.value.services;
   const services = Option.getOrUndefined(decodeServices(current ?? {}));
 
   if (current != null && services === undefined)
-    return warn(
-      `Left ${displayPath(SETTINGS_FILE)} alone: its services setting isn't one dot understands`,
-    );
+    return {
+      kind: "done",
+      done: warn(
+        `Left ${displayPath(SETTINGS_FILE)} alone: its services setting isn't one dot understands`,
+      ),
+    } as const;
 
   const providers = services?.providers ?? [];
   const existing = providers.find(({ id }) => id === DOT_PROVIDER.id);
@@ -89,18 +96,48 @@ export const syncSystemBridgeProvider = Effect.gen(function* () {
     sameCommand(existing.list, DOT_PROVIDER.list) &&
     sameCommand(existing.act, DOT_PROVIDER.act)
   )
-    return skip("System Bridge already reads dot's services");
+    return {
+      kind: "done",
+      done: skip("System Bridge already reads dot's services"),
+    } as const;
 
-  const next = {
-    ...settings.value,
-    services: {
-      ...Option.getOrElse(decodeRecord(current), () => ({})),
-      providers: [
-        ...providers.filter(({ id }) => id !== DOT_PROVIDER.id),
-        DOT_PROVIDER,
-      ],
+  return {
+    kind: "write",
+    next: {
+      ...settings.value,
+      services: {
+        ...Option.getOrElse(decodeRecord(current), () => ({})),
+        providers: [
+          ...providers.filter(({ id }) => id !== DOT_PROVIDER.id),
+          DOT_PROVIDER,
+        ],
+      },
     },
-  };
+  } as const;
+}).pipe(Effect.withSpan("SystemBridge.providerPlan"));
+
+/**
+ * Whether `dot stow` would write the `dot` entry, so `dot up` runs the stow
+ * stage on a machine whose System Bridge doesn't read dot's services yet.
+ */
+export const systemBridgeProviderNeedsApply = providerPlan.pipe(
+  Effect.map((plan) => plan.kind === "write"),
+  Effect.orElseSucceed(() => false),
+);
+
+/**
+ * Add or correct the `dot` entry in System Bridge's `services.providers`,
+ * keeping every other setting and provider. Leaves the file alone when the
+ * entry is already right, when System Bridge isn't set up, or when the file
+ * doesn't parse.
+ */
+export const syncSystemBridgeProvider = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const plan = yield* providerPlan;
+
+  if (plan.kind === "done") return plan.done;
+
+  const { next } = plan;
 
   // Write beside it and rename, keeping its mode, so System Bridge never
   // reads half a file.
