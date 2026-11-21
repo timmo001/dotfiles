@@ -7,6 +7,7 @@ import {
   readlinkSync,
   realpathSync,
   renameSync,
+  rmdirSync,
   rmSync,
   symlinkSync,
   unlinkSync,
@@ -67,6 +68,9 @@ const RETIRED_PUBLIC_STOW_PATHS = [
   "hypr/.config/hypr/bin/hyprsunset-toggle-dim",
   "hypr/.config/hypr/bin/timmo-setup-url-handler",
   "omarchy/.config/omarchy/plugins/omaconnect",
+  ...["BarWidget.qml", "Panel.qml", "Service.qml", "manifest.json"].map(
+    (file) => `omarchy/.config/omarchy/plugins/timmo.services/${file}`,
+  ),
   "pitchfork/.config/pitchfork",
   ...["desktop", "laptop"].flatMap((host) =>
     [
@@ -149,12 +153,25 @@ export function removeRetiredPublicStowLinks(
       if (resolve(dirname(target), readlinkSync(target)) !== source) continue;
       unlinkSync(target);
       removed.push(target);
+      removeEmptyPluginFolder(dirname(target), homeDir);
     } catch {
       // Missing, unreadable, or no longer owned by this stow source.
     }
   }
 
   return removed;
+}
+
+/**
+ * Remove a plugin folder its retired links left empty, so Omarchy doesn't
+ * find a plugin with no manifest. Only folders directly under
+ * `~/.config/omarchy/plugins` are touched.
+ */
+function removeEmptyPluginFolder(folder: string, homeDir: string) {
+  if (dirname(folder) !== join(homeDir, ".config", "omarchy", "plugins"))
+    return;
+
+  if (readdirSync(folder).length === 0) rmdirSync(folder);
 }
 
 /** Remove the retired private owner before the public crash hook takes over. */
