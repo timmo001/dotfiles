@@ -11,6 +11,7 @@ export const INTERNAL_STOW_FOLDERS = [
   "docs",
   "node_modules",
   "server",
+  "system-upgrade",
   "tests",
 ] as const;
 

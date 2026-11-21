@@ -203,16 +203,32 @@ export const UP_STAGES = [
   "herdr",
   "agents",
   "shell",
+  "system",
+  "clean",
 ] as const;
 
-/** What `dot up` can run, in the order it runs them. */
+/**
+ * What `dot up` can run, in the order it runs them. System and clean are
+ * stages too, but run after the missing packages; the interactive System
+ * group keeps its own apt and release package steps.
+ */
 export const UP_GROUPS = [
-  ...UP_STAGES,
+  "dotfiles",
+  "skills",
+  "repos",
+  "stow",
+  "tools",
+  "plugins",
+  "containers",
+  "herdr",
+  "agents",
+  "shell",
   "gh",
   "packages",
   "system",
+  "clean",
   "compose",
-] as const;
+] as const satisfies readonly (UpStage | "gh" | "packages" | "compose")[];
 
 /** One `dot up` stage. */
 export type UpStage = (typeof UP_STAGES)[number];

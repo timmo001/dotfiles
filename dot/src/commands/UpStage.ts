@@ -1,12 +1,20 @@
 /**
  * @file The stages of `dot up`, each runnable on its own as `dot up <stage>`:
- * dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents
- * and shell. A
+ * dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents,
+ * shell, system and clean. A
  * stage never prompts or opens Herdr, so a background runner such as Upkeep can
  * call it, and with `--json` it prints one result saying what changed.
  */
-import { Clock, Effect } from "effect";
-import { basename } from "path";
+import {
+  Clock,
+  Duration,
+  Effect,
+  FileSystem,
+  Option,
+  Result,
+  Schema,
+} from "effect";
+import { basename, join } from "path";
 import { DotDiff } from "../git/services/DotDiff.js";
 import { syncNotesRemotes } from "../git/notesRemote.js";
 import { mcpSync } from "../mcp/commands/McpSync.js";
@@ -26,6 +34,13 @@ import {
   podmanLines,
 } from "../lib/podman.js";
 import { plural } from "../lib/runSummary.js";
+import {
+  CACHE_DIR,
+  CONFIG_DIR,
+  DATA_DIR,
+  displayPath,
+  expandHomePath,
+} from "../lib/paths.js";
 import { trustRepoMiseConfigs } from "../lib/miseTrust.js";
 import { syncNotesRepositoryDirectories } from "../lib/notesRepositoryDirectories.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
@@ -120,6 +135,10 @@ export interface UpStageOptions {
 
 const changedBy = (actions: readonly RecapEntry[]) =>
   actions.some((entry) => entry.notable === true);
+
+class StageError extends Schema.TaggedError<StageError>()("StageError", {
+  message: Schema.String,
+}) {}
 
 /**
  * Pull both dotfiles and their pinned submodules, rebuilding dot when its
@@ -431,6 +450,262 @@ const containersStage = Effect.gen(function* () {
   } satisfies StageOutcome;
 });
 
+/** Where `dot up system` expects the root-owned upgrade script. */
+const SYSTEM_UPGRADE_SCRIPT = "/usr/local/sbin/dot-system-upgrade";
+
+/** The command that adds the sudo rule for the upgrade script alone. */
+const SUDO_RULE = `echo "$USER ALL=(root) NOPASSWD: ${SYSTEM_UPGRADE_SCRIPT}" | sudo tee /etc/sudoers.d/dot-system-upgrade`;
+
+/** apt's "N upgraded, N newly installed, N to remove" counts, summed over its runs. */
+const aptPackageCount = (output: string) =>
+  [
+    ...output.matchAll(
+      /(\d+) upgraded, (\d+) newly installed, (\d+) to remove/g,
+    ),
+  ].reduce(
+    (total, [, upgraded = "0", installed = "0", removed = "0"]) =>
+      total + Number(upgraded) + Number(installed) + Number(removed),
+    0,
+  );
+
+/**
+ * Upgrade the apt packages through the root-owned dot-system-upgrade, which a
+ * sudo rule lets this user run without a password. `sudo -n` never prompts,
+ * so a missing rule fails the stage instead of hanging. The script is
+ * installed by hand from the dotfiles, so a copy that differs only warns.
+ */
+const systemStage = Effect.gen(function* () {
+  const config = yield* Config;
+  const fs = yield* FileSystem.FileSystem;
+  const executor = yield* CommandExecutor;
+  const log = yield* OutputLog;
+  const actions: RecapEntry[] = [];
+
+  const source = join(
+    config.publicDotfiles,
+    "system-upgrade",
+    "dot-system-upgrade",
+  );
+
+  const install = `sudo install -o root -g root -m 0755 ${source} ${SYSTEM_UPGRADE_SCRIPT}`;
+
+  const installed = yield* fs
+    .readFileString(SYSTEM_UPGRADE_SCRIPT)
+    .pipe(Effect.option);
+
+  if (Option.isNone(installed))
+    return {
+      actions: [warn("dot-system-upgrade isn't installed")],
+      error: `${SYSTEM_UPGRADE_SCRIPT} isn't installed. Install it with ${install}, then add its sudo rule with ${SUDO_RULE}`,
+    } satisfies StageOutcome;
+
+  const wanted = yield* fs.readFileString(source).pipe(Effect.option);
+
+  if (Option.isSome(wanted) && wanted.value !== installed.value)
+    actions.push(
+      warn(
+        `The installed dot-system-upgrade differs from the dotfiles; update it with ${install}`,
+      ),
+    );
+
+  const run = yield* executor
+    .run("sudo", ["-n", SYSTEM_UPGRADE_SCRIPT], { mergeStderr: true })
+    .pipe(Effect.result);
+
+  const output = Result.isSuccess(run)
+    ? run.success
+    : (run.failure.stdout ?? run.failure.stderr);
+
+  for (const line of output.trimEnd().split("\n"))
+    if (line) yield* log.info(line);
+
+  if (Result.isFailure(run))
+    return {
+      actions: [...actions, warn("System upgrade failed")],
+      error:
+        /password is required|not allowed to execute|may not run sudo/.test(
+          output,
+        )
+          ? `No sudo rule lets dot run dot-system-upgrade without a password; add it with ${SUDO_RULE}`
+          : `dot-system-upgrade exited ${run.failure.exitCode}`,
+    } satisfies StageOutcome;
+
+  const packages = aptPackageCount(output);
+
+  actions.push(
+    packages > 0
+      ? notable(`Changed ${plural(packages, "apt package")}`)
+      : skip("apt packages already up to date"),
+  );
+
+  if (yield* fs.exists("/var/run/reboot-required"))
+    actions.push(warn("A reboot is required"));
+
+  return { actions } satisfies StageOutcome;
+});
+
+/** Optional extra folders for `dot up clean`, with how old their files must be. */
+const CLEAN_CONFIG = join(CONFIG_DIR, "dot", "clean.yml");
+
+const CleanConfig = Schema.Struct({
+  folders: Schema.optionalKey(
+    Schema.Array(
+      Schema.Struct({
+        path: Schema.String,
+        olderThan: Schema.DurationFromString,
+      }),
+    ),
+  ),
+});
+
+const readCleanConfig = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+
+  if (!(yield* fs.exists(CLEAN_CONFIG))) return [];
+
+  const config = yield* fs.readFileString(CLEAN_CONFIG).pipe(
+    Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
+    Effect.flatMap((parsed) =>
+      Schema.decodeUnknownEffect(CleanConfig)(parsed, {
+        onExcessProperty: "error",
+      }),
+    ),
+    Effect.mapError(
+      (error) =>
+        new StageError({ message: `${CLEAN_CONFIG}: ${String(error)}` }),
+    ),
+  );
+
+  return config.folders ?? [];
+}).pipe(Effect.withSpan("UpStage.readCleanConfig"));
+
+const formatBytes = (bytes: number) => {
+  const units = ["B", "kB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unit = 0;
+
+  while (value >= 1000 && unit < units.length - 1) {
+    value /= 1000;
+    unit++;
+  }
+
+  return `${unit > 0 && value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+};
+
+/** Disks above this percentage full get a warning from `dot up clean`. */
+const DISK_WARN_PERCENT = 95;
+
+/**
+ * Free space without sudo: prune mise, remove files unchanged for 30 days
+ * from the cache and the folders in `~/.config/dot/clean.yml`, leaving the
+ * folders, then warn about any disk over 95% full.
+ */
+const cleanStage = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const actions: RecapEntry[] = [];
+  let freed = 0;
+
+  const miseData = join(DATA_DIR, "mise");
+
+  const directoryBytes = executor.run("du", ["-sb", miseData]).pipe(
+    Effect.map((output) => Number(output.split("\t")[0]) || 0),
+    Effect.orElseSucceed(() => 0),
+  );
+
+  const miseBefore = yield* directoryBytes;
+  const pruned = yield* executor.exitCode("mise", ["prune", "--yes"]);
+  const miseFreed = Math.max(0, miseBefore - (yield* directoryBytes));
+
+  freed += miseFreed;
+
+  actions.push(
+    pruned !== 0
+      ? warn(`mise prune exited ${pruned}`)
+      : miseFreed > 0
+        ? done(`Pruned old mise versions (${formatBytes(miseFreed)})`)
+        : skip("No mise versions to prune"),
+  );
+
+  const targets = [
+    { path: CACHE_DIR, olderThan: Duration.days(30) },
+    ...(yield* readCleanConfig),
+  ];
+
+  for (const target of targets) {
+    const path = expandHomePath(target.path);
+    const minutes = Math.floor(Duration.toMillis(target.olderThan) / 60_000);
+
+    // -type f leaves the folders, -xdev stays on one disk, and without -L
+    // symlinks aren't followed. A permission error still reports what went.
+    const output = yield* executor
+      .run("find", [
+        path,
+        "-xdev",
+        "-type",
+        "f",
+        "-mmin",
+        `+${minutes}`,
+        "-printf",
+        "%s\\n",
+        "-delete",
+      ])
+      .pipe(
+        Effect.catchTag("CommandError", (error) =>
+          Effect.succeed(error.stdout ?? ""),
+        ),
+      );
+
+    const sizes = output
+      .split("\n")
+      .filter(Boolean)
+      .map((size) => Number(size) || 0);
+
+    const bytes = sizes.reduce((total, size) => total + size, 0);
+
+    freed += bytes;
+
+    actions.push(
+      sizes.length > 0
+        ? done(
+            `Removed ${plural(sizes.length, "file")} older than ${Duration.format(target.olderThan)} from ${displayPath(path)} (${formatBytes(bytes)})`,
+          )
+        : skip(
+            `No files older than ${Duration.format(target.olderThan)} in ${displayPath(path)}`,
+          ),
+    );
+  }
+
+  actions.push(
+    freed > 0
+      ? notable(`Freed ${formatBytes(freed)}`)
+      : skip("Nothing to clean"),
+  );
+
+  const disks = yield* executor
+    .run("df", [
+      "--output=pcent,target",
+      "-x",
+      "tmpfs",
+      "-x",
+      "devtmpfs",
+      "-x",
+      "squashfs",
+      "-x",
+      "overlay",
+      "-x",
+      "efivarfs",
+    ])
+    .pipe(Effect.orElseSucceed(() => ""));
+
+  for (const [, percent = "0", target = ""] of disks.matchAll(
+    /^\s*(\d+)%\s+(.+)$/gm,
+  ))
+    if (Number(percent) > DISK_WARN_PERCENT)
+      actions.push(warn(`${target} is ${percent}% full`));
+
+  return { actions } satisfies StageOutcome;
+});
+
 /** Restore Herdr's pinned plugins and sync the saved Herdr and hc machines. */
 const herdrStage = Effect.gen(function* () {
   return {
@@ -501,6 +776,10 @@ const stageEffect = (stage: UpStage, opts: UpStageOptions) =>
         return yield* herdrStage;
       case "agents":
         return yield* agentsStage(opts.reload ?? true);
+      case "system":
+        return yield* systemStage;
+      case "clean":
+        return yield* cleanStage;
       case "shell":
         return yield* shellStage(opts.refreshStatus ?? true);
     }
