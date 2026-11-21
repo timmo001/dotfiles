@@ -853,7 +853,7 @@ const servicesCommand = describe(
         ["dot services dismiss hass-removal-report.timer"],
         {
           description:
-            "Runs that ended before now stop counting towards the job's failure streak, and systemd's failed state for its service is reset, so the panel and bar show it as healthy until the next run fails. A skipped run also clears an earlier failure by itself.",
+            "Runs that ended before now stop counting towards the job's failure streak, and systemd's failed state for its service is reset, so System Bridge shows it as healthy until the next run fails. A skipped run also clears an earlier failure by itself.",
         },
       ),
       describe(
