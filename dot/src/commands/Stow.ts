@@ -18,6 +18,7 @@ import {
 } from "../lib/opencodePlugins.js";
 import { syncSkills } from "../lib/externalSkills.js";
 import { applySyncthingConfig } from "../lib/syncthing.js";
+import { syncSystemBridgeProvider } from "../lib/systemBridgeProvider.js";
 import { applySecretFiles } from "../lib/secretFiles.js";
 import { applyDotLinksExtension } from "../lib/dotLinksExtension.js";
 import { enableDefaultUnits } from "../lib/userUnits.js";
@@ -156,6 +157,7 @@ export const stow = (opts?: {
       }
 
       actions.push(...(yield* enableDefaultUnits));
+      actions.push(yield* syncSystemBridgeProvider);
     }
 
     if (runPrivate) {
