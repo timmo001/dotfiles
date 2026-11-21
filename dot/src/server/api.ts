@@ -59,16 +59,74 @@ export const ServiceRepository = Schema.Struct({
 /** Repository that owns a registered job's executable. */
 export type ServiceRepository = typeof ServiceRepository.Type;
 
+/** A number or short string a job reports, with an optional unit and kind. */
+export const StatusStat = Schema.Struct({
+  id: Schema.String,
+  label: Schema.String,
+  value: Schema.Union([Schema.Finite, Schema.String]),
+  unit: Schema.optionalKey(Schema.String),
+  /** A hint for clients, such as Home Assistant picking a device class. */
+  kind: Schema.optionalKey(
+    Schema.Literals(["duration", "size", "timestamp", "count"]),
+  ),
+});
+
+/** A number or short string a job reports, with an optional unit and kind. */
+export type StatusStat = typeof StatusStat.Type;
+
+/** A labelled list of label and value pairs a job reports. */
+export const StatusList = Schema.Struct({
+  id: Schema.String,
+  label: Schema.String,
+  items: Schema.Array(
+    Schema.Struct({ label: Schema.String, value: Schema.String }),
+  ),
+});
+
+/** A labelled list of label and value pairs a job reports. */
+export type StatusList = typeof StatusList.Type;
+
+/** An action `dot services act` runs for an item, as clients show it. */
+export const ItemAction = Schema.Struct({
+  /** Built-in (`start`, `stop`, `dismiss`, `logs`, `investigate`) or the descriptor's id. */
+  id: Schema.String,
+  /** Button label. */
+  label: Schema.String,
+  /** A question for clients to ask before running it. */
+  confirm: Schema.optional(Schema.String),
+  /** Why it can't run now; it's refused until this clears. */
+  disabled: Schema.optional(Schema.String),
+});
+
+/** An action `dot services act` runs for an item, as clients show it. */
+export type ItemAction = typeof ItemAction.Type;
+
 /** Monitoring snapshot for one registered job. */
 export const ServiceStatus = Schema.Struct({
-  /** Registered unit, either a timer or a service. */
+  /** Stable key, the descriptor's `id` or its file name. */
+  id: Schema.String,
+  /** Registered unit, either a timer or a service; a check's id. */
   unit: Schema.String,
-  /** Service unit that does the work. */
+  /** Service unit that does the work; a check's id. */
   service: Schema.String,
   /** Display label. */
   label: Schema.String,
-  /** Whether the registered unit is a timer or a long-running service. */
-  kind: Schema.Literals(["timer", "service"]),
+  /** A timer and its oneshot, a long-running service, or a check with no unit. */
+  kind: Schema.Literals(["timer", "service", "check"]),
+  /** Whether the item's work is under way, so the machine shouldn't turn off. */
+  busy: Schema.Boolean,
+  /** When the busy work started, when known. */
+  busySince: Schema.optional(Schema.Finite),
+  /** How far the work is, from 0 to 1, from the status file or check. */
+  progress: Schema.optional(Schema.Finite),
+  /** Figures from the status file or check. */
+  stats: Schema.optional(Schema.Array(StatusStat)),
+  /** Short lines from the status file or check. */
+  notes: Schema.optional(Schema.Array(Schema.String)),
+  /** Lists from the status file or check. */
+  lists: Schema.optional(Schema.Array(StatusList)),
+  /** What `dot services act` can run for this item. */
+  actions: Schema.Array(ItemAction),
   /** Health derived from the monitoring policy. */
   health: ServiceHealth,
   /** Short human summary of the health. */
@@ -122,7 +180,15 @@ export const ServicesSnapshot = Schema.Struct({
   worst: ServiceHealth,
   /** Number of jobs in each health state. */
   counts: Schema.Record(Schema.String, Schema.Finite),
-  /** Every registered job. */
+  /** The items whose work is under way. */
+  busy: Schema.Array(
+    Schema.Struct({
+      item: Schema.String,
+      label: Schema.String,
+      since: Schema.optional(Schema.Finite),
+    }),
+  ),
+  /** Every registered job and check. */
   services: Schema.Array(ServiceStatus),
   /** Descriptor files that could not be read. */
   errors: Schema.Array(

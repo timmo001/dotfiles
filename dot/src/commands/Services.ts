@@ -21,7 +21,6 @@ import { herdrRepoOpen } from "./HerdrRepoOpen.js";
 import {
   CONFIG_DIR,
   DOT_BIN,
-  HOME_DIR,
   STATE_DIR,
   expandHomePath,
 } from "../lib/paths.js";
@@ -793,7 +792,7 @@ const expandDescriptorPath = (path: string) =>
 
 /**
  * A descriptor command's program, with a bare `dot` pinned to dot's own
- * binary, since the daemon's PATH can put Graphviz's `/usr/bin/dot` first.
+ * binary, since PATH can put Graphviz's `/usr/bin/dot` first.
  */
 const descriptorProgram = (program: string) =>
   program === "dot" ? DOT_BIN : program;
@@ -942,17 +941,8 @@ const serviceRepository = Effect.fn("Services.repository")(function* (
   );
 });
 
-/** Whether this is a desktop with Omarchy, where `investigate` can open an agent. */
-const onDesktop = Effect.gen(function* () {
-  const fs = yield* FileSystem.FileSystem;
-
-  return yield* fs
-    .exists(
-      envString(ENV.OMARCHY_PATH) ??
-        join(HOME_DIR, ".local", "share", "omarchy"),
-    )
-    .pipe(Effect.orElseSucceed(() => false));
-}).pipe(Effect.withSpan("Services.onDesktop"));
+/** The server has no Omarchy desktop, so `investigate` can't open an agent here. */
+const onDesktop = Effect.succeed(false);
 
 /** The extras of a status file or check output that pass through to the snapshot. */
 const statusExtras = (
@@ -1565,20 +1555,13 @@ const checkSnapshot = Effect.fn("Services.checkSnapshot")(function* (
   } satisfies ServiceStatus;
 });
 
-/** Options for building the services report. */
-export interface ServicesReportOptions {
-  /** Notify when a check turns failed, as the dot daemon does. */
-  readonly notifyChecks?: boolean;
-}
-
 /**
  * Run the checks whose last result is older than `every`, then build their
- * snapshots. With `notifyChecks`, a check that has just turned failed
- * notifies, since it has no unit for `OnFailure=` to do it.
+ * snapshots. The server has no dot daemon to watch them, so a check that
+ * turns failed doesn't notify.
  */
 const collectCheckStatus = Effect.fn("Services.collectChecks")(function* (
   checks: readonly RegisteredCheck[],
-  options: ServicesReportOptions,
 ) {
   const now = yield* Clock.currentTimeMillis;
   const desktop = yield* onDesktop;
@@ -1593,18 +1576,9 @@ const collectCheckStatus = Effect.fn("Services.collectChecks")(function* (
         if (cached && now - cached.ran < Duration.toMillis(every))
           return yield* checkSnapshot(check, cached, desktop);
 
-        const { previous, cache } = yield* runCheck(check);
-        const status = yield* checkSnapshot(check, cache, desktop);
+        const { cache } = yield* runCheck(check);
 
-        if (
-          options.notifyChecks &&
-          status.notify &&
-          status.health === "failed" &&
-          checkHealth(check, previous, now).health !== "failed"
-        )
-          yield* sendFailureNotification(status).pipe(Effect.ignore);
-
-        return status;
+        return yield* checkSnapshot(check, cache, desktop);
       }),
     { concurrency: 4 },
   );
@@ -1653,17 +1627,16 @@ const findItem = Effect.fn("Services.findItem")(function* (key: string) {
 });
 
 /**
- * The monitoring snapshot for every registered job and check, as `status
- * --json` prints it, with the busy items at the top.
+ * Read the monitoring snapshot for every registered job and check, as `dot
+ * services status --json` prints it, with the busy items listed too. The
+ * server has no dot daemon, so every read checks here.
  */
-export const servicesReport = Effect.fn("Services.report")(function* (
-  options: ServicesReportOptions = {},
-) {
+export const servicesSnapshot = Effect.gen(function* () {
   const { registered, checks, errors } = yield* readRegisteredServices;
 
   const services = [
     ...(yield* collectServiceStatus(registered)),
-    ...(yield* collectCheckStatus(checks, options)),
+    ...(yield* collectCheckStatus(checks)),
   ];
 
   const counts = Object.fromEntries(
@@ -1696,25 +1669,8 @@ export const servicesReport = Effect.fn("Services.report")(function* (
     errors,
     directory: SERVICES_DIR,
   } satisfies ServicesSnapshot;
-});
+}).pipe(Effect.withSpan("Services.snapshot"));
 
-/** Read the monitoring snapshot for every registered job, as `dot services status --json` prints it. */
-export const servicesSnapshot = servicesReport();
-
-// The parts of a job's snapshot the text output prints.
-const decodeServiceLine = Schema.decodeUnknownOption(
-  Schema.Struct({
-    unit: Schema.String,
-    label: Schema.String,
-    health: Schema.String,
-    summary: Schema.String,
-  }),
-);
-
-/** The services report, checked here. */
-const currentReport = servicesReport().pipe(
-  Effect.withSpan("Services.currentReport"),
-);
 // The parts of a snapshot System Bridge's provider document carries.
 const ExportItem = Schema.Struct({
   id: Schema.String,
@@ -1748,20 +1704,14 @@ const decodeExportItem = Schema.decodeUnknownOption(ExportItem);
  * decode. The schema is System Bridge's, so it never sees dot's own snapshot.
  */
 export const servicesExport = Effect.gen(function* () {
-  let report = yield* currentReport;
-  let items = report.services.map((entry) => decodeExportItem(entry));
-
-  // A dot daemon from before these fields existed: check here instead.
-  if (items.some(Option.isNone)) {
-    report = yield* servicesReport();
-    items = report.services.map((entry) => decodeExportItem(entry));
-  }
+  const snapshot = yield* servicesSnapshot;
+  const items = snapshot.services.map((entry) => decodeExportItem(entry));
 
   yield* Console.log(
     JSON.stringify({
       version: 1,
       updated: yield* Clock.currentTimeMillis,
-      busy: report.busy ?? [],
+      busy: snapshot.busy,
       items: items.flatMap((item) =>
         Option.toArray(item).map((entry) => ({
           ...entry,
@@ -1770,7 +1720,7 @@ export const servicesExport = Effect.gen(function* () {
           lists: entry.lists ?? [],
         })),
       ),
-      errors: report.errors.map(({ file, message }) => ({
+      errors: snapshot.errors.map(({ file, message }) => ({
         source: `services.d/${basename(file)}`,
         message,
       })),
@@ -1789,8 +1739,7 @@ const clockTime = (time: number) =>
 export const servicesBusy = Effect.fn("Services.busy")(function* (
   json: boolean,
 ) {
-  const report = yield* currentReport;
-  const busy = report.busy ?? [];
+  const { busy } = yield* servicesSnapshot;
 
   if (json) yield* Console.log(JSON.stringify(busy));
   else if (busy.length === 0) yield* Console.log("Nothing is busy");
@@ -1902,21 +1851,24 @@ export const servicesAct = Effect.fn("Services.act")(function* (
 export const servicesStatus = Effect.fn("Services.status")(function* (
   json: boolean,
 ) {
-  const report = yield* currentReport;
+  const snapshot = yield* servicesSnapshot;
+  const { services, errors } = snapshot;
 
-  if (json) return yield* Console.log(JSON.stringify(report));
+  if (json) {
+    yield* Console.log(JSON.stringify(snapshot));
 
-  if (report.services.length === 0)
-    yield* Console.log(`No services registered in ${report.directory}`);
+    return;
+  }
 
-  for (const status of report.services.flatMap((entry) =>
-    Option.toArray(decodeServiceLine(entry)),
-  ))
+  if (services.length === 0)
+    yield* Console.log(`No services registered in ${SERVICES_DIR}`);
+
+  for (const status of services)
     yield* Console.log(
       `${status.health.toUpperCase().padEnd(8)} ${status.label} (${status.unit}): ${status.summary}`,
     );
 
-  for (const error of report.errors)
+  for (const error of errors)
     yield* Console.error(
       `[WARN] Invalid descriptor ${error.file}: ${error.message}`,
     );
@@ -2119,15 +2071,15 @@ export const servicesJournal = Effect.fn("Services.journal")(function* (
   unit: string,
   lines: number,
 ) {
-  const { descriptor } = yield* findRegistered(unit);
-  const [status] = yield* collectServiceStatus([{ file: "", descriptor }]);
+  const registered = yield* findRegistered(unit);
+  const [status] = yield* collectServiceStatus([registered]);
   const executor = yield* CommandExecutor;
 
   return yield* executor
     .run("journalctl", [
       "--user",
       "--unit",
-      status?.service ?? descriptor.unit,
+      status?.service ?? registered.descriptor.unit,
       `--lines=${lines}`,
       "--output=short-iso",
       "--no-pager",
@@ -2345,20 +2297,13 @@ export const servicesNotify = Effect.fn("Services.notify")(function* (
 
   if (!status?.notify || status.health !== "failed") return;
 
-  yield* sendFailureNotification(status);
+  const lastFailure = status.runs.find((run) => run.result === "failed");
+
+  yield* notify(
+    `${status.label} failed`,
+    [status.summary, lastFailure?.summary ?? lastFailure?.detail]
+      .filter(Boolean)
+      .join(" · "),
+    "critical",
+  );
 });
-
-/** Record a failed item in the journal as a notification. */
-const sendFailureNotification = Effect.fn("Services.sendFailureNotification")(
-  function* (status: ServiceStatus) {
-    const lastFailure = status.runs.find((run) => run.result === "failed");
-
-    yield* notify(
-      `${status.label} failed`,
-      [status.summary, lastFailure?.summary ?? lastFailure?.detail]
-        .filter(Boolean)
-        .join(" · "),
-      "critical",
-    );
-  },
-);
