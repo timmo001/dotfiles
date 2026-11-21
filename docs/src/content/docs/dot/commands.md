@@ -52,7 +52,7 @@ dot install [flags]
 
 Aliases: `dot update`
 
-Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell), then gh extensions, missing packages, apt and release packages, and compose up; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.
+Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell), then gh extensions, missing packages, apt and release packages, and compose up; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.
 
 ```text
 dot up <subcommand> [flags]
@@ -60,7 +60,7 @@ dot up <subcommand> [flags]
 
 dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and gh extensions. It saves the result for the status cache, lists it, then asks which groups to run, offering only those with work, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order:
 
-1. Stages: dotfiles, skills, repos, stow, tools, plugins, herdr, agents and shell, as `dot up <stage>` runs them. A stage that wasn't offered still runs when an earlier one changed something it applies: stow and Herdr after a dotfiles pull that brings new links or Herdr pins, tools after a dotfiles pull that brings mise changes, plugins after a tools upgrade, agents after a dotfiles pull or changed skills or plugins, and the shell after any change; stow, tools, plugins and Herdr are checked again first. A stage offered and left unticked never runs.
+1. Stages: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents and shell, as `dot up <stage>` runs them. Containers is offered when podman auto-update --dry-run finds a pending update. A stage that wasn't offered still runs when an earlier one changed something it applies: stow and Herdr after a dotfiles pull that brings new links or Herdr pins, tools after a dotfiles pull that brings mise changes, plugins after a tools upgrade, agents after a dotfiles pull or changed skills or plugins, and the shell after any change; stow, tools, plugins and Herdr are checked again first. A stage offered and left unticked never runs.
 2. gh extensions: installs missing ones and upgrades the rest.
 3. Missing packages: installs apt packages from the public and private lists.
 4. System: runs apt-get update and upgrade (with -y under --yes), then installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs.
@@ -85,9 +85,9 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--check-all` | Also check development repos for pulls, skipping local work |
 | `--yes` | Run every group with work without asking, and pass -y to apt-get upgrade |
 | `--force` | Offer every group, even with nothing pending |
-| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell, gh, packages, system, compose) |
-| `--declined` `<choice>` | Internal: the groups offered but not picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell, gh, packages, system, compose) |
-| `--changed` `<choice>` | Internal: the stages that changed something before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, herdr, agents, shell, gh, packages, system, compose) |
+| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell, gh, packages, system, compose) |
+| `--declined` `<choice>` | Internal: the groups offered but not picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell, gh, packages, system, compose) |
+| `--changed` `<choice>` | Internal: the stages that changed something before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell, gh, packages, system, compose) |
 | `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
@@ -279,6 +279,34 @@ dot up plugins [flags] [<repo...>]
 ```bash
 dot up plugins
 dot up plugins --json
+```
+
+### `dot up containers`
+
+Keep Podman Quadlet containers current: podman auto-update pulls the image of each running container marked AutoUpdate=registry, restarts the units whose image changed and rolls back a unit that fails to start, then podman image prune --all --force removes unused images. Each container updated, rolled back or that failed to update gets its own action. It fails only when every pull failed, so one registry being down warns and is tried again next run. Without Podman or marked containers it changes nothing. Pinned images aren't touched; they change through their Quadlet file, which stow applies. Never prompts, so it can run in the background.
+
+```text
+dot up containers [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up containers
+dot up containers --json
 ```
 
 ### `dot up herdr`
