@@ -204,6 +204,7 @@ export const UP_STAGES = [
   "tools",
   "plugins",
   "first-party",
+  "containers",
   "herdr",
   "agents",
   "shell",
