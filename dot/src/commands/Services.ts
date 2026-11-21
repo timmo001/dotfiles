@@ -2066,27 +2066,19 @@ export const servicesWatch = Effect.gen(function* () {
 }).pipe(Effect.withSpan("Services.watch"));
 
 /**
- * Bring the services panel up to date after a change: the dot daemon checks
- * again and its watchers see it, or without the daemon the panel is asked to
- * poll.
+ * Have the dot daemon check the services again after a change, so its
+ * watchers see it. Without the daemon there's nothing to tell: the next read
+ * checks for itself.
  */
-export const refreshServicesPanel = Effect.gen(function* () {
-  const viaDaemon = yield* tryDaemon(
+export const refreshServicesDaemon = Effect.gen(function* () {
+  yield* tryDaemon(
     Effect.gen(function* () {
       const client = yield* DaemonClient;
 
       return yield* client.RefreshServices();
     }).pipe(Effect.timeout(DAEMON_TIMEOUT)),
   );
-
-  if (Option.isSome(viaDaemon)) return;
-
-  const executor = yield* CommandExecutor;
-
-  yield* executor
-    .exitCode("omarchy-shell", ["-q", "timmo.services", "refresh"])
-    .pipe(Effect.ignore);
-}).pipe(Effect.withSpan("Services.refreshPanel"));
+}).pipe(Effect.withSpan("Services.refreshDaemon"));
 
 /**
  * Start a registered job's service now, restarting long-running services, or
@@ -2106,7 +2098,7 @@ export const servicesStart = Effect.fn("Services.start")(function* (
       yield* Clock.currentTimeMillis,
     );
 
-    yield* refreshServicesPanel;
+    yield* refreshServicesDaemon;
     yield* Console.log(`[INFO] ${item.entry.id}: ${health}, ${summary}`);
 
     return;
@@ -2149,8 +2141,8 @@ export const servicesStop = Effect.fn("Services.stop")(function* (
 
 /**
  * Clear a registered job's failures by hand: runs up to now stop counting,
- * systemd's failed state is reset and the panel refreshes. A later failure
- * counts again as usual.
+ * systemd's failed state is reset and the dot daemon checks again. A later
+ * failure counts again as usual.
  */
 export const servicesDismiss = Effect.fn("Services.dismiss")(function* (
   unit: string,
@@ -2170,7 +2162,7 @@ export const servicesDismiss = Effect.fn("Services.dismiss")(function* (
     .exitCode("systemctl", ["--user", "reset-failed", "--", service])
     .pipe(Effect.ignore);
 
-  yield* refreshServicesPanel;
+  yield* refreshServicesDaemon;
   yield* Console.log(`[INFO] Dismissed the failures of ${descriptor.unit}`);
 });
 
@@ -2484,14 +2476,14 @@ export const servicesInvestigate = Effect.fn("Services.investigate")(function* (
   });
 });
 
-/** Notify about a failed registered job and refresh the shell panel. */
+/** Notify about a failed registered job and have the dot daemon check again. */
 export const servicesNotify = Effect.fn("Services.notify")(function* (
   unit: string,
 ) {
   const registered = yield* findRegistered(unit);
   const [status] = yield* collectServiceStatus([registered]);
 
-  yield* refreshServicesPanel;
+  yield* refreshServicesDaemon;
 
   if (!status?.notify || status.health !== "failed") return;
 

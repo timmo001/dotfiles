@@ -19,7 +19,7 @@ import {
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { CONFIG_DIR, STATE_DIR } from "../lib/paths.js";
 import {
-  refreshServicesPanel,
+  refreshServicesDaemon,
   type ReportedStatus,
   writeReportedStatus,
 } from "./Services.js";
@@ -196,8 +196,6 @@ export const fansRun = Effect.gen(function* () {
     Option.none(),
   );
 
-  const refreshPanel = refreshServicesPanel;
-
   const onSignal = () => Deferred.doneUnsafe(stop, Effect.void);
 
   yield* Effect.acquireRelease(
@@ -228,7 +226,7 @@ export const fansRun = Effect.gen(function* () {
             `[ERROR] Could not restore motherboard fan control (liquidctl exit ${restored})`,
           );
       yield* fs.remove(STATUS_FILE, { force: true }).pipe(Effect.ignore);
-      yield* refreshPanel;
+      yield* refreshServicesDaemon;
     }),
   );
 
@@ -260,7 +258,8 @@ export const fansRun = Effect.gen(function* () {
     if ((yield* Ref.getAndSet(lastLogged, line)) !== line)
       yield* Console.log(line);
 
-    if (Option.getOrUndefined(previous)?.health !== health) yield* refreshPanel;
+    if (Option.getOrUndefined(previous)?.health !== health)
+      yield* refreshServicesDaemon;
   });
 
   /** Set every channel, returning those liquidctl rejected. */

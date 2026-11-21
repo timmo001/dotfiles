@@ -24,7 +24,8 @@ export class StatusCheckError extends Schema.TaggedError<StatusCheckError>()(
 
 /**
  * Every registered job's snapshot, as `dot services status --json` prints
- * it. Each job's snapshot passes through to the services panel unchanged.
+ * it. Each job's snapshot passes through to watchers such as `dot services
+ * export` unchanged.
  */
 export const ServicesReport = Schema.Struct({
   worst: Schema.String,

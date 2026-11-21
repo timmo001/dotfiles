@@ -131,15 +131,6 @@
       }
     },
     {
-      "id": "timmo.services",
-      "placement": { "section": "center", "after": "timmo.notes" },
-      "settings": { "primaryOnly": true, "hideWhenQuiet": true },
-      "hosts": {
-        "desktop": { "primaryOutput": "HDMI-A-2" },
-        "laptop": { "primaryOutput": "eDP-1" }
-      }
-    },
-    {
       "id": "timmo.momentumctl",
       "managed": true,
       "repository": "timmo001/omarchy-momentumctl"

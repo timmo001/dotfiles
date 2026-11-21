@@ -16,7 +16,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { exitStatus } from "../services/CommandExecutor.js";
 import { CONFIG_DIR, STATE_DIR } from "../lib/paths.js";
 import {
-  refreshServicesPanel,
+  refreshServicesDaemon,
   type ReportedStatus,
   writeReportedStatus,
 } from "./Services.js";
@@ -133,8 +133,6 @@ export const tunnelRun = Effect.fn("Tunnel.run")(
       Option.none(),
     );
 
-    const refreshPanel = refreshServicesPanel;
-
     const onSignal = () => Deferred.doneUnsafe(stop, Effect.void);
 
     yield* Effect.acquireRelease(
@@ -175,7 +173,7 @@ export const tunnelRun = Effect.fn("Tunnel.run")(
       if (previous?.summary !== summary)
         yield* Console.log(`[${health.toUpperCase()}] ${summary}`);
 
-      if (previous?.health !== health) yield* refreshPanel;
+      if (previous?.health !== health) yield* refreshServicesDaemon;
     });
 
     const readSecret = (path: string) =>
@@ -353,7 +351,7 @@ export const tunnelRun = Effect.fn("Tunnel.run")(
       Effect.gen(function* () {
         yield* stopCloudflared;
         yield* fs.remove(statusFile, { force: true }).pipe(Effect.ignore);
-        yield* refreshPanel;
+        yield* refreshServicesDaemon;
       }),
     );
 
