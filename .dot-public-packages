@@ -27,6 +27,7 @@ libva-utils
 mise-bin
 repo-notes-git
 pkgconf
+podman
 python-gobject
 qt6-webengine
 remmina
