@@ -75,6 +75,7 @@ Write tools ask before they run unless a permission rule allows them. Tools that
 | `up_stow` | `dot up stow` | Write | Tool |
 | `up_tools` | `dot up tools` | Job only | Left out |
 | `up_plugins` | `dot up plugins` | Write | Tool |
+| `up_containers` | `dot up containers` | Job only | Left out |
 | `up_herdr` | `dot up herdr` | Write | Tool |
 | `up_agents` | `dot up agents` | Write | Tool |
 | `up_shell` | `dot up shell` | Write | Tool |

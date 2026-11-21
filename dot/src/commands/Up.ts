@@ -21,6 +21,7 @@ import { installGhExtensions } from "../lib/ghExtensions.js";
 import { DEFAULT_SOCKET_PATH, openHerdrRepo } from "./HerdrRepoOpen.js";
 import { COMPOSE_CONFIG, composeUp } from "./Compose.js";
 import { installMissingPackages } from "../lib/packageSetup.js";
+import { autoUpdate, hasPodman } from "../lib/podman.js";
 import {
   agentPlugins,
   checkAll,
@@ -99,6 +100,11 @@ const GROUP_INFO: Record<
     title: "Agent plugins",
     description: "Update the Pi and OpenCode plugins",
   },
+  containers: {
+    title: "Podman containers",
+    description:
+      "Pull new images for the containers marked AutoUpdate=registry, restart them and prune unused images",
+  },
   herdr: {
     title: "Herdr",
     description: "Restore pinned Herdr plugins and sync the saved machines",
@@ -146,6 +152,7 @@ const isHerdrPinLine = (line: string) =>
 const groupWork = (
   groups: readonly PendingGroup[],
   repoPulls: readonly RepoPull[],
+  containers: readonly string[],
 ) => {
   const byId = new Map(groups.map((group) => [group.id, group]));
 
@@ -169,6 +176,7 @@ const groupWork = (
     stow: dotfiles.filter(isStowLine),
     tools: lines("tools"),
     plugins: lines("plugins"),
+    containers,
     herdr: dotfiles.filter(isHerdrPinLine),
     agents: [],
     shell: [],
@@ -396,6 +404,31 @@ const logIncoming = Effect.fn("Up.incoming")(function* (
 
   if (ranges.some((range) => range.length > 0)) yield* log.info("");
 });
+
+/**
+ * The containers `podman auto-update --dry-run` would update, as `name
+ * (image)` lines. Empty without Podman or marked containers, so the picker
+ * only offers the stage when there's an update to apply.
+ */
+const pendingContainers = Effect.gen(function* () {
+  const log = yield* OutputLog;
+
+  if (!(yield* hasPodman)) return [];
+
+  const reports = yield* autoUpdate(true).pipe(
+    Effect.catch((error) =>
+      log
+        .warn(`Could not check for container updates: ${error.message}`)
+        .pipe(Effect.as([])),
+    ),
+  );
+
+  return reports.flatMap((report) =>
+    report.Updated === "pending"
+      ? [`${report.ContainerName} (${report.Image})`]
+      : [],
+  );
+}).pipe(Effect.withSpan("Up.pendingContainers"));
 
 /** Options for `dot up`. */
 export interface UpOptions extends UpdateOptions {
@@ -650,10 +683,14 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
   } else {
     yield* log.section("Checking For Updates");
 
-    status = yield* log.withSpinner(
+    const [checked, containers] = yield* log.withSpinner(
       "Checking everything",
-      checkAll(CHECK_TIMEOUT),
+      Effect.all([checkAll(CHECK_TIMEOUT), pendingContainers], {
+        concurrency: 2,
+      }),
     );
+
+    status = checked;
     yield* saveStatus(status).pipe(Effect.ignore);
 
     // The check has just fetched, so this scan reads the cached upstreams.
@@ -665,7 +702,7 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
 
     pulls = repoPulls(repos, status.dot.pending);
 
-    const work = groupWork(pendingGroups(status), pulls);
+    const work = groupWork(pendingGroups(status), pulls, containers);
 
     const style = cliStyler();
 

@@ -1,6 +1,7 @@
 /**
  * @file The stages of `dot up`, each runnable on its own as `dot up <stage>`:
- * dotfiles, skills, repos, stow, tools, plugins, herdr, agents and shell. A
+ * dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents
+ * and shell. A
  * stage never prompts or opens Herdr, so a background runner such as Upkeep can
  * call it, and with `--json` it prints one result saying what changed.
  */
@@ -18,6 +19,13 @@ import { syncSkills } from "../lib/externalSkills.js";
 import { gitCurrentBranch, gitOutput } from "../lib/git.js";
 import { ensureInitCompleteMarker } from "../lib/initState.js";
 import { printJson } from "../lib/jsonStdout.js";
+import {
+  autoUpdate,
+  hasPodman,
+  markedContainers,
+  podmanLines,
+} from "../lib/podman.js";
+import { plural } from "../lib/runSummary.js";
 import { trustRepoMiseConfigs } from "../lib/miseTrust.js";
 import { syncNotesRepositoryDirectories } from "../lib/notesRepositoryDirectories.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
@@ -91,6 +99,8 @@ export interface UpStageResult {
 
 interface StageOutcome {
   readonly actions: readonly RecapEntry[];
+  /** Why the stage failed, keeping its actions; a thrown failure replaces them. */
+  readonly error?: string;
   readonly updatedRepos?: readonly UpdatedRepo[];
   readonly miseTools?: readonly MiseToolChange[];
   readonly skillsChanged?: boolean;
@@ -362,6 +372,65 @@ const pluginsStage = Effect.gen(function* () {
   } satisfies StageOutcome;
 });
 
+/**
+ * Pull new images for the running containers marked `AutoUpdate=registry`,
+ * restart those whose image changed (Podman rolls a unit back when it fails
+ * to start), then prune unused images. Pinned images change through their
+ * Quadlet file, which stow applies. Fails only when every pull failed, so one
+ * registry being down warns and is tried again on the next run.
+ */
+const containersStage = Effect.gen(function* () {
+  if (!(yield* hasPodman))
+    return {
+      actions: [skip("No containers (Podman isn't installed)")],
+    } satisfies StageOutcome;
+
+  if ((yield* markedContainers).length === 0)
+    return {
+      actions: [skip("No containers marked AutoUpdate=registry")],
+    } satisfies StageOutcome;
+
+  const reports = yield* autoUpdate(false);
+
+  const actions = reports.flatMap((report): RecapEntry[] => {
+    switch (report.Updated) {
+      case "true":
+        return [notable(`Updated ${report.ContainerName} (${report.Image})`)];
+      case "rolled back":
+        return [
+          warn(
+            `Rolled back ${report.ContainerName}: ${report.Unit} failed to start on the new image`,
+          ),
+        ];
+      case "failed":
+        return [
+          warn(`Could not update ${report.ContainerName} (${report.Image})`),
+        ];
+      default:
+        return [];
+    }
+  });
+
+  if (actions.length === 0) actions.push(skip("Containers already up to date"));
+
+  const pruned = yield* podmanLines(["image", "prune", "--all", "--force"]);
+
+  actions.push(
+    pruned.length > 0
+      ? notable(`Pruned ${plural(pruned.length, "unused image")}`)
+      : skip("No unused images"),
+  );
+
+  const allFailed =
+    reports.length > 0 &&
+    reports.every((report) => report.Updated === "failed");
+
+  return {
+    actions,
+    ...(allFailed && { error: "Every container's image pull failed" }),
+  } satisfies StageOutcome;
+});
+
 /** Restore Herdr's pinned plugins and sync the saved Herdr and hc machines. */
 const herdrStage = Effect.gen(function* () {
   return {
@@ -426,6 +495,8 @@ const stageEffect = (stage: UpStage, opts: UpStageOptions) =>
         return yield* toolsStage;
       case "plugins":
         return yield* pluginsStage;
+      case "containers":
+        return yield* containersStage;
       case "herdr":
         return yield* herdrStage;
       case "agents":
