@@ -317,7 +317,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-56 files only on this branch.
+57 files only on this branch.
 
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-private.yml)
 - [`.dot-public-deb-releases.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-public-deb-releases.yml)
@@ -365,6 +365,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`server/src/styles/globals.css`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/styles/globals.css)
 - [`server/tsconfig.json`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/tsconfig.json)
 - [`server/vite.config.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/vite.config.ts)
+- [`system-upgrade/dot-system-upgrade`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/system-upgrade/dot-system-upgrade)
 - [`systemd/.config/dot/services.d/ollama.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/dot/services.d/ollama.yml)
 - [`systemd/.config/dot/services.d/ollaya.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/dot/services.d/ollaya.yml)
 - [`systemd/.config/dot/services.d/system-bridge.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/dot/services.d/system-bridge.yml)
