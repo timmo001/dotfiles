@@ -1410,20 +1410,148 @@ dot station <subcommand> [flags]
 **Examples**
 
 ```bash
-dot station screen on
-dot station tv game
-dot station tv status
+dot station desktop on
+dot station screen game
+dot station screen status
+```
+
+### `dot station desktop`
+
+Use Station's TV as an extra desktop for this machine
+
+```text
+dot station desktop <subcommand> [flags]
+```
+
+On adds a headless Hyprland output named STATION, whose mode comes from hypr/monitors.lua, starts Sunshine (which streams it through output_name = STATION in ~/.config/sunshine/sunshine.conf) and runs dot screen moonlight on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml (ssh: user@host), at the output's size and refresh rate, with sound on both machines. That shows Moonlight full screen in gamescope instead of Station's desktop or gaming mode, which also takes the TV out of HDR, since the stream is SDR. It also starts a watcher that removes the output when Moonlight closes there, such as when another dot screen command takes the TV. Off runs dot screen last on Station while Moonlight is on its TV, which closes it so the TV goes back to what it showed before, stops the watcher and removes the output, so its workspaces move back; the watcher removes it too. SSH calls share one connection, kept for 60 seconds after the last.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station desktop on
+dot station desktop off
+dot station desktop toggle
+```
+
+#### `dot station desktop on`
+
+Add the Station desktop and show it on Station
+
+```text
+dot station desktop on [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station desktop on
+```
+
+#### `dot station desktop off`
+
+Close Moonlight on Station, back to what it showed, and remove the Station desktop
+
+```text
+dot station desktop off [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station desktop off
+```
+
+#### `dot station desktop toggle`
+
+Turn the Station desktop off when it's on, otherwise on
+
+```text
+dot station desktop toggle [flags]
+```
+
+The laptop binds it to Super + Ctrl + Alt + S, and the Station Desktop app runs it.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station desktop toggle
+```
+
+#### `dot station desktop status`
+
+Say whether the Station desktop is on and Moonlight is showing it
+
+```text
+dot station desktop status [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station desktop status
+```
+
+#### `dot station desktop watch`
+
+Remove the Station desktop once Moonlight on Station closes
+
+```text
+dot station desktop watch [flags]
+```
+
+Run by dot station desktop on as the station-desktop-watch user unit. One SSH connection checks on Station every 2 seconds, since Station's firewall limits new connections; when it drops, it reconnects after 30 seconds rather than taking that as Moonlight closing.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station desktop watch
 ```
 
 ### `dot station screen`
 
-Use Station's TV as an extra screen for this machine
+Switch what Station's TV shows
 
 ```text
 dot station screen <subcommand> [flags]
 ```
 
-On adds a headless Hyprland output named STATION, whose mode comes from hypr/monitors.lua, starts Sunshine (which streams it through output_name = STATION in ~/.config/sunshine/sunshine.conf) and runs dot screen moonlight on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml (ssh: user@host), at the output's size and refresh rate, with sound on both machines. That shows Moonlight full screen in gamescope instead of Station's desktop or gaming mode, which also takes the TV out of HDR, since the stream is SDR. It also starts a watcher that removes the screen when Moonlight closes there, such as when another dot screen command takes the TV. Off runs dot screen back on Station, which closes Moonlight so the TV goes back to what it showed before, stops the watcher and removes the screen, so its workspaces move back; the watcher removes it too. SSH calls share one connection, kept for 60 seconds after the last.
+Each runs the matching dot screen command on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml, sharing the Station desktop's SSH connection.
 
 **Options**
 
@@ -1434,17 +1562,16 @@ On adds a headless Hyprland output named STATION, whose mode comes from hypr/mon
 **Examples**
 
 ```bash
-dot station screen on
-dot station screen off
-dot station screen toggle
+dot station screen game
+dot station screen status
 ```
 
-#### `dot station screen on`
+#### `dot station screen game`
 
-Add the Station screen and show it on Station
+Show Steam's gaming mode on Station's TV
 
 ```text
-dot station screen on [flags]
+dot station screen game [flags]
 ```
 
 **Options**
@@ -1456,12 +1583,32 @@ dot station screen on [flags]
 **Examples**
 
 ```bash
-dot station screen on
+dot station screen game
+```
+
+#### `dot station screen desktop`
+
+Show the Plasma desktop on Station's TV
+
+```text
+dot station screen desktop [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station screen desktop
 ```
 
 #### `dot station screen off`
 
-Close Moonlight on Station, back to what it showed, and remove the Station screen
+Close whatever is on Station's TV, leaving it headless
 
 ```text
 dot station screen off [flags]
@@ -1479,162 +1626,15 @@ dot station screen off [flags]
 dot station screen off
 ```
 
-#### `dot station screen toggle`
-
-Turn the Station screen off when it's on, otherwise on
-
-```text
-dot station screen toggle [flags]
-```
-
-The laptop binds it to Super + Ctrl + Alt + S, and the Station Screen app runs it.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station screen toggle
-```
-
-#### `dot station screen status`
-
-Say whether the Station screen is on and Moonlight is showing it
-
-```text
-dot station screen status [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station screen status
-```
-
-#### `dot station screen watch`
-
-Remove the Station screen once Moonlight on Station closes
-
-```text
-dot station screen watch [flags]
-```
-
-Run by dot station screen on as the station-screen-watch user unit. One SSH connection checks on Station every 2 seconds, since Station's firewall limits new connections; when it drops, it reconnects after 30 seconds rather than taking that as Moonlight closing.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station screen watch
-```
-
-### `dot station tv`
-
-Switch what Station's TV shows
-
-```text
-dot station tv <subcommand> [flags]
-```
-
-Each runs the matching dot screen command on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml, sharing the Station screen's SSH connection.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station tv game
-dot station tv status
-```
-
-#### `dot station tv game`
-
-Show Steam's gaming mode on Station's TV
-
-```text
-dot station tv game [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station tv game
-```
-
-#### `dot station tv desktop`
-
-Show the Plasma desktop on Station's TV
-
-```text
-dot station tv desktop [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station tv desktop
-```
-
-#### `dot station tv off`
-
-Close whatever is on Station's TV, leaving it headless
-
-```text
-dot station tv off [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot station tv off
-```
-
-#### `dot station tv moonlight`
+#### `dot station screen moonlight`
 
 Show a Moonlight stream full screen on Station's TV
 
 ```text
-dot station tv moonlight [flags] <host>
+dot station screen moonlight [flags] <host>
 ```
 
-For any other stream: dot station screen on already runs this for the Station screen, and also watches for it closing.
+For any other stream: dot station desktop on already runs this for the Station desktop, and also watches for it closing.
 
 **Options**
 
@@ -1654,15 +1654,15 @@ For any other stream: dot station screen on already runs this for the Station sc
 **Examples**
 
 ```bash
-dot station tv moonlight desktop.local
+dot station screen moonlight desktop.local
 ```
 
-#### `dot station tv back`
+#### `dot station screen last`
 
-Close Moonlight on Station's TV, back to what it showed before
+Switch Station's TV back to what it showed before the latest switch
 
 ```text
-dot station tv back [flags]
+dot station screen last [flags]
 ```
 
 **Options**
@@ -1674,15 +1674,15 @@ dot station tv back [flags]
 **Examples**
 
 ```bash
-dot station tv back
+dot station screen last
 ```
 
-#### `dot station tv status`
+#### `dot station screen status`
 
 Say what's on Station's TV and what its next login starts
 
 ```text
-dot station tv status [flags]
+dot station screen status [flags]
 ```
 
 **Options**
@@ -1694,15 +1694,15 @@ dot station tv status [flags]
 **Examples**
 
 ```bash
-dot station tv status
+dot station screen status
 ```
 
-#### `dot station tv keyboard`
+#### `dot station screen keyboard`
 
 Show or hide Plasma's on-screen keyboard on Station's TV
 
 ```text
-dot station tv keyboard [flags]
+dot station screen keyboard [flags]
 ```
 
 **Options**
@@ -1714,7 +1714,7 @@ dot station tv keyboard [flags]
 **Examples**
 
 ```bash
-dot station tv keyboard
+dot station screen keyboard
 ```
 
 ## `dot tunnel`

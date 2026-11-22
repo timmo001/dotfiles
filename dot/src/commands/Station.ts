@@ -7,7 +7,7 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 /** Where Station's SSH destination is configured, stowed from the private overlay. */
 const CONFIG_PATH = join(CONFIG_DIR, "dot", "station-screen.yml");
 
-const StationScreenConfig = Schema.Struct({
+const StationConfig = Schema.Struct({
   /** SSH destination, such as `user@host`. */
   ssh: Schema.String.check(Schema.isPattern(/^[A-Za-z0-9_][\w.@-]*$/)),
 });
@@ -38,8 +38,8 @@ const OUTPUT = "STATION";
 /** Station's dot screen status while its TV shows a Moonlight stream. */
 const MOONLIGHT_ON_SCREEN = "^On screen: Moonlight";
 
-/** The transient user unit here that removes the screen once Moonlight closes. */
-const WATCH_UNIT = "station-screen-watch";
+/** The transient user unit here that removes the desktop once Moonlight closes. */
+const WATCH_UNIT = "station-desktop-watch";
 
 const SUNSHINE_UNIT = "app-dev.lizardbyte.app.Sunshine.service";
 
@@ -49,9 +49,9 @@ const POLL_ON_STATION = Duration.seconds(2);
 /** How long the watcher waits before reconnecting; Station's ufw refuses a sixth new SSH connection within 30 seconds. */
 const RECONNECT_AFTER = Duration.seconds(30);
 
-/** The Station screen could not be added. */
-export class StationScreenError extends Schema.TaggedError<StationScreenError>()(
-  "StationScreenError",
+/** Station couldn't do what was asked, or couldn't be reached. */
+export class StationError extends Schema.TaggedError<StationError>()(
+  "StationError",
   { message: Schema.String },
 ) {}
 
@@ -73,7 +73,7 @@ const decodeMonitors = Schema.decodeEffect(
 const say = (line: string) =>
   Effect.sync(() => process.stdout.write(`${line}\n`));
 
-/** The Station screen, when it's on. */
+/** The Station desktop's output, when it's on. */
 const stationOutput = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
 
@@ -84,27 +84,27 @@ const stationOutput = Effect.gen(function* () {
   return Option.fromNullishOr(
     monitors.find((monitor) => monitor.name === OUTPUT),
   );
-}).pipe(Effect.withSpan("StationScreen.output"));
+}).pipe(Effect.withSpan("Station.output"));
 
 const removeOutput = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
 
   if (Option.isSome(yield* stationOutput))
     yield* executor.run("hyprctl", ["output", "remove", OUTPUT]);
-}).pipe(Effect.withSpan("StationScreen.removeOutput"));
+}).pipe(Effect.withSpan("Station.removeOutput"));
 
 /** ssh arguments to run `args` on Station, with its destination from the private config. */
-const sshArgs = Effect.fn("StationScreen.sshArgs")(function* (
+const sshArgs = Effect.fn("Station.sshArgs")(function* (
   args: readonly string[],
 ) {
   const fs = yield* FileSystem.FileSystem;
 
   const config = yield* fs.readFileString(CONFIG_PATH).pipe(
     Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
-    Effect.flatMap(Schema.decodeUnknownEffect(StationScreenConfig)),
+    Effect.flatMap(Schema.decodeUnknownEffect(StationConfig)),
     Effect.mapError(
       (cause) =>
-        new StationScreenError({
+        new StationError({
           message: `read ${displayPath(CONFIG_PATH)}: ${cause.message}`,
         }),
     ),
@@ -114,7 +114,7 @@ const sshArgs = Effect.fn("StationScreen.sshArgs")(function* (
 });
 
 /** Run dot on Station, failing when it fails. */
-const stationDot = Effect.fn("StationScreen.stationDot")(function* (
+const stationDot = Effect.fn("Station.stationDot")(function* (
   args: readonly string[],
 ) {
   const executor = yield* CommandExecutor;
@@ -132,7 +132,7 @@ const moonlightStatus = Effect.gen(function* () {
       `${STATION_DOT} screen status | grep -q '${MOONLIGHT_ON_SCREEN}'`,
     ]),
   );
-}).pipe(Effect.withSpan("StationScreen.moonlightStatus"));
+}).pipe(Effect.withSpan("Station.moonlightStatus"));
 
 const startWatch = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
@@ -152,13 +152,13 @@ const startWatch = Effect.gen(function* () {
       `--unit=${WATCH_UNIT}`,
       DOT_BIN,
       "station",
-      "screen",
+      "desktop",
       "watch",
     ]);
-}).pipe(Effect.withSpan("StationScreen.startWatch"));
+}).pipe(Effect.withSpan("Station.startWatch"));
 
-/** Add the Station screen and show it on Station's TV through dot screen moonlight there. */
-export const stationScreenOn = Effect.gen(function* () {
+/** Add the Station desktop and show it on Station's TV through dot screen moonlight there. */
+export const stationDesktopOn = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
 
   yield* executor.run("systemctl", ["--user", "start", SUNSHINE_UNIT]);
@@ -169,7 +169,7 @@ export const stationScreenOn = Effect.gen(function* () {
   const output = yield* stationOutput;
 
   if (Option.isNone(output))
-    return yield* new StationScreenError({
+    return yield* new StationError({
       message: `Hyprland didn't add ${OUTPUT}.`,
     });
 
@@ -198,30 +198,34 @@ export const stationScreenOn = Effect.gen(function* () {
   ]);
   yield* startWatch;
   yield* say(`Station is showing ${OUTPUT} (${width}x${height}@${fps}).`);
-}).pipe(Effect.withSpan("StationScreen.on"));
+}).pipe(Effect.withSpan("Station.on"));
 
-/** Close Moonlight on Station, which puts back what its TV showed before, and remove the Station screen. */
-export const stationScreenOff = Effect.gen(function* () {
+/** Close Moonlight on Station, which puts back what its TV showed before, and remove the Station desktop. */
+export const stationDesktopOff = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
 
   yield* executor.exitCode("systemctl", ["--user", "stop", WATCH_UNIT]);
-  yield* executor.exitCode(
-    "ssh",
-    yield* sshArgs([STATION_DOT, "screen", "back"]),
-  );
+
+  // dot screen last switches away from anything, so only while it's Moonlight.
+  if ((yield* moonlightStatus) === 0)
+    yield* executor.exitCode(
+      "ssh",
+      yield* sshArgs([STATION_DOT, "screen", "last"]),
+    );
+
   yield* removeOutput;
   yield* say(`${OUTPUT} is off.`);
-}).pipe(Effect.withSpan("StationScreen.off"));
+}).pipe(Effect.withSpan("Station.off"));
 
-/** Turn the Station screen off when it's on, otherwise on. */
-export const stationScreenToggle = Effect.gen(function* () {
-  if (Option.isSome(yield* stationOutput)) return yield* stationScreenOff;
+/** Turn the Station desktop off when it's on, otherwise on. */
+export const stationDesktopToggle = Effect.gen(function* () {
+  if (Option.isSome(yield* stationOutput)) return yield* stationDesktopOff;
 
-  return yield* stationScreenOn;
-}).pipe(Effect.withSpan("StationScreen.toggle"));
+  return yield* stationDesktopOn;
+}).pipe(Effect.withSpan("Station.toggle"));
 
-/** Say whether the Station screen is on and Moonlight is showing it. */
-export const stationScreenStatus = Effect.gen(function* () {
+/** Say whether the Station desktop is on and Moonlight is showing it. */
+export const stationDesktopStatus = Effect.gen(function* () {
   const output = yield* stationOutput;
 
   yield* say(
@@ -237,10 +241,10 @@ export const stationScreenStatus = Effect.gen(function* () {
   yield* say(
     `Moonlight on Station: ${status === 0 ? "active" : status === SSH_FAILED ? "unreachable" : "inactive"}`,
   );
-}).pipe(Effect.withSpan("StationScreen.status"));
+}).pipe(Effect.withSpan("Station.status"));
 
 /** Run one of Station's own dot screen commands, which switch what its TV shows. */
-export const stationTv = Effect.fn("StationScreen.tv")(function* (
+export const stationScreen = Effect.fn("Station.screen")(function* (
   args: readonly string[],
 ) {
   const executor = yield* CommandExecutor;
@@ -251,19 +255,19 @@ export const stationTv = Effect.fn("StationScreen.tv")(function* (
   );
 
   if (exitCode !== 0)
-    return yield* new StationScreenError({
+    return yield* new StationError({
       message: `dot screen ${args.join(" ")} on Station exited ${exitCode}`,
     });
 });
 
 /**
- * Remove the Station screen once Moonlight on Station stops, such as when it's
+ * Remove the Station desktop once Moonlight on Station stops, such as when it's
  * closed there or another dot screen command takes the TV. One SSH connection
  * waits on Station, since Station rate limits new ones; when it drops, as
  * while this machine sleeps, it reconnects rather than taking that as
  * Moonlight closing.
  */
-export const stationScreenWatch = Effect.gen(function* () {
+export const stationDesktopWatch = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
 
   const waitForMoonlight = sshArgs([
@@ -296,8 +300,8 @@ export const stationScreenWatch = Effect.gen(function* () {
       "󰍹",
       "--app-name",
       "Display",
-      "Station screen off",
+      "Station desktop off",
       "Moonlight on Station closed, so its windows are back here.",
     ]);
   }
-}).pipe(Effect.withSpan("StationScreen.watch"));
+}).pipe(Effect.withSpan("Station.watch"));

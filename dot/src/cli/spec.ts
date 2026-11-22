@@ -72,13 +72,13 @@ import {
 } from "../commands/Game.js";
 import { hdr } from "../commands/Hdr.js";
 import {
-  stationScreenOff,
-  stationScreenOn,
-  stationScreenStatus,
-  stationScreenToggle,
-  stationScreenWatch,
-  stationTv,
-} from "../commands/StationScreen.js";
+  stationDesktopOff,
+  stationDesktopOn,
+  stationDesktopStatus,
+  stationDesktopToggle,
+  stationDesktopWatch,
+  stationScreen,
+} from "../commands/Station.js";
 import { tunnelRun } from "../commands/Tunnel.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { prQueue } from "../commands/PrQueue.js";
@@ -1051,71 +1051,71 @@ const stationCommand = describe(
   Command.make("station").pipe(
     Command.withSubcommands([
       describe(
-        Command.make("screen").pipe(
+        Command.make("desktop").pipe(
           Command.withSubcommands([
             describe(
-              Command.make("on", {}, () => stationScreenOn),
-              "Add the Station screen and show it on Station",
-              ["dot station screen on"],
+              Command.make("on", {}, () => stationDesktopOn),
+              "Add the Station desktop and show it on Station",
+              ["dot station desktop on"],
             ),
             describe(
-              Command.make("off", {}, () => stationScreenOff),
-              "Close Moonlight on Station, back to what it showed, and remove the Station screen",
-              ["dot station screen off"],
+              Command.make("off", {}, () => stationDesktopOff),
+              "Close Moonlight on Station, back to what it showed, and remove the Station desktop",
+              ["dot station desktop off"],
             ),
             describe(
-              Command.make("toggle", {}, () => stationScreenToggle),
-              "Turn the Station screen off when it's on, otherwise on",
-              ["dot station screen toggle"],
+              Command.make("toggle", {}, () => stationDesktopToggle),
+              "Turn the Station desktop off when it's on, otherwise on",
+              ["dot station desktop toggle"],
               {
                 description:
-                  "The laptop binds it to Super + Ctrl + Alt + S, and the Station Screen app runs it.",
+                  "The laptop binds it to Super + Ctrl + Alt + S, and the Station Desktop app runs it.",
               },
             ),
             describe(
-              Command.make("status", {}, () => stationScreenStatus),
-              "Say whether the Station screen is on and Moonlight is showing it",
-              ["dot station screen status"],
+              Command.make("status", {}, () => stationDesktopStatus),
+              "Say whether the Station desktop is on and Moonlight is showing it",
+              ["dot station desktop status"],
             ),
             describe(
-              Command.make("watch", {}, () => stationScreenWatch),
-              "Remove the Station screen once Moonlight on Station closes",
-              ["dot station screen watch"],
+              Command.make("watch", {}, () => stationDesktopWatch),
+              "Remove the Station desktop once Moonlight on Station closes",
+              ["dot station desktop watch"],
               {
                 description:
-                  "Run by dot station screen on as the station-screen-watch user unit. One SSH connection checks on Station every 2 seconds, since Station's firewall limits new connections; when it drops, it reconnects after 30 seconds rather than taking that as Moonlight closing.",
+                  "Run by dot station desktop on as the station-desktop-watch user unit. One SSH connection checks on Station every 2 seconds, since Station's firewall limits new connections; when it drops, it reconnects after 30 seconds rather than taking that as Moonlight closing.",
               },
             ),
           ]),
         ),
-        "Use Station's TV as an extra screen for this machine",
+        "Use Station's TV as an extra desktop for this machine",
         [
-          "dot station screen on",
-          "dot station screen off",
-          "dot station screen toggle",
+          "dot station desktop on",
+          "dot station desktop off",
+          "dot station desktop toggle",
         ],
         {
           description:
-            "On adds a headless Hyprland output named STATION, whose mode comes from hypr/monitors.lua, starts Sunshine (which streams it through output_name = STATION in ~/.config/sunshine/sunshine.conf) and runs dot screen moonlight on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml (ssh: user@host), at the output's size and refresh rate, with sound on both machines. That shows Moonlight full screen in gamescope instead of Station's desktop or gaming mode, which also takes the TV out of HDR, since the stream is SDR. It also starts a watcher that removes the screen when Moonlight closes there, such as when another dot screen command takes the TV. Off runs dot screen back on Station, which closes Moonlight so the TV goes back to what it showed before, stops the watcher and removes the screen, so its workspaces move back; the watcher removes it too. SSH calls share one connection, kept for 60 seconds after the last.",
+            "On adds a headless Hyprland output named STATION, whose mode comes from hypr/monitors.lua, starts Sunshine (which streams it through output_name = STATION in ~/.config/sunshine/sunshine.conf) and runs dot screen moonlight on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml (ssh: user@host), at the output's size and refresh rate, with sound on both machines. That shows Moonlight full screen in gamescope instead of Station's desktop or gaming mode, which also takes the TV out of HDR, since the stream is SDR. It also starts a watcher that removes the output when Moonlight closes there, such as when another dot screen command takes the TV. Off runs dot screen last on Station while Moonlight is on its TV, which closes it so the TV goes back to what it showed before, stops the watcher and removes the output, so its workspaces move back; the watcher removes it too. SSH calls share one connection, kept for 60 seconds after the last.",
         },
       ),
       describe(
-        Command.make("tv").pipe(
+        Command.make("screen").pipe(
           Command.withSubcommands([
             describe(
-              Command.make("game", {}, () => stationTv(["game"])),
+              Command.make("game", {}, () => stationScreen(["game"])),
               "Show Steam's gaming mode on Station's TV",
-              ["dot station tv game"],
+              ["dot station screen game"],
             ),
             describe(
-              Command.make("desktop", {}, () => stationTv(["desktop"])),
+              Command.make("desktop", {}, () => stationScreen(["desktop"])),
               "Show the Plasma desktop on Station's TV",
-              ["dot station tv desktop"],
+              ["dot station screen desktop"],
             ),
             describe(
-              Command.make("off", {}, () => stationTv(["off"])),
+              Command.make("off", {}, () => stationScreen(["off"])),
               "Close whatever is on Station's TV, leaving it headless",
-              ["dot station tv off"],
+              ["dot station screen off"],
             ),
             describe(
               Command.make(
@@ -1129,7 +1129,7 @@ const stationCommand = describe(
                   fps: integer("fps", "Stream frame rate, and the TV's", 60),
                 },
                 ({ host, width, height, fps }) =>
-                  stationTv([
+                  stationScreen([
                     "moonlight",
                     host,
                     "--width",
@@ -1141,40 +1141,44 @@ const stationCommand = describe(
                   ]),
               ),
               "Show a Moonlight stream full screen on Station's TV",
-              ["dot station tv moonlight desktop.local"],
+              ["dot station screen moonlight desktop.local"],
               {
                 description:
-                  "For any other stream: dot station screen on already runs this for the Station screen, and also watches for it closing.",
+                  "For any other stream: dot station desktop on already runs this for the Station desktop, and also watches for it closing.",
               },
             ),
             describe(
-              Command.make("back", {}, () => stationTv(["back"])),
-              "Close Moonlight on Station's TV, back to what it showed before",
-              ["dot station tv back"],
+              Command.make("last", {}, () => stationScreen(["last"])),
+              "Switch Station's TV back to what it showed before the latest switch",
+              ["dot station screen last"],
             ),
             describe(
-              Command.make("status", {}, () => stationTv(["status"])),
+              Command.make("status", {}, () => stationScreen(["status"])),
               "Say what's on Station's TV and what its next login starts",
-              ["dot station tv status"],
+              ["dot station screen status"],
             ),
             describe(
-              Command.make("keyboard", {}, () => stationTv(["keyboard"])),
+              Command.make("keyboard", {}, () => stationScreen(["keyboard"])),
               "Show or hide Plasma's on-screen keyboard on Station's TV",
-              ["dot station tv keyboard"],
+              ["dot station screen keyboard"],
             ),
           ]),
         ),
         "Switch what Station's TV shows",
-        ["dot station tv game", "dot station tv status"],
+        ["dot station screen game", "dot station screen status"],
         {
           description:
-            "Each runs the matching dot screen command on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml, sharing the Station screen's SSH connection.",
+            "Each runs the matching dot screen command on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml, sharing the Station desktop's SSH connection.",
         },
       ),
     ]),
   ),
   "Work with Station from this machine",
-  ["dot station screen on", "dot station tv game", "dot station tv status"],
+  [
+    "dot station desktop on",
+    "dot station screen game",
+    "dot station screen status",
+  ],
 );
 
 const gameCommand = describe(

@@ -5,7 +5,7 @@ o.bind("SUPER + CTRL + SHIFT + B", "Bluetooth", [[DEVICE="$(bluetoothctl devices
 o.bind("SUPER + ALT + C", "Doorbell Camera Popup", [[mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}"; nohup setsid ~/.config/dotfiles/scripts/.local/bin/doorbell-popup --open-only --no-auto-close --monitor eDP-1 >"${XDG_STATE_HOME:-$HOME/.local/state}/doorbell-camera-popup.log" 2>&1 < /dev/null &]])
 
 -- Station's TV as an extra screen, streamed over Moonlight
-o.bind("SUPER + CTRL + ALT + S", "Toggle Station screen", "dot station screen toggle")
+o.bind("SUPER + CTRL + ALT + S", "Toggle Station desktop", "dot station desktop toggle")
 
 -- Notifications: Hokum serves them here in place of the shell's plugin, which
 -- omarchy-plugins.json disables on the laptop. Hokum has no keyboard control

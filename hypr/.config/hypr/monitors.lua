@@ -9,7 +9,7 @@
 
 require("hypr.host.monitors")
 
--- The extra screen dot station screen adds, streamed to Station's TV.
+-- The extra desktop dot station desktop adds, streamed to Station's TV.
 hl.monitor({ output = "STATION", mode = "2560x1440@60", position = "auto-left", scale = 4 / 3 })
 
 -- Reapply HDR set by dot hdr on, so a reload doesn't drop it.
