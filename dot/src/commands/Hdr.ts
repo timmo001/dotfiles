@@ -3,6 +3,7 @@ import { Effect, FileSystem, Schema } from "effect";
 import { ENV, envString } from "../lib/env.js";
 import { currentOmarchyHost } from "../lib/omarchyHost.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
+import { plasmaHdr } from "./Screen.js";
 
 /** HDR could not be switched on the primary monitor. */
 export class HdrError extends Schema.TaggedError<HdrError>()("HdrError", {
@@ -126,6 +127,9 @@ export const hdrEnabled = primaryMonitor.pipe(
 
 /** Switch the primary monitor's HDR on or off, leaving it alone when it is already there. */
 export const hdr = Effect.fn("hdr")(function* (state: "on" | "off") {
+  // Station runs Plasma rather than Hyprland, and switches every screen.
+  if (currentOmarchyHost() === "station") return yield* plasmaHdr(state);
+
   const executor = yield* CommandExecutor;
   const fs = yield* FileSystem.FileSystem;
 

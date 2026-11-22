@@ -1330,7 +1330,7 @@ Switch the primary monitor between HDR and SDR
 dot hdr <subcommand> [flags]
 ```
 
-The primary monitor is HDMI-A-2 on the desktop host and the focused monitor elsewhere. On sets 10-bit output with HDR colour management and doubled SDR brightness, and saves the setting so a Hyprland reload keeps it; off restores 8-bit sRGB. Either does nothing when the monitor is already there. The hdr-on and hdr-off scripts wrap these for launchers that take a script path, such as a desktop entry for a video app. Games use dot game, which turns HDR on as part of gaming mode.
+The primary monitor is HDMI-A-2 on the desktop host and the focused monitor elsewhere. On sets 10-bit output with HDR colour management and doubled SDR brightness, and saves the setting so a Hyprland reload keeps it; off restores 8-bit sRGB. Either does nothing when the monitor is already there. The hdr-on and hdr-off scripts wrap these for launchers that take a script path, such as a desktop entry for a video app. Games use dot game, which turns HDR on as part of gaming mode. On Station, which runs Plasma, it switches HDR and wide colour on every connected screen through kscreen-doctor instead, from any shell or over SSH; on also sets each screen's EDID as its colour profile in SDR and HDR, and a screen without HDR is reported and left alone. Plasma runs dot hdr on at every login through dot screen setup, and gaming mode has its own HDR switch in Steam's display settings.
 
 **Options**
 
@@ -2059,7 +2059,7 @@ Make the TV the main screen and turn on HDR, as Plasma does at login
 dot screen setup [flags]
 ```
 
-First reads the EDID again for any connected screen the kernel read none for, which can happen through the USB-C to HDMI link after gaming mode and leaves the TV on 640x480, then tells KWin through udev. Then makes the first connected screen that isn't the laptop's own panel Plasma's main screen (priority 1) at 250%, with the panel and new windows. With the lid shut it switches the laptop's own screen off, since logind and KWin leave it on and Plasma and Big Picture would use it, and with the lid open it switches it back on. Then it runs dot screen hdr. With only the panel connected, the main screen stays as it is. Plasma runs this at every login.
+First reads the EDID again for any connected screen the kernel read none for, which can happen through the USB-C to HDMI link after gaming mode and leaves the TV on 640x480, then tells KWin through udev. Then makes the first connected screen that isn't the laptop's own panel Plasma's main screen (priority 1) at 250%, with the panel and new windows. With the lid shut it switches the laptop's own screen off, since logind and KWin leave it on and Plasma and Big Picture would use it, and with the lid open it switches it back on. Then it runs dot hdr on. With only the panel connected, the main screen stays as it is. Plasma runs this at every login.
 
 **Options**
 
@@ -2158,28 +2158,6 @@ dot screen steam-beta desktop [flags]
 dot screen steam-beta desktop
 ```
 
-### `dot screen hdr`
-
-Turn on HDR and wide colour on every screen in the Plasma session
-
-```text
-dot screen hdr [flags]
-```
-
-Runs kscreen-doctor against the running Plasma session, from any shell or over SSH, and turns on HDR and wide colour gamut on each connected screen, with that screen's own EDID as its colour profile in SDR and HDR. Each screen is set on its own, so one without HDR is reported and left alone. KWin keeps the settings per screen, and Plasma runs this at every login, so a newly connected TV picks it up on the next login. Gaming mode has its own HDR switch in Steam's display settings.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot screen hdr
-```
-
 ### `dot screen status`
 
 Say what's on screen and what the next login starts
@@ -2187,6 +2165,8 @@ Say what's on screen and what the next login starts
 ```text
 dot screen status [flags]
 ```
+
+While the Plasma desktop is on screen it also says whether HDR is on, which dot station screen on the laptop reads to put it back afterwards.
 
 **Options**
 

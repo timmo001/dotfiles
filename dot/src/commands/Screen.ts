@@ -96,7 +96,7 @@ export const screenOff = Effect.gen(function* () {
   );
 }).pipe(Effect.withSpan("Screen.off"));
 
-/** KDE's screen config, as much of it as dot screen hdr reads. */
+/** KDE's screen config, as much of it as dot screen and dot hdr read. */
 const KScreenConfig = Schema.fromJsonString(
   Schema.Struct({
     outputs: Schema.Array(
@@ -104,6 +104,7 @@ const KScreenConfig = Schema.fromJsonString(
         name: Schema.String,
         connected: Schema.Boolean,
         enabled: Schema.Boolean,
+        hdr: Schema.optionalKey(Schema.Boolean),
       }),
     ),
   }),
@@ -139,18 +140,15 @@ const plasmaSessionEnv = Effect.gen(function* () {
   };
 }).pipe(Effect.withSpan("Screen.plasmaSessionEnv"));
 
-/**
- * Turn on HDR and wide colour on every connected screen in the Plasma
- * session, with each screen's own EDID as its colour profile in SDR and HDR,
- * so the panel and the TV each get their own. KWin keeps the settings per
- * screen. A screen that can't do HDR is reported and left as it is.
- */
-export const screenHdr = Effect.gen(function* () {
+/** Read the Plasma session's screens through kscreen-doctor. */
+const readScreens = Effect.fn("Screen.readScreens")(function* (
+  env: Readonly<Record<string, string>>,
+) {
   const executor = yield* CommandExecutor;
-  const env = yield* plasmaSessionEnv;
 
-  const config = yield* executor.run("kscreen-doctor", ["-j"], { env }).pipe(
+  return yield* executor.run("kscreen-doctor", ["-j"], { env }).pipe(
     Effect.flatMap(Schema.decodeEffect(KScreenConfig)),
+    Effect.map((config) => config.outputs),
     Effect.mapError(
       (cause) =>
         new ScreenError({
@@ -158,34 +156,68 @@ export const screenHdr = Effect.gen(function* () {
         }),
     ),
   );
+});
 
-  const screens = config.outputs.filter(
-    (output) => output.connected && output.enabled,
+/** Whether any screen in the Plasma session is in HDR. */
+export const plasmaHdrEnabled = Effect.gen(function* () {
+  const screens = yield* readScreens(yield* plasmaSessionEnv);
+
+  return screens.some(
+    (screen) => screen.connected && screen.enabled && screen.hdr === true,
+  );
+}).pipe(Effect.withSpan("Screen.plasmaHdrEnabled"));
+
+/**
+ * Switch HDR and wide colour on or off on every connected screen in the
+ * Plasma session. On also sets each screen's own EDID as its colour profile in
+ * SDR and HDR, so the panel and the TV each get their own. KWin keeps the
+ * settings per screen. A screen that can't do HDR is reported and left as it is.
+ */
+export const plasmaHdr = Effect.fn("Screen.plasmaHdr")(function* (
+  state: "on" | "off",
+) {
+  const executor = yield* CommandExecutor;
+  const env = yield* plasmaSessionEnv;
+
+  const screens = (yield* readScreens(env)).filter(
+    (screen) => screen.connected && screen.enabled,
   );
 
-  for (const { name } of screens) {
+  for (const { name, hdr } of screens) {
+    if (state === "off" && hdr !== true) {
+      yield* Effect.sync(() =>
+        process.stdout.write(`HDR is already off on ${name}\n`),
+      );
+
+      continue;
+    }
+
     // One screen per call: KDE applies a call all or nothing, so a screen
     // without HDR would otherwise stop the rest.
     const exitCode = yield* executor.exitCode(
       "kscreen-doctor",
-      [
-        `output.${name}.hdr.enable`,
-        `output.${name}.wcg.enable`,
-        `output.${name}.colorProfileSource.EDID`,
-        `output.${name}.hdrColorProfileSource.EDID`,
-      ],
+      state === "on"
+        ? [
+            `output.${name}.hdr.enable`,
+            `output.${name}.wcg.enable`,
+            `output.${name}.colorProfileSource.EDID`,
+            `output.${name}.hdrColorProfileSource.EDID`,
+          ]
+        : [`output.${name}.hdr.disable`, `output.${name}.wcg.disable`],
       { env },
     );
 
     yield* Effect.sync(() =>
       process.stdout.write(
-        exitCode === 0
-          ? `HDR on for ${name}, with its EDID colour profile\n`
-          : `${name} didn't take HDR (kscreen-doctor exited ${exitCode}); it may not support it\n`,
+        exitCode !== 0
+          ? `${name} didn't take HDR ${state} (kscreen-doctor exited ${exitCode})${state === "on" ? "; it may not support it" : ""}\n`
+          : state === "on"
+            ? `HDR on for ${name}, with its EDID colour profile\n`
+            : `HDR off for ${name}\n`,
       ),
     );
   }
-}).pipe(Effect.withSpan("Screen.hdr"));
+});
 
 /** Built-in panels, which only lead when nothing else is connected. */
 const INTERNAL_OUTPUT = /^(eDP|LVDS|DSI)-/;
@@ -295,17 +327,9 @@ export const screenTvFirst = Effect.gen(function* () {
 
   yield* reprobeBlankEdid;
 
-  const config = yield* executor.run("kscreen-doctor", ["-j"], { env }).pipe(
-    Effect.flatMap(Schema.decodeEffect(KScreenConfig)),
-    Effect.mapError(
-      (cause) =>
-        new ScreenError({
-          message: `Could not read the screens from kscreen-doctor: ${cause.message}`,
-        }),
-    ),
-  );
+  const outputs = yield* readScreens(env);
 
-  const tv = config.outputs.find(
+  const tv = outputs.find(
     (output) =>
       output.connected && output.enabled && !INTERNAL_OUTPUT.test(output.name),
   );
@@ -340,7 +364,7 @@ export const screenTvFirst = Effect.gen(function* () {
   // With the lid shut, the panel is a screen nobody can see.
   const closed = yield* lidClosed;
 
-  const panels = config.outputs.filter(
+  const panels = outputs.filter(
     (output) => output.connected && INTERNAL_OUTPUT.test(output.name),
   );
 
@@ -365,7 +389,7 @@ export const screenTvFirst = Effect.gen(function* () {
 
 /** Make the TV the main screen, then turn on HDR everywhere: what Plasma runs at login. */
 export const screenSetup = screenTvFirst.pipe(
-  Effect.andThen(screenHdr),
+  Effect.andThen(plasmaHdr("on")),
   Effect.withSpan("Screen.setup"),
 );
 
@@ -504,7 +528,16 @@ export const screenStatus = Effect.gen(function* () {
     Effect.orElseSucceed(() => "not set"),
   );
 
+  // dot station screen reads this line to put the desktop's HDR back afterwards.
+  const hdr =
+    running === "the Plasma desktop"
+      ? `HDR: ${yield* plasmaHdrEnabled.pipe(
+          Effect.map((enabled) => (enabled ? "on" : "off")),
+          Effect.orElseSucceed(() => "unknown"),
+        )}\n`
+      : "";
+
   yield* Effect.sync(() =>
-    process.stdout.write(`On screen: ${running}\nNext login: ${next}\n`),
+    process.stdout.write(`On screen: ${running}\nNext login: ${next}\n${hdr}`),
   );
 }).pipe(Effect.withSpan("Screen.status"));
