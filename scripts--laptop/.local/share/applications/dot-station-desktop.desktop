@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Station Desktop
-Comment=Turn the extra desktop on Station's TV on or off
-Exec=dot station desktop toggle
-Icon=video-display
-Terminal=false
-Categories=Utility;
