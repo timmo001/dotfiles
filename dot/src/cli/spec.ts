@@ -71,6 +71,14 @@ import {
   gameSync,
 } from "../commands/Game.js";
 import { hdr } from "../commands/Hdr.js";
+import {
+  stationHdr,
+  stationScreenOff,
+  stationScreenOn,
+  stationScreenStatus,
+  stationScreenToggle,
+  stationScreenWatch,
+} from "../commands/StationScreen.js";
 import { tunnelRun } from "../commands/Tunnel.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { prQueue } from "../commands/PrQueue.js";
@@ -1038,6 +1046,86 @@ const hdrCommand = describe(
 );
 
 const sdrFlag = bool("sdr", "Leave HDR alone, for games that look wrong in it");
+
+const stationCommand = describe(
+  Command.make("station").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make("screen").pipe(
+          Command.withSubcommands([
+            describe(
+              Command.make("on", {}, () => stationScreenOn),
+              "Add the Station screen and show it on Station",
+              ["dot station screen on"],
+            ),
+            describe(
+              Command.make("off", {}, () => stationScreenOff),
+              "Close Moonlight on Station and remove the Station screen",
+              ["dot station screen off"],
+            ),
+            describe(
+              Command.make("toggle", {}, () => stationScreenToggle),
+              "Turn the Station screen off when it's on, otherwise on",
+              ["dot station screen toggle"],
+              {
+                description:
+                  "The laptop binds it to Super + Ctrl + Alt + S, and the Station Screen app runs it.",
+              },
+            ),
+            describe(
+              Command.make("status", {}, () => stationScreenStatus),
+              "Say whether the Station screen is on and Moonlight is showing it",
+              ["dot station screen status"],
+            ),
+            describe(
+              Command.make("watch", {}, () => stationScreenWatch),
+              "Remove the Station screen once Moonlight on Station closes",
+              ["dot station screen watch"],
+              {
+                description:
+                  "Run by dot station screen on as the station-screen-watch user unit. One SSH connection checks on Station every 2 seconds, since Station's firewall limits new connections; when it drops, it reconnects after 30 seconds rather than taking that as Moonlight closing.",
+              },
+            ),
+          ]),
+        ),
+        "Use Station's TV as an extra screen for this machine",
+        [
+          "dot station screen on",
+          "dot station screen off",
+          "dot station screen toggle",
+        ],
+        {
+          description:
+            "On adds a headless Hyprland output named STATION, whose mode comes from hypr/monitors.lua, starts Sunshine (which streams it through output_name = STATION in ~/.config/sunshine/sunshine.conf) and opens Moonlight full screen on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml (ssh: user@host), as the station-screen-moonlight user unit, at the output's size and refresh rate, with sound on both machines. The stream is SDR, so when dot screen status on Station says its desktop is in HDR, on first runs dot hdr off there. It also starts a watcher that removes the screen when Moonlight closes, such as when dot screen on Station ends the session it runs in. Off closes both and removes the screen, so its workspaces move back, then turns Station's HDR back on if on turned it off; the watcher does the same. SSH calls share one connection, kept for 60 seconds after the last.",
+        },
+      ),
+      describe(
+        Command.make("hdr").pipe(
+          Command.withSubcommands([
+            describe(
+              Command.make("on", {}, () => stationHdr("on")),
+              "Switch Station's screens to HDR",
+              ["dot station hdr on"],
+            ),
+            describe(
+              Command.make("off", {}, () => stationHdr("off")),
+              "Switch Station's screens back to SDR",
+              ["dot station hdr off"],
+            ),
+          ]),
+        ),
+        "Switch Station's screens between HDR and SDR",
+        ["dot station hdr on", "dot station hdr off"],
+        {
+          description:
+            "Runs dot hdr on or off on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml.",
+        },
+      ),
+    ]),
+  ),
+  "Work with Station from this machine",
+  ["dot station screen on", "dot station hdr off"],
+);
 
 const gameCommand = describe(
   Command.make("game").pipe(
@@ -3797,6 +3885,7 @@ export const dotCommand = describe(
       fansCommand,
       hdrCommand,
       gameCommand,
+      stationCommand,
       tunnelCommand,
       stowCommand,
       omarchyCommand,

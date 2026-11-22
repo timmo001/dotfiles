@@ -1393,6 +1393,218 @@ Rewrites the Steam, Heroic and Lutris game desktop files in ~/.local/share/appli
 dot game sync
 ```
 
+## `dot station`
+
+Work with Station from this machine
+
+```text
+dot station <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station screen on
+dot station hdr off
+```
+
+### `dot station screen`
+
+Use Station's TV as an extra screen for this machine
+
+```text
+dot station screen <subcommand> [flags]
+```
+
+On adds a headless Hyprland output named STATION, whose mode comes from hypr/monitors.lua, starts Sunshine (which streams it through output_name = STATION in ~/.config/sunshine/sunshine.conf) and opens Moonlight full screen on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml (ssh: user@host), as the station-screen-moonlight user unit, at the output's size and refresh rate, with sound on both machines. The stream is SDR, so when dot screen status on Station says its desktop is in HDR, on first runs dot hdr off there. It also starts a watcher that removes the screen when Moonlight closes, such as when dot screen on Station ends the session it runs in. Off closes both and removes the screen, so its workspaces move back, then turns Station's HDR back on if on turned it off; the watcher does the same. SSH calls share one connection, kept for 60 seconds after the last.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station screen on
+dot station screen off
+dot station screen toggle
+```
+
+#### `dot station screen on`
+
+Add the Station screen and show it on Station
+
+```text
+dot station screen on [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station screen on
+```
+
+#### `dot station screen off`
+
+Close Moonlight on Station and remove the Station screen
+
+```text
+dot station screen off [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station screen off
+```
+
+#### `dot station screen toggle`
+
+Turn the Station screen off when it's on, otherwise on
+
+```text
+dot station screen toggle [flags]
+```
+
+The laptop binds it to Super + Ctrl + Alt + S, and the Station Screen app runs it.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station screen toggle
+```
+
+#### `dot station screen status`
+
+Say whether the Station screen is on and Moonlight is showing it
+
+```text
+dot station screen status [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station screen status
+```
+
+#### `dot station screen watch`
+
+Remove the Station screen once Moonlight on Station closes
+
+```text
+dot station screen watch [flags]
+```
+
+Run by dot station screen on as the station-screen-watch user unit. One SSH connection checks on Station every 2 seconds, since Station's firewall limits new connections; when it drops, it reconnects after 30 seconds rather than taking that as Moonlight closing.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station screen watch
+```
+
+### `dot station hdr`
+
+Switch Station's screens between HDR and SDR
+
+```text
+dot station hdr <subcommand> [flags]
+```
+
+Runs dot hdr on or off on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station hdr on
+dot station hdr off
+```
+
+#### `dot station hdr on`
+
+Switch Station's screens to HDR
+
+```text
+dot station hdr on [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station hdr on
+```
+
+#### `dot station hdr off`
+
+Switch Station's screens back to SDR
+
+```text
+dot station hdr off [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot station hdr off
+```
+
 ## `dot tunnel`
 
 Run shared Cloudflare tunnels on one machine at a time
