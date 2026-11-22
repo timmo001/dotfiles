@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Station Screen
+Comment=Turn the extra screen on Station's TV on or off
+Exec=dot station screen toggle
+Icon=video-display
+Terminal=false
+Categories=Utility;
