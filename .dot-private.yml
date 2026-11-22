@@ -29,7 +29,6 @@ stow:
   - triage--station
   - upkeep
   - upkeep--station
-  - upnext
   - zsh
 
 # mcp.exclude: servers from the private mcp.yml kept off this machine, as on
