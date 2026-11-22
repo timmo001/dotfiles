@@ -8,7 +8,7 @@
     "@timmo001/oxlint-rules": "0.7.1",
     "@types/chrome": "0.3.7",
     "oxlint": "1.94.0",
-    "oxlint-tsgolint": "7.0.2007",
+    "oxlint-tsgolint": "7.0.2008",
     "typescript": "7.0.2"
   }
 }
