@@ -2059,7 +2059,7 @@ Show a Moonlight stream full screen on the TV
 dot screen moonlight [flags] <host>
 ```
 
-Logs in to the Moonlight session, which runs Moonlight in gamescope instead of Plasma or Steam, replacing whatever was on screen; closing Moonlight puts that back, or stops the login manager when nothing was on screen. gamescope tells the TV it's SDR, which KWin never does, so a TV that was in HDR on the desktop leaves it. The TV runs at the stream's frame rate in full-range colour, from the modes gaming mode saved in ~/.config/gamescope/modes.cfg, since at 4K 60 Hz Intel's driver otherwise sends limited range that the USB-C to HDMI adapter doesn't tell the TV about. dot station screen on the laptop runs it. dot up installs the session.
+Logs in to the Moonlight session, which runs Moonlight in gamescope instead of Plasma or Steam, replacing whatever was on screen; closing Moonlight puts that back, or stops the login manager when nothing was on screen. gamescope tells the TV it's SDR, which KWin never does, so a TV that was in HDR on the desktop leaves it. The TV runs at the stream's frame rate in full-range colour, from the modes gaming mode saved in ~/.config/gamescope/modes.cfg, since at 4K 60 Hz Intel's driver otherwise sends limited range that the USB-C to HDMI adapter doesn't tell the TV about. dot station desktop on the laptop runs it. dot up installs the session.
 
 **Options**
 
@@ -2104,13 +2104,15 @@ The command the dot-moonlight.desktop login session runs: runs the stream dot sc
 dot screen moonlight-session
 ```
 
-### `dot screen back`
+### `dot screen last`
 
-Close the Moonlight stream, back to what was on screen before
+Switch back to what was on screen before the latest switch
 
 ```text
-dot screen back [flags]
+dot screen last [flags]
 ```
+
+Each switch (game, desktop, off and moonlight, and a Moonlight stream closing) keeps what was on screen before it in ~/.local/state/dot/screen-last.json, so running it twice swaps between the two. On Moonlight it closes the stream, whose session goes back by itself. The login screen isn't kept.
 
 **Options**
 
@@ -2121,7 +2123,7 @@ dot screen back [flags]
 **Examples**
 
 ```bash
-dot screen back
+dot screen last
 ```
 
 ### `dot screen setup`
@@ -2239,7 +2241,7 @@ Say what's on screen and what the next login starts
 dot screen status [flags]
 ```
 
-While the Plasma desktop is on screen it also says whether HDR is on. dot station screen on the laptop reads the On screen line to know when Moonlight closes.
+While the Plasma desktop is on screen it also says whether HDR is on. dot station desktop on the laptop reads the On screen line to know when Moonlight closes.
 
 **Options**
 

@@ -8,9 +8,9 @@
  */
 
 import { Effect, FileSystem, Option, Schema } from "effect";
-import { join } from "path";
+import { dirname, join } from "path";
 import { ENV, envString } from "../lib/env.js";
-import { HOME_DIR } from "../lib/paths.js";
+import { HOME_DIR, STATE_DIR } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
 /** Plasma Login Manager, which logs in to the chosen session on the TV. */
@@ -55,12 +55,19 @@ const STEAM_MODES = join(HOME_DIR, ".config", "gamescope", "modes.cfg");
 /** gamescope's Broadcast RGB value for full-range colour. */
 const FULL_RANGE = 1;
 
-const MoonlightState = Schema.Struct({
+const MoonlightStream = Schema.Struct({
   /** The Sunshine host to stream from. */
   host: Schema.String,
   width: Schema.Int,
   height: Schema.Int,
   fps: Schema.Int,
+});
+
+/** A Moonlight stream to show. */
+type MoonlightStream = typeof MoonlightStream.Type;
+
+const MoonlightState = Schema.Struct({
+  ...MoonlightStream.fields,
   /** Nothing was on screen before, so the login manager stops afterwards. */
   headless: Schema.Boolean,
   /** The session the login manager logged into before, put back afterwards. */
@@ -71,6 +78,20 @@ const MoonlightState = Schema.Struct({
 type MoonlightState = typeof MoonlightState.Type;
 
 const MoonlightStateJson = Schema.fromJsonString(MoonlightState);
+
+/** What dot screen last switches back to: what was on screen before the latest switch. */
+const LAST_SCREEN = join(STATE_DIR, "dot", "screen-last.json");
+
+const LastScreen = Schema.Struct({
+  screen: Schema.Literals(["game", "desktop", "off", "moonlight"]),
+  /** The stream, when it was Moonlight. */
+  stream: Schema.optionalKey(MoonlightStream),
+});
+
+/** What was on screen before the latest switch. */
+type LastScreen = typeof LastScreen.Type;
+
+const LastScreenJson = Schema.fromJsonString(LastScreen);
 
 /** The screen couldn't be switched. */
 export class ScreenError extends Schema.TaggedError<ScreenError>()(
@@ -144,6 +165,7 @@ const setSession = Effect.fn("Screen.setSession")(function* (session: string) {
 export const screenOn = Effect.fn("Screen.on")(function* (
   session: ScreenSession,
 ) {
+  yield* rememberScreen(session);
   yield* setSession(SESSIONS[session]);
   yield* clearMoonlightState;
   yield* systemctl(["restart", LOGIN_MANAGER]);
@@ -156,6 +178,7 @@ export const screenOn = Effect.fn("Screen.on")(function* (
 
 /** Close whatever is on screen, back to the text console. */
 export const screenOff = Effect.gen(function* () {
+  yield* rememberScreen("off");
   yield* clearMoonlightState;
   yield* systemctl(["stop", LOGIN_MANAGER]);
   yield* say("Closed the screen session; Station is headless");
@@ -598,6 +621,42 @@ const onScreen = Effect.gen(function* () {
     : ("login" as const);
 }).pipe(Effect.withSpan("Screen.onScreen"));
 
+/**
+ * Keep what's on screen for dot screen last, before switching to `next`.
+ * Nothing is kept when it's already `next`, or the login screen.
+ */
+const rememberScreen = Effect.fn("Screen.rememberScreen")(function* (
+  next?: LastScreen["screen"],
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const current = yield* onScreen;
+
+  if (current === next || current === "login") return;
+
+  const state =
+    current === "moonlight"
+      ? Option.getOrUndefined(yield* readMoonlightState)
+      : undefined;
+
+  const last: LastScreen = state
+    ? {
+        screen: current,
+        stream: {
+          host: state.host,
+          width: state.width,
+          height: state.height,
+          fps: state.fps,
+        },
+      }
+    : { screen: current };
+
+  yield* fs.makeDirectory(dirname(LAST_SCREEN), { recursive: true });
+  yield* fs.writeFileString(
+    LAST_SCREEN,
+    yield* Schema.encodeEffect(LastScreenJson)(last),
+  );
+});
+
 /** The connected screens other than the laptop's own panel, such as `DP-2`. */
 const externalOutputs = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
@@ -661,7 +720,7 @@ const writeMoonlightModes = Effect.fn("Screen.writeMoonlightModes")(function* (
  * left HDR, and the TV behind the USB-C to HDMI adapter then stays in HDR.
  */
 export const screenMoonlight = Effect.fn("Screen.moonlight")(function* (
-  stream: Pick<MoonlightState, "host" | "width" | "height" | "fps">,
+  stream: MoonlightStream,
 ) {
   const fs = yield* FileSystem.FileSystem;
 
@@ -699,6 +758,7 @@ export const screenMoonlight = Effect.fn("Screen.moonlight")(function* (
         : nextLogin,
   };
 
+  yield* rememberScreen("moonlight");
   yield* fs.writeFileString(
     MOONLIGHT_STATE,
     yield* Schema.encodeEffect(MoonlightStateJson)(state),
@@ -768,30 +828,56 @@ export const screenMoonlightSession = Effect.gen(function* () {
   // Another dot screen command already took over the screen.
   if (Option.isNone(yield* readMoonlightState)) return;
 
+  // Never let a failed write keep the screen from going back.
+  yield* rememberScreen().pipe(Effect.ignore);
   yield* clearMoonlightState;
 
   if (headless) yield* systemctl(["stop", LOGIN_MANAGER]);
 }).pipe(Effect.withSpan("Screen.moonlightSession"));
 
-/** Close the Moonlight stream, so the TV goes back to what was there before. */
-export const screenBack = Effect.gen(function* () {
+/**
+ * Switch the TV back to what was on screen before the latest switch, so
+ * running it twice swaps between the two. Closing Moonlight is enough to
+ * leave it, since its session goes back by itself.
+ */
+export const screenLast = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
+  const fs = yield* FileSystem.FileSystem;
 
-  if ((yield* onScreen) !== "moonlight") {
-    yield* say("Moonlight isn't on screen");
+  if ((yield* onScreen) === "moonlight") {
+    yield* executor.exitCode("pkill", [
+      "-u",
+      String(process.getuid?.() ?? 1000),
+      "-x",
+      "moonlight",
+    ]);
+    yield* say("Closed Moonlight; the TV goes back to what was there before");
 
     return;
   }
 
-  // The session goes back by itself once Moonlight, and so gamescope, ends.
-  yield* executor.exitCode("pkill", [
-    "-u",
-    String(process.getuid?.() ?? 1000),
-    "-x",
-    "moonlight",
-  ]);
-  yield* say("Closed Moonlight; the TV goes back to what was there before");
-}).pipe(Effect.withSpan("Screen.back"));
+  const last = yield* fs
+    .readFileString(LAST_SCREEN)
+    .pipe(Effect.flatMap(Schema.decodeEffect(LastScreenJson)), Effect.option);
+
+  if (Option.isNone(last))
+    return yield* new ScreenError({
+      message: "Nothing to go back to yet: dot screen keeps it at each switch",
+    });
+
+  const { screen, stream } = last.value;
+
+  if (screen === "off") return yield* screenOff;
+
+  if (screen !== "moonlight") return yield* screenOn(screen);
+
+  if (!stream)
+    return yield* new ScreenError({
+      message: `${LAST_SCREEN} has Moonlight without its stream`,
+    });
+
+  return yield* screenMoonlight(stream);
+}).pipe(Effect.withSpan("Screen.last"));
 
 /** Say what's on screen now, and what the login manager logs into next. */
 export const screenStatus = Effect.gen(function* () {
@@ -820,7 +906,7 @@ export const screenStatus = Effect.gen(function* () {
         )}\n`
       : "";
 
-  // dot station screen on the laptop reads this line, to know when Moonlight closes.
+  // dot station desktop on the laptop reads this line, to know when Moonlight closes.
   yield* Effect.sync(() =>
     process.stdout.write(`On screen: ${running}\nNext login: ${next}\n${hdr}`),
   );

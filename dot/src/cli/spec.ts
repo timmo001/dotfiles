@@ -104,8 +104,8 @@ import {
   stationScreen,
 } from "../commands/Station.js";
 import {
-  screenBack,
   screenKeyboard,
+  screenLast,
   screenMoonlight,
   screenMoonlightSession,
   screenOff,
@@ -1311,7 +1311,7 @@ const screenCommand = describe(
         ["dot screen moonlight laptop.local --width 2560 --height 1440"],
         {
           description:
-            "Logs in to the Moonlight session, which runs Moonlight in gamescope instead of Plasma or Steam, replacing whatever was on screen; closing Moonlight puts that back, or stops the login manager when nothing was on screen. gamescope tells the TV it's SDR, which KWin never does, so a TV that was in HDR on the desktop leaves it. The TV runs at the stream's frame rate in full-range colour, from the modes gaming mode saved in ~/.config/gamescope/modes.cfg, since at 4K 60 Hz Intel's driver otherwise sends limited range that the USB-C to HDMI adapter doesn't tell the TV about. dot station screen on the laptop runs it. dot up installs the session.",
+            "Logs in to the Moonlight session, which runs Moonlight in gamescope instead of Plasma or Steam, replacing whatever was on screen; closing Moonlight puts that back, or stops the login manager when nothing was on screen. gamescope tells the TV it's SDR, which KWin never does, so a TV that was in HDR on the desktop leaves it. The TV runs at the stream's frame rate in full-range colour, from the modes gaming mode saved in ~/.config/gamescope/modes.cfg, since at 4K 60 Hz Intel's driver otherwise sends limited range that the USB-C to HDMI adapter doesn't tell the TV about. dot station desktop on the laptop runs it. dot up installs the session.",
         },
       ),
       describe(
@@ -1324,9 +1324,13 @@ const screenCommand = describe(
         },
       ),
       describe(
-        Command.make("back", {}, () => screenBack),
-        "Close the Moonlight stream, back to what was on screen before",
-        ["dot screen back"],
+        Command.make("last", {}, () => screenLast),
+        "Switch back to what was on screen before the latest switch",
+        ["dot screen last"],
+        {
+          description:
+            "Each switch (game, desktop, off and moonlight, and a Moonlight stream closing) keeps what was on screen before it in ~/.local/state/dot/screen-last.json, so running it twice swaps between the two. On Moonlight it closes the stream, whose session goes back by itself. The login screen isn't kept.",
+        },
       ),
       describe(
         Command.make("setup", {}, () => screenSetup),
@@ -1374,7 +1378,7 @@ const screenCommand = describe(
         ["dot screen status"],
         {
           description:
-            "While the Plasma desktop is on screen it also says whether HDR is on. dot station screen on the laptop reads the On screen line to know when Moonlight closes.",
+            "While the Plasma desktop is on screen it also says whether HDR is on. dot station desktop on the laptop reads the On screen line to know when Moonlight closes.",
         },
       ),
     ]),
