@@ -78,6 +78,8 @@ export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
  * - The Upkeep server serves its API and dashboard to workers and admins on
  *   7272, and Triage's server takes events and serves its API on 7171. Its
  *   MCP server for Home Assistant on 8099 only answers the Green's address.
+ * - Forgejo serves Git over SSH on 2222. The router only forwards 443, so it
+ *   stays on the home network and the tailnet.
  */
 export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
   {
@@ -147,6 +149,7 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
     port: "8099",
     protocols: ["tcp"],
   },
+  { kind: "port", label: "Forgejo SSH", port: "2222", protocols: ["tcp"] },
 ];
 
 /**

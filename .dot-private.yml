@@ -10,11 +10,13 @@
 # removed from the list are unstowed. A new private package Station needs has
 # to be added here. pitchfork--station holds Station's own Inbox daemon,
 # plannotator its config.json, upkeep--station its Upkeep server and
-# maintenance-only worker, and triage--station its Triage server.
+# maintenance-only worker, triage--station its Triage server, and
+# forgejo--station its Forgejo and Forgejo Runner.
 stow:
   - agents
   - chromium--station
   - dot-config
+  - forgejo--station
   - gateway--station
   - git
   - git--station
