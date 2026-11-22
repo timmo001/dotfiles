@@ -16,7 +16,12 @@ import {
 } from "./lib/bootstrapGit.js";
 import { ENV, envString, setEnv, unsetEnv } from "./lib/env.js";
 import { isGvfsPath, writeMirroredLog } from "./lib/logMirror.js";
-import { CONFIG_DIR, STATE_DIR, expandHomePath } from "./lib/paths.js";
+import {
+  CONFIG_DIR,
+  STATE_DIR,
+  ensureUserPath,
+  expandHomePath,
+} from "./lib/paths.js";
 import { formatCause } from "./lib/schema.js";
 import { offerAgentOnFailure } from "./lib/failureAgent.js";
 import { withStepTimeout, withTimeoutOption } from "./lib/workflowStep.js";
@@ -36,6 +41,8 @@ import { Search } from "./services/Search.js";
 const DEFAULT_INIT_LOG_FILE = join(STATE_DIR, "dot", "init.log");
 
 const PRIVATE_DOTFILES_REPO = "timmo001/dotfiles-private";
+
+ensureUserPath();
 
 const args = process.argv.slice(2);
 

@@ -60,7 +60,7 @@ import {
   gitRefreshRemoteHead,
   gitRequired,
 } from "../lib/git.js";
-import { HOME_DIR, displayPath } from "../lib/paths.js";
+import { HOME_DIR, DOT_BIN, displayPath } from "../lib/paths.js";
 import { detectLegacyHyprRepo } from "../lib/omarchyHost.js";
 import { ENV, envFlag } from "../lib/env.js";
 import { loadDotGitConfig, managedGitRepos } from "../services/GitConfig.js";
@@ -1273,7 +1273,7 @@ export const refreshShellModules = Effect.gen(function* () {
 export const reportPendingUpdates = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
 
-  yield* executor.inherit("dot", ["up", "--check"]);
+  yield* executor.inherit(DOT_BIN, ["up", "--check"]);
 }).pipe(Effect.withSpan("Update.reportPending"));
 
 /** Exit code from `dot update --check` when in-scope updates are available. */

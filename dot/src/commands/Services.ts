@@ -26,6 +26,7 @@ import { installedHerdrAgents } from "./HerdrAgents.js";
 import { herdrRepoOpen } from "./HerdrRepoOpen.js";
 import {
   CONFIG_DIR,
+  DOT_BIN,
   HOME_DIR,
   STATE_DIR,
   expandHomePath,
@@ -923,8 +924,6 @@ const expandDescriptorPath = (path: string) =>
       .replace(/^\$XDG_CONFIG_HOME(?=\/|$)/, CONFIG_DIR)
       .replace(/^\$HOME(?=\/|$)/, "~"),
   );
-
-const DOT_BIN = join(HOME_DIR, ".local", "bin", "dot");
 
 /**
  * A descriptor command's program, with a bare `dot` pinned to dot's own

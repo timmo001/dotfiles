@@ -16,6 +16,7 @@ import { gitOutput } from "../lib/git.js";
 import { SKILLS_CHECKOUT } from "../lib/skillsMaintenance.js";
 import { ENV, envString } from "../lib/env.js";
 import { formatCause } from "../lib/schema.js";
+import { DOT_BIN } from "../lib/paths.js";
 import { installGhExtensions } from "../lib/ghExtensions.js";
 import { DEFAULT_SOCKET_PATH, openHerdrRepo } from "./HerdrRepoOpen.js";
 import {
@@ -618,7 +619,7 @@ const offerPatchAgent = Effect.fn("Up.offerPatchAgent")(function* (
 
   if (!open) return;
 
-  yield* executor.inherit("dot", [
+  yield* executor.inherit(DOT_BIN, [
     "herdr",
     "repo",
     "open",

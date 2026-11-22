@@ -32,6 +32,7 @@ import { trustRepoMiseConfigs } from "../lib/miseTrust.js";
 import { syncNotesRepositoryDirectories } from "../lib/notesRepositoryDirectories.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { formatCause } from "../lib/schema.js";
+import { DOT_BIN } from "../lib/paths.js";
 import { rebuild } from "../lib/selfUpdate.js";
 import {
   buildSkillsMaintenance,
@@ -492,7 +493,7 @@ const shellStage = (refreshStatus: boolean) =>
 
     if (!refreshStatus) return { actions: [refreshed] } satisfies StageOutcome;
 
-    const exitCode = yield* executor.exitCode("dot", [
+    const exitCode = yield* executor.exitCode(DOT_BIN, [
       "updates",
       "refresh",
       "--quick",
