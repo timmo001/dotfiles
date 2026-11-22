@@ -5,8 +5,9 @@
 # stow: the private stow packages dot links. Anything not listed, such as the
 # Omarchy, UWSM and desktop service packages, is left alone, and links already
 # made for a package removed from the list are unstowed. pitchfork--nas holds
-# the NAS's own Inbox daemon, plannotator its config.json, and kopia--nas the
-# Kopia server and backups.
+# the NAS's own Inbox daemon, plannotator its config.json, kopia--nas the
+# Kopia server and backups, and upkeep--nas its maintenance-only Upkeep
+# worker's settings and token.
 stow:
   - agents
   - dot-config
@@ -20,6 +21,7 @@ stow:
   - systemd--nas
   - triage
   - triage--nas
+  - upkeep--nas
   - zsh
 
 # mcp.exclude: servers from the private mcp.yml kept off this machine. dot mcp

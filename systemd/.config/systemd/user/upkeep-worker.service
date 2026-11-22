@@ -1,0 +1,31 @@
+[Unit]
+Description=Upkeep worker, keeping the NAS current in its nightly window
+Documentation=https://upkeep.timmo.dev/running
+After=network-online.target
+Wants=network-online.target
+OnFailure=dot-service-failed@%n.service
+# Needs UPKEEP_SERVER and UPKEEP_WORKER_TOKEN, from `upkeep workers add` on the
+# server.
+ConditionPathExists=%h/.config/upkeep/worker.env
+
+[Service]
+# Upkeep's packaged unit, with mise's shim in place of /usr/bin/upkeep.
+Type=simple
+EnvironmentFile=%h/.config/upkeep/worker.env
+ExecStart=%h/.local/share/mise/shims/upkeep worker
+# A reload drains the worker, letting the runs in hand finish.
+ExecReload=/usr/bin/kill -HUP $MAINPID
+# Maintenance gives way to the NAS's own services. The dot up stages and apt
+# it runs inherit these.
+Nice=10
+CPUWeight=20
+IOSchedulingClass=idle
+Restart=on-failure
+RestartSec=30
+# After a self-update the worker drains, then exits with 75 to start again on
+# the new binary.
+SuccessExitStatus=75
+RestartForceExitStatus=75 SIGHUP
+
+[Install]
+WantedBy=default.target
