@@ -18,8 +18,6 @@ hk = "latest"
 jq = "latest"
 lazygit = "latest"
 "aqua:jesseduffield/lazydocker" = "latest"
-# Backups: pinned so every machine runs the same version as the NAS's Kopia server.
-"aqua:kopia/kopia" = "0.23.1"
 # 1Password CLI, for dot's secret files. Versions can't be listed, so pin exactly.
 "aqua:1password/cli" = "2.41.0"
 # Backups: pinned so every machine runs the same version as the Kopia server here.

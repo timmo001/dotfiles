@@ -29,6 +29,3 @@ tools:
     reviewed: effect@4.1.7
     tags: ^effect@
     review: Check dot and the OpenCode plugins for moved modules or changed APIs. The plugins' Effect pin follows OpenCode, so a change there waits for an OpenCode release that adopts it.
-  - repo: wimpysworld/WonKey
-    reviewed: v0.2.5
-    review: Check whether the release finds the macro pad's HID device on kernels that add physical_location and firmware_node under the USB interface (macropad/patches). If it does, drop the patch; either way re-vendor macropad/vendor/wonkey at the release, then run mise run macropad:test and macropad:read.

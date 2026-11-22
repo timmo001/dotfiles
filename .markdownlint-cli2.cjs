@@ -26,7 +26,6 @@ module.exports = {
     "docs/.astro",
     "docs/.astro/**",
     "dot-migration/**",
-    "macropad/vendor/**",
     "docs/src/content/docs/dot/commands.md",
     "docs/src/content/docs/agents/opencode/commands.md",
     "docs/src/content/docs/agents/opencode/plugins.md",

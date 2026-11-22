@@ -32,8 +32,6 @@ server/dist/
 scripts/.local/bin/dot
 scripts/.local/bin/dot*
 scripts/.local/bin/skill-maintenance
-# Built from macropad/vendor/wonkey by mise run macropad:build.
-scripts/.local/bin/wonkey
 # Generated shell completions; hand-written completions stay tracked.
 /bash/.local/share/bash-completion/completions/dot
 /bash/.local/share/bash-completion/completions/skill-maintenance

@@ -9,14 +9,10 @@ export const INTERNAL_STOW_FOLDERS = [
   "dot",
   "dot-migration",
   "docs",
-  "first-party",
-  "lan-direct",
-  "macropad",
   "node_modules",
   "server",
   "system-upgrade",
   "tests",
-  "udev-rules",
 ] as const;
 
 const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);

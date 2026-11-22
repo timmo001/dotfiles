@@ -1,4 +1,0 @@
-# CH57x macro pad (514c:8850): lets the signed-in user program it with wonkey (macropad/).
-# Numbered below 70 so systemd's 70-uaccess.rules acts on the tag.
-# Install: pkexec install -Dm644 udev-rules/60-ch57x-macropad.rules /etc/udev/rules.d/60-ch57x-macropad.rules
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="514c", ATTRS{idProduct}=="8850", TAG+="uaccess"

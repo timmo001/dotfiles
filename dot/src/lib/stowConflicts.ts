@@ -7,7 +7,6 @@ import {
   readlinkSync,
   realpathSync,
   renameSync,
-  rmdirSync,
   rmSync,
   symlinkSync,
   unlinkSync,
@@ -118,7 +117,6 @@ export function removeRetiredPublicStowLinks(
       if (resolve(dirname(target), readlinkSync(target)) !== source) continue;
       unlinkSync(target);
       removed.push(target);
-      removeEmptyPluginFolder(dirname(target), homeDir);
     } catch {
       // Missing, unreadable, or no longer owned by this stow source.
     }
