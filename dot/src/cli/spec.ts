@@ -104,7 +104,10 @@ import {
   stationScreen,
 } from "../commands/Station.js";
 import {
+  screenBack,
   screenKeyboard,
+  screenMoonlight,
+  screenMoonlightSession,
   screenOff,
   screenSteamBeta,
   screenOn,
@@ -1292,6 +1295,40 @@ const screenCommand = describe(
         ["dot screen off", "headless"],
       ),
       describe(
+        Command.make(
+          "moonlight",
+          {
+            host: Argument.String("host").pipe(
+              Argument.withDescription("Sunshine host to stream from"),
+            ),
+            width: integer("width", "Stream width", 2560),
+            height: integer("height", "Stream height", 1440),
+            fps: integer("fps", "Stream frame rate, and the TV's", 60),
+          },
+          (stream) => screenMoonlight(stream),
+        ),
+        "Show a Moonlight stream full screen on the TV",
+        ["dot screen moonlight laptop.local --width 2560 --height 1440"],
+        {
+          description:
+            "Logs in to the Moonlight session, which runs Moonlight in gamescope instead of Plasma or Steam, replacing whatever was on screen; closing Moonlight puts that back, or stops the login manager when nothing was on screen. gamescope tells the TV it's SDR, which KWin never does, so a TV that was in HDR on the desktop leaves it. The TV runs at the stream's frame rate in full-range colour, from the modes gaming mode saved in ~/.config/gamescope/modes.cfg, since at 4K 60 Hz Intel's driver otherwise sends limited range that the USB-C to HDMI adapter doesn't tell the TV about. dot station screen on the laptop runs it. dot up installs the session.",
+        },
+      ),
+      describe(
+        Command.make("moonlight-session", {}, () => screenMoonlightSession),
+        "Run the Moonlight session that dot screen moonlight starts",
+        ["dot screen moonlight-session"],
+        {
+          description:
+            "The command the dot-moonlight.desktop login session runs: runs the stream dot screen moonlight asked for, then goes back to what was on screen before. Not for typing.",
+        },
+      ),
+      describe(
+        Command.make("back", {}, () => screenBack),
+        "Close the Moonlight stream, back to what was on screen before",
+        ["dot screen back"],
+      ),
+      describe(
         Command.make("setup", {}, () => screenSetup),
         "Make the TV the main screen and turn on HDR, as Plasma does at login",
         ["dot screen setup"],
@@ -1337,16 +1374,16 @@ const screenCommand = describe(
         ["dot screen status"],
         {
           description:
-            "While the Plasma desktop is on screen it also says whether HDR is on, which dot station screen on the laptop reads to put it back afterwards.",
+            "While the Plasma desktop is on screen it also says whether HDR is on. dot station screen on the laptop reads the On screen line to know when Moonlight closes.",
         },
       ),
     ]),
   ),
-  "Switch Station's TV between gaming mode, the desktop and nothing",
+  "Switch Station's TV between gaming mode, the desktop, a Moonlight stream and nothing",
   ["dot screen game", "dot screen desktop", "dot screen off"],
   {
     description:
-      "Station boots to a text console, so Plasma Login Manager only runs while a screen is on. game and desktop set the session it logs into with CachyOS's steam-set-session, the helper Steam's Switch to Desktop also uses, then restart it, replacing whatever was on screen; off stops it. Each works the same typed on Station or over SSH, and the game, desk and headless commands in /usr/local/bin run them. polkit lets wheel users start, stop and restart the login manager without a password.",
+      "Station boots to a text console, so Plasma Login Manager only runs while a screen is on. game, desktop and moonlight set the session it logs into with CachyOS's steam-set-session, the helper Steam's Switch to Desktop also uses, then restart it, replacing whatever was on screen; off stops it. Each works the same typed on Station or over SSH, and the game, desk and headless commands in /usr/local/bin run them. polkit lets wheel users start, stop and restart the login manager without a password.",
   },
 );
 
@@ -2679,7 +2716,7 @@ const setupCommand = describe(
         ["dot setup station"],
         {
           description:
-            "Install Station's root-owned files when they differ: passwordless sudo for this user (checked with visudo first), the logind lid settings, the polkit rule for dot screen, Plasma Login Manager's autologin and the game, desk and headless commands in /usr/local/bin. Then set the boot target to multi-user.target, turn on lingering, move Kestrel's recordings into their own btrfs subvolume so snapper's root snapshots leave them out (stopping Kestrel while they move), and enable KRdp and Sunshine so they start with a screen session (their logins are set in System Settings › Remote Desktop and Sunshine's web UI), pick Plasma's on-screen keyboard as KWin's input method, make Chromium the default browser for xdg-settings and Plasma, and turn on KWin's game controller plugin, which moves the pointer with a controller while no app has it open. dot init runs it, and dot up runs it before the system upgrade.",
+            "Install Station's root-owned files when they differ: passwordless sudo for this user (checked with visudo first), the logind lid settings, the polkit rule for dot screen, Plasma Login Manager's autologin and the game, desk and headless commands in /usr/local/bin, with the Moonlight login session dot screen moonlight uses. Then set the boot target to multi-user.target, turn on lingering, move Kestrel's recordings into their own btrfs subvolume so snapper's root snapshots leave them out (stopping Kestrel while they move), and enable KRdp and Sunshine so they start with a screen session (their logins are set in System Settings › Remote Desktop and Sunshine's web UI), pick Plasma's on-screen keyboard as KWin's input method, make Chromium the default browser for xdg-settings and Plasma, and turn on KWin's game controller plugin, which moves the pointer with a controller while no app has it open. dot init runs it, and dot up runs it before the system upgrade.",
         },
       ),
     ]),

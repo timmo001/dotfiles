@@ -13,6 +13,7 @@ import { userInfo } from "os";
 import { join } from "path";
 import { lines, query } from "./boundedQuery.js";
 import { runElevated } from "./elevatedCommand.js";
+import { DOT_BIN } from "./paths.js";
 import { done, skip, warn, type RecapEntry } from "./updateSummary.js";
 import { cliStyler } from "./ansi.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -71,6 +72,21 @@ User=${user}
 Relogin=true
 `;
 
+/**
+ * The Moonlight login session dot screen moonlight logs in to. Its Exec names
+ * dot by its full path, since the session's login shell doesn't have
+ * ~/.local/bin on its PATH.
+ */
+const moonlightSession = (dot: string) =>
+  `# Written by dot for Station.
+[Desktop Entry]
+Name=Moonlight
+Comment=A Moonlight stream full screen in gamescope, started by dot screen moonlight
+Exec=${dot} screen moonlight-session
+Type=Application
+DesktopNames=gamescope
+`;
+
 /** Every root-owned file Station needs, read from the public dotfiles. */
 const rootFiles = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
@@ -115,6 +131,13 @@ const rootFiles = Effect.gen(function* () {
       mode: "755",
       label: `the ${name} command`,
     });
+
+  files.push({
+    target: "/usr/local/share/wayland-sessions/dot-moonlight.desktop",
+    content: moonlightSession(DOT_BIN),
+    mode: "644",
+    label: "the Moonlight session for dot screen moonlight",
+  });
 
   return files;
 }).pipe(Effect.withSpan("StationSystem.rootFiles"));

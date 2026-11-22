@@ -1966,13 +1966,13 @@ dot station screen keyboard
 
 ## `dot screen`
 
-Switch Station's TV between gaming mode, the desktop and nothing
+Switch Station's TV between gaming mode, the desktop, a Moonlight stream and nothing
 
 ```text
 dot screen <subcommand> [flags]
 ```
 
-Station boots to a text console, so Plasma Login Manager only runs while a screen is on. game and desktop set the session it logs into with CachyOS's steam-set-session, the helper Steam's Switch to Desktop also uses, then restart it, replacing whatever was on screen; off stops it. Each works the same typed on Station or over SSH, and the game, desk and headless commands in /usr/local/bin run them. polkit lets wheel users start, stop and restart the login manager without a password.
+Station boots to a text console, so Plasma Login Manager only runs while a screen is on. game, desktop and moonlight set the session it logs into with CachyOS's steam-set-session, the helper Steam's Switch to Desktop also uses, then restart it, replacing whatever was on screen; off stops it. Each works the same typed on Station or over SSH, and the game, desk and headless commands in /usr/local/bin run them. polkit lets wheel users start, stop and restart the login manager without a password.
 
 **Options**
 
@@ -2049,6 +2049,79 @@ dot screen off [flags]
 ```bash
 dot screen off
 headless
+```
+
+### `dot screen moonlight`
+
+Show a Moonlight stream full screen on the TV
+
+```text
+dot screen moonlight [flags] <host>
+```
+
+Logs in to the Moonlight session, which runs Moonlight in gamescope instead of Plasma or Steam, replacing whatever was on screen; closing Moonlight puts that back, or stops the login manager when nothing was on screen. gamescope tells the TV it's SDR, which KWin never does, so a TV that was in HDR on the desktop leaves it. The TV runs at the stream's frame rate in full-range colour, from the modes gaming mode saved in ~/.config/gamescope/modes.cfg, since at 4K 60 Hz Intel's driver otherwise sends limited range that the USB-C to HDMI adapter doesn't tell the TV about. dot station screen on the laptop runs it. dot up installs the session.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--width` `<integer>` | Stream width |
+| `--height` `<integer>` | Stream height |
+| `--fps` `<integer>` | Stream frame rate, and the TV's |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<host>` | Sunshine host to stream from |
+
+**Examples**
+
+```bash
+dot screen moonlight laptop.local --width 2560 --height 1440
+```
+
+### `dot screen moonlight-session`
+
+Run the Moonlight session that dot screen moonlight starts
+
+```text
+dot screen moonlight-session [flags]
+```
+
+The command the dot-moonlight.desktop login session runs: runs the stream dot screen moonlight asked for, then goes back to what was on screen before. Not for typing.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot screen moonlight-session
+```
+
+### `dot screen back`
+
+Close the Moonlight stream, back to what was on screen before
+
+```text
+dot screen back [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot screen back
 ```
 
 ### `dot screen setup`
@@ -2166,7 +2239,7 @@ Say what's on screen and what the next login starts
 dot screen status [flags]
 ```
 
-While the Plasma desktop is on screen it also says whether HDR is on, which dot station screen on the laptop reads to put it back afterwards.
+While the Plasma desktop is on screen it also says whether HDR is on. dot station screen on the laptop reads the On screen line to know when Moonlight closes.
 
 **Options**
 
@@ -3231,7 +3304,7 @@ Apply Station's system setup
 dot setup station [flags]
 ```
 
-Install Station's root-owned files when they differ: passwordless sudo for this user (checked with visudo first), the logind lid settings, the polkit rule for dot screen, Plasma Login Manager's autologin and the game, desk and headless commands in /usr/local/bin. Then set the boot target to multi-user.target, turn on lingering, move Kestrel's recordings into their own btrfs subvolume so snapper's root snapshots leave them out (stopping Kestrel while they move), and enable KRdp and Sunshine so they start with a screen session (their logins are set in System Settings › Remote Desktop and Sunshine's web UI), pick Plasma's on-screen keyboard as KWin's input method, make Chromium the default browser for xdg-settings and Plasma, and turn on KWin's game controller plugin, which moves the pointer with a controller while no app has it open. dot init runs it, and dot up runs it before the system upgrade.
+Install Station's root-owned files when they differ: passwordless sudo for this user (checked with visudo first), the logind lid settings, the polkit rule for dot screen, Plasma Login Manager's autologin and the game, desk and headless commands in /usr/local/bin, with the Moonlight login session dot screen moonlight uses. Then set the boot target to multi-user.target, turn on lingering, move Kestrel's recordings into their own btrfs subvolume so snapper's root snapshots leave them out (stopping Kestrel while they move), and enable KRdp and Sunshine so they start with a screen session (their logins are set in System Settings › Remote Desktop and Sunshine's web UI), pick Plasma's on-screen keyboard as KWin's input method, make Chromium the default browser for xdg-settings and Plasma, and turn on KWin's game controller plugin, which moves the pointer with a controller while no app has it open. dot init runs it, and dot up runs it before the system upgrade.
 
 **Options**
 

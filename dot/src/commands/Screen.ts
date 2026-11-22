@@ -1,12 +1,13 @@
 /**
  * @file `dot screen`: switch what's on Station's TV between Steam's gaming
- * mode, the Plasma desktop and nothing at all. Station boots to a text
- * console, so Plasma Login Manager only runs while a screen is on. CachyOS's
- * own `steam-set-session` picks the session it logs into, the same helper
- * Steam's "Switch to Desktop" goes through, so both stay in step.
+ * mode, the Plasma desktop, a Moonlight stream and nothing at all. Station
+ * boots to a text console, so Plasma Login Manager only runs while a screen
+ * is on. CachyOS's own `steam-set-session` picks the session it logs into,
+ * the same helper Steam's "Switch to Desktop" goes through, so both stay in
+ * step.
  */
 
-import { Effect, FileSystem, Schema } from "effect";
+import { Effect, FileSystem, Option, Schema } from "effect";
 import { join } from "path";
 import { ENV, envString } from "../lib/env.js";
 import { HOME_DIR } from "../lib/paths.js";
@@ -30,11 +31,76 @@ const SESSIONS = {
 /** A screen with something on it. */
 export type ScreenSession = keyof typeof SESSIONS;
 
+/** The login session that shows a Moonlight stream in gamescope, installed by dot up. */
+const MOONLIGHT_SESSION = "dot-moonlight.desktop";
+
+/** Where dot up installs the Moonlight session for the login manager. */
+const MOONLIGHT_SESSION_FILE = join(
+  "/usr/local/share/wayland-sessions",
+  MOONLIGHT_SESSION,
+);
+
+/** This user's runtime directory, cleared at logout and boot. */
+const RUNTIME_DIR = `/run/user/${process.getuid?.() ?? 1000}`;
+
+/** The stream dot screen moonlight asked for, kept while it's on screen. */
+const MOONLIGHT_STATE = join(RUNTIME_DIR, "dot-screen-moonlight.json");
+
+/** gamescope's mode file for the Moonlight session. */
+const MOONLIGHT_MODES = join(RUNTIME_DIR, "dot-screen-moonlight-modes.cfg");
+
+/** The modes gaming mode saved per screen, as `description:WxH@Hz [range]`. */
+const STEAM_MODES = join(HOME_DIR, ".config", "gamescope", "modes.cfg");
+
+/** gamescope's Broadcast RGB value for full-range colour. */
+const FULL_RANGE = 1;
+
+const MoonlightState = Schema.Struct({
+  /** The Sunshine host to stream from. */
+  host: Schema.String,
+  width: Schema.Int,
+  height: Schema.Int,
+  fps: Schema.Int,
+  /** Nothing was on screen before, so the login manager stops afterwards. */
+  headless: Schema.Boolean,
+  /** The session the login manager logged into before, put back afterwards. */
+  nextLogin: Schema.String,
+});
+
+/** The stream dot screen moonlight asked for. */
+type MoonlightState = typeof MoonlightState.Type;
+
+const MoonlightStateJson = Schema.fromJsonString(MoonlightState);
+
 /** The screen couldn't be switched. */
 export class ScreenError extends Schema.TaggedError<ScreenError>()(
   "ScreenError",
   { message: Schema.String },
 ) {}
+
+const say = (line: string) =>
+  Effect.sync(() => process.stdout.write(`${line}\n`));
+
+/** The Moonlight stream on screen, if there is one. */
+const readMoonlightState = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+
+  return yield* fs
+    .readFileString(MOONLIGHT_STATE)
+    .pipe(
+      Effect.flatMap(Schema.decodeEffect(MoonlightStateJson)),
+      Effect.option,
+    );
+}).pipe(Effect.withSpan("Screen.readMoonlightState"));
+
+/** Forget the Moonlight stream, once something else takes the screen. */
+const clearMoonlightState = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+
+  yield* fs
+    .remove(MOONLIGHT_STATE, { force: true })
+    .pipe(Effect.orElseSucceed(() => undefined));
+}).pipe(Effect.withSpan("Screen.clearMoonlightState"));
 
 const systemctl = Effect.fn("Screen.systemctl")(function* (
   args: readonly string[],
@@ -54,10 +120,8 @@ const systemctl = Effect.fn("Screen.systemctl")(function* (
     });
 });
 
-/** Log in to Steam's gaming mode or Plasma on the TV, restarting whatever is there. */
-export const screenOn = Effect.fn("Screen.on")(function* (
-  session: ScreenSession,
-) {
+/** Pick the session the login manager logs into next. */
+const setSession = Effect.fn("Screen.setSession")(function* (session: string) {
   const executor = yield* CommandExecutor;
   const fs = yield* FileSystem.FileSystem;
 
@@ -68,32 +132,33 @@ export const screenOn = Effect.fn("Screen.on")(function* (
 
   // CachyOS's policy lets anyone run this helper through pkexec without a
   // password, so it needs no agent over SSH.
-  const exitCode = yield* executor.exitCode("pkexec", [
-    SET_SESSION,
-    SESSIONS[session],
-  ]);
+  const exitCode = yield* executor.exitCode("pkexec", [SET_SESSION, session]);
 
   if (exitCode !== 0)
     return yield* new ScreenError({
-      message: `steam-set-session ${SESSIONS[session]} exited ${exitCode}`,
+      message: `steam-set-session ${session} exited ${exitCode}`,
     });
+});
 
+/** Log in to Steam's gaming mode or Plasma on the TV, restarting whatever is there. */
+export const screenOn = Effect.fn("Screen.on")(function* (
+  session: ScreenSession,
+) {
+  yield* setSession(SESSIONS[session]);
+  yield* clearMoonlightState;
   yield* systemctl(["restart", LOGIN_MANAGER]);
-  yield* Effect.sync(() =>
-    process.stdout.write(
-      session === "game"
-        ? "Starting Steam's gaming mode on the TV\n"
-        : "Starting the Plasma desktop on the TV\n",
-    ),
+  yield* say(
+    session === "game"
+      ? "Starting Steam's gaming mode on the TV"
+      : "Starting the Plasma desktop on the TV",
   );
 });
 
 /** Close whatever is on screen, back to the text console. */
 export const screenOff = Effect.gen(function* () {
+  yield* clearMoonlightState;
   yield* systemctl(["stop", LOGIN_MANAGER]);
-  yield* Effect.sync(() =>
-    process.stdout.write("Closed the screen session; Station is headless\n"),
-  );
+  yield* say("Closed the screen session; Station is headless");
 }).pipe(Effect.withSpan("Screen.off"));
 
 /** KDE's screen config, as much of it as dot screen and dot hdr read. */
@@ -498,10 +563,19 @@ export const screenSteamBeta = Effect.fn("Screen.steamBeta")(function* (
   );
 });
 
-/** Say what's on screen now, and what the login manager logs into next. */
-export const screenStatus = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
+/** What the login manager logs into next, from steam-set-session's drop-in. */
+const readNextLogin = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
+
+  return yield* fs.readFileString(AUTOLOGIN_DROP_IN).pipe(
+    Effect.map((text) => /^Session=(.+)$/m.exec(text)?.[1]?.trim()),
+    Effect.orElseSucceed(() => undefined),
+  );
+}).pipe(Effect.withSpan("Screen.readNextLogin"));
+
+/** What's on screen now. */
+const onScreen = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
 
   const active = (unit: string, user: boolean) =>
     executor
@@ -513,30 +587,240 @@ export const screenStatus = Effect.gen(function* () {
       ])
       .pipe(Effect.map((code) => code === 0));
 
-  const running = (yield* active(LOGIN_MANAGER, false))
-    ? (yield* active("gamescope-session.target", true))
-      ? "Steam's gaming mode"
-      : (yield* active("plasma-workspace.target", true))
-        ? "the Plasma desktop"
-        : "the login screen"
-    : "nothing (headless)";
+  if (!(yield* active(LOGIN_MANAGER, false))) return "off" as const;
 
-  const next = yield* fs.readFileString(AUTOLOGIN_DROP_IN).pipe(
-    Effect.map(
-      (text) => /^Session=(.+)$/m.exec(text)?.[1]?.trim() ?? "not set",
-    ),
-    Effect.orElseSucceed(() => "not set"),
+  if (yield* active("gamescope-session.target", true)) return "game" as const;
+
+  if (yield* active("plasma-workspace.target", true)) return "desktop" as const;
+
+  return Option.isSome(yield* readMoonlightState)
+    ? ("moonlight" as const)
+    : ("login" as const);
+}).pipe(Effect.withSpan("Screen.onScreen"));
+
+/** The connected screens other than the laptop's own panel, such as `DP-2`. */
+const externalOutputs = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const outputs: string[] = [];
+
+  const entries = yield* fs
+    .readDirectory(DRM_CLASS)
+    .pipe(Effect.orElseSucceed((): string[] => []));
+
+  for (const entry of entries.sort()) {
+    const connector = /^card\d+-(.+)$/.exec(entry)?.[1];
+
+    if (!connector || INTERNAL_OUTPUT.test(connector)) continue;
+
+    const status = yield* fs
+      .readFileString(join(DRM_CLASS, entry, "status"))
+      .pipe(Effect.orElseSucceed(() => ""));
+
+    if (status.trim() === "connected") outputs.push(connector);
+  }
+
+  return outputs;
+}).pipe(Effect.withSpan("Screen.externalOutputs"));
+
+/**
+ * Write gamescope's mode file for the stream: each screen gaming mode saved a
+ * mode for, at the stream's refresh rate and in full-range colour. At 4K 60 Hz
+ * the link has room for 10-bit colour, and Intel's driver then picks limited
+ * range by itself; the USB-C to HDMI adapter doesn't tell the TV, so it
+ * reads it as full range and the picture looks washed out. Returns whether
+ * there was anything to write.
+ */
+const writeMoonlightModes = Effect.fn("Screen.writeMoonlightModes")(function* (
+  fps: number,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  const saved = yield* fs
+    .readFileString(STEAM_MODES)
+    .pipe(Effect.orElseSucceed(() => ""));
+
+  const modes = saved.split("\n").flatMap((line) => {
+    const mode = /^([^:]+):(\d+)x(\d+)@\d+/.exec(line);
+
+    return mode
+      ? [`${mode[1]}:${mode[2]}x${mode[3]}@${fps} ${FULL_RANGE}`]
+      : [];
+  });
+
+  if (modes.length === 0) return false;
+
+  yield* fs.writeFileString(MOONLIGHT_MODES, `${modes.join("\n")}\n`);
+
+  return true;
+});
+
+/**
+ * Show a Moonlight stream from `host` full screen on the TV, in its own login
+ * session, replacing whatever is there; closing Moonlight puts that back.
+ * gamescope runs it rather than KWin, since KWin never tells the TV it has
+ * left HDR, and the TV behind the USB-C to HDMI adapter then stays in HDR.
+ */
+export const screenMoonlight = Effect.fn("Screen.moonlight")(function* (
+  stream: Pick<MoonlightState, "host" | "width" | "height" | "fps">,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  if (
+    !(yield* fs
+      .exists(MOONLIGHT_SESSION_FILE)
+      .pipe(Effect.orElseSucceed(() => false)))
+  )
+    return yield* new ScreenError({
+      message: `${MOONLIGHT_SESSION_FILE} is missing: install it with dot up`,
+    });
+
+  const current = yield* onScreen;
+
+  // Streaming again keeps what was on screen before the first stream.
+  const before =
+    current === "moonlight"
+      ? Option.getOrUndefined(yield* readMoonlightState)
+      : undefined;
+
+  // The running session, since the desktop points the next login back at
+  // gaming mode as soon as it starts.
+  const nextLogin =
+    before?.nextLogin ??
+    (current === "game" || current === "desktop"
+      ? SESSIONS[current]
+      : yield* readNextLogin);
+
+  const state: MoonlightState = {
+    ...stream,
+    headless: before?.headless ?? current === "off",
+    nextLogin:
+      nextLogin === undefined || nextLogin === MOONLIGHT_SESSION
+        ? SESSIONS.desktop
+        : nextLogin,
+  };
+
+  yield* fs.writeFileString(
+    MOONLIGHT_STATE,
+    yield* Schema.encodeEffect(MoonlightStateJson)(state),
+  );
+  yield* setSession(MOONLIGHT_SESSION);
+  yield* systemctl(["restart", LOGIN_MANAGER]);
+  yield* say(
+    `Starting Moonlight on the TV, streaming ${stream.host} at ${stream.width}x${stream.height}@${stream.fps}`,
+  );
+});
+
+/**
+ * The Moonlight login session itself: run Moonlight in gamescope until it
+ * closes, then go back to what was on screen before. The login manager logs
+ * back in by itself (Relogin), so this only points it at the earlier session,
+ * or stops it when nothing was on screen.
+ */
+export const screenMoonlightSession = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const state = yield* readMoonlightState;
+
+  if (Option.isNone(state)) {
+    // Never log back in to this session, which would only end again.
+    yield* setSession(SESSIONS.desktop);
+
+    return yield* new ScreenError({
+      message: "No stream to show: start one with dot screen moonlight <host>",
+    });
+  }
+
+  const { host, width, height, fps, headless, nextLogin } = state.value;
+
+  // Set it now, so a crash can't log back in to this session over and over.
+  yield* setSession(nextLogin);
+  yield* reprobeBlankEdid;
+
+  const outputs = yield* externalOutputs;
+  const modes = yield* writeMoonlightModes(fps);
+
+  yield* executor.inherit(
+    "gamescope",
+    [
+      "--backend",
+      "drm",
+      ...(outputs.length > 0 ? ["--prefer-output", outputs.join(",")] : []),
+      "-w",
+      String(width),
+      "-h",
+      String(height),
+      "-f",
+      "--",
+      "moonlight",
+      "stream",
+      host,
+      "Desktop",
+      "--resolution",
+      `${width}x${height}`,
+      "--fps",
+      String(fps),
+      "--display-mode",
+      "fullscreen",
+      "--audio-on-host",
+    ],
+    modes ? { env: { GAMESCOPE_MODE_SAVE_FILE: MOONLIGHT_MODES } } : undefined,
   );
 
-  // dot station screen reads this line to put the desktop's HDR back afterwards.
+  // Another dot screen command already took over the screen.
+  if (Option.isNone(yield* readMoonlightState)) return;
+
+  yield* clearMoonlightState;
+
+  if (headless) yield* systemctl(["stop", LOGIN_MANAGER]);
+}).pipe(Effect.withSpan("Screen.moonlightSession"));
+
+/** Close the Moonlight stream, so the TV goes back to what was there before. */
+export const screenBack = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+
+  if ((yield* onScreen) !== "moonlight") {
+    yield* say("Moonlight isn't on screen");
+
+    return;
+  }
+
+  // The session goes back by itself once Moonlight, and so gamescope, ends.
+  yield* executor.exitCode("pkill", [
+    "-u",
+    String(process.getuid?.() ?? 1000),
+    "-x",
+    "moonlight",
+  ]);
+  yield* say("Closed Moonlight; the TV goes back to what was there before");
+}).pipe(Effect.withSpan("Screen.back"));
+
+/** Say what's on screen now, and what the login manager logs into next. */
+export const screenStatus = Effect.gen(function* () {
+  const current = yield* onScreen;
+
+  const running =
+    current === "moonlight"
+      ? `Moonlight, streaming ${Option.match(yield* readMoonlightState, {
+          onNone: () => "nothing",
+          onSome: (state) => state.host,
+        })}`
+      : {
+          game: "Steam's gaming mode",
+          desktop: "the Plasma desktop",
+          login: "the login screen",
+          off: "nothing (headless)",
+        }[current];
+
+  const next = (yield* readNextLogin) ?? "not set";
+
   const hdr =
-    running === "the Plasma desktop"
+    current === "desktop"
       ? `HDR: ${yield* plasmaHdrEnabled.pipe(
           Effect.map((enabled) => (enabled ? "on" : "off")),
           Effect.orElseSucceed(() => "unknown"),
         )}\n`
       : "";
 
+  // dot station screen on the laptop reads this line, to know when Moonlight closes.
   yield* Effect.sync(() =>
     process.stdout.write(`On screen: ${running}\nNext login: ${next}\n${hdr}`),
   );
