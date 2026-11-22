@@ -317,8 +317,9 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-62 files only on this branch.
+63 files only on this branch.
 
+- [`.dot-branch.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-branch.yml)
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-private.yml)
 - [`.dot-public-deb-releases.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-public-deb-releases.yml)
 - [`.dot-skills.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-skills.yml)
