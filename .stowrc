@@ -9,6 +9,7 @@
 --ignore=AGENTS.md
 --ignore=\.github
 --ignore=\.dot-public-packages
+--ignore=^/\.dot-branch\.yml
 --ignore=\.dot-gh-extensions
 --ignore=^/\.opencode
 --ignore=^/\.claude-plugin

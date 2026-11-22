@@ -124,3 +124,11 @@ Personal dotfiles: don't aim for coverage and don't add tests. There is no regre
 - When a change only takes effect on this machine through `dot up`, run the narrowest stage yourself once checks pass, without offering it: `dot up stow` (stow, completions, MCP sync), `dot up tools` (mise), `dot up plugins` (Pi, Plannotator and OpenCode plugins), `dot up herdr` (Herdr plugins and machines) or `dot agent sync` (agent instructions). These stages are headless and apply the local checkout, so they need no commit or push. `mise run dot:build` already installs a rebuilt `dot`.
 - `dot up dotfiles` and `dot up skills` read the remote, so only run them after a push; on other machines they arrive through their own `dot up`.
 - Leave `dot up agents`, which reloads running agents, and the full interactive `dot up` to the user.
+
+## Updating From The Desktop Branch
+
+`distro/arch-station` is Station's branch: the desktop branch with Station's own changes on top. It rebases onto `origin/distro/arch-omarchy-quattro`, and Upkeep's [`branch-drift` job](https://upkeep.timmo.dev/running#branch-drift) has an agent do it when the branch falls behind, following these steps.
+
+1. Fetch, then rebase with `git rebase origin/distro/arch-omarchy-quattro` (enable `rerere` so repeat resolutions replay).
+2. On a conflict, keep Station's change on top of the desktop's: take the desktop side, then reapply what Station's commit was for. Ask before dropping a Station change.
+3. Check with `mise run dot:check`, and fix what the rebase broke in the commit it came from.
