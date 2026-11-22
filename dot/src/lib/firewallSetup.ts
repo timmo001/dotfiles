@@ -74,6 +74,8 @@ export interface ManagedSourceRule {
  * - SSH on 22, so enabling ufw never locks the server out.
  * - System Bridge serves its API on 9170, which Home Assistant connects to.
  * - Ollama (11434) and Ollaya (11435) serve models to other machines.
+ * - qBittorrent takes incoming peers on 6881. Rootless Podman's ports go
+ *   through ufw, unlike Docker's.
  * - Private networks and Tailscale are trusted, so LAN services (Plex, Samba,
  *   ESPHome and others with changing ports) and containers reaching host
  *   services keep working.
@@ -83,6 +85,12 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
   { kind: "port", label: "System Bridge", port: "9170", protocols: ["tcp"] },
   { kind: "port", label: "Ollama", port: "11434", protocols: ["tcp"] },
   { kind: "port", label: "Ollaya", port: "11435", protocols: ["tcp"] },
+  {
+    kind: "port",
+    label: "qBittorrent",
+    port: "6881",
+    protocols: ["tcp", "udp"],
+  },
   { kind: "source", label: "Private network", from: "192.168.0.0/16" },
   { kind: "source", label: "Private network", from: "10.0.0.0/8" },
   { kind: "source", label: "Docker networks", from: "172.16.0.0/12" },
