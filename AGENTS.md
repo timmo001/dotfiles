@@ -40,7 +40,7 @@ The branch rebases onto `origin/distro/arch-omarchy-quattro`. Look ahead before 
 
 `distro/cloud` and `distro/opencode-app` build on this branch, in permanent worktrees at `~/.local/share/dot/dotfiles-cloud` and `~/.local/share/dot/dotfiles-opencode-app`. Each branch's `AGENTS.md` owns what it takes. Rebase them with `git rebase --fork-point origin/distro/ubuntu-server`, so only their own commits replay after this branch is force-pushed; a plain `git rebase origin/distro/ubuntu-server` replays the old server commits too.
 
-Nothing in `dot` rebases these branches any more. Upkeep is taking it over (timmo001/dotfiles-private#194); until then, rebase them by hand with these steps.
+Nothing in `dot` rebases these branches, or creates and pulls their worktrees, any more. Upkeep is taking it over (timmo001/dotfiles-private#194); until then, pull each worktree (or add it with `git worktree add`) and rebase by hand with these steps.
 
 ## Scope
 
