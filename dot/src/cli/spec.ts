@@ -72,12 +72,12 @@ import {
 } from "../commands/Game.js";
 import { hdr } from "../commands/Hdr.js";
 import {
-  stationHdr,
   stationScreenOff,
   stationScreenOn,
   stationScreenStatus,
   stationScreenToggle,
   stationScreenWatch,
+  stationTv,
 } from "../commands/StationScreen.js";
 import { tunnelRun } from "../commands/Tunnel.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
@@ -1060,7 +1060,7 @@ const stationCommand = describe(
             ),
             describe(
               Command.make("off", {}, () => stationScreenOff),
-              "Close Moonlight on Station and remove the Station screen",
+              "Close Moonlight on Station, back to what it showed, and remove the Station screen",
               ["dot station screen off"],
             ),
             describe(
@@ -1096,35 +1096,85 @@ const stationCommand = describe(
         ],
         {
           description:
-            "On adds a headless Hyprland output named STATION, whose mode comes from hypr/monitors.lua, starts Sunshine (which streams it through output_name = STATION in ~/.config/sunshine/sunshine.conf) and opens Moonlight full screen on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml (ssh: user@host), as the station-screen-moonlight user unit, at the output's size and refresh rate, with sound on both machines. The stream is SDR, so when dot screen status on Station says its desktop is in HDR, on first runs dot hdr off there. It also starts a watcher that removes the screen when Moonlight closes, such as when dot screen on Station ends the session it runs in. Off closes both and removes the screen, so its workspaces move back, then turns Station's HDR back on if on turned it off; the watcher does the same. SSH calls share one connection, kept for 60 seconds after the last.",
+            "On adds a headless Hyprland output named STATION, whose mode comes from hypr/monitors.lua, starts Sunshine (which streams it through output_name = STATION in ~/.config/sunshine/sunshine.conf) and runs dot screen moonlight on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml (ssh: user@host), at the output's size and refresh rate, with sound on both machines. That shows Moonlight full screen in gamescope instead of Station's desktop or gaming mode, which also takes the TV out of HDR, since the stream is SDR. It also starts a watcher that removes the screen when Moonlight closes there, such as when another dot screen command takes the TV. Off runs dot screen back on Station, which closes Moonlight so the TV goes back to what it showed before, stops the watcher and removes the screen, so its workspaces move back; the watcher removes it too. SSH calls share one connection, kept for 60 seconds after the last.",
         },
       ),
       describe(
-        Command.make("hdr").pipe(
+        Command.make("tv").pipe(
           Command.withSubcommands([
             describe(
-              Command.make("on", {}, () => stationHdr("on")),
-              "Switch Station's screens to HDR",
-              ["dot station hdr on"],
+              Command.make("game", {}, () => stationTv(["game"])),
+              "Show Steam's gaming mode on Station's TV",
+              ["dot station tv game"],
             ),
             describe(
-              Command.make("off", {}, () => stationHdr("off")),
-              "Switch Station's screens back to SDR",
-              ["dot station hdr off"],
+              Command.make("desktop", {}, () => stationTv(["desktop"])),
+              "Show the Plasma desktop on Station's TV",
+              ["dot station tv desktop"],
+            ),
+            describe(
+              Command.make("off", {}, () => stationTv(["off"])),
+              "Close whatever is on Station's TV, leaving it headless",
+              ["dot station tv off"],
+            ),
+            describe(
+              Command.make(
+                "moonlight",
+                {
+                  host: Argument.String("host").pipe(
+                    Argument.withDescription("Sunshine host to stream from"),
+                  ),
+                  width: integer("width", "Stream width", 2560),
+                  height: integer("height", "Stream height", 1440),
+                  fps: integer("fps", "Stream frame rate, and the TV's", 60),
+                },
+                ({ host, width, height, fps }) =>
+                  stationTv([
+                    "moonlight",
+                    host,
+                    "--width",
+                    String(width),
+                    "--height",
+                    String(height),
+                    "--fps",
+                    String(fps),
+                  ]),
+              ),
+              "Show a Moonlight stream full screen on Station's TV",
+              ["dot station tv moonlight desktop.local"],
+              {
+                description:
+                  "For any other stream: dot station screen on already runs this for the Station screen, and also watches for it closing.",
+              },
+            ),
+            describe(
+              Command.make("back", {}, () => stationTv(["back"])),
+              "Close Moonlight on Station's TV, back to what it showed before",
+              ["dot station tv back"],
+            ),
+            describe(
+              Command.make("status", {}, () => stationTv(["status"])),
+              "Say what's on Station's TV and what its next login starts",
+              ["dot station tv status"],
+            ),
+            describe(
+              Command.make("keyboard", {}, () => stationTv(["keyboard"])),
+              "Show or hide Plasma's on-screen keyboard on Station's TV",
+              ["dot station tv keyboard"],
             ),
           ]),
         ),
-        "Switch Station's screens between HDR and SDR",
-        ["dot station hdr on", "dot station hdr off"],
+        "Switch what Station's TV shows",
+        ["dot station tv game", "dot station tv status"],
         {
           description:
-            "Runs dot hdr on or off on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml.",
+            "Each runs the matching dot screen command on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml, sharing the Station screen's SSH connection.",
         },
       ),
     ]),
   ),
   "Work with Station from this machine",
-  ["dot station screen on", "dot station hdr off"],
+  ["dot station screen on", "dot station tv game", "dot station tv status"],
 );
 
 const gameCommand = describe(
