@@ -56,6 +56,12 @@ uv = "latest"
 version = "2.2.3"
 allow_builds = ["@opencode/cli"]
 
+# The NAS's Upkeep worker. No release age: a worker older than the server gets
+# no runs, so its self-update has to take a release straight away.
+[tools."github:timmo001/upkeep"]
+version = "latest"
+minimum_release_age = "0s"
+
 [tools."aqua:herdrdev/herdr"]
 version = "latest"
 minimum_release_age = "2h"
