@@ -1423,7 +1423,7 @@ Use Station's TV as an extra desktop for this machine
 dot station desktop <subcommand> [flags]
 ```
 
-On adds a headless Hyprland output named STATION, whose mode comes from hypr/monitors.lua, starts Sunshine (which streams it through output_name = STATION in ~/.config/sunshine/sunshine.conf) and runs dot screen moonlight on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml (ssh: user@host), at the output's size and refresh rate, with sound on both machines. That shows Moonlight full screen in gamescope instead of Station's desktop or gaming mode, which also takes the TV out of HDR, since the stream is SDR. It also starts a watcher that removes the output when Moonlight closes there, such as when another dot screen command takes the TV. Off runs dot screen last on Station while Moonlight is on its TV, which closes it so the TV goes back to what it showed before, stops the watcher and removes the output, so its workspaces move back; the watcher removes it too. SSH calls share one connection, kept for 60 seconds after the last.
+On adds a headless Hyprland output named STATION, whose mode comes from hypr/monitors.lua, starts Sunshine (which streams it through output_name = STATION in ~/.config/sunshine/sunshine.conf) and runs dot screen moonlight on Station over SSH, to the destination in the private ~/.config/dot/station-screen.yml (ssh: user@host), at the output's size and refresh rate, with sound on both machines. That shows Moonlight full screen in gamescope instead of Station's desktop or gaming mode, which also takes the TV out of HDR, since the stream is SDR. It also starts a watcher that removes the output when Moonlight closes there, such as when another dot screen command takes the TV, or when Station has been unreachable for a minute. Off runs dot screen last on Station while Moonlight is on its TV, which closes it so the TV goes back to what it showed before, stops the watcher and removes the output, so its workspaces move back; the watcher removes it too. Each shows a notification, as does On when it can't reach Station. SSH calls share one connection, kept for 60 seconds after the last.
 
 **Options**
 
@@ -1529,7 +1529,7 @@ Remove the Station desktop once Moonlight on Station closes
 dot station desktop watch [flags]
 ```
 
-Run by dot station desktop on as the station-desktop-watch user unit. One SSH connection checks on Station every 2 seconds, since Station's firewall limits new connections; when it drops, it reconnects after 30 seconds rather than taking that as Moonlight closing.
+Run by dot station desktop on as the station-desktop-watch user unit. One SSH connection checks on Station every 2 seconds, since Station's firewall limits new connections; when it drops, it reconnects every 10 seconds rather than taking that as Moonlight closing. Once Station has been unreachable for a minute while this machine was awake, such as when it reboots or shuts down, it removes the desktop too; a suspend here starts the minute again.
 
 **Options**
 

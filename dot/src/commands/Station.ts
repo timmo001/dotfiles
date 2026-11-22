@@ -1,8 +1,8 @@
 import { join } from "node:path";
-import { Duration, Effect, FileSystem, Option, Schedule, Schema } from "effect";
+import { Clock, Duration, Effect, FileSystem, Option, Schema } from "effect";
 import { ENV, envString } from "../lib/env.js";
 import { CONFIG_DIR, DOT_BIN, displayPath } from "../lib/paths.js";
-import { CommandExecutor } from "../services/CommandExecutor.js";
+import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
 
 /** Where Station's SSH destination is configured, stowed from the private overlay. */
 const CONFIG_PATH = join(CONFIG_DIR, "dot", "station-screen.yml");
@@ -47,7 +47,16 @@ const SUNSHINE_UNIT = "app-dev.lizardbyte.app.Sunshine.service";
 const POLL_ON_STATION = Duration.seconds(2);
 
 /** How long the watcher waits before reconnecting; Station's ufw refuses a sixth new SSH connection within 30 seconds. */
-const RECONNECT_AFTER = Duration.seconds(30);
+const RECONNECT_AFTER = Duration.seconds(10);
+
+/** How long Station can stay unreachable, while this machine is awake, before the watcher takes Moonlight as gone. */
+const UNREACHABLE_FOR = Duration.minutes(1);
+
+/** What the watcher's command on Station prints first, so a dropped connection isn't taken for Station being unreachable. */
+const CONNECTED = "connected";
+
+/** How many times this machine has suspended since boot. */
+const SUSPEND_COUNT = "/sys/power/suspend_stats/success";
 
 /** Station couldn't do what was asked, or couldn't be reached. */
 export class StationError extends Schema.TaggedError<StationError>()(
@@ -72,6 +81,31 @@ const decodeMonitors = Schema.decodeEffect(
 
 const say = (line: string) =>
   Effect.sync(() => process.stdout.write(`${line}\n`));
+
+/** A failure in a line for a notification. */
+const failureText = (error: { readonly message: string } | CommandError) =>
+  error instanceof CommandError
+    ? error.stderr || `${error.command} exited ${error.exitCode}`
+    : error.message;
+
+/** Show a desktop notification, since the launcher and keybind have no terminal. */
+const notify = Effect.fn("Station.notify")(function* (
+  title: string,
+  body: string,
+) {
+  const executor = yield* CommandExecutor;
+
+  yield* executor.exitCode("omarchy", [
+    "notification",
+    "send",
+    "-g",
+    "󰍹",
+    "--app-name",
+    "Display",
+    title,
+    body,
+  ]);
+});
 
 /** The Station desktop's output, when it's on. */
 const stationOutput = Effect.gen(function* () {
@@ -175,10 +209,23 @@ export const stationDesktopOn = Effect.gen(function* () {
 
   const { width, height } = output.value;
   const fps = Math.round(output.value.refreshRate);
+  const status = yield* moonlightStatus;
 
-  if ((yield* moonlightStatus) === 0) {
+  if (status === SSH_FAILED) {
+    yield* removeOutput;
+
+    return yield* new StationError({
+      message: "Couldn't reach Station, so STATION is off again.",
+    });
+  }
+
+  if (status === 0) {
     yield* startWatch;
     yield* say("Moonlight is already showing it on Station.");
+    yield* notify(
+      "Station desktop on",
+      "Moonlight is already showing it on Station.",
+    );
 
     return;
   }
@@ -195,10 +242,19 @@ export const stationDesktopOn = Effect.gen(function* () {
     String(height),
     "--fps",
     String(fps),
-  ]);
+  ]).pipe(Effect.tapError(() => removeOutput));
   yield* startWatch;
-  yield* say(`Station is showing ${OUTPUT} (${width}x${height}@${fps}).`);
-}).pipe(Effect.withSpan("Station.on"));
+
+  const shown = `Station is showing ${OUTPUT} (${width}x${height}@${fps}).`;
+
+  yield* say(shown);
+  yield* notify("Station desktop on", shown);
+}).pipe(
+  Effect.tapError((error) =>
+    notify("Station desktop didn't turn on", failureText(error)),
+  ),
+  Effect.withSpan("Station.on"),
+);
 
 /** Close Moonlight on Station, which puts back what its TV showed before, and remove the Station desktop. */
 export const stationDesktopOff = Effect.gen(function* () {
@@ -206,8 +262,10 @@ export const stationDesktopOff = Effect.gen(function* () {
 
   yield* executor.exitCode("systemctl", ["--user", "stop", WATCH_UNIT]);
 
+  const status = yield* moonlightStatus;
+
   // dot screen last switches away from anything, so only while it's Moonlight.
-  if ((yield* moonlightStatus) === 0)
+  if (status === 0)
     yield* executor.exitCode(
       "ssh",
       yield* sshArgs([STATION_DOT, "screen", "last"]),
@@ -215,7 +273,18 @@ export const stationDesktopOff = Effect.gen(function* () {
 
   yield* removeOutput;
   yield* say(`${OUTPUT} is off.`);
-}).pipe(Effect.withSpan("Station.off"));
+  yield* notify(
+    "Station desktop off",
+    status === SSH_FAILED
+      ? "Couldn't reach Station, so its TV may still show Moonlight. Its windows are back here."
+      : "Its windows are back here.",
+  );
+}).pipe(
+  Effect.tapError((error) =>
+    notify("Station desktop didn't turn off", failureText(error)),
+  ),
+  Effect.withSpan("Station.off"),
+);
 
 /** Turn the Station desktop off when it's on, otherwise on. */
 export const stationDesktopToggle = Effect.gen(function* () {
@@ -260,48 +329,101 @@ export const stationScreen = Effect.fn("Station.screen")(function* (
     });
 });
 
+/** How many times this machine has suspended since boot, or 0 when the kernel doesn't say. */
+const suspendCount = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+
+  return yield* fs.readFileString(SUSPEND_COUNT).pipe(
+    Effect.map((text) => Number(text.trim()) || 0),
+    Effect.orElseSucceed(() => 0),
+  );
+}).pipe(Effect.withSpan("Station.suspendCount"));
+
+/** How one watcher connection ended. */
+type Attempt = "closed" | "dropped" | "unreachable";
+
+/** When Station became unreachable, and how many times this machine had suspended by then. */
+interface Outage {
+  readonly since: number;
+  readonly suspends: number;
+}
+
 /**
  * Remove the Station desktop once Moonlight on Station stops, such as when it's
- * closed there or another dot screen command takes the TV. One SSH connection
- * waits on Station, since Station rate limits new ones; when it drops, as
- * while this machine sleeps, it reconnects rather than taking that as
- * Moonlight closing.
+ * closed there or another dot screen command takes the TV, or once Station has
+ * been unreachable for a minute while this machine was awake, such as when it
+ * reboots or shuts down. One SSH connection waits on Station, since Station
+ * rate limits new ones; when it drops, it reconnects every 10 seconds, and a
+ * suspend here starts the minute again, since the drop is then this machine's.
  */
 export const stationDesktopWatch = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
 
-  const waitForMoonlight = sshArgs([
-    `while ${STATION_DOT} screen status | grep -q '${MOONLIGHT_ON_SCREEN}'; do sleep ${Duration.toSeconds(POLL_ON_STATION)}; done`,
-  ]).pipe(
-    Effect.flatMap((args) =>
-      executor.exitCode("ssh", [
-        "-o",
-        "ServerAliveInterval=15",
-        "-o",
-        "ServerAliveCountMax=3",
-        ...args,
-      ]),
-    ),
-  );
+  const args = yield* sshArgs([
+    `echo ${CONNECTED}; while ${STATION_DOT} screen status | grep -q '${MOONLIGHT_ON_SCREEN}'; do sleep ${Duration.toSeconds(POLL_ON_STATION)}; done`,
+  ]);
 
-  yield* waitForMoonlight.pipe(
-    Effect.repeat({
-      while: (status) => status === SSH_FAILED,
-      schedule: Schedule.spaced(RECONNECT_AFTER),
-    }),
-  );
+  const waitForMoonlight = executor
+    .run("ssh", [
+      "-o",
+      "ServerAliveInterval=15",
+      "-o",
+      "ServerAliveCountMax=3",
+      ...args,
+    ])
+    .pipe(
+      Effect.map((): Attempt => "closed"),
+      Effect.catchTag("CommandError", (error) =>
+        Effect.succeed<Attempt>(
+          error.exitCode !== SSH_FAILED
+            ? "closed"
+            : error.stdout?.includes(CONNECTED)
+              ? "dropped"
+              : "unreachable",
+        ),
+      ),
+    );
+
+  const watchFrom = (
+    outage: Option.Option<Outage>,
+  ): Effect.Effect<"closed" | "unreachable", never, FileSystem.FileSystem> =>
+    Effect.gen(function* () {
+      const attempt = yield* waitForMoonlight;
+
+      if (attempt === "closed") return "closed";
+
+      const now = yield* Clock.currentTimeMillis;
+      const suspends = yield* suspendCount;
+
+      const ongoing =
+        attempt === "unreachable"
+          ? Option.filter(outage, (last) => last.suspends === suspends)
+          : Option.none<Outage>();
+
+      if (
+        Option.isSome(ongoing) &&
+        now - ongoing.value.since >= Duration.toMillis(UNREACHABLE_FOR)
+      )
+        return "unreachable";
+
+      yield* Effect.sleep(RECONNECT_AFTER);
+
+      return yield* watchFrom(
+        Option.isSome(ongoing)
+          ? ongoing
+          : Option.some({ since: now, suspends }),
+      );
+    });
+
+  const end = yield* watchFrom(Option.none());
 
   if (Option.isSome(yield* stationOutput)) {
     yield* removeOutput;
-    yield* executor.exitCode("omarchy", [
-      "notification",
-      "send",
-      "-g",
-      "󰍹",
-      "--app-name",
-      "Display",
+    yield* notify(
       "Station desktop off",
-      "Moonlight on Station closed, so its windows are back here.",
-    ]);
+      end === "closed"
+        ? "Moonlight on Station closed, so its windows are back here."
+        : "Station has been unreachable for a minute, so its windows are back here.",
+    );
   }
 }).pipe(Effect.withSpan("Station.watch"));
