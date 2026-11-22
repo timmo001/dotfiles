@@ -1,3 +1,5 @@
 ---
 mode: rebase
-parent: distro/arch-omarchy-quattro
+parent: distro/ubuntu-server
+ignore:
+  - docs/src/content/docs/server/changes.md
