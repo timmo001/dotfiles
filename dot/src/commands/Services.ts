@@ -924,6 +924,15 @@ const expandDescriptorPath = (path: string) =>
       .replace(/^\$HOME(?=\/|$)/, "~"),
   );
 
+const DOT_BIN = join(HOME_DIR, ".local", "bin", "dot");
+
+/**
+ * A descriptor command's program, with a bare `dot` pinned to dot's own
+ * binary, since the daemon's PATH can put Graphviz's `/usr/bin/dot` first.
+ */
+const descriptorProgram = (program: string) =>
+  program === "dot" ? DOT_BIN : program;
+
 const latestLog = Effect.fn("Services.latestLog")(function* (
   logs: NonNullable<ServiceDescriptor["logs"]>,
 ) {
@@ -1578,7 +1587,7 @@ const runCheck = Effect.fn("Services.runCheck")(function* (
   const result = Option.isNone(env)
     ? undefined
     : yield* executor
-        .run(command, args, { env: env.value })
+        .run(descriptorProgram(command), args, { env: env.value })
         .pipe(Effect.timeoutOption(timeout), Effect.result);
 
   const finished = yield* Clock.currentTimeMillis;
@@ -2029,7 +2038,7 @@ export const servicesAct = Effect.fn("Services.act")(function* (
 
   const executor = yield* CommandExecutor;
   const [program, ...args] = command;
-  const exitCode = yield* executor.inherit(program, args);
+  const exitCode = yield* executor.inherit(descriptorProgram(program), args);
 
   if (exitCode !== 0) process.exitCode = exitCode;
 });
