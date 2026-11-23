@@ -2420,7 +2420,7 @@ Give a session a desk of its own and move its new browse window there
 dot agent screen claim [flags]
 ```
 
-Run straight after opening the session's first browse tab. The newest window waiting on AGENT moves to the session's desk, a headless output of its own (AGENT-1 to AGENT-6), which is added if needed. A session claiming again moves its next window to the same desk. Who holds each desk is kept in $XDG_RUNTIME_DIR/dot-agent-desks.json.
+Run straight after opening the session's first browse tab. The newest window waiting on AGENT moves to the session's desk, a headless output of its own (AGENT-1 to AGENT-6), which is added if needed. A session claiming again moves its next window to the same desk. browse puts every session's tabs in one window, so while another session's window is on a desk, a later session's tabs open there too: claim then says which desk they share and succeeds without moving anything. Who holds each desk is kept in $XDG_RUNTIME_DIR/dot-agent-desks.json.
 
 **Options**
 

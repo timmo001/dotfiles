@@ -247,6 +247,20 @@ export const agentScreenClaim = Effect.fn("AgentScreen.claim")(function* (
       return;
     }
 
+    // browse opens every session's tabs in one shared window, so a later
+    // session's tabs land in the window an earlier one already claimed
+    const shared = Object.entries(desks).find(
+      ([, desk]) => desk.windows.length > 0,
+    );
+
+    if (shared) {
+      yield* say(
+        `${label}'s tabs share ${shared[0]} with ${shared[1].session}, since browse puts every session's tabs in one window. Work there, and leave the other session's tabs alone.`,
+      );
+
+      return;
+    }
+
     return yield* fail(
       `No new browse window is waiting on ${HOLD}. Open the session's first tab, then claim.`,
     );
