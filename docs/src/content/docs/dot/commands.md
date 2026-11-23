@@ -2400,6 +2400,8 @@ Add the agent screen that holds new browse windows off-screen
 dot agent screen on [flags]
 ```
 
+Adds the AGENT headless output that holds new browse windows until a session claims a desk, and switches the agent screen view to the corner overlay, whatever view was left from before.
+
 **Options**
 
 | Option | Description |

@@ -194,7 +194,10 @@ const describeOutput = (
   return `${output.name} is ${owner}'s desk, ${contents}.`;
 };
 
-/** Add the holding screen, so new agent windows land off-screen. */
+/**
+ * Add the holding screen, so new agent windows land off-screen, and show the
+ * corner overlay, whatever view an earlier session left behind.
+ */
 export const agentScreenOn = Effect.gen(function* () {
   yield* addOutput(HOLD);
 
@@ -202,8 +205,17 @@ export const agentScreenOn = Effect.gen(function* () {
 
   if (Option.isNone(output)) return yield* fail(`Hyprland didn't add ${HOLD}.`);
 
+  // The shell only resets its view once every agent screen is gone, so a
+  // view hidden while AGENT stayed on would otherwise stick for this session
+  const overlay = yield* applyMode("overlay").pipe(
+    Effect.as("The corner overlay shows them."),
+    Effect.catch((error) =>
+      Effect.succeed(`The corner overlay couldn't be shown: ${error.message}`),
+    ),
+  );
+
   yield* say(
-    `${HOLD} is on: ${output.value.width}x${output.value.height} at scale ${output.value.scale}. New browse windows land there until a session claims a desk.`,
+    `${HOLD} is on: ${output.value.width}x${output.value.height} at scale ${output.value.scale}. New browse windows land there until a session claims a desk. ${overlay}`,
   );
 }).pipe(Effect.withSpan("AgentScreen.on"));
 

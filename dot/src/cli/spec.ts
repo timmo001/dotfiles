@@ -3196,6 +3196,10 @@ const agentScreenCommand = describe(
         Command.make("on", {}, () => agentScreenOn),
         "Add the agent screen that holds new browse windows off-screen",
         ["dot agent screen on"],
+        {
+          description:
+            "Adds the AGENT headless output that holds new browse windows until a session claims a desk, and switches the agent screen view to the corner overlay, whatever view was left from before.",
+        },
       ),
       describe(
         Command.make(
