@@ -5,6 +5,7 @@ import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { OutputLog } from "../../services/OutputLog.js";
 import { displayPath } from "../../lib/paths.js";
+import { readPrivateSelection } from "../../lib/privateSelection.js";
 import { cliStyler } from "../../lib/ansi.js";
 import { buildRepoMcpEntries } from "./adapters.js";
 import { formatJson } from "./formatJson.js";
@@ -47,7 +48,7 @@ const rememberRepositories = Effect.fn("McpSync.rememberRepositories")(
 
 /** Reconcile generated, Git-ignored repository OpenCode configs with private MCP and skill overrides. */
 export const syncRepoMcpConfigs = Effect.gen(function* () {
-  const { gitConfig, mcpConfig, stateDir } = yield* Config;
+  const { gitConfig, mcpConfig, publicDotfiles, stateDir } = yield* Config;
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
   const fs = yield* FileSystem.FileSystem;
@@ -64,11 +65,24 @@ export const syncRepoMcpConfigs = Effect.gen(function* () {
 
   const manifest = join(stateDir, "mcp-repositories.json");
 
-  const selected = gitConfig.repositories.filter(
-    (repo) =>
-      Object.keys(repo.opencodeMcp ?? {}).length > 0 ||
-      Object.keys(repo.opencodeSkills ?? {}).length > 0,
-  );
+  // A repository's opt-in must not bring back a server this machine excludes.
+  const exclude =
+    (yield* readPrivateSelection(publicDotfiles))?.mcpExclude ?? new Set();
+
+  const selected = gitConfig.repositories
+    .map((repo) => ({
+      ...repo,
+      opencodeMcp: Object.fromEntries(
+        Object.entries(repo.opencodeMcp ?? {}).filter(
+          ([name]) => !exclude.has(name),
+        ),
+      ),
+    }))
+    .filter(
+      (repo) =>
+        Object.keys(repo.opencodeMcp ?? {}).length > 0 ||
+        Object.keys(repo.opencodeSkills ?? {}).length > 0,
+    );
 
   for (const repo of selected) {
     for (const [name, enabled] of Object.entries(repo.opencodeMcp ?? {})) {
