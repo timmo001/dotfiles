@@ -24,7 +24,7 @@
     "smol-toml": "1.9.1"
   },
   "devDependencies": {
-    "@effect/tsgo": "0.73.2",
+    "@effect/tsgo": "0.73.4",
     "@types/bun": "1.4.5",
     "@types/semver": "7.8.0",
     "prettier": "3.10.1",
