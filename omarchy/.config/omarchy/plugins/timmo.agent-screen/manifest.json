@@ -4,7 +4,7 @@
   "name": "Agent screen",
   "version": "1.0.0",
   "author": "Aidan Timson",
-  "description": "Shows the headless agent screen live while it's on: a translucent corner view clicks pass through, or full screen",
+  "description": "Shows each headless agent screen with windows live: stacked translucent corner views that clicks pass through, or full screen",
   "kinds": [
     "overlay"
   ],
