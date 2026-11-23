@@ -139,7 +139,6 @@ const WORKTREE_IGNORES = ["/pitchfork.local.toml", "/.ha-dev/"];
 const WORKTREE_SHARED_FILES = [
   "translations/token.json",
   "opencode.json",
-  ".opencode-playwright.json",
   ".opencode/opencode.jsonc",
 ];
 
