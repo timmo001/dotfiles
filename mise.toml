@@ -219,10 +219,11 @@ run = "bun run gen"
 [tasks."docs:check"]
 description = "Check the docs site's pages, links and types without disturbing a running dev server"
 dir = "docs"
-depends = ["docs:install"]
-# With .blume/ present a dev server may be using it, so check in --isolated's
-# .blume-verify/; in a fresh checkout such as CI, generate .blume/ itself.
-run = "if [ -d .blume ]; then bun run check -- --isolated; else bun run check; fi"
+# docs/scripts import dot/src, so the type check needs dot's dependencies too
+depends = ["docs:install", "dot:install"]
+# Check in --isolated's .blume-verify/, so a dev server or a docs:build running
+# alongside (as in CI's `check ::: build`) keeps .blume/ to itself
+run = "bun run check -- --isolated"
 
 [tasks.check]
 description = "Run every lint, check, test, and docs check in parallel"
