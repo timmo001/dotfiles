@@ -138,6 +138,7 @@
     { "id": "timmo.games" },
     { "id": "timmo.workspace-relayout" },
     { "id": "timmo.popup-loading" },
+    { "id": "timmo.agent-screen" },
     {
       "id": "timmo.clock",
       "managed": true,

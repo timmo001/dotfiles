@@ -178,6 +178,9 @@ o.bind("SUPER + H", "Home Assistant", [[omarchy-launch-webapp "https://prod.ha-c
 -- The 3D printer's camera from Kestrel, as the doorbell's (SUPER + ALT + C, per host)
 o.bind("SUPER + ALT + P", "Printer Camera Popup", [[mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}"; nohup setsid ~/.config/dotfiles/scripts/.local/bin/camera-popup --name printer bambu/camera >"${XDG_STATE_HOME:-$HOME/.local/state}/printer-camera-popup.log" 2>&1 < /dev/null &]])
 o.bind("SUPER + ALT + H", "Handoffs", "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e notes handoffs --all")
+-- The agent screen (dot agent screen): corner view, full screen, tiled, hidden
+hl.unbind("SUPER + ALT + A")
+o.bind("SUPER + ALT + A", "Agent screen view", "dot agent screen view")
 o.bind("CTRL + ALT + H", "Home Assistant panel", "omarchy-shell shell toggle timmo.home-assistant")
 o.bind("CTRL + ALT + G", "Git panel", "omarchy-shell shell toggle timmo.git")
 o.bind("CTRL + ALT + SHIFT + G", "Other repositories", "omarchy-shell timmo.git other")

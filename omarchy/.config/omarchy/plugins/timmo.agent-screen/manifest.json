@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "timmo.agent-screen",
+  "name": "Agent screen",
+  "version": "1.0.0",
+  "author": "Aidan Timson",
+  "description": "Shows the headless agent screen live while it's on: a translucent corner view clicks pass through, or full screen",
+  "kinds": [
+    "overlay"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "overlay": "Overlay.qml"
+  }
+}
