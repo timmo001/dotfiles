@@ -368,8 +368,71 @@ export function gitRefreshRemoteHead(
 const PULL_FETCH_TIMEOUT = Duration.seconds(20);
 
 /**
- * Fast-forward a repository without stashing or rebasing local work. Returns
- * true only when the pull succeeds. The network fetch runs first through
+ * Follow an upstream that was rewritten, such as a branch Upkeep keeps rebased
+ * on another: replay only the commits made here since the upstream this
+ * checkout last had (its fork point), dropping the old copies of the rewritten
+ * ones. Returns false, leaving the checkout as it was, when the upstream only
+ * moved on, so the checkout holds diverging local work; when there's no fork
+ * point to go by; or when the replay doesn't apply cleanly.
+ */
+const followRewrittenUpstream = Effect.fn("Git.followRewrittenUpstream")(
+  function* (repoPath: string) {
+    const launcher = yield* Launcher;
+    const log = yield* OutputLog;
+    const opts = { cwd: repoPath };
+
+    const forkPoint = yield* gitOutput(
+      ["merge-base", "--fork-point", "@{u}", "HEAD"],
+      opts,
+    ).pipe(
+      Effect.map((sha) => sha.trim()),
+      Effect.orElseSucceed(() => ""),
+    );
+
+    if (!forkPoint) return false;
+
+    // An upstream that still holds the fork point only moved on
+    if (
+      (yield* gitExitCode(
+        ["merge-base", "--is-ancestor", forkPoint, "@{u}"],
+        opts,
+      )) === 0
+    )
+      return false;
+
+    const own = yield* gitOutput(
+      ["rev-list", "--count", `${forkPoint}..HEAD`],
+      opts,
+    ).pipe(Effect.map((count) => Number(count.trim())));
+
+    const rebased = yield* launcher
+      .stream(
+        `git rebase --quiet --no-autostash --onto '@{u}' ${forkPoint}`,
+        opts,
+      )
+      .pipe(Effect.orElseSucceed(() => 1));
+
+    if (rebased !== 0) {
+      yield* gitExitCode(["rebase", "--abort"], opts);
+
+      return false;
+    }
+
+    yield* log.info(
+      own === 0
+        ? "Upstream was rewritten; moved onto it"
+        : `Upstream was rewritten; moved onto it, keeping ${own} local ${own === 1 ? "commit" : "commits"}`,
+    );
+
+    return true;
+  },
+);
+
+/**
+ * Fast-forward a repository without stashing local work. An upstream that was
+ * rewritten is followed with {@link followRewrittenUpstream}, which keeps only
+ * the commits made here; other local commits are left alone, so the pull
+ * fails. Returns true only when the pull succeeds. The network fetch runs first through
  * {@link gitRemoteOutput}, so it is prompt-free and retried after transient
  * connection failures; the fast-forward and submodule checkout then run
  * locally. Timeout and retry of the whole pull are owned by the caller
@@ -411,9 +474,23 @@ export function gitPullFastForward(
       return false;
     }
 
+    const merged = yield* launcher
+      .stream("git merge --quiet --ff-only --no-autostash --no-edit '@{u}'", {
+        cwd: repoPath,
+      })
+      .pipe(Effect.orElseSucceed(() => 1));
+
+    if (
+      merged !== 0 &&
+      !(yield* followRewrittenUpstream(repoPath).pipe(
+        Effect.orElseSucceed(() => false),
+      ))
+    )
+      return false;
+
     const exitCode = yield* launcher
       .stream(
-        "git merge --quiet --ff-only --no-autostash --no-edit '@{u}' && git submodule --quiet sync --recursive && GIT_TERMINAL_PROMPT=0 git submodule --quiet update --init --recursive --checkout --jobs=8",
+        "git submodule --quiet sync --recursive && GIT_TERMINAL_PROMPT=0 git submodule --quiet update --init --recursive --checkout --jobs=8",
         { cwd: repoPath },
       )
       .pipe(Effect.orElseSucceed(() => 1));
