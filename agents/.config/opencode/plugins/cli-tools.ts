@@ -246,7 +246,7 @@ export default Plugin.define({
       );
 
       const toolOptions = (namespace: Namespace, tool: CliTool | ClientTool) => {
-        const base = { namespace: namespace.command, codemode: true, pinned: tool.pinned } as const;
+        const base = { namespace: namespace.command, codemode: { pinned: tool.pinned } } as const;
 
         return tool.access === "write" ? { ...base, permission: `${namespace.command}.write` } : base;
       };
