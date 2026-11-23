@@ -610,7 +610,7 @@ const ensureNoConflicts = Effect.fn("HomeAssistant.ensureNoConflicts")(
       if ((yield* daemonStatus(conflict)) !== "running") continue;
 
       return yield* fail(
-        `${conflict} is running and can't run alongside ${what}. ${isAgent() ? "Ask the user before stopping it with" : "Stop it first with"} dot homeassistant stop.`,
+        `${conflict} is running and can't run alongside ${what}. ${isAgent() ? "If no other agent in Herdr is using it, stop it with" : "Stop it first with"} dot homeassistant stop.`,
       );
     }
   },
@@ -647,7 +647,7 @@ const ensureNoRunningSuites = Effect.fn("HomeAssistant.ensureNoRunningSuites")(
     const stop = `dot homeassistant stop ${running.join(" ")}`;
 
     return yield* fail(
-      `The ${running.join(", ")} dev server can't run alongside ${what}. ${isAgent() ? `Ask the user before stopping it with ${stop}.` : `Stop it first with ${stop}.`}`,
+      `The ${running.join(", ")} dev server can't run alongside ${what}. ${isAgent() ? `If no other agent in Herdr is using it, stop it with ${stop}.` : `Stop it first with ${stop}.`}`,
     );
   },
 );
@@ -1109,7 +1109,7 @@ export const frontendServe = Effect.fn("HomeAssistant.frontendServe")(
 
     if (isAgent() && (yield* daemonStatus(serve.daemon)) === "running")
       return yield* Console.log(
-        `${serve.daemon} is already running at ${serve.url}. Ask the user before restarting it against another Core.`,
+        `${serve.daemon} is already running at ${serve.url}. If no other agent in Herdr is using it, restart it against another Core.`,
       );
 
     if (isAgent()) yield* ensureNoConflicts(conflicts, serve.daemon);
