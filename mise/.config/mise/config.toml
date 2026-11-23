@@ -246,6 +246,7 @@ disable_tools = [
   "opencode",
   "ori",
   "pi",
+  "playwright",
   "qwen",
 ]
 idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]
