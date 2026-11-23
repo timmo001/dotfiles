@@ -35,12 +35,16 @@ stow:
 
 # mcp.exclude: servers from the private mcp.yml kept off this machine, as on
 # the NAS. dot mcp sync disables them in the untracked
-# ~/.config/opencode/opencode.jsonc and leaves them out of Claude Code, so the
-# shared generated configs stay as they are.
+# ~/.config/opencode/opencode.jsonc, leaves them out of Claude Code and drops
+# them from repositories' opt-ins, so the shared generated configs stay as they
+# are. Station is headless, so it has no browser for browse to drive, and it
+# keeps no Cloudflare access.
 mcp:
   exclude:
+    - browse
     - chrome-devtools
     - cloudflare-api
+    - docs-cloudflare
 
 # opencode: settings dot mcp sync layers over the shared OpenCode config in
 # the untracked ~/.config/opencode/opencode.jsonc. The server instructions say
