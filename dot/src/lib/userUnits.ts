@@ -4,7 +4,7 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { cliStyler } from "./ansi.js";
-import { pathExists } from "./fsProbe.js";
+import { pathExists, readDirectoryOrNull } from "./fsProbe.js";
 import { resolvedOmarchyHost } from "./omarchyHost.js";
 import { CONFIG_DIR } from "./paths.js";
 import { plural } from "./runSummary.js";
@@ -34,6 +34,13 @@ const DEFAULT_UNITS: readonly DefaultUnit[] = [
   // Hokum draws black cards on the desktop's NVIDIA GPU.
   { unit: "hokum.service", onlyHosts: ["laptop"] },
 ];
+
+/**
+ * Units no longer shipped by the shared systemd package. Each one is stopped
+ * and disabled before stow removes its retired link, unless a host package
+ * ships it, as Station's does for the notes capture daemon.
+ */
+const RETIRED_UNITS: readonly string[] = ["notes-capture-daemon.service"];
 
 /** Where a default unit can come from: the stowed systemd package or a package. */
 const UNIT_DIRS = [
@@ -133,4 +140,82 @@ export const enableDefaultUnits = Effect.gen(function* () {
     }),
   ),
   Effect.withSpan("UserUnits.enableDefaults"),
+);
+
+/**
+ * Stop and disable retired units still enabled or running here, while their
+ * stowed link can still be found. Runs before stow removes retired links.
+ *
+ * @returns Recap entries for the stow summary, empty when nothing was
+ *   retired. Failures become a warning so stow carries on.
+ */
+export const disableRetiredUnits = Effect.gen(function* () {
+  const config = yield* Config;
+  const executor = yield* CommandExecutor;
+  const log = yield* OutputLog;
+  const packages = (yield* readDirectoryOrNull(config.publicDotfiles)) ?? [];
+  let disabled = 0;
+
+  const systemctl = (args: readonly string[]) =>
+    executor.run("systemctl", ["--user", ...args]).pipe(
+      Effect.mapError(
+        (cause) =>
+          new UserUnitError({
+            message:
+              cause.stderr || `${cause.command} exited ${cause.exitCode}`,
+          }),
+      ),
+    );
+
+  const property = (unit: string, name: string) =>
+    systemctl(["show", `--property=${name}`, "--value", unit]).pipe(
+      Effect.map((value) => value.trim()),
+    );
+
+  for (const unit of RETIRED_UNITS) {
+    let shipped = false;
+
+    for (const name of packages)
+      shipped ||= yield* pathExists(
+        join(config.publicDotfiles, name, ".config", "systemd", "user", unit),
+      );
+
+    if (shipped) continue;
+
+    const state = yield* property(unit, "UnitFileState");
+    const active = yield* property(unit, "ActiveState");
+    const enabled = state === "enabled" || state === "linked";
+    const running = active !== "inactive" && active !== "failed";
+
+    if (!enabled && !running) continue;
+
+    if (disabled === 0) yield* log.section("Retired User Units");
+
+    // Stop before disable, which reloads systemd and drops the unit's settings
+    // (such as SuccessExitStatus) once its source is gone, failing the stop.
+    if (running) yield* systemctl(["stop", unit]);
+
+    if (enabled) yield* systemctl(["disable", unit]);
+
+    yield* systemctl(["reset-failed", unit]).pipe(Effect.ignore);
+    yield* log.success(`Stopped and disabled ${cliStyler().accent(unit)}`);
+    disabled++;
+  }
+
+  if (disabled === 0) return [];
+
+  return [
+    notable(`Stopped and disabled ${plural(disabled, "retired user unit")}`),
+  ] satisfies RecapEntry[];
+}).pipe(
+  Effect.catch((error) =>
+    Effect.gen(function* () {
+      const log = yield* OutputLog;
+
+      yield* log.warn(`Retired user units not disabled: ${error.message}`);
+
+      return [warn("Retired user units not disabled")] satisfies RecapEntry[];
+    }),
+  ),
+  Effect.withSpan("UserUnits.disableRetired"),
 );

@@ -21,7 +21,7 @@ import { applySyncthingConfig } from "../lib/syncthing.js";
 import { syncSystemBridgeProvider } from "../lib/systemBridgeProvider.js";
 import { applySecretFiles } from "../lib/secretFiles.js";
 import { applyDotLinksExtension } from "../lib/dotLinksExtension.js";
-import { enableDefaultUnits } from "../lib/userUnits.js";
+import { disableRetiredUnits, enableDefaultUnits } from "../lib/userUnits.js";
 import {
   backupUnmanagedTargets,
   emptyStowCounts,
@@ -132,6 +132,8 @@ export const stow = (opts?: {
           `Added ${style.accent(spec)} ${style.dim(displayPath(globalPlugins.path))}`,
         );
       }
+
+      actions.push(...(yield* disableRetiredUnits));
 
       yield* log.section("Stow Public Dotfiles");
       yield* removeRetiredStowState(counts);
