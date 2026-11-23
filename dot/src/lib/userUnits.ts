@@ -33,6 +33,8 @@ const DEFAULT_UNITS: readonly DefaultUnit[] = [
   { unit: "app-dev.lizardbyte.app.Sunshine.service" },
   // Station's always-on System Bridge, stowed over the package's session unit.
   { unit: "system-bridge.service" },
+  // Starts Station's OpenCode server at boot, for Home Assistant's Assist.
+  { unit: "opencode-service.service" },
   // Hokum draws black cards on the desktop's NVIDIA GPU.
   { unit: "hokum.service", onlyHosts: ["laptop"] },
 ];

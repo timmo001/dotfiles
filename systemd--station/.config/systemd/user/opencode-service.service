@@ -1,0 +1,13 @@
+[Unit]
+Description=Start the OpenCode server at boot, for Home Assistant's Assist
+OnFailure=dot-service-failed@%n.service
+
+# OpenCode runs its own server and restarts it on upgrades, so this only starts
+# it, rather than running it in the foreground and fighting over the process.
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=%h/.local/share/mise/shims/opencode service start
+
+[Install]
+WantedBy=default.target

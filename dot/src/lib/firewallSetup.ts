@@ -62,7 +62,8 @@ export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
  *   UDP (discovery) and TCP (transfer). Plasma ships it.
  * - LocalSend discovers and transfers over 53317 on both UDP and TCP.
  * - System Bridge serves its API on 9170, which Home Assistant connects to.
- * - The OpenCode server listens on 4096, as on the other machines.
+ * - The OpenCode server listens on its default port, 49374, on every
+ *   interface, so Home Assistant's Assist can pair with it and use its agents.
  * - Plannotator plan reviews listen on 19432-19439 in remote mode, which binds
  *   every interface, so only Tailscale may reach them. Code reviews and the
  *   Inbox go through tailscale serve, which ufw never sees.
@@ -102,7 +103,7 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
     protocols: ["udp", "tcp"],
   },
   { kind: "port", label: "System Bridge", port: "9170", protocols: ["tcp"] },
-  { kind: "port", label: "OpenCode server", port: "4096", protocols: ["tcp"] },
+  { kind: "port", label: "OpenCode server", port: "49374", protocols: ["tcp"] },
   {
     kind: "port",
     label: "Plannotator plan reviews",
