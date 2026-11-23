@@ -12,6 +12,11 @@ require("hypr.host.monitors")
 -- The extra desktop dot station desktop adds, streamed to Station's TV.
 hl.monitor({ output = "STATION", mode = "2560x1440@60", position = "auto-left", scale = 4 / 3 })
 
+-- The off-screen desktop dot agent screen adds, where agents record browser
+-- windows without them showing on a real monitor. It sits far from the real
+-- monitors, so the cursor can't wander onto it.
+hl.monitor({ output = "AGENT", mode = "2560x1440@60", position = "-10000x-10000", scale = 1.6 })
+
 -- Reapply HDR set by dot hdr on, so a reload doesn't drop it.
 local runtime_dir = os.getenv("XDG_RUNTIME_DIR")
 local hdr_monitor = runtime_dir and loadfile(runtime_dir .. "/hypr-hdr-monitor.lua")

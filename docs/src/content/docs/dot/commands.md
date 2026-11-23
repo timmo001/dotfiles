@@ -1487,7 +1487,7 @@ Turn the Station desktop off when it's on, otherwise on
 dot station desktop toggle [flags]
 ```
 
-The laptop binds it to Super + Ctrl + Alt + S, and the Station Desktop app runs it.
+The laptop binds it to Super + Alt + S, and the Station Desktop app runs it.
 
 **Options**
 
@@ -2363,6 +2363,121 @@ dot agent oxlint src/one.ts src/two.ts
 dot agent oxlint --all
 dot agent oxlint --force src/example.ts
 dot agent oxlint --opt-in
+```
+
+### `dot agent screen`
+
+A screen for agents to record browser windows on without showing them
+
+```text
+dot agent screen <subcommand> [flags]
+```
+
+On adds a headless Hyprland output named AGENT, whose mode, scale and position come from hypr/monitors.lua: 2560x1440 at scale 1.6, far from the real monitors so the cursor can't reach it. Hyprland draws it like a real monitor, so a browser window moved onto its workspace keeps rendering and can be recorded at an exact size, but nothing shows on a real screen. Status prints its workspace, size and how many windows are on it. While it's on, it shows as a translucent view in the corner of the focused monitor that clicks pass through; view switches that to full screen, a tiled window, or nothing (Super + Alt + A steps through them). Off removes it, but refuses while any window is still on it, since Omarchy would move that workspace, windows and all, onto a real monitor: close the agent's browser session first.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot agent screen on
+dot agent screen status
+dot agent screen view
+dot agent screen off
+```
+
+#### `dot agent screen on`
+
+Add the agent screen, a headless output no monitor shows
+
+```text
+dot agent screen on [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot agent screen on
+```
+
+#### `dot agent screen off`
+
+Remove the agent screen, once nothing is left on it
+
+```text
+dot agent screen off [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot agent screen off
+```
+
+#### `dot agent screen status`
+
+Say whether the agent screen is on, its workspace, size and windows
+
+```text
+dot agent screen status [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot agent screen status
+```
+
+#### `dot agent screen view`
+
+Show the agent screen in the corner, full screen, tiled, or not at all
+
+```text
+dot agent screen view [flags] [<mode>]
+```
+
+overlay is a translucent view in the corner of the focused monitor that clicks pass through, drawn by the timmo.agent-screen Omarchy shell plugin; it's how the agent screen shows whenever it's on. fullscreen fills the focused monitor with it, until Escape or a click. tile opens it in a wl-mirror window, tiled like any other, as the agent-screen-mirror user service. hidden shows nothing until the screen is next turned on. Without a mode it steps overlay, fullscreen, tile, hidden; Super + Alt + A runs that. When the screen is off it says so in a notification.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<mode>` | overlay, fullscreen, tile or hidden; without it, the next one |
+
+**Examples**
+
+```bash
+dot agent screen view
+dot agent screen view overlay
+dot agent screen view tile
 ```
 
 ### `dot agent tools`

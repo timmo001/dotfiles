@@ -39,6 +39,10 @@ Write tools ask before they run unless a permission rule allows them. Tools that
 | `pr_watch` | `dot pr watch` | Read | Read-only |
 | `pr_list` | `dot pr list` | Read | Read-only |
 | `agent_lint` | `dot agent lint` | Read | Read-only |
+| `agent_screen_status` | `dot agent screen status` | Read | Read-only |
+| `agent_screen_on` | `dot agent screen on` | Write | Tool |
+| `agent_screen_off` | `dot agent screen off` | Write | Tool |
+| `agent_screen_view` | `dot agent screen view` | Write | Tool |
 | `link_git` | `dot link git` | Read | Read-only |
 | `herdr_context` | `dot herdr context` | Read | Read-only |
 | `herdr_agents` | `dot herdr agents` | Read | Read-only |
