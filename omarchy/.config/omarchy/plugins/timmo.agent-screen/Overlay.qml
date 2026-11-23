@@ -31,7 +31,7 @@ Item {
   // How much of the monitor's width a corner view takes at most, and how
   // much shows through it
   readonly property real overlayWidthShare: 0.3
-  readonly property real overlayOpacity: 0.6
+  readonly property real overlayOpacity: 0.7
   readonly property int margin: Style.space(24)
   readonly property int gap: Style.space(12)
 
