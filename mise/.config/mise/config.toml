@@ -57,7 +57,6 @@ gh = { version = "latest", minimum_release_age = "0s" }
 ghui = { version = "latest", minimum_release_age = "0s" }
 ollama = { version = "latest", minimum_release_age = "0s" }
 "github:anomalyco/opentunnel" = { version = "latest", minimum_release_age = "0s" }
-playwright = { version = "latest", minimum_release_age = "0s" }
 uv = { version = "latest", minimum_release_age = "0s" }
 # OpenCode is an AI tool like the rest: always the latest. Renovate bumps the plugin packages
 # straight away and the anomalyco/opencode tooling drift review keeps the plugins compliant.
