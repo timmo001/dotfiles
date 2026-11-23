@@ -2367,13 +2367,13 @@ dot agent oxlint --opt-in
 
 ### `dot agent screen`
 
-A screen for agents to record browser windows on without showing them
+Headless screens where agents' browser windows run without showing
 
 ```text
 dot agent screen <subcommand> [flags]
 ```
 
-On adds a headless Hyprland output named AGENT, whose mode, scale and position come from hypr/monitors.lua: 2560x1440 at scale 1.6, far from the real monitors so the cursor can't reach it. Hyprland draws it like a real monitor, so a browser window moved onto its workspace keeps rendering and can be recorded at an exact size, but nothing shows on a real screen. Status prints its workspace, size and how many windows are on it. While it's on, it shows as a translucent view in the corner of the focused monitor that clicks pass through; view switches that to full screen, a tiled window, or nothing (Super + Alt + A steps through them). Off removes it, but refuses while any window is still on it, since Omarchy would move that workspace, windows and all, onto a real monitor: close the agent's browser session first.
+On adds a headless Hyprland output named AGENT. A window rule in hypr/monitors.lua sends every new browse window there without focus, since browse opens each one as about:blank; page popups that start blank go there too. Claim then moves a session's window to a desk of its own, AGENT-1 to AGENT-6, each a headless output with one workspace, so sessions stay apart and each can be watched. All are 2560x1440 at scale 1.6, far from the real monitors so the cursor can't reach them. Hyprland draws them like real monitors, so the browser keeps rendering, but nothing shows on a real screen. Status lists each screen, who holds it and what's on it. Each screen with windows shows as a translucent corner view on the focused monitor that clicks pass through; view switches them to tiled windows, full screen, or nothing (Super + Alt + A steps through them). Release frees a session's desk once its tabs are closed, and off removes them all, but both refuse while windows are left, since Omarchy would move them onto a real monitor.
 
 **Options**
 
@@ -2385,14 +2385,16 @@ On adds a headless Hyprland output named AGENT, whose mode, scale and position c
 
 ```bash
 dot agent screen on
+dot agent screen claim
 dot agent screen status
 dot agent screen view
+dot agent screen release
 dot agent screen off
 ```
 
 #### `dot agent screen on`
 
-Add the agent screen, a headless output no monitor shows
+Add the agent screen that holds new browse windows off-screen
 
 ```text
 dot agent screen on [flags]
@@ -2410,9 +2412,54 @@ dot agent screen on [flags]
 dot agent screen on
 ```
 
+#### `dot agent screen claim`
+
+Give a session a desk of its own and move its new browse window there
+
+```text
+dot agent screen claim [flags]
+```
+
+Run straight after opening the session's first browse tab. The newest window waiting on AGENT moves to the session's desk, a headless output of its own (AGENT-1 to AGENT-6), which is added if needed. A session claiming again moves its next window to the same desk. Who holds each desk is kept in $XDG_RUNTIME_DIR/dot-agent-desks.json.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--session` `<string>` | Who the desk is for (default: $OPENCODE_SESSION_ID) |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot agent screen claim
+dot agent screen claim --session ses_123
+```
+
+#### `dot agent screen release`
+
+Free a session's desk and remove its output, once its tabs are closed
+
+```text
+dot agent screen release [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--session` `<string>` | Whose desk to free (default: $OPENCODE_SESSION_ID) |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot agent screen release
+```
+
 #### `dot agent screen off`
 
-Remove the agent screen, once nothing is left on it
+Remove the agent screen and its desks, once nothing is left on them
 
 ```text
 dot agent screen off [flags]
@@ -2432,7 +2479,7 @@ dot agent screen off
 
 #### `dot agent screen status`
 
-Say whether the agent screen is on, its workspace, size and windows
+Say which agent screens are on, who holds each desk and what's on it
 
 ```text
 dot agent screen status [flags]
@@ -2452,13 +2499,13 @@ dot agent screen status
 
 #### `dot agent screen view`
 
-Show the agent screen in the corner, full screen, tiled, or not at all
+Show the agent screens in the corner, tiled, full screen, or not at all
 
 ```text
 dot agent screen view [flags] [<mode>]
 ```
 
-overlay is a translucent view in the corner of the focused monitor that clicks pass through, drawn by the timmo.agent-screen Omarchy shell plugin; it's how the agent screen shows whenever it's on. fullscreen fills the focused monitor with it, until Escape or a click. tile opens it in a wl-mirror window, tiled like any other, as the agent-screen-mirror user service. hidden shows nothing until the screen is next turned on. Without a mode it steps overlay, fullscreen, tile, hidden; Super + Alt + A runs that. When the screen is off it says so in a notification.
+overlay stacks a translucent view of each agent screen with windows in the corner of the focused monitor, labelled with its desk, and clicks pass through them; it's how they show whenever they're on. Drawn by the timmo.agent-screen Omarchy shell plugin. tile opens a wl-mirror window per screen with windows, tiled like any other, as agent-screen-mirror-<output> user services. fullscreen fills the focused monitor with them side by side, until Escape or a click. hidden shows nothing until the screens are next turned on. Without a mode it steps overlay, tile, fullscreen, hidden; Super + Alt + A runs that. When they're off it says so in a notification.
 
 **Options**
 
@@ -2470,7 +2517,7 @@ overlay is a translucent view in the corner of the focused monitor that clicks p
 
 | Argument | Description |
 | --- | --- |
-| `<mode>` | overlay, fullscreen, tile or hidden; without it, the next one |
+| `<mode>` | overlay, tile, fullscreen or hidden; without it, the next one |
 
 **Examples**
 

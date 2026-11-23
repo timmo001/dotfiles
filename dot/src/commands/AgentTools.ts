@@ -70,6 +70,8 @@ const AGENT_TOOLS = {
   "agent lint": { access: "read", timeout: "10 minutes", directory: true },
   "agent screen status": { access: "read" },
   "agent screen on": { access: "write" },
+  "agent screen claim": { access: "write" },
+  "agent screen release": { access: "write" },
   "agent screen off": { access: "write" },
   "agent screen view": { access: "write" },
   "link git": { access: "read" },

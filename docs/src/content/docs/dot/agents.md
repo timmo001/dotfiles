@@ -41,6 +41,8 @@ Write tools ask before they run unless a permission rule allows them. Tools that
 | `agent_lint` | `dot agent lint` | Read | Read-only |
 | `agent_screen_status` | `dot agent screen status` | Read | Read-only |
 | `agent_screen_on` | `dot agent screen on` | Write | Tool |
+| `agent_screen_claim` | `dot agent screen claim` | Write | Tool |
+| `agent_screen_release` | `dot agent screen release` | Write | Tool |
 | `agent_screen_off` | `dot agent screen off` | Write | Tool |
 | `agent_screen_view` | `dot agent screen view` | Write | Tool |
 | `link_git` | `dot link git` | Read | Read-only |
