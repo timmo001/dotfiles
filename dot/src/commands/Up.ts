@@ -5,7 +5,6 @@
  * pull that brings new links.
  */
 
-import { Extension } from "@timmo001/effect-gh";
 import { herdrSdkLayerFromOptions } from "@timmo001/effect-herdr";
 import { Cause, Clock, Duration, Effect } from "effect";
 import { Prompt } from "effect/cli";
@@ -17,22 +16,13 @@ import { SKILLS_CHECKOUT } from "../lib/skillsMaintenance.js";
 import { ENV, envString } from "../lib/env.js";
 import { formatCause } from "../lib/schema.js";
 import { DOT_BIN } from "../lib/paths.js";
-import { installGhExtensions } from "../lib/ghExtensions.js";
 import { DEFAULT_SOCKET_PATH, openHerdrRepo } from "./HerdrRepoOpen.js";
-import {
-  loadPrivatePackageRepoConfig,
-  privatePackageRepoIncludeRegistered,
-} from "../doctor/checks/packages.js";
-import {
-  privatePackageMirrorCurrent,
-  setupPrivatePackageRepo,
-} from "./SetupPrivateRepo.js";
+import { ensurePrivateRepo } from "./SetupPrivateRepo.js";
 import { syncRootFirstParty } from "../lib/firstPartyPackages.js";
 import { syncRootLanDirect } from "../lib/lanDirect.js";
 import { syncRootBtrfsBalance } from "../lib/btrfsBalance.js";
 import { patchDrift, syncRootPatches } from "../lib/omarchyPatches.js";
 import { syncStationSystem } from "../lib/stationSystem.js";
-import { installMissingArchPackages } from "../lib/packageSetup.js";
 import { autoUpdate, hasPodman } from "../lib/podman.js";
 import {
   agentPlugins,
@@ -66,7 +56,6 @@ import { OutputLog } from "../services/OutputLog.js";
 import type { DiffRepo } from "../types.js";
 import {
   CORE_CHECK_CATEGORIES,
-  isUpStage,
   reportPendingUpdates,
   UP_GROUPS,
   UPDATE_CHECK_AVAILABLE_EXIT,
@@ -149,6 +138,11 @@ const GROUP_INFO: Record<
     description:
       "Apply Station's lid, boot target and lingering settings, then upgrade the system packages with pacman -Syu",
   },
+  clean: {
+    title: "Clean",
+    description:
+      "Prune mise, remove old cache files and the folders in clean.yml, and warn about full disks",
+  },
 };
 
 /** A check line for a stow package with links to apply. */
@@ -202,6 +196,7 @@ const groupWork = (
       ...(packages?.pending ?? []).filter((line) => !firstParty.includes(line)),
       ...lines("omarchy"),
     ],
+    clean: [],
   } satisfies Record<UpGroup, readonly string[]>;
 };
 
@@ -645,33 +640,6 @@ const firstPartyRootSync = Effect.gen(function* () {
       : skip("First-party upgrade unit already current");
 }).pipe(Effect.withSpan("Up.firstPartyRootSync"));
 
-/** Register the private pacman repo before pacman needs it, and resync its mirror when the clone has moved on. */
-const ensurePrivateRepo = Effect.gen(function* () {
-  const config = yield* Config;
-  const log = yield* OutputLog;
-
-  if (!config.canUsePrivate) return;
-
-  const repo = yield* loadPrivatePackageRepoConfig(config);
-
-  if (!repo) return;
-
-  const registered = yield* privatePackageRepoIncludeRegistered();
-
-  if (registered && (yield* privatePackageMirrorCurrent(repo))) return;
-
-  yield* log.info(
-    registered
-      ? "Syncing the private pacman repo mirror"
-      : "Registering the private pacman repo",
-  );
-  yield* setupPrivatePackageRepo(repo).pipe(
-    Effect.catch((error) =>
-      log.warn(`Could not set up the private pacman repo: ${error.message}`),
-    ),
-  );
-}).pipe(Effect.withSpan("Up.ensurePrivateRepo"));
-
 /**
  * Station's system step: a plain pacman upgrade, since CachyOS has no
  * `omarchy update`. Ticking System in the picker already confirmed it.
@@ -726,25 +694,6 @@ const systemUpdate = Effect.gen(function* () {
 
   return notable("Ran omarchy update");
 }).pipe(Effect.withSpan("Up.system"));
-
-const ghUpgrade = Effect.gen(function* () {
-  yield* installGhExtensions;
-
-  const exitCode = yield* Extension.upgradeAll({
-    interactive: true,
-    timeout: null,
-  }).pipe(
-    Effect.as(0),
-    Effect.catchTag("GhCommandError", (error) =>
-      Effect.succeed(error.exitCode),
-    ),
-    Effect.orElseSucceed(() => 1),
-  );
-
-  return exitCode === 0
-    ? done("Installed and upgraded gh extensions")
-    : warn(`gh extension upgrade exited ${exitCode}`);
-}).pipe(Effect.withSpan("Up.gh"));
 
 /**
  * Run `dot up`. A fresh run checks everything and asks which groups to run;
@@ -871,7 +820,47 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
     );
     ran.add(group);
 
-    if (isUpStage(group)) {
+    // The system stage is for headless runs, through passwordless sudo; here
+    // there's a terminal, so System keeps its own steps and pacman can ask.
+    if (group === "system") {
+      if ((yield* Config).omarchy.enabled) {
+        const synced = yield* syncRootPatches();
+
+        actions.push(
+          synced === null
+            ? warn("Could not install the Omarchy patch hook")
+            : synced
+              ? done("Installed the Omarchy patch hook")
+              : skip("Omarchy patch hook already current"),
+        );
+      } else {
+        actions.push(...(yield* syncStationSystem));
+      }
+
+      if (!ran.has("first-party")) actions.push(yield* firstPartyRootSync);
+
+      const lanDirect = yield* syncRootLanDirect();
+
+      actions.push(
+        lanDirect === null
+          ? warn("Could not install the LAN-direct routing unit")
+          : lanDirect
+            ? done("Installed the LAN-direct routing unit")
+            : skip("LAN-direct routing unit already current"),
+      );
+
+      const btrfsBalance = yield* syncRootBtrfsBalance();
+
+      actions.push(
+        btrfsBalance === null
+          ? warn("Could not install the monthly btrfs balance timer")
+          : btrfsBalance
+            ? done("Installed the monthly btrfs balance timer")
+            : skip("Monthly btrfs balance timer already current or not needed"),
+      );
+
+      actions.push(yield* systemUpdate);
+    } else {
       // The stage itself never asks for a password, so set up the unit it
       // starts first, while there's a terminal to ask in.
       if (group === "first-party") actions.push(yield* firstPartyRootSync);
@@ -921,51 +910,6 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
 
         return;
       }
-    } else if (group === "gh") {
-      actions.push(yield* ghUpgrade);
-    } else if (group === "packages") {
-      yield* installMissingArchPackages({ scope: "public" });
-      yield* ensurePrivateRepo;
-      yield* installMissingArchPackages({ scope: "private" });
-      actions.push(done("Installed missing packages"));
-    } else {
-      if ((yield* Config).omarchy.enabled) {
-        const synced = yield* syncRootPatches();
-
-        actions.push(
-          synced === null
-            ? warn("Could not install the Omarchy patch hook")
-            : synced
-              ? done("Installed the Omarchy patch hook")
-              : skip("Omarchy patch hook already current"),
-        );
-      } else {
-        actions.push(...(yield* syncStationSystem));
-      }
-
-      if (!ran.has("first-party")) actions.push(yield* firstPartyRootSync);
-
-      const lanDirect = yield* syncRootLanDirect();
-
-      actions.push(
-        lanDirect === null
-          ? warn("Could not install the LAN-direct routing unit")
-          : lanDirect
-            ? done("Installed the LAN-direct routing unit")
-            : skip("LAN-direct routing unit already current"),
-      );
-
-      const btrfsBalance = yield* syncRootBtrfsBalance();
-
-      actions.push(
-        btrfsBalance === null
-          ? warn("Could not install the monthly btrfs balance timer")
-          : btrfsBalance
-            ? done("Installed the monthly btrfs balance timer")
-            : skip("Monthly btrfs balance timer already current or not needed"),
-      );
-
-      actions.push(yield* systemUpdate);
     }
   }
 

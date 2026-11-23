@@ -1,12 +1,14 @@
 /**
  * @file The stages of `dot up`, each runnable on its own as `dot up <stage>`:
  * dotfiles, skills, repos, stow, tools, plugins, first-party, containers,
- * herdr, agents and shell. A
+ * herdr, agents, shell, gh, packages, system and clean. A
  * stage never prompts or opens Herdr, so a background runner such as Upkeep can
  * call it, and with `--json` it prints one result saying what changed.
  */
-import { Clock, Effect, Schema } from "effect";
-import { basename } from "path";
+import { Extension } from "@timmo001/effect-gh";
+import { Clock, Duration, Effect, FileSystem, Result, Schema } from "effect";
+import { release } from "os";
+import { basename, join } from "path";
 import { DotDiff } from "../git/services/DotDiff.js";
 import { syncNotesRemotes } from "../git/notesRemote.js";
 import { mcpSync } from "../mcp/commands/McpSync.js";
@@ -17,8 +19,23 @@ import {
   updatePlannotatorPlugins,
 } from "../lib/agentRuntime.js";
 import { syncSkills } from "../lib/externalSkills.js";
-import { upgradeFirstParty } from "../lib/firstPartyPackages.js";
+import {
+  syncRootFirstParty,
+  upgradeFirstParty,
+} from "../lib/firstPartyPackages.js";
+import { installGhExtensions } from "../lib/ghExtensions.js";
 import { gitCurrentBranch, gitOutput } from "../lib/git.js";
+import { syncRootLanDirect } from "../lib/lanDirect.js";
+import { syncRootBtrfsBalance } from "../lib/btrfsBalance.js";
+import { installMissingArchPackages } from "../lib/packageSetup.js";
+import {
+  CACHE_DIR,
+  CONFIG_DIR,
+  DATA_DIR,
+  displayPath,
+  expandHomePath,
+} from "../lib/paths.js";
+import { syncStationSystem } from "../lib/stationSystem.js";
 import { ensureInitCompleteMarker } from "../lib/initState.js";
 import { printJson } from "../lib/jsonStdout.js";
 import {
@@ -62,6 +79,7 @@ import type {
 import type { DiffRepo } from "../types.js";
 import { agentsSync } from "./AgentsSync.js";
 import { syncHcMachines, syncHerdrMachines } from "./SetupHerdrMachines.js";
+import { ensurePrivateRepo } from "./SetupPrivateRepo.js";
 import { stow as runStow } from "./Stow.js";
 import {
   haltOnLegacyHyprRepo,
@@ -460,6 +478,323 @@ const containersStage = Effect.gen(function* () {
   } satisfies StageOutcome;
 });
 
+/**
+ * Install the missing gh extensions and upgrade the rest. A dry run says
+ * which will move, and the upgrade's own output is captured, so with
+ * `--json` stdout stays the result alone.
+ */
+const ghStage = Effect.gen(function* () {
+  yield* installGhExtensions;
+
+  const pending = yield* Extension.checkUpgrades({ timeout: null }).pipe(
+    Effect.orElseSucceed(() => []),
+  );
+
+  const failure = yield* Extension.upgradeAll({ timeout: null }).pipe(
+    Effect.as(null),
+    Effect.catchTag("GhCommandError", (error) => Effect.succeed(error)),
+  );
+
+  const failed =
+    failure === null
+      ? []
+      : Extension.parseUpgrades(failure.stdout).filter(
+          (extension) => extension.status === "failed",
+        );
+
+  const actions: RecapEntry[] = [
+    ...pending.flatMap((extension) =>
+      extension.status === "upgraded" &&
+      !failed.some((other) => other.name === extension.name)
+        ? [
+            notable(
+              `Upgraded gh ${extension.name} from ${extension.from} to ${extension.to}`,
+            ),
+          ]
+        : [],
+    ),
+    ...failed.map((extension) =>
+      warn(`Could not upgrade gh ${extension.name}: ${extension.reason}`),
+    ),
+  ];
+
+  if (actions.length === 0)
+    actions.push(skip("gh extensions already up to date"));
+
+  return {
+    actions,
+    ...(failure !== null && {
+      error: `gh extension upgrade exited ${failure.exitCode}`,
+    }),
+  } satisfies StageOutcome;
+});
+
+/**
+ * Install the packages from the public and private lists that aren't
+ * installed. pacman and yay run with --noconfirm, through sudo.
+ */
+const packagesStage = Effect.gen(function* () {
+  const installed = [
+    ...(yield* installMissingArchPackages({ scope: "public" })),
+  ];
+
+  yield* ensurePrivateRepo;
+  installed.push(...(yield* installMissingArchPackages({ scope: "private" })));
+
+  return {
+    actions: [
+      installed.length > 0
+        ? notable(`Installed ${installed.join(", ")}`)
+        : skip("Every listed package is installed"),
+    ],
+  } satisfies StageOutcome;
+});
+
+/** A root sync's outcome as a recap entry. */
+const rootSyncEntry = (synced: boolean | null, label: string) =>
+  synced === null
+    ? warn(`Could not install ${label}`)
+    : synced
+      ? done(`Installed ${label}`)
+      : skip(
+          `${label.charAt(0).toUpperCase()}${label.slice(1)} already current`,
+        );
+
+/**
+ * Station's System group, headless: apply its system settings, the
+ * first-party and LAN-direct units, then upgrade every package with
+ * `pacman -Syu --noconfirm`. Everything goes through `sudo -n`, so without
+ * passwordless sudo it fails instead of prompting. An Omarchy machine updates
+ * through `omarchy update`, which needs `dot up`, so the stage refuses there.
+ */
+const systemStage = Effect.gen(function* () {
+  const config = yield* Config;
+  const fs = yield* FileSystem.FileSystem;
+  const executor = yield* CommandExecutor;
+  const log = yield* OutputLog;
+
+  if (config.omarchy.enabled)
+    return yield* new StageError({
+      message:
+        "Omarchy updates through omarchy update, so run dot up and tick System",
+    });
+
+  if ((yield* executor.exitCode("sudo", ["-n", "true"])) !== 0)
+    return yield* new StageError({
+      message:
+        "sudo needs a password here; dot up's System group installs Station's passwordless sudo rule",
+    });
+
+  const actions: RecapEntry[] = [...(yield* syncStationSystem)];
+
+  actions.push(
+    rootSyncEntry(yield* syncRootFirstParty(), "the first-party upgrade unit"),
+    rootSyncEntry(yield* syncRootLanDirect(), "the LAN-direct routing unit"),
+    rootSyncEntry(
+      yield* syncRootBtrfsBalance(),
+      "the monthly btrfs balance timer",
+    ),
+  );
+
+  yield* ensurePrivateRepo;
+
+  const run = yield* executor
+    .run("sudo", ["-n", "pacman", "-Syu", "--noconfirm"], {
+      mergeStderr: true,
+    })
+    .pipe(Effect.result);
+
+  const output = Result.isSuccess(run)
+    ? run.success
+    : (run.failure.stdout ?? run.failure.stderr ?? "");
+
+  for (const line of output.trimEnd().split("\n"))
+    if (line) yield* log.info(line);
+
+  if (Result.isFailure(run))
+    return {
+      actions: [...actions, warn("System upgrade failed")],
+      error: `pacman -Syu exited ${run.failure.exitCode}`,
+    } satisfies StageOutcome;
+
+  const upgraded = Number(/^Packages \((\d+)\)/m.exec(output)?.[1] ?? 0);
+
+  actions.push(
+    upgraded > 0
+      ? notable(`Upgraded ${plural(upgraded, "package")}`)
+      : skip("System packages already up to date"),
+  );
+
+  // A kernel upgrade removes the running kernel's modules, so new hardware
+  // and some services fail until a reboot.
+  if (!(yield* fs.exists(join("/usr/lib/modules", release(), "kernel"))))
+    actions.push(warn("A reboot is required for the new kernel"));
+
+  return { actions } satisfies StageOutcome;
+});
+
+/** Optional extra folders for `dot up clean`, with how old their files must be. */
+const CLEAN_CONFIG = join(CONFIG_DIR, "dot", "clean.yml");
+
+const CleanConfig = Schema.Struct({
+  folders: Schema.optionalKey(
+    Schema.Array(
+      Schema.Struct({
+        path: Schema.String,
+        olderThan: Schema.DurationFromString,
+      }),
+    ),
+  ),
+});
+
+const readCleanConfig = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+
+  if (!(yield* fs.exists(CLEAN_CONFIG))) return [];
+
+  const config = yield* fs.readFileString(CLEAN_CONFIG).pipe(
+    Effect.flatMap((text) => Effect.try(() => Bun.YAML.parse(text))),
+    Effect.flatMap((parsed) =>
+      Schema.decodeUnknownEffect(CleanConfig)(parsed, {
+        onExcessProperty: "error",
+      }),
+    ),
+    Effect.mapError(
+      (error) =>
+        new StageError({ message: `${CLEAN_CONFIG}: ${String(error)}` }),
+    ),
+  );
+
+  return config.folders ?? [];
+}).pipe(Effect.withSpan("UpStage.readCleanConfig"));
+
+const formatBytes = (bytes: number) => {
+  const units = ["B", "kB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unit = 0;
+
+  while (value >= 1000 && unit < units.length - 1) {
+    value /= 1000;
+    unit++;
+  }
+
+  return `${unit > 0 && value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+};
+
+/** Disks above this percentage full get a warning from `dot up clean`. */
+const DISK_WARN_PERCENT = 95;
+
+/**
+ * Free space without sudo: prune mise, remove files unchanged for 30 days
+ * from the cache and the folders in `~/.config/dot/clean.yml`, leaving the
+ * folders, then warn about any disk over 95% full.
+ */
+const cleanStage = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const actions: RecapEntry[] = [];
+  let freed = 0;
+
+  const miseData = join(DATA_DIR, "mise");
+
+  const directoryBytes = executor.run("du", ["-sb", miseData]).pipe(
+    Effect.map((output) => Number(output.split("\t")[0]) || 0),
+    Effect.orElseSucceed(() => 0),
+  );
+
+  const miseBefore = yield* directoryBytes;
+  const pruned = yield* executor.exitCode("mise", ["prune", "--yes"]);
+  const miseFreed = Math.max(0, miseBefore - (yield* directoryBytes));
+
+  freed += miseFreed;
+
+  actions.push(
+    pruned !== 0
+      ? warn(`mise prune exited ${pruned}`)
+      : miseFreed > 0
+        ? done(`Pruned old mise versions (${formatBytes(miseFreed)})`)
+        : skip("No mise versions to prune"),
+  );
+
+  const targets = [
+    { path: CACHE_DIR, olderThan: Duration.days(30) },
+    ...(yield* readCleanConfig),
+  ];
+
+  for (const target of targets) {
+    const path = expandHomePath(target.path);
+    const minutes = Math.floor(Duration.toMillis(target.olderThan) / 60_000);
+
+    // -type f leaves the folders, -xdev stays on one disk, and without -L
+    // symlinks aren't followed. A permission error still reports what went.
+    const output = yield* executor
+      .run("find", [
+        path,
+        "-xdev",
+        "-type",
+        "f",
+        "-mmin",
+        `+${minutes}`,
+        "-printf",
+        "%s\\n",
+        "-delete",
+      ])
+      .pipe(
+        Effect.catchTag("CommandError", (error) =>
+          Effect.succeed(error.stdout ?? ""),
+        ),
+      );
+
+    const sizes = output
+      .split("\n")
+      .filter(Boolean)
+      .map((size) => Number(size) || 0);
+
+    const bytes = sizes.reduce((total, size) => total + size, 0);
+
+    freed += bytes;
+
+    actions.push(
+      sizes.length > 0
+        ? done(
+            `Removed ${plural(sizes.length, "file")} older than ${Duration.format(target.olderThan)} from ${displayPath(path)} (${formatBytes(bytes)})`,
+          )
+        : skip(
+            `No files older than ${Duration.format(target.olderThan)} in ${displayPath(path)}`,
+          ),
+    );
+  }
+
+  actions.push(
+    freed > 0
+      ? notable(`Freed ${formatBytes(freed)}`)
+      : skip("Nothing to clean"),
+  );
+
+  const disks = yield* executor
+    .run("df", [
+      "--output=pcent,target",
+      "-x",
+      "tmpfs",
+      "-x",
+      "devtmpfs",
+      "-x",
+      "squashfs",
+      "-x",
+      "overlay",
+      "-x",
+      "efivarfs",
+    ])
+    .pipe(Effect.orElseSucceed(() => ""));
+
+  for (const [, percent = "0", target = ""] of disks.matchAll(
+    /^\s*(\d+)%\s+(.+)$/gm,
+  ))
+    if (Number(percent) > DISK_WARN_PERCENT)
+      actions.push(warn(`${target} is ${percent}% full`));
+
+  return { actions } satisfies StageOutcome;
+});
+
 /** Restore Herdr's pinned plugins and sync the saved Herdr and hc machines. */
 const herdrStage = Effect.gen(function* () {
   return {
@@ -534,6 +869,14 @@ const stageEffect = (stage: UpStage, opts: UpStageOptions) =>
         return yield* agentsStage(opts.reload ?? true);
       case "shell":
         return yield* shellStage(opts.refreshStatus ?? true);
+      case "gh":
+        return yield* ghStage;
+      case "packages":
+        return yield* packagesStage;
+      case "system":
+        return yield* systemStage;
+      case "clean":
+        return yield* cleanStage;
     }
   });
 

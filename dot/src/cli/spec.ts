@@ -325,6 +325,13 @@ const STAGE_DESCRIPTIONS: Record<UpStage, string> = {
     "Restore pinned Herdr plugins and sync the saved Herdr and hc machines",
   agents: "Sync agent instructions and reload running agents",
   shell: "Refresh shell modules, start the doctor check and refresh the bar",
+  gh: "Install missing gh extensions and upgrade the installed ones",
+  packages:
+    "Install the packages from the public and private lists that aren't installed, with pacman and yay --noconfirm. Changed lists the packages installed",
+  system:
+    "Upgrade Station headless: apply its system settings (passwordless sudo, lid, login manager, boot target, lingering and the rest), the first-party and LAN-direct units, then sudo -n pacman -Syu --noconfirm. Without passwordless sudo it fails rather than prompting, and on an Omarchy machine it refuses, since omarchy update runs from dot up's System group. Changed reports the package count, and a kernel upgrade is a reboot warning. The interactive dot up's System group still lets pacman ask",
+  clean:
+    "Free space without sudo: mise prune --yes, then remove files unchanged for 30 days from ~/.cache and the folders listed in the optional ~/.config/dot/clean.yml (folders: [{ path, olderThan }], such as logs older than 14 days), leaving the folders themselves. Changed reports the space freed, and any disk over 95% full is a warning",
 };
 
 const stageJson = bool(
@@ -506,7 +513,7 @@ const updateCommand = describe(
         });
       }),
   ).pipe(Command.withSubcommands(UP_STAGES.map(upStageCommand))),
-  "Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, first-party, containers, herdr, agents, shell), then gh extensions, missing packages and omarchy update; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.",
+  "Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, first-party, containers, herdr, agents, shell), then gh extensions, missing packages and the system update; each also runs on its own, headless, as `dot up <stage>`, along with the clean stage. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.",
   ["dot up", "dot up --check", "dot up --yes", "dot up --stow"],
   {
     description:

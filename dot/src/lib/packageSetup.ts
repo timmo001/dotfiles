@@ -419,11 +419,11 @@ function installPublicPackageReplacements(
   });
 }
 
-/** Install missing Arch/AUR packages listed for the given scope. */
+/** Install missing Arch/AUR packages listed for the given scope, returning the ones installed. */
 export function installMissingArchPackages(opts: {
   readonly scope: ArchPackageScope;
 }): Effect.Effect<
-  void,
+  readonly string[],
   PackageSetupError,
   Config | CommandExecutor | OutputLog | FileSystem.FileSystem
 > {
@@ -432,7 +432,7 @@ export function installMissingArchPackages(opts: {
     const log = yield* OutputLog;
     const label = scopeLabel(opts.scope);
 
-    if (yield* shouldSkipPackageScope(config, opts.scope)) return;
+    if (yield* shouldSkipPackageScope(config, opts.scope)) return [];
 
     const missing = yield* missingPackages(config, opts.scope);
 
@@ -441,7 +441,7 @@ export function installMissingArchPackages(opts: {
         cliStyler().dim(`${label} Arch packages already installed`),
       );
 
-      return;
+      return [];
     }
 
     if (opts.scope === "private") {
@@ -451,5 +451,7 @@ export function installMissingArchPackages(opts: {
 
       if (remaining.length > 0) yield* installWithYay(opts, remaining);
     }
+
+    return missing;
   });
 }

@@ -414,6 +414,37 @@ export const setupPrivatePackageRepo = (
     }
   });
 
+/**
+ * Register the private pacman repo before pacman needs it, and resync its
+ * mirror when the clone has moved on. A failure only warns, so the packages
+ * from the other repositories still update.
+ */
+export const ensurePrivateRepo = Effect.gen(function* () {
+  const config = yield* Config;
+  const log = yield* OutputLog;
+
+  if (!config.canUsePrivate) return;
+
+  const repo = yield* loadPrivatePackageRepoConfig(config);
+
+  if (!repo) return;
+
+  const registered = yield* privatePackageRepoIncludeRegistered();
+
+  if (registered && (yield* privatePackageMirrorCurrent(repo))) return;
+
+  yield* log.info(
+    registered
+      ? "Syncing the private pacman repo mirror"
+      : "Registering the private pacman repo",
+  );
+  yield* setupPrivatePackageRepo(repo).pipe(
+    Effect.catch((error) =>
+      log.warn(`Could not set up the private pacman repo: ${error.message}`),
+    ),
+  );
+}).pipe(Effect.withSpan("SetupPrivateRepo.ensure"));
+
 /** Sync and register the private pacman repository with the active pacman config. */
 export const setupPrivateRepo = Effect.gen(function* () {
   const config = yield* Config;

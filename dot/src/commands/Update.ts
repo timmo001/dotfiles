@@ -208,17 +208,20 @@ export const UP_STAGES = [
   "herdr",
   "agents",
   "shell",
+  "gh",
+  "packages",
+  "system",
+  "clean",
 ] as const;
 
-/** What `dot up` can run, in the order it runs them. */
-export const UP_GROUPS = [...UP_STAGES, "gh", "packages", "system"] as const;
+/**
+ * What `dot up` can run, in the order it runs them: every stage. The
+ * interactive System group keeps its own steps, so pacman can still ask.
+ */
+export const UP_GROUPS = UP_STAGES;
 
 /** One `dot up` stage. */
 export type UpStage = (typeof UP_STAGES)[number];
-
-/** Whether a `dot up` group is one of its stages. */
-export const isUpStage = (group: UpGroup): group is UpStage =>
-  UP_STAGES.some((stage) => stage === group);
 
 /** One kind of work `dot up` can run. */
 export type UpGroup = (typeof UP_GROUPS)[number];

@@ -56,7 +56,7 @@ dot install [flags]
 
 Aliases: `dot update`
 
-Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, first-party, containers, herdr, agents, shell), then gh extensions, missing packages and omarchy update; each stage also runs on its own, headless, as `dot up <stage>`. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.
+Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, first-party, containers, herdr, agents, shell), then gh extensions, missing packages and the system update; each also runs on its own, headless, as `dot up <stage>`, along with the clean stage. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.
 
 ```text
 dot up <subcommand> [flags]
@@ -88,9 +88,9 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--check-all` | Also check development repos for pulls, skipping local work |
 | `--yes` | Run every group with work without asking |
 | `--force` | Offer every group, even with nothing pending |
-| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, first-party, containers, herdr, agents, shell, gh, packages, system) |
-| `--declined` `<choice>` | Internal: the groups offered but not picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, first-party, containers, herdr, agents, shell, gh, packages, system) |
-| `--changed` `<choice>` | Internal: the stages that changed something before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, first-party, containers, herdr, agents, shell, gh, packages, system) |
+| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, first-party, containers, herdr, agents, shell, gh, packages, system, clean) |
+| `--declined` `<choice>` | Internal: the groups offered but not picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, first-party, containers, herdr, agents, shell, gh, packages, system, clean) |
+| `--changed` `<choice>` | Internal: the stages that changed something before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, first-party, containers, herdr, agents, shell, gh, packages, system, clean) |
 | `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
@@ -423,6 +423,118 @@ dot up shell [flags] [<repo...>]
 ```bash
 dot up shell
 dot up shell --json
+```
+
+### `dot up gh`
+
+Install missing gh extensions and upgrade the installed ones. Never prompts, so it can run in the background.
+
+```text
+dot up gh [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up gh
+dot up gh --json
+```
+
+### `dot up packages`
+
+Install the packages from the public and private lists that aren't installed, with pacman and yay --noconfirm. Changed lists the packages installed. Never prompts, so it can run in the background.
+
+```text
+dot up packages [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up packages
+dot up packages --json
+```
+
+### `dot up system`
+
+Upgrade Station headless: apply its system settings (passwordless sudo, lid, login manager, boot target, lingering and the rest), the first-party and LAN-direct units, then sudo -n pacman -Syu --noconfirm. Without passwordless sudo it fails rather than prompting, and on an Omarchy machine it refuses, since omarchy update runs from dot up's System group. Changed reports the package count, and a kernel upgrade is a reboot warning. The interactive dot up's System group still lets pacman ask. Never prompts, so it can run in the background.
+
+```text
+dot up system [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up system
+dot up system --json
+```
+
+### `dot up clean`
+
+Free space without sudo: mise prune --yes, then remove files unchanged for 30 days from ~/.cache and the folders listed in the optional ~/.config/dot/clean.yml (folders: [{ path, olderThan }], such as logs older than 14 days), leaving the folders themselves. Changed reports the space freed, and any disk over 95% full is a warning. Never prompts, so it can run in the background.
+
+```text
+dot up clean [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up clean
+dot up clean --json
 ```
 
 ## `dot run`
