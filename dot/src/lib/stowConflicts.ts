@@ -53,6 +53,8 @@ const RETIRED_PUBLIC_STOW_PATHS = [
   "systemd/.config/systemd/user/dot-doctor-startup.service",
   "systemd/.config/systemd/user/dot-doctor-startup.timer",
   "systemd/.config/dot/services.d/dot-doctor-startup.json",
+  "systemd/.config/systemd/user/notes-capture-daemon.service",
+  "systemd/.config/dot/services.d/notes-capture-daemon.yml",
   "hypr/.config/hypr/hyprland.conf",
   "hypr/.config/hypr/hypridle.conf",
   "hypr/.config/hypr/hyprlock.conf",

@@ -884,7 +884,7 @@ const servicesCommand = describe(
           servicesStop(unit),
         ),
         "Stop a registered job's running service, leaving its timer scheduled",
-        ["dot services stop notes-capture-daemon.service"],
+        ["dot services stop ha-bridge.service"],
       ),
       describe(
         Command.make("dismiss", { unit: serviceUnit }, ({ unit }) =>
@@ -902,7 +902,7 @@ const servicesCommand = describe(
           servicesLogs(unit),
         ),
         "Open a registered job's logs in a Herdr tab for the repository that owns it",
-        ["dot services logs notes-capture-daemon.service"],
+        ["dot services logs ha-bridge.service"],
       ),
       describe(
         Command.make("run").pipe(

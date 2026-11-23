@@ -927,7 +927,7 @@ dot services stop [flags] <unit>
 **Examples**
 
 ```bash
-dot services stop notes-capture-daemon.service
+dot services stop ha-bridge.service
 ```
 
 ### `dot services dismiss`
@@ -981,7 +981,7 @@ dot services logs [flags] <unit>
 **Examples**
 
 ```bash
-dot services logs notes-capture-daemon.service
+dot services logs ha-bridge.service
 ```
 
 ### `dot services run`

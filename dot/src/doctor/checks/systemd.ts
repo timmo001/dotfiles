@@ -234,19 +234,23 @@ export const checkDoctorNotify = checkRequiredUserUnitSetup({
   unitLabel: "Doctor timer",
 });
 
-/** Check the notes capture daemon is enabled and running. */
+/**
+ * Check the notes capture daemon is enabled and running where a host package
+ * installs it, which is Station only.
+ */
 export const checkNotesCaptureDaemon = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const unit = "notes-capture-daemon.service";
   const results: CheckResult[] = [];
 
-  yield* addFilePresenceCheck(
-    results,
-    userSystemdUnitPath(unit),
-    `Notes capture unit found: ${unit}`,
-    `Notes capture unit missing: ${unit}`,
-    "Run dot stow to link systemd user units",
-  );
+  if (!(yield* pathExists(userSystemdUnitPath(unit)))) {
+    results.push({
+      severity: "ok",
+      message: "Notes capture daemon not installed here (Station runs it)",
+    });
+
+    return results;
+  }
 
   yield* checkRequiredUserUnit(
     results,
