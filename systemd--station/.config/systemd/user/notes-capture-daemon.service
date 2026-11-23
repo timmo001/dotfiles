@@ -1,0 +1,20 @@
+# Station is the only machine that processes queued notes captures. It isn't
+# registered with dot services, so System Bridge doesn't list it and a failure
+# raises no notification: Triage picks failures up from the journal instead.
+[Unit]
+Description=Process queued notes captures with local OpenCode
+
+[Service]
+Type=simple
+# Station usually has no desktop session and nothing pulls in
+# network-online.target, so only wait for the network to resolve names.
+ExecStartPre=%h/.local/bin/wait-online-login --headless
+TimeoutStartSec=11min
+ExecStart=%h/.local/bin/notes-capture-daemon
+# The Effect runtime exits 130 when systemd stops it.
+SuccessExitStatus=130
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=default.target

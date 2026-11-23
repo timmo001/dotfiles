@@ -35,6 +35,8 @@ const DEFAULT_UNITS: readonly DefaultUnit[] = [
   { unit: "system-bridge.service" },
   // Starts Station's OpenCode server at boot, for Home Assistant's Assist.
   { unit: "opencode-service.service" },
+  // Processes queued notes captures; Station is the only machine that does.
+  { unit: "notes-capture-daemon.service" },
   // Hokum draws black cards on the desktop's NVIDIA GPU.
   { unit: "hokum.service", onlyHosts: ["laptop"] },
 ];
