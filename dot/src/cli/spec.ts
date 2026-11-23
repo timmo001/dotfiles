@@ -64,7 +64,6 @@ import { secretsPush } from "../commands/SecretsPush.js";
 import { setupHerdrMachines } from "../commands/SetupHerdrMachines.js";
 import { editSkillConsumer, runSkillsMaintenance } from "../commands/Skills.js";
 import { runCommand } from "../commands/Run.js";
-import { composeUpCommand } from "../commands/Compose.js";
 import { httpForward } from "../commands/HttpForward.js";
 import { serverServe } from "../server/Serve.js";
 import {
@@ -244,6 +243,9 @@ const STAGE_DESCRIPTIONS: Record<UpStage, string> = {
     "Restore pinned Herdr plugins and sync the saved Herdr and hc machines",
   agents: "Sync agent instructions and reload running agents",
   shell: "Start the doctor check",
+  gh: "Install missing gh extensions and upgrade the installed ones",
+  packages:
+    "Install the apt packages from the public and private lists that aren't installed, with apt-get install -y through sudo. Changed lists the packages installed",
 };
 
 const stageJson = bool(
@@ -428,11 +430,11 @@ const updateCommand = describe(
         });
       }),
   ).pipe(Command.withSubcommands(UP_STAGES.map(upStageCommand))),
-  "Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell), then gh extensions, missing packages, apt and release packages, and compose up; each stage also runs on its own, headless, as `dot up <stage>`, along with the system and clean stages for headless maintenance. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.",
+  "Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell), then gh extensions, missing packages, and apt and release packages; each also runs on its own, headless, as `dot up <stage>`, along with the clean stage. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.",
   ["dot up", "dot up --check", "dot up --yes", "dot up --stow"],
   {
     description:
-      "dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and gh extensions. It saves the result for the status cache, lists it, then asks which groups to run, offering only those with work, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order:\n\n1. Stages: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents and shell, as `dot up <stage>` runs them. Containers is offered when podman auto-update --dry-run finds a pending update. A stage that wasn't offered still runs when an earlier one changed something it applies: stow and Herdr after a dotfiles pull that brings new links or Herdr pins, tools after a dotfiles pull that brings mise changes, plugins after a tools upgrade, agents after a dotfiles pull or changed skills or plugins, and the shell after any change; stow, tools, plugins and Herdr are checked again first. A stage offered and left unticked never runs.\n2. gh extensions: installs missing ones and upgrades the rest.\n3. Missing packages: installs apt packages from the public and private lists.\n4. System: runs apt-get update and upgrade (with -y under --yes), then installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs.\n5. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.\n\nIt finishes with a summary of updated repositories, mise tools and every step, then runs dot up --check to report what is still pending. dot up <stage>, the phase flags and --repo end the same way, except with --json.\n\n--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Pulled public dotfiles also rebuild dot; stow, agent instructions and the rest of a dotfiles pull are left to dot up, which the closing check lists. Add --pull to only pull and run post-update commands.",
+      "dot up checks everything it can update or install: the dotfiles and tracked repositories, the skills checkout, global mise tools, pending apt upgrades, packages from the public and private lists that aren't installed, GitHub release packages and gh extensions. It saves the result for the status cache, lists it, then asks which groups to run, offering only those with work, all ticked. --yes runs every group with work. Without a terminal, it still checks first and stops when nothing is pending; with work, it reruns itself in a Herdr tab in the dotfiles workspace and prints the pane to follow, or fails when Herdr can't open one. Groups run in order:\n\n1. Stages: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents and shell, as `dot up <stage>` runs them. Containers is offered when podman auto-update --dry-run finds a pending update. A stage that wasn't offered still runs when an earlier one changed something it applies: stow and Herdr after a dotfiles pull that brings new links or Herdr pins, tools after a dotfiles pull that brings mise changes, plugins after a tools upgrade, agents after a dotfiles pull or changed skills or plugins, and the shell after any change; stow, tools, plugins and Herdr are checked again first. A stage offered and left unticked never runs.\n2. gh extensions: installs missing ones and upgrades the rest.\n3. Missing packages: installs apt packages from the public and private lists.\n4. System: runs apt-get update and upgrade (with -y under --yes), then installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs.\n5. Clean: as `dot up clean`, offered only with --force.\n\nIt finishes with a summary of updated repositories, mise tools and every step, then runs dot up --check to report what is still pending. dot up <stage>, the phase flags and --repo end the same way, except with --json.\n\n--check reports everything without changing anything. --check-repos reports only the dotfiles repositories, as the status check uses it. Phase flags (--pull, --stow, --app) run only those dotfiles phases, without the picker.\n\nUse --repo PATH (repeatable) to pull selected repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Pulled public dotfiles also rebuild dot; stow, agent instructions and the rest of a dotfiles pull are left to dot up, which the closing check lists. Add --pull to only pull and run post-update commands.",
     sections: [
       {
         title: "Exit codes",
@@ -592,34 +594,6 @@ const statusRunCommand = describe(
 const statusCommand = describe(
   Command.make("status").pipe(Command.withSubcommands([statusRunCommand])),
   "Run work under a pinned terminal status header",
-);
-
-const composeCommand = describe(
-  Command.make("compose").pipe(
-    Command.withSubcommands([
-      describe(
-        Command.make(
-          "up",
-          {
-            files: Argument.String("file").pipe(
-              Argument.atLeast(0),
-              Argument.withDescription(
-                "Compose files to run (default: every *.yml in the configured directory)",
-              ),
-            ),
-          },
-          ({ files }) => composeUpCommand(files),
-        ),
-        "Pull and start compose files, then prune unused Docker data",
-        ["dot compose up", "dot compose up ~/containers/compose/media.yml"],
-        {
-          description:
-            "Reads ~/.config/dot/compose.yml: directory (compose files), optional envFile (sourced with bash; its exported variables reach docker compose) and optional pruneAfterHours (default 720). For each file, runs docker compose pull then up -d --remove-orphans, trying a failed pull twice more 30 seconds apart and carrying on past a failed file, then runs docker system prune -af for data older than pruneAfterHours. Its messages and Docker's output are also written to the run's log in ~/.local/state/dot/logs. dot up offers it as a group when the config exists.",
-        },
-      ),
-    ]),
-  ),
-  "Manage Docker compose stacks",
 );
 
 const runCommandSpec = describe(
@@ -3260,7 +3234,6 @@ export const dotCommand = describe(
       installCommand,
       updateCommand,
       runCommandSpec,
-      composeCommand,
       httpCommand,
       serverCommand,
       statusCommand,

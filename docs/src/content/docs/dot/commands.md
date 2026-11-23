@@ -52,7 +52,7 @@ dot install [flags]
 
 Aliases: `dot update`
 
-Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell), then gh extensions, missing packages, apt and release packages, and compose up; each stage also runs on its own, headless, as `dot up <stage>`, along with the system and clean stages for headless maintenance. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.
+Check everything, pick what to update, then run it. The picker lists the stages with work (dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell), then gh extensions, missing packages, and apt and release packages; each also runs on its own, headless, as `dot up <stage>`, along with the clean stage. Phase flags (--pull, --stow, --app) run only those dotfiles phases. Internal --no-self-update, --post-hook-repo, --started-at, --group, --declined and --changed flags carry a run across the self-update restart.
 
 ```text
 dot up <subcommand> [flags]
@@ -64,7 +64,7 @@ dot up checks everything it can update or install: the dotfiles and tracked repo
 2. gh extensions: installs missing ones and upgrades the rest.
 3. Missing packages: installs apt packages from the public and private lists.
 4. System: runs apt-get update and upgrade (with -y under --yes), then installs the latest release .deb of each package in .dot-public-deb-releases.yml whose installed version differs.
-5. Compose: runs dot compose up. Offered only when ~/.config/dot/compose.yml exists.
+5. Clean: as `dot up clean`, offered only with --force.
 
 It finishes with a summary of updated repositories, mise tools and every step, then runs dot up --check to report what is still pending. dot up <stage>, the phase flags and --repo end the same way, except with --json.
 
@@ -85,9 +85,9 @@ Use --repo PATH (repeatable) to pull selected repositories, restore their pinned
 | `--check-all` | Also check development repos for pulls, skipping local work |
 | `--yes` | Run every group with work without asking, and pass -y to apt-get upgrade |
 | `--force` | Offer every group, even with nothing pending |
-| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell, gh, packages, system, clean, compose) |
-| `--declined` `<choice>` | Internal: the groups offered but not picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell, gh, packages, system, clean, compose) |
-| `--changed` `<choice>` | Internal: the stages that changed something before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell, gh, packages, system, clean, compose) |
+| `--group` `<choice>` | Internal: the groups picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell, gh, packages, system, clean) |
+| `--declined` `<choice>` | Internal: the groups offered but not picked before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell, gh, packages, system, clean) |
+| `--changed` `<choice>` | Internal: the stages that changed something before a restart handoff (choices: dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents, shell, gh, packages, system, clean) |
 | `--no-self-update` | Skip the internal self-update phase, which pulls the public and private dotfiles |
 | `--no-reload` | Skip agent reload and module refresh |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
@@ -393,6 +393,62 @@ dot up shell
 dot up shell --json
 ```
 
+### `dot up gh`
+
+Install missing gh extensions and upgrade the installed ones. Never prompts, so it can run in the background.
+
+```text
+dot up gh [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up gh
+dot up gh --json
+```
+
+### `dot up packages`
+
+Install the apt packages from the public and private lists that aren't installed, with apt-get install -y through sudo. Changed lists the packages installed. Never prompts, so it can run in the background.
+
+```text
+dot up packages [flags] [<repo...>]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the result as JSON on stdout, with the log on stderr |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repo>` | Not used by this stage |
+
+**Examples**
+
+```bash
+dot up packages
+dot up packages --json
+```
+
 ### `dot up system`
 
 Upgrade the apt packages headless by running sudo -n /usr/local/sbin/dot-system-upgrade, a root-owned copy of system-upgrade/dot-system-upgrade installed by hand with a sudo rule for that one path: apt-get update, upgrade keeping existing config files, autoremove --purge and autoclean, then the GPU's CDI spec when nvidia-ctk is installed. It warns when the installed copy differs from the dotfiles, with the sudo install command to fix it; without the script or its sudo rule it fails naming the fix instead of prompting. Changed reports the package count, and /var/run/reboot-required is a warning. The interactive dot up's System group still prompts for sudo and installs the release packages. Never prompts, so it can run in the background.
@@ -487,49 +543,6 @@ Child exit code on completion
 
 ```bash
 dot run --timeout '5 minutes' -- opencode2 run --standalone 'Process this capture'
-```
-
-## `dot compose`
-
-Manage Docker compose stacks
-
-```text
-dot compose <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-### `dot compose up`
-
-Pull and start compose files, then prune unused Docker data
-
-```text
-dot compose up [flags] [<file...>]
-```
-
-Reads ~/.config/dot/compose.yml: directory (compose files), optional envFile (sourced with bash; its exported variables reach docker compose) and optional pruneAfterHours (default 720). For each file, runs docker compose pull then up -d --remove-orphans, trying a failed pull twice more 30 seconds apart and carrying on past a failed file, then runs docker system prune -af for data older than pruneAfterHours. Its messages and Docker's output are also written to the run's log in ~/.local/state/dot/logs. dot up offers it as a group when the config exists.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<file>` | Compose files to run (default: every *.yml in the configured directory) |
-
-**Examples**
-
-```bash
-dot compose up
-dot compose up ~/containers/compose/media.yml
 ```
 
 ## `dot http`

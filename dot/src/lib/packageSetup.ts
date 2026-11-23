@@ -218,11 +218,11 @@ export const installMiseTools: Effect.Effect<
   }
 });
 
-/** Install missing apt packages listed for the given scope. */
+/** Install missing apt packages listed for the given scope, returning the ones installed. */
 export function installMissingPackages(opts: {
   readonly scope: PackageScope;
 }): Effect.Effect<
-  void,
+  readonly string[],
   PackageSetupError,
   Config | CommandExecutor | OutputLog | FileSystem.FileSystem
 > {
@@ -234,7 +234,7 @@ export function installMissingPackages(opts: {
     if (opts.scope === "private" && !config.canUsePrivate) {
       yield* log.warn(`Skipping private packages (${config.privateReason})`);
 
-      return;
+      return [];
     }
 
     const missing = yield* missingPackages(config, opts.scope);
@@ -242,10 +242,12 @@ export function installMissingPackages(opts: {
     if (missing.length === 0) {
       yield* log.info(cliStyler().dim(`${label} packages already installed`));
 
-      return;
+      return [];
     }
 
     yield* log.section(`Install ${opts.scope} packages`);
     yield* installWithApt(missing);
+
+    return missing;
   });
 }

@@ -1,14 +1,13 @@
 /**
  * @file `dot up`: check everything, pick from the groups with work, then run
- * them in order, ending with the apt and release package system update,
- * compose up and the distro branch update. A stage the check found no work
+ * them in order, ending with the apt and release package system update and
+ * the clean. A stage the check found no work
  * for only runs when an earlier stage changed something it applies, such as
  * stow after a dotfiles pull that brings new links.
  */
 
-import { Extension } from "@timmo001/effect-gh";
 import { herdrSdkLayerFromOptions } from "@timmo001/effect-herdr";
-import { Cause, Clock, Duration, Effect, FileSystem } from "effect";
+import { Cause, Clock, Duration, Effect } from "effect";
 import { Prompt } from "effect/cli";
 import { DotDiff } from "../git/services/DotDiff.js";
 import { cliStyler, type Styler } from "../lib/ansi.js";
@@ -17,10 +16,7 @@ import { gitOutput } from "../lib/git.js";
 import { SKILLS_CHECKOUT } from "../lib/skillsMaintenance.js";
 import { ENV, envString } from "../lib/env.js";
 import { formatCause } from "../lib/schema.js";
-import { installGhExtensions } from "../lib/ghExtensions.js";
 import { DEFAULT_SOCKET_PATH, openHerdrRepo } from "./HerdrRepoOpen.js";
-import { COMPOSE_CONFIG, composeUp } from "./Compose.js";
-import { installMissingPackages } from "../lib/packageSetup.js";
 import { autoUpdate, hasPodman } from "../lib/podman.js";
 import {
   agentPlugins,
@@ -53,7 +49,6 @@ import { OutputLog } from "../services/OutputLog.js";
 import type { DiffRepo } from "../types.js";
 import {
   CORE_CHECK_CATEGORIES,
-  isUpStage,
   reportPendingUpdates,
   UP_GROUPS,
   UPDATE_CHECK_AVAILABLE_EXIT,
@@ -136,10 +131,6 @@ const GROUP_INFO: Record<
     description:
       "Prune mise, remove old cache files and the folders in clean.yml, and warn about full disks",
   },
-  compose: {
-    title: "Compose",
-    description: "Pull and start the compose files with dot compose up",
-  },
 };
 
 /** A check line for a stow package with links to apply. */
@@ -189,7 +180,6 @@ const groupWork = (
     packages: (packages?.missing ?? []).map((name) => `${name} (missing)`),
     system: [...(packages?.pending ?? []), ...lines("releases")],
     clean: [],
-    compose: [],
   } satisfies Record<UpGroup, readonly string[]>;
 };
 
@@ -547,22 +537,13 @@ export const upCheck = Effect.gen(function* () {
   });
 }).pipe(Effect.withSpan("Up.check"));
 
-/**
- * Pick the groups to run from those with work, all ticked. Compose has no dry
- * run, so it is always offered when a compose config exists.
- */
+/** Pick the groups to run from those with work, all ticked. */
 const pickGroups = Effect.fn("Up.pick")(function* (
   work: Record<UpGroup, readonly string[]>,
   opts: UpOptions,
 ) {
-  const fs = yield* FileSystem.FileSystem;
-
-  const compose = yield* fs
-    .exists(COMPOSE_CONFIG)
-    .pipe(Effect.orElseSucceed(() => false));
-
-  const offered: UpGroup[] = UP_GROUPS.filter((group) =>
-    group === "compose" ? compose : opts.force || work[group].length > 0,
+  const offered: UpGroup[] = UP_GROUPS.filter(
+    (group) => opts.force || work[group].length > 0,
   );
 
   if (opts.yes) return { offered, picked: offered };
@@ -623,47 +604,6 @@ const systemUpdate = Effect.fn("Up.system")(function* (yes: boolean) {
       : warn(`Release package install exited ${released}`),
   ];
 });
-
-const ghUpgrade = Effect.gen(function* () {
-  yield* installGhExtensions;
-
-  const exitCode = yield* Extension.upgradeAll({
-    interactive: true,
-    timeout: null,
-  }).pipe(
-    Effect.as(0),
-    Effect.catchTag("GhCommandError", (error) =>
-      Effect.succeed(error.exitCode),
-    ),
-    Effect.orElseSucceed(() => 1),
-  );
-
-  return exitCode === 0
-    ? done("Installed and upgraded gh extensions")
-    : warn(`gh extension upgrade exited ${exitCode}`);
-}).pipe(Effect.withSpan("Up.gh"));
-
-/** Install the missing apt packages from the public and private lists. */
-const installPackages = Effect.gen(function* () {
-  const log = yield* OutputLog;
-
-  return yield* Effect.all([
-    installMissingPackages({ scope: "public" }),
-    installMissingPackages({ scope: "private" }),
-  ]).pipe(
-    Effect.as(done("Installed missing packages")),
-    Effect.catch((error) =>
-      log.error(error.message).pipe(
-        Effect.tap(() =>
-          Effect.sync(() => {
-            process.exitCode = 1;
-          }),
-        ),
-        Effect.as(warn("Could not install missing packages")),
-      ),
-    ),
-  );
-}).pipe(Effect.withSpan("Up.packages"));
 
 /**
  * Run `dot up`. A fresh run checks everything and asks which groups to run;
@@ -788,7 +728,7 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
     // sudo and installs the release packages too.
     if (group === "system") {
       actions.push(...(yield* systemUpdate(opts.yes === true)));
-    } else if (isUpStage(group)) {
+    } else {
       // Stages never prompt, so a spinner can hold the bottom line throughout.
       const result: UpStageResult = yield* log.withSpinner(
         GROUP_INFO[group].title,
@@ -834,20 +774,6 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
 
         return;
       }
-    } else if (group === "gh") {
-      actions.push(yield* ghUpgrade);
-    } else if (group === "packages") {
-      actions.push(yield* installPackages);
-    } else {
-      const exitCode = yield* composeUp([]);
-
-      if (exitCode !== 0) process.exitCode = exitCode;
-
-      actions.push(
-        exitCode === 0
-          ? done("Ran compose up")
-          : warn(`Compose up exited ${exitCode}`),
-      );
     }
   }
 

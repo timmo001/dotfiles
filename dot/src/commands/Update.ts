@@ -203,39 +203,20 @@ export const UP_STAGES = [
   "herdr",
   "agents",
   "shell",
+  "gh",
+  "packages",
   "system",
   "clean",
 ] as const;
 
 /**
- * What `dot up` can run, in the order it runs them. System and clean are
- * stages too, but run after the missing packages; the interactive System
- * group keeps its own apt and release package steps.
+ * What `dot up` can run, in the order it runs them: every stage. The
+ * interactive System group keeps its own apt and release package steps.
  */
-export const UP_GROUPS = [
-  "dotfiles",
-  "skills",
-  "repos",
-  "stow",
-  "tools",
-  "plugins",
-  "containers",
-  "herdr",
-  "agents",
-  "shell",
-  "gh",
-  "packages",
-  "system",
-  "clean",
-  "compose",
-] as const satisfies readonly (UpStage | "gh" | "packages" | "compose")[];
+export const UP_GROUPS = UP_STAGES;
 
 /** One `dot up` stage. */
 export type UpStage = (typeof UP_STAGES)[number];
-
-/** Whether a `dot up` group is one of its stages. */
-export const isUpStage = (group: UpGroup): group is UpStage =>
-  UP_STAGES.some((stage) => stage === group);
 
 /** One kind of work `dot up` can run. */
 export type UpGroup = (typeof UP_GROUPS)[number];

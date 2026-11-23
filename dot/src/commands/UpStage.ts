@@ -1,10 +1,11 @@
 /**
  * @file The stages of `dot up`, each runnable on its own as `dot up <stage>`:
  * dotfiles, skills, repos, stow, tools, plugins, containers, herdr, agents,
- * shell, system and clean. A
+ * shell, gh, packages, system and clean. A
  * stage never prompts or opens Herdr, so a background runner such as Upkeep can
  * call it, and with `--json` it prints one result saying what changed.
  */
+import { Extension } from "@timmo001/effect-gh";
 import {
   Clock,
   Duration,
@@ -24,7 +25,9 @@ import {
   updatePiExtensions,
 } from "../lib/agentRuntime.js";
 import { syncSkills } from "../lib/externalSkills.js";
+import { installGhExtensions } from "../lib/ghExtensions.js";
 import { gitCurrentBranch, gitOutput } from "../lib/git.js";
+import { installMissingPackages } from "../lib/packageSetup.js";
 import { ensureInitCompleteMarker } from "../lib/initState.js";
 import { printJson } from "../lib/jsonStdout.js";
 import {
@@ -451,6 +454,76 @@ const containersStage = Effect.gen(function* () {
   } satisfies StageOutcome;
 });
 
+/**
+ * Install the missing gh extensions and upgrade the rest. A dry run says
+ * which will move, and the upgrade's own output is captured, so with
+ * `--json` stdout stays the result alone.
+ */
+const ghStage = Effect.gen(function* () {
+  yield* installGhExtensions;
+
+  const pending = yield* Extension.checkUpgrades({ timeout: null }).pipe(
+    Effect.orElseSucceed(() => []),
+  );
+
+  const failure = yield* Extension.upgradeAll({ timeout: null }).pipe(
+    Effect.as(null),
+    Effect.catchTag("GhCommandError", (error) => Effect.succeed(error)),
+  );
+
+  const failed =
+    failure === null
+      ? []
+      : Extension.parseUpgrades(failure.stdout).filter(
+          (extension) => extension.status === "failed",
+        );
+
+  const actions: RecapEntry[] = [
+    ...pending.flatMap((extension) =>
+      extension.status === "upgraded" &&
+      !failed.some((other) => other.name === extension.name)
+        ? [
+            notable(
+              `Upgraded gh ${extension.name} from ${extension.from} to ${extension.to}`,
+            ),
+          ]
+        : [],
+    ),
+    ...failed.map((extension) =>
+      warn(`Could not upgrade gh ${extension.name}: ${extension.reason}`),
+    ),
+  ];
+
+  if (actions.length === 0)
+    actions.push(skip("gh extensions already up to date"));
+
+  return {
+    actions,
+    ...(failure !== null && {
+      error: `gh extension upgrade exited ${failure.exitCode}`,
+    }),
+  } satisfies StageOutcome;
+});
+
+/**
+ * Install the apt packages from the public and private lists that aren't
+ * installed, with `apt-get install -y` through sudo.
+ */
+const packagesStage = Effect.gen(function* () {
+  const installed = [
+    ...(yield* installMissingPackages({ scope: "public" })),
+    ...(yield* installMissingPackages({ scope: "private" })),
+  ];
+
+  return {
+    actions: [
+      installed.length > 0
+        ? notable(`Installed ${installed.join(", ")}`)
+        : skip("Every listed package is installed"),
+    ],
+  } satisfies StageOutcome;
+});
+
 /** Where `dot up system` expects the root-owned upgrade script. */
 const SYSTEM_UPGRADE_SCRIPT = "/usr/local/sbin/dot-system-upgrade";
 
@@ -777,6 +850,10 @@ const stageEffect = (stage: UpStage, opts: UpStageOptions) =>
         return yield* herdrStage;
       case "agents":
         return yield* agentsStage(opts.reload ?? true);
+      case "gh":
+        return yield* ghStage;
+      case "packages":
+        return yield* packagesStage;
       case "system":
         return yield* systemStage;
       case "clean":
