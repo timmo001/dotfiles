@@ -27,7 +27,7 @@ hl.config({
 hl.window_rule({ name = "workspace-steam", match = { class = "^(steam)$" }, workspace = "2 silent" })
 hl.window_rule({ name = "tile-steam-main", match = { class = "^(steam)$", title = "^Steam$" }, float = false })
 
--- Workspace rules.
-hl.window_rule({ name = "workspace-chromium", match = { class = "^(chromium)$" }, workspace = "1" })
+-- Workspace rules. Chromium has none: monitors.lua opens it on the right
+-- monitor, and workspace setup moves its own browser to workspace 1.
 hl.window_rule({ name = "tag-work-browser", match = { class = "^(work-browser)$" }, tag = "+chromium-based-browser" })
 hl.window_rule({ name = "workspace-work-browser", match = { class = "^(work-browser)$" }, workspace = "3" })

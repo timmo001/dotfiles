@@ -19,3 +19,9 @@ hl.workspace_rule({ workspace = "3", default_name = "Browser", monitor = "HDMI-A
 hl.workspace_rule({ workspace = "4", default_name = "Apps", monitor = "HDMI-A-2" })
 hl.workspace_rule({ workspace = "5", monitor = "HDMI-A-2" })
 hl.workspace_rule({ workspace = "6", monitor = "HDMI-A-2" })
+
+-- Open new browser and web app windows on whichever workspace the right
+-- monitor shows, so they don't squeeze workspace 1's tiles on the portrait
+-- one. Workspace rules in looknfeel.lua (Slack, Discord, the work browser)
+-- still win, and workspace setup moves its own windows to workspace 1.
+o.window("(chromium|google-chrome|chrome-.+)", { monitor = "HDMI-A-2" })
