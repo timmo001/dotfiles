@@ -604,7 +604,6 @@ git-update() {
 ## Docker
 alias ld="lazydocker"
 
-alias dco="docker compose"
 alias dps="docker ps"
 alias dpa="docker ps -a"
 alias dl="docker ps -l -q"
@@ -735,12 +734,6 @@ alias fe="find-and-edit"
 alias fev="find-and-edit --visual"
 
 alias update="dot up"
-
-# Docker compose helpers. The compose-* scripts come from the nas-containers repository.
-alias cu="compose-up"
-alias cr="compose-restart"
-alias cl="compose-logs"
-alias cps="compose-ps"
 
 # Home Assistant dev servers: shortcuts for dot homeassistant (dot ha), which
 # reads its repositories, daemons and URLs from ~/.config/dot/homeassistant.yml.
