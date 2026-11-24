@@ -81,6 +81,9 @@ export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
  *   MCP server for Home Assistant on 8099 only answers the Green's address.
  * - Forgejo serves Git over SSH on 2222. The router only forwards 443, so it
  *   stays on the home network and the tailnet.
+ * - ESPHome's device builder serves its dashboard on 6052 and Seerr its web
+ *   app on 5055, both moved from the NAS and kept to the home network and the
+ *   tailnet.
  */
 export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
   {
@@ -151,6 +154,8 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
     protocols: ["tcp"],
   },
   { kind: "port", label: "Forgejo SSH", port: "2222", protocols: ["tcp"] },
+  { kind: "port", label: "ESPHome", port: "6052", protocols: ["tcp"] },
+  { kind: "port", label: "Seerr", port: "5055", protocols: ["tcp"] },
 ];
 
 /**
