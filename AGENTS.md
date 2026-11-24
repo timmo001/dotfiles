@@ -6,7 +6,6 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 ## Scope
 
-- This repo is the public dotfiles source at `~/.config/dotfiles`.
 - Make changes here (not in `~/.config/*` live paths directly).
 - Treat private overlays as optional and separate (`~/.config/dotfiles-private`).
 - When following `@` project references, look for the matching checkout under `~/repos` before editing. If it exists there, that is the correct source path to change.
@@ -31,7 +30,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 ## Tooling
 
 - The whole project is driven by **mise**. The single root `mise.toml` pins the toolchain (`node`, `bun`) and defines every dev task, including the root `lint` task and project namespaces (`dot:*` and `docs:*`), plus `format`, `test` and `build`. Prefer `mise run <task>` (for example `mise run lint`, `mise run dot:build`, `mise run docs:check`, or `mise run dot:check`) as the canonical interface; `mise tasks` lists them.
-- `mise.toml` is the source of truth for tool versions even without mise: anyone not using mise must still use the pinned versions and the same underlying commands each task wraps (do not substitute other versions or a different toolchain).
+- `mise.toml` is the source of truth for tool versions: without mise, still use the pinned versions and the commands each task wraps.
 - The package manager and runtime is **bun** for every JS/TS package (`dot/` and `docs/`). Do not use npm, pnpm, or yarn for install, lockfile, or script commands. Use `bun install`, `bun add`, `bun update`, `bun run`, and `bunx` (or the `mise run` task wrappers).
 - The tracked lockfile is `bun.lock` in each package (`dot/bun.lock`, `docs/bun.lock`); commit it after any dependency change. CI runs `bun install --frozen-lockfile` against it.
 - Keep Renovate update grouping limited to standard presets except for the coordinated Effect runtime and OpenCode 2 packages in `renovate.json`. Keep Effect compiler tooling outside the runtime group.
@@ -58,7 +57,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 - Repo root is a stow package root targeting `~/`.
 - Anything at the repo root that shouldn't be stowed (top-level docs, tooling, new directories such as `docs/`) needs a `.stowrc` ignore.
-- **Always run `dot stow`** (or `dot update`, which refreshes stow) to apply packages. Do **not** invoke GNU `stow` directly from the repo root: `dot` applies the correct adopt/no-folding flow and public-then-private ordering.
+- Apply packages with `dot stow` (or `dot update`, which refreshes stow), never GNU `stow` directly from the repo root: `dot` applies the adopt/no-folding flow and public-then-private ordering.
 
 ## Dot Command
 
@@ -66,10 +65,9 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 ### Skills And Patterns
 
-- Always apply `effect` and `types-enforce-ts` when editing code under `dot/`.
+- Apply `effect` and `types-enforce-ts` when editing code under `dot/`.
 - All exported functions, classes, interfaces, types, and interface members need JSDoc. Use single-line JSDoc for simple members and multi-line for complex behaviour. Effect service tags reference the underlying service interface via `{@link}`.
-- Services use `Context.Service` with a static `layer` property. Domain failures use `Schema.TaggedError`.
-- Use `Effect.fn("Name")` for effectful functions with arguments, and `Effect.gen` with `Effect.withSpan("Name")` for named zero-argument effects.
+- Services use `Context.Service` with a static `layer` property. Use `Effect.fn("Name")` for effectful functions with arguments, and `Effect.gen` with `Effect.withSpan("Name")` for named zero-argument effects.
 - Use `Clock.currentTimeMillis` for testable timestamps. Top-level execution uses `Effect.runPromise`.
 - Logging: section headings in Title Case, uppercase labels (`[INFO]`, `[WARN]`, `[ERROR]`), sentence-case messages.
 - Debug startup logging with `DOT_DEBUG=1 dot 2>/tmp/dot.log`; debug lines are prefixed with `[dot]`.
@@ -83,10 +81,9 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - When changing a command, alias, or flag: update `dot/src/cli/spec.ts`, rebuild with `mise run dot:build`, run `dot stow` to generate and apply completions, then regenerate the command reference with `mise run docs:gen:cli` (`docs/src/content/docs/dot/commands.md`; the `dot-build` workflow checks it is current).
 - `dot update` compiles to a temporary path and atomically renames the result over the running binary to avoid `ETXTBSY`. Keep that behaviour when changing self-update code.
 - Bounded external jobs use `ProcessRunner` through `dot run --timeout <duration> -- <command> [args...]`. Keep caller-specific arguments and permissions in the caller; the runner owns the deadline, signals, and process-group cleanup.
-- Keep command and flag metadata in `dot/src/cli/spec.ts`; help and completion generation consume that registry.
 - Generated `dot` and `skill-maintenance` completions are ignored by Git. Public `dot stow`, `dot install` (including `dot init`), and `dot update` generate them before stowing. Keep hand-written completions tracked; use package-provided completions for external tools such as `context`.
 - The Omarchy bar `shell.json` is generated by `dot/src/lib/omarchyShellConfig.ts`. Preserve `dot update`'s changed-file restart condition; `omarchy-shell-quickshell` owns lifecycle details.
-- Dependency updates for this repository and the private overlay come from Upkeep's `deps` job, not from `dot`. The old `dot deps` service is retired.
+- Dependency updates for this repository and the private overlay come from Upkeep's `deps` job, not from `dot`.
 - A managed Omarchy plugin whose `omarchy-plugins.json` entry names a `repository` (GitHub `owner/repo`, tracked in private `dot-git.yml`) deploys from that checkout's remote default branch, so pushes need no commit here. Other managed plugins, including those added through `omarchy plugin add`, are Git submodules under `omarchy/.config/omarchy/plugins/`. `omarchy-plugins.json` owns their persistent bar placement. Add, update, and remove leave ordinary unstaged changes for review.
 - A registry `path` deploys a plugin from a subfolder of its repository or submodule (`dot omarchy plugin add --path` for a submodule); `onlyHosts` limits an entry to the listed hosts in the generated layout.
 - `dot stow` deploys managed plugins as validated real-file copies because Omarchy rejects symlinks inside plugin directories. A tracked repository's plugin is exported from the committed branch, never its working tree; for a submodule, build any required ignored executable in the source first. Changed live directories are backed up under the owning repo's `backup/omarchy-plugins/`; unchanged deployments are left in place.
@@ -119,7 +116,7 @@ Personal dotfiles: don't aim for coverage and don't add tests. There is no regre
 
 - Run the changed command's relevant help or behaviour check.
 - `hk.pkl` runs the lint, `dot:typecheck` and `dot:format:check` tasks for changed file types on pre-push (hk's global hooks, installed by `dot update`). Run them by hand with `hk check`.
-- Basic health check: `dot doctor`. `mise tasks` lists every task; aggregates (`check`, `test`, `build`, `lint`) are for broad changes only.
+- Basic health check: `dot doctor`. `mise tasks` lists every task.
 - MCP config sync: `dot mcp sync` renders every harness's MCP config from private `dotfiles-private/mcp.yml`; `dot update` runs it, and a manual sync needs `dot stow` after.
 
 ## Applying Changes
