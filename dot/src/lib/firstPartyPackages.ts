@@ -6,7 +6,7 @@
  * only what they leave on an old binary is restarted here, never twice.
  */
 
-import { Clock, Effect, FileSystem, Schema } from "effect";
+import { Clock, Duration, Effect, FileSystem, Schedule, Schema } from "effect";
 import { userInfo } from "os";
 import { basename, join } from "path";
 import { lines, query } from "./boundedQuery.js";
@@ -39,6 +39,18 @@ const ROOT_POLKIT_RULE_COPY =
 
 /** Seconds a quick pacman, systemctl or journalctl query may take. */
 const QUERY_TIMEOUT = 30;
+
+/** pacman's lock, held while another pacman runs or sits at a prompt. */
+const PACMAN_LOCK = "/var/lib/pacman/db.lck";
+
+/** How often to look again while pacman's lock is held. */
+const LOCK_POLL = Duration.seconds(30);
+
+/**
+ * How long to wait for pacman's lock before starting anyway, so a quick
+ * upgrade elsewhere doesn't fail the run but a prompt left open still does.
+ */
+const LOCK_WAIT = Duration.minutes(10);
 
 /** Where pacman marks an executable replaced since a process started it. */
 const DELETED = " (deleted)";
@@ -379,6 +391,23 @@ export const upgradeFirstParty = Effect.gen(function* () {
 
   const unit = firstPartyUnit();
   const before = yield* installedVersions;
+
+  const lockHeld = fs
+    .exists(PACMAN_LOCK)
+    .pipe(Effect.orElseSucceed(() => false));
+
+  // pacman fails at once on a held lock, so wait for it first; once the wait
+  // runs out, the unit fails with pacman's own error
+  if (yield* lockHeld) {
+    yield* log.info("Waiting for pacman's lock, held by another pacman");
+    yield* lockHeld.pipe(
+      Effect.repeat({
+        while: (held) => held,
+        schedule: Schedule.spaced(LOCK_POLL),
+      }),
+      Effect.timeoutOption(LOCK_WAIT),
+    );
+  }
 
   yield* log.info(`Starting ${unit}`);
 
