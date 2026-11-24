@@ -95,7 +95,7 @@ Use the reference's `docs/omarchy-shell.md` for current IPC method names and ret
 - Omarchy disables Quickshell's whole-config file watcher for the packaged shell and restarts deliberately during lifecycle operations. Shell-owned `FileView` and plugin-directory watchers still handle `shell.json` and user-plugin updates.
 - `dot update` restarts the shell only when the generated `shell.json` changed. Standalone `dot stow` does not restart it.
 
-## Lint (required after every final QML change)
+## Lint
 
 After every final QML edit, lint the touched files with the Qt 6 `qmllint`. In dotfiles, use `.github/workflows/quickshell-lint.yml` as the source of truth for the binary, import path, warning policy, and CI backend version. The workflow deliberately performs a syntax-focused check because Omarchy's private `qs.*` modules are not packaged with the stable Quickshell syntax proxy. Lint must exit successfully before a QML change is done.
 

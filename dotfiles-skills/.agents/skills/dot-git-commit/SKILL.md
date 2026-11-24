@@ -23,8 +23,7 @@ staging, and message authoring around it.
   config; `dot git commit` is the allowed path. If `dot git commit` is denied,
   stop and report that this needs a build agent, do not fall back to `git commit`.
 - Amend only when the user explicitly requests it and follow the guarded amend
-  flow below. Never rebase or otherwise rewrite existing commits here. Never
-  disturb a set the user staged without asking.
+  flow below. Never rebase or otherwise rewrite existing commits here.
 
 ## 2. Read the working tree
 
@@ -48,8 +47,7 @@ staging, and message authoring around it.
 
 - Prefer several small, coherent commits over one large one. Commit per change,
   step, or phase so each commit is concise and self-contained; do not lump an
-  entire task into a single commit. This trades some rebase friction for a
-  cleaner, non-conflicting history, which is the preferred tradeoff.
+  entire task into a single commit.
 - Make a single commit only when the user explicitly requests one or the
   reviewed changeset contains only one coherent change.
 - A staged set still requires relevance to the current request. Do not commit
@@ -94,9 +92,6 @@ dot git commit --amend -m "<subject>"         # rewrite HEAD's subject (reword)
 dot git commit -m "<subject>" --dry-run       # preview, change nothing
 ```
 
-- Skip `--dry-run` when you already know what is staged and are safe to commit;
-  the Context git snapshot (step 2) is the check for that, and the preview adds little
-  beyond it. Reserve `--dry-run` for when you are genuinely unsure what is staged.
 - Use `--amend` only to fix up the previous commit the user just made, and only
   when they ask for an amend. Without `--message` it keeps HEAD's message; pass
   `--message` to reword. An amend with nothing staged is allowed, so

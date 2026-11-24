@@ -7,8 +7,7 @@ description: Run the advisory Oxlint pass on JavaScript or TypeScript changes in
 
 # Agent Oxlint
 
-1. Use this pass whenever the task changes JavaScript or TypeScript files.
-   Read the repository instructions and run its own lint workflow first.
+1. Read the repository instructions and run its own lint workflow first.
 2. Run it once the change is ready, not after every edit:
 
    ```bash
@@ -28,8 +27,7 @@ description: Run the advisory Oxlint pass on JavaScript or TypeScript changes in
    - the repository is not opted in through private `dot-git.yml`;
    - the repository has its own Oxlint config, dependency, script, or binary.
 
-   Do not bypass either gate or add files to make this pass run. Use
-   `dot agent oxlint --force` only when the user explicitly requests it.
+   Do not bypass either gate or add files to make this pass run.
 4. Fix the reported findings that belong to your change. Do not clean
    pre-existing findings elsewhere, and do not widen the diff to make the pass
    clean. If a fix would change behaviour or the design, report the finding

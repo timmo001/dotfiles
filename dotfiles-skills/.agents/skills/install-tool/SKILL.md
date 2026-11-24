@@ -48,10 +48,8 @@ that needs system integration.
      version constraint. Omitting a version also defaults to `latest`.
    - Managed Arch package: add it to the correct public or private required
      package list, then use `dot init` to install it.
-   - Official Arch repository: load `pkexec-root`, then run
-     `pkexec pacman -S --needed <package>`.
-   - AUR: load `pkexec-root`, then run
-     `yay -S --needed <package> --sudo pkexec --sudoflags ""`.
+   - Official Arch repository: `pkexec pacman -S --needed <package>`.
+   - AUR: `yay -S --needed <package> --sudo pkexec --sudoflags ""`.
 7. Verify both ownership and usability with `mise ls`, `pacman -Q <package>`,
    `command -v <command>`, and the tool's version command as applicable. Run
    `mise reshim` only when a command installed outside mise's normal tool
@@ -81,13 +79,7 @@ that needs system integration.
 ## Examples
 
 ```bash
-# Registry-backed CLI
-mise use --global ripgrep@latest
-
-# Explicit language-package backend
-mise use --global npm:typescript@latest
-
-# System-integrated package from the AUR, after loading pkexec-root
+# System-integrated package from the AUR
 yay -S --needed <package> --sudo pkexec --sudoflags ""
 
 # Replace the conflicting official mise package with mise-bin

@@ -19,9 +19,8 @@ Use this skill for changes to user config managed by GNU Stow through the public
 3. Run `dot stow` after stowed source changes (the `dot` Code Mode `stow` tool, or the command).
 4. Review third-party skill updates through `dot skills updates`; `dot up skills` links the latest pushed `main`.
 5. Push skills changes to `main` before expecting them locally, then run `dot up skills` yourself: it fetches the managed checkout and relinks, headless; there is no submodule pin to advance.
-6. Follow the repository's documentation policy. Regenerate affected catalogues; ordinary behaviour changes do not require hand-written pages.
-7. When renaming or removing a skill, update the command wrappers (such as `/commit`) that load it.
-8. After OpenCode config changes, run the relevant `opencode2 debug` checks (`config`, `paths`, `agents`).
+6. When renaming or removing a skill, update the command wrappers (such as `/commit`) that load it.
+7. After OpenCode config changes, run the relevant `opencode2 debug` checks (`config`, `paths`, `agents`).
 
 ## Common Paths
 
@@ -31,7 +30,7 @@ Use this skill for changes to user config managed by GNU Stow through the public
 - Shared adapted skills -> `~/repos/skills/<name>`
 - Reviewed third-party snapshots -> `~/repos/skills/<name>` plus its `skills.yml` entry
 
-Do not run `dot clean` unless the user explicitly asks to remove stowed configuration. Preserve unrelated worktree changes and continue with public-safe work when the private overlay is unavailable.
+Do not run `dot clean` unless the user explicitly asks to remove stowed configuration.
 
 ## Omarchy Host Overrides
 

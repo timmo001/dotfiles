@@ -34,7 +34,7 @@ After a push moves the head, a running watch follows the new commit. A fresh wat
 
 ## Read the report
 
-On completion, read the report, including the full `Review body findings` and `Open threads` sections and the latest review body from each reviewer. A passing CI summary or thread count is not a review triage result. Use `Read` offsets or `Grep` to locate sections rather than loading a large report whole, then read every comment and reply in each open thread. It contains:
+On completion, read the report, including the full `Review body findings` and `Open threads` sections and the latest review body from each reviewer. A passing CI summary or thread count is not a review triage result. Read every comment and reply in each open thread. It contains:
 
 - `### Failed:` sections with the failed steps and the last lines of each failed job's log (use `--log-lines 0` for the whole log).
 - For each pull request, reviews listed newest first. Only the latest review from each author has its body shown in full; earlier reviews from the same author are marked superseded, and reviews on older commits are labelled.
@@ -42,7 +42,7 @@ On completion, read the report, including the full `Review body findings` and `O
 - `Open threads`: unresolved threads, with every comment in full and the thread ID.
 - `Dismissed threads`: threads that were resolved or minimized, with only the replies shown.
 
-The full review dump is appended when the watch exits. While it is running, read the reviews once (same PR numbers and repository) if feedback needs attention now, including threads already present at startup: `dot pr reviews` (the `dot` Code Mode `pr_reviews` tool). It returns the same review dump, with every page and reply. Read it again if later replies or pushes make the report stale; do not turn this into a polling loop.
+The full review dump is appended when the watch exits. While it is running, read the reviews once (same PR numbers and repository) if feedback needs attention now, including threads already present at startup: `dot pr reviews` (the `dot` Code Mode `pr_reviews` tool). It returns the same review dump, with every page and reply. Read it again if later replies or pushes make the report stale.
 
 ## Triage
 
