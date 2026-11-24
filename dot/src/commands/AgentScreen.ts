@@ -42,6 +42,13 @@ const ClientSchema = Schema.Struct({
   workspace: Schema.Struct({ id: Schema.Finite, name: Schema.String }),
 });
 
+const CursorSchema = Schema.Struct({ x: Schema.Finite, y: Schema.Finite });
+
+/** hyprctl reports `{}` when no window has focus. */
+const ActiveWindowSchema = Schema.Struct({
+  address: Schema.optionalKey(Schema.String),
+});
+
 type Monitor = typeof MonitorSchema.Type;
 
 type Client = typeof ClientSchema.Type;
@@ -66,6 +73,12 @@ const decodeClients = Schema.decodeEffect(
 );
 
 const decodeDesks = Schema.decodeEffect(Schema.fromJsonString(DesksSchema));
+
+const decodeCursor = Schema.decodeEffect(Schema.fromJsonString(CursorSchema));
+
+const decodeActiveWindow = Schema.decodeEffect(
+  Schema.fromJsonString(ActiveWindowSchema),
+);
 
 const say = (line: string) =>
   Effect.sync(() => process.stdout.write(`${line}\n`));
@@ -154,6 +167,44 @@ const dispatch = Effect.fn("AgentScreen.dispatch")(function* (lua: string) {
   const reply = (yield* executor.run("hyprctl", ["dispatch", lua])).trim();
 
   if (reply !== "ok") return yield* fail(`Hyprland refused ${lua}: ${reply}`);
+});
+
+/**
+ * Remove agent outputs, then put the cursor and focus back where they were.
+ * Hyprland warps the cursor to the middle of its first other monitor whenever
+ * an output goes, and focus follows the cursor there.
+ */
+const removeOutputs = Effect.fn("AgentScreen.removeOutputs")(function* (
+  names: readonly string[],
+) {
+  const executor = yield* CommandExecutor;
+
+  const cursor = yield* executor
+    .run("hyprctl", ["-j", "cursorpos"])
+    .pipe(Effect.flatMap(decodeCursor));
+
+  const focused = yield* executor
+    .run("hyprctl", ["-j", "activewindow"])
+    .pipe(Effect.flatMap(decodeActiveWindow));
+
+  for (const name of names)
+    yield* executor.run("hyprctl", ["output", "remove", name]);
+
+  // Omarchy reconciles workspaces just after an output goes; let it finish
+  yield* Effect.sleep(Duration.millis(100));
+
+  yield* Effect.gen(function* () {
+    if (focused.address)
+      yield* dispatch(
+        `hl.dsp.focus({ window = "address:${focused.address}" })`,
+      );
+
+    yield* dispatch(`hl.dsp.cursor.move({ x = ${cursor.x}, y = ${cursor.y} })`);
+  }).pipe(
+    Effect.catch((error) =>
+      say(`The cursor couldn't be put back: ${error.message}`),
+    ),
+  );
 });
 
 /** Add a headless output and wait for Hyprland to report it. */
@@ -312,7 +363,6 @@ export const agentScreenClaim = Effect.fn("AgentScreen.claim")(function* (
 export const agentScreenRelease = Effect.fn("AgentScreen.release")(function* (
   session: string | undefined,
 ) {
-  const executor = yield* CommandExecutor;
   const label = sessionLabel(session);
   const desks = yield* readDesks;
   const held = Object.entries(desks).find(([, desk]) => desk.session === label);
@@ -340,7 +390,7 @@ export const agentScreenRelease = Effect.fn("AgentScreen.release")(function* (
       );
 
     yield* stopMirror(name);
-    yield* executor.run("hyprctl", ["output", "remove", name]);
+    yield* removeOutputs([name]);
   }
 
   const { [name]: _released, ...rest } = desks;
@@ -351,7 +401,6 @@ export const agentScreenRelease = Effect.fn("AgentScreen.release")(function* (
 
 /** Remove the holding screen and every desk, once nothing is left on them. */
 export const agentScreenOff = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
   const outputs = yield* agentOutputs;
 
   if (outputs.length === 0) {
@@ -375,8 +424,7 @@ export const agentScreenOff = Effect.gen(function* () {
   yield* stopMirror(undefined);
 
   // Desks first, so the holding screen goes last
-  for (const output of outputs.toReversed())
-    yield* executor.run("hyprctl", ["output", "remove", output.name]);
+  yield* removeOutputs(outputs.toReversed().map((output) => output.name));
 
   yield* writeDesks({});
   yield* say(`${HOLD} and its desks are off.`);
