@@ -1,5 +1,14 @@
+import { createConnection } from "node:net";
 import { join } from "node:path";
-import { Clock, Duration, Effect, FileSystem, Option, Schema } from "effect";
+import {
+  Clock,
+  Duration,
+  Effect,
+  FileSystem,
+  Option,
+  Schedule,
+  Schema,
+} from "effect";
 import { ENV, envString } from "../lib/env.js";
 import { CONFIG_DIR, DOT_BIN, displayPath } from "../lib/paths.js";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
@@ -42,6 +51,15 @@ const MOONLIGHT_ON_SCREEN = "^On screen: Moonlight";
 const WATCH_UNIT = "station-desktop-watch";
 
 const SUNSHINE_UNIT = "app-dev.lizardbyte.app.Sunshine.service";
+
+/** What Sunshine logs when it starts before Hyprland's Wayland socket; it keeps running but can't stream until it restarts. */
+const SUNSHINE_UNUSABLE = "Platform failed to initialize";
+
+/** Sunshine's HTTP port, open once it's ready for Moonlight. */
+const SUNSHINE_PORT = 47989;
+
+/** How long Sunshine gets to open its port: its unit waits 5 seconds, then it probes encoders. */
+const SUNSHINE_READY_WITHIN = Duration.seconds(20);
 
 /** How often the watcher checks Moonlight, on Station itself. */
 const POLL_ON_STATION = Duration.seconds(2);
@@ -191,11 +209,80 @@ const startWatch = Effect.gen(function* () {
     ]);
 }).pipe(Effect.withSpan("Station.startWatch"));
 
+/** Whether Sunshine accepts connections on its HTTP port. */
+const sunshineListening = Effect.callback<boolean>((resume) => {
+  const socket = createConnection({ host: "127.0.0.1", port: SUNSHINE_PORT });
+
+  const done = (listening: boolean) => {
+    socket.destroy();
+    resume(Effect.succeed(listening));
+  };
+
+  socket.once("connect", () => done(true));
+  socket.once("error", () => done(false));
+
+  return Effect.sync(() => socket.destroy());
+});
+
+/**
+ * Start Sunshine, or restart it when its current run can't capture the desktop,
+ * such as when it started before Hyprland's Wayland socket at login, then wait
+ * until it accepts connections.
+ */
+const ensureSunshine = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+
+  const running =
+    (yield* executor.exitCode("systemctl", [
+      "--user",
+      "--quiet",
+      "is-active",
+      SUNSHINE_UNIT,
+    ])) === 0;
+
+  const startedAt = (yield* executor.run("systemctl", [
+    "--user",
+    "show",
+    "--timestamp=unix",
+    "--property=ExecMainStartTimestamp",
+    "--value",
+    SUNSHINE_UNIT,
+  ])).trim();
+
+  // journalctl exits 1 when --grep matches nothing since this run started.
+  const unusable =
+    running &&
+    startedAt !== "" &&
+    (yield* executor.exitCode("journalctl", [
+      "--user",
+      "--quiet",
+      `--unit=${SUNSHINE_UNIT}`,
+      `--since=${startedAt}`,
+      `--grep=${SUNSHINE_UNUSABLE}`,
+    ])) === 0;
+
+  if (unusable)
+    yield* executor.run("systemctl", ["--user", "restart", SUNSHINE_UNIT]);
+  else if (!running)
+    yield* executor.run("systemctl", ["--user", "start", SUNSHINE_UNIT]);
+
+  const ready = yield* sunshineListening.pipe(
+    Effect.repeat({
+      until: (listening) => listening,
+      schedule: Schedule.spaced(Duration.millis(500)),
+    }),
+    Effect.timeoutOption(SUNSHINE_READY_WITHIN),
+  );
+
+  if (Option.isNone(ready))
+    return yield* new StationError({
+      message: `Sunshine didn't open port ${SUNSHINE_PORT} within ${Duration.toSeconds(SUNSHINE_READY_WITHIN)} seconds.`,
+    });
+}).pipe(Effect.withSpan("Station.ensureSunshine"));
+
 /** Add the Station desktop and show it on Station's TV through dot screen moonlight there. */
 export const stationDesktopOn = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
-
-  yield* executor.run("systemctl", ["--user", "start", SUNSHINE_UNIT]);
 
   if (Option.isNone(yield* stationOutput))
     yield* executor.run("hyprctl", ["output", "create", "headless", OUTPUT]);
@@ -229,6 +316,8 @@ export const stationDesktopOn = Effect.gen(function* () {
 
     return;
   }
+
+  yield* ensureSunshine.pipe(Effect.tapError(() => removeOutput));
 
   const host = (yield* executor.run("hostnamectl", ["hostname"])).trim();
 
