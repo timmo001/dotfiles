@@ -11,11 +11,13 @@
 # to be added here. pitchfork--station holds Station's own Inbox daemon,
 # plannotator its config.json, upkeep--station its Upkeep server and
 # maintenance-only worker, triage--station its Triage server, and
-# forgejo--station its Forgejo and Forgejo Runner.
+# forgejo--station its Forgejo and Forgejo Runner. esphome--station and
+# seerr--station hold the ESPHome and Seerr containers moved from the NAS.
 stow:
   - agents
   - chromium--station
   - dot-config
+  - esphome--station
   - forgejo--station
   - gateway--station
   - git
@@ -27,6 +29,7 @@ stow:
   - pitchfork--station
   - plannotator
   - scripts
+  - seerr--station
   - triage
   - triage--station
   - upkeep
