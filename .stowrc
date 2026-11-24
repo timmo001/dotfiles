@@ -35,4 +35,5 @@
 --ignore=^/udev-rules
 --ignore=^/first-party
 --ignore=^/lan-direct
+--ignore=^/btrfs-balance
 --ignore=^/avahi

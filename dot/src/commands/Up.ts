@@ -29,6 +29,7 @@ import {
 } from "./SetupPrivateRepo.js";
 import { syncRootFirstParty } from "../lib/firstPartyPackages.js";
 import { syncRootLanDirect } from "../lib/lanDirect.js";
+import { syncRootBtrfsBalance } from "../lib/btrfsBalance.js";
 import { patchDrift, syncRootPatches } from "../lib/omarchyPatches.js";
 import { installMissingArchPackages } from "../lib/packageSetup.js";
 import { autoUpdate, hasPodman } from "../lib/podman.js";
@@ -924,6 +925,16 @@ export const up = Effect.fn("Up.run")(function* (opts: UpOptions) {
           : lanDirect
             ? done("Installed the LAN-direct routing unit")
             : skip("LAN-direct routing unit already current"),
+      );
+
+      const btrfsBalance = yield* syncRootBtrfsBalance();
+
+      actions.push(
+        btrfsBalance === null
+          ? warn("Could not install the monthly btrfs balance timer")
+          : btrfsBalance
+            ? done("Installed the monthly btrfs balance timer")
+            : skip("Monthly btrfs balance timer already current or not needed"),
       );
 
       actions.push(yield* systemUpdate);

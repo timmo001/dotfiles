@@ -1,0 +1,13 @@
+# Installed root-owned by dot up (System) and dot init on machines whose root is
+# btrfs. Persistent, so a machine that was asleep or off catches up when it
+# comes back.
+[Unit]
+Description=Monthly light btrfs balance on /
+
+[Timer]
+OnCalendar=monthly
+RandomizedDelaySec=1d
+Persistent=true
+
+[Install]
+WantedBy=timers.target
