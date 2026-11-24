@@ -93,7 +93,6 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
   },
   { kind: "source", label: "Private network", from: "192.168.0.0/16" },
   { kind: "source", label: "Private network", from: "10.0.0.0/8" },
-  { kind: "source", label: "Docker networks", from: "172.16.0.0/12" },
   { kind: "source", label: "Tailscale", interface: "tailscale0" },
 ];
 
