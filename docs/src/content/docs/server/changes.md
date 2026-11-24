@@ -212,7 +212,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Changed files
 
-105 files in both branches with different contents.
+104 files in both branches with different contents.
 
 | File | Compare |
 | --- | --- |
@@ -311,7 +311,6 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `mise/.config/mise/config.toml` | [diff](https://github.com/timmo001/dotfiles/compare/5cc5e2da1e57773bde347322d25b53b980d2125d...distro/ubuntu-server#diff-d21ce4917a135596ad0d792dc1f613a1316ed373af791af2d1028ab90dd92556), [desktop](https://github.com/timmo001/dotfiles/blob/5cc5e2da1e57773bde347322d25b53b980d2125d/mise/.config/mise/config.toml), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/mise/.config/mise/config.toml) |
 | `opencode.json` | [diff](https://github.com/timmo001/dotfiles/compare/5cc5e2da1e57773bde347322d25b53b980d2125d...distro/ubuntu-server#diff-33b8bb80766a21fd5894871ffb6e9be4bd034d870629e385cfeecc4589df3bf2), [desktop](https://github.com/timmo001/dotfiles/blob/5cc5e2da1e57773bde347322d25b53b980d2125d/opencode.json), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/opencode.json) |
 | `oxlint.config.ts` | [diff](https://github.com/timmo001/dotfiles/compare/5cc5e2da1e57773bde347322d25b53b980d2125d...distro/ubuntu-server#diff-bb74d47b77763f955ac4f1aa50c369328c445a697494dd8abbeaa650907870ae), [desktop](https://github.com/timmo001/dotfiles/blob/5cc5e2da1e57773bde347322d25b53b980d2125d/oxlint.config.ts), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/oxlint.config.ts) |
-| `pitchfork.toml` | [diff](https://github.com/timmo001/dotfiles/compare/5cc5e2da1e57773bde347322d25b53b980d2125d...distro/ubuntu-server#diff-0d6652c3581bab18f35d27f420fa244e3441bf19a655fbbd72a6510d5207ddde), [desktop](https://github.com/timmo001/dotfiles/blob/5cc5e2da1e57773bde347322d25b53b980d2125d/pitchfork.toml), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/pitchfork.toml) |
 | `README.md` | [diff](https://github.com/timmo001/dotfiles/compare/5cc5e2da1e57773bde347322d25b53b980d2125d...distro/ubuntu-server#diff-b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5), [desktop](https://github.com/timmo001/dotfiles/blob/5cc5e2da1e57773bde347322d25b53b980d2125d/README.md), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/README.md) |
 | `scripts/.local/bin/mise` | [diff](https://github.com/timmo001/dotfiles/compare/5cc5e2da1e57773bde347322d25b53b980d2125d...distro/ubuntu-server#diff-568091f6537a01ea35418690322fc041df437fbd5daede9ae24f3bf9a671ed33), [desktop](https://github.com/timmo001/dotfiles/blob/5cc5e2da1e57773bde347322d25b53b980d2125d/scripts/.local/bin/mise), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/scripts/.local/bin/mise) |
 | `systemd/.config/dot/services.d/herdr.yml` (was `systemd/.config/dot/services.d/dot-daemon.yml`) | [diff](https://github.com/timmo001/dotfiles/compare/5cc5e2da1e57773bde347322d25b53b980d2125d...distro/ubuntu-server#diff-a4b3b77616a3aa922a6c6c04e319e0a3aa319ec00e27725f1ba5224944ea9fda), [desktop](https://github.com/timmo001/dotfiles/blob/5cc5e2da1e57773bde347322d25b53b980d2125d/systemd/.config/dot/services.d/dot-daemon.yml), [server](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/dot/services.d/herdr.yml) |
@@ -324,7 +323,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Added files
 
-59 files only on this branch.
+43 files only on this branch.
 
 - [`.dot-branch.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-branch.yml)
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/.dot-private.yml)
@@ -338,9 +337,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`dot/src/lib/debReleases.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/debReleases.ts)
 - [`dot/src/lib/notify.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/notify.ts)
 - [`dot/src/lib/privateSelection.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/privateSelection.ts)
-- [`dot/src/server/api.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/api.ts)
-- [`dot/src/server/auth.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/auth.ts)
-- [`dot/src/server/Serve.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/server/Serve.ts)
+- [`dot/src/lib/servicesStatus.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/dot/src/lib/servicesStatus.ts)
 - [`environment/.config/environment.d/999-dotfiles-path.conf`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/environment/.config/environment.d/999-dotfiles-path.conf)
 - [`neovim/.config/nvim/.neoconf.json`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/.neoconf.json)
 - [`neovim/.config/nvim/init.lua`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/init.lua)
@@ -358,20 +355,6 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`neovim/.config/nvim/stylua.toml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/neovim/.config/nvim/stylua.toml)
 - [`pitchfork/.config/pitchfork/config.toml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/pitchfork/.config/pitchfork/config.toml)
 - [`scripts/.local/bin/herdr`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/scripts/.local/bin/herdr)
-- [`server/bun.lock`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/bun.lock)
-- [`server/index.html`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/index.html)
-- [`server/package.json`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/package.json)
-- [`server/src/app.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/app.ts)
-- [`server/src/components/ui/button.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/components/ui/button.ts)
-- [`server/src/components/ui/icon.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/components/ui/icon.ts)
-- [`server/src/controllers/atom-controller.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/controllers/atom-controller.ts)
-- [`server/src/lib/atoms.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/lib/atoms.ts)
-- [`server/src/lib/utils.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/lib/utils.ts)
-- [`server/src/mixins/light-dom.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/mixins/light-dom.ts)
-- [`server/src/pages/services.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/pages/services.ts)
-- [`server/src/styles/globals.css`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/src/styles/globals.css)
-- [`server/tsconfig.json`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/tsconfig.json)
-- [`server/vite.config.ts`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/server/vite.config.ts)
 - [`system-upgrade/dot-system-upgrade`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/system-upgrade/dot-system-upgrade)
 - [`systemd/.config/dot/services.d/ollama.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/dot/services.d/ollama.yml)
 - [`systemd/.config/dot/services.d/ollaya.yml`](https://github.com/timmo001/dotfiles/blob/distro/ubuntu-server/systemd/.config/dot/services.d/ollaya.yml)
