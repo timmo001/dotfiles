@@ -284,6 +284,11 @@ const ensureSunshine = Effect.gen(function* () {
 export const stationDesktopOn = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
 
+  // Before STATION exists: Sunshine's saved screen-share permission only
+  // covers the outputs it was given for, so starting with STATION present
+  // leaves it waiting on the portal.
+  yield* ensureSunshine;
+
   if (Option.isNone(yield* stationOutput))
     yield* executor.run("hyprctl", ["output", "create", "headless", OUTPUT]);
 
@@ -316,8 +321,6 @@ export const stationDesktopOn = Effect.gen(function* () {
 
     return;
   }
-
-  yield* ensureSunshine.pipe(Effect.tapError(() => removeOutput));
 
   const host = (yield* executor.run("hostnamectl", ["hostname"])).trim();
 
