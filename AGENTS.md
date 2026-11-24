@@ -9,7 +9,6 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - This repo is the public dotfiles source at `~/.config/dotfiles`.
 - Make changes here (not in `~/.config/*` live paths directly).
 - Treat private overlays as optional and separate (`~/.config/dotfiles-private`).
-- `~/.config/dotfiles-private` is for private files and non-public info only: personal machine checks, browser extension checks, private package manifests, self-hosted services reachable from outside the house (their addresses, open ports and what guards them), and other personal data, read by public logic. Host-specific config that reveals nothing private (GPU settings, host overrides, `<package>--<host>` packages) stays public.
 - When following `@` project references, look for the matching checkout under `~/repos` before editing. If it exists there, that is the correct source path to change.
 - The standalone `context` and `notes` repositories are independent products. Dotfiles may install them and consume their public CLI/MCP interfaces, but must not add dotfiles-owned behaviour, analytics, environment variables, or integration contracts to those repositories. Keep observation and orchestration in dotfiles unless a change is independently justified by the standalone product itself.
 
@@ -58,9 +57,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 ## Stow Rules
 
 - Repo root is a stow package root targeting `~/`.
-- Top-level docs for humans/agents must be ignored by stow.
-- The `docs/` site directory is ignored by stow (`--ignore=^/docs`); the repo root stows to `~/`, so any new root-level directory that should not be symlinked needs a matching `.stowrc` ignore.
-- Keep `.stowrc` ignore rules in sync when adding root-only files.
+- Anything at the repo root that shouldn't be stowed (top-level docs, tooling, new directories such as `docs/`) needs a `.stowrc` ignore.
 - **Always run `dot stow`** (or `dot update`, which refreshes stow) to apply packages. Do **not** invoke GNU `stow` directly from the repo root: `dot` applies the correct adopt/no-folding flow and public-then-private ordering.
 
 ## Dot Command
@@ -78,20 +75,6 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Debug startup logging with `DOT_DEBUG=1 dot 2>/tmp/dot.log`; debug lines are prefixed with `[dot]`.
 
 ### Layout
-
-```text
-dot/src/
-  index.ts                - Effect CLI bootstrap and application layers
-  types.ts                - Shared domain types
-  cli/spec.ts             - Executable Effect command tree
-  commands/               - Native dot command implementations
-  daemon/                 - dot daemon: effect/rpc protocol, socket server, client and the update, services and Git panel stores
-  doctor/                 - Health-check runner and checks
-  git/                    - Git and GitHub commands and services
-  mcp/                    - MCP config generation
-  services/               - Config, CommandExecutor, Launcher, OutputLog and shared services
-  lib/                    - Shared command support
-```
 
 `cli/spec.ts` defines typed arguments, flags, handlers, aliases, and subcommands; `index.ts` runs that tree with the shared Effect and Node layers. Bare `dot` and `dot --help` print root help. Commands use `Launcher`, `CommandExecutor`, and `OutputLog` for process and output handling.
 
@@ -125,12 +108,14 @@ Personal dotfiles: don't aim for coverage and don't add tests. There is no regre
 ## Validation
 
 - Run only the checks the change needs, and run them in parallel. Pick the narrowest tasks that cover the touched files and pass them to a single `mise run`, separated by `:::` (for example `mise run lint:yaml ::: lint:actions` after a workflow edit). Don't run aggregate tasks such as `check` to cover a narrow change.
-- After changing `dot/` or OpenCode plugins, format first (it writes files), then check:
+- After changing `dot/`, format first (it writes files), then check:
 
   ```bash
   mise run dot:format
   mise run dot:check
   ```
+
+- After changing OpenCode plugins, run `mise run lint:oxlint`; `dot:format` covers only `dot/`.
 
 - Run the changed command's relevant help or behaviour check.
 - `hk.pkl` runs the lint, `dot:typecheck` and `dot:format:check` tasks for changed file types on pre-push (hk's global hooks, installed by `dot update`). Run them by hand with `hk check`.
