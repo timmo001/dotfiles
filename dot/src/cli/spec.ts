@@ -69,6 +69,11 @@ import {
   servicesBusy,
 } from "../commands/Services.js";
 import { probeKopia, probeSyncthing } from "../commands/ServiceProbes.js";
+import {
+  backupSnapshot,
+  backupTestRestore,
+  backupVerify,
+} from "../commands/Backup.js";
 import { gitRefresh, gitWatch } from "../git/commands/Watch.js";
 import { fansRun } from "../commands/Fans.js";
 import {
@@ -752,6 +757,95 @@ const daemonCommand = describe(
 
 const serviceUnit = Argument.String("unit").pipe(
   Argument.withDescription("Registered timer or service unit"),
+);
+
+const statusFile = text(
+  "status-file",
+  "Status file to report progress and the result in, for dot services",
+);
+
+const backupCommand = describe(
+  Command.make("backup").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "snapshot",
+          {
+            sources: Argument.String("source").pipe(
+              Argument.variadic({ min: 1 }),
+              Argument.withDescription("Folders to snapshot, in order"),
+            ),
+            wait: runDuration(
+              "wait",
+              "Wait this long for the repository to answer, then exit 75",
+            ).pipe(Flag.optional),
+            statusFile,
+          },
+          ({ sources, wait, statusFile }) =>
+            backupSnapshot(sources, {
+              wait: optional(wait),
+              statusFile: optional(statusFile),
+            }),
+        ),
+        "Snapshot folders with Kopia, reporting progress to a status file",
+        [
+          "dot backup snapshot ~/Pictures ~/Videos",
+          "dot backup snapshot --wait '15 minutes' --status-file ~/.local/state/kopia/kopia-snapshot.json ~/.ssh",
+        ],
+        {
+          description:
+            "Runs kopia snapshot create for each source in turn, against the repository KOPIA_CONFIG_PATH (or Kopia's default config) is connected to. With --wait it first waits for kopia repository status to answer, and exits 75 when it doesn't, so a unit can count that as skipped. With --status-file it reports busy, which source is running and how far it has got, then each source's size and file count, in the status file shape dot services reads. Exits 1 when any source fails.",
+        },
+      ),
+      describe(
+        Command.make(
+          "verify",
+          {
+            percent: Argument.Finite("percent").pipe(
+              Argument.withDescription("Share of the files to read back"),
+            ),
+          },
+          ({ percent }) => backupVerify(percent),
+        ),
+        "Read back a share of the repository's files with Kopia",
+        ["dot backup verify 10"],
+        {
+          description:
+            "Runs kopia snapshot verify --verify-files-percent with the share given, and exits with Kopia's exit code.",
+        },
+      ),
+      describe(
+        Command.make(
+          "test-restore",
+          {
+            files: integer("files", "Files to restore from each source", 3),
+            maxSize: integer(
+              "max-size",
+              "Largest file to pick, in megabytes",
+              50,
+            ),
+            statusFile,
+          },
+          ({ files, maxSize, statusFile }) =>
+            backupTestRestore({
+              files,
+              maxSize: maxSize * 1_000_000,
+              statusFile: optional(statusFile),
+            }),
+        ),
+        "Restore random files from each source's newest snapshot and check them",
+        [
+          "dot backup test-restore",
+          "dot backup test-restore --files 5 --status-file ~/.local/state/kopia/kopia-restore-test.json",
+        ],
+        {
+          description:
+            "For each source's newest snapshot, picks --files files at random, no bigger than --max-size, by walking down its directories with kopia show, and restores each with kopia snapshot restore into a scratch directory that is removed afterwards. Each restored file must have the size the snapshot lists. When the original is on this machine with the snapshot's size and modification time, its bytes must match too; otherwise the size is all there is to check. Exits 1 when any file fails.",
+        },
+      ),
+    ]),
+  ),
+  "Back up with Kopia and test restores",
 );
 
 const servicesCommand = describe(
@@ -4041,6 +4135,7 @@ export const dotCommand = describe(
       updatesCommand,
       daemonCommand,
       servicesCommand,
+      backupCommand,
       fansCommand,
       hdrCommand,
       gameCommand,

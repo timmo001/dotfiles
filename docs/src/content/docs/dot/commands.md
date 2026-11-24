@@ -1117,6 +1117,105 @@ dot services schedule check
 dot services schedule check --grace '4 hours'
 ```
 
+## `dot backup`
+
+Back up with Kopia and test restores
+
+```text
+dot backup <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot backup snapshot`
+
+Snapshot folders with Kopia, reporting progress to a status file
+
+```text
+dot backup snapshot [flags] <source...>
+```
+
+Runs kopia snapshot create for each source in turn, against the repository KOPIA_CONFIG_PATH (or Kopia's default config) is connected to. With --wait it first waits for kopia repository status to answer, and exits 75 when it doesn't, so a unit can count that as skipped. With --status-file it reports busy, which source is running and how far it has got, then each source's size and file count, in the status file shape dot services reads. Exits 1 when any source fails.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--wait` `<string>` | Wait this long for the repository to answer, then exit 75 |
+| `--status-file` `<string>` | Status file to report progress and the result in, for dot services |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<source>` | Folders to snapshot, in order |
+
+**Examples**
+
+```bash
+dot backup snapshot ~/Pictures ~/Videos
+dot backup snapshot --wait '15 minutes' --status-file ~/.local/state/kopia/kopia-snapshot.json ~/.ssh
+```
+
+### `dot backup verify`
+
+Read back a share of the repository's files with Kopia
+
+```text
+dot backup verify [flags] <percent>
+```
+
+Runs kopia snapshot verify --verify-files-percent with the share given, and exits with Kopia's exit code.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<percent>` | Share of the files to read back |
+
+**Examples**
+
+```bash
+dot backup verify 10
+```
+
+### `dot backup test-restore`
+
+Restore random files from each source's newest snapshot and check them
+
+```text
+dot backup test-restore [flags]
+```
+
+For each source's newest snapshot, picks --files files at random, no bigger than --max-size, by walking down its directories with kopia show, and restores each with kopia snapshot restore into a scratch directory that is removed afterwards. Each restored file must have the size the snapshot lists. When the original is on this machine with the snapshot's size and modification time, its bytes must match too; otherwise the size is all there is to check. Exits 1 when any file fails.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--files` `<integer>` | Files to restore from each source |
+| `--max-size` `<integer>` | Largest file to pick, in megabytes |
+| `--status-file` `<string>` | Status file to report progress and the result in, for dot services |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot backup test-restore
+dot backup test-restore --files 5 --status-file ~/.local/state/kopia/kopia-restore-test.json
+```
+
 ## `dot fans`
 
 Control chassis fans from a Home Assistant temperature
