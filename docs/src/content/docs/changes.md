@@ -180,7 +180,7 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 
 ## Changed files
 
-97 files in both branches with different contents.
+96 files in both branches with different contents.
 
 | File | Compare |
 | --- | --- |
@@ -277,14 +277,13 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 | `mise/.config/mise/config.toml` | [diff](https://github.com/timmo001/dotfiles/compare/5cc5e2da1e57773bde347322d25b53b980d2125d...distro/cloud#diff-d21ce4917a135596ad0d792dc1f613a1316ed373af791af2d1028ab90dd92556), [desktop](https://github.com/timmo001/dotfiles/blob/5cc5e2da1e57773bde347322d25b53b980d2125d/mise/.config/mise/config.toml), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/mise/.config/mise/config.toml) |
 | `opencode.json` | [diff](https://github.com/timmo001/dotfiles/compare/5cc5e2da1e57773bde347322d25b53b980d2125d...distro/cloud#diff-33b8bb80766a21fd5894871ffb6e9be4bd034d870629e385cfeecc4589df3bf2), [desktop](https://github.com/timmo001/dotfiles/blob/5cc5e2da1e57773bde347322d25b53b980d2125d/opencode.json), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/opencode.json) |
 | `oxlint.config.ts` | [diff](https://github.com/timmo001/dotfiles/compare/5cc5e2da1e57773bde347322d25b53b980d2125d...distro/cloud#diff-bb74d47b77763f955ac4f1aa50c369328c445a697494dd8abbeaa650907870ae), [desktop](https://github.com/timmo001/dotfiles/blob/5cc5e2da1e57773bde347322d25b53b980d2125d/oxlint.config.ts), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/oxlint.config.ts) |
-| `pitchfork.toml` | [diff](https://github.com/timmo001/dotfiles/compare/5cc5e2da1e57773bde347322d25b53b980d2125d...distro/cloud#diff-0d6652c3581bab18f35d27f420fa244e3441bf19a655fbbd72a6510d5207ddde), [desktop](https://github.com/timmo001/dotfiles/blob/5cc5e2da1e57773bde347322d25b53b980d2125d/pitchfork.toml), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/pitchfork.toml) |
 | `README.md` | [diff](https://github.com/timmo001/dotfiles/compare/5cc5e2da1e57773bde347322d25b53b980d2125d...distro/cloud#diff-b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5), [desktop](https://github.com/timmo001/dotfiles/blob/5cc5e2da1e57773bde347322d25b53b980d2125d/README.md), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/README.md) |
 | `renovate.json` | [diff](https://github.com/timmo001/dotfiles/compare/5cc5e2da1e57773bde347322d25b53b980d2125d...distro/cloud#diff-7b5c8955fc544a11b4b74eddb4115f9cc51c9cf162dbffa60d37eeed82a55a57), [desktop](https://github.com/timmo001/dotfiles/blob/5cc5e2da1e57773bde347322d25b53b980d2125d/renovate.json), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/renovate.json) |
 | `tooling.yml` | [diff](https://github.com/timmo001/dotfiles/compare/5cc5e2da1e57773bde347322d25b53b980d2125d...distro/cloud#diff-987469b4074efadfa7e48b1fefc79466fc6949c9ff90e1a7a544fd7160ba6c4b), [desktop](https://github.com/timmo001/dotfiles/blob/5cc5e2da1e57773bde347322d25b53b980d2125d/tooling.yml), [cloud](https://github.com/timmo001/dotfiles/blob/distro/cloud/tooling.yml) |
 
 ## Added files
 
-34 files only on this branch.
+18 files only on this branch.
 
 - [`.dot-branch.yml`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.dot-branch.yml)
 - [`.dot-private.yml`](https://github.com/timmo001/dotfiles/blob/distro/cloud/.dot-private.yml)
@@ -303,20 +302,4 @@ Whole top-level folders (mostly stow packages) that this branch does not ship.
 - [`dot/src/lib/debReleases.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/lib/debReleases.ts)
 - [`dot/src/lib/notify.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/lib/notify.ts)
 - [`dot/src/lib/privateSelection.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/lib/privateSelection.ts)
-- [`dot/src/server/api.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/server/api.ts)
-- [`dot/src/server/auth.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/server/auth.ts)
-- [`dot/src/server/Serve.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/server/Serve.ts)
-- [`server/bun.lock`](https://github.com/timmo001/dotfiles/blob/distro/cloud/server/bun.lock)
-- [`server/index.html`](https://github.com/timmo001/dotfiles/blob/distro/cloud/server/index.html)
-- [`server/package.json`](https://github.com/timmo001/dotfiles/blob/distro/cloud/server/package.json)
-- [`server/src/app.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/server/src/app.ts)
-- [`server/src/components/ui/button.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/server/src/components/ui/button.ts)
-- [`server/src/components/ui/icon.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/server/src/components/ui/icon.ts)
-- [`server/src/controllers/atom-controller.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/server/src/controllers/atom-controller.ts)
-- [`server/src/lib/atoms.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/server/src/lib/atoms.ts)
-- [`server/src/lib/utils.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/server/src/lib/utils.ts)
-- [`server/src/mixins/light-dom.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/server/src/mixins/light-dom.ts)
-- [`server/src/pages/services.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/server/src/pages/services.ts)
-- [`server/src/styles/globals.css`](https://github.com/timmo001/dotfiles/blob/distro/cloud/server/src/styles/globals.css)
-- [`server/tsconfig.json`](https://github.com/timmo001/dotfiles/blob/distro/cloud/server/tsconfig.json)
-- [`server/vite.config.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/server/vite.config.ts)
+- [`dot/src/lib/servicesStatus.ts`](https://github.com/timmo001/dotfiles/blob/distro/cloud/dot/src/lib/servicesStatus.ts)
