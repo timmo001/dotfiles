@@ -1966,7 +1966,7 @@ Read-only OpenCode 2 session inspection through the configured launcher. Without
 
 | Option | Description |
 | --- | --- |
-| `--warn-at` `<number>` | Context or input percentage prompting a scope or handoff review (default: 70) |
+| `--warn-at` `<number>` | Context or input percentage reported as high pressure (default: 70) |
 | `--json` | Print model, limits, context measurement and cumulative usage as JSON |
 | `--help` `-h` | Show help information |
 

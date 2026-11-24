@@ -11,10 +11,9 @@ metadata:
 ## Find The Repository
 
 Whenever the user says "my ... repo(s)", "my dotfiles", "my skills" or names
-any repository, resolve it with `dot repo` before guessing a path. Prefer the
-`dot` Code Mode namespace's `repo_search` (`query`, `limit`, `all`) and
-`repo_list` (`query`) tools, which return the same JSON; use the commands below
-without them, and for `--open`, which the tools don't take:
+any repository, resolve it with `dot repo` before guessing a path. The `dot`
+Code Mode `repo_search` (`query`, `limit`, `all`) and `repo_list` (`query`)
+tools return the same JSON, but don't take `--open`:
 
 | The user says                                       | Run                                                                                              |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
@@ -53,15 +52,9 @@ without them, and for `--open`, which the tools don't take:
 - To track a new repository, use `dot repo induct <path> --noninteractive` with
   the chosen flags to preview, then repeat with `--commit` only after the user
   approves the preview. In a terminal without flags it runs a wizard.
-- For related changes, follow the actual dependency or consumer to its writable
-  checkout. Read that repository's instructions and check its remote, visibility,
-  and working tree before editing. A reference or tracked entry is context, not
-  permission to expand the task or create a session.
-- Use each owning source: shared dotfiles behaviour, private host configuration,
-  and authored skills may live in different repositories. Follow the host's source
-  paths and skill-authoring rules; do not edit installed skills, the dot-managed
-  skills checkout, pinned submodules, generated mirrors, or OpenCode's cached
-  reference clones as writable sources.
+- A reference or tracked entry is context, not permission to expand the task or
+  create a session. OpenCode's cached reference clones, pinned submodules and
+  generated mirrors are not writable sources.
 
 ## Open In An Agent
 
@@ -75,8 +68,8 @@ Discovery alone needs no new session. Keep focused work in the current session.
    an idle shell or create a pane. Inspect live state when reusing an existing
    worker, and only reuse one that belongs to this assignment.
 2. Read `dot herdr repo open --help`. Select the requested launcher with `--agent`
-   (for example `opencode2`); otherwise match the current runtime. Use the
-   `dot` namespace's `herdr_agents` tool, or `dot herdr agents`, when the
+   (for example `opencode2`); otherwise match the current runtime. Use
+   `dot herdr agents` (the `dot` Code Mode `herdr_agents` tool) when the
    launcher identity is unknown. The opener resolves
    its executable, label and kind; do not repeat that discovery or substitute
    the executable selected by `herdr agent start --kind`.
@@ -122,9 +115,8 @@ Discovery alone needs no new session. Keep focused work in the current session.
    A workspace-only focus may return a null `paneId` because no pane was selected.
 
 To switch the model of an existing Herdr OpenCode 2 agent, identify its unique
-live name or pane ID, then use the `dot` namespace's `herdr_model` tool
-(`target`, `model`, `variant`), or `dot herdr model <target> <model>` without
-it. It checks the
+live name or pane ID, then run `dot herdr model <target> <model>` (the `dot`
+Code Mode `herdr_model` tool takes `target`, `model` and `variant`). It checks the
 running OpenCode 2 executable and Herdr-reported session ID, resolves the model
 in that session's project, and switches it through the OpenCode API without
 starting a new session or sending a prompt. Do not assume a model change is
@@ -134,9 +126,9 @@ active work.
 Pass `"opus 5.5#low"`, or `"opus 5.5"` with the `low` variant (`--variant low`
 on the CLI), to switch effort as well.
 For an effort-only request, retain the session's current provider and model and
-pass them with the requested variant. Apply `dot-session-status` and query the exact
-OpenCode session ID before preserving its settings; the injected identity does
-not include the variant. Omitting the variant selects the model's
+pass them with the requested variant. Read the session's current model and
+variant first with the `dot` namespace's `session_status` tool (or
+`dot session status <id>`); the injected identity does not include the variant. Omitting the variant selects the model's
 default settings. The command verifies the resulting session model and variant;
 an already-running request keeps the settings it started with.
 
@@ -144,10 +136,8 @@ an already-running request keeps the settings it started with.
 
 - `--agent opencode2` selects the configured OpenCode 2 wrapper and `opencode`
   kind. `--agent` inside OpenCode itself selects a profile, not a version.
-  The opener checks the expected
-  executable from `mise which opencode2`, waits for readiness, checks the detected
-  kind and foreground process, then names the agent and sends any brief. Trust
-  that verification on success; no separate runtime lookup or prompt is needed.
+  Trust the opener's verification on success; no separate runtime lookup or
+  prompt is needed.
 - For another wrapper or a command containing extra arguments, verify its actual
   exec target first. Launch through the opener without a prompt flag, identify the
   pane, and check `herdr pane process-info` against that target. Wait for the

@@ -2013,7 +2013,7 @@ const sessionCommand = describe(
                   "Warning percentage must be greater than 0 and at most 100",
               ),
               Flag.withDescription(
-                "Context or input percentage prompting a scope or handoff review (default: 70)",
+                "Context or input percentage reported as high pressure (default: 70)",
               ),
             ),
             json: bool(
