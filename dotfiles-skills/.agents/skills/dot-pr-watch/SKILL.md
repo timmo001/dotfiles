@@ -19,7 +19,7 @@ metadata:
 
 1. Run it in the background, so the agent can carry on meanwhile:
    - By default, run `dot pr watch` with the shell tool's `background: true`. Its completion notification wakes the agent with the summary.
-   - When the agent has no background shell, or the watch must outlive an OpenCode restart, start the `dot.pr_watch` tool through the `jobs` Code Mode namespace's `start`. It returns a job id at once and shows a Herdr notification when the watch ends. Run the `follow` command it returns, unchanged, with `background: true`: it streams the watch's progress live, and the watch's end wakes the agent with the result. Then report the job id and carry on or end the turn. Never call `jobs.wait` straight after starting; use `jobs.log` or `jobs.wait` only when the user asks. After an OpenCode restart, start `follow` again in a background shell for any job still running.
+   - When the agent has no background shell, or the watch must outlive an OpenCode restart, start the `dot.pr_watch` tool through `jobs` (see the global AGENTS.md on long runs). After an OpenCode restart, start `follow` again in a background shell for any job still running.
    - Call the `dot` namespace's `pr_watch` tool directly only for a short wait the next step depends on, such as `stopOn: ["review"]` right after a review was requested, with a `timeout` of a few minutes. It blocks the turn until the watch ends and returns the outcome, `exitCode`, open threads, review body findings and the report path. A `124` here only means the bounded wait ended.
 
    Run from the pull request's checkout or pass the repository (`repo`, `--repo owner/name`). For independent pull requests, start one watch per pull request. A watch over several pull requests shares one stop condition (feedback on any of them stops all) and only completes once every one has settled. Pass several numbers only for a stack, e.g. `dot pr watch 101 102 103`, or when watching without a stop condition for the full picture.
@@ -42,7 +42,7 @@ On completion, read the report, including the full `Review body findings` and `O
 - `Open threads`: unresolved threads, with every comment in full and the thread ID.
 - `Dismissed threads`: threads that were resolved or minimized, with only the replies shown.
 
-The full review dump is appended when the watch exits. While it is running, read the reviews once (same PR numbers and repository) if feedback needs attention now, including threads already present at startup: prefer the `dot` Code Mode namespace's `pr_reviews` tool, and fall back to `dot pr reviews` without it. It returns the same review dump, with every page and reply. Read it again if later replies or pushes make the report stale; do not turn this into a polling loop.
+The full review dump is appended when the watch exits. While it is running, read the reviews once (same PR numbers and repository) if feedback needs attention now, including threads already present at startup: `dot pr reviews` (the `dot` Code Mode `pr_reviews` tool). It returns the same review dump, with every page and reply. Read it again if later replies or pushes make the report stale; do not turn this into a polling loop.
 
 ## Triage
 
@@ -60,4 +60,4 @@ Account for every open thread and review body finding with a link (thread ID, or
 
 For a valid concern, describe the remaining fix and apply it only if the user asked for fixes. Where a reply is still needed, draft it in the user's voice (apply `writing-style`: no "Good catch" or other stock pleasantries, only the fix or the reason), including explanations of completed fixes or invalid/won't-fix feedback. A review body finding has no thread, so draft its reply as a pull request comment that links the review and names the finding. Do not repeat an existing answer unless new information needs a response. Keep pending CI separate from thread follow-up, so passing checks do not imply the discussion is finished.
 
-Never post comments, replies or reviews, and never resolve, minimize or react to threads or re-request reviews. When fixes are in place, ask (see `asking-questions`) whether any threads should be resolved, and act only on an explicit yes for those specific threads. Resolve them with the `gh` Code Mode namespace's `review_thread_resolve` when the agent has it, otherwise through `gh api graphql`.
+Never post comments, replies or reviews, and never resolve, minimize or react to threads or re-request reviews. When fixes are in place, ask (see `asking-questions`) whether any threads should be resolved, and act only on an explicit yes for those specific threads. Resolve them with the `gh` Code Mode `review_thread_resolve` tool, or `gh api graphql`.

@@ -20,17 +20,9 @@ description: Run the advisory Oxlint pass on JavaScript or TypeScript changes in
    files, or `--all` for a full-tree scan, only when the user requests or the
    task requires it.
    When the user explicitly asks to persist the opt-in, run
-   `dot agent oxlint --opt-in`. It enables an existing private config entry
-   and commits the single-line change through `dot git commit`, without pushing.
-   Missing entries offer the `dot repo induct` wizard in a terminal.
-   For agent use, run `dot repo induct <path> --noninteractive` with the chosen
-   `--preset normal` (default) or `--preset home-assistant`, `--agent-oxlint`,
-   and field overrides from `--help`. Show the preview and ask for approval,
-   then repeat exactly those options with `--commit`. Never add `--commit`
-   before the user has approved the preview. Resume the original lint command
-   after induction. Add `--changed`, paths or `--all` to opt-in to also lint.
-   The config must be clean; active commit hooks are refused to preserve the
-   scoped change.
+   `dot agent oxlint --opt-in`; it commits the single-line private config change
+   without pushing. If the repository has no private entry, induct it with
+   `--agent-oxlint` as `dot-repositories` describes, then resume the lint.
 3. Treat either successful skip as final unless the user explicitly asked to
    force the pass:
    - the repository is not opted in through private `dot-git.yml`;

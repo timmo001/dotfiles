@@ -27,7 +27,7 @@ Remember the answer for the rest of the conversation.
 
 ## Run
 
-Prefer the `dot` Code Mode namespace's `pr_queue` tool, which takes the same options as the command's flags (`since`, `only`, `sort`, `reviewable`, `repo`, `search`, `limit`, `threads`) and returns structured output. Without it, run `dot pr queue` with the flags below.
+The `dot` Code Mode `pr_queue` tool takes the same options as the command's flags (`since`, `only`, `sort`, `reviewable`, `repo`, `search`, `limit`, `threads`) and returns structured output.
 
 1. Map the request to flags:
    - The window: `--since today` (default), `yesterday`, a date such as `2026-09-19` (local midnight), an ISO timestamp, or an age such as `12h`, `3d` or `1w`. For "the weekend", work out the date of the most recent Saturday and pass it, or Friday evening as a timestamp if the user means after work.

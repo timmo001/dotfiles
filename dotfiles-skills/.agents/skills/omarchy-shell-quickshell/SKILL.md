@@ -36,12 +36,12 @@ Repo paths below are relative to the dotfiles checkout at `~/.config/dotfiles`.
 - Confirm the current manifest contract in `PluginRegistry.qml` and inspect the nearest built-in under `$OMARCHY_PATH/shell/plugins/` before creating or changing a plugin.
 - Keep third-party ids namespaced outside the reserved `omarchy.*` namespace.
 - Reach the palette through `import qs.Commons as Commons` and `Commons.Color`, including `Connections.target`. Since Qt 6.12, QtQuick's own `Color` type shadows a bare `Color` reference, which breaks the plugin. Keep the plain `qs.Commons` import for `Style`, `Util` and `Border`.
-- Prefer Omarchy's `omarchy plugin` and `omarchy bar` commands when they cover the operation, through the `omarchy` Code Mode namespace's plugin tools where it has one for the operation. They own validation, enabled state, placement, and persisted layout.
+- Use Omarchy's `omarchy plugin` and `omarchy bar` commands (or the matching `omarchy` Code Mode tools) when they cover the operation. They own validation, enabled state, placement, and persisted layout.
 - For a new manually installed plugin, run `dot stow`, rescan plugins, then enable the plugin. Rescanning discovers code but does not enable it.
 - Omarchy watches user-plugin files, but dotfiles requires an explicit restart after edits to verify the final stowed state.
 - Plugins run unsandboxed in the shell process. Review all plugin code before enabling it.
 
-`~/.config/omarchy/plugins/` is a real directory with per-plugin symlinks. A new stowed plugin is invisible until `dot stow` creates its symlink. Existing plugin files are already live through their symlinks.
+Each plugin in `~/.config/omarchy/plugins/` is a real directory. A stowed plugin's files are symlinks into dotfiles, so a new stowed plugin is invisible until `dot stow` creates them, and existing files are already live. A managed plugin is a real-file copy that `dot stow` deploys.
 
 ## Working in a plugin's source repository
 
@@ -75,7 +75,7 @@ Whenever an authorised push lands a change to a managed plugin, follow through. 
 
 ## Reload matrix (dotfiles changes)
 
-Run `dot stow` and `dot reload shell` through the `dot` Code Mode namespace's `stow` and `reload` (`part: ["shell"]`) tools when the agent has them; the commands are the fallback.
+The `dot` Code Mode tools for these are `stow` and `reload` (`part: ["shell"]`).
 
 | Change | Action |
 | --- | --- |
@@ -84,14 +84,14 @@ Run `dot stow` and `dot reload shell` through the `dot` Code Mode namespace's `s
 | New manual plugin added | `dot stow`, rescan, enable, then `dot reload shell` |
 | Rescan or automatic reload cannot recover | `dot reload shell` |
 
-`dot reload shell` reloads only the shell: it clears a stuck workspace lock, regenerates `shell.json`, runs `omarchy restart shell`, rescans plugins and refreshes shell modules. Bare `dot reload` also rechecks upnext, refreshes updates and starts a doctor check; reload only the parts a change needs.
+`dot reload shell` reloads only the shell: it clears a stuck workspace lock, regenerates `shell.json`, runs `omarchy restart shell` (the fresh shell scans its plugins on start) and refreshes shell modules. Bare `dot reload` also re-arms the keyboard backlight, rechecks upnext, refreshes updates and starts a doctor check; reload only the parts a change needs.
 
 Use the reference's `docs/omarchy-shell.md` for current IPC method names and return values. A full `omarchy restart shell` protects an active lock session, stops matching Quickshell instances, and asks Hyprland to launch the replacement with the canonical session environment.
 
 ## Shell lifecycle
 
 - Do not recreate shell launch or termination logic. Use `dot reload shell`, which wraps `omarchy restart shell`, and inspect the current launch scripts when diagnosing lifecycle behaviour.
-- Current Quattro launches the replacement through Hyprland so it inherits the session environment rather than transient terminal, SSH, or agent variables. `dot update` retains an existing `QT_QPA_PLATFORM=wayland` override on its restart call for compatibility; do not copy it into new callers or treat it as the source of the replacement process's environment.
+- Current Quattro launches the replacement through Hyprland so it inherits the session environment rather than transient terminal, SSH, or agent variables.
 - Omarchy disables Quickshell's whole-config file watcher for the packaged shell and restarts deliberately during lifecycle operations. Shell-owned `FileView` and plugin-directory watchers still handle `shell.json` and user-plugin updates.
 - `dot update` restarts the shell only when the generated `shell.json` changed. Standalone `dot stow` does not restart it.
 
@@ -101,7 +101,7 @@ After every final QML edit, lint the touched files with the Qt 6 `qmllint`. In d
 
 ## Verify
 
-- Use the current `omarchy plugin` command help to confirm registration, enabled state, and validation behaviour. Validation rejects symlinked plugin folders, which is expected for stowed plugins.
+- Use the current `omarchy plugin` command help to confirm registration, enabled state, and validation behaviour. Validation rejects symlinks inside plugin directories, which is expected for stowed plugins.
 - Inspect the reference's `docs/omarchy-shell.md` and `$OMARCHY_PATH/shell/shell.qml` for available shell IPC diagnostics before invoking them.
 - Use compositor layer inspection and a targeted screenshot when visual geometry matters; confirm that the bar remains a layer-shell surface after any full restart.
 - After editing the generator: `mise run dot:check`.

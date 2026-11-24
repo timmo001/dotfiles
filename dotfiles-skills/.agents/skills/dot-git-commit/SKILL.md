@@ -40,8 +40,7 @@ staging, and message authoring around it.
   repository root, and push that repository only once on its final commit.
 - Refresh with a Context git snapshot in each repository when the block is
   absent, stale, partial, or does not cover an explicitly requested repository:
-  prefer the `context` Code Mode namespace's `git` tool, and fall back to
-  `context git` without it. Follow `context-cli` for CLI options; add `--diff`
+  `context git` (the `context` Code Mode `git` tool). Follow `context-cli` for CLI options; add `--diff`
   when subject selection needs content. Do not reconstruct this with raw
   `git status`/`git diff`.
 
@@ -76,17 +75,16 @@ staging, and message authoring around it.
 
 - Author in the maintainer's voice: imperative, verb-first, sentence case, no
   trailing full stop, no Conventional Commit prefix, single line. Mirror recent
-  subjects from the injected context, `git_context`, or `git log`.
+  subjects from the injected context, the Context git snapshot, or `git log`.
 - The gateway enforces: single line, no em/en-dash (use a hyphen), no trailing
   full stop, no tabs/control characters. It warns over 60 characters and rejects
   over 120. Aim for roughly 60 or fewer.
 
 ## 5. Commit
 
-With Code Mode, call `tools.dot.git_commit` through `execute`; its inputs mirror
-the flags below (`message`, `path`, `amend`, `push`, `dryRun`). It runs in the
-session's directory, so pass `directory` (absolute) to commit in another
-repository. Use the shell command only when Code Mode isn't available.
+The `dot` Code Mode `git_commit` tool's inputs mirror the flags below
+(`message`, `path`, `amend`, `push`, `dryRun`). It runs in the session's
+directory, so pass `directory` (absolute) to commit in another repository.
 
 ```bash
 dot git commit -m "<subject>"                 # commit the staged set
@@ -97,7 +95,7 @@ dot git commit -m "<subject>" --dry-run       # preview, change nothing
 ```
 
 - Skip `--dry-run` when you already know what is staged and are safe to commit;
-  `git_context` (step 2) is the check for that, and the preview adds little
+  the Context git snapshot (step 2) is the check for that, and the preview adds little
   beyond it. Reserve `--dry-run` for when you are genuinely unsure what is staged.
 - Use `--amend` only to fix up the previous commit the user just made, and only
   when they ask for an amend. Without `--message` it keeps HEAD's message; pass

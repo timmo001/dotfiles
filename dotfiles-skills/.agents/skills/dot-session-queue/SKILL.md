@@ -9,9 +9,8 @@ compatibility: Requires the dot CLI, the host's configured OpenCode 2 launcher a
 
 ## Send A Session
 
-1. Prefer the `dot` Code Mode namespace's `session_send` tool, with `sessionId`
-   and `attach` in place of the flags below; without it, run `dot session send
-   --json`. To send this session, leave the ID out: it uses
+1. Run `dot session send --json` (the `dot` Code Mode `session_send` tool takes
+   `sessionId` and `attach` for the flags below). To send this session, leave the ID out: it uses
    `$OPENCODE_SESSION_ID`, which OpenCode sets for its shell and Code Mode
    tools, then the session Herdr reports for your own pane
    (`dot session current` prints the one it would pick). Afterwards, check

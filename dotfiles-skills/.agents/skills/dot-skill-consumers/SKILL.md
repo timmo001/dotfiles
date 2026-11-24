@@ -17,7 +17,7 @@ metadata:
 
 ## Share skills
 
-Prefer the `dot` Code Mode namespace's `skills_consumers_add` and `skills_consumers_remove` tools, with `repo`, `skill` and `all` in place of the flags; the commands below are the fallback.
+The `dot` Code Mode tools are `skills_consumers_add` and `skills_consumers_remove`, with `repo`, `skill` and `all` for the flags below.
 
 ```bash
 dot skills consumers add [--repo <owner/repo>] <skill>...

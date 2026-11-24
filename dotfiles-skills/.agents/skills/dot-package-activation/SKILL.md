@@ -20,7 +20,7 @@ Only when a consuming repository needs the newly packaged binary to finish verif
 ## After Commit And Push
 
 1. Push the package source first.
-2. Wait for publication: the repository's workflow into the signed `timmo` repo, or `/timmo001-private/publish-package [package]` for private packages.
+2. Wait for publication: the repository's workflow into the signed `timmo` repo, or `dot private pkg publish <package> --install` for private packages.
 3. Upgrade through pacman, then finish the consumer side.
 4. Don't report the change as active until pacman owns the running binary: `pacman -Qo "$(command -v <binary>)"` and `pacman -Q <package>`.
 
