@@ -586,46 +586,6 @@ dot http forward --port 8126 --target http://homeassistant.local:8123
 dot http forward --port 8126 --target http://homeassistant.local:8123 --cors-origin https://serve.ha-frontend.localhost --cors-suffix .ha-frontend.localhost
 ```
 
-## `dot server`
-
-Headless server helpers
-
-```text
-dot server <subcommand> [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--help` `-h` | Show help information |
-
-### `dot server serve`
-
-Serve the server dashboard
-
-```text
-dot server serve [flags]
-```
-
-Serves the server dashboard and its API. The dashboard shows the registered user services from dot services status, with run or restart, stop and recent journal lines for each. It is built from the server/ package with mise run server:build, and pitchfork runs it through mise run serve:server. Everything except /api/health needs a login with the token in ~/.config/dot/server/token. It is plain HTTP, so only expose it on a trusted network.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--host` `<string>` | Address to listen on |
-| `--port` `<integer>` | Port to listen on |
-| `--dashboard` `<path>` | Dashboard build to serve (default: server/dist in the public dotfiles) |
-| `--help` `-h` | Show help information |
-
-**Examples**
-
-```bash
-dot server serve
-dot server serve --host 0.0.0.0
-```
-
 ## `dot status`
 
 Run work under a pinned terminal status header

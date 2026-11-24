@@ -1,11 +1,8 @@
-// Shared with the server/ dashboard, so this module only imports effect.
+/**
+ * @file The shapes `dot services status --json` prints: each registered job's
+ * health, runs, figures and actions.
+ */
 import { Schema } from "effect";
-import {
-  HttpApi,
-  HttpApiEndpoint,
-  HttpApiGroup,
-  HttpApiSchema,
-} from "effect/http-api";
 
 /** Overall monitoring state of one registered job, ordered from worst to best. */
 export const ServiceHealth = Schema.Literals([
@@ -200,79 +197,3 @@ export const ServicesSnapshot = Schema.Struct({
 
 /** Monitoring snapshot for every registered job. */
 export type ServicesSnapshot = typeof ServicesSnapshot.Type;
-
-/** Recent journal lines of one job's service. */
-export const ServiceJournal = Schema.Struct({
-  /** Registered unit. */
-  unit: Schema.String,
-  /** journalctl output, oldest line first. */
-  text: Schema.String,
-});
-
-/** Recent journal lines of one job's service. */
-export type ServiceJournal = typeof ServiceJournal.Type;
-
-/** The unit is not registered in the services directory. */
-export class ServiceNotFound extends Schema.TaggedError<ServiceNotFound>()(
-  "ServiceNotFound",
-  { message: Schema.String },
-  { httpApiStatus: 404 },
-) {}
-
-/** The server could not complete the request. */
-export class ServerFailure extends Schema.TaggedError<ServerFailure>()(
-  "ServerFailure",
-  { message: Schema.String },
-  { httpApiStatus: 500 },
-) {}
-
-/**
- * Header the dashboard sends with every change. Browsers only send custom
- * headers cross-site after a CORS preflight, which the server never allows, so
- * other sites can't start or stop services through a visitor's browser.
- */
-export const changeHeaders = { "x-dot-server": Schema.Literal("1") };
-
-const unitParams = { unit: Schema.String };
-
-/** Registered user services: their status, start and stop, and recent journal lines. */
-export class ServicesGroup extends HttpApiGroup.make("services")
-  .add(
-    HttpApiEndpoint.get("list", "/", {
-      success: ServicesSnapshot,
-      error: ServerFailure,
-    }),
-    HttpApiEndpoint.get("logs", "/:unit/logs", {
-      params: unitParams,
-      query: { lines: Schema.optional(Schema.FiniteFromString) },
-      success: ServiceJournal,
-      error: [ServiceNotFound, ServerFailure],
-    }),
-    HttpApiEndpoint.post("start", "/:unit/start", {
-      params: unitParams,
-      headers: changeHeaders,
-      success: HttpApiSchema.NoContent,
-      error: [ServiceNotFound, ServerFailure],
-    }),
-    HttpApiEndpoint.post("stop", "/:unit/stop", {
-      params: unitParams,
-      headers: changeHeaders,
-      success: HttpApiSchema.NoContent,
-      error: [ServiceNotFound, ServerFailure],
-    }),
-  )
-  .prefix("/api/services") {}
-
-/** Liveness for pitchfork's ready and health checks. */
-export class SystemGroup extends HttpApiGroup.make("system")
-  .add(
-    HttpApiEndpoint.get("health", "/health", {
-      success: Schema.Struct({ ok: Schema.Boolean }),
-    }),
-  )
-  .prefix("/api") {}
-
-/** The `dot server serve` API, shared by the server and the dashboard. */
-export class ServerApi extends HttpApi.make("dot-server")
-  .add(ServicesGroup)
-  .add(SystemGroup) {}

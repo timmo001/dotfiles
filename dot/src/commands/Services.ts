@@ -37,7 +37,7 @@ import {
   type ServiceRun,
   type ServiceStatus,
   type ServicesSnapshot,
-} from "../server/api.js";
+} from "../lib/servicesStatus.js";
 
 /** Registered unit is unknown or its descriptor cannot be used. */
 export class ServiceMonitorError extends Schema.TaggedError<ServiceMonitorError>()(
