@@ -18,6 +18,13 @@ import {
   agentScreenView,
   VIEW_MODES as AGENT_SCREEN_VIEW_MODES,
 } from "../commands/AgentScreen.js";
+import {
+  agentBrowserOff,
+  agentBrowserOn,
+  agentBrowserRecord,
+  agentBrowserShot,
+  agentBrowserStatus,
+} from "../commands/AgentBrowser.js";
 import { agentsSync } from "../commands/AgentsSync.js";
 import { agentOxlint } from "../commands/AgentOxlint.js";
 import { agentLint } from "../commands/AgentLint.js";
@@ -3637,12 +3644,77 @@ const agentScreenCommand = describe(
   },
 );
 
+const agentBrowserFile = (description: string) =>
+  Argument.String("file").pipe(Argument.withDescription(description));
+
+const agentBrowserCommand = describe(
+  Command.make("browser").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make("on", {}, () => agentBrowserOn),
+        "Start the virtual screen and Chromium on it, and wait for browse",
+        ["dot agent browser on"],
+      ),
+      describe(
+        Command.make("off", {}, () => agentBrowserOff),
+        "Stop Chromium, the virtual screen and its bus",
+        ["dot agent browser off"],
+      ),
+      describe(
+        Command.make("status", {}, () => agentBrowserStatus),
+        "Say which parts are running and whether browse is connected",
+        ["dot agent browser status"],
+      ),
+      describe(
+        Command.make(
+          "shot",
+          { file: agentBrowserFile("PNG file to write") },
+          (input) => agentBrowserShot(input.file),
+        ),
+        "Save a PNG of the whole virtual screen, browser window included",
+        ["dot agent browser shot /tmp/opencode/task/screen.png"],
+      ),
+      describe(
+        Command.make(
+          "record",
+          {
+            file: agentBrowserFile("MP4 file to write"),
+            seconds: integer("seconds", "How long to record, up to 600", 10),
+          },
+          (input) => agentBrowserRecord(input.file, input.seconds),
+        ),
+        "Record the whole virtual screen as MP4 for a number of seconds",
+        [
+          "dot agent browser record /tmp/opencode/task/screen.mp4",
+          "dot agent browser record --seconds 30 /tmp/opencode/task/screen.mp4",
+        ],
+        {
+          description:
+            "KWin streams the screen through PipeWire and KDE's kpipewire encodes it at the screen's full 2560x1440. KWin only sends a frame when the screen changes, so ffmpeg then fills the recording out to a steady 30 fps and holds the last frame to the full length; a still screen gives a still video rather than a single frame. It fails when nothing was written.",
+        },
+      ),
+    ]),
+  ),
+  "Station's virtual screen, where agents use browse with the TV off",
+  [
+    "dot agent browser on",
+    "dot agent browser status",
+    "dot agent browser shot /tmp/opencode/task/screen.png",
+    "dot agent browser off",
+  ],
+  {
+    description:
+      "Station only. On starts a private D-Bus session, a headless KWin with one 2560x1440 virtual output at scale 1 on the wayland-agent socket, and Chromium on it with its own profile and the unpacked browse extension, each as a transient user unit (agent-browser-bus, agent-browser-kwin, agent-browser-chromium) bound to the one before, then waits for browse to connect. KWin gets its own bus so it can't clash with Plasma's KWin when the TV desktop starts. Browse's own screenshots and recordings capture a page; shot and record capture the whole screen, which shows whichever tab is in front. Off stops all three.",
+  },
+);
+
 const agentCommand = describe(
   Command.make("agent").pipe(
     Command.withSubcommands([
       agentSyncCommand,
       agentLintCommand,
       agentOxlintCommand,
+      agentBrowserCommand,
       agentScreenCommand,
       agentToolsCommand,
       isAgent,
