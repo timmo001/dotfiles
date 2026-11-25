@@ -42,9 +42,23 @@ function interactiveClient(args: readonly string[]): boolean {
   );
 }
 
-/** Check for a local foreground Herdr terminal connected to this API socket's client peer. */
+/** The bridge a `herdr --remote` or saved-machine client on another machine attaches through over SSH. */
+function remoteClientBridge(args: readonly string[]): boolean {
+  return args[1] === "remote-client-bridge";
+}
+
+/** Which Herdr clients count as attached. */
+export interface HerdrAttachmentOptions {
+  /** Also count a client attached from another machine through `herdr remote-client-bridge`. */
+  readonly remote?: boolean;
+}
+
+/**
+ * Check for a local foreground Herdr terminal connected to this API socket's
+ * client peer, or with `remote`, a client attached from another machine.
+ */
 export const localHerdrAttachment = Effect.fn("localHerdrAttachment")(
-  function* (socketPath: string) {
+  function* (socketPath: string, options: HerdrAttachmentOptions = {}) {
     const executor = yield* CommandExecutor;
     const fs = yield* FileSystem.FileSystem;
 
@@ -90,8 +104,12 @@ export const localHerdrAttachment = Effect.fn("localHerdrAttachment")(
       const [pid, group, foreground, uid, tty] =
         yield* Schema.decodeUnknownEffect(ProcessRow)(line.trim().split(/\s+/));
 
-      if (uid !== process.getuid?.() || group !== foreground || tty === "?")
-        continue;
+      if (uid !== process.getuid?.()) continue;
+
+      // A remote client's bridge runs under sshd with no terminal of its own.
+      const local = group === foreground && tty !== "?";
+
+      if (!local && !options.remote) continue;
 
       const attached = yield* Effect.gen(function* () {
         const executable = yield* fs.readLink(`/proc/${pid}/exe`);
@@ -103,7 +121,12 @@ export const localHerdrAttachment = Effect.fn("localHerdrAttachment")(
           .split("\0")
           .filter(Boolean);
 
-        if (!args.length || !interactiveClient(args)) return false;
+        const client =
+          args.length > 0 &&
+          ((local && interactiveClient(args)) ||
+            (options.remote === true && remoteClientBridge(args)));
+
+        if (!client) return false;
 
         for (const fd of yield* fs.readDirectory(`/proc/${pid}/fd`)) {
           const link = yield* fs

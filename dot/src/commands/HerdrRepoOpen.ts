@@ -367,7 +367,8 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   const socketPath = herdr.config.socketPath;
 
   const clientReady =
-    runtime.foregroundClientReady ?? localHerdrAttachment(socketPath);
+    runtime.foregroundClientReady ??
+    localHerdrAttachment(socketPath, { remote: true });
 
   const launchTerminal =
     runtime.launchTerminal ??
