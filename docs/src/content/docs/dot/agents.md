@@ -45,6 +45,11 @@ Write tools ask before they run unless a permission rule allows them. Tools that
 | `agent_screen_release` | `dot agent screen release` | Write | Tool |
 | `agent_screen_off` | `dot agent screen off` | Write | Tool |
 | `agent_screen_view` | `dot agent screen view` | Write | Tool |
+| `agent_browser_status` | `dot agent browser status` | Read | Read-only |
+| `agent_browser_on` | `dot agent browser on` | Write | Tool |
+| `agent_browser_off` | `dot agent browser off` | Write | Tool |
+| `agent_browser_shot` | `dot agent browser shot` | Read | Read-only |
+| `agent_browser_record` | `dot agent browser record` | Read | Read-only |
 | `link_git` | `dot link git` | Read | Read-only |
 | `herdr_context` | `dot herdr context` | Read | Read-only |
 | `herdr_agents` | `dot herdr agents` | Read | Read-only |
