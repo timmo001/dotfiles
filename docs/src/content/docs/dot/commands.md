@@ -3023,7 +3023,7 @@ Station's virtual screen, where agents use browse with the TV off
 dot agent browser <subcommand> [flags]
 ```
 
-Station only. On starts a private D-Bus session, a headless KWin with one 2560x1440 virtual output at scale 1 on the wayland-agent socket, and Chromium on it with its own profile and the unpacked browse extension, each as a transient user unit (agent-browser-bus, agent-browser-kwin, agent-browser-chromium) bound to the one before, then waits for browse to connect. KWin gets its own bus so it can't clash with Plasma's KWin when the TV desktop starts. Browse's own screenshots and recordings capture a page; shot and record capture the whole screen, which shows whichever tab is in front. Off stops all three.
+Station only. On starts a private D-Bus session, a headless KWin with one 2560x1440 virtual output at scale 1 on the wayland-agent socket, and Chromium on it with its own profile and the unpacked browse extension, each as a transient user unit (agent-browser-bus, agent-browser-kwin, agent-browser-chromium) bound to the one before, then waits for browse to connect. KWin gets its own bus so it can't clash with Plasma's KWin when the TV desktop starts. Browse's own screenshots and recordings capture a page; shot and record capture the whole screen. browse opens its tabs in the background and never focuses them, so give shot or record the agent's tab with --tab: it's brought to the front through Chromium's DevTools port (9223, localhost only) first. Off stops all three.
 
 **Options**
 
@@ -3112,6 +3112,7 @@ dot agent browser shot [flags] <file>
 
 | Option | Description |
 | --- | --- |
+| `--tab` `<string>` | The browse tab to bring to the front first: its id from navigate or browse status |
 | `--help` `-h` | Show help information |
 
 **Arguments**
@@ -3124,6 +3125,7 @@ dot agent browser shot [flags] <file>
 
 ```bash
 dot agent browser shot /tmp/opencode/task/screen.png
+dot agent browser shot --tab 1681122476 /tmp/opencode/task/screen.png
 ```
 
 #### `dot agent browser record`
@@ -3141,6 +3143,7 @@ KWin streams the screen through PipeWire and KDE's kpipewire encodes it at the s
 | Option | Description |
 | --- | --- |
 | `--seconds` `<integer>` | How long to record, up to 600 |
+| `--tab` `<string>` | The browse tab to bring to the front first: its id from navigate or browse status |
 | `--help` `-h` | Show help information |
 
 **Arguments**
@@ -3153,7 +3156,7 @@ KWin streams the screen through PipeWire and KDE's kpipewire encodes it at the s
 
 ```bash
 dot agent browser record /tmp/opencode/task/screen.mp4
-dot agent browser record --seconds 30 /tmp/opencode/task/screen.mp4
+dot agent browser record --seconds 30 --tab 1681122476 /tmp/opencode/task/screen.mp4
 ```
 
 ### `dot agent screen`

@@ -3647,6 +3647,11 @@ const agentScreenCommand = describe(
 const agentBrowserFile = (description: string) =>
   Argument.String("file").pipe(Argument.withDescription(description));
 
+const agentBrowserTab = text(
+  "tab",
+  "The browse tab to bring to the front first: its id from navigate or browse status",
+);
+
 const agentBrowserCommand = describe(
   Command.make("browser").pipe(
     Command.withSubcommands([
@@ -3668,11 +3673,14 @@ const agentBrowserCommand = describe(
       describe(
         Command.make(
           "shot",
-          { file: agentBrowserFile("PNG file to write") },
-          (input) => agentBrowserShot(input.file),
+          { file: agentBrowserFile("PNG file to write"), tab: agentBrowserTab },
+          (input) => agentBrowserShot(input.file, optional(input.tab)),
         ),
         "Save a PNG of the whole virtual screen, browser window included",
-        ["dot agent browser shot /tmp/opencode/task/screen.png"],
+        [
+          "dot agent browser shot /tmp/opencode/task/screen.png",
+          "dot agent browser shot --tab 1681122476 /tmp/opencode/task/screen.png",
+        ],
       ),
       describe(
         Command.make(
@@ -3680,13 +3688,15 @@ const agentBrowserCommand = describe(
           {
             file: agentBrowserFile("MP4 file to write"),
             seconds: integer("seconds", "How long to record, up to 600", 10),
+            tab: agentBrowserTab,
           },
-          (input) => agentBrowserRecord(input.file, input.seconds),
+          (input) =>
+            agentBrowserRecord(input.file, input.seconds, optional(input.tab)),
         ),
         "Record the whole virtual screen as MP4 for a number of seconds",
         [
           "dot agent browser record /tmp/opencode/task/screen.mp4",
-          "dot agent browser record --seconds 30 /tmp/opencode/task/screen.mp4",
+          "dot agent browser record --seconds 30 --tab 1681122476 /tmp/opencode/task/screen.mp4",
         ],
         {
           description:
@@ -3704,7 +3714,7 @@ const agentBrowserCommand = describe(
   ],
   {
     description:
-      "Station only. On starts a private D-Bus session, a headless KWin with one 2560x1440 virtual output at scale 1 on the wayland-agent socket, and Chromium on it with its own profile and the unpacked browse extension, each as a transient user unit (agent-browser-bus, agent-browser-kwin, agent-browser-chromium) bound to the one before, then waits for browse to connect. KWin gets its own bus so it can't clash with Plasma's KWin when the TV desktop starts. Browse's own screenshots and recordings capture a page; shot and record capture the whole screen, which shows whichever tab is in front. Off stops all three.",
+      "Station only. On starts a private D-Bus session, a headless KWin with one 2560x1440 virtual output at scale 1 on the wayland-agent socket, and Chromium on it with its own profile and the unpacked browse extension, each as a transient user unit (agent-browser-bus, agent-browser-kwin, agent-browser-chromium) bound to the one before, then waits for browse to connect. KWin gets its own bus so it can't clash with Plasma's KWin when the TV desktop starts. Browse's own screenshots and recordings capture a page; shot and record capture the whole screen. browse opens its tabs in the background and never focuses them, so give shot or record the agent's tab with --tab: it's brought to the front through Chromium's DevTools port (9223, localhost only) first. Off stops all three.",
   },
 );
 

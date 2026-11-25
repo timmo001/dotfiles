@@ -41,6 +41,12 @@ const EXTENSION_DIR = join(BROWSER_DIR, "extension");
 /** Not on PATH: Qt installs its QML runner here. */
 const QML_RUNNER = "/usr/lib/qt6/bin/qml";
 
+/**
+ * Chromium's DevTools port, on localhost only, so a capture can bring a browse
+ * tab to the front.
+ */
+const DEVTOOLS_PORT = 9223;
+
 /** How long each piece gets to come up. */
 const READY_WITHIN = Duration.seconds(30);
 
@@ -122,6 +128,14 @@ const BrowseStatus = Schema.Struct({
       Schema.Struct({ id: Schema.String, connected: Schema.Boolean }),
     ),
   }),
+  tabs: Schema.Array(
+    Schema.Struct({
+      tab: Schema.Number,
+      /** The id an agent chose for the tab, such as `work-mail`. */
+      id: Schema.optionalKey(Schema.String),
+      targetId: Schema.String,
+    }),
+  ),
 });
 
 const decodeBrowseStatus = Schema.decodeEffect(
@@ -230,6 +244,36 @@ const browseConnected = Effect.gen(function* () {
   );
 }).pipe(Effect.withSpan("AgentBrowser.browseConnected"));
 
+/**
+ * Bring a browse tab to the front, so whole-screen captures show it. browse
+ * opens its tabs in the background and won't focus them, so this goes through
+ * Chromium's DevTools port instead, by the tab's target id.
+ */
+const bringToFront = Effect.fn("AgentBrowser.bringToFront")(function* (
+  tab: string,
+) {
+  const executor = yield* CommandExecutor;
+
+  const status = yield* executor
+    .run("browse", ["status", "--json"])
+    .pipe(Effect.flatMap(decodeBrowseStatus));
+
+  const target = status.tabs.find(
+    (entry) => String(entry.tab) === tab || entry.id === tab,
+  );
+
+  if (!target)
+    return yield* new AgentBrowserError({
+      message: `browse has no tab ${tab}: browse status lists the open ones.`,
+    });
+
+  yield* executor.run("curl", [
+    "--silent",
+    "--fail",
+    `http://127.0.0.1:${DEVTOOLS_PORT}/json/activate/${target.targetId}`,
+  ]);
+});
+
 const requireScreen = Effect.gen(function* () {
   yield* requireStation;
 
@@ -318,6 +362,8 @@ export const agentBrowserOn = Effect.gen(function* () {
         "--no-default-browser-check",
         "--autoplay-policy=no-user-gesture-required",
         "--start-maximized",
+        "--remote-debugging-address=127.0.0.1",
+        `--remote-debugging-port=${DEVTOOLS_PORT}`,
       ],
       KWIN_UNIT,
     );
@@ -381,14 +427,18 @@ const requireWritten = Effect.fn("AgentBrowser.requireWritten")(function* (
     return yield* new AgentBrowserError({ message: `${what} wasn't saved.` });
 });
 
-/** Save a PNG of the whole virtual screen, browser window included. */
+/** Save a PNG of the whole virtual screen, browser window included, with `tab` in front when given. */
 export const agentBrowserShot = Effect.fn("AgentBrowser.shot")(function* (
   file: string,
+  tab: string | undefined,
 ) {
   const executor = yield* CommandExecutor;
   const path = resolve(file);
 
   yield* requireScreen;
+
+  if (tab) yield* bringToFront(tab);
+
   yield* executor.run("spectacle", ["-b", "-n", "-f", "-o", path], {
     env: SCREEN_ENV,
   });
@@ -396,10 +446,11 @@ export const agentBrowserShot = Effect.fn("AgentBrowser.shot")(function* (
   yield* say(path);
 });
 
-/** Record the whole virtual screen for a number of seconds, as MP4. */
+/** Record the whole virtual screen for a number of seconds, as MP4, with `tab` in front when given. */
 export const agentBrowserRecord = Effect.fn("AgentBrowser.record")(function* (
   file: string,
   seconds: number,
+  tab: string | undefined,
 ) {
   const executor = yield* CommandExecutor;
   const fs = yield* FileSystem.FileSystem;
@@ -416,6 +467,8 @@ export const agentBrowserRecord = Effect.fn("AgentBrowser.record")(function* (
     });
 
   yield* requireScreen;
+
+  if (tab) yield* bringToFront(tab);
 
   const script = join(RUNTIME_DIR, "dot-agent-browser-record.qml");
   const raw = join(RUNTIME_DIR, "dot-agent-browser-record.mp4");
