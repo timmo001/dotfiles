@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# A channel switch or pacman refresh copies Omarchy's template over
+# /etc/pacman.conf, dropping the [timmo] and [timmo-private] includes. Put them
+# back before Omarchy runs its upgrade.
+dot setup public repo
+dot setup private repo
