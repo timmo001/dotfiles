@@ -4450,13 +4450,13 @@ Run Core serving the local frontend build
 dot homeassistant core dev [flags]
 ```
 
-Runs setup, then starts the Core pitchfork daemon, which starts the frontend build it depends on. Stops the frontend serve daemon first after asking. Under an agent, it skips setup, Herdr and prompts, and only starts the daemon when nothing conflicts. In a linked frontend worktree, it starts a throwaway Core dev instance for that worktree instead, at https://dev.<worktree>.ha-frontend.localhost: Core from the Core checkout's virtual environment, serving the worktree's own watch build, with its config in <worktree>/.ha-dev/config copied from frontend.worktree.config, and onboarding done with the user dev and password dev. It runs in the background, and --latest is refused there.
+Runs setup, then starts the Core pitchfork daemon, which starts the frontend build it depends on. Stops the frontend serve daemon first after asking. Under an agent, it skips setup, Herdr and prompts, and only starts the daemon when nothing conflicts; --latest there fast-forwards Core's dev to upstream/dev and runs script/bootstrap, without pushing, and fails instead when Core has local changes, isn't on dev, has commits upstream/dev lacks or is already running from the old dev. In a linked frontend worktree, it starts a throwaway Core dev instance for that worktree instead, at https://dev.<worktree>.ha-frontend.localhost: Core from the Core checkout's virtual environment, serving the worktree's own watch build, with its config in <worktree>/.ha-dev/config copied from frontend.worktree.config, and onboarding done with the user dev and password dev. It runs in the background, and --latest is refused there.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-| `--latest` | Rebase dev onto upstream/dev and push it during setup |
+| `--latest` | Rebase dev onto upstream/dev and push it during setup. Under an agent, fast-forward dev to upstream/dev without pushing, or fail |
 | `--fresh` | In a frontend worktree, throw its dev instance's config away and start again |
 | `--onboarding` | In a frontend worktree, leave its dev instance's onboarding for you to do |
 | `--background` | Return once it is ready, leaving it running. Under Herdr, it runs in a pane split off this one, which closes once it succeeds |

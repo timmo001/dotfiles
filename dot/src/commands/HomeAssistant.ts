@@ -777,18 +777,106 @@ export const coreSetup = Effect.fn("HomeAssistant.coreSetup")(
       }
     }
 
-    const venv = join(cwd, ".venv");
-
-    if (!(yield* fs.exists(join(venv, "bin", "python3")))) {
+    if (!(yield* fs.exists(join(cwd, ".venv", "bin", "python3")))) {
       yield* section("Creating the virtual environment");
       yield* step("script/setup", [], { VIRTUAL_ENV: "" });
     }
 
     yield* section("Running script/bootstrap");
-    yield* step("script/bootstrap", [], {
-      VIRTUAL_ENV: venv,
-      PATH: `${join(venv, "bin")}:${envString(ENV.PATH) ?? ""}`,
+    yield* step("script/bootstrap", [], coreVenvEnv(cwd));
+  },
+);
+
+/** The environment that runs a command inside Core's virtual environment. */
+const coreVenvEnv = (cwd: string) => {
+  const venv = join(cwd, ".venv");
+
+  return {
+    VIRTUAL_ENV: venv,
+    PATH: `${join(venv, "bin")}:${envString(ENV.PATH) ?? ""}`,
+  };
+};
+
+/**
+ * `--latest` under an agent: fast-forward Core's dev to upstream/dev and
+ * bootstrap it, without switching branches, rebasing or pushing. Anything that
+ * needs more than a fast-forward fails, naming the command for the user.
+ */
+const coreLatestAsAgent = Effect.fn("HomeAssistant.coreLatestAsAgent")(
+  function* (core: HomeAssistantConfig["core"]) {
+    const executor = yield* CommandExecutor;
+    const fs = yield* FileSystem.FileSystem;
+    const cwd = core.directory;
+
+    const askUser =
+      "Ask the user to run dot homeassistant core setup --latest.";
+
+    const git = (...args: readonly string[]) => gitOut(cwd, args);
+
+    const isAncestor = (ancestor: string, of: string) =>
+      executor
+        .exitCode("git", ["merge-base", "--is-ancestor", ancestor, of], { cwd })
+        .pipe(Effect.map((code) => code === 0));
+
+    if ((yield* git("status", "--porcelain")) !== "")
+      return yield* fail(
+        `Core has local changes, so --latest can't update dev under an agent. ${askUser}`,
+      );
+
+    const branch = yield* git("rev-parse", "--abbrev-ref", "HEAD");
+
+    if (branch !== "dev")
+      return yield* fail(
+        `Core is on ${branch || "a detached HEAD"}, not dev, so --latest won't switch it under an agent. ${askUser}`,
+      );
+
+    const fetched = yield* executor.inherit(
+      "git",
+      ["fetch", "upstream", "dev"],
+      { cwd },
+    );
+
+    if (fetched !== 0)
+      return yield* fail(`git fetch upstream dev exited with ${fetched}`);
+
+    if (yield* isAncestor("upstream/dev", "HEAD"))
+      return yield* Console.log("Core's dev already has upstream/dev.");
+
+    if (!(yield* isAncestor("HEAD", "upstream/dev")))
+      return yield* fail(
+        `Core's dev has commits upstream/dev doesn't, so it can't fast-forward. ${askUser}`,
+      );
+
+    if ((yield* daemonStatus(core.daemon)) === "running")
+      return yield* fail(
+        `${core.daemon} is running from the old dev. If no other agent in Herdr is using it, stop it with dot homeassistant stop, then run this again.`,
+      );
+
+    if (!(yield* fs.exists(join(cwd, ".venv", "bin", "python3"))))
+      return yield* fail(`Core has no virtual environment yet. ${askUser}`);
+
+    const merged = yield* executor.inherit(
+      "git",
+      ["merge", "--ff-only", "upstream/dev"],
+      { cwd },
+    );
+
+    if (merged !== 0)
+      return yield* fail(
+        `git merge --ff-only upstream/dev exited with ${merged}`,
+      );
+
+    const bootstrapped = yield* executor.inherit("script/bootstrap", [], {
+      cwd,
+      env: coreVenvEnv(cwd),
     });
+
+    if (bootstrapped !== 0)
+      return yield* fail(`script/bootstrap exited with ${bootstrapped}`);
+
+    yield* Console.log(
+      `Fast-forwarded Core's dev to upstream/dev (${yield* git("rev-parse", "--short", "HEAD")}). origin/dev isn't pushed under an agent; dot homeassistant core setup --latest pushes it.`,
+    );
   },
 );
 
@@ -1011,6 +1099,8 @@ export const coreDev = Effect.fn("HomeAssistant.coreDev")(function* (options: {
   yield* ensureNoRunningSuites(core.daemon);
 
   if (isAgent()) {
+    if (options.latest) yield* coreLatestAsAgent(core);
+
     yield* startDaemonAsAgent(core.daemon, core.url, conflicts);
 
     return undefined;
