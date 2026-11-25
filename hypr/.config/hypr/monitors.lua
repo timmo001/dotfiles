@@ -36,6 +36,15 @@ hl.window_rule({
   no_initial_focus = true,
 })
 
+-- With AGENT off, the agent workspace sits unseen on a real monitor, so a
+-- browse window held there would be lost. Turn AGENT on, which brings the
+-- workspace and the window onto it, where the corner view shows them.
+hl.on("window.open", function(window)
+  if window.workspace and window.workspace.name == "agent" and not hl.get_monitor("AGENT") then
+    hl.exec_cmd("dot agent screen on")
+  end
+end)
+
 -- Reapply HDR set by dot hdr on, so a reload doesn't drop it.
 local runtime_dir = os.getenv("XDG_RUNTIME_DIR")
 local hdr_monitor = runtime_dir and loadfile(runtime_dir .. "/hypr-hdr-monitor.lua")

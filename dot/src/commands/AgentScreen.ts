@@ -6,7 +6,8 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
  * The headless Hyprland output that holds new agent windows. Every desk is a
  * headless output of its own, AGENT-1 and up, so each session shows on its
  * own. Their modes, positions and workspaces come from hypr/monitors.lua, and
- * a window rule there sends each new browse window to this one's workspace.
+ * a window rule there sends each new browse window to this one's workspace,
+ * running `dot agent screen on` first when this output is off.
  */
 const HOLD = "AGENT";
 
