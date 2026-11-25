@@ -1,4 +1,4 @@
-import { Clock, Effect, FileSystem, Option, Schema } from "effect";
+import { Cause, Clock, Effect, FileSystem, Option, Schema } from "effect";
 import { Prompt } from "effect/cli";
 import { hostname } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
@@ -13,6 +13,7 @@ import {
 } from "../lib/git.js";
 import { resolvedOmarchyHost } from "../lib/omarchyHost.js";
 import { CACHE_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
+import { formatCause } from "../lib/schema.js";
 import {
   attachmentFor,
   attachmentTarget,
@@ -857,7 +858,7 @@ export const sessionTake = (options: {
         now,
       });
 
-      const opened = yield* openHerdrRepo({
+      const open = yield* openHerdrRepo({
         label: local.name ?? meta.herdr?.workspace ?? basename(local.directory),
         directory: local.directory,
         agent: "opencode2",
@@ -865,11 +866,33 @@ export const sessionTake = (options: {
         draft,
       }).pipe(
         Effect.provide(herdrLayer()),
-        Effect.map((result) => result.draftPasted),
-        Effect.catchCause(() => Effect.succeed(null)),
+        Effect.map((result) => ({
+          opened: result.draftPasted,
+          reason: null,
+        })),
+        Effect.catchCause((cause) =>
+          Effect.succeed({
+            opened: null,
+            reason: formatCause(Cause.squash(cause)),
+          }),
+        ),
       );
 
-      if (opened !== true) yield* executor.exitCode("wl-copy", ["--", draft]);
+      const { opened } = open;
+
+      // Over SSH there is no Wayland clipboard, so keep the draft in a file instead.
+      const draftCopied =
+        opened !== true &&
+        (yield* executor.exitCode("wl-copy", ["--", draft])) === 0;
+
+      const draftFile = join(TAKEN_DIR, meta.id, "prompt.md");
+
+      if (opened !== true && !draftCopied)
+        yield* fs.writeFileString(draftFile, `${draft}\n`);
+
+      const draftPlace = draftCopied
+        ? "it's on the clipboard"
+        : `it's in ${displayPath(draftFile)}`;
 
       yield* report(
         options.json,
@@ -913,7 +936,7 @@ export const sessionTake = (options: {
             ? [
                 {
                   level: "warn" as const,
-                  text: `Couldn't open it in Herdr; run ${OPENCODE} --session ${meta.sessionId} in ${displayPath(local.directory)}. The draft prompt is on the clipboard`,
+                  text: `Couldn't open it in Herdr (${open.reason}); run ${OPENCODE} --session ${meta.sessionId} in ${displayPath(local.directory)}. For the draft prompt, ${draftPlace}`,
                 },
               ]
             : opened
@@ -921,7 +944,7 @@ export const sessionTake = (options: {
               : [
                   {
                     level: "warn" as const,
-                    text: "Couldn't paste the draft prompt; it's on the clipboard",
+                    text: `Couldn't paste the draft prompt; ${draftPlace}`,
                   },
                 ]),
         ],
