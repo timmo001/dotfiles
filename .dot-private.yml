@@ -40,11 +40,10 @@ stow:
 # the NAS. dot mcp sync disables them in the untracked
 # ~/.config/opencode/opencode.jsonc, leaves them out of Claude Code and drops
 # them from repositories' opt-ins, so the shared generated configs stay as they
-# are. Station is headless, so it has no browser for browse to drive, and it
-# keeps no Cloudflare access.
+# are. Station keeps no Cloudflare access. browse stays on: it drives Chromium
+# in a virtual screen, so agents can browse while the TV is off.
 mcp:
   exclude:
-    - browse
     - chrome-devtools
     - cloudflare-api
     - docs-cloudflare
