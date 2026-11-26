@@ -174,6 +174,8 @@ hl.unbind("SUPER + ALT + G")
 o.bind("SUPER + CTRL + SHIFT + G", "Move active window out of group", hl.dsp.window.move({ out_of_group = true }))
 o.bind("SUPER + ALT + G", "GitHub Notifications", [[omarchy-launch-webapp "https://github.com/notifications"]])
 o.bind("SUPER + D", "Discord", discord)
+hl.unbind("SUPER + SHIFT + M") -- Spotify
+o.bind("SUPER + SHIFT + M", "Music Assistant", { launch = "music-assistant-companion", focus = "^music-assistant-companion$" })
 
 -- Home Assistant
 o.bind("SUPER + H", "Home Assistant", [[omarchy-launch-webapp "https://prod.ha-core.localhost"]])
