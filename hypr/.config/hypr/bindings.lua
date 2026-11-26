@@ -239,6 +239,36 @@ o.bind(
   hl.dsp.window.resize({ x = 0, y = 2, relative = true })
 )
 
+-- Macro pad (macropad/layout.yaml): its keys send F13-F24 and its big knob
+-- Ctrl+F13-F15, which no other keyboard sends. The app keys focus the window
+-- if it's open, which moves the pointer onto it, or open it.
+local function focus_or_launch(pattern, command)
+  return "omarchy-launch-or-focus '" .. pattern .. "' '" .. command .. "'"
+end
+o.bind("F13", "Pad: Hex dictation", hl.dsp.global("anomaly.hex:dictation"))
+o.bind("F14", "Pad: Screenshot", "omarchy-capture-screenshot")
+o.bind(
+  "F15",
+  "Pad: Screen recording",
+  "omarchy-capture-screenrecording --stop-recording || omarchy-menu toggle trigger.capture.screenrecord"
+)
+o.bind("F16", "Pad: Agent screen view", "dot agent screen view")
+o.bind("F17", "Pad: Herdr", focus_or_launch("^herdr$", terminal .. " -e herdr session attach default"))
+o.bind("F18", "Pad: Browser, personal or work", "browser-switch '" .. browser_personal .. "'")
+o.bind("F19", "Pad: Doorbell camera", "camera-popup --name doorbell --ratio 4:3 --focus reolink-front-door/1")
+o.bind("F20", "Pad: Printer camera", "camera-popup --name printer --focus bambu/camera")
+o.bind("F21", "Pad: Discord", focus_or_launch("discord.com__app", discord))
+o.bind("F22", "Pad: Slack", focus_or_launch("slack.com__client", slack))
+o.bind("F23", "Pad: Full width", hl.dsp.window.fullscreen({ mode = "maximized" }))
+o.bind("F24", "Pad: Screen off", function()
+  hl.timer(function()
+    hl.dispatch(hl.dsp.dpms({ action = "disable" }))
+  end, { timeout = 500, type = "oneshot" })
+end)
+o.bind("CTRL + F13", "Pad: Previous workspace", hl.dsp.focus({ workspace = "e-1" }))
+o.bind("CTRL + F14", "Pad: Workspace relayout", "dot workspace relayout")
+o.bind("CTRL + F15", "Pad: Next workspace", hl.dsp.focus({ workspace = "e+1" }))
+
 require("hypr.host.bindings")
 
 -- Dictation keys from before Alt + Space and Right Alt became the defaults.
