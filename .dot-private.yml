@@ -1,7 +1,7 @@
 ---
 # What Station takes from the private dotfiles, which stay on their main
 # branch. The same format as the NAS's server branch; Station takes every
-# Syncthing folder and tracked repository, so it has no syncthing or repos keys.
+# tracked repository, so it has no repos key.
 #
 # stow: the private stow packages dot links. Anything not listed, such as
 # pitchfork, whose daemons run the desktop's Plannotator Inbox, systemd, whose
@@ -50,6 +50,15 @@ mcp:
     - chrome-devtools
     - cloudflare-api
     - docs-cloudflare
+
+# syncthing.exclude: folder IDs from the private syncthing.yml kept off this
+# machine. dot stow removes them from Syncthing if they were added before, and
+# leaves their files on disk. Station only takes Music and Books, for Music
+# Assistant, and Up Next.
+syncthing:
+  exclude:
+    - nas01-documents
+    - nas01-pictures
 
 # opencode: settings dot mcp sync layers over the shared OpenCode config in
 # the untracked ~/.config/opencode/opencode.jsonc. The server instructions say

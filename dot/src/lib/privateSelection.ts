@@ -4,12 +4,15 @@ import { readTextOrNull } from "./fsProbe.js";
 
 /**
  * `.dot-private.yml`, in the same format as the NAS's server branch. Station
- * reads its stow, MCP and OpenCode parts; it takes every Syncthing folder and
- * tracked repository, so it has no `syncthing` or `repos` keys.
+ * reads its stow, MCP, Syncthing and OpenCode parts; it takes every tracked
+ * repository, so it has no `repos` key.
  */
 const PrivateSelectionFile = Schema.Struct({
   stow: Schema.optionalKey(Schema.Array(Schema.String)),
   mcp: Schema.optionalKey(
+    Schema.Struct({ exclude: Schema.Array(Schema.String) }),
+  ),
+  syncthing: Schema.optionalKey(
     Schema.Struct({ exclude: Schema.Array(Schema.String) }),
   ),
   opencode: Schema.optionalKey(
@@ -34,6 +37,8 @@ export interface PrivateSelection {
   readonly stow: ReadonlySet<string> | null;
   /** MCP servers from the private spec this machine keeps disabled. */
   readonly mcpExclude: ReadonlySet<string>;
+  /** Syncthing folder IDs from the private config this machine leaves out. */
+  readonly syncthingExclude: ReadonlySet<string>;
   /** OpenCode plugins and instructions changed on this machine. */
   readonly opencode: OpenCodeLayer;
 }
@@ -53,9 +58,10 @@ export const readPrivateSelection = Effect.fn("PrivateSelection.read")(
 
     return yield* Effect.try(() => Bun.YAML.parse(text)).pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(PrivateSelectionFile)),
-      Effect.map(({ stow, mcp, opencode }): PrivateSelection => ({
+      Effect.map(({ stow, mcp, syncthing, opencode }): PrivateSelection => ({
         stow: stow === undefined ? null : new Set(stow),
         mcpExclude: new Set(mcp?.exclude),
+        syncthingExclude: new Set(syncthing?.exclude),
         opencode: {
           plugins: opencode?.plugins ?? [],
           instructions: opencode?.instructions ?? [],
@@ -64,6 +70,7 @@ export const readPrivateSelection = Effect.fn("PrivateSelection.read")(
       Effect.orElseSucceed((): PrivateSelection => ({
         stow: new Set(),
         mcpExclude: new Set(),
+        syncthingExclude: new Set(),
         opencode: { plugins: [], instructions: [] },
       })),
     );
