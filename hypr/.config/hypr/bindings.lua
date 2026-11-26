@@ -115,6 +115,8 @@ hl.unbind("SUPER + mouse_down")
 hl.unbind("SUPER + mouse_up")
 o.bind("SUPER + mouse_down", "Scroll active workspace forward", hl.dsp.focus({ workspace = "e+1" }))
 o.bind("SUPER + mouse_up", "Scroll active workspace backward", hl.dsp.focus({ workspace = "e-1" }))
+-- The mouse back button (BTN_SIDE) plays and pauses media instead of going back.
+o.bind("mouse:275", "Play/pause media", { ipc = "media.playPause" }, { locked = true })
 for _, move in ipairs({ { "LEFT", "l" }, { "RIGHT", "r" }, { "UP", "u" }, { "DOWN", "d" } }) do
   hl.unbind("SUPER + SHIFT + ALT + " .. move[1])
   o.bind(
