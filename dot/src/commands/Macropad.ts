@@ -43,6 +43,7 @@ type Knob = typeof Knob.Type;
 const Layout = Schema.Struct({
   device: Schema.NonEmptyString,
   columns: Schema.Int.check(Schema.isGreaterThan(0)),
+  layers: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 15 })),
   keys: Schema.Array(Action).check(Schema.isMaxLength(12)),
   knobs: Schema.Array(Knob).check(Schema.isMaxLength(4)),
 });
@@ -90,7 +91,10 @@ const wonkey = Effect.fn("Macropad.wonkey")(function* (
 /** Show what the pad holds now. */
 export const macropadRead = wonkey([]).pipe(Effect.withSpan("Macropad.read"));
 
-/** Program every key and knob action from layout.yaml, one at a time. */
+/**
+ * Program every key and knob action from layout.yaml, one at a time, on each
+ * layer, so the pad does the same whichever layer it has switched to.
+ */
 export const macropadApply = Effect.gen(function* () {
   const layout = yield* readLayout;
 
@@ -101,9 +105,13 @@ export const macropadApply = Effect.gen(function* () {
     ),
   ];
 
-  for (const [control, { send }] of controls) {
-    yield* Console.log(`\n${control}: wonkey ${send[0]} ${send[1]}`);
-    yield* wonkey([send[0], control, send[1]]);
+  for (let layer = 1; layer <= layout.layers; layer++) {
+    for (const [control, { send }] of controls) {
+      yield* Console.log(
+        `\nLayer ${layer} ${control}: wonkey ${send[0]} ${send[1]}`,
+      );
+      yield* wonkey([send[0], control, send[1], "--layer", String(layer)]);
+    }
   }
 }).pipe(Effect.withSpan("Macropad.apply"));
 

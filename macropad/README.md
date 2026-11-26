@@ -25,7 +25,7 @@ Upstream WonKey looks for the pad's HID device under its USB interface in sysfs 
 | `mise run macropad:build` | Builds the patched `wonkey` to `scripts/.local/bin`, which `dot stow` links |
 | `mise run macropad:test` | Runs WonKey's tests for the pad's packages |
 | `dot macropad read` | Shows what the pad holds now |
-| `dot macropad apply` | Programs the pad from `layout.yaml` |
+| `dot macropad apply` | Programs the pad from `layout.yaml`, on each of its `layers` |
 | `dot macropad render` | Draws `layout.svg` and `layout.png` from `layout.yaml` |
 
 Programming needs the USB cable, even on the wireless version, and the pad keeps its settings when unplugged.
