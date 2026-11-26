@@ -260,7 +260,16 @@ o.bind("F20", "Pad: Printer camera", "camera-popup --name printer --focus bambu/
 o.bind("F21", "Pad: Discord", focus_or_launch("discord.com__app", discord))
 o.bind("F22", "Pad: Slack", focus_or_launch("slack.com__client", slack))
 o.bind("F23", "Pad: Full width", hl.dsp.window.fullscreen({ mode = "maximized" }))
-o.bind("F24", "Pad: Screen off", function()
+-- Binds run before a key press wakes the screens, so a screen that's off here
+-- was off before this press. Turn them on then, or off after the key is up.
+o.bind("F24", "Pad: Screen off or on", function()
+  for _, monitor in ipairs(hl.get_monitors()) do
+    if not monitor.dpms_status then
+      hl.dispatch(hl.dsp.dpms({ action = "enable" }))
+      return
+    end
+  end
+
   hl.timer(function()
     hl.dispatch(hl.dsp.dpms({ action = "disable" }))
   end, { timeout = 500, type = "oneshot" })
