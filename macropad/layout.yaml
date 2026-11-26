@@ -1,3 +1,4 @@
+---
 # What each key and knob on the macro pad sends, and what it does.
 #
 # Keys run in reading order as the pad sits on the desk, knobs on the right:
@@ -43,21 +44,45 @@ keys:
 knobs:
   - name: Volume
     size: small
-    left: { send: [media, volumedown], label: Quieter }
-    press: { send: [media, mute], label: Mute }
-    right: { send: [media, volumeup], label: Louder }
+    left:
+      send: [media, volumedown]
+      label: Quieter
+    press:
+      send: [media, mute]
+      label: Mute
+    right:
+      send: [media, volumeup]
+      label: Louder
   - name: Media
     size: small
-    left: { send: [media, prev], label: Previous }
-    press: { send: [media, playpause], label: Play/pause }
-    right: { send: [media, next], label: Next }
+    left:
+      send: [media, prev]
+      label: Previous
+    press:
+      send: [media, playpause]
+      label: Play/pause
+    right:
+      send: [media, next]
+      label: Next
   - name: Scroll
     size: medium
-    left: { send: [mouse, wheeldown], label: Down }
-    press: { send: [mouse, left], label: Click }
-    right: { send: [mouse, wheelup], label: Up }
+    left:
+      send: [mouse, wheeldown]
+      label: Down
+    press:
+      send: [mouse, left]
+      label: Click
+    right:
+      send: [mouse, wheelup]
+      label: Up
   - name: Workspaces
     size: large
-    left: { send: [key, ctrl+f13], label: Previous }
-    press: { send: [key, ctrl+f14], label: Relayout }
-    right: { send: [key, ctrl+f15], label: Next }
+    left:
+      send: [key, ctrl+f13]
+      label: Previous
+    press:
+      send: [key, ctrl+f14]
+      label: Relayout
+    right:
+      send: [key, ctrl+f15]
+      label: Next
