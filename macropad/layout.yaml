@@ -1,0 +1,63 @@
+# What each key and knob on the macro pad sends, and what it does.
+#
+# Keys run in reading order as the pad sits on the desk, knobs on the right:
+# the top row left to right, then down. Knobs run small top left, small top
+# right, medium, then the big one at the bottom. `send` is the wonkey command that
+# programs the control (key, media or mouse, then its value); `label` is what it
+# does, drawn on layout.svg. dot macropad apply programs the pad from this file
+# and dot macropad render redraws the picture.
+#
+# The keys send F13-F24 and knob 4 Ctrl+F13-F15, which no other keyboard sends.
+# Hyprland gives them their actions (hypr/.config/hypr/bindings.lua).
+# Knobs 1-3 send media keys and the mouse wheel, so they work without binds.
+
+device: "514c:8850"
+columns: 4
+
+keys:
+  - send: [key, f13]
+    label: Dictation
+  - send: [key, f14]
+    label: Screenshot
+  - send: [key, f15]
+    label: Screen record
+  - send: [key, f16]
+    label: Agent screens
+  - send: [key, f17]
+    label: Herdr
+  - send: [key, f18]
+    label: Browser
+  - send: [key, f19]
+    label: Doorbell
+  - send: [key, f20]
+    label: Printer
+  - send: [key, f21]
+    label: Discord
+  - send: [key, f22]
+    label: Slack
+  - send: [key, f23]
+    label: Full width
+  - send: [key, f24]
+    label: Screen off
+
+knobs:
+  - name: Volume
+    size: small
+    left: { send: [media, volumedown], label: Quieter }
+    press: { send: [media, mute], label: Mute }
+    right: { send: [media, volumeup], label: Louder }
+  - name: Media
+    size: small
+    left: { send: [media, prev], label: Previous }
+    press: { send: [media, playpause], label: Play/pause }
+    right: { send: [media, next], label: Next }
+  - name: Scroll
+    size: medium
+    left: { send: [mouse, wheeldown], label: Down }
+    press: { send: [mouse, left], label: Click }
+    right: { send: [mouse, wheelup], label: Up }
+  - name: Workspaces
+    size: large
+    left: { send: [key, ctrl+f13], label: Previous }
+    press: { send: [key, ctrl+f14], label: Relayout }
+    right: { send: [key, ctrl+f15], label: Next }

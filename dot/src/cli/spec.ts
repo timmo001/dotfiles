@@ -86,6 +86,11 @@ import {
 } from "../commands/Game.js";
 import { hdr } from "../commands/Hdr.js";
 import {
+  macropadApply,
+  macropadRead,
+  macropadRender,
+} from "../commands/Macropad.js";
+import {
   stationDesktopOff,
   stationDesktopOn,
   stationDesktopStatus,
@@ -1145,6 +1150,34 @@ const hdrCommand = describe(
   {
     description:
       "The primary monitor is HDMI-A-2 on the desktop host and the focused monitor elsewhere. On sets 10-bit output with HDR colour management and doubled SDR brightness, and saves the setting so a Hyprland reload keeps it; off restores 8-bit sRGB. Either does nothing when the monitor is already there. The hdr-on and hdr-off scripts wrap these for launchers that take a script path, such as a desktop entry for a video app. Games use dot game, which turns HDR on as part of gaming mode.",
+  },
+);
+
+const macropadCommand = describe(
+  Command.make("macropad").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make("read", {}, () => macropadRead),
+        "Show what the macro pad holds now",
+        ["dot macropad read"],
+      ),
+      describe(
+        Command.make("apply", {}, () => macropadApply),
+        "Program the macro pad from macropad/layout.yaml",
+        ["dot macropad apply"],
+      ),
+      describe(
+        Command.make("render", {}, () => macropadRender),
+        "Draw macropad/layout.svg and layout.png from layout.yaml",
+        ["dot macropad render"],
+      ),
+    ]),
+  ),
+  "Program and draw the 12-key, 4-knob macro pad",
+  ["dot macropad read", "dot macropad apply", "dot macropad render"],
+  {
+    description:
+      "macropad/layout.yaml in the public dotfiles lists what each key (in reading order) and knob (small left, small right, medium, big; each turned left, pressed and turned right) sends, as a wonkey command (key, media or mouse) and its value, and what it does. Apply runs wonkey once per action, so the pad needs its USB cable and udev-rules/60-ch57x-macropad.rules; wonkey is the patched copy vendored in macropad/vendor/wonkey, built by mise run macropad:build. Render draws the pad with those labels for the README, then converts it to PNG with rsvg-convert. Hyprland binds the keys' F13-F24 and the big knob's Ctrl+F13-F15.",
   },
 );
 
@@ -4138,6 +4171,7 @@ export const dotCommand = describe(
       backupCommand,
       fansCommand,
       hdrCommand,
+      macropadCommand,
       gameCommand,
       stationCommand,
       tunnelCommand,

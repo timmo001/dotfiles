@@ -1,6 +1,7 @@
 [tools]
 node = "26.13.1"
 bun = "1.4.5"
+go = "1.26.0"
 "npm:markdownlint-cli2" = "0.24.2"
 actionlint = "1.7.12"
 yamllint = "1.38.0"
@@ -117,6 +118,19 @@ run = "bun build src/background.ts src/popup.ts --target=browser --format=iife -
 description = "Type-check the dot links Chromium extension"
 depends = ["install"]
 run = "bunx tsc -p chromium-extension"
+
+# Macro pad: builds the vendored wonkey into the scripts package; dot macropad does the rest
+[tasks."macropad:build"]
+description = "Build the vendored, patched wonkey to scripts/.local/bin/wonkey"
+dir = "macropad/vendor/wonkey"
+run = "go build -trimpath -ldflags '-s -w -X main.version=0.2.5-macropad' -o ../../../scripts/.local/bin/wonkey ./cmd/wonkey"
+sources = ["**/*.go", "go.mod", "go.sum"]
+outputs = ["../../../scripts/.local/bin/wonkey"]
+
+[tasks."macropad:test"]
+description = "Run the vendored wonkey's tests for the macro pad's packages"
+dir = "macropad/vendor/wonkey"
+run = "go test ./internal/ch57/ ./internal/sayo/"
 
 [tasks.test]
 description = "Run the dot unit tests"

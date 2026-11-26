@@ -1,0 +1,56 @@
+diff --git a/internal/ch57/candidate.go b/internal/ch57/candidate.go
+index 6bd3a9b..278ea04 100644
+--- a/internal/ch57/candidate.go
++++ b/internal/ch57/candidate.go
+@@ -27,6 +27,10 @@ const candidate8850USBDescriptor = "\x12\x01\x10\x01\x00\x00\x00\x40\x4c\x51\x50
+ 
+ var physicalUSBPath = regexp.MustCompile(`^[1-9][0-9]*-[1-9][0-9]*(\.[1-9][0-9]*)*$`)
+ 
++// hidDeviceName matches the HID device directories (bus:vendor:product.instance)
++// below a USB interface, skipping entries such as physical_location and firmware_node.
++var hidDeviceName = regexp.MustCompile(`^[0-9A-F]{4}:[0-9A-F]{4}:[0-9A-F]{4}\.[0-9A-F]{4}$`)
++
+ // Candidate is a provisional USB structure match, not firmware identification.
+ // It supplies no Profile, transport, or permission for device access.
+ // PhysicalPath is caller-supplied provenance, not a verified device association.
+diff --git a/internal/ch57/probe_linux.go b/internal/ch57/probe_linux.go
+index 54f08cc..ac87998 100644
+--- a/internal/ch57/probe_linux.go
++++ b/internal/ch57/probe_linux.go
+@@ -721,7 +721,7 @@ func (ops probeOps) locateCandidateHidraw(candidate DiscoveredCandidate, iface,
+ 		if !entry.IsDir() && entry.Type()&os.ModeSymlink == 0 {
+ 			continue
+ 		}
+-		if name == "power" || name == "subsystem" || name == "driver" || name == "usbmisc" || strings.HasPrefix(name, "ep_") {
++		if !hidDeviceName.MatchString(name) {
+ 			continue
+ 		}
+ 		hidDirs = append(hidDirs, filepath.Join(ifaceDir, name))
+diff --git a/internal/sayo/candidate.go b/internal/sayo/candidate.go
+index c78105d..c492422 100644
+--- a/internal/sayo/candidate.go
++++ b/internal/sayo/candidate.go
+@@ -9,6 +9,10 @@ import (
+ 
+ var physicalUSBPath = regexp.MustCompile(`^[1-9][0-9]*-[1-9][0-9]*(\.[1-9][0-9]*)*$`)
+ 
++// hidDeviceName matches the HID device directories (bus:vendor:product.instance)
++// below a USB interface, skipping entries such as physical_location and firmware_node.
++var hidDeviceName = regexp.MustCompile(`^[0-9A-F]{4}:[0-9A-F]{4}:[0-9A-F]{4}\.[0-9A-F]{4}$`)
++
+ // Candidate is a provisional USB structure match for a SayoDevice macropad.
+ type Candidate struct {
+ 	PhysicalPath    string
+diff --git a/internal/sayo/probe_linux.go b/internal/sayo/probe_linux.go
+index 51a573f..6deb461 100644
+--- a/internal/sayo/probe_linux.go
++++ b/internal/sayo/probe_linux.go
+@@ -332,7 +332,7 @@ func (ops probeOps) locateSayoHidraw(candidate DiscoveredCandidate) (string, []b
+ 		if !entry.IsDir() && entry.Type()&os.ModeSymlink == 0 {
+ 			continue
+ 		}
+-		if name == "power" || name == "subsystem" || name == "driver" || name == "usbmisc" || strings.HasPrefix(name, "ep_") {
++		if !hidDeviceName.MatchString(name) {
+ 			continue
+ 		}
+ 		hidDirs = append(hidDirs, filepath.Join(ifaceDir, name))

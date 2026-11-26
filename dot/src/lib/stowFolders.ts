@@ -13,6 +13,7 @@ export const INTERNAL_STOW_FOLDERS = [
   "docs",
   "first-party",
   "lan-direct",
+  "macropad",
   "node_modules",
   "tests",
   "udev-rules",

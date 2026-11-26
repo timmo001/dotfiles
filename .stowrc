@@ -33,6 +33,7 @@
 --ignore=^/oxlint\.config\.ts
 --ignore=^/tools
 --ignore=^/udev-rules
+--ignore=^/macropad
 --ignore=^/first-party
 --ignore=^/lan-direct
 --ignore=^/btrfs-balance

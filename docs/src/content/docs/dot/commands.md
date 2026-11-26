@@ -1321,6 +1321,90 @@ dot hdr off [flags]
 dot hdr off
 ```
 
+## `dot macropad`
+
+Program and draw the 12-key, 4-knob macro pad
+
+```text
+dot macropad <subcommand> [flags]
+```
+
+macropad/layout.yaml in the public dotfiles lists what each key (in reading order) and knob (small left, small right, medium, big; each turned left, pressed and turned right) sends, as a wonkey command (key, media or mouse) and its value, and what it does. Apply runs wonkey once per action, so the pad needs its USB cable and udev-rules/60-ch57x-macropad.rules; wonkey is the patched copy vendored in macropad/vendor/wonkey, built by mise run macropad:build. Render draws the pad with those labels for the README, then converts it to PNG with rsvg-convert. Hyprland binds the keys' F13-F24 and the big knob's Ctrl+F13-F15.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot macropad read
+dot macropad apply
+dot macropad render
+```
+
+### `dot macropad read`
+
+Show what the macro pad holds now
+
+```text
+dot macropad read [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot macropad read
+```
+
+### `dot macropad apply`
+
+Program the macro pad from macropad/layout.yaml
+
+```text
+dot macropad apply [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot macropad apply
+```
+
+### `dot macropad render`
+
+Draw macropad/layout.svg and layout.png from layout.yaml
+
+```text
+dot macropad render [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot macropad render
+```
+
 ## `dot game`
 
 Pause heavy background services and turn on HDR while gaming

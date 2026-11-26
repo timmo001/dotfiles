@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 640" width="1100" height="640">
+  <title>Macro pad layout</title>
+  <style>
+    text { font-family: "Inter", "Helvetica Neue", Arial, sans-serif; }
+    .background { fill: #16161e; }
+    .body { fill: #2a2b36; stroke: #4fd6be; stroke-width: 3; }
+    .key { fill: #101014; stroke: #3b3d4a; stroke-width: 2; }
+    .label { fill: #e6e7ef; font-size: 15px; font-weight: 600; text-anchor: middle; }
+    .send { fill: #7f849c; font-size: 12px; text-anchor: middle; }
+    .knob { fill: #0c0c10; stroke: #5a5d6e; stroke-width: 3; }
+    .cap { fill: #3a3c48; }
+    .number { fill: #e6e7ef; font-size: 26px; font-weight: 700; text-anchor: middle; }
+    .badge { fill: #4fd6be; }
+    .badge-number { fill: #16161e; font-size: 17px; font-weight: 700; text-anchor: middle; }
+    .heading { fill: #e6e7ef; font-size: 20px; font-weight: 700; }
+    .step { fill: #c0c3d4; font-size: 16px; }
+    .send-inline { fill: #7f849c; font-size: 12px; }
+  </style>
+  <rect class="background" width="1100" height="640" rx="24"/>
+  <g transform="translate(40,40)">
+    <path class="body" d="M 24,0 H 676 A 24,24 0 0 1 700,24 V 440 A 120,120 0 0 1 580,560 H 560 A 120,120 0 0 1 440,440 V 390 A 30,30 0 0 0 410,360 H 24 A 24,24 0 0 1 0,336 V 24 A 24,24 0 0 1 24,0 Z"/>
+    <rect class="key" x="30" y="30" width="88" height="88" rx="10"/>
+    <text class="label" x="74" y="74">Dictation</text>
+    <text class="send" x="74" y="108">F13</text>
+    <rect class="key" x="130" y="30" width="88" height="88" rx="10"/>
+    <text class="label" x="174" y="74">Screenshot</text>
+    <text class="send" x="174" y="108">F14</text>
+    <rect class="key" x="230" y="30" width="88" height="88" rx="10"/>
+    <text class="label" x="274" y="65">Screen</text>
+    <text class="label" x="274" y="83">record</text>
+    <text class="send" x="274" y="108">F15</text>
+    <rect class="key" x="330" y="30" width="88" height="88" rx="10"/>
+    <text class="label" x="374" y="65">Agent</text>
+    <text class="label" x="374" y="83">screens</text>
+    <text class="send" x="374" y="108">F16</text>
+    <rect class="key" x="30" y="130" width="88" height="88" rx="10"/>
+    <text class="label" x="74" y="174">Herdr</text>
+    <text class="send" x="74" y="208">F17</text>
+    <rect class="key" x="130" y="130" width="88" height="88" rx="10"/>
+    <text class="label" x="174" y="174">Browser</text>
+    <text class="send" x="174" y="208">F18</text>
+    <rect class="key" x="230" y="130" width="88" height="88" rx="10"/>
+    <text class="label" x="274" y="174">Doorbell</text>
+    <text class="send" x="274" y="208">F19</text>
+    <rect class="key" x="330" y="130" width="88" height="88" rx="10"/>
+    <text class="label" x="374" y="174">Printer</text>
+    <text class="send" x="374" y="208">F20</text>
+    <rect class="key" x="30" y="230" width="88" height="88" rx="10"/>
+    <text class="label" x="74" y="274">Discord</text>
+    <text class="send" x="74" y="308">F21</text>
+    <rect class="key" x="130" y="230" width="88" height="88" rx="10"/>
+    <text class="label" x="174" y="274">Slack</text>
+    <text class="send" x="174" y="308">F22</text>
+    <rect class="key" x="230" y="230" width="88" height="88" rx="10"/>
+    <text class="label" x="274" y="265">Full</text>
+    <text class="label" x="274" y="283">width</text>
+    <text class="send" x="274" y="308">F23</text>
+    <rect class="key" x="330" y="230" width="88" height="88" rx="10"/>
+    <text class="label" x="374" y="265">Screen</text>
+    <text class="label" x="374" y="283">off</text>
+    <text class="send" x="374" y="308">F24</text>
+    <circle class="knob" cx="510" cy="80" r="38"/>
+    <circle class="cap" cx="510" cy="80" r="27.36"/>
+    <text class="number" x="510" y="89">1</text>
+    <circle class="knob" cx="630" cy="80" r="38"/>
+    <circle class="cap" cx="630" cy="80" r="27.36"/>
+    <text class="number" x="630" y="89">2</text>
+    <circle class="knob" cx="570" cy="215" r="52"/>
+    <circle class="cap" cx="570" cy="215" r="37.44"/>
+    <text class="number" x="570" y="224">3</text>
+    <circle class="knob" cx="570" cy="440" r="86"/>
+    <circle class="cap" cx="570" cy="440" r="61.919999999999995"/>
+    <text class="number" x="570" y="449">4</text>
+    <circle class="badge" cx="776" cy="56" r="16"/>
+    <text class="badge-number" x="776" y="62">1</text>
+    <text class="heading" x="804" y="63">Volume</text>
+    <text class="step" x="804" y="92">⟲<tspan dx="8">Quieter</tspan><tspan class="send-inline" dx="8">volumedown</tspan></text>
+    <text class="step" x="804" y="116">●<tspan dx="8">Mute</tspan><tspan class="send-inline" dx="8">mute</tspan></text>
+    <text class="step" x="804" y="140">⟳<tspan dx="8">Louder</tspan><tspan class="send-inline" dx="8">volumeup</tspan></text>
+    <circle class="badge" cx="776" cy="186" r="16"/>
+    <text class="badge-number" x="776" y="192">2</text>
+    <text class="heading" x="804" y="193">Media</text>
+    <text class="step" x="804" y="222">⟲<tspan dx="8">Previous</tspan><tspan class="send-inline" dx="8">prev</tspan></text>
+    <text class="step" x="804" y="246">●<tspan dx="8">Play/pause</tspan><tspan class="send-inline" dx="8">playpause</tspan></text>
+    <text class="step" x="804" y="270">⟳<tspan dx="8">Next</tspan><tspan class="send-inline" dx="8">next</tspan></text>
+    <circle class="badge" cx="776" cy="316" r="16"/>
+    <text class="badge-number" x="776" y="322">3</text>
+    <text class="heading" x="804" y="323">Scroll</text>
+    <text class="step" x="804" y="352">⟲<tspan dx="8">Down</tspan><tspan class="send-inline" dx="8">wheeldown</tspan></text>
+    <text class="step" x="804" y="376">●<tspan dx="8">Click</tspan><tspan class="send-inline" dx="8">left</tspan></text>
+    <text class="step" x="804" y="400">⟳<tspan dx="8">Up</tspan><tspan class="send-inline" dx="8">wheelup</tspan></text>
+    <circle class="badge" cx="776" cy="446" r="16"/>
+    <text class="badge-number" x="776" y="452">4</text>
+    <text class="heading" x="804" y="453">Workspaces</text>
+    <text class="step" x="804" y="482">⟲<tspan dx="8">Previous</tspan><tspan class="send-inline" dx="8">Ctrl+F13</tspan></text>
+    <text class="step" x="804" y="506">●<tspan dx="8">Relayout</tspan><tspan class="send-inline" dx="8">Ctrl+F14</tspan></text>
+    <text class="step" x="804" y="530">⟳<tspan dx="8">Next</tspan><tspan class="send-inline" dx="8">Ctrl+F15</tspan></text>
+  </g>
+</svg>
