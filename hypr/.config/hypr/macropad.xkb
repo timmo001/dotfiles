@@ -1,0 +1,25 @@
+// The macro pad's keymap (macropad/layout.yaml). The standard one turns most
+// of F13-F24 into other keys (XF86Tools, XF86Launch5-9, mic mute, touchpad),
+// so the pad's binds in bindings.lua would never match. This keeps them F-keys.
+xkb_keymap {
+  xkb_keycodes { include "evdev+aliases(qwerty)" };
+  xkb_types { include "complete" };
+  xkb_compat { include "complete" };
+  xkb_symbols {
+    include "pc+gb+inet(evdev)"
+
+    override key <FK13> { type = "ONE_LEVEL", symbols[1] = [ F13 ] };
+    override key <FK14> { type = "ONE_LEVEL", symbols[1] = [ F14 ] };
+    override key <FK15> { type = "ONE_LEVEL", symbols[1] = [ F15 ] };
+    override key <FK16> { type = "ONE_LEVEL", symbols[1] = [ F16 ] };
+    override key <FK17> { type = "ONE_LEVEL", symbols[1] = [ F17 ] };
+    override key <FK18> { type = "ONE_LEVEL", symbols[1] = [ F18 ] };
+    override key <FK19> { type = "ONE_LEVEL", symbols[1] = [ F19 ] };
+    override key <FK20> { type = "ONE_LEVEL", symbols[1] = [ F20 ] };
+    override key <FK21> { type = "ONE_LEVEL", symbols[1] = [ F21 ] };
+    override key <FK22> { type = "ONE_LEVEL", symbols[1] = [ F22 ] };
+    override key <FK23> { type = "ONE_LEVEL", symbols[1] = [ F23 ] };
+    override key <FK24> { type = "ONE_LEVEL", symbols[1] = [ F24 ] };
+  };
+  xkb_geometry { include "pc(pc105)" };
+};

@@ -73,4 +73,13 @@ hl.config({
   },
 })
 
+-- The macro pad (macropad/layout.yaml) gets a keymap that keeps F13-F24 as
+-- F-keys, so its binds in bindings.lua match. Binds only read that keymap with
+-- resolve_binds_by_sym; otherwise they go by the layout, which ignores kb_file.
+hl.device({
+  name = "usb-composite-device-keyboard",
+  kb_file = os.getenv("HOME") .. "/.config/hypr/macropad.xkb",
+  resolve_binds_by_sym = true,
+})
+
 require("hypr.host.input")
