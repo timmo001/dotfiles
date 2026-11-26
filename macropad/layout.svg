@@ -85,10 +85,10 @@
     <text class="step" x="804" y="270">⟳<tspan dx="8">Next</tspan><tspan class="send-inline" dx="8">next</tspan></text>
     <circle class="badge" cx="776" cy="316" r="16"/>
     <text class="badge-number" x="776" y="322">3</text>
-    <text class="heading" x="804" y="323">Scroll</text>
-    <text class="step" x="804" y="352">⟲<tspan dx="8">Down</tspan><tspan class="send-inline" dx="8">wheeldown</tspan></text>
-    <text class="step" x="804" y="376">●<tspan dx="8">Click</tspan><tspan class="send-inline" dx="8">left</tspan></text>
-    <text class="step" x="804" y="400">⟳<tspan dx="8">Up</tspan><tspan class="send-inline" dx="8">wheelup</tspan></text>
+    <text class="heading" x="804" y="323">Curtains</text>
+    <text class="step" x="804" y="352">⟲<tspan dx="8">Close 5%</tspan><tspan class="send-inline" dx="8">Ctrl+F16</tspan></text>
+    <text class="step" x="804" y="376">●<tspan dx="8">Open, close or stop</tspan><tspan class="send-inline" dx="8">Ctrl+F17</tspan></text>
+    <text class="step" x="804" y="400">⟳<tspan dx="8">Open 5%</tspan><tspan class="send-inline" dx="8">Ctrl+F18</tspan></text>
     <circle class="badge" cx="776" cy="446" r="16"/>
     <text class="badge-number" x="776" y="452">4</text>
     <text class="heading" x="804" y="453">Workspaces</text>

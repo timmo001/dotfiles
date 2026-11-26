@@ -4,7 +4,7 @@ Setup for a 12-key, 4-knob macro pad from AliExpress, sold as "Programming Custo
 
 ![The pad's layout: 12 keys in three rows of four, two small knobs at the top right, a medium knob below them and a big knob at the bottom](layout.svg)
 
-The keys send F13 to F24 and the big knob Ctrl+F13 to Ctrl+F15. No other keyboard sends those, so they never clash with typing, and Hyprland gives each one its action in [`hypr/.config/hypr/bindings.lua`](../hypr/.config/hypr/bindings.lua). The other three knobs send media keys and the mouse wheel, which work without any binds.
+The keys send F13 to F24, the middle knob Ctrl+F16 to Ctrl+F18 and the big knob Ctrl+F13 to Ctrl+F15. No other keyboard sends those, so they never clash with typing, and Hyprland gives each one its action in [`hypr/.config/hypr/bindings.lua`](../hypr/.config/hypr/bindings.lua). The middle knob moves the office curtains 5% a click through `ha-bridge cover increase-position` and `decrease-position`. The two small knobs send media keys, which work without any binds.
 
 ## Layout
 

@@ -239,8 +239,8 @@ o.bind(
   hl.dsp.window.resize({ x = 0, y = 2, relative = true })
 )
 
--- Macro pad (macropad/layout.yaml): its keys send F13-F24 and its big knob
--- Ctrl+F13-F15, which no other keyboard sends. The app keys focus the window
+-- Macro pad (macropad/layout.yaml): its keys send F13-F24, its middle knob
+-- Ctrl+F16-F18 and its big knob Ctrl+F13-F15, which no other keyboard sends. The app keys focus the window
 -- if it's open, which moves the pointer onto it, or open it.
 local function focus_or_launch(pattern, command)
   return "omarchy-launch-or-focus '" .. pattern .. "' '" .. command .. "'"
@@ -277,6 +277,9 @@ end)
 o.bind("CTRL + F13", "Pad: Previous workspace", hl.dsp.focus({ workspace = "e-1" }))
 o.bind("CTRL + F14", "Pad: Workspace relayout", "dot workspace relayout")
 o.bind("CTRL + F15", "Pad: Next workspace", hl.dsp.focus({ workspace = "e+1" }))
+o.bind("CTRL + F16", "Pad: Close the office curtains 5%", "ha-bridge cover decrease-position --step 5 curtain")
+o.bind("CTRL + F17", "Pad: Open, close or stop the office curtains", "ha-bridge cover toggle curtain")
+o.bind("CTRL + F18", "Pad: Open the office curtains 5%", "ha-bridge cover increase-position --step 5 curtain")
 
 require("hypr.host.bindings")
 

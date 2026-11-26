@@ -8,9 +8,10 @@
 # does, drawn on layout.svg. dot macropad apply programs the pad from this file
 # and dot macropad render redraws the picture.
 #
-# The keys send F13-F24 and knob 4 Ctrl+F13-F15, which no other keyboard sends.
-# Hyprland gives them their actions (hypr/.config/hypr/bindings.lua).
-# Knobs 1-3 send media keys and the mouse wheel, so they work without binds.
+# The keys send F13-F24, knob 3 Ctrl+F16-F18 and knob 4 Ctrl+F13-F15, which no
+# other keyboard sends. Hyprland gives them their actions
+# (hypr/.config/hypr/bindings.lua). Knobs 1 and 2 send media keys, so they work
+# without binds.
 
 device: "514c:8850"
 columns: 4
@@ -66,17 +67,17 @@ knobs:
     right:
       send: [media, next]
       label: Next
-  - name: Scroll
+  - name: Curtains
     size: medium
     left:
-      send: [mouse, wheeldown]
-      label: Down
+      send: [key, ctrl+f16]
+      label: Close 5%
     press:
-      send: [mouse, left]
-      label: Click
+      send: [key, ctrl+f17]
+      label: Open, close or stop
     right:
-      send: [mouse, wheelup]
-      label: Up
+      send: [key, ctrl+f18]
+      label: Open 5%
   - name: Workspaces
     size: large
     left:
