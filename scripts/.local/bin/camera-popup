@@ -19,6 +19,7 @@ POPUP_HEIGHT=""
 POPUP_MARGIN="16"
 POPUP_BOTTOM_MARGIN="6"
 POPUP_MONITOR=""
+FOCUS=0
 
 usage() {
   cat <<'EOF'
@@ -41,6 +42,7 @@ Options:
                        height follows the ratio
   --height <px>        Popup height in pixels, over the share; alone, the
                        width follows the ratio
+  --focus              Focus the window, which moves the pointer onto it
   --help               Show this help
 
 Environment:
@@ -78,6 +80,10 @@ parse_args() {
       --height)
         POPUP_HEIGHT="$2"
         shift 2
+        ;;
+      --focus)
+        FOCUS=1
+        shift
         ;;
       --help|-h)
         usage
@@ -196,18 +202,25 @@ main() {
   local -a args=(--width "$POPUP_WIDTH" --height "$POPUP_HEIGHT" --right-margin "$POPUP_MARGIN" --bottom-margin "$POPUP_BOTTOM_MARGIN")
   [[ -z $POPUP_MONITOR ]] || args+=(--monitor "$POPUP_MONITOR")
 
+  addr=""
   if [[ -f "$addr_file" ]]; then
     addr="$(< "$addr_file")"
     if window_exists "$addr"; then
       launch-floating-webapp "${args[@]}" --address "$addr" >/dev/null
-      printf '%s\n' "$addr"
-      return
+    else
+      rm -f "$addr_file"
+      addr=""
     fi
-    rm -f "$addr_file"
   fi
 
-  addr="$(launch-floating-webapp "${args[@]}" "$(popup_url)")"
-  printf '%s\n' "$addr" >"$addr_file"
+  if [[ -z "$addr" ]]; then
+    addr="$(launch-floating-webapp "${args[@]}" "$(popup_url)")"
+    printf '%s\n' "$addr" >"$addr_file"
+  fi
+
+  if (( FOCUS )); then
+    hyprctl dispatch "hl.dsp.focus({ window = 'address:${addr}' })" >/dev/null
+  fi
   printf '%s\n' "$addr"
 }
 
