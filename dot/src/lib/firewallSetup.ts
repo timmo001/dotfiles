@@ -84,6 +84,10 @@ export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
  * - ESPHome's device builder serves its dashboard on 6052 and Seerr its web
  *   app on 5055, both moved from the NAS and kept to the home network and the
  *   tailnet.
+ * - Music Assistant, moved from the HA Green, serves its web app and API on
+ *   8095, streams to players from 8097 and takes Sendspin players on 8927.
+ *   AirPlay speakers call back to it over DACP on 39831-49831 and time native
+ *   AirPlay 2 playback over PTP on UDP 319-320.
  */
 export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
   {
@@ -156,6 +160,36 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
   { kind: "port", label: "Forgejo SSH", port: "2222", protocols: ["tcp"] },
   { kind: "port", label: "ESPHome", port: "6052", protocols: ["tcp"] },
   { kind: "port", label: "Seerr", port: "5055", protocols: ["tcp"] },
+  {
+    kind: "port",
+    label: "Music Assistant",
+    port: "8095",
+    protocols: ["tcp"],
+  },
+  {
+    kind: "port",
+    label: "Music Assistant streams",
+    port: "8097",
+    protocols: ["tcp"],
+  },
+  {
+    kind: "port",
+    label: "Music Assistant Sendspin",
+    port: "8927",
+    protocols: ["tcp"],
+  },
+  {
+    kind: "port",
+    label: "Music Assistant AirPlay",
+    port: "39831:49831",
+    protocols: ["tcp"],
+  },
+  {
+    kind: "port",
+    label: "Music Assistant AirPlay",
+    port: "319:320",
+    protocols: ["udp"],
+  },
 ];
 
 /**

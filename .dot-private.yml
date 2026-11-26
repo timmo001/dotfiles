@@ -12,7 +12,9 @@
 # plannotator its config.json, upkeep--station its Upkeep server and
 # maintenance-only worker, triage--station its Triage server, and
 # forgejo--station its Forgejo and Forgejo Runner. esphome--station and
-# seerr--station hold the ESPHome and Seerr containers moved from the NAS.
+# seerr--station hold the ESPHome and Seerr containers moved from the NAS, and
+# music-assistant--station Music Assistant and its YouTube Music PO token
+# generator, moved from the HA Green.
 stow:
   - agents
   - chromium--station
@@ -25,6 +27,7 @@ stow:
   - groundwork
   - herdr
   - kopia--station
+  - music-assistant--station
   - notes
   - pitchfork--station
   - plannotator
