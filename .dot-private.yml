@@ -55,12 +55,11 @@ mcp:
 
 # syncthing.exclude: folder IDs from the private syncthing.yml kept off this
 # machine. dot stow removes them from Syncthing if they were added before, and
-# leaves their files on disk. Station only takes Music and Books, for Music
-# Assistant, and Up Next.
+# leaves their files on disk. Station takes Music and Books, for Music
+# Assistant, Pictures, which Immich reads as an external library, and Up Next.
 syncthing:
   exclude:
     - nas01-documents
-    - nas01-pictures
 
 # opencode: settings dot mcp sync layers over the shared OpenCode config in
 # the untracked ~/.config/opencode/opencode.jsonc. The server instructions say
