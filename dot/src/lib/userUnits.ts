@@ -4,9 +4,10 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { cliStyler } from "./ansi.js";
-import { pathExists, readDirectoryOrNull } from "./fsProbe.js";
+import { pathExists } from "./fsProbe.js";
 import { resolvedOmarchyHost } from "./omarchyHost.js";
 import { CONFIG_DIR } from "./paths.js";
+import { listStowFolders } from "./stowFolders.js";
 import { plural } from "./runSummary.js";
 import { notable, skip, warn } from "./updateSummary.js";
 import type { RecapEntry } from "./updateSummary.js";
@@ -37,8 +38,9 @@ const DEFAULT_UNITS: readonly DefaultUnit[] = [
 
 /**
  * Units no longer shipped by the shared systemd package. Each one is stopped
- * and disabled before stow removes its retired link, unless a host package
- * ships it, as Station's does for the notes capture daemon.
+ * and disabled before stow removes its retired link, unless a public or
+ * private package that applies on this host still ships it, as Station's
+ * does for the notes capture daemon.
  */
 const RETIRED_UNITS: readonly string[] = ["notes-capture-daemon.service"];
 
@@ -153,7 +155,18 @@ export const disableRetiredUnits = Effect.gen(function* () {
   const config = yield* Config;
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
-  const packages = (yield* readDirectoryOrNull(config.publicDotfiles)) ?? [];
+  // Host packages live in the private overlay and use the `--host` suffix, so
+  // only the packages stow would apply here count. Looking at every public
+  // directory misses Station's notes capture unit and disables it on each stow.
+  const packageDirs: string[] = [];
+
+  for (const root of [config.publicDotfiles, config.privateDotfiles]) {
+    if (root === null) continue;
+
+    for (const folder of yield* listStowFolders(root, config))
+      packageDirs.push(join(root, folder));
+  }
+
   let disabled = 0;
 
   const systemctl = (args: readonly string[]) =>
@@ -175,9 +188,9 @@ export const disableRetiredUnits = Effect.gen(function* () {
   for (const unit of RETIRED_UNITS) {
     let shipped = false;
 
-    for (const name of packages)
+    for (const dir of packageDirs)
       shipped ||= yield* pathExists(
-        join(config.publicDotfiles, name, ".config", "systemd", "user", unit),
+        join(dir, ".config", "systemd", "user", unit),
       );
 
     if (shipped) continue;
