@@ -14,7 +14,8 @@
 # forgejo--station its Forgejo and Forgejo Runner. esphome--station and
 # seerr--station hold the ESPHome and Seerr containers moved from the NAS, and
 # music-assistant--station Music Assistant and its YouTube Music PO token
-# generator, moved from the HA Green.
+# generator, moved from the HA Green. immich--station holds Immich, the photo
+# library the phone backs up to.
 stow:
   - agents
   - chromium--station
@@ -26,6 +27,7 @@ stow:
   - git--station
   - groundwork
   - herdr
+  - immich--station
   - kopia--station
   - music-assistant--station
   - notes

@@ -88,6 +88,8 @@ export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
  *   8095, streams to players from 8097 and takes Sendspin players on 8927.
  *   AirPlay speakers call back to it over DACP on 39831-49831 and time native
  *   AirPlay 2 playback over PTP on UDP 319-320.
+ * - Immich serves its web app and API, which the phone app backs up to, on
+ *   2283. Away from home it goes through Caddy as photos.timmo.dev.
  */
 export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
   {
@@ -190,6 +192,7 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
     port: "319:320",
     protocols: ["udp"],
   },
+  { kind: "port", label: "Immich", port: "2283", protocols: ["tcp"] },
 ];
 
 /**
