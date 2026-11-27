@@ -1,6 +1,6 @@
 import { Repository, type Gh, type GhError } from "@timmo001/effect-gh";
 import { toGitHubError } from "../git/services/GitHub.js";
-import { Duration, Effect, FileSystem, Schedule, Schema } from "effect";
+import { Duration, Effect, FileSystem, Option, Schedule, Schema } from "effect";
 import { dirname, join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Launcher } from "../services/Launcher.js";
@@ -432,7 +432,9 @@ const followRewrittenUpstream = Effect.fn("Git.followRewrittenUpstream")(
  * Fast-forward a repository without stashing local work. An upstream that was
  * rewritten is followed with {@link followRewrittenUpstream}, which keeps only
  * the commits made here; other local commits are left alone, so the pull
- * fails. Returns true only when the pull succeeds. The network fetch runs first through
+ * fails. Returns true only when the pull succeeds, and None when the network
+ * fetch timed out, so the caller can retry it like a pull that ran out of
+ * time. The fetch runs first through
  * {@link gitRemoteOutput}, so it is prompt-free and retried after transient
  * connection failures. It fetches a submodule only when the incoming commits
  * move its pin, and the submodule update fetches any pinned commit still
@@ -442,7 +444,11 @@ const followRewrittenUpstream = Effect.fn("Git.followRewrittenUpstream")(
  */
 export function gitPullFastForward(
   repoPath: string,
-): Effect.Effect<boolean, never, CommandExecutor | Launcher | OutputLog> {
+): Effect.Effect<
+  Option.Option<boolean>,
+  never,
+  CommandExecutor | Launcher | OutputLog
+> {
   return Effect.gen(function* () {
     const launcher = yield* Launcher;
     const log = yield* OutputLog;
@@ -458,7 +464,7 @@ export function gitPullFastForward(
       )
       .pipe(Effect.orElseSucceed(() => 1));
 
-    if (submodulesClean !== 0) return false;
+    if (submodulesClean !== 0) return Option.some(false);
 
     // Fetching every submodule on every pull can pull a large one's whole
     // history again (a shallow vendored frontend is ~200 MB) and overrun the
@@ -475,7 +481,7 @@ export function gitPullFastForward(
     if (fetchError) {
       yield* log.warn(fetchError);
 
-      return false;
+      return isRemoteTimeout(fetchError) ? Option.none() : Option.some(false);
     }
 
     const merged = yield* launcher
@@ -490,7 +496,7 @@ export function gitPullFastForward(
         Effect.orElseSucceed(() => false),
       ))
     )
-      return false;
+      return Option.some(false);
 
     const exitCode = yield* launcher
       .stream(
@@ -499,6 +505,6 @@ export function gitPullFastForward(
       )
       .pipe(Effect.orElseSucceed(() => 1));
 
-    return exitCode === 0;
+    return Option.some(exitCode === 0);
   });
 }

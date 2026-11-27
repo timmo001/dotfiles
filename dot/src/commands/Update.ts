@@ -350,16 +350,19 @@ export const safePull = (
     for (let attempt = 1; attempt <= PULL_MAX_ATTEMPTS; attempt++) {
       const label = `Pulling ${name} (${attempt}/${PULL_MAX_ATTEMPTS}, timeout ${PULL_ATTEMPT_TIMEOUT_SECONDS}s)`;
 
-      const outcome = yield* queued
-        ? withTimeoutOption(
-            gitPullFastForward(path),
-            PULL_ATTEMPT_TIMEOUT_SECONDS,
-          )
-        : withSpinnerTimeout(
-            label,
-            PULL_ATTEMPT_TIMEOUT_SECONDS,
-            gitPullFastForward(path),
-          );
+      // None when either the whole attempt or its fetch ran out of time.
+      const outcome = Option.flatten(
+        yield* queued
+          ? withTimeoutOption(
+              gitPullFastForward(path),
+              PULL_ATTEMPT_TIMEOUT_SECONDS,
+            )
+          : withSpinnerTimeout(
+              label,
+              PULL_ATTEMPT_TIMEOUT_SECONDS,
+              gitPullFastForward(path),
+            ),
+      );
 
       if (Option.isSome(outcome)) {
         pulled = outcome.value;
@@ -372,7 +375,7 @@ export const safePull = (
 
       if (attempt < PULL_MAX_ATTEMPTS) {
         yield* log.warn(
-          `Pull timed out after ${PULL_ATTEMPT_TIMEOUT_SECONDS}s for ${name}, retrying (${attempt + 1}/${PULL_MAX_ATTEMPTS})...`,
+          `Pull timed out for ${name}, retrying (${attempt + 1}/${PULL_MAX_ATTEMPTS})...`,
         );
       } else {
         yield* log.warn(
