@@ -9,8 +9,10 @@
 
 require("hypr.host.monitors")
 
--- The extra desktop dot station desktop adds, streamed to Station's TV.
+-- The extra desktop dot station desktop adds, streamed to Station's TV. It
+-- always opens on workspace 9.
 hl.monitor({ output = "STATION", mode = "2560x1440@60", position = "auto-left", scale = 4 / 3 })
+hl.workspace_rule({ workspace = "9", monitor = "STATION", default = true })
 
 -- The off-screen desktops dot agent screen adds, where agents run browser
 -- windows without them showing on a real monitor. AGENT holds new agent
