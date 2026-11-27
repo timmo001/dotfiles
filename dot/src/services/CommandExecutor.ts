@@ -133,6 +133,22 @@ export interface CommandExecutorService {
     },
   ) => Effect.Effect<number>;
 
+  /**
+   * Run a command, passing its stdout through as {@link inherit} does, and
+   * hand each line of its stderr to `onLine`, split on `\r` as well as
+   * `\n`, so a progress line that redraws itself arrives on every redraw.
+   * Returns the exit code.
+   */
+  readonly watch: <R>(
+    cmd: string,
+    args: readonly string[],
+    onLine: (line: string) => Effect.Effect<void, never, R>,
+    opts?: {
+      readonly cwd?: string;
+      readonly env?: Readonly<Record<string, string>>;
+    },
+  ) => Effect.Effect<number, never, R>;
+
   /** Run a command with inherited stdio (stdin/stdout/stderr pass through) */
   readonly inherit: (
     cmd: string,
@@ -278,6 +294,43 @@ export class CommandExecutor extends Context.Service<
             );
 
             const exitCode = yield* exitStatus(handle);
+            yield* release(handle);
+
+            return exitCode;
+          }).pipe(Effect.scoped, Effect.orDie);
+        },
+
+        watch: (cmd, args, onLine, opts) => {
+          const fullCmd = [cmd, ...args];
+          log(`watch: ${describe(fullCmd, opts?.cwd)}`);
+          const commandLogFile = inheritedCommandLogFile();
+
+          return Effect.gen(function* () {
+            if (commandLogFile)
+              writeMirroredLog(commandLogFile, `\n$ ${fullCmd.join(" ")}\n`);
+
+            const handle = yield* spawner.spawn(
+              ChildProcess.make(cmd, args, {
+                cwd: opts?.cwd,
+                stdin: "ignore",
+                ...envOptions(opts?.env),
+              }),
+            );
+
+            const [, , exitCode] = yield* Effect.all(
+              [
+                // A reserved stdout carries only JSON, so the child's goes to stderr
+                pipeProcessOutput(
+                  handle.stdout,
+                  stdoutReserved() ? process.stderr : process.stdout,
+                  commandLogFile,
+                ),
+                Stream.runForEach(lines(handle.stderr), onLine),
+                exitStatus(handle),
+              ],
+              { concurrency: "unbounded" },
+            );
+
             yield* release(handle);
 
             return exitCode;

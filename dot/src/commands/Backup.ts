@@ -108,6 +108,21 @@ const lastLine = (error: CommandError | { readonly message: string }) =>
     .split("\n")
     .at(-1) ?? "";
 
+/**
+ * How far Kopia's progress line says a snapshot has got, such as
+ * `estimated 2.3 GB (52.1%) 1m5s left`, once it has estimated the size.
+ */
+const KOPIA_PERCENT = /\((\d+(?:\.\d+)?)%\) .* left/;
+
+/** Kopia's progress line, which it redraws on stderr while a snapshot runs. */
+const KOPIA_PROGRESS = /^ [|/\-\\*] \d+ hashing, /;
+
+/** How often Kopia redraws its progress line, so the status file isn't rewritten every 300 ms. */
+const KOPIA_PROGRESS_INTERVAL = "5s";
+
+/** The least change in overall progress, from 0 to 1, worth reporting. */
+const PROGRESS_STEP = 0.01;
+
 /** Write the status file when there is one, stamping when it was written. */
 const reporter = (file: string | undefined) =>
   Effect.fn("Backup.report")(function* (
@@ -320,12 +335,10 @@ export const backupSnapshot = Effect.fn("Backup.snapshot")(function* (
   const recorded: Record<string, string> = {};
 
   for (const [index, source] of sources.entries()) {
-    yield* report({
-      health: "ok",
-      busy: true,
-      progress: index / sources.length,
-      summary: `Backing up ${source} (${index + 1} of ${sources.length})`,
-    });
+    const summary = `Backing up ${source} (${index + 1} of ${sources.length})`;
+    let reported = index / sources.length;
+
+    yield* report({ health: "ok", busy: true, progress: reported, summary });
     yield* Effect.logInfo(`Snapshot of ${source}`);
 
     // Taken before the snapshot, so a change during it shows next time
@@ -334,11 +347,39 @@ export const backupSnapshot = Effect.fn("Backup.snapshot")(function* (
         ? Option.none<string>()
         : yield* fingerprint(source);
 
-    const exitCode = yield* executor.inherit("kopia", [
-      "snapshot",
-      "create",
-      source,
-    ]);
+    // Kopia's progress moves this source's share of the whole. Its
+    // redrawn progress line stays out of the journal; anything else it
+    // says on stderr, such as an error, passes through.
+    const onLine = (line: string) => {
+      const percent = KOPIA_PERCENT.exec(line)?.[1];
+
+      if (percent !== undefined) {
+        const progress =
+          (index + Math.min(Number(percent), 100) / 100) / sources.length;
+
+        if (progress - reported < PROGRESS_STEP) return Effect.void;
+
+        reported = progress;
+
+        return report({ health: "ok", busy: true, progress, summary });
+      }
+
+      if (KOPIA_PROGRESS.test(line) || line.trim() === "") return Effect.void;
+
+      return Effect.sync(() => process.stderr.write(`${line}\n`));
+    };
+
+    const exitCode = yield* executor.watch(
+      "kopia",
+      [
+        "snapshot",
+        "create",
+        "--progress",
+        `--progress-update-interval=${KOPIA_PROGRESS_INTERVAL}`,
+        source,
+      ],
+      onLine,
+    );
 
     if (exitCode !== 0) {
       yield* Effect.logError(`Snapshot of ${source} failed`);
