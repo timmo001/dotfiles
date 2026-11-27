@@ -27,8 +27,9 @@ for desk = 0, agent_desks do
 end
 
 -- browse opens every agent window as about:blank, and Hyprland would focus it
--- on the user's workspace. Hold it on AGENT instead, without focus. Page
--- popups that start blank go there too.
+-- on the user's workspace. Hold it on AGENT instead, without focus. Popups
+-- that start blank go there too; the window.open hook below sends the user's
+-- own back.
 hl.window_rule({
   name = "agent-browser-windows",
   match = { class = "^(chromium)$", initial_title = "^about:blank - Chromium$" },
@@ -36,11 +37,41 @@ hl.window_rule({
   no_initial_focus = true,
 })
 
--- With AGENT off, the agent workspace sits unseen on a real monitor, so a
--- browse window held there would be lost. Turn AGENT on, which brings the
--- workspace and the window onto it, where the corner view shows them.
+local function is_agent_workspace(workspace)
+  return workspace ~= nil and (workspace.name == "agent" or workspace.name:match("^agent%-%d+$") ~= nil)
+end
+
 hl.on("window.open", function(window)
-  if window.workspace and window.workspace.name == "agent" and not hl.get_monitor("AGENT") then
+  if not (window.workspace and window.workspace.name == "agent") then
+    return
+  end
+
+  -- A page the user is on opens its popups (such as a PayPal checkout) blank
+  -- too, and the rule above would hide them on AGENT. The rule keeps focus
+  -- where it was, so when that's a Chromium window on one of the user's own
+  -- workspaces, the user opened it: send it back there and focus it.
+  local opener = hl.get_active_window()
+  if
+    opener
+    and opener.address ~= window.address
+    and opener.class == "chromium"
+    and opener.workspace
+    and not is_agent_workspace(opener.workspace)
+  then
+    local name = opener.workspace.name
+    local numbered = name == tostring(opener.workspace.id) or name:match("^special:")
+    hl.dispatch(hl.dsp.window.move({
+      workspace = numbered and name or ("name:" .. name),
+      follow = true,
+      window = "address:" .. window.address,
+    }))
+    return
+  end
+
+  -- With AGENT off, the agent workspace sits unseen on a real monitor, so a
+  -- browse window held there would be lost. Turn AGENT on, which brings the
+  -- workspace and the window onto it, where the corner view shows them.
+  if not hl.get_monitor("AGENT") then
     hl.exec_cmd("dot agent screen on")
   end
 end)
