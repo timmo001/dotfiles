@@ -434,8 +434,9 @@ const followRewrittenUpstream = Effect.fn("Git.followRewrittenUpstream")(
  * the commits made here; other local commits are left alone, so the pull
  * fails. Returns true only when the pull succeeds. The network fetch runs first through
  * {@link gitRemoteOutput}, so it is prompt-free and retried after transient
- * connection failures; the fast-forward and submodule checkout then run
- * locally. Timeout and retry of the whole pull are owned by the caller
+ * connection failures. It fetches a submodule only when the incoming commits
+ * move its pin, and the submodule update fetches any pinned commit still
+ * missing. Timeout and retry of the whole pull are owned by the caller
  * (see `safePull` in the update flow), which holds the
  * per-repo context needed to report and retry.
  */
@@ -459,8 +460,11 @@ export function gitPullFastForward(
 
     if (submodulesClean !== 0) return false;
 
+    // Fetching every submodule on every pull can pull a large one's whole
+    // history again (a shallow vendored frontend is ~200 MB) and overrun the
+    // fetch timeout, even when the pull doesn't move its pin.
     const fetchError = yield* gitRemoteOutput(
-      ["fetch", "--quiet", "--recurse-submodules=yes", "--jobs=8"],
+      ["fetch", "--quiet", "--recurse-submodules=on-demand", "--jobs=8"],
       { cwd: repoPath },
       PULL_FETCH_TIMEOUT,
     ).pipe(
