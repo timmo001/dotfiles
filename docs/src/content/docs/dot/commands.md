@@ -1139,7 +1139,7 @@ Snapshot folders with Kopia, reporting progress to a status file
 dot backup snapshot [flags] <source...>
 ```
 
-Runs kopia snapshot create for each source in turn, against the repository KOPIA_CONFIG_PATH (or Kopia's default config) is connected to. With --wait it first waits for kopia repository status to answer, and exits 75 when it doesn't, so a unit can count that as skipped. With --status-file it reports busy, which source is running and how far it has got, then each source's size and file count, in the status file shape dot services reads. Exits 1 when any source fails.
+Runs kopia snapshot create for each source in turn, against the repository KOPIA_CONFIG_PATH (or Kopia's default config) is connected to. With --wait it first waits for kopia repository status to answer, and exits 75 when it doesn't, so a unit can count that as skipped. With --status-file it reports busy, which source is running and how far it has got, then each source's size and file count, in the status file shape dot services reads. With --fingerprints it records a fingerprint of each source that backs up, taken just before its snapshot, for dot backup changed. Exits 1 when any source fails.
 
 **Options**
 
@@ -1147,6 +1147,7 @@ Runs kopia snapshot create for each source in turn, against the repository KOPIA
 | --- | --- |
 | `--wait` `<string>` | Wait this long for the repository to answer, then exit 75 |
 | `--status-file` `<string>` | Status file to report progress and the result in, for dot services |
+| `--fingerprints` `<string>` | File holding each source's fingerprint at its last snapshot |
 | `--help` `-h` | Show help information |
 
 **Arguments**
@@ -1160,6 +1161,36 @@ Runs kopia snapshot create for each source in turn, against the repository KOPIA
 ```bash
 dot backup snapshot ~/Pictures ~/Videos
 dot backup snapshot --wait '15 minutes' --status-file ~/.local/state/kopia/kopia-snapshot.json ~/.ssh
+```
+
+### `dot backup changed`
+
+Check whether folders changed since their last snapshot, without the repository
+
+```text
+dot backup changed [flags] <source...>
+```
+
+Hashes the path, type, size and modification time of everything under each source and compares it with the fingerprint dot backup snapshot --fingerprints recorded for it. Exits 0 when any source changed, has no fingerprint yet or can't be read, and 75 when none changed. With --status-file a skip says nothing changed, keeping the last backup's size and file counts.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--fingerprints` `<string>` | File holding each source's fingerprint at its last snapshot |
+| `--status-file` `<string>` | Status file to report progress and the result in, for dot services |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<source>` | Folders the snapshot backs up |
+
+**Examples**
+
+```bash
+dot backup changed --fingerprints ~/.local/state/kopia/kopia-snapshot.fingerprints.json ~/Pictures ~/Videos
 ```
 
 ### `dot backup verify`

@@ -70,6 +70,7 @@ import {
 } from "../commands/Services.js";
 import { probeKopia, probeSyncthing } from "../commands/ServiceProbes.js";
 import {
+  backupChanged,
   backupSnapshot,
   backupTestRestore,
   backupVerify,
@@ -769,6 +770,12 @@ const statusFile = text(
   "Status file to report progress and the result in, for dot services",
 );
 
+const backupFingerprints = Flag.String("fingerprints").pipe(
+  Flag.withDescription(
+    "File holding each source's fingerprint at its last snapshot",
+  ),
+);
+
 const backupCommand = describe(
   Command.make("backup").pipe(
     Command.withSubcommands([
@@ -785,11 +792,13 @@ const backupCommand = describe(
               "Wait this long for the repository to answer, then exit 75",
             ).pipe(Flag.optional),
             statusFile,
+            fingerprints: backupFingerprints.pipe(Flag.optional),
           },
-          ({ sources, wait, statusFile }) =>
+          ({ sources, wait, statusFile, fingerprints }) =>
             backupSnapshot(sources, {
               wait: optional(wait),
               statusFile: optional(statusFile),
+              fingerprints: optional(fingerprints),
             }),
         ),
         "Snapshot folders with Kopia, reporting progress to a status file",
@@ -799,7 +808,33 @@ const backupCommand = describe(
         ],
         {
           description:
-            "Runs kopia snapshot create for each source in turn, against the repository KOPIA_CONFIG_PATH (or Kopia's default config) is connected to. With --wait it first waits for kopia repository status to answer, and exits 75 when it doesn't, so a unit can count that as skipped. With --status-file it reports busy, which source is running and how far it has got, then each source's size and file count, in the status file shape dot services reads. Exits 1 when any source fails.",
+            "Runs kopia snapshot create for each source in turn, against the repository KOPIA_CONFIG_PATH (or Kopia's default config) is connected to. With --wait it first waits for kopia repository status to answer, and exits 75 when it doesn't, so a unit can count that as skipped. With --status-file it reports busy, which source is running and how far it has got, then each source's size and file count, in the status file shape dot services reads. With --fingerprints it records a fingerprint of each source that backs up, taken just before its snapshot, for dot backup changed. Exits 1 when any source fails.",
+        },
+      ),
+      describe(
+        Command.make(
+          "changed",
+          {
+            sources: Argument.String("source").pipe(
+              Argument.variadic({ min: 1 }),
+              Argument.withDescription("Folders the snapshot backs up"),
+            ),
+            fingerprints: backupFingerprints,
+            statusFile,
+          },
+          ({ sources, fingerprints, statusFile }) =>
+            backupChanged(sources, {
+              fingerprints,
+              statusFile: optional(statusFile),
+            }),
+        ),
+        "Check whether folders changed since their last snapshot, without the repository",
+        [
+          "dot backup changed --fingerprints ~/.local/state/kopia/kopia-snapshot.fingerprints.json ~/Pictures ~/Videos",
+        ],
+        {
+          description:
+            "Hashes the path, type, size and modification time of everything under each source and compares it with the fingerprint dot backup snapshot --fingerprints recorded for it. Exits 0 when any source changed, has no fingerprint yet or can't be read, and 75 when none changed. With --status-file a skip says nothing changed, keeping the last backup's size and file counts.",
         },
       ),
       describe(

@@ -3,7 +3,8 @@
  * the repository `KOPIA_CONFIG_PATH` (or Kopia's default config) is connected
  * to. A snapshot reports its progress to a status file for `dot services` and
  * System Bridge, and a test restore checks that files come back from the
- * newest snapshots as they went in.
+ * newest snapshots as they went in. A change check compares the sources with
+ * fingerprints a snapshot recorded, so a unit can skip waking the repository.
  */
 import {
   Cache,
@@ -16,12 +17,23 @@ import {
   Schedule,
   Schema,
 } from "effect";
-import { join } from "node:path";
+import { createHash } from "node:crypto";
+import { dirname, join } from "node:path";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
-import { type ReportedStatus, writeReportedStatus } from "./Services.js";
+import {
+  type ReportedStatus,
+  readReportedStatusFile,
+  writeReportedStatus,
+} from "./Services.js";
 
-/** The exit code for a snapshot skipped because the repository didn't answer. */
+/**
+ * The exit code for a snapshot skipped because the repository didn't answer,
+ * and for a change check that found nothing to back up.
+ */
 const SKIPPED = 75;
+
+/** Files a fingerprint reads the details of at once. */
+const FINGERPRINT_CONCURRENCY = 32;
 
 /** How often to ask the repository again while waiting for it. */
 const REPOSITORY_POLL = "15 seconds";
@@ -129,12 +141,130 @@ const newestSnapshots = Effect.fn("Backup.newestSnapshots")(function* (
   return yield* decodeSnapshots(output);
 });
 
+const decodeFingerprints = Schema.decodeUnknownEffect(
+  Schema.fromJsonString(Schema.Record(Schema.String, Schema.String)),
+);
+
+/**
+ * A hash of the path, type, size and modification time of everything under
+ * `source`, so a change shows without asking the repository. None when the
+ * source can't be listed, which counts as a change.
+ */
+const fingerprint = Effect.fn("Backup.fingerprint")(function* (source: string) {
+  const fs = yield* FileSystem.FileSystem;
+  const names = yield* fs.readDirectory(source, { recursive: true });
+
+  const entries = yield* Effect.forEach(
+    [...names].sort(),
+    (name) =>
+      fs.stat(join(source, name)).pipe(
+        Effect.map((info) =>
+          [
+            name,
+            info.type,
+            String(info.size),
+            Option.match(info.mtime, {
+              onNone: () => "",
+              onSome: (mtime) => String(mtime.getTime()),
+            }),
+          ].join("\0"),
+        ),
+        // Removed since the listing, or unreadable
+        Effect.orElseSucceed(() => `${name}\0missing`),
+      ),
+    { concurrency: FINGERPRINT_CONCURRENCY },
+  );
+
+  return createHash("sha256").update(entries.join("\n")).digest("hex");
+}, Effect.option);
+
+/** Each source's fingerprint at its last snapshot, or none yet. */
+const readFingerprints = Effect.fn("Backup.readFingerprints")(function* (
+  file: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+
+  return yield* fs.readFileString(file).pipe(
+    Effect.flatMap(decodeFingerprints),
+    Effect.orElseSucceed((): Record<string, string> => ({})),
+  );
+});
+
+/** Atomically add the fingerprints of sources just backed up. */
+const recordFingerprints = Effect.fn("Backup.recordFingerprints")(
+  function* (file: string, recorded: Record<string, string>) {
+    const fs = yield* FileSystem.FileSystem;
+    const saved = yield* readFingerprints(file);
+    const temporary = `${file}.tmp`;
+
+    yield* fs.makeDirectory(dirname(file), { recursive: true });
+    yield* fs.writeFileString(
+      temporary,
+      JSON.stringify({ ...saved, ...recorded }),
+    );
+    yield* fs.rename(temporary, file);
+  },
+  Effect.catchCause(() =>
+    Effect.logWarning("Couldn't record the sources' fingerprints"),
+  ),
+);
+
+/** Options for {@link backupChanged}. */
+export interface BackupChangedOptions {
+  /** Where `dot backup snapshot --fingerprints` records the last backup. */
+  readonly fingerprints: string;
+  /** The snapshot's status file, told when nothing changed. */
+  readonly statusFile?: string;
+}
+
+/**
+ * Exit 0 when any source differs from its fingerprint at the last backup, or
+ * has none, and 75 when none does, so a unit can leave the NAS off. A skip
+ * notes it in the status file, keeping the last backup's figures.
+ */
+export const backupChanged = Effect.fn("Backup.changed")(function* (
+  sources: readonly string[],
+  options: BackupChangedOptions,
+) {
+  const saved = yield* readFingerprints(options.fingerprints);
+
+  for (const source of sources) {
+    const current = yield* fingerprint(source);
+
+    if (Option.isNone(current) || saved[source] !== current.value) {
+      yield* Effect.logInfo(`${source} changed since the last backup`);
+
+      return;
+    }
+  }
+
+  yield* Effect.logInfo("Nothing changed since the last backup");
+
+  if (options.statusFile !== undefined) {
+    const previous = Option.getOrUndefined(
+      yield* readReportedStatusFile(options.statusFile),
+    );
+
+    yield* reporter(options.statusFile)({
+      health: "ok",
+      busy: false,
+      summary: "Nothing changed since the last backup",
+      ...(previous?.stats && { stats: previous.stats }),
+      ...(previous?.lists && { lists: previous.lists }),
+    });
+  }
+
+  process.exitCode = SKIPPED;
+});
+
 /** Options for {@link backupSnapshot}. */
 export interface BackupSnapshotOptions {
   /** How long to wait for the repository to answer, in milliseconds. */
   readonly wait?: number;
   /** Where to report progress for `dot services`. */
   readonly statusFile?: string;
+  /** Where to record each backed-up source's fingerprint for `dot backup changed`. */
+  readonly fingerprints?: string;
 }
 
 /**
@@ -187,6 +317,8 @@ export const backupSnapshot = Effect.fn("Backup.snapshot")(function* (
     readonly snapshot: KopiaSnapshot | undefined;
   }> = [];
 
+  const recorded: Record<string, string> = {};
+
   for (const [index, source] of sources.entries()) {
     yield* report({
       health: "ok",
@@ -195,6 +327,12 @@ export const backupSnapshot = Effect.fn("Backup.snapshot")(function* (
       summary: `Backing up ${source} (${index + 1} of ${sources.length})`,
     });
     yield* Effect.logInfo(`Snapshot of ${source}`);
+
+    // Taken before the snapshot, so a change during it shows next time
+    const print =
+      options.fingerprints === undefined
+        ? Option.none<string>()
+        : yield* fingerprint(source);
 
     const exitCode = yield* executor.inherit("kopia", [
       "snapshot",
@@ -215,7 +353,12 @@ export const backupSnapshot = Effect.fn("Backup.snapshot")(function* (
     );
 
     results.push({ source, ok: true, snapshot: newest });
+
+    if (Option.isSome(print)) recorded[source] = print.value;
   }
+
+  if (options.fingerprints !== undefined && Object.keys(recorded).length > 0)
+    yield* recordFingerprints(options.fingerprints, recorded);
 
   const failed = results.filter(({ ok }) => !ok);
 

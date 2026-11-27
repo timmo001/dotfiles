@@ -959,18 +959,27 @@ const latestLog = Effect.fn("Services.latestLog")(function* (
   return newest;
 });
 
+/** Read a self-reported status file, when it holds one. */
+export const readReportedStatusFile = Effect.fn(
+  "Services.readReportedStatusFile",
+)(function* (file: string) {
+  const fs = yield* FileSystem.FileSystem;
+
+  const text = yield* fs
+    .readFileString(file)
+    .pipe(Effect.orElseSucceed(() => ""));
+
+  return decodeReportedStatus(text);
+});
+
 /** Read a running service's own status, ignoring reports from earlier runs. */
 const readReportedStatus = Effect.fn("Services.readReportedStatus")(function* (
   status: NonNullable<ServiceDescriptor["status"]>,
   startedAt: number | undefined,
 ) {
-  const fs = yield* FileSystem.FileSystem;
-
-  const text = yield* fs
-    .readFileString(expandDescriptorPath(status.file))
-    .pipe(Effect.orElseSucceed(() => ""));
-
-  return decodeReportedStatus(text).pipe(
+  return (yield* readReportedStatusFile(
+    expandDescriptorPath(status.file),
+  )).pipe(
     Option.filter(
       ({ updated }) => startedAt === undefined || updated >= startedAt,
     ),
