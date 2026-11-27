@@ -856,6 +856,39 @@ dot services probe kopia
 dot services probe kopia --config ~/.config/kopia/r2.config
 ```
 
+#### `dot services probe http`
+
+Print a URL's status code, response time and certificate as a check status
+
+```text
+dot services probe http [flags] <url>
+```
+
+Sends a HEAD request, or a GET when HEAD isn't allowed, without following redirects, so a site behind a sign-in can expect its redirect. For HTTPS it also reads the certificate's expiry from the TLS handshake. Failed when the URL can't be reached, answers with a status that isn't an --expect, or its certificate has expired; a warning when it's slower than --slow or the certificate expires within --cert-warn.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--expect` `<integer>` | Status code that counts as healthy; repeat for several (default: 200) |
+| `--slow` `<string>` | Response time that counts as a warning (default: 2 seconds) |
+| `--cert-warn` `<string>` | Time left on the certificate that counts as a warning (default: 14 days) |
+| `--timeout` `<string>` | How long the request and the TLS handshake may each take (default: 10 seconds) |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<url>` | URL to check |
+
+**Examples**
+
+```bash
+dot services probe http https://photos.timmo.dev/api/server/ping
+dot services probe http --expect 302 https://bridge.timmo.dev
+```
+
 ### `dot services watch`
 
 Print the services snapshot from the dot daemon as JSON, then again after each change

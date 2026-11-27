@@ -68,7 +68,11 @@ import {
   servicesAct,
   servicesBusy,
 } from "../commands/Services.js";
-import { probeKopia, probeSyncthing } from "../commands/ServiceProbes.js";
+import {
+  probeHttp,
+  probeKopia,
+  probeSyncthing,
+} from "../commands/ServiceProbes.js";
 import {
   backupChanged,
   backupSnapshot,
@@ -991,6 +995,50 @@ const servicesCommand = describe(
               {
                 description:
                   "Lists every source's newest snapshot with kopia snapshot list --all, and the repository's size with kopia blob stats, which for an off-site repository is what it uses there. A warning when a source's newest snapshot is older than --max-age, failed when the repository can't be read. A repository server's clients can't list blobs, so they get no size.",
+              },
+            ),
+            describe(
+              Command.make(
+                "http",
+                {
+                  url: Argument.String("url").pipe(
+                    Argument.withDescription("URL to check"),
+                  ),
+                  expect: Flag.Int("expect").pipe(
+                    Flag.atLeast(0),
+                    Flag.withDescription(
+                      "Status code that counts as healthy; repeat for several (default: 200)",
+                    ),
+                  ),
+                  slow: runDuration(
+                    "slow",
+                    "Response time that counts as a warning (default: 2 seconds)",
+                  ).pipe(Flag.withDefault(2000)),
+                  certWarn: runDuration(
+                    "cert-warn",
+                    "Time left on the certificate that counts as a warning (default: 14 days)",
+                  ).pipe(Flag.withDefault(14 * 24 * 60 * 60 * 1000)),
+                  timeout: runDuration(
+                    "timeout",
+                    "How long the request and the TLS handshake may each take (default: 10 seconds)",
+                  ).pipe(Flag.withDefault(10_000)),
+                },
+                ({ url, expect, slow, certWarn, timeout }) =>
+                  probeHttp(url, {
+                    expect: expect.length > 0 ? expect : [200],
+                    slow: Duration.millis(slow),
+                    certWarn: Duration.millis(certWarn),
+                    timeout: Duration.millis(timeout),
+                  }),
+              ),
+              "Print a URL's status code, response time and certificate as a check status",
+              [
+                "dot services probe http https://photos.timmo.dev/api/server/ping",
+                "dot services probe http --expect 302 https://bridge.timmo.dev",
+              ],
+              {
+                description:
+                  "Sends a HEAD request, or a GET when HEAD isn't allowed, without following redirects, so a site behind a sign-in can expect its redirect. For HTTPS it also reads the certificate's expiry from the TLS handshake. Failed when the URL can't be reached, answers with a status that isn't an --expect, or its certificate has expired; a warning when it's slower than --slow or the certificate expires within --cert-warn.",
               },
             ),
           ]),

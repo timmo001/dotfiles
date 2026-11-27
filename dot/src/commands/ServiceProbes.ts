@@ -14,6 +14,7 @@ import {
   Result,
   Schema,
 } from "effect";
+import { connect } from "node:tls";
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http";
 import { expandHomePath } from "../lib/paths.js";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
@@ -224,6 +225,171 @@ export const probeSyncthing = Effect.gen(function* () {
   Effect.provide(FetchHttpClient.layer),
   Effect.withSpan("Probe.syncthing"),
 );
+
+/** When an HTTPS site's certificate expires, read from its TLS handshake. */
+const certificateExpiry = (url: URL, timeout: Duration.Duration) =>
+  Effect.callback<number, ProbeError>((resume) => {
+    const socket = connect({
+      host: url.hostname,
+      port: Number(url.port || 443),
+      servername: url.hostname,
+      timeout: Duration.toMillis(timeout),
+    });
+
+    const fail = (message: string) => {
+      socket.destroy();
+      resume(Effect.fail(new ProbeError({ message })));
+    };
+
+    socket.once("secureConnect", () => {
+      const expires = Date.parse(socket.getPeerCertificate().valid_to);
+      socket.end();
+      resume(
+        Number.isFinite(expires)
+          ? Effect.succeed(expires)
+          : Effect.fail(new ProbeError({ message: "No certificate expiry" })),
+      );
+    });
+    socket.once("timeout", () => fail("TLS handshake timed out"));
+    socket.once("error", (error) => fail(error.message));
+
+    return Effect.sync(() => socket.destroy());
+  });
+
+/** What `dot services probe http` checks a URL for. */
+export interface HttpProbeOptions {
+  /** Status codes that count as healthy; redirects aren't followed. */
+  readonly expect: ReadonlyArray<number>;
+  /** A response slower than this is a warning. */
+  readonly slow: Duration.Duration;
+  /** A certificate expiring within this is a warning. */
+  readonly certWarn: Duration.Duration;
+  /** How long the request and the TLS handshake may each take. */
+  readonly timeout: Duration.Duration;
+}
+
+/**
+ * Print a URL's health as a check status: the status code it answers with,
+ * without following redirects, how long it took and, for HTTPS, how long its
+ * certificate has left. Failed when it can't be reached, answers with an
+ * unexpected status or its certificate has expired; a warning when it's slow
+ * or its certificate expires soon.
+ */
+export const probeHttp = Effect.fn("Probe.http")(function* (
+  target: string,
+  options: HttpProbeOptions,
+) {
+  const url = yield* Effect.try({
+    try: () => new URL(target),
+    catch: () => new ProbeError({ message: `Not a URL: ${target}` }),
+  });
+
+  const http = yield* HttpClient.HttpClient;
+  const started = yield* Clock.currentTimeMillis;
+
+  const response = yield* http.head(url).pipe(
+    Effect.filterOrElse(
+      (head) => head.status !== 405,
+      () => http.get(url),
+    ),
+    Effect.timeoutOrElse({
+      duration: options.timeout,
+      orElse: () =>
+        Effect.fail(
+          new ProbeError({
+            message: `no answer within ${Duration.format(options.timeout)}`,
+          }),
+        ),
+    }),
+    Effect.mapError((error) =>
+      error instanceof ProbeError
+        ? error
+        : new ProbeError({ message: error.message }),
+    ),
+    Effect.provideService(FetchHttpClient.RequestInit, { redirect: "manual" }),
+    Effect.result,
+  );
+
+  const finished = yield* Clock.currentTimeMillis;
+
+  if (Result.isFailure(response))
+    return yield* printStatus({
+      health: "failed",
+      summary: `Can't reach ${url.host}: ${response.failure.message}`,
+    });
+
+  const status = response.success.status;
+  const elapsed = finished - started;
+
+  const expiry =
+    url.protocol === "https:"
+      ? yield* certificateExpiry(url, options.timeout).pipe(Effect.result)
+      : undefined;
+
+  const certificateError =
+    expiry !== undefined && Result.isFailure(expiry)
+      ? expiry.failure.message
+      : undefined;
+
+  const msLeft =
+    expiry !== undefined && Result.isSuccess(expiry)
+      ? expiry.success - finished
+      : undefined;
+
+  const daysLeft =
+    msLeft === undefined ? undefined : Math.floor(msLeft / 86_400_000);
+
+  const expected = options.expect.includes(status);
+  const expired = msLeft !== undefined && msLeft <= 0;
+
+  const expiringSoon =
+    msLeft !== undefined && msLeft < Duration.toMillis(options.certWarn);
+
+  const isSlow = elapsed > Duration.toMillis(options.slow);
+  const answered = `Answered ${status} in ${elapsed} ms`;
+
+  yield* printStatus({
+    health:
+      !expected || expired
+        ? "failed"
+        : expiringSoon || isSlow || certificateError !== undefined
+          ? "warning"
+          : "ok",
+    summary: !expected
+      ? `Answered ${status}, expected ${options.expect.join(" or ")}`
+      : expired
+        ? "Certificate has expired"
+        : expiringSoon
+          ? `Certificate expires in ${plural(daysLeft ?? 0, "day")}`
+          : certificateError !== undefined
+            ? `${answered}, but can't read its certificate`
+            : isSlow
+              ? `Slow: ${answered.toLowerCase()}`
+              : answered,
+    stats: [
+      { id: "status", label: "Status", value: status },
+      {
+        id: "response_time",
+        label: "Response time",
+        value: elapsed / 1000,
+        kind: "duration",
+      },
+      ...(daysLeft === undefined
+        ? []
+        : [
+            {
+              id: "certificate_days",
+              label: "Certificate days left",
+              value: daysLeft,
+              kind: "count" as const,
+            },
+          ]),
+    ],
+    ...(certificateError !== undefined && {
+      notes: [`Certificate: ${certificateError}`],
+    }),
+  });
+}, Effect.provide(FetchHttpClient.layer));
 
 const KopiaSnapshot = Schema.Struct({
   source: Schema.Struct({
