@@ -4,6 +4,9 @@
 # through yay, which CachyOS ships in its own repository. upkeep-git and
 # triage-git run the Upkeep and Triage servers, moved over from the Home
 # Assistant Green, and an Upkeep worker that only keeps Station current.
+# nvidia-container-toolkit lets rootless Podman containers use the RTX 4060
+# through its CDI spec, which its nvidia-cdi-refresh unit keeps current; Immich
+# runs its machine learning and video transcoding on it.
 
 1password
 bmon
@@ -22,6 +25,7 @@ krdp
 libva-utils
 mise
 moonlight-qt
+nvidia-container-toolkit
 openssh
 pacman-contrib
 pkgconf
