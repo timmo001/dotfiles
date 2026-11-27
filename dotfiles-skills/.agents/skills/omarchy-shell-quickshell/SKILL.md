@@ -17,7 +17,7 @@ metadata:
 Read the owning sources before relying on remembered plugin or backend behaviour:
 
 - `docs/omarchy-shell.md` in the `omarchy` reference (the package does not install `docs/`) and `$OMARCHY_PATH/shell/README.md` for the shell and plugin contracts.
-- `$OMARCHY_PATH/default/agents/skills/omarchy/plugins.md` for current end-user operations.
+- `$OMARCHY_PATH/default/agents/skills/omarchy/shell.md` and `$OMARCHY_PATH/default/agents/skills/omarchy-make-plugin/SKILL.md` for current end-user operations and plugin authoring (Omarchy 4.5 has `omarchy/plugins.md` instead).
 - `$OMARCHY_PATH/shell/services/PluginRegistry.qml` for manifest validation and discovery behaviour.
 - `$OMARCHY_PATH/shell/plugins/` for maintained manifest and QML patterns. Use built-ins as locations to inspect, not templates to copy verbatim.
 - `$OMARCHY_PATH/bin/omarchy-launch-shell`, `$OMARCHY_PATH/bin/omarchy-restart-shell`, and `$OMARCHY_PATH/bin/omarchy-shell` for lifecycle and IPC behaviour.
@@ -39,6 +39,7 @@ Repo paths below are relative to the dotfiles checkout at `~/.config/dotfiles`.
 - Use Omarchy's `omarchy plugin` and `omarchy bar` commands (or the matching `omarchy` Code Mode tools) when they cover the operation. They own validation, enabled state, placement, and persisted layout.
 - For a new manually installed plugin, run `dot stow`, rescan plugins, then enable the plugin. Rescanning discovers code but does not enable it.
 - Omarchy watches user-plugin files, but dotfiles requires an explicit restart after edits to verify the final stowed state.
+- From Omarchy 4.6, `omarchy-shell shell rescanPlugins` only adds and drops plugins and never reloads a loaded plugin's code; the `reloadPlugins` IPC (which 4.5 lacks) or a shell restart does.
 - Plugins run unsandboxed in the shell process. Review all plugin code before enabling it.
 
 Each plugin in `~/.config/omarchy/plugins/` is a real directory. A stowed plugin's files are symlinks into dotfiles, so a new stowed plugin is invisible until `dot stow` creates them, and existing files are already live. A managed plugin is a real-file copy that `dot stow` deploys.
