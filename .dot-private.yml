@@ -15,7 +15,8 @@
 # seerr--station hold the ESPHome and Seerr containers moved from the NAS, and
 # music-assistant--station Music Assistant and its YouTube Music PO token
 # generator, moved from the HA Green. immich--station holds Immich, the photo
-# library the phone backs up to.
+# library the phone backs up to. systemd--station holds the OpenCode service's
+# Plannotator environment, so reviews answer on the tailnet.
 stow:
   - agents
   - chromium--station
@@ -35,6 +36,7 @@ stow:
   - plannotator
   - scripts
   - seerr--station
+  - systemd--station
   - triage
   - triage--station
   - upkeep
