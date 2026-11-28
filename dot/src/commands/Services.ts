@@ -889,6 +889,14 @@ function buildRuns(
     }
   }
 
+  // A unit runs one invocation at a time, so an open run before the newest one
+  // ended without systemd logging it, such as when the machine lost power asleep.
+  for (const run of [...runs.values()].slice(0, -1))
+    if (run.result === "running") {
+      run.result = "stopped";
+      run.detail = "Ended without a stop record";
+    }
+
   const ordered = [...runs.values()]
     .flatMap(
       ({
